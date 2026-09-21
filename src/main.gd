@@ -6,10 +6,15 @@ const SURFACE := Color("171c26")
 const SURFACE_HOVER := Color("202838")
 const TEXT := Color("f4f7fb")
 const MUTED_TEXT := Color("8f9aac")
+# Event colour is valence, not event type: mint = gain, amber = exciting gain,
+# red = loss. Severity within a valence (routine tax vs a boss hit) is shown
+# through a deeper/more saturated shade of the same hue plus stronger motion,
+# not a separate colour the player would have to learn on its own.
 const ACCENT := Color("91f5c4")
-const CRITICAL := Color("ffd581")
+const CRITICAL := Color("ffcf6b")
 const DANGER := Color("ff9e9e")
-const COIN_ACCENT := Color("f5c95d")
+const BOSS_DANGER := Color("ff4d6d")
+const COIN_ACCENT := Color("e8a23c")
 
 # Each screen gets its own accent instead of one colour for everything, so
 # Workshop / Labs / Cards read as distinct places rather than one long list.
@@ -47,6 +52,15 @@ var level_label: Label
 var floating_text_layer: Control
 var ring_a: Panel
 var ring_tween: Tween
+var stage_glow: TextureRect
+var number_flash_tween: Tween
+# Smoothed log10 of the displayed Number (log10(mantissa) + exponent), eased
+# toward the true value every frame instead of snapping to it. -INF means 0.
+var display_log_value := -INF
+var stage_alert := false
+
+const NUMBER_SMOOTH_RATE := 12.0
+const RING_ALERT_THRESHOLD := 0.55
 
 var toast_panel: PanelContainer
 var toast_label: Label
@@ -101,6 +115,8 @@ func _ready() -> void:
 		offline_message = "WELCOME BACK  +" + offline.amount.format_value() + "  /  " + _format_duration(offline.seconds)
 		if offline.capped:
 			offline_message += " (12H CAP)"
+	_snap_number_display()
+	_refresh_number_display()
 	_refresh_all()
 
 func _notification(what: int) -> void:
@@ -113,17 +129,29 @@ func _process(delta: float) -> void:
 		if event.is_critical:
 			_spawn_floating_text("CRITICAL +" + event.amount.format_value(), CRITICAL, floating_text_layer.size * Vector2(0.5, 0.42))
 			_pulse_number(1.06)
+			_flash_number(CRITICAL)
 		elif event.type == "tax_collection":
 			_show_toast("TAX COLLECTED  -" + event.amount.format_value(), DANGER)
+			_flash_number(DANGER)
+			_pulse_stage_impact(DANGER)
 		elif event.type == "boss_collection":
-			_show_toast("BOSS COLLECTION  -" + event.amount.format_value(), CRITICAL)
+			_show_toast("BOSS COLLECTION  -" + event.amount.format_value(), BOSS_DANGER)
+			_flash_number(BOSS_DANGER, 0.5)
+			_pulse_stage_impact(BOSS_DANGER)
+			_shake_number()
+			if state.settings.haptics:
+				Input.vibrate_handheld(35)
 		elif event.type == "boss_clear":
 			_show_toast("BOSS CLEARED  ·  +" + event.amount.format_value() + " COINS", CRITICAL)
 		elif event.type == "tier_unlock":
 			_show_toast("TIER " + event.amount.format_value() + " UNLOCKED", CRITICAL)
 		elif event.type == "wave_death":
 			_show_died_screen(state.last_run_summary)
+			_snap_number_display()
 			state.save()
+	_advance_display_number(delta)
+	_refresh_number_display()
+	_update_stage_colour()
 	save_elapsed += delta
 	refresh_elapsed += delta
 	drawer_elapsed += delta
@@ -207,12 +235,16 @@ func _build_number_screen(parent: Control) -> void:
 	number_button.pressed.connect(_tap_number)
 	screen.add_child(number_button)
 
-	var glow := TextureRect.new()
-	glow.texture = _make_radial_glow(ACCENT, 340)
-	glow.custom_minimum_size = Vector2(340, 340)
-	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	glow.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	number_button.add_child(glow)
+	# Built white and tinted entirely through modulate, so the ambient danger
+	# colour (see _update_stage_colour) can retint it every frame without
+	# rebuilding the gradient texture.
+	stage_glow = TextureRect.new()
+	stage_glow.texture = _make_radial_glow(Color.WHITE, 340)
+	stage_glow.modulate = ACCENT
+	stage_glow.custom_minimum_size = Vector2(340, 340)
+	stage_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stage_glow.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	number_button.add_child(stage_glow)
 
 	ring_a = _make_ring_panel(210, ACCENT)
 	ring_a.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
@@ -356,10 +388,13 @@ func _start_ring_animation() -> void:
 		ring_a.visible = false
 		return
 	ring_a.visible = true
+	# Faster breathing while a Collection hit is imminent (see
+	# _update_stage_colour), so the ring's pace itself signals urgency.
+	var duration := 1.1 if stage_alert else 2.2
 	ring_tween = create_tween()
 	ring_tween.set_loops()
-	ring_tween.tween_property(ring_a, "scale", Vector2(1.9, 1.9), 2.2).from(Vector2(0.7, 0.7)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	ring_tween.parallel().tween_property(ring_a, "modulate:a", 0.0, 2.2).from(0.6)
+	ring_tween.tween_property(ring_a, "scale", Vector2(1.9, 1.9), duration).from(Vector2(0.7, 0.7)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	ring_tween.parallel().tween_property(ring_a, "modulate:a", 0.0, duration).from(0.6)
 
 ## Builds a full-bleed screen with a padded VBox content root: the shared
 ## shape behind Workshop, Labs and Cards. The Number screen is custom-built
@@ -773,6 +808,7 @@ func _tap_number() -> void:
 	if event.is_critical:
 		_spawn_floating_text("CRITICAL +" + event.amount.format_value(), CRITICAL, spawn_pos)
 		_pulse_number(1.09)
+		_flash_number(CRITICAL)
 	else:
 		_spawn_floating_text("+" + event.amount.format_value(), ACCENT, spawn_pos)
 		_pulse_number(1.035)
@@ -789,6 +825,7 @@ func _on_run_button_pressed() -> void:
 	else:
 		state.start_run()
 		_show_toast("RUN STARTED  ·  WORKSHOP LV " + str(state.get_workshop_level()) + " APPLIED", ACCENT)
+	_snap_number_display()
 	state.save()
 	_refresh_all()
 
@@ -837,7 +874,6 @@ func _spawn_floating_text(text: String, colour: Color, local_pos: Vector2) -> vo
 
 func _refresh_all() -> void:
 	background_rect.color = Color.BLACK if bool(state.settings.high_contrast) else BACKGROUND
-	_refresh_number_display()
 	rate_label.visible = true
 	rate_label.text = ("+" if state.in_run else "STARTING +") + state.get_rate_per_second().format_value() + "/sec"
 	tap_hint.text = "TAP ANYWHERE" if state.in_run else "START A RUN TO PRODUCE"
@@ -1105,6 +1141,7 @@ func _confirm_prestige() -> void:
 	if gain <= 0:
 		return
 	_show_toast("PRESTIGE  ·  +" + str(gain) + " KNOWLEDGE", CARDS_ACCENT)
+	_snap_number_display()
 	state.save()
 	_refresh_all()
 	_refresh_cards()
@@ -1254,6 +1291,7 @@ func _toggle_drawer() -> void:
 func _clear_local_save() -> void:
 	state.clear_save()
 	state = GameState.new()
+	_snap_number_display()
 	drawer.visible = false
 	_select_tab("number")
 	_show_toast("LOCAL SAVE CLEARED", CRITICAL)
@@ -1276,8 +1314,107 @@ func _pulse_number(target_scale: float) -> void:
 	tween.tween_property(number_col, "scale", Vector2(target_scale, target_scale), 0.06)
 	tween.tween_property(number_col, "scale", Vector2.ONE, 0.12)
 
+## Briefly recolours the big number to an event colour and eases it back to
+## its resting colour, so a critical tick, a tax hit or a boss hit reads on
+## the number itself, not only in the floating text beside it. Not gated on
+## Reduce Motion: a colour fade carries no motion-sickness risk.
+func _flash_number(colour: Color, duration: float = 0.35) -> void:
+	if number_flash_tween != null and number_flash_tween.is_valid():
+		number_flash_tween.kill()
+	number_display_lead.add_theme_color_override("font_color", colour)
+	number_display_tail.add_theme_color_override("font_color", colour)
+	number_flash_tween = create_tween()
+	number_flash_tween.set_parallel(true)
+	number_flash_tween.tween_property(number_display_lead, "theme_override_colors/font_color", TEXT, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	number_flash_tween.tween_property(number_display_tail, "theme_override_colors/font_color", MUTED_TEXT, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+## A short horizontal rattle reserved for boss hits, so the heaviest loss in
+## the game reads as a bigger event than routine tax rather than just a
+## brighter colour.
+func _shake_number() -> void:
+	if state.settings.reduce_motion:
+		return
+	var tween := create_tween()
+	tween.tween_property(number_col, "position:x", -8.0, 0.04)
+	tween.tween_property(number_col, "position:x", 8.0, 0.06)
+	tween.tween_property(number_col, "position:x", -4.0, 0.06)
+	tween.tween_property(number_col, "position:x", 0.0, 0.05)
+
+## A one-shot radial flash behind the number on impact. Kept as its own
+## temporary node (freed when done) rather than driving stage_glow directly,
+## since stage_glow's modulate is already being written every frame by
+## _update_stage_colour and a tween on the same property would just be
+## overwritten the next frame.
+func _pulse_stage_impact(colour: Color) -> void:
+	if state.settings.reduce_motion:
+		return
+	var flash := TextureRect.new()
+	flash.texture = _make_radial_glow(Color.WHITE, 360)
+	flash.custom_minimum_size = Vector2(360, 360)
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	flash.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	flash.modulate = Color(colour.r, colour.g, colour.b, 0.0)
+	number_button.add_child(flash)
+	number_button.move_child(flash, ring_a.get_index())
+	var tween := create_tween()
+	tween.tween_property(flash, "modulate:a", 0.9, 0.05)
+	tween.tween_property(flash, "modulate:a", 0.0, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.tween_callback(flash.queue_free)
+
+## How close the current wave is to its Collection hit, 0 (safe) to 1 (about
+## to land). Zero whenever no hit is coming: outside a run, during grace, or
+## once Liability is already cleared for the wave.
+func _stage_danger_progress() -> float:
+	if not state.in_run:
+		return 0.0
+	var encounter: Variant = state.active_encounter
+	if encounter == null or encounter.max_liability.is_zero() or encounter.is_cleared():
+		return 0.0
+	return clampf(state.wave_accumulator / GameState.WAVE_INTERVAL_SECONDS, 0.0, 1.0)
+
+## Ties the stage's ring and glow to that danger: calm mint normally, warming
+## toward red (or the deeper boss red) as the hit approaches, so the stage
+## itself foreshadows the wave outcome instead of staying static.
+func _update_stage_colour() -> void:
+	var danger := _stage_danger_progress()
+	var is_boss := state.in_run and state.active_encounter != null and bool(state.active_encounter.is_boss)
+	var hot: Color = BOSS_DANGER if is_boss else DANGER
+	var colour := ACCENT
+	if danger > RING_ALERT_THRESHOLD:
+		var t := (danger - RING_ALERT_THRESHOLD) / (1.0 - RING_ALERT_THRESHOLD)
+		colour = ACCENT.lerp(hot, t)
+	var style := ring_a.get_theme_stylebox("panel") as StyleBoxFlat
+	if style != null:
+		style.border_color = Color(colour.r, colour.g, colour.b, lerpf(0.24, 0.5, danger))
+	stage_glow.modulate = colour
+	var alert := danger > RING_ALERT_THRESHOLD
+	if alert != stage_alert:
+		stage_alert = alert
+		_start_ring_animation()
+
+## Moves the displayed number toward the true value every frame instead of
+## snapping to it, so production reads as a smooth climb even across
+## order-of-magnitude jumps. ScientificNumber is mantissa x 10^exponent, so
+## interpolation happens in log space (log10(mantissa) + exponent) rather than
+## lerping mantissa directly, which would jump the instant the exponent ticks
+## over. Discrete resets (run start/end, death, prestige, clearing the save)
+## call _snap_number_display() instead of easing into them.
+func _advance_display_number(delta: float) -> void:
+	var target := -INF if state.number.is_zero() else state.number.log10()
+	if state.settings.reduce_motion or is_inf(display_log_value) or is_inf(target):
+		display_log_value = target
+		return
+	display_log_value = lerp(display_log_value, target, clampf(delta * NUMBER_SMOOTH_RATE, 0.0, 1.0))
+
+func _snap_number_display() -> void:
+	display_log_value = -INF if state.number.is_zero() else state.number.log10()
+
 func _refresh_number_display() -> void:
-	var text := state.number.format_value()
+	var display_number := ScientificNumber.new()
+	if not is_inf(display_log_value):
+		var exponent := floori(display_log_value)
+		display_number = ScientificNumber.new(pow(10.0, display_log_value - float(exponent)), exponent)
+	var text := display_number.format_value()
 	var last_comma := text.rfind(",")
 	var lead := text
 	var tail := ""
@@ -1289,17 +1426,17 @@ func _refresh_number_display() -> void:
 		tail = text.substr(last_comma + 1)
 	number_display_lead.text = lead
 	number_display_tail.text = tail
-	var font_size := _number_font_size()
+	var font_size := _number_font_size(display_number)
 	number_display_lead.add_theme_font_size_override("font_size", font_size)
 	number_display_tail.add_theme_font_size_override("font_size", font_size)
 
-func _number_font_size() -> int:
+func _number_font_size(display_number: ScientificNumber) -> int:
 	# Measure the button the number actually lives in, not the whole canvas: the
 	# canvas expands on wide windows, and a font sized from it overflows the panel.
 	var width := maxf(size.x, 320.0)
 	if number_button != null and number_button.size.x > 0.0:
 		width = number_button.size.x
-	var scale := 0.105 if state.number.exponent >= 18 else 0.155
+	var scale := 0.105 if display_number.exponent >= 18 else 0.155
 	return int(clampf(width * scale, 24.0, 96.0))
 
 func _make_label(content: String, font_size: int, alignment: HorizontalAlignment, colour: Color) -> Label:
