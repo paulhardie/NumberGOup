@@ -42,6 +42,7 @@ var number_display_lead: Label
 var number_display_tail: Label
 var number_col: VBoxContainer
 var rate_label: Label
+var tap_hint: Label
 var level_label: Label
 var floating_text_layer: Control
 var ring_a: Panel
@@ -53,6 +54,7 @@ var toast_tween: Tween
 
 var wave_label: Label
 var run_coins_label: Label
+var tier_selector: OptionButton
 var brace_button: Button
 var shield_button: Button
 var run_button: Button
@@ -109,10 +111,14 @@ func _process(delta: float) -> void:
 		if event.is_critical:
 			_spawn_floating_text("CRITICAL +" + event.amount.format_value(), CRITICAL, floating_text_layer.size * Vector2(0.5, 0.42))
 			_pulse_number(1.06)
-		elif event.type == "wave_tax":
-			_show_toast("WAVE " + str(state.wave) + "  ·  TAX -" + event.amount.format_value(), DANGER)
-		elif event.type == "wave_boss":
-			_show_toast("BOSS WAVE " + str(state.wave) + "  ·  TAX -" + event.amount.format_value(), CRITICAL)
+		elif event.type == "tax_collection":
+			_show_toast("TAX COLLECTED  -" + event.amount.format_value(), DANGER)
+		elif event.type == "boss_collection":
+			_show_toast("BOSS COLLECTION  -" + event.amount.format_value(), CRITICAL)
+		elif event.type == "boss_clear":
+			_show_toast("BOSS CLEARED  ·  +" + event.amount.format_value() + " COINS", CRITICAL)
+		elif event.type == "tier_unlock":
+			_show_toast("TIER " + event.amount.format_value() + " UNLOCKED", CRITICAL)
 		elif event.type == "wave_death":
 			_show_died_screen(state.last_run_summary)
 			state.save()
@@ -233,7 +239,7 @@ func _build_number_screen(parent: Control) -> void:
 	number_row.add_child(number_display_tail)
 	rate_label = _make_label("", 15, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	number_col.add_child(rate_label)
-	var tap_hint := _make_label("TAP ANYWHERE", 11, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	tap_hint = _make_label("TAP ANYWHERE", 11, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	number_col.add_child(tap_hint)
 
 	floating_text_layer = Control.new()
@@ -243,16 +249,15 @@ func _build_number_screen(parent: Control) -> void:
 
 	_build_run_bar(number_button)
 
-## Prototype surface for the wave-tax Run mode: lives on the Number screen,
-## above the nav dock, since the goal so far has been testing whether the
-## mechanic itself feels good rather than settling its permanent home.
+## Compact Tax-run control surface: tier choice, two-axis encounter status,
+## permanent defence and the explicit start/retreat boundary.
 func _build_run_bar(parent: Control) -> void:
 	var bar := VBoxContainer.new()
 	bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	bar.offset_left = 24
 	bar.offset_right = -24
-	bar.offset_bottom = -108
-	bar.offset_top = -212
+	bar.offset_bottom = -124
+	bar.offset_top = -334
 	bar.add_theme_constant_override("separation", 8)
 	parent.add_child(bar)
 
@@ -260,17 +265,25 @@ func _build_run_bar(parent: Control) -> void:
 	bar.add_child(wave_label)
 	run_coins_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, COIN_ACCENT)
 	bar.add_child(run_coins_label)
+	tier_selector = OptionButton.new()
+	tier_selector.focus_mode = Control.FOCUS_NONE
+	tier_selector.custom_minimum_size = Vector2(0, 34)
+	tier_selector.add_theme_font_size_override("font_size", 12)
+	for tier in state.balance_profile.tiers:
+		tier_selector.add_item("TIER " + str(tier.id), tier.id)
+	tier_selector.item_selected.connect(_on_tier_selected)
+	bar.add_child(tier_selector)
 
 	var action_row := HBoxContainer.new()
 	action_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	action_row.add_theme_constant_override("separation", 8)
 	bar.add_child(action_row)
 	brace_button = _make_pill_button("BRACE", DANGER, 130)
-	brace_button.tooltip_text = "Spend 30% of Number to fully block the next wave's tax."
+	brace_button.tooltip_text = "Spend 30% of Number to block the next Collection hit."
 	brace_button.pressed.connect(_on_brace_pressed)
 	action_row.add_child(brace_button)
 	shield_button = _make_pill_button("SHIELD", ACCENT, 150)
-	shield_button.tooltip_text = "Spend coins for a permanent reduction to wave tax. Survives death."
+	shield_button.tooltip_text = "Spend Coins for a permanent reduction to Collection. Survives every reset."
 	shield_button.pressed.connect(_on_shield_matrix_pressed)
 	action_row.add_child(shield_button)
 
@@ -362,7 +375,7 @@ func _build_workshop_screen(parent: Control) -> void:
 	var content := _build_flat_screen(parent, "workshop")
 	var header_row := HBoxContainer.new()
 	content.add_child(header_row)
-	var title := _make_label("Workshop", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	var title := _make_label("Permanent Workshop", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(title)
 	var chip := PanelContainer.new()
@@ -370,6 +383,10 @@ func _build_workshop_screen(parent: Control) -> void:
 	workshop_header = _make_label("", 12, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT)
 	chip.add_child(workshop_header)
 	header_row.add_child(chip)
+	content.add_child(_make_label("PERMANENT · APPLIES TO EVERY RUN", 10, HORIZONTAL_ALIGNMENT_LEFT, WORKSHOP_ACCENT))
+	var permanence_copy := _make_label("Spend Coins between runs to raise the starting stats used by every future attempt.", 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	permanence_copy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(permanence_copy)
 
 	content.add_child(_make_label("CHOOSE A BAY", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
 	workshop_board_row = HBoxContainer.new()
@@ -420,7 +437,7 @@ func _build_labs_screen(parent: Control) -> void:
 	var content := _build_flat_screen(parent, "labs")
 	content.add_child(_make_label("Labs", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT))
 	content.add_child(_make_label("RESEARCH FOCUS", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
-	var description := _make_label("Pick one bay to discount its cards by 25%. It locks in until your next Reset.", 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	var description := _make_label("Pick one Workshop bay to discount by 25%. It locks in until your next Prestige.", 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content.add_child(description)
 	content.add_child(HSeparator.new())
@@ -630,7 +647,7 @@ func _build_died_screen() -> void:
 	inner.add_child(_make_label("RUN OVER", 12, HORIZONTAL_ALIGNMENT_CENTER, DANGER))
 	died_wave_label = _make_label("", 26, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
 	inner.add_child(died_wave_label)
-	var subtitle := _make_label("The equation finally asked for more than you had.", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	var subtitle := _make_label("The equation finally asked for more than you had. Your Workshop was retained.", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inner.add_child(subtitle)
 	inner.add_child(HSeparator.new())
@@ -657,7 +674,7 @@ func _build_died_screen() -> void:
 func _show_died_screen(summary: RunSummary) -> void:
 	if summary == null or died_screen == null:
 		return
-	died_wave_label.text = "WAVE " + str(summary.wave_reached)
+	died_wave_label.text = "TIER " + str(summary.tier_id) + "  ·  WAVE " + str(summary.wave_reached)
 	died_coins_label.text = "+" + str(summary.coins_earned) + " COINS EARNED"
 	if summary.knowledge_gained > 0:
 		died_knowledge_label.text = "+" + str(summary.knowledge_gained) + " KNOWLEDGE"
@@ -715,7 +732,7 @@ func _on_dock_tab_selected(tab_id: String) -> void:
 
 func _is_tab_unlocked(tab_id: String) -> bool:
 	var threshold: float = tab_unlock_lifetime.get(tab_id, 0.0)
-	return state.lifetime_generated.compare_to(ScientificNumber.from_float(threshold)) >= 0
+	return state.highest_number.compare_to(ScientificNumber.from_float(threshold)) >= 0
 
 func _refresh_dock() -> void:
 	var unlocked := {}
@@ -726,6 +743,9 @@ func _refresh_dock() -> void:
 	nav_dock.update_state(active, unlocked)
 
 func _tap_number() -> void:
+	if not state.in_run:
+		_show_toast("START A RUN TO PRODUCE NUMBER", MUTED_TEXT)
+		return
 	var event := state.tap()
 	var spawn_pos := floating_text_layer.get_local_mouse_position()
 	if not Rect2(Vector2.ZERO, floating_text_layer.size).has_point(spawn_pos):
@@ -743,12 +763,22 @@ func _tap_number() -> void:
 
 func _on_run_button_pressed() -> void:
 	if state.in_run:
-		state.end_run()
-		_show_toast("RUN BANKED  ·  WAVE " + str(state.wave), ACCENT)
+		var summary := state.end_run()
+		if summary != null:
+			_show_toast("RETREATED  ·  TIER " + str(summary.tier_id) + " WAVE " + str(summary.wave_reached), DANGER)
 	else:
 		state.start_run()
-		_show_toast("RUN STARTED", ACCENT)
+		_show_toast("RUN STARTED  ·  WORKSHOP LV " + str(state.get_workshop_level()) + " APPLIED", ACCENT)
 	state.save()
+	_refresh_all()
+
+func _on_tier_selected(index: int) -> void:
+	var tier_id := tier_selector.get_item_id(index)
+	if state.select_tier(tier_id):
+		_show_toast("TIER " + str(tier_id) + " SELECTED", ACCENT)
+		state.save()
+	else:
+		_show_toast("TIER LOCKED", MUTED_TEXT)
 	_refresh_all()
 
 func _on_brace_pressed() -> void:
@@ -788,8 +818,9 @@ func _spawn_floating_text(text: String, colour: Color, local_pos: Vector2) -> vo
 func _refresh_all() -> void:
 	background_rect.color = Color.BLACK if bool(state.settings.high_contrast) else BACKGROUND
 	_refresh_number_display()
-	rate_label.visible = state.get_rate_per_second().compare_to(ScientificNumber.new()) > 0
-	rate_label.text = "+" + state.get_rate_per_second().format_value() + "/sec"
+	rate_label.visible = true
+	rate_label.text = ("+" if state.in_run else "STARTING +") + state.get_rate_per_second().format_value() + "/sec"
+	tap_hint.text = "TAP ANYWHERE" if state.in_run else "START A RUN TO PRODUCE"
 	level_label.text = "LV " + str(state.get_workshop_level())
 	_refresh_run_bar()
 	if offline_message != "":
@@ -800,26 +831,36 @@ func _refresh_all() -> void:
 	if current_tab == "workshop":
 		# Do not rebuild live buttons during the player's press/release cycle.
 		# Rebuilding a Control tree every refresh can eat touch releases on Web.
-		workshop_header.text = state.number.format_value()
+		workshop_header.text = str(state.coins) + " COINS"
 
-## Shows how much of current Number the next wave would take, in both percent
-## and absolute terms, so a bad spend-vs-buffer decision is a number you could
-## have seen coming rather than a surprise the tax delivers after the fact.
+## Shows the two independent checks: remaining Liability that production must
+## clear and the absolute Collection hit Number must be able to survive.
 func _refresh_run_bar() -> void:
-	var next_wave := state.wave + 1
-	if next_wave <= GameState.FREE_WAVES:
-		wave_label.text = "WAVE " + str(state.wave) + "  ·  FREE UNTIL WAVE " + str(GameState.FREE_WAVES + 1)
-		wave_label.add_theme_color_override("font_color", MUTED_TEXT)
-	elif not state.in_run:
-		wave_label.text = "WAVE " + str(state.wave) + "  ·  BANKED, TAX PAUSED"
+	for index in range(tier_selector.item_count):
+		var tier_id := tier_selector.get_item_id(index)
+		var unlocked := state.is_tier_unlocked(tier_id)
+		tier_selector.set_item_disabled(index, not unlocked)
+		tier_selector.set_item_text(index, "TIER " + str(tier_id) + ("" if unlocked else "  ·  LOCKED"))
+		if tier_id == state.selected_tier:
+			tier_selector.select(index)
+	tier_selector.disabled = state.in_run
+	if not state.in_run:
+		wave_label.text = "TIER " + str(state.selected_tier) + "  ·  WORKSHOP LV " + str(state.get_workshop_level()) + " BASELINE"
 		wave_label.add_theme_color_override("font_color", MUTED_TEXT)
 	else:
-		var pct := state.get_wave_tax_percent(next_wave)
-		var at_risk := state.number.multiply_scalar(pct)
-		var boss_tag := "  (BOSS)" if next_wave % GameState.BOSS_WAVE_INTERVAL == 0 else ""
-		wave_label.text = "WAVE " + str(state.wave) + "  ·  AT RISK -" + at_risk.format_value() + " (-%.1f%%)" % (pct * 100.0) + boss_tag
-		wave_label.add_theme_color_override("font_color", CRITICAL if boss_tag != "" else DANGER)
-	run_coins_label.text = "COINS " + str(state.coins) + "   ·   BEST WAVE " + str(state.highest_wave)
+		var encounter: Variant = state.active_encounter
+		var boss_tag := "  ·  BOSS" if encounter != null and encounter.is_boss else ""
+		if encounter == null or encounter.max_liability.is_zero():
+			wave_label.text = "WAVE " + str(state.wave) + "  ·  GRACE" + boss_tag
+			wave_label.add_theme_color_override("font_color", MUTED_TEXT)
+		elif encounter.is_cleared():
+			wave_label.text = "WAVE " + str(state.wave) + "  ·  LIABILITY CLEARED" + boss_tag
+			wave_label.add_theme_color_override("font_color", ACCENT)
+		else:
+			var seconds_left := maxi(0, ceili(GameState.WAVE_INTERVAL_SECONDS - state.wave_accumulator))
+			wave_label.text = "WAVE " + str(state.wave) + "  ·  LIABILITY " + encounter.remaining_liability.format_value() + "  ·  HIT -" + state.get_effective_collection().format_value() + " IN " + str(seconds_left) + "s" + boss_tag
+			wave_label.add_theme_color_override("font_color", CRITICAL if boss_tag != "" else DANGER)
+	run_coins_label.text = "COINS " + str(state.coins) + "   ·   TIER BEST " + str(state.get_tier_best())
 	brace_button.visible = state.in_run
 	brace_button.disabled = not state.can_brace()
 	shield_button.disabled = not state.can_purchase_tax_resistance()
@@ -828,16 +869,16 @@ func _refresh_run_bar() -> void:
 	else:
 		shield_button.text = "SHIELD +1 (" + str(state.get_tax_resistance_cost()) + ")"
 	if state.in_run:
-		run_button.text = "BANK & END RUN"
+		run_button.text = "RETREAT & RESET"
 		run_button.add_theme_stylebox_override("normal", _panel_style(DANGER, 999))
 		run_button.add_theme_stylebox_override("hover", _panel_style(DANGER.lightened(0.1), 999))
 	else:
-		run_button.text = "START RUN"
+		run_button.text = "START FROM WORKSHOP LV " + str(state.get_workshop_level())
 		run_button.add_theme_stylebox_override("normal", _panel_style(ACCENT, 999))
 		run_button.add_theme_stylebox_override("hover", _panel_style(ACCENT.lightened(0.1), 999))
 
 func _refresh_workshop() -> void:
-	workshop_header.text = state.number.format_value()
+	workshop_header.text = str(state.coins) + " COINS"
 	for bay in ProgressionTaxonomy.WORKSHOP_BAYS:
 		var active: bool = state.workshop.selected_bay == bay
 		var unlocked := state.is_bay_active(bay)
@@ -862,6 +903,8 @@ func _refresh_workshop_detail() -> void:
 	var description := _make_label(ProgressionTaxonomy.bay_description(bay), 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	workshop_detail.add_child(description)
+	if state.in_run:
+		workshop_detail.add_child(_make_locked_panel("AVAILABLE BETWEEN RUNS", "Current ranks are active now and will be retained when this run ends."))
 	if not state.is_bay_active(bay):
 		workshop_detail.add_child(_make_locked_panel("REACH WORKSHOP LEVEL " + str(state.get_bay_required_level(bay)), "Your current level is " + str(state.get_workshop_level()) + "."))
 		return
@@ -873,8 +916,6 @@ func _refresh_workshop_detail() -> void:
 		if is_next:
 			found_next = true
 		workshop_detail.add_child(_make_ranked_card(definition, BAY_ICON[bay], is_next))
-	if bay == "logic" and state.get_auto_slot_count() > 0:
-		_add_priority_controls()
 
 func _refresh_labs() -> void:
 	_clear_children(labs_content)
@@ -896,7 +937,7 @@ func _make_focus_card(bay: String) -> Button:
 	var active := state.is_bay_active(bay)
 	var button := _make_tile_button()
 	button.custom_minimum_size = Vector2(0, 92)
-	button.disabled = not active
+	button.disabled = not active or state.in_run
 	var border := LABS_ACCENT if active else Color.TRANSPARENT
 	button.add_theme_stylebox_override("normal", _panel_style(SURFACE, 14, border))
 	button.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 14, LABS_ACCENT))
@@ -947,7 +988,7 @@ func _make_focus_locked_card(bay: String) -> PanelContainer:
 	var badge_wrap := CenterContainer.new()
 	badge_wrap.add_child(badge)
 	inner.add_child(badge_wrap)
-	var subtitle := _make_label("-25% cost on every " + ProgressionTaxonomy.bay_name(bay) + " card until your next Reset.", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	var subtitle := _make_label("-25% Coin cost on every " + ProgressionTaxonomy.bay_name(bay) + " upgrade until your next Prestige.", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inner.add_child(subtitle)
 	return panel
@@ -1018,7 +1059,7 @@ func _make_prestige_panel() -> PanelContainer:
 	var gain := state.get_prestige_knowledge_gain()
 	var gain_text := "+" + str(gain) + " KNOWLEDGE" if gain > 0 else "KEEP PLAYING TO EARN KNOWLEDGE"
 	inner.add_child(_make_label(gain_text, 22, HORIZONTAL_ALIGNMENT_CENTER, TEXT if gain > 0 else MUTED_TEXT))
-	var subtitle := _make_label("Number and Workshop reset. Knowledge and Insights carry over forever.", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	var subtitle := _make_label("Run Number resets. Permanent Workshop ranks, Coins and Insights are retained.", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inner.add_child(subtitle)
 	var confirm := Button.new()
@@ -1047,13 +1088,13 @@ func _confirm_prestige() -> void:
 	_refresh_all()
 	_refresh_cards()
 
-## A row card for a ranked, Number-funded Workshop upgrade: an icon chip, a
+## A row card for a ranked, permanent Coin-funded Workshop upgrade: an icon chip, a
 ## title with an optional NEXT tag, a thin fill bar for rank, and cost/rank
 ## at the right.
 func _make_ranked_card(definition: UpgradeDefinition, icon_kind: int, is_next: bool) -> Button:
 	var owned := state.get_owned(definition.id)
 	var maxed := definition.is_maxed(owned)
-	var disabled := maxed or not state.is_unlocked(definition)
+	var disabled := maxed or not state.is_unlocked(definition) or state.in_run
 	var button := _make_row_button()
 	button.tooltip_text = definition.description
 	button.disabled = disabled
@@ -1105,7 +1146,7 @@ func _make_ranked_card(definition: UpgradeDefinition, icon_kind: int, is_next: b
 	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	right.alignment = BoxContainer.ALIGNMENT_CENTER
 	row.add_child(right)
-	var value_text := "MAXED" if maxed else state.get_cost(definition).format_value()
+	var value_text := "MAXED" if maxed else str(state.get_workshop_coin_cost(definition)) + " COINS"
 	right.add_child(_make_label(value_text, 14, HORIZONTAL_ALIGNMENT_RIGHT, TEXT if not disabled else MUTED_TEXT))
 	right.add_child(_make_label(str(owned) + "/" + str(definition.max_rank), 9, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT))
 	button.pressed.connect(func(upgrade_id: String = definition.id):
@@ -1115,7 +1156,7 @@ func _make_ranked_card(definition: UpgradeDefinition, icon_kind: int, is_next: b
 			_refresh_all()
 			_refresh_workshop()
 		else:
-			_show_toast("NEED " + state.get_cost(definition).format_value(), MUTED_TEXT)
+			_show_toast("NEED " + str(state.get_workshop_coin_cost(definition)) + " COINS", MUTED_TEXT)
 	)
 	return button
 
@@ -1142,32 +1183,6 @@ func _make_locked_panel(title_text: String, subtitle_text: String) -> PanelConta
 	inner.add_child(_make_label(subtitle_text, 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT))
 	return panel
 
-func _add_priority_controls() -> void:
-	workshop_detail.add_child(_make_label("AUTOPILOT PRIORITIES", 12, HORIZONTAL_ALIGNMENT_LEFT, WORKSHOP_ACCENT))
-	var explanation := _make_label("Autopilot buys the first affordable target in this order.", 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
-	explanation.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	workshop_detail.add_child(explanation)
-	for slot in range(state.get_auto_slot_count()):
-		var choices := OptionButton.new()
-		choices.add_theme_font_size_override("font_size", 13)
-		choices.add_theme_stylebox_override("normal", _panel_style(SURFACE, 12))
-		choices.add_item("PRIORITY " + str(slot + 1) + " · NONE")
-		choices.set_item_metadata(0, "")
-		var selected_index := 0
-		for definition in state.definitions:
-			if definition.bay == "":
-				continue # Knowledge cards (e.g. Insight) are not Number-funded and cannot be autopiloted.
-			choices.add_item("PRIORITY " + str(slot + 1) + " · " + definition.title)
-			choices.set_item_metadata(choices.item_count - 1, definition.id)
-			if slot < state.workshop.automation_targets.size() and state.workshop.automation_targets[slot] == definition.id:
-				selected_index = choices.item_count - 1
-		choices.select(selected_index)
-		choices.item_selected.connect(func(index: int, priority_slot: int = slot, menu: OptionButton = choices):
-			state.set_automation_target(priority_slot, str(menu.get_item_metadata(index)))
-			state.save()
-		)
-		workshop_detail.add_child(choices)
-
 func _refresh_drawer() -> void:
 	if drawer == null:
 		return
@@ -1188,16 +1203,17 @@ func _populate_stats_grid() -> void:
 	_clear_children(stats_grid)
 	var entries := [
 		["CURRENT NUMBER", state.number.format_value()],
+		["SELECTED TIER", str(state.selected_tier)],
+		["TIER BEST", str(state.get_tier_best())],
 		["KNOWLEDGE", str(state.knowledge)],
 		["WORKSHOP LEVEL", str(state.get_workshop_level())],
 		["NUMBER / SEC", state.get_rate_per_second().format_value()],
 		["HIGHEST NUMBER", state.highest_number.format_value()],
-		["LIFETIME GENERATED", state.lifetime_generated.format_value()],
+		["THIS RUN GENERATED", state.lifetime_generated.format_value()],
 		["TAPS", str(int(state.statistics.taps))],
 		["TICKS", str(int(state.statistics.ticks))],
 		["CRITICAL TICKS", str(int(state.statistics.critical_ticks))],
-		["NUMBER SPENT", ScientificNumber.from_dict(state.statistics.number_spent).format_value()],
-		["OFFLINE GENERATED", ScientificNumber.from_dict(state.statistics.offline_generated).format_value()],
+		["COINS SPENT", str(int(state.statistics.get("coins_spent", 0)))],
 	]
 	for entry in entries:
 		var cell := VBoxContainer.new()

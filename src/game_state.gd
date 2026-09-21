@@ -1,28 +1,29 @@
 class_name GameState
 extends RefCounted
 
+const TaxBalanceProfileClass = preload("res://src/tax_balance_profile.gd")
+const TaxEncounterClass = preload("res://src/tax_encounter.gd")
+const RuleModifierPipelineClass = preload("res://src/rule_modifier_pipeline.gd")
+const SaveDataV3Class = preload("res://src/save_data_v3.gd")
+const SaveDataV4Class = preload("res://src/save_data_v4.gd")
+
 const SAVE_PATH := "user://number_go_up_save.json"
 const OFFLINE_CAP_SECONDS := 43200.0
 const RESEARCH_WORKSHOP_LEVEL := 12
 const PRESTIGE_TEASER_UNLOCK := 110000.0
 const PRESTIGE_KNOWLEDGE_SCALE := 4.0
 
-## Wave tax prototype: from wave 21 on, each wave deducts a growing percentage
-## of current Number rather than a flat amount, so the threat stays proportional
-## no matter how large Number has grown.
+## Public aliases retained for UI/tests. The authored balance lives in
+## TaxBalanceProfile rather than being mixed into the state machine.
 const WAVE_INTERVAL_SECONDS := 15.0
 const FREE_WAVES := 20
 const BOSS_WAVE_INTERVAL := 10
-const WAVE_TAX_BASE := 0.015
-const WAVE_TAX_GROWTH := 1.12
-const BOSS_WAVE_TAX_MULTIPLIER := 1.5
+const TIER_UNLOCK_WAVE := 100
 const BRACE_COST_PERCENT := 0.3
 const TAX_RESISTANCE_PER_RANK := 0.04
 const TAX_RESISTANCE_MAX_RANK := 10
 const TAX_RESISTANCE_COST_BASE := 15
 const TAX_RESISTANCE_COST_GROWTH := 1.6
-const COIN_PER_TAXED_WAVE := 1
-const BOSS_COIN_MULTIPLIER := 5
 
 var number := ScientificNumber.new()
 var lifetime_generated := ScientificNumber.new()
@@ -40,20 +41,23 @@ var coins := 0
 var highest_wave := 1
 var tax_resistance_rank := 0
 var braced := false
-# Off only for the legacy baseline-pacing test, which validates the original
-# idle curve on its own terms rather than through this newer, separate system.
-var wave_tax_enabled := true
-# The wave clock only advances while a run is active (see start_run/end_run):
-# tapping, passive production, Workshop, and offline rewards are unaffected
-# and keep running whether or not a run is in progress.
+var tax_encounters_enabled := true
 var in_run := false
 var run_coins_earned := 0
+var run_elapsed := 0.0
+var run_seed: int = 0
+var selected_tier := 1
+var tier_records: Dictionary = {}
+var active_encounter = null
+var active_rule_modifiers: Array = []
+var balance_profile = TaxBalanceProfileClass.new()
 var last_run_summary: RunSummary = null
 var statistics := {
 	"taps": 0,
 	"ticks": 0,
 	"critical_ticks": 0,
 	"number_spent": ScientificNumber.new().to_dict(),
+	"coins_spent": 0,
 	"offline_generated": ScientificNumber.new().to_dict()
 }
 var settings := {"muted": false, "haptics": true, "reduce_motion": false, "high_contrast": false}
@@ -68,8 +72,11 @@ var save_path := SAVE_PATH
 func _init() -> void:
 	rng.randomize()
 	definitions = _make_definitions()
+	_ensure_tier_records()
 
 func tap() -> SimulationEvent:
+	if not in_run:
+		return SimulationEvent.new("tap", ScientificNumber.new(), false)
 	statistics.taps += 1
 	var is_critical := rng.randf() < _critical_chance()
 	var amount := ScientificNumber.from_float(_tap_base() * _base_output_multiplier() * _momentum_multiplier())
@@ -83,6 +90,8 @@ func tap() -> SimulationEvent:
 
 func advance(delta: float) -> Array[SimulationEvent]:
 	var events: Array[SimulationEvent] = []
+	if not in_run:
+		return events
 	tick_accumulator += minf(delta, 0.25)
 	var interval := 1.0 / _tick_rate()
 	var safety := 0
@@ -90,13 +99,6 @@ func advance(delta: float) -> Array[SimulationEvent]:
 		tick_accumulator -= interval
 		events.append(_produce_tick())
 		safety += 1
-	if has_automation():
-		automation_accumulator += delta
-		if automation_accumulator >= 1.0:
-			automation_accumulator = fmod(automation_accumulator, 1.0)
-			for target in workshop.automation_targets.slice(0, get_auto_slot_count()):
-				if purchase(target, true):
-					break
 	events.append_array(_advance_waves(delta))
 	return events
 
@@ -124,78 +126,158 @@ func _produce_tick() -> SimulationEvent:
 func get_rate_per_second() -> ScientificNumber:
 	return ScientificNumber.from_float(_passive_base() * _base_output_multiplier() * _momentum_multiplier() * _tick_rate())
 
-func start_run() -> bool:
+func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	if in_run:
 		return false
+	var target_tier := selected_tier if tier_id < 1 else tier_id
+	if not select_tier(target_tier):
+		return false
+	# Number is run health/resources, never a banked head start. Permanent
+	# Workshop ranks define the baseline applied to every fresh attempt.
+	number = ScientificNumber.from_float(_effect_sum("starting_number_flat"))
+	lifetime_generated = ScientificNumber.new()
+	workshop.tick_count = 0
+	momentum_stacks = 0
+	critical_chain = 0
+	tick_accumulator = 0.0
+	automation_accumulator = 0.0
 	in_run = true
 	run_coins_earned = 0
+	run_elapsed = 0.0
+	wave = 1
+	wave_accumulator = 0.0
+	braced = false
+	run_seed = seed_override if seed_override >= 0 else int(Time.get_ticks_usec()) ^ int(Time.get_unix_time_from_system())
+	rng.seed = run_seed
+	active_encounter = _make_encounter(wave)
 	return true
 
-## Voluntary bank: stops wave-clock exposure but keeps Number, wave, and coins
-## exactly as they are. Resuming later (start_run) continues from this wave.
-func end_run() -> void:
-	in_run = false
+## Retreat is an actual run ending, not a pause. It preserves permanent
+## Workshop ranks, Coins, Knowledge, Insights, Shield and tier records.
+func end_run() -> RunSummary:
+	if not in_run:
+		return null
+	last_run_summary = RunSummary.new(wave, run_coins_earned, 0, lifetime_generated.copy(), selected_tier, "retreat")
+	_reset_run_state()
+	return last_run_summary
+
+func select_tier(tier_id: int) -> bool:
+	if in_run or not balance_profile.has_tier(tier_id) or not is_tier_unlocked(tier_id):
+		return false
+	selected_tier = tier_id
+	return true
+
+func is_tier_unlocked(tier_id: int) -> bool:
+	if tier_id <= 1:
+		return balance_profile.has_tier(tier_id)
+	if not balance_profile.has_tier(tier_id):
+		return false
+	return get_tier_best(tier_id - 1) >= balance_profile.get_tier(tier_id).unlock_previous_tier_wave
+
+func get_tier_best(tier_id: int = selected_tier) -> int:
+	var record: Dictionary = tier_records.get(str(tier_id), {})
+	return int(record.get("highest_wave", 0))
+
+func get_tier_record(tier_id: int = selected_tier) -> Dictionary:
+	return tier_records.get(str(tier_id), _new_tier_record())
 
 func _advance_waves(delta: float) -> Array[SimulationEvent]:
 	var events: Array[SimulationEvent] = []
-	if not wave_tax_enabled or not in_run:
+	if not tax_encounters_enabled or not in_run:
 		return events
-	wave_accumulator += minf(delta, 0.25)
+	var safe_delta := minf(delta, 0.25)
+	run_elapsed += safe_delta
+	wave_accumulator += safe_delta
 	var safety := 0
-	while wave_accumulator >= WAVE_INTERVAL_SECONDS and safety < 10:
+	while wave_accumulator >= WAVE_INTERVAL_SECONDS and safety < 10 and in_run:
 		wave_accumulator -= WAVE_INTERVAL_SECONDS
-		wave += 1
-		highest_wave = maxi(highest_wave, wave)
-		var wave_event := _resolve_wave(wave)
+		var wave_event := _resolve_wave_boundary()
 		if wave_event != null:
 			events.append(wave_event)
 		safety += 1
 	return events
 
-func _resolve_wave(current_wave: int) -> SimulationEvent:
-	if current_wave <= FREE_WAVES:
-		return null
-	var is_boss := current_wave % BOSS_WAVE_INTERVAL == 0
-	var tax_percent := get_wave_tax_percent(current_wave)
+func _resolve_wave_boundary() -> SimulationEvent:
+	if active_encounter == null:
+		active_encounter = _make_encounter(wave)
+	if active_encounter.is_cleared():
+		return _complete_current_wave()
+	var collection := get_effective_collection()
 	if braced:
-		tax_percent = 0.0
+		collection = ScientificNumber.new()
 		braced = false
-	var tax := number.multiply_scalar(tax_percent)
-	number = number.subtract(tax)
-	var coin_gain := (current_wave - FREE_WAVES) * COIN_PER_TAXED_WAVE
-	if is_boss:
-		coin_gain += (current_wave - FREE_WAVES) * BOSS_COIN_MULTIPLIER
+	number = number.subtract(collection)
+	if number.is_zero():
+		return _wave_death(wave)
+	return SimulationEvent.new("boss_collection" if active_encounter.is_boss else "tax_collection", collection)
+
+func _complete_current_wave() -> SimulationEvent:
+	var completed_wave := wave
+	var completed_boss: bool = bool(active_encounter.is_boss)
+	var coin_gain: int = int(active_encounter.reward)
+	var record := get_tier_record(selected_tier).duplicate(true)
+	var previous_best := int(record.get("highest_wave", 0))
+	record.highest_wave = maxi(previous_best, completed_wave)
+	var claimed: Array = record.get("milestones_claimed", [])
+	if balance_profile.MILESTONE_WAVES.has(completed_wave) and not claimed.has(completed_wave):
+		claimed.append(completed_wave)
+		record.milestones_claimed = claimed
+		coin_gain += balance_profile.milestone_bonus(selected_tier, completed_wave)
+	if completed_wave == TIER_UNLOCK_WAVE:
+		var existing_best := float(record.get("best_time", 0.0))
+		if existing_best <= 0.0 or run_elapsed < existing_best:
+			record.best_time = run_elapsed
+	tier_records[str(selected_tier)] = record
+	highest_wave = maxi(highest_wave, completed_wave)
 	coins += coin_gain
 	run_coins_earned += coin_gain
-	if number.is_zero():
-		return _wave_death(current_wave)
-	return SimulationEvent.new("wave_boss" if is_boss else "wave_tax", tax)
+	wave += 1
+	active_encounter = _make_encounter(wave)
+	if completed_wave == TIER_UNLOCK_WAVE and previous_best < TIER_UNLOCK_WAVE and balance_profile.has_tier(selected_tier + 1):
+		return SimulationEvent.new("tier_unlock", ScientificNumber.from_float(float(selected_tier + 1)))
+	return SimulationEvent.new("boss_clear" if completed_boss else "wave_clear", ScientificNumber.from_float(float(coin_gain)))
+
+func _make_encounter(target_wave: int):
+	var liability := RuleModifierPipelineClass.apply(
+		balance_profile.liability_for_wave(selected_tier, target_wave),
+		"liability",
+		active_rule_modifiers
+	)
+	return TaxEncounterClass.new(
+		selected_tier,
+		target_wave,
+		liability,
+		balance_profile.collection_for_wave(selected_tier, target_wave),
+		balance_profile.reward_for_wave(selected_tier, target_wave),
+		balance_profile.is_boss_wave(target_wave)
+	)
 
 func _wave_death(reached: int) -> SimulationEvent:
 	var knowledge_gain := get_prestige_knowledge_gain()
 	knowledge += knowledge_gain
-	last_run_summary = RunSummary.new(reached, run_coins_earned, knowledge_gain, lifetime_generated.copy())
+	last_run_summary = RunSummary.new(reached, run_coins_earned, knowledge_gain, lifetime_generated.copy(), selected_tier, "death")
 	_reset_run_state()
 	return SimulationEvent.new("wave_death", ScientificNumber.from_float(float(reached)))
 
-## The percentage of current Number the tax removes on a given wave, including
-## the boss multiplier. Public (not prefixed) so the UI can preview the next
-## hit. Deliberately uncapped: once the curve demands 100% or more, that wave
-## wipes Number outright (ScientificNumber.subtract floors at zero), which is
-## what actually makes death inevitable without countering it, rather than an
-## asymptote that current Number can shrink toward forever without ever
-## reaching zero.
-func get_wave_tax_percent(target_wave: int) -> float:
-	if target_wave <= FREE_WAVES:
-		return 0.0
-	var raw := WAVE_TAX_BASE * pow(WAVE_TAX_GROWTH, float(target_wave - FREE_WAVES))
-	if target_wave % BOSS_WAVE_INTERVAL == 0:
-		raw *= BOSS_WAVE_TAX_MULTIPLIER
-	var resisted := raw * (1.0 - float(tax_resistance_rank) * TAX_RESISTANCE_PER_RANK)
-	return maxf(0.0, resisted)
+func get_effective_collection() -> ScientificNumber:
+	if active_encounter == null:
+		return ScientificNumber.new()
+	var modifiers := active_rule_modifiers.duplicate(true)
+	modifiers.append({
+		"source": "shield_matrix",
+		"target": "collection",
+		"stage": "multiplicative",
+		"value": maxf(0.0, 1.0 - float(tax_resistance_rank) * TAX_RESISTANCE_PER_RANK),
+	})
+	return RuleModifierPipelineClass.apply(active_encounter.collection, "collection", modifiers)
+
+func get_effective_liability() -> ScientificNumber:
+	if active_encounter == null:
+		return ScientificNumber.new()
+	return active_encounter.remaining_liability.copy()
 
 func can_brace() -> bool:
-	return in_run and not braced and not number.is_zero() and wave + 1 > FREE_WAVES
+	return in_run and active_encounter != null and not active_encounter.is_cleared() and not braced and not number.is_zero()
 
 func brace() -> bool:
 	if not can_brace():
@@ -208,7 +290,7 @@ func get_tax_resistance_cost() -> int:
 	return int(round(float(TAX_RESISTANCE_COST_BASE) * pow(TAX_RESISTANCE_COST_GROWTH, tax_resistance_rank)))
 
 func can_purchase_tax_resistance() -> bool:
-	return tax_resistance_rank < TAX_RESISTANCE_MAX_RANK and coins >= get_tax_resistance_cost()
+	return not in_run and tax_resistance_rank < TAX_RESISTANCE_MAX_RANK and coins >= get_tax_resistance_cost()
 
 func purchase_tax_resistance() -> bool:
 	if not can_purchase_tax_resistance():
@@ -262,26 +344,35 @@ func get_cost(definition: UpgradeDefinition) -> ScientificNumber:
 		discount += 0.25
 	return definition.cost_at(get_owned(definition.id), discount)
 
+func get_workshop_coin_cost(definition: UpgradeDefinition) -> int:
+	var cost := get_cost(definition)
+	if cost.is_zero():
+		return 0
+	# Authored Workshop costs stay in the exact-number helper so growth and
+	# discounts remain inspectable, while Coins themselves are whole units.
+	return maxi(1, ceili(cost.mantissa * pow(10.0, cost.exponent)))
+
 func is_unlocked(definition: UpgradeDefinition) -> bool:
-	return lifetime_generated.compare_to(definition.unlock_lifetime) >= 0 and get_workshop_level() >= definition.workshop_level_required and is_bay_active(definition.bay)
+	if definition.category == "workshop":
+		return get_workshop_level() >= definition.workshop_level_required and is_bay_active(definition.bay)
+	return lifetime_generated.compare_to(definition.unlock_lifetime) >= 0
 
 func can_purchase(upgrade_id: String) -> bool:
 	var definition := get_definition(upgrade_id)
-	if definition == null or not is_unlocked(definition):
+	if definition == null or definition.category != "workshop" or in_run or not is_unlocked(definition):
 		return false
 	if definition.is_maxed(get_owned(upgrade_id)):
 		return false
-	return number.compare_to(get_cost(definition)) >= 0
+	return coins >= get_workshop_coin_cost(definition)
 
 func purchase(upgrade_id: String, silent: bool = false) -> bool:
 	if not can_purchase(upgrade_id):
 		return false
 	var definition := get_definition(upgrade_id)
-	var cost := get_cost(definition)
-	number = number.subtract(cost)
+	var cost := get_workshop_coin_cost(definition)
+	coins -= cost
 	purchased[upgrade_id] = get_owned(upgrade_id) + 1
-	var spent := ScientificNumber.from_dict(statistics.number_spent).add(cost)
-	statistics.number_spent = spent.to_dict()
+	statistics.coins_spent = int(statistics.get("coins_spent", 0)) + cost
 	return true
 
 func can_purchase_insight() -> bool:
@@ -309,17 +400,15 @@ func prestige() -> int:
 		return 0
 	knowledge += gain
 	_reset_run_state()
+	focus_path = ""
 	return gain
 
-## Shared by voluntary Prestige and forced wave death. Knowledge, Insight, coins
-## and the Shield Matrix rank are permanent and survive this; everything
-## Number-funded resets so the loop is "start over, a bit stronger."
+## Shared by voluntary Prestige and run endings. Workshop ranks are permanent;
+## only run Number and transient combat state are cleared.
 func _reset_run_state() -> void:
 	number = ScientificNumber.new()
 	lifetime_generated = ScientificNumber.new()
-	purchased = {}
-	focus_path = ""
-	workshop = WorkshopState.new()
+	workshop.tick_count = 0
 	momentum_stacks = 0
 	critical_chain = 0
 	tick_accumulator = 0.0
@@ -328,9 +417,13 @@ func _reset_run_state() -> void:
 	wave_accumulator = 0.0
 	braced = false
 	in_run = false
+	run_elapsed = 0.0
+	run_seed = 0
+	run_coins_earned = 0
+	active_encounter = null
 
 func select_focus(path: String) -> bool:
-	if focus_path != "" or get_workshop_level() < RESEARCH_WORKSHOP_LEVEL:
+	if in_run or focus_path != "" or get_workshop_level() < RESEARCH_WORKSHOP_LEVEL:
 		return false
 	if not ProgressionTaxonomy.WORKSHOP_BAYS.has(path):
 		return false
@@ -338,17 +431,10 @@ func select_focus(path: String) -> bool:
 	return true
 
 func has_automation() -> bool:
-	if not automation_enabled or get_auto_slot_count() <= 0:
-		return false
-	for target in workshop.automation_targets:
-		if get_definition(target) != null:
-			return true
 	return false
 
 func get_auto_slot_count() -> int:
-	if get_owned("automation_core") <= 0:
-		return 0
-	return mini(3, 1 + get_owned("priority_buffer"))
+	return 0
 
 func set_automation_target(slot: int, upgrade_id: String) -> void:
 	if slot < 0 or slot >= get_auto_slot_count() or get_definition(upgrade_id) == null:
@@ -358,18 +444,15 @@ func set_automation_target(slot: int, upgrade_id: String) -> void:
 	workshop.automation_targets[slot] = upgrade_id
 
 func apply_offline(seconds_elapsed: float) -> OfflineAward:
-	var seconds := clampf(seconds_elapsed, 0.0, OFFLINE_CAP_SECONDS)
-	var amount := get_rate_per_second().multiply_scalar(seconds)
-	_add_number(amount)
-	var offline := ScientificNumber.from_dict(statistics.offline_generated).add(amount)
-	statistics.offline_generated = offline.to_dict()
-	return OfflineAward.new(amount, seconds, seconds_elapsed > OFFLINE_CAP_SECONDS)
+	# Runs freeze exactly while away. Between runs the Workshop is a management
+	# layer, so there is no run Number to generate offline.
+	return OfflineAward.new()
 
 func save() -> bool:
 	var file := FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify(SaveDataV2.make(self)))
+	file.store_string(JSON.stringify(SaveDataV4Class.make(self)))
 	return true
 
 func load() -> OfflineAward:
@@ -382,9 +465,75 @@ func load() -> OfflineAward:
 	if SaveDataV2.is_legacy_v1(parsed):
 		_migrate_v1(parsed)
 		return OfflineAward.new()
-	if not SaveDataV2.is_valid(parsed):
+	if SaveDataV2.is_valid(parsed):
+		return _migrate_v2(parsed)
+	if SaveDataV3Class.is_valid(parsed):
+		return _migrate_v3(parsed)
+	if not SaveDataV4Class.is_valid(parsed):
 		return OfflineAward.new()
 	var data: Dictionary = parsed
+	_load_common_fields(data)
+	tier_records = data.get("tier_records", {})
+	_ensure_tier_records()
+	selected_tier = int(data.get("selected_tier", 1))
+	if not balance_profile.has_tier(selected_tier):
+		selected_tier = 1
+	wave = maxi(1, int(data.get("wave", 1)))
+	wave_accumulator = clampf(float(data.get("wave_accumulator", 0.0)), 0.0, WAVE_INTERVAL_SECONDS)
+	in_run = bool(data.get("in_run", false))
+	var loaded_modifiers: Variant = data.get("active_rule_modifiers", [])
+	active_rule_modifiers = loaded_modifiers if loaded_modifiers is Array else []
+	run_coins_earned = int(data.get("run_coins_earned", 0))
+	run_elapsed = maxf(0.0, float(data.get("run_elapsed", 0.0)))
+	run_seed = str(data.get("run_seed", "0")).to_int()
+	braced = bool(data.get("braced", false))
+	if in_run:
+		var encounter_data: Variant = data.get("active_encounter", null)
+		active_encounter = TaxEncounterClass.from_dict(encounter_data) if encounter_data is Dictionary else _make_encounter(wave)
+		var saved_rng_state := str(data.get("rng_state", "0")).to_int()
+		if saved_rng_state != 0:
+			rng.state = saved_rng_state
+		elif run_seed != 0:
+			rng.seed = run_seed
+	else:
+		active_encounter = null
+		wave = 1
+		wave_accumulator = 0.0
+	var elapsed := Time.get_unix_time_from_system() - float(data.get("last_seen_unix", Time.get_unix_time_from_system()))
+	return apply_offline(elapsed)
+
+func _migrate_v3(data: Dictionary) -> OfflineAward:
+	_load_common_fields(data)
+	tier_records = data.get("tier_records", {})
+	_ensure_tier_records()
+	selected_tier = int(data.get("selected_tier", 1))
+	if not balance_profile.has_tier(selected_tier):
+		selected_tier = 1
+	# V3 Workshop ranks become permanent without any rank loss. A live run is
+	# restored; banked Number is retired because V4 Number exists only in runs.
+	in_run = bool(data.get("in_run", false))
+	var loaded_modifiers: Variant = data.get("active_rule_modifiers", [])
+	active_rule_modifiers = loaded_modifiers if loaded_modifiers is Array else []
+	if in_run:
+		wave = maxi(1, int(data.get("wave", 1)))
+		wave_accumulator = clampf(float(data.get("wave_accumulator", 0.0)), 0.0, WAVE_INTERVAL_SECONDS)
+		run_coins_earned = int(data.get("run_coins_earned", 0))
+		run_elapsed = maxf(0.0, float(data.get("run_elapsed", 0.0)))
+		run_seed = str(data.get("run_seed", "0")).to_int()
+		braced = bool(data.get("braced", false))
+		var encounter_data: Variant = data.get("active_encounter", null)
+		active_encounter = TaxEncounterClass.from_dict(encounter_data) if encounter_data is Dictionary else _make_encounter(wave)
+		var saved_rng_state := str(data.get("rng_state", "0")).to_int()
+		if saved_rng_state != 0:
+			rng.state = saved_rng_state
+		elif run_seed != 0:
+			rng.seed = run_seed
+	else:
+		_reset_run_state()
+	_save_migrated_state()
+	return OfflineAward.new()
+
+func _load_common_fields(data: Dictionary) -> void:
 	number = ScientificNumber.from_dict(data.number)
 	lifetime_generated = ScientificNumber.from_dict(data.lifetime)
 	highest_number = ScientificNumber.from_dict(data.get("highest", data.number))
@@ -394,17 +543,29 @@ func load() -> OfflineAward:
 	focus_path = str(data.get("focus", ""))
 	automation_enabled = bool(data.get("automation_enabled", true))
 	workshop.from_dict(data.get("workshop", {}))
-	wave = int(data.get("wave", 1))
-	wave_accumulator = float(data.get("wave_accumulator", 0.0))
 	coins = int(data.get("coins", 0))
 	highest_wave = int(data.get("highest_wave", 1))
 	tax_resistance_rank = int(data.get("tax_resistance_rank", 0))
-	in_run = bool(data.get("in_run", false))
-	run_coins_earned = int(data.get("run_coins_earned", 0))
 	statistics.merge(data.get("statistics", {}), true)
 	settings.merge(data.get("settings", {}), true)
-	var elapsed := Time.get_unix_time_from_system() - float(data.get("last_seen_unix", Time.get_unix_time_from_system()))
-	return apply_offline(elapsed)
+
+func _migrate_v2(data: Dictionary) -> OfflineAward:
+	_load_common_fields(data)
+	selected_tier = 1
+	var old_best := maxi(1, int(data.get("highest_wave", 1)))
+	tier_records = {"1": {"highest_wave": old_best, "best_time": 0.0, "milestones_claimed": []}}
+	_ensure_tier_records()
+	in_run = bool(data.get("in_run", false))
+	run_coins_earned = int(data.get("run_coins_earned", 0))
+	wave = maxi(1, int(data.get("wave", 1))) if in_run else 1
+	wave_accumulator = clampf(float(data.get("wave_accumulator", 0.0)), 0.0, WAVE_INTERVAL_SECONDS) if in_run else 0.0
+	run_seed = int(Time.get_ticks_usec()) ^ int(Time.get_unix_time_from_system())
+	rng.seed = run_seed
+	active_encounter = _make_encounter(wave) if in_run else null
+	if not in_run:
+		_reset_run_state()
+	_save_migrated_state()
+	return OfflineAward.new()
 
 func _migrate_v1(data: Dictionary) -> void:
 	number = ScientificNumber.from_dict(data.number)
@@ -442,6 +603,7 @@ func _migrate_v1(data: Dictionary) -> void:
 	var old_target := str(data.get("auto_selected", ""))
 	if old_target != "":
 		workshop.automation_targets = [old_target]
+	_reset_run_state()
 	_save_migrated_state()
 
 func _save_migrated_state() -> void:
@@ -457,8 +619,19 @@ func has_persistent_storage() -> bool:
 func _add_number(amount: ScientificNumber) -> void:
 	number = number.add(amount)
 	lifetime_generated = lifetime_generated.add(amount)
+	if in_run and active_encounter != null:
+		active_encounter.apply_compliance(amount)
 	if number.compare_to(highest_number) > 0:
 		highest_number = number.copy()
+
+func _ensure_tier_records() -> void:
+	for tier in balance_profile.tiers:
+		var key := str(tier.id)
+		if not tier_records.has(key) or not (tier_records[key] is Dictionary):
+			tier_records[key] = _new_tier_record()
+
+func _new_tier_record() -> Dictionary:
+	return {"highest_wave": 0, "best_time": 0.0, "milestones_claimed": []}
 
 func _tap_base() -> float:
 	return 1.0 + _effect_sum("tap_flat")
@@ -516,7 +689,7 @@ func _make_definitions() -> Array[UpgradeDefinition]:
 		UpgradeDefinition.new("magnitude_coil", "MAGNITUDE COIL", "+1 critical multiplier per rank.", ScientificNumber.from_float(1050), ScientificNumber.from_float(900), "workshop", {"critical_multiplier_add": 1.0}, false, 2.0, ProgressionTaxonomy.PROTOCOL, "chance", 3, 5),
 		UpgradeDefinition.new("chain_reaction", "CHAIN REACTION", "Each critical strengthens the next critical by 10% per rank.", ScientificNumber.from_float(2400), ScientificNumber.from_float(1800), "workshop", {}, false, 2.0, ProgressionTaxonomy.PROTOCOL, "chance", 3, 5),
 		UpgradeDefinition.new("smarter_efficiency", "EFFICIENCY MATRIX", "All upgrade costs 5% lower per rank.", ScientificNumber.from_float(1000), ScientificNumber.from_float(2500), "workshop", {"cost_discount": 0.05}, false, 2.0, ProgressionTaxonomy.MODULE, "logic", 3, 8),
-		UpgradeDefinition.new("automation_core", "AUTOPILOT", "Automatically buys the first affordable priority target.", ScientificNumber.from_float(4000), ScientificNumber.from_float(5000), "workshop", {}, false, 1.0, ProgressionTaxonomy.ROUTINE, "logic", 1, 8),
-		UpgradeDefinition.new("priority_buffer", "PRIORITY BUFFER", "Adds one automation priority target per rank.", ScientificNumber.from_float(8500), ScientificNumber.from_float(9000), "workshop", {}, false, 2.0, ProgressionTaxonomy.ROUTINE, "logic", 2, 8),
+		UpgradeDefinition.new("automation_core", "AUTO CRANK", "+5 base Number/sec per rank.", ScientificNumber.from_float(4000), ScientificNumber.new(), "workshop", {"passive_flat": 5.0}, false, 1.0, ProgressionTaxonomy.ROUTINE, "logic", 1, 8),
+		UpgradeDefinition.new("priority_buffer", "STARTING RESERVE", "Begin every run with 250 Number per rank.", ScientificNumber.from_float(8500), ScientificNumber.new(), "workshop", {"starting_number_flat": 250.0}, false, 2.0, ProgressionTaxonomy.ROUTINE, "logic", 2, 8),
 		UpgradeDefinition.new("insight", "INSIGHT", "Base production ×1.02 per rank. Costs Knowledge; survives every reset.", ScientificNumber.new(), ScientificNumber.new(), "knowledge", {"base_output_multiplier": 1.02}, true, 1.0, ProgressionTaxonomy.KNOWLEDGE, "", 999999, 0)
 	]
