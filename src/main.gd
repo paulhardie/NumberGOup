@@ -117,6 +117,7 @@ func _ready() -> void:
 			offline_message += " (12H CAP)"
 	_snap_number_display()
 	_refresh_number_display()
+	_sync_ambience()
 	_refresh_all()
 
 func _notification(what: int) -> void:
@@ -622,7 +623,7 @@ func _build_drawer() -> void:
 	var toggle_box := VBoxContainer.new()
 	toggle_box.add_theme_constant_override("separation", 14)
 	stats_column.add_child(toggle_box)
-	for setting in [["muted", "Mute sound"], ["haptics", "Haptics"], ["reduce_motion", "Reduce motion"], ["high_contrast", "High contrast"]]:
+	for setting in [["muted", "Mute sound"], ["ambience", "Ambient music"], ["haptics", "Haptics"], ["reduce_motion", "Reduce motion"], ["high_contrast", "High contrast"]]:
 		var row := HBoxContainer.new()
 		var label := _make_label(setting[1], 14, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -635,6 +636,8 @@ func _build_drawer() -> void:
 			_refresh_all()
 			if key == "reduce_motion":
 				_start_ring_animation()
+			elif key == "muted" or key == "ambience":
+				_sync_ambience()
 		)
 		row.add_child(toggle)
 		toggle_box.add_child(row)
@@ -1306,6 +1309,12 @@ func _show_toast(text: String, colour: Color) -> void:
 	toast_tween = create_tween()
 	toast_tween.tween_interval(1.6)
 	toast_tween.tween_property(toast_panel, "modulate:a", 0.0, 0.5)
+
+## Starts or stops the looping ambient pad to match settings. "Mute sound" is
+## a hard override for all audio, including ambience, independent of its own
+## toggle.
+func _sync_ambience() -> void:
+	audio_feedback.set_ambience_enabled(not bool(state.settings.muted) and bool(state.settings.ambience))
 
 func _pulse_number(target_scale: float) -> void:
 	if state.settings.reduce_motion:

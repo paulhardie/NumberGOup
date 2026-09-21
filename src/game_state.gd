@@ -60,7 +60,7 @@ var statistics := {
 	"coins_spent": 0,
 	"offline_generated": ScientificNumber.new().to_dict()
 }
-var settings := {"muted": false, "haptics": true, "reduce_motion": false, "high_contrast": false}
+var settings := {"muted": false, "haptics": true, "reduce_motion": false, "high_contrast": false, "ambience": true}
 var tick_accumulator := 0.0
 var automation_accumulator := 0.0
 var momentum_stacks := 0
