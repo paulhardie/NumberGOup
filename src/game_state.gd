@@ -123,6 +123,9 @@ func _produce_tick() -> SimulationEvent:
 	_add_number(amount)
 	return SimulationEvent.new("tick", amount, is_critical)
 
+func is_output_banking() -> bool:
+	return in_run and (active_encounter == null or active_encounter.is_cleared())
+
 func get_rate_per_second() -> ScientificNumber:
 	return ScientificNumber.from_float(_passive_base() * _base_output_multiplier() * _momentum_multiplier() * _tick_rate())
 
@@ -616,11 +619,14 @@ func clear_save() -> void:
 func has_persistent_storage() -> bool:
 	return OS.is_userfs_persistent()
 
+## Output damages the active wave first and only the overflow becomes Number
+## (D012); lifetime production still counts all of it, so Knowledge is unchanged.
 func _add_number(amount: ScientificNumber) -> void:
-	number = number.add(amount)
 	lifetime_generated = lifetime_generated.add(amount)
+	var overflow := amount
 	if in_run and active_encounter != null:
-		active_encounter.apply_compliance(amount)
+		overflow = amount.subtract(active_encounter.apply_compliance(amount))
+	number = number.add(overflow)
 	if number.compare_to(highest_number) > 0:
 		highest_number = number.copy()
 

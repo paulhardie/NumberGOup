@@ -1,6 +1,6 @@
 # Tower scaling research and Number Go Up foundation
 
-Status: researched and implemented as foundation profile `tax-foundation-v1`, 21 September 2026.
+Status: researched and implemented as foundation profile `tax-foundation-v1`, then retuned to `tax-foundation-v2` for D012, 21 September 2026.
 
 ## Implemented foundation
 
@@ -180,7 +180,7 @@ These are starting calibration values, not a promise that the final curve will f
 ### Player-facing loop
 
 1. A wave starts with an amount of Tax Liability and a Collection value.
-2. Every unit produced still increases Number and also deals one unit of compliance damage to Liability. A later stat may change this ratio.
+2. Every unit produced still increases Number and also deals one unit of compliance damage to Liability. A later stat may change this ratio. *Superseded by [D012](DECISIONS.md): output applies to Liability first and only the overflow becomes Number; see [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md).*
 3. A wave has a minimum 15-second window, preserving the existing pacing.
 4. If Liability reaches zero within the window, the wave clears at the boundary without a collection hit.
 5. If Liability remains at the boundary, Tax collects its absolute Collection value from Number. The wave stays active for another collection interval.
@@ -226,15 +226,17 @@ The committed profile evaluator currently produces:
 
 | Tier | Wave | Liability | Collection | Wave reward |
 | ---: | ---: | ---: | ---: | ---: |
-| 1 | 21 | 476 | 312 | 21 |
-| 1 | 50 boss | 10,552 | 2,986 | 250 |
-| 1 | 100 boss | 110,951 | 24,502 | 500 |
-| 2 | 21 | 9,528 | 6,243 | 38 |
-| 2 | 100 boss | 2.22M | 490,032 | 900 |
-| 3 | 21 | 28,585 | 18,729 | 55 |
-| 3 | 100 boss | 6.66M | 1.47M | 1,300 |
+| 1 | 21 | 238 | 156 | 14 |
+| 1 | 50 boss | 5,276 | 1,493 | 163 |
+| 1 | 100 boss | 55,475 | 12,251 | 325 |
+| 2 | 21 | 4,764 | 3,121 | 25 |
+| 2 | 100 boss | 1.11M | 245,016 | 585 |
+| 3 | 21 | 14,293 | 9,364 | 35 |
+| 3 | 100 boss | 3.33M | 735,049 | 845 |
 
-The deterministic first-run baseline in `tools/balance_simulator.gd` taps twice per second and buys the first affordable permanent Workshop upgrade in the standard order. With seed 7 it currently dies at Tier 1 wave 21 after 345 seconds with 48 Coins, enough to fund the first two Workshop ranks. This is a reproducible calibration baseline, not a claim that the balance is final.
+These are `tax-foundation-v2` values: v1's Liability and Collection halved and pressured rewards ×0.65, retuned for D012. Before-and-after measurements are in [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md).
+
+The deterministic first-run baseline in `tools/balance_simulator.gd` taps twice per second and buys the first affordable permanent Workshop upgrade in the standard order. With seed 7 it currently dies at Tier 1 wave 21 after 360 seconds with 48 Coins, enough to fund the first two Workshop ranks. The same tool's build matrix measures progressed builds on Tiers 1 and 2. This is a reproducible calibration baseline, not a claim that the balance is final.
 
 ### Data contracts to create before content
 

@@ -27,6 +27,7 @@ func _capture_size(window_size: Vector2i, label: String) -> void:
 	await process_frame
 	await _capture_state(window_size, label, "hub", false)
 	await _capture_state(window_size, label, "run", false)
+	await _capture_state(window_size, label, "run_standing", false)
 	await _capture_state(window_size, label, "workshop", false)
 	await _capture_state(window_size, label, "labs", false)
 	await _capture_state(window_size, label, "cards", false)
@@ -51,7 +52,7 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 		"more_critical": 2,
 	}
 	state.settings["reduce_motion"] = true
-	if state_name == "run":
+	if state_name == "run" or state_name == "run_standing":
 		state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 		state.start_run(2, 99)
 		state.number = ScientificNumber.from_float(238500)
@@ -59,7 +60,10 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 		state.wave_accumulator = 7.5
 		state.run_coins_earned = 640
 		state.active_encounter = state._make_encounter(27)
-		state.active_encounter.apply_compliance(ScientificNumber.from_float(55900))
+		if state_name == "run_standing":
+			state.active_encounter.apply_compliance(state.active_encounter.max_liability.multiply_scalar(0.55))
+		else:
+			state.active_encounter.apply_compliance(ScientificNumber.from_float(55900))
 	elif state_name == "workshop":
 		main._select_tab("workshop")
 	elif state_name == "labs":
