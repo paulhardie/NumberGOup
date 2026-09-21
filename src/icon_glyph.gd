@@ -4,7 +4,7 @@ extends Control
 ## Minimal monoline vector icons drawn on a 24x24 grid, scaled to fit this
 ## Control's size. Avoids shipping icon image assets for a handful of shapes
 ## that only ever need to be a single flat color.
-enum Kind { HOME, GEAR, FLASK, DIAMOND, SLIDERS, LOCK, CHART, BOLT, DICE, CHIP, CHECK, CLOSE, SPARKLE }
+enum Kind { HOME, GEAR, FLASK, DIAMOND, SLIDERS, LOCK, CHART, BOLT, DICE, CHIP, CHECK, CLOSE, SPARKLE, COIN }
 
 var kind: int = Kind.HOME
 var glyph_color: Color = Color.WHITE
@@ -52,6 +52,9 @@ func _draw() -> void:
 			_poly(origin, scale, body, w, false)
 			_line(origin, scale, Vector2(9, 3), Vector2(15, 3), w)
 			_line(origin, scale, Vector2(7.5, 15), Vector2(16.5, 15), w)
+		Kind.COIN:
+			_p(origin, scale, Vector2(12, 12), 8.2, w)
+			_p(origin, scale, Vector2(12, 12), 3.4, w)
 		Kind.DIAMOND:
 			var outline := PackedVector2Array([
 				Vector2(4, 9.5), Vector2(8, 4), Vector2(16, 4), Vector2(20, 9.5), Vector2(12, 21)
