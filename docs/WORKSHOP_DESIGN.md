@@ -268,26 +268,61 @@ These are requirements. The design is not done if any of them is missing.
 
 A portrait phone has one strip of thumb-reachable space, and today it holds a five-icon dock — NUMBER, WORKSHOP, LABS, CARDS, MORE — of which three cannot be acted on during a run at all, because permanent purchases are locked while a run is live.
 
-**In a run** the bar is the four categories, and the dock is not shown:
+The owner's reference layout (The Tower, 21 September 2026) settles the shape in both lenses: **the four category buttons are a fixed strip at the bottom of the screen, and the panel above them is always open.** It is not a sheet the player opens and closes. In a run the strip is the bottom-most element; in the Workshop it sits above the nav dock.
+
+**The Workshop, between runs** — implemented in step 3:
 
 ```
-           COINS 1,204   KNOWLEDGE 7
-              WAVE 47 · T1 · BOSS IN 3
-
-                  ╭───────╮
-                  │ 3.4K  │      the ring is wave HP;
-                  ╰───────╯      its colour is time to the hit
-             HITS FOR 900 IN 6s
-
-                   RETREAT
+  WORKSHOP                             3.59M COINS
+  PERMANENT · APPLIES TO EVERY RUN
+  ATTACK UPGRADES                             [x5]   ← multi-buy, one per category
+  Beat waves before they hit.
+  Buy when the ring isn't closing before the timer runs out.
+  ┌──────────────────────┐┌──────────────────────┐
+  │ TAP        ┌───────┐ ││ DAMAGE PER ┌───────┐ │   name opens the detail,
+  │ DAMAGE     │     4 │ ││ SECOND     │     3 │ │   the box buys
+  │            │x2·91 ©│ ││            │x3·539©│ │
+  └──────────────────────┘└──────────────────────┘
+  ┌──────────────────────┐┌──────────────────────┐
+  │ DAMAGE     │  ×1.15 │ ││ TICK SPEED │ ×1.44 │ │
+  └──────────────────────┘└──────────────────────┘
   ┌────────┬─────────┬─────────┬──────────┐
-  │ ATTACK │ DEFENSE•│ UTILITY │ ULTIMATE │   • = something in
-  └────────┴─────────┴─────────┴──────────┘       here is affordable
+  │ ATTACK │ DEFENSE │ UTILITY │ ULTIMATE │            ← fixed strip
+  └────────┴─────────┴─────────┴──────────┘
+  [ NUMBER  WORKSHOP  LABS  CARDS  MORE ]              ← nav dock
 ```
 
-Tapping a tab slides its panel over the lower third; tapping the same tab again closes it. The ring, the Number and the wave line are never covered — depth lives in a panel the player opens, which is pillar 1's actual wording. The affordability dot means a player who keeps the panel shut still knows when it is worth opening.
+**In a run** — step 7, when the Rig arrives. The dock is not shown, so the strip sits flush:
 
-**Between runs** the bar is `RUN · WORKSHOP · MORE`.
+```
+              $ 66.99K      WAVE 10 / 191
+  ┌──────────────────────────────────────────┐
+  │              the ring and the Number      │    top ~55%
+  │              WAVE 47 · HITS FOR 900 IN 6s │
+  └──────────────────────────────────────────┘
+  ATTACK UPGRADES                        [x5]
+  ┌──────────────────┐┌──────────────────┐        bottom ~40%, always open,
+  │ TAP DAMAGE   4.2 ││ DAMAGE/SEC   890 │        prices in Number
+  └──────────────────┘└──────────────────┘
+  ┌────────┬─────────┬─────────┬──────────┐
+  │ ATTACK │ DEFENSE │ UTILITY │ ULTIMATE │
+  └────────┴─────────┴─────────┴──────────┘
+```
+
+**This costs the run screen real estate, and that is the accepted trade.** The ring stage has to shrink to roughly the top half so the panel can hold four rows without scrolling. Pillar 1 says the main screen never becomes a spreadsheet; a permanently open panel is closer to that line than the sheet this document first proposed. What keeps it the right side of the line is that the panel holds one category at a time, four rows of two, with no description text — the detail lives behind a tap, as the reference does it.
+
+### Multi-buy (D018)
+
+Each category carries a buy multiplier — `x1 · x5 · x10 · MAX` — shown beside the category header and cycled by tapping it. `MAX` takes every rank the player can afford, up to the row's cap. Ranks are priced one at a time and summed, so a press is never cheaper or dearer than buying the same ranks individually, and the cost shown is the cost paid. The card's cost line shows what the press will actually do: `x3 · 539 ©` when three ranks will land, a bare price when one will.
+
+### The card is compact; the detail is one tap away
+
+Two cards to a row. Each card carries the stat's name on the left and a value-and-cost box on the right:
+
+- the **name** opens a detail panel with the description, the current rank and its value, and the max rank and its value;
+- the **box** shows the row's value at its current rank, the cost of the next press underneath, and buys when tapped.
+
+Values are derived from the row's own declared effect rather than authored twice, so a card cannot drift from what the rank grants. Rows with no declared effect (Burst, Crit Chain) show their rank instead, which is what their descriptions already talk in.
 
 ### The two lenses read as two lenses
 
@@ -296,7 +331,9 @@ Each panel keeps a one-line banner in the place the Workshop already puts one:
 - Workshop: `PERMANENT · APPLIES TO EVERY RUN` (unchanged).
 - Rig: `THIS RUN ONLY · RESETS WHEN THE RUN ENDS`.
 
-Every row in either lens shows the plain stat name, current → next value, and cost in that lens's currency. Each tab opens with its purpose and its "buy this when" line. Attack, Defense and Utility are open from the start; Ultimates is locked and labelled with the waves that unlock it. (Defense was to unlock on the first hit, but Armor is available from wave 1 today and gating it would remove access — see [What step 3 changed](#what-step-3-changed-and-what-it-deliberately-did-not).)
+Each category opens with its purpose and its "buy this when" line. Attack, Defense and Utility are open from the start; Ultimates opens too but holds a locked panel naming the waves that unlock it. (Defense was to unlock on the first hit, but Armor is available from wave 1 today and gating it would remove access — see [What step 3 changed](#what-step-3-changed-and-what-it-deliberately-did-not).)
+
+Not adopted from the reference: Preset 1 / Preset 2, Respec, and the Upgrade / Enhance split. Presets and Respec need a reason to exist before they earn a seat, and Enhance is a second permanent tier that the four categories do not yet need. The reference's per-category colours are also not adopted: this HUD deliberately carries one accent, because per-tab hues read as noise against the stage.
 
 ### Labs, Insight and Prestige stop being tabs (D016)
 
@@ -365,7 +402,7 @@ Each step lands on its own and clears the gate for its risk level in [`QUALITY_G
 | --- | --- | --- |
 | 1 | **Done.** D012 rule in `GameState._add_number`, `tax-foundation-v2` retune, simulator build matrix, and the run screen's rate line (it said `+X / sec` while output was going into the wave) | High: economy and encounter |
 | 2 | Player vocabulary (D014) in the remaining UI strings: the encounter line, hit toasts, Brace and Shield text, floating `+X` on taps, the drawer's `NUMBER / SEC` | Low to medium |
-| 3 | **Done.** Four Workshop categories; bays retire; Shield Matrix becomes the Armor Workshop row; Research Focus retargets from bay to category; save schema V5 (D017) migrates `selected_bay`, `focus` and `tax_resistance_rank` with no rank lost and a live run intact | High: save schema and a purchase path |
+| 3 | **Done.** Four Workshop categories; bays retire; Shield Matrix becomes the Armor Workshop row; Research Focus retargets from bay to category; save schema V5 (D017) migrates `selected_bay`, `focus` and `tax_resistance_rank` with no rank lost and a live run intact. Also the reference layout: category strip pinned at the bottom, compact two-column cards with the detail one tap away, and multi-buy (D018) | High: save schema and a purchase path |
 | 4 | New Defense stats (Siphon, Recoil, scaled Cushion, Brace Cost, Second Wind), then Boss Damage and the Coin and Knowledge bonuses. **Recheck Research Focus here**: it is a non-choice while Attack holds ten rows against Defense's two and Utility's one | High: economy; targets 5 and 6 |
 | 5 | The bar reshape (D016): four category tabs between runs, Labs, Insight and Prestige into the Knowledge sheet, `highest_number` gates moved inside it | Medium: presentation only, no save or economy change |
 | 6 | "What would have saved you" and the two doors on the run-over screen | Medium |
@@ -385,6 +422,10 @@ Held true by step 1:
 
 ## Open questions
 
-1. **What Ultimates cost to upgrade permanently.** Recommendation: Knowledge. It gives Knowledge a second sink beside Insight and adds no currency (pillar 4). The alternative, Coins, competes directly with the Workshop. Their in-run levels cost Number like every other Rig row.
-2. **The Tier 2+ opening.** Should Cushion scale with the tier, or should every tier get a few warm-up waves? Recommendation: scaled Cushion, because it makes the opening a Defense decision rather than a free pass. The Rig sharpens this: on Tier 2 the first hit lands before there is any Number to spend, so the opening is the one stretch of a run the Rig cannot help with.
-3. **Tier shapes.** Whether and when to skew Tiers 2 and 3 away from uniform multipliers. That would supersede part of D002.
+1. **The Workshop is too shallow for the layout it now wears.** The reference's ladders run to hundreds or thousands of levels per stat — Defense Absolute alone caps at 5,000. Ours holds **51 ranks across 13 Coin-funded rows, 85,635 Coins to max every one of them**. The Coin cost is not the problem: at the top build's 92.9 Coins a minute that is about fifteen hours. The problem is that 51 ranks is 51 decisions, and MAX-buy collapses them into roughly thirteen presses. D013's context says the owner wants the Workshop to be a large part of the game, as it is in The Tower; a ladder this short is climbed once rather than returned to.
+
+   Recommendation: raise the caps by one to two orders of magnitude and flatten cost growth to match — something near 50–500 ranks per row at 1.02–1.05 growth instead of 3–10 ranks at 1.55–2.00 — so the same total Coin cost spreads across far more choices and the multi-buy control earns its place. **This is a balance rework, not a content row: it invalidates every measured baseline in this document and needs the simulator to re-establish them.** It deserves its own step and its own decision before any of it is written.
+
+2. **What Ultimates cost to upgrade permanently.** Recommendation: Knowledge. It gives Knowledge a second sink beside Insight and adds no currency (pillar 4). The alternative, Coins, competes directly with the Workshop. Their in-run levels cost Number like every other Rig row.
+3. **The Tier 2+ opening.** Should Cushion scale with the tier, or should every tier get a few warm-up waves? Recommendation: scaled Cushion, because it makes the opening a Defense decision rather than a free pass. The Rig sharpens this: on Tier 2 the first hit lands before there is any Number to spend, so the opening is the one stretch of a run the Rig cannot help with.
+4. **Tier shapes.** Whether and when to skew Tiers 2 and 3 away from uniform multipliers. That would supersede part of D002.

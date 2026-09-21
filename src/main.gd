@@ -35,6 +35,10 @@ const CATEGORY_ICON := {
 	"ultimate": 12, # IconGlyph.Kind.SPARKLE
 }
 
+## The category strip's height. It sits above the nav dock between runs, and a
+## run has no dock, so the same strip can sit flush there later.
+const CATEGORY_STRIP_HEIGHT := 64
+
 const TAB_IDS: Array[String] = ["number", "workshop", "labs", "cards"]
 const TAB_NAMES := {"number": "NUMBER", "workshop": "WORKSHOP", "labs": "LABS", "cards": "CARDS", "settings": "SETTINGS"}
 
@@ -93,6 +97,19 @@ var stats_grid: GridContainer
 var workshop_header: Label
 var workshop_board_row: HBoxContainer
 var workshop_detail: VBoxContainer
+var workshop_category_header: Label
+var workshop_purpose: Label
+var workshop_buy_when: Label
+var workshop_multiplier_label: Label
+## Which multi-buy step each category is set to, by index into
+## GameState.BUY_STEPS. Presentation only: it is not worth a save key until a
+## player would miss it across sessions.
+var buy_step_index: Dictionary = {}
+var stat_info_screen: Control
+var stat_info_title: Label
+var stat_info_body: Label
+var stat_info_level: Label
+var stat_info_max: Label
 var workshop_tab_buttons: Dictionary = {}
 var workshop_tab_icons: Dictionary = {}
 var workshop_tab_labels: Dictionary = {}
@@ -206,6 +223,7 @@ func _build_ui() -> void:
 	nav_dock.tab_selected.connect(_on_dock_tab_selected)
 
 	_build_drawer()
+	_build_stat_info()
 	_build_died_screen()
 
 	audio_feedback = AudioFeedback.new()
@@ -476,11 +494,19 @@ func _build_flat_screen(parent: Control, tab_id: String) -> VBoxContainer:
 	tab_panels[tab_id] = content
 	return content
 
+## Header, then the open category's rows, then the four category buttons pinned
+## above the nav dock. The strip stays put while the rows scroll, so switching
+## shelf is always one thumb reach away.
 func _build_workshop_screen(parent: Control) -> void:
 	var content := _build_flat_screen(parent, "workshop")
+	var margin := content.get_parent() as MarginContainer
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_bottom", CATEGORY_STRIP_HEIGHT + int(NavDock.BAR_HEIGHT))
+
 	var header_row := HBoxContainer.new()
 	content.add_child(header_row)
-	var title := _make_label("Permanent Workshop", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	var title := _make_label("WORKSHOP", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(title)
 	var chip := PanelContainer.new()
@@ -489,32 +515,98 @@ func _build_workshop_screen(parent: Control) -> void:
 	chip.add_child(workshop_header)
 	header_row.add_child(chip)
 	content.add_child(_make_label("PERMANENT · APPLIES TO EVERY RUN", 10, HORIZONTAL_ALIGNMENT_LEFT, WORKSHOP_ACCENT))
-	var permanence_copy := _make_label("Spend Coins between runs to raise the starting stats used by every future attempt.", 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
-	permanence_copy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	content.add_child(permanence_copy)
 
-	workshop_board_row = HBoxContainer.new()
-	workshop_board_row.add_theme_constant_override("separation", 8)
-	content.add_child(workshop_board_row)
-	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
-		workshop_board_row.add_child(_make_category_tab(category))
-	content.add_child(HSeparator.new())
+	var category_row := HBoxContainer.new()
+	category_row.add_theme_constant_override("separation", 8)
+	content.add_child(category_row)
+	workshop_category_header = _make_label("", 16, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	workshop_category_header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	category_row.add_child(workshop_category_header)
+	category_row.add_child(_make_multiplier_chip())
+
+	workshop_purpose = _make_label("", 12, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	workshop_purpose.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(workshop_purpose)
+	workshop_buy_when = _make_label("", 11, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	workshop_buy_when.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(workshop_buy_when)
 
 	var detail_scroll := ScrollContainer.new()
 	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	detail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	content.add_child(detail_scroll)
 	workshop_detail = VBoxContainer.new()
 	workshop_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	workshop_detail.add_theme_constant_override("separation", 10)
+	workshop_detail.add_theme_constant_override("separation", 8)
 	detail_scroll.add_child(workshop_detail)
+
+	workshop_board_row = _build_category_strip(screens["workshop"], NavDock.BAR_HEIGHT)
+
+## The multi-buy control: one press cycles x1 → x5 → x10 → MAX for the open
+## category, which is how a player buys a ladder without a hundred taps.
+func _make_multiplier_chip() -> Button:
+	var button := Button.new()
+	button.text = ""
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(62, 30)
+	button.add_theme_stylebox_override("normal", _panel_style(Color.TRANSPARENT, 8, WORKSHOP_ACCENT))
+	button.add_theme_stylebox_override("hover", _panel_style(Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.14), 8, WORKSHOP_ACCENT))
+	var centre := CenterContainer.new()
+	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(centre)
+	workshop_multiplier_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, WORKSHOP_ACCENT)
+	centre.add_child(workshop_multiplier_label)
+	button.pressed.connect(func():
+		var category: String = state.workshop.selected_category
+		buy_step_index[category] = (_buy_step_index(category) + 1) % GameState.BUY_STEPS.size()
+		_refresh_workshop()
+	)
+	return button
+
+func _buy_step_index(category: String) -> int:
+	return int(buy_step_index.get(category, 0))
+
+func _buy_step(category: String) -> int:
+	return int(GameState.BUY_STEPS[_buy_step_index(category)])
+
+func _buy_step_label(category: String) -> String:
+	var step := _buy_step(category)
+	return "MAX" if step == GameState.MAX_BUY else "x" + str(step)
+
+## The four category buttons, pinned to the bottom of the screen that owns them.
+## bottom_offset lifts them clear of the nav dock; a run screen has no dock, so
+## the same strip can sit flush there when the Rig arrives (D015, D016).
+func _build_category_strip(parent: Control, bottom_offset: float) -> HBoxContainer:
+	var strip := Control.new()
+	strip.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	strip.offset_top = -(bottom_offset + float(CATEGORY_STRIP_HEIGHT))
+	strip.offset_bottom = -bottom_offset
+	parent.add_child(strip)
+	var divider := ColorRect.new()
+	divider.color = DIVIDER
+	divider.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	divider.offset_bottom = 1
+	strip.add_child(divider)
+	var row := HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 10
+	row.offset_right = -10
+	row.offset_top = 6
+	row.offset_bottom = -6
+	row.add_theme_constant_override("separation", 8)
+	strip.add_child(row)
+	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
+		row.add_child(_make_category_tab(category))
+	return row
 
 func _make_category_tab(category: String) -> Button:
 	var button := Button.new()
 	button.text = ""
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(0, 64)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var layout := _tile_layout(button, 4, 10)
+	button.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var layout := _tile_layout(button, 4, 4)
 	layout.alignment = BoxContainer.ALIGNMENT_CENTER
 	var icon_wrap := CenterContainer.new()
 	icon_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -714,6 +806,74 @@ func _build_drawer() -> void:
 	clear.pressed.connect(_clear_local_save)
 	stats_column.add_child(clear)
 
+## What a stat is and where it stands, opened by tapping a Workshop card's name.
+## The card itself stays compact because this holds the description, so a whole
+## category fits on one screen. Tapping anywhere dismisses it.
+func _build_stat_info() -> void:
+	stat_info_screen = Control.new()
+	stat_info_screen.visible = false
+	stat_info_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(stat_info_screen)
+
+	var scrim := Button.new()
+	scrim.text = ""
+	scrim.flat = true
+	scrim.focus_mode = Control.FOCUS_NONE
+	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scrim.add_theme_stylebox_override("normal", _panel_style(Color(0, 0, 0, 0.7), 0))
+	scrim.add_theme_stylebox_override("hover", _panel_style(Color(0, 0, 0, 0.7), 0))
+	scrim.add_theme_stylebox_override("pressed", _panel_style(Color(0, 0, 0, 0.7), 0))
+	scrim.pressed.connect(func(): stat_info_screen.visible = false)
+	stat_info_screen.add_child(scrim)
+
+	var centre := CenterContainer.new()
+	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stat_info_screen.add_child(centre)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(272, 0)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_theme_stylebox_override("panel", _panel_style(Color("171c26"), 20, Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.5)))
+	centre.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_theme_constant_override("margin_left", 22)
+	margin.add_theme_constant_override("margin_right", 22)
+	margin.add_theme_constant_override("margin_top", 24)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	panel.add_child(margin)
+
+	var inner := VBoxContainer.new()
+	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.add_theme_constant_override("separation", 14)
+	margin.add_child(inner)
+
+	stat_info_title = _make_label("", 19, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
+	inner.add_child(stat_info_title)
+	stat_info_body = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
+	stat_info_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inner.add_child(stat_info_body)
+	inner.add_child(HSeparator.new())
+	stat_info_level = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	inner.add_child(stat_info_level)
+	stat_info_max = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	inner.add_child(stat_info_max)
+
+func _show_stat_info(definition: UpgradeDefinition) -> void:
+	if stat_info_screen == null:
+		return
+	var owned := state.get_owned(definition.id)
+	stat_info_title.text = definition.title
+	stat_info_body.text = definition.description
+	stat_info_level.text = "CURRENT RANK  ·  " + str(owned) + "  (" + _stat_value_text(definition, owned) + ")"
+	if definition.is_maxed(owned):
+		stat_info_max.text = "MAX RANK  ·  " + str(definition.max_rank) + "  ·  REACHED"
+	else:
+		stat_info_max.text = "MAX RANK  ·  " + str(definition.max_rank) + "  (" + _stat_value_text(definition, definition.max_rank) + ")"
+	stat_info_screen.visible = true
+
 ## The run-over report: same scrim-and-sheet shape as the drawer, but modal
 ## (no scrim-tap-to-dismiss) since a death should be acknowledged, not brushed
 ## past, and its content is a fixed summary rather than a live-editing form.
@@ -781,7 +941,7 @@ func _show_died_screen(summary: RunSummary) -> void:
 	if summary == null or died_screen == null:
 		return
 	died_wave_label.text = "TIER " + str(summary.tier_id) + "  ·  WAVE " + str(summary.wave_reached)
-	died_coins_label.text = "+" + str(summary.coins_earned) + " COINS EARNED"
+	died_coins_label.text = "+" + _coins(summary.coins_earned) + " COINS EARNED"
 	if summary.knowledge_gained > 0:
 		died_knowledge_label.text = "+" + str(summary.knowledge_gained) + " KNOWLEDGE"
 		died_knowledge_label.visible = true
@@ -921,7 +1081,7 @@ func _on_armor_pressed() -> void:
 		state.save()
 		_refresh_all()
 	else:
-		_show_toast("NEED " + str(state.get_workshop_coin_cost(state.get_definition(GameState.ARMOR_ID))) + " COINS", MUTED_TEXT)
+		_show_toast("NEED " + _coins(state.get_workshop_coin_cost(state.get_definition(GameState.ARMOR_ID))) + " COINS", MUTED_TEXT)
 
 ## The core per-tap "juice": a short line of text that rises from the tap
 ## point and fades, replacing a single static feedback label.
@@ -953,7 +1113,7 @@ func _refresh_all() -> void:
 	else:
 		rate_label.text = rate + " DAMAGE / sec"
 	tap_hint.text = "TAP TO PRODUCE" if state.in_run else "START A RUN TO PRODUCE"
-	coins_label.text = str(state.coins)
+	coins_label.text = _coins(state.coins)
 	knowledge_label.text = str(state.knowledge)
 	_refresh_run_bar()
 	if offline_message != "":
@@ -963,7 +1123,7 @@ func _refresh_all() -> void:
 	if current_tab == "workshop":
 		# Do not rebuild live buttons during the player's press/release cycle.
 		# Rebuilding a Control tree every refresh can eat touch releases on Web.
-		workshop_header.text = str(state.coins) + " COINS"
+		workshop_header.text = _coins(state.coins) + " COINS"
 
 ## Shows the two independent checks the run turns on: the remaining Liability
 ## production must clear, and the Collection hit Number must survive.
@@ -982,7 +1142,7 @@ func _refresh_run_bar() -> void:
 	if armor.is_maxed(state.get_owned(GameState.ARMOR_ID)):
 		armor_cost_label.text = "MAXED"
 	else:
-		armor_cost_label.text = str(state.get_workshop_coin_cost(armor)) + " COINS"
+		armor_cost_label.text = _coins(state.get_workshop_coin_cost(armor)) + " COINS"
 	run_button.text = "RETREAT & RESET" if state.in_run else "START RUN  ·  WORKSHOP LV " + str(state.get_workshop_level())
 	var run_colour := FAINT_TEXT if state.in_run else ACCENT
 	run_button.add_theme_color_override("font_color", run_colour)
@@ -1015,7 +1175,7 @@ func _waves_until_boss(current_wave: int) -> int:
 
 func _refresh_encounter_line() -> void:
 	if not state.in_run:
-		encounter_label.text = "TIER BEST " + str(state.get_tier_best()) + "  ·  " + str(state.coins) + " COINS BANKED"
+		encounter_label.text = "TIER BEST " + str(state.get_tier_best()) + "  ·  " + _coins(state.coins) + " COINS BANKED"
 		return
 	var encounter: Variant = state.active_encounter
 	if encounter == null or encounter.max_liability.is_zero():
@@ -1033,50 +1193,46 @@ func _set_action_enabled(button: Button, enabled: bool) -> void:
 	button.modulate.a = 1.0 if enabled else 0.55
 
 func _refresh_workshop() -> void:
-	workshop_header.text = str(state.coins) + " COINS"
-	# Every tab opens, including one with nothing in it yet: its panel is where
-	# the player reads what is coming and when. The badge carries the lock.
-	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
-		var active: bool = state.workshop.selected_category == category
-		var has_rows := state.has_category_content(category)
-		var colour: Color = WORKSHOP_ACCENT if active else MUTED_TEXT
-		(workshop_tab_icons[category] as IconGlyph).set_glyph_color(colour)
-		(workshop_tab_labels[category] as Label).add_theme_color_override("font_color", colour)
-		var button: Button = workshop_tab_buttons[category]
-		button.modulate.a = 1.0 if has_rows else 0.6
-		var border: Color = WORKSHOP_ACCENT if active else Color.TRANSPARENT
-		var fill: Color = Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.14) if active else Color.TRANSPARENT
-		button.add_theme_stylebox_override("normal", _panel_style(fill, 14, border))
-		(workshop_lock_badges[category] as IconGlyph).visible = not has_rows
-	_refresh_workshop_detail()
-
-func _refresh_workshop_detail() -> void:
-	_clear_children(workshop_detail)
-	var category := state.workshop.selected_category
+	var category: String = state.workshop.selected_category
 	if not ProgressionTaxonomy.WORKSHOP_CATEGORIES.has(category):
 		category = ProgressionTaxonomy.ATTACK
 		state.workshop.selected_category = category
-	# Purpose then "buy this when", so a player can map a failure to a shelf
-	# without leaving the screen (D013).
-	var purpose := _make_label(ProgressionTaxonomy.category_purpose(category), 13, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
-	purpose.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	workshop_detail.add_child(purpose)
-	var buy_when := _make_label(ProgressionTaxonomy.category_buy_when(category), 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
-	buy_when.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	workshop_detail.add_child(buy_when)
+	workshop_header.text = _coins(state.coins) + " COINS"
+	workshop_category_header.text = ProgressionTaxonomy.category_name(category) + " UPGRADES"
+	workshop_purpose.text = ProgressionTaxonomy.category_purpose(category)
+	workshop_buy_when.text = ProgressionTaxonomy.category_buy_when(category)
+	workshop_multiplier_label.text = _buy_step_label(category)
+	# Every tab opens, including one with nothing in it yet: its panel is where
+	# the player reads what is coming and when. The badge carries the lock.
+	for tab_category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
+		var active: bool = category == tab_category
+		var has_rows := state.has_category_content(tab_category)
+		var colour: Color = WORKSHOP_ACCENT if active else MUTED_TEXT
+		(workshop_tab_icons[tab_category] as IconGlyph).set_glyph_color(colour)
+		(workshop_tab_labels[tab_category] as Label).add_theme_color_override("font_color", colour)
+		var button: Button = workshop_tab_buttons[tab_category]
+		button.modulate.a = 1.0 if has_rows else 0.6
+		var border: Color = WORKSHOP_ACCENT if active else Color.TRANSPARENT
+		var fill: Color = Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.14) if active else Color.TRANSPARENT
+		button.add_theme_stylebox_override("normal", _panel_style(fill, 12, border))
+		(workshop_lock_badges[tab_category] as IconGlyph).visible = not has_rows
+	_refresh_workshop_detail(category)
+
+func _refresh_workshop_detail(category: String) -> void:
+	_clear_children(workshop_detail)
 	if state.in_run:
 		workshop_detail.add_child(_make_locked_panel("AVAILABLE BETWEEN RUNS", "Current ranks are active now and will be retained when this run ends."))
 	if not state.has_category_content(category):
 		workshop_detail.add_child(_make_locked_panel("NOTHING HERE YET", "Ultimates unlock at waves 10, 25, 50 and 100."))
 		return
-	var found_next := false
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	workshop_detail.add_child(grid)
 	for definition in state.cards_for_category(category):
-		var maxed := definition.is_maxed(state.get_owned(definition.id))
-		var unlocked := state.is_unlocked(definition)
-		var is_next := unlocked and not maxed and not found_next
-		if is_next:
-			found_next = true
-		workshop_detail.add_child(_make_ranked_card(definition, CATEGORY_ICON[category], is_next))
+		grid.add_child(_make_stat_card(definition, category))
 
 func _refresh_labs() -> void:
 	_clear_children(labs_content)
@@ -1255,76 +1411,97 @@ func _confirm_prestige() -> void:
 ## A row card for a ranked, permanent Coin-funded Workshop upgrade: an icon chip, a
 ## title with an optional NEXT tag, a thin fill bar for rank, and cost/rank
 ## at the right.
-func _make_ranked_card(definition: UpgradeDefinition, icon_kind: int, is_next: bool) -> Button:
+## A compact Workshop card, two to a row: the stat's name on the left, which
+## opens its detail, and the value-and-cost box on the right, which buys. The
+## description lives in the detail popup rather than on the card, so a category
+## fits on one screen.
+func _make_stat_card(definition: UpgradeDefinition, category: String) -> PanelContainer:
 	var owned := state.get_owned(definition.id)
 	var maxed := definition.is_maxed(owned)
-	var disabled := maxed or not state.is_unlocked(definition) or state.in_run
-	var button := _make_row_button()
-	button.disabled = disabled
-	var border := WORKSHOP_ACCENT if (is_next and not disabled) else Color.TRANSPARENT
-	button.add_theme_stylebox_override("normal", _panel_style(SURFACE, 14, border))
-	button.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 14, WORKSHOP_ACCENT))
-	button.add_theme_stylebox_override("pressed", _panel_style(Color("0f5848"), 14, WORKSHOP_ACCENT))
-	var row := _row_layout(button, 14, 10)
-	var chip := Panel.new()
-	chip.custom_minimum_size = Vector2(36, 36)
-	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var chip_tint := MUTED_TEXT if disabled else WORKSHOP_ACCENT
-	chip.add_theme_stylebox_override("panel", _panel_style(Color(chip_tint.r, chip_tint.g, chip_tint.b, 0.14), 10))
-	var chip_center := CenterContainer.new()
-	chip_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	chip_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	chip.add_child(chip_center)
-	chip_center.add_child(IconGlyph.new(icon_kind, chip_tint, 16.0))
-	row.add_child(chip)
-	var mid := VBoxContainer.new()
-	mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	mid.add_theme_constant_override("separation", 7)
-	row.add_child(mid)
-	var title_row := HBoxContainer.new()
-	title_row.add_theme_constant_override("separation", 6)
-	mid.add_child(title_row)
-	title_row.add_child(_make_label(definition.title, 14, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT if disabled else TEXT))
-	if is_next and not disabled:
-		var tag := PanelContainer.new()
-		tag.add_theme_stylebox_override("panel", _tag_style(WORKSHOP_ACCENT))
-		tag.add_child(_make_label("NEXT", 8, HORIZONTAL_ALIGNMENT_CENTER, WORKSHOP_ACCENT))
-		title_row.add_child(tag)
-	var description_label := _make_label(definition.description, 11, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
-	description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	mid.add_child(description_label)
-	var bar := ProgressBar.new()
-	bar.custom_minimum_size = Vector2(0, 4)
-	bar.show_percentage = false
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bar.max_value = maxf(1, definition.max_rank)
-	bar.value = owned
-	var bar_bg := StyleBoxFlat.new()
-	bar_bg.bg_color = Color(1, 1, 1, 0.1)
-	bar_bg.set_corner_radius_all(2)
-	var bar_fill := StyleBoxFlat.new()
-	bar_fill.bg_color = MUTED_TEXT if disabled else WORKSHOP_ACCENT
-	bar_fill.set_corner_radius_all(2)
-	bar.add_theme_stylebox_override("background", bar_bg)
-	bar.add_theme_stylebox_override("fill", bar_fill)
-	mid.add_child(bar)
-	var right := VBoxContainer.new()
-	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	right.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_child(right)
-	var value_text := "MAXED" if maxed else str(state.get_workshop_coin_cost(definition)) + " COINS"
-	right.add_child(_make_label(value_text, 14, HORIZONTAL_ALIGNMENT_RIGHT, TEXT if not disabled else MUTED_TEXT))
-	right.add_child(_make_label(str(owned) + "/" + str(definition.max_rank), 9, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT))
-	button.pressed.connect(func(upgrade_id: String = definition.id):
-		if state.purchase(upgrade_id):
-			_show_toast("WORKSHOP IMPROVED", WORKSHOP_ACCENT)
+	var unlocked := state.is_unlocked(definition)
+	var plan := state.plan_purchase(definition.id, _buy_step(category))
+	var ranks := int(plan.ranks)
+	var affordable := ranks > 0
+
+	var card := PanelContainer.new()
+	card.custom_minimum_size = Vector2(0, 80)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var edge: Color = WORKSHOP_ACCENT if affordable else Color(1, 1, 1, 0.07)
+	card.add_theme_stylebox_override("panel", _panel_style(SURFACE, 12, edge))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	card.add_child(row)
+
+	var name_button := Button.new()
+	name_button.text = ""
+	name_button.flat = true
+	name_button.focus_mode = Control.FOCUS_NONE
+	name_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_button.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	name_button.tooltip_text = definition.description
+	var name_layout := _tile_layout(name_button, 10, 6)
+	name_layout.alignment = BoxContainer.ALIGNMENT_CENTER
+	var name_label := _make_label(definition.title, 12, HORIZONTAL_ALIGNMENT_LEFT, TEXT if unlocked else MUTED_TEXT)
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_layout.add_child(name_label)
+	name_button.pressed.connect(func(): _show_stat_info(definition))
+	row.add_child(name_button)
+
+	var value_button := _make_tile_button()
+	value_button.custom_minimum_size = Vector2(84, 58)
+	value_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	var box_tint: Color = WORKSHOP_ACCENT if affordable else Color(1, 1, 1, 0.05)
+	value_button.add_theme_stylebox_override("normal", _panel_style(Color(0, 0, 0, 0.25), 10, box_tint))
+	value_button.add_theme_stylebox_override("hover", _panel_style(Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.12), 10, box_tint))
+	var value_layout := _tile_layout(value_button, 6, 6)
+	value_layout.alignment = BoxContainer.ALIGNMENT_CENTER
+	value_layout.add_child(_make_label(_stat_value_text(definition, owned), 13, HORIZONTAL_ALIGNMENT_RIGHT, TEXT if unlocked else MUTED_TEXT))
+	value_layout.add_child(_make_label(_stat_cost_text(definition, owned, maxed, unlocked, plan), 9, HORIZONTAL_ALIGNMENT_RIGHT, WORKSHOP_ACCENT if affordable else MUTED_TEXT))
+	value_button.pressed.connect(func(upgrade_id: String = definition.id, step: int = _buy_step(category)):
+		var bought := state.purchase_ranks(upgrade_id, step)
+		if bought > 0:
+			_show_toast("+" + str(bought) + "  " + definition.title, WORKSHOP_ACCENT)
 			state.save()
 			_refresh_all()
 			_refresh_workshop()
+		elif maxed:
+			_show_toast("ALREADY MAXED", MUTED_TEXT)
+		elif not unlocked:
+			_show_toast("NEEDS WORKSHOP LV " + str(definition.workshop_level_required), MUTED_TEXT)
+		elif state.in_run:
+			_show_toast("AVAILABLE BETWEEN RUNS", MUTED_TEXT)
 		else:
-			_show_toast("NEED " + str(state.get_workshop_coin_cost(definition)) + " COINS", MUTED_TEXT)
+			_show_toast("NEED " + _coins(state.get_workshop_coin_cost(definition)) + " COINS", MUTED_TEXT)
 	)
-	return button
+	row.add_child(value_button)
+	return card
+
+## The row's effect read as a player-facing value, formatted by the unit the
+## state reports rather than by a per-row special case here.
+func _stat_value_text(definition: UpgradeDefinition, rank: int) -> String:
+	var display := state.stat_display(definition, rank)
+	var value := float(display.value)
+	match str(display.unit):
+		"percent":
+			return "%.2f%%" % (value * 100.0)
+		"multiplier":
+			return "×%.2f" % value
+		"flat":
+			return ScientificNumber.from_float(value).format_value()
+		_:
+			return str(rank) + " / " + str(definition.max_rank)
+
+func _stat_cost_text(definition: UpgradeDefinition, owned: int, maxed: bool, unlocked: bool, plan: Dictionary) -> String:
+	if maxed:
+		return "MAX"
+	if not unlocked:
+		return "LV " + str(definition.workshop_level_required)
+	if int(plan.ranks) > 1:
+		return "x" + str(int(plan.ranks)) + " · " + _coins(int(plan.cost)) + " ©"
+	if int(plan.ranks) == 1:
+		return _coins(int(plan.cost)) + " ©"
+	return _coins(state.get_workshop_coin_cost_at(definition, owned)) + " ©"
 
 func _make_locked_panel(title_text: String, subtitle_text: String) -> PanelContainer:
 	var panel := PanelContainer.new()
@@ -1657,6 +1834,11 @@ func _panel_style(colour: Color, radius: int, border: Color = Color.TRANSPARENT)
 	style.content_margin_top = 10
 	style.content_margin_bottom = 10
 	return style
+
+## Coins share the Number formatter: full digits under a million, abbreviated
+## above it, so a growing balance never widens the chip that holds it.
+func _coins(amount: int) -> String:
+	return ScientificNumber.from_float(float(amount)).format_value()
 
 func _clear_children(parent: Node) -> void:
 	for child in parent.get_children():

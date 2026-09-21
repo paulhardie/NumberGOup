@@ -35,7 +35,7 @@
 
 ## Should — expected behaviour
 
-- Upgrade costs and ranks are legible before purchase.
+- Upgrade costs and ranks are legible before purchase. A multi-buy press costs exactly what the same ranks cost one at a time, and exactly what it quoted.
 - The first failed run funds at least one permanent Workshop rank.
 - UI presents and reports; it mutates domain state only by calling `GameState` methods.
 - Every Workshop row belongs to exactly one of the four categories (Attack, Defense, Utility, Ultimates) and opens at its own Workshop level: 0, 2, 5 or 8. Retired bays gated each row at the same level the row itself required, so their removal moved nothing.

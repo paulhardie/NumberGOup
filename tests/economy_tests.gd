@@ -8,6 +8,8 @@ func _init() -> void:
 	_test_scientific_number()
 	_test_category_gates_and_rank_caps()
 	_test_research_focus_targets_a_category()
+	_test_multi_buy_matches_buying_one_at_a_time()
+	_test_stat_values_read_the_row_effect()
 	_test_workshop_effects()
 	_test_burst_and_positive_chance()
 	_test_permanent_baseline_and_starting_reserve()
@@ -91,6 +93,61 @@ func _test_research_focus_targets_a_category() -> void:
 	_expect(state.get_workshop_coin_cost(armor) < armor_before, "Research Focus should discount its own category")
 	_expect(state.get_workshop_coin_cost(tap) == tap_before, "Research Focus should not discount another category")
 	_expect(not state.select_focus(ProgressionTaxonomy.ATTACK), "Research Focus should lock in until Prestige")
+
+## A multi-buy press must never be a discount or a surcharge: it is the same
+## ranks at the same prices, charged in one go.
+func _test_multi_buy_matches_buying_one_at_a_time() -> void:
+	var one := _funded_state()
+	one.coins = 100000
+	var single_total := 0
+	for rank in range(5):
+		single_total += one.get_workshop_coin_cost(one.get_definition("stronger_tap"))
+		_expect(one.purchase("stronger_tap"), "each single Tap Damage rank should purchase")
+	var bulk := _funded_state()
+	bulk.coins = 100000
+	var plan := bulk.plan_purchase("stronger_tap", 5)
+	_expect(int(plan.ranks) == 5 and int(plan.cost) == single_total, "a five-rank press should quote exactly what five single presses cost")
+	_expect(bulk.purchase_ranks("stronger_tap", 5) == 5, "a five-rank press should land five ranks")
+	_expect(bulk.coins == one.coins and bulk.get_owned("stronger_tap") == 5, "bulk and single buying should end in the same place")
+	_expect(bulk.purchase_ranks("stronger_tap", GameState.MAX_BUY) == 0, "a maxed row should refuse a further press")
+
+	var capped := _funded_state()
+	capped.coins = 100000
+	_expect(capped.purchase_ranks("stronger_tap", 99) == 5, "a press larger than the rank cap should stop at the cap")
+
+	var short := _funded_state()
+	short.coins = 50
+	var partial := short.plan_purchase("stronger_tap", GameState.MAX_BUY)
+	_expect(int(partial.ranks) == 2 and int(partial.cost) == 26, "MAX should buy only the ranks the player can afford")
+	_expect(short.purchase_ranks("stronger_tap", GameState.MAX_BUY) == 2 and short.coins == 24, "a partial press should spend only what it quoted")
+
+	var locked := _funded_state()
+	_expect(int(locked.plan_purchase("faster_cadence", 5).ranks) == 0, "a row below its Workshop level should quote nothing")
+	var running := _funded_state()
+	running.start_run(1, 3)
+	_expect(int(running.plan_purchase("stronger_tap", 5).ranks) == 0, "a run should refuse a Workshop press of any size")
+
+## The card face is derived from the row's own effect, so it cannot drift from
+## what the rank actually does.
+func _test_stat_values_read_the_row_effect() -> void:
+	var state := _funded_state()
+	var tap := state.get_definition("stronger_tap")
+	_expect(is_equal_approx(float(state.stat_display(tap, 0).value), 1.0), "Tap Damage at rank zero should read as the base tap")
+	var tap_at_five: Dictionary = state.stat_display(tap, 5)
+	_expect(is_equal_approx(float(tap_at_five.value), 6.0) and str(tap_at_five.unit) == "flat", "Tap Damage should add one per rank")
+	state.purchased = {"stronger_tap": 5}
+	_expect(is_equal_approx(float(state.stat_display(tap, 5).value), state._tap_base()), "the card value should equal what the rank actually grants")
+
+	var multiplier := state.get_definition("generator_two")
+	var at_three: Dictionary = state.stat_display(multiplier, 3)
+	_expect(str(at_three.unit) == "multiplier" and is_equal_approx(float(at_three.value), pow(1.15, 3)), "Damage Multiplier should compound per rank")
+	state.purchased = {"generator_two": 3}
+	_expect(is_equal_approx(float(state.stat_display(multiplier, 3).value), state._base_output_multiplier()), "the compounding card value should equal the applied multiplier")
+
+	var armor: Dictionary = state.stat_display(state.get_definition(GameState.ARMOR_ID), 10)
+	_expect(str(armor.unit) == "percent" and is_equal_approx(float(armor.value), 0.4), "Armor should read as 40% at its rank cap")
+	var burst: Dictionary = state.stat_display(state.get_definition("burst_relay"), 2)
+	_expect(str(burst.unit) == "rank" and is_equal_approx(float(burst.value), 2.0), "a row with no declared effect should fall back to its rank")
 
 func _test_workshop_effects() -> void:
 	var state := _funded_state()

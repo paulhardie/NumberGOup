@@ -23,6 +23,27 @@ const TIER_UNLOCK_WAVE := 100
 const BRACE_COST_PERCENT := 0.3
 ## Armor's id is stable from the Shield Matrix save key it replaced (D013).
 const ARMOR_ID := "tax_resistance"
+## How many ranks one Workshop press buys. MAX_BUY takes every rank the player
+## can afford, up to the row's cap.
+const MAX_BUY := -1
+const BUY_STEPS := [1, 5, 10, MAX_BUY]
+
+## How to read one row's effect as a player-facing value, keyed by the effect
+## the row already declares, so a card cannot drift from what the rank does.
+## `base` is the value at rank zero; `op` is how ranks combine, matching the
+## _effect_sum / _effect_product call that consumes the effect.
+const STAT_DISPLAY := {
+	"tap_flat": {"unit": "flat", "base": 1.0, "op": "add"},
+	"passive_flat": {"unit": "flat", "base": 0.0, "op": "add"},
+	"base_output_multiplier": {"unit": "multiplier", "base": 1.0, "op": "mul"},
+	"tick_rate": {"unit": "multiplier", "base": 1.0, "op": "mul"},
+	"double_tick_chance": {"unit": "percent", "base": 0.0, "op": "add"},
+	"critical_chance": {"unit": "percent", "base": 0.0, "op": "add"},
+	"critical_multiplier_add": {"unit": "multiplier", "base": 2.0, "op": "add"},
+	"cost_discount": {"unit": "percent", "base": 0.0, "op": "add"},
+	"starting_number_flat": {"unit": "flat", "base": 0.0, "op": "add"},
+	"collection_resistance": {"unit": "percent", "base": 0.0, "op": "add"},
+}
 
 var number := ScientificNumber.new()
 var lifetime_generated := ScientificNumber.new()
@@ -328,19 +349,49 @@ func get_owned(upgrade_id: String) -> int:
 	return int(purchased.get(upgrade_id, 0))
 
 func get_cost(definition: UpgradeDefinition) -> ScientificNumber:
+	return get_cost_at(definition, get_owned(definition.id))
+
+func get_cost_at(definition: UpgradeDefinition, owned: int) -> ScientificNumber:
 	var discount := _effect_sum("cost_discount")
 	# Focus is a nudge toward a first build, never a permanent branch lock.
 	if definition.workshop_category == focus_path:
 		discount += 0.25
-	return definition.cost_at(get_owned(definition.id), discount)
+	return definition.cost_at(owned, discount)
 
 func get_workshop_coin_cost(definition: UpgradeDefinition) -> int:
-	var cost := get_cost(definition)
+	return get_workshop_coin_cost_at(definition, get_owned(definition.id))
+
+func get_workshop_coin_cost_at(definition: UpgradeDefinition, owned: int) -> int:
+	var cost := get_cost_at(definition, owned)
 	if cost.is_zero():
 		return 0
 	# Authored Workshop costs stay in the exact-number helper so growth and
 	# discounts remain inspectable, while Coins themselves are whole units.
 	return maxi(1, ceili(cost.mantissa * pow(10.0, cost.exponent)))
+
+## What one press of a multi-buy would actually do: how many ranks land and what
+## they cost together. Ranks are priced one at a time and summed, so buying in
+## bulk is never cheaper than buying the same ranks one by one. The quote uses
+## the discount in force now, so buying Discount ranks in bulk does not make the
+## later ranks of that same press cheaper: the price shown is the price paid.
+func plan_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
+	var refused := {"ranks": 0, "cost": 0}
+	var definition := get_definition(upgrade_id)
+	if definition == null or definition.category != ProgressionTaxonomy.WORKSHOP:
+		return refused
+	if in_run or not is_unlocked(definition):
+		return refused
+	var owned := get_owned(upgrade_id)
+	var wanted := definition.max_rank - owned if count == MAX_BUY else maxi(0, count)
+	var ranks := 0
+	var spent := 0
+	while ranks < wanted and owned + ranks < definition.max_rank:
+		var step := get_workshop_coin_cost_at(definition, owned + ranks)
+		if spent + step > coins:
+			break
+		spent += step
+		ranks += 1
+	return {"ranks": ranks, "cost": spent}
 
 func is_unlocked(definition: UpgradeDefinition) -> bool:
 	if definition.category == ProgressionTaxonomy.WORKSHOP:
@@ -350,22 +401,40 @@ func is_unlocked(definition: UpgradeDefinition) -> bool:
 	return lifetime_generated.compare_to(definition.unlock_lifetime) >= 0
 
 func can_purchase(upgrade_id: String) -> bool:
-	var definition := get_definition(upgrade_id)
-	if definition == null or definition.category != ProgressionTaxonomy.WORKSHOP or in_run or not is_unlocked(definition):
-		return false
-	if definition.is_maxed(get_owned(upgrade_id)):
-		return false
-	return coins >= get_workshop_coin_cost(definition)
+	return int(plan_purchase(upgrade_id, 1).ranks) > 0
 
 func purchase(upgrade_id: String, silent: bool = false) -> bool:
-	if not can_purchase(upgrade_id):
-		return false
-	var definition := get_definition(upgrade_id)
-	var cost := get_workshop_coin_cost(definition)
+	return purchase_ranks(upgrade_id, 1) > 0
+
+## Buys what plan_purchase quoted and returns the ranks that landed, so the
+## press and the quote can never disagree about the price.
+func purchase_ranks(upgrade_id: String, count: int = 1) -> int:
+	var plan := plan_purchase(upgrade_id, count)
+	var ranks := int(plan.ranks)
+	if ranks <= 0:
+		return 0
+	var cost := int(plan.cost)
 	coins -= cost
-	purchased[upgrade_id] = get_owned(upgrade_id) + 1
+	purchased[upgrade_id] = get_owned(upgrade_id) + ranks
 	statistics.coins_spent = int(statistics.get("coins_spent", 0)) + cost
-	return true
+	return ranks
+
+## The value a row reads as at a given rank, and the unit to read it in. Rows
+## with no declared effect (Burst, Crit Chain) fall back to their rank, which is
+## what their description already talks in.
+func stat_display(definition: UpgradeDefinition, rank: int) -> Dictionary:
+	for effect_name in definition.effects:
+		if not STAT_DISPLAY.has(effect_name):
+			continue
+		var shape: Dictionary = STAT_DISPLAY[effect_name]
+		var step := float(definition.effects[effect_name])
+		var value: float = float(shape.base)
+		if str(shape.op) == "mul":
+			value *= pow(step, rank)
+		else:
+			value += step * float(rank)
+		return {"value": value, "unit": str(shape.unit)}
+	return {"value": float(rank), "unit": "rank"}
 
 func can_purchase_insight() -> bool:
 	return knowledge > 0
