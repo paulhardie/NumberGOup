@@ -14,7 +14,7 @@ Rules:
 
 ## D001 — Replace percentage tax with two absolute axes
 
-- **Status:** Accepted (2026-09-21)
+- **Status:** Accepted (2026-09-21). The one-for-one production rule and its "production is both offence and survival" consequence are superseded by D012; the two absolute axes stand.
 - **Context:** The prototype deducted a percentage of current Number per wave, so weak and strong builds lost the same fraction and production growth did not extend survival. The Tower's structure separates an enemy health pool from an enemy attack.
 - **Decision:** A Tax encounter has absolute Liability (depleted one-for-one by Number production) and absolute Collection (deducted from Number at each wave boundary while Liability remains).
 - **Consequences:** Production is both offence and survival; balance lives in `TaxBalanceProfile`; Number reaching zero ends the run.
@@ -99,3 +99,27 @@ Rules:
 - **Decision:** [`GAME_VISION.md`](GAME_VISION.md) owns the product ambition, pillars and anti-goals. New systems are admitted by the vision's tests and must keep the run loop the game rather than skipping it.
 - **Consequences:** Feature proposals are judged against the vision before implementation; currency count stays minimal; no live-operations scaffolding before the core run is proven fun.
 - **Revisit when:** The vision's pillars or reference set change; update the vision document first, then this entry.
+
+## D012 — Output beats the wave before it becomes Number
+
+- **Status:** Accepted (2026-09-21). Supersedes D001's one-for-one production rule. Implemented (2026-09-21) with balance profile `tax-foundation-v2`: Liability and Collection halved, pressured wave Coins ×0.65.
+- **Context:** Every unit produced raised Number and also depleted Liability, so production healed the player while stuck on a wave. Attack did Defense's job: a max-Attack Tier 1 run survived 102 Collection hits over 46 minutes. Pillar 2 had nothing to stand on, and the Number rose whether the player was winning or losing.
+- **Decision:** Output applies to the active wave's remaining Liability first; only output beyond it is added to Number. A wave that outlasts its timer still deals its Collection and keeps its remaining Liability, as today. `lifetime_generated` keeps counting all output.
+- **Consequences:** Collection hits become real events, Defense gets a job Attack cannot do, and the Number rises only while the player is ahead. Measured in [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md): on the v1 curves the first run was unchanged (wave 21, 48 Coins), but Tier 1 wave 100 moved out of reach at the same investment and Tier 2 turned harsh for builds below the unlock level. D012 therefore shipped together with the v2 retune, which restores wave 100 for the same build in 45 minutes rather than 73, with 82 hits rather than 194. On its own it does not make Defense an equal axis; that needs new Defense stats and tuning where the hit decides the fight.
+- **Revisit when:** The retune cannot meet the first-run and Coin-rate targets together, or playtest shows a Number sitting flat through a wave reads as failure rather than pressure.
+
+## D013 — The Workshop has four categories: Attack, Defense, Utility, Ultimates
+
+- **Status:** Accepted (2026-09-21). Not yet implemented.
+- **Context:** All twelve Workshop upgrades served production; Defense existed only as Shield Matrix and Brace, outside the Workshop. With two checks per wave, each needs a shelf, and the owner wants the Workshop to be a large part of the game, as it is in The Tower.
+- **Decision:** The Workshop is organised as Attack (beat the wave inside its timer), Defense (survive the hits when you can't), Utility (get more from every run) and Ultimates (milestone-unlocked abilities that fire on their own). The Output, Speed, Chance and Logic bays retire into these categories and Shield Matrix becomes the Defense stat Armor. Every stat carries a one-line player-facing reason to buy it. The stat list, presentation and strategy set live in [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md).
+- **Consequences:** Retiring bays is a save schema V5 migration covering `selected_bay`, `focus` (Research Focus discounts by bay today), the bay unlock gates and `tax_resistance_rank`, with no loss of ranks; upgrade ids stay stable. Research Focus retargets from a bay to a category. Vision pillar 8 changes from four bays to four categories.
+- **Revisit when:** A category has no stat worth buying at some stage of the game, or a fifth shelf is proposed.
+
+## D014 — Player-facing vocabulary: Wave HP, Hit, Armor
+
+- **Status:** Accepted (2026-09-21). Only the run screen's damage-rate line uses it so far.
+- **Context:** Tax phrasing (Liability, Collection, Compliance, Shield Matrix) made the two checks harder to read than they need to be. The owner wanted plain words that make every Workshop stat's purpose obvious.
+- **Decision:** Player-facing text uses Wave, Wave HP (shown as the ring), Damage, Beaten, Hit, Warm-up wave, Brace and Armor, mapped term by term in [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md). The Number is never called health on screen. Code names and save keys keep their current names.
+- **Consequences:** A UI string pass replaces the tax wording. Renaming classes is a separate mechanical change, and renaming a save key would need a migration; neither is implied.
+- **Revisit when:** Playtest shows a term being misread, or a new mechanic needs a word the set lacks.

@@ -6,14 +6,18 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v1"
+const PROFILE_ID := "tax-foundation-v2"
 const WAVE_INTERVAL_SECONDS := 15.0
 const BOSS_WAVE_INTERVAL := 10
 const TIER_UNLOCK_WAVE := 100
 const MILESTONE_WAVES := [10, 25, 50, 100]
 
-const LIABILITY_SCALE := 8.0
-const COLLECTION_SCALE := 20.0
+## v2 halves both axes and trims pressured rewards to compensate for D012: with
+## no free heal while stuck, the same build reaches the same wave in far less
+## time, so per-wave Coins come down to hold Coins per minute level.
+const LIABILITY_SCALE := 4.0
+const COLLECTION_SCALE := 10.0
+const PRESSURED_REWARD_SCALE := 0.65
 const BOSS_LIABILITY_MULTIPLIER := 3.0
 const BOSS_COLLECTION_MULTIPLIER := 1.5
 const BOSS_REWARD_MULTIPLIER := 5.0
@@ -84,9 +88,9 @@ func reward_for_wave(tier_id: int, wave: int) -> int:
 		return 5 if is_boss_wave(wave) else 1
 	# Once a wave is pressured every tier shares the same wave base. This keeps
 	# 1.8x/2.6x reward ratios honest at equal waves.
-	var base_reward := maxi(1, wave)
+	var base_reward := float(maxi(1, wave)) * PRESSURED_REWARD_SCALE
 	var boss_multiplier := BOSS_REWARD_MULTIPLIER if is_boss_wave(wave) else 1.0
-	return maxi(1, roundi(float(base_reward) * get_tier(tier_id).reward_multiplier * boss_multiplier))
+	return maxi(1, roundi(base_reward * get_tier(tier_id).reward_multiplier * boss_multiplier))
 
 func milestone_bonus(tier_id: int, wave: int) -> int:
 	if not MILESTONE_WAVES.has(wave):

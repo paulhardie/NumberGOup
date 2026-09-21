@@ -13,8 +13,8 @@ var ambience_player: AudioStreamPlayer
 const AMBIENCE_VOLUME := 0.045
 
 func _ready() -> void:
-	tick_sample = _make_sample(250.0, 0.06, 0.05, 0.15)
-	critical_sample = _make_sample(660.0, 0.14, 0.09, 0.12)
+	tick_sample = _make_sample(196.0, 0.10, 0.016, 0.34)
+	critical_sample = _make_sample(262.0, 0.14, 0.024, 0.30)
 	ambience_player = AudioStreamPlayer.new()
 	ambience_player.stream = _make_ambience_sample()
 	add_child(ambience_player)
@@ -33,24 +33,27 @@ func set_ambience_enabled(enabled: bool) -> void:
 	elif not enabled and ambience_player.playing:
 		ambience_player.stop()
 
-## frequency/duration/volume as before; attack_fraction ramps the envelope in
-## from silence over that fraction of the sample instead of starting at full
-## volume, which is what read as a harsh click rather than a soft tap.
+## A soft, low tap. 16-bit for the same reason the pad below is: at these
+## volumes an 8-bit sample resolves to a handful of levels, and that
+## quantisation is the grain that read as a blip. Both ends of the envelope are
+## eased — attack_fraction ramps in from silence over that fraction of the
+## sample, and the decay is a raised cosine rather than a power curve, so
+## neither the onset nor the tail has a corner for the ear to catch.
 func _make_sample(frequency: float, duration: float, volume: float, attack_fraction: float = 0.0) -> AudioStreamWAV:
 	var sample_rate := 22050
 	var frames := int(duration * sample_rate)
 	var attack_frames := maxi(1, int(attack_fraction * frames))
 	var bytes := PackedByteArray()
-	bytes.resize(frames)
+	bytes.resize(frames * 2)
 	for frame in range(frames):
 		var progress := float(frame) / float(frames)
-		var decay := pow(1.0 - progress, 2.4)
+		var decay := 0.5 + 0.5 * cos(PI * progress)
 		var attack := minf(1.0, float(frame) / float(attack_frames))
-		var envelope := decay * attack
+		var envelope := decay * attack * attack
 		var wave := sin(TAU * frequency * float(frame) / float(sample_rate))
-		bytes[frame] = clampi(int(128.0 + wave * 127.0 * volume * envelope), 0, 255)
+		bytes.encode_s16(frame * 2, clampi(roundi(wave * volume * envelope * 32767.0), -32768, 32767))
 	var result := AudioStreamWAV.new()
-	result.format = AudioStreamWAV.FORMAT_8_BITS
+	result.format = AudioStreamWAV.FORMAT_16_BITS
 	result.mix_rate = sample_rate
 	result.stereo = false
 	result.data = bytes
@@ -60,9 +63,7 @@ func _make_sample(frequency: float, duration: float, volume: float, attack_fract
 ## octave shimmer on top, amplitude-swelled once per loop so it never reads as
 ## a static drone. Every tone and the swell complete a whole number of cycles
 ## across the loop's exact duration, so the wrap point is click-free without
-## needing a manual crossfade. 16-bit rather than the 8-bit used for the short
-## UI blips above: a sustained quiet tone shows 8-bit quantisation as audible
-## graininess in a way a 60ms tap does not.
+## needing a manual crossfade.
 func _make_ambience_sample() -> AudioStreamWAV:
 	var sample_rate := 22050
 	var duration := 8.0

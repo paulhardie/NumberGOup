@@ -1,7 +1,7 @@
 # Number Go Up — Game vision
 
 Status: living document, last revised 21 September 2026.
-Companion documents: [`README.md`](../README.md) for the current build, [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md) for the researched encounter foundation.
+Companion documents: [`README.md`](../README.md) for the current build, [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md) for the researched encounter foundation, [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md) for the Workshop categories and the wave rule they rest on.
 
 ## Guiding principle
 
@@ -29,7 +29,7 @@ The finished game should be:
 
 ## Core fantasy
 
-Making Number go up is both offence and survival. Number is score, health and ammunition at once, so every spend is a real decision rather than busywork.
+Making Number go up is the whole game. Output beats the wave first and only the overflow becomes Number (D012), so Number is score, health and ammunition at once, and every spend is a real decision rather than busywork.
 
 ## Design pillars
 
@@ -40,13 +40,13 @@ Making Number go up is both offence and survival. Number is score, health and am
 5. **One modifier pipeline.** Laws, Violations, challenges, perks and battle conditions all enter through the shared ordered pipeline. No system gets a special case inside the state machine.
 6. **Visible causality.** If a number changed, the player can find out why: inspectable costs, damage, records and summaries over hidden multipliers.
 7. **No risk-free growth.** Retreat ends and resets a run. Active runs freeze exactly while away. Waiting, closing the app or banking a run cannot farm a head start.
-8. **Legibility over feature count.** Four Workshop bays, one research choice, three tiers. New systems must fit the vocabulary before they fit the code.
+8. **Legibility over feature count.** Four Workshop categories (Attack, Defense, Utility, Ultimates), one research choice, three tiers. New systems must fit the vocabulary before they fit the code.
 
 ## The loops
 
 | Loop | Duration | Player action | Feedback |
 | --- | --- | --- | --- |
-| Moment | seconds | Tap, or let production tick | Number rises, Liability falls |
+| Moment | seconds | Tap, or let production tick | Liability falls; once the wave is beaten, Number rises |
 | Wave | 15 seconds | Clear Liability before the Collection hit | Clear, collect or die; boss every tenth wave |
 | Run | minutes | Start from the permanent baseline, push waves, retreat or die | Coins, Knowledge, run summary, tier record |
 | Meta | between runs | Spend Coins in the Workshop, Knowledge on Insight, pick a Research Focus | Every later run starts stronger |
@@ -56,7 +56,7 @@ The run loop is the game. The meta loop exists to make the next run different, n
 
 ## Where the depth comes from
 
-- **Bay specialisation.** Output, Speed, Chance and Logic each change production differently; the interesting builds combine them.
+- **Workshop categories.** Attack beats waves inside the timer, Defense survives the ones it can't, Utility compounds the meta and Ultimates spike at milestones; the interesting builds combine them ([`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md)).
 - **Research Focus.** A one-time discount that nudges a build direction without locking alternatives.
 - **Tier choice.** Higher tiers multiply pressure faster than rewards, so farming and pushing are different decisions.
 - **Milestones and records.** Waves 10/25/50/100 give the run a visible spine; per-tier bests make progress comparable run to run.
@@ -99,5 +99,5 @@ The foundation is locked when:
 
 - When a temporary in-run upgrade layer arrives, what is it called and what does it spend?
 - Is voluntary Prestige distinct enough from death, in both reward policy and player intent?
-- Does the long-term tree branch by bay, by tier, or by encounter pattern?
+- Does the long-term tree branch by Workshop category, by tier, or by encounter pattern?
 - At what point does a second automation axis (choosing, not just ordering) become earned depth rather than solved busywork?

@@ -17,7 +17,7 @@
 
 ## Must — encounter contracts
 
-- Every unit of Number produced during a run also applies one unit of compliance damage to remaining Liability, and Liability floors at zero.
+- During a run, every unit produced damages the active wave's remaining Liability first; only output beyond it is added to Number (D012). Liability floors at zero, and lifetime production counts all output.
 - Collection is an absolute value deducted from Number at each wave boundary while Liability remains. Number reaching zero ends and resets the run.
 - Tier 2 and Tier 3 apply exactly 20× and 60× Tier 1 Liability and Collection at equal pressured waves; reward multipliers are 1.8× and 2.6×.
 - Boss waves multiply Liability (3×), Collection (1.5×) and reward (5×) independently.
@@ -38,7 +38,7 @@
 - Upgrade costs and ranks are legible before purchase.
 - The first failed run funds at least one permanent Workshop rank.
 - UI presents and reports; it mutates domain state only by calling `GameState` methods.
-- Bays open at Workshop levels: Output 0, Speed 2, Chance 5, Logic 8.
+- Bays open at Workshop levels: Output 0, Speed 2, Chance 5, Logic 8. *Retires when D013's four categories are implemented.*
 - Brace spends 30% of current Number and blocks exactly the next Collection hit.
 - A run ending explains itself: the summary states the tier, wave, Coins and Knowledge earned.
 - Highest Number and tier records persist across runs for stats and dock unlocks.

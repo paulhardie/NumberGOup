@@ -943,7 +943,13 @@ func _spawn_floating_text(text: String, colour: Color, local_pos: Vector2) -> vo
 func _refresh_all() -> void:
 	background_rect.visible = not bool(state.settings.high_contrast)
 	rate_label.visible = true
-	rate_label.text = ("+" if state.in_run else "STARTING +") + state.get_rate_per_second().format_value() + " / sec"
+	var rate := state.get_rate_per_second().format_value()
+	if not state.in_run:
+		rate_label.text = "STARTING +" + rate + " / sec"
+	elif state.is_output_banking():
+		rate_label.text = "+" + rate + " / sec"
+	else:
+		rate_label.text = rate + " DAMAGE / sec"
 	tap_hint.text = "TAP TO PRODUCE" if state.in_run else "START A RUN TO PRODUCE"
 	coins_label.text = str(state.coins)
 	knowledge_label.text = str(state.knowledge)

@@ -24,7 +24,7 @@ The playable slice includes tapping, passive production, a four-bay permanent Wo
 
 Tax runs use two independent absolute stats:
 
-- **Liability** is depleted by Number production. Every unit produced both raises Number and deals one unit of compliance damage.
+- **Liability** is depleted by production first. Output that damages the wave does not become Number; only output beyond the wave's remaining Liability does.
 - **Collection** is deducted from Number every 15 seconds while Liability remains. Number reaching zero ends and resets the run.
 
 Tier 1 has 20 grace waves. Tier 2 and Tier 3 unlock by clearing wave 100 in the preceding tier and apply 20× and 60× Liability/Collection pressure from wave 1. Rewards rise by smaller 1.8× and 2.6× multipliers. Every tenth wave is a boss; milestones are tracked at waves 10, 25, 50, and 100.

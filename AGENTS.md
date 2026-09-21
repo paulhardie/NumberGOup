@@ -24,6 +24,7 @@ Start with the smallest set of current sources:
 - [`README.md`](README.md) — what the game is and how to run it.
 - [`docs/GAME_VISION.md`](docs/GAME_VISION.md) — the player experience, pillars and anti-goals.
 - [`docs/TOWER_SCALING_FOUNDATION.md`](docs/TOWER_SCALING_FOUNDATION.md) — researched encounter foundation and rationale.
+- [`docs/WORKSHOP_DESIGN.md`](docs/WORKSHOP_DESIGN.md) — Workshop categories, the wave rule, player-facing vocabulary and balance targets.
 - [`docs/GAME_INVARIANTS.md`](docs/GAME_INVARIANTS.md) — behaviour that must remain true.
 - [`docs/QUALITY_GATES.md`](docs/QUALITY_GATES.md) — verification required for the change's risk.
 - [`docs/DECISIONS.md`](docs/DECISIONS.md) — accepted choices. Grep by ID (for example `grep -n "^## D004" docs/DECISIONS.md`); never read it whole.
@@ -69,7 +70,7 @@ GODOT=/Users/paulhardie/Downloads/Godot.app/Contents/MacOS/Godot bash run_balanc
 - `run_tests.sh` is the economy suite; a green count with errors printed is not a pass.
 - `run_balance.sh` prints the curve and the representative first run; it is a measurement tool, not a gate.
 - The headless project run catches parse and scene-build errors in `main.gd` and the UI classes.
-- The capture tool opens briefly and writes hub/run/workshop/labs/cards/drawer PNGs at four window sizes to `user://ui_capture` for visual review; inspect them, never assert pixel equality.
+- The capture tool opens briefly and writes hub/run/run_standing/workshop/labs/cards/drawer PNGs at four window sizes to `user://ui_capture` for visual review; inspect them, never assert pixel equality.
 - Tests write `res://.number_go_up_test_save.json` and clear it; a leftover file is a bug in the test, not content.
 
 Never weaken a test, fixture or gate to get green.

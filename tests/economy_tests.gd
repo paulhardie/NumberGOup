@@ -16,6 +16,10 @@ func _init() -> void:
 	_test_first_run_funds_permanent_workshop()
 	_test_tier_pressure_and_curve_gates()
 	_test_production_clears_liability()
+	_test_output_beats_the_wave_before_it_becomes_number()
+	_test_repeated_taps_count_once()
+	_test_stuck_wave_keeps_its_damage_and_hits_again()
+	_test_mid_wave_save_resumes_identically()
 	_test_collection_is_absolute()
 	_test_boss_axes_and_rewards()
 	_test_brace_blocks_next_collection()
@@ -262,6 +266,101 @@ func _test_production_clears_liability() -> void:
 	_expect(state.active_encounter.is_cleared(), "sufficient compliance should clear Liability without making it negative")
 	var event := state._resolve_wave_boundary()
 	_expect(event.type == "wave_clear" and state.wave == 2, "a cleared Liability should advance at the boundary")
+
+func _test_output_beats_the_wave_before_it_becomes_number() -> void:
+	var state := GameState.new()
+	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	_expect(state.start_run(2, 21), "Tier 2 run should start after unlock")
+	state.number = ScientificNumber.from_float(1000)
+	state.active_encounter.remaining_liability = ScientificNumber.from_float(50)
+	var lifetime_before: ScientificNumber = state.lifetime_generated.copy()
+
+	state._add_number(ScientificNumber.from_float(30))
+	_expect(state.number.compare_to(ScientificNumber.from_float(1000)) == 0, "output below remaining Liability should not raise Number")
+	_expect(state.active_encounter.remaining_liability.compare_to(ScientificNumber.from_float(20)) == 0, "output should damage the wave one-for-one")
+
+	state._add_number(ScientificNumber.from_float(20))
+	_expect(state.active_encounter.is_cleared(), "output exactly equal to remaining Liability should beat the wave")
+	_expect(state.number.compare_to(ScientificNumber.from_float(1000)) == 0, "an exact clear should bank nothing")
+
+	state._add_number(ScientificNumber.from_float(45))
+	_expect(state.number.compare_to(ScientificNumber.from_float(1045)) == 0, "output after the wave is beaten should all become Number")
+	_expect(state.lifetime_generated.compare_to(lifetime_before.add(ScientificNumber.from_float(95))) == 0, "lifetime production should count all output, including damage dealt")
+
+	state.active_encounter.remaining_liability = ScientificNumber.from_float(50)
+	state._add_number(ScientificNumber.from_float(80))
+	_expect(state.active_encounter.is_cleared() and state.number.compare_to(ScientificNumber.from_float(1075)) == 0, "one output past remaining Liability should bank only the overflow")
+
+	state.active_encounter.remaining_liability = ScientificNumber.from_float(50)
+	var zero_lifetime: ScientificNumber = state.lifetime_generated.copy()
+	state._add_number(ScientificNumber.new())
+	_expect(state.number.compare_to(ScientificNumber.from_float(1075)) == 0 and state.active_encounter.remaining_liability.compare_to(ScientificNumber.from_float(50)) == 0, "zero output should change nothing")
+	_expect(state.lifetime_generated.compare_to(zero_lifetime) == 0, "zero output should not count as production")
+
+	state.number = ScientificNumber.new()
+	state.active_encounter.remaining_liability = ScientificNumber.new(5.0, 300)
+	state._add_number(ScientificNumber.new(7.0, 300))
+	_expect(state.active_encounter.is_cleared() and state.number.compare_to(ScientificNumber.new(2.0, 300)) == 0, "overflow should stay exact at very large values")
+
+	var warm_up := GameState.new()
+	warm_up.start_run(1, 22)
+	warm_up._add_number(ScientificNumber.from_float(5))
+	_expect(warm_up.number.compare_to(ScientificNumber.from_float(5)) == 0, "warm-up waves have no Liability, so all output should bank")
+
+	var outside := GameState.new()
+	outside.tap()
+	_expect(outside.number.is_zero() and outside.lifetime_generated.is_zero(), "tapping outside a run should grant nothing")
+
+func _test_repeated_taps_count_once() -> void:
+	var state := GameState.new()
+	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	state.start_run(2, 23)
+	state.active_encounter.remaining_liability = ScientificNumber.from_float(30)
+	var lifetime_before: ScientificNumber = state.lifetime_generated.copy()
+	for tap_index in range(50):
+		state.tap()
+	_expect(state.active_encounter.is_cleared(), "fifty one-unit taps should beat a 30-HP wave")
+	_expect(state.number.compare_to(ScientificNumber.from_float(20)) == 0, "only the 20 units past the wave's HP should bank")
+	_expect(state.lifetime_generated.compare_to(lifetime_before.add(ScientificNumber.from_float(50))) == 0, "every tap should count once toward lifetime production")
+
+func _test_stuck_wave_keeps_its_damage_and_hits_again() -> void:
+	var state := GameState.new()
+	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	state.start_run(2, 24)
+	state.number = ScientificNumber.from_float(10000)
+	state.active_encounter.remaining_liability = ScientificNumber.from_float(100)
+	state._add_number(ScientificNumber.from_float(40))
+	var hit := state.get_effective_collection()
+	var event := state._resolve_wave_boundary()
+	_expect(event.type == "tax_collection" and state.wave == 1, "a wave still standing at its boundary should hit and stay")
+	_expect(state.number.compare_to(ScientificNumber.from_float(10000).subtract(hit)) == 0, "the hit should come out of Number")
+	_expect(state.active_encounter.remaining_liability.compare_to(ScientificNumber.from_float(60)) == 0, "a surviving wave should keep the damage already dealt")
+	state._add_number(ScientificNumber.from_float(60))
+	event = state._resolve_wave_boundary()
+	_expect(event.type == "wave_clear" and state.wave == 2, "finishing a stuck wave should advance at the next boundary")
+
+func _test_mid_wave_save_resumes_identically() -> void:
+	var save_path := "res://.number_go_up_test_save.json"
+	var original := GameState.new()
+	original.save_path = save_path
+	original.purchased = {"stronger_tap": 3, "more_critical": 5}
+	original.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	original.start_run(2, 31)
+	for tap_index in range(5):
+		original.tap()
+	_expect(not original.active_encounter.is_cleared(), "the save should be taken mid-wave")
+	_expect(original.save(), "mid-wave save should write")
+	var restored := GameState.new()
+	restored.save_path = save_path
+	restored.load()
+	for tap_index in range(80):
+		original.tap()
+		restored.tap()
+	_expect(original.active_encounter.is_cleared(), "continued tapping should carry the wave past its clear point")
+	_expect(restored.number.compare_to(original.number) == 0, "a restored run should bank the same overflow as the original")
+	_expect(restored.active_encounter.remaining_liability.compare_to(original.active_encounter.remaining_liability) == 0, "a restored run should deal the same damage as the original")
+	_expect(restored.lifetime_generated.compare_to(original.lifetime_generated) == 0 and restored.rng.state == original.rng.state, "a restored run should stay deterministic")
+	restored.clear_save()
 
 func _test_collection_is_absolute() -> void:
 	var small := GameState.new()
