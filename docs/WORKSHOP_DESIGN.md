@@ -1,8 +1,8 @@
 # Workshop design
 
 **Status:** Accepted direction. Step 1 (the wave rule and its retune) implemented 21 September 2026; later steps not yet.
-**Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four Workshop categories) and [D014](DECISIONS.md) (player vocabulary).
-**Owns:** the wave rule as the player should understand it, the four Workshop categories and every stat's reason to exist, what the player sees, the build strategies this supports, the balance targets the retune must hit, and the implementation order.
+**Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four categories), [D014](DECISIONS.md) (player vocabulary), [D015](DECISIONS.md) (the Rig: the same four categories inside a run) and [D016](DECISIONS.md) (the bottom bar carries what is actionable now).
+**Owns:** the wave rule as the player should understand it, the four categories in both lenses — permanent in the Workshop, run-only in the Rig — and every stat's reason to exist, what the player sees, the build strategies this supports, the balance targets the retune must hit, and the implementation order.
 
 This document uses the accepted player vocabulary (Wave HP, Hit, Armor). [Vocabulary](#vocabulary-d014) maps every term to its code name.
 
@@ -10,7 +10,7 @@ This document uses the accepted player vocabulary (Wave HP, Hit, Armor). [Vocabu
 
 Each wave has **HP** (the ring) and a **Hit**. Everything you produce, taps and ticks alike, is **damage**, and it goes into the wave first. Beat the wave before its 15-second timer runs out and it never hits you; for the rest of that timer your output overflows into your Number. If the timer runs out with the wave still standing, it **hits** your Number, keeps the HP it has left, and the timer starts again. It hits every 15 seconds until you beat it. If a hit takes your Number to zero, the run ends.
 
-That gives each half of the Workshop one plain job:
+That gives each half of the stat catalogue one plain job:
 
 - **Attack** decides whether you beat a wave inside one timer.
 - **Defense** decides how many hits you can take while you grind down a wave you couldn't.
@@ -87,6 +87,7 @@ Player-facing words move away from tax and collection phrasing. The UI string pa
 | Brace | Brace (keep) | `braced` | Spend 30% of your Number to block the next hit |
 | Shield, Shield Matrix | Armor | `tax_resistance_rank` | Every hit is permanently smaller |
 | Number, Coins, Knowledge, Retreat | Keep | — | — |
+| — | The Rig, and `THIS RUN ONLY` on its panel | new (D015) | What you build inside one run, bought with Number |
 
 Player-facing text never calls the Number "health". It says "If a hit takes your Number to zero, the run ends." That keeps one HP on screen, not two.
 
@@ -167,31 +168,150 @@ Wave 10 falls inside Tier 1's warm-up, so every player meets their first Ultimat
 
 Rejected: *Stop the Clock* (pause the wave timer). It breaks the vision's anti-goal "no pausing an active run while Number keeps growing, in any form".
 
+## The Rig — the same four categories inside a run (D015)
+
+**Status:** Designed, not implemented. The four categories in the run are owner direction; the resource and the cost rule below are this document's recommendation.
+
+A run contains one decision today: Brace, at a flat 30%. Everything else the player does between starting a run and dying is tapping. That is the friction this section answers, and it is the reason the four categories belong on the run screen and not only in the Workshop.
+
+The Rig is what you build inside a single run. Same four categories, same stat catalogue, three differences:
+
+| | Workshop | Rig |
+| --- | --- | --- |
+| Spends | Coins | Number |
+| Bought | Between runs | During a run |
+| Lasts | Every later run | This run only |
+| Lives | The Workshop screen | The run screen's bottom bar |
+
+One catalogue, two price tags. A player learns "Tap Damage" once and meets it twice: as a permanent floor raised with Coins, and as a rank bought with Number while a wave is standing.
+
+### Why Number is the right cost
+
+Pillar 3 and architectural law 4 require a temporary layer to carry a distinct name and resource. Number already **is** the run-only resource: it exists only during a run and resets at every ending (D004, D008). Spending it adds no fourth currency (pillar 4), and Brace already sets the precedent at 30%.
+
+It also produces the decision D012 was reaching for. Under D012 the Number rises only while you are ahead of the wave. The Rig is how being ahead compounds: beat waves cleanly, bank the overflow, convert it into the damage that beats the next one cleanly. **Every Rig purchase is also a cut to the buffer that absorbs the next hit**, so Attack and Defense compete for one pool inside the run rather than only in a shopping trip before it. That is pillar 2 as a moment-to-moment choice.
+
+The cost of that is real: a player can spend themselves to death. The panel therefore prices every row against the incoming hit — `LEAVES 400 · HITS FOR 900` in the warning colour — and sells it anyway if they tap. A warning, not a block. The game's job is to make the number visible before it kills you, not to refuse the decision.
+
+### What it costs
+
+A flat Number price cannot work across tiers, because Tier 2 Number is twenty times Tier 1's from wave 1. Rig prices are quoted against the wave instead of in absolutes:
+
+```
+cost(rank)   = k × reference_hp × growth ^ rank
+reference_hp = max(current wave HP, the tier's first pressured wave HP)
+```
+
+One rank costs roughly what one wave is worth, which is a price a player can feel without reading a table, and it scales with tier and depth with no per-tier data. The floor stops Tier 1's warm-up waves, which have no HP, from making the whole panel free.
+
+**These coefficients are proposals, not measurements.** They are starting points for `tools/balance_simulator.gd` to tune:
+
+| Category | k | growth |
+| --- | --- | --- |
+| Attack | 0.5–1.5 | 1.7 |
+| Defense | 1.0 | 1.6 |
+| Utility | 2.0 | 1.5 |
+| Ultimate levels | 3.0 | 1.8 |
+
+Rig ranks are uncapped; cost growth is the only limit. *Rejected: capping Rig ranks at the matching permanent rank.* It reads well — the Workshop raises the ceiling — but it means the stat a player needs is the one they cannot buy, exactly while they are learning what they need. The Workshop keeps one job: raise the value every rank starts from.
+
+### Which rows appear in which lens
+
+| Stat | Workshop | Rig | Why |
+| --- | --- | --- | --- |
+| Tap Damage, Damage per Second, Damage Multiplier | ✓ | ✓ | |
+| Tick Speed, Double Tick, Burst | ✓ | ✓ | |
+| Crit Chance, Crit Damage, Crit Chain | ✓ | ✓ | |
+| Boss Damage | ✓ | ✓ | Bought two waves before a boss is the intended moment |
+| Armor, Siphon, Recoil | ✓ | ✓ | The three stats for a wave you are already stuck on |
+| Brace | — | free action | The Defense tab's first row, so the tab works at wave 1 of a fresh run |
+| Cushion | ✓ | — | A starting value; there is nothing to buy once the run has started |
+| Brace Cost | ✓ | — | |
+| Second Wind | ✓ | — | Buying insurance while the hit is inbound removes the tension it exists to create |
+| Coin Bonus | ✓ | ✓ | Applies to waves beaten after the purchase, so when you buy it matters |
+| Knowledge Bonus | ✓ | — | Paid at run end, so an in-run row would always be bought last: a solved decision |
+| Workshop Discount | ✓ | — | A between-run cost |
+| Rig Discount | — | ✓ | Rig rows cost X% less for the rest of this run |
+| Free Upgrade | — | ✓ | Every Nth Rig purchase costs nothing |
+| Ultimates: strength, duration, cooldown | ✓ unlock and permanent levels | ✓ run levels | The Tower's relationship: the Workshop owns the weapon, the run sharpens it |
+
+### Brace and Shield move
+
+Brace becomes the Defense tab's first row: still free to reach, still 30% of Number, still blocking exactly the next hit. Shield leaves the run screen entirely. It is a permanent Coin purchase sitting on the one screen where permanent purchases are forbidden by invariant, and under D013 it becomes Armor in the Workshop's Defense tab.
+
+That makes the reshape a net **simplification** of the run screen, which matters for pillar 1: the encounter line, two text actions, the run button and the tap hint currently occupy roughly 300px above a 92px dock. After the reshape that space holds the encounter line, the run button and one four-item bar.
+
+### What the Rig must not do
+
+- Grant no Coins, no Knowledge and no record. It changes this run and nothing else.
+- Survive a save and resume with the run it belongs to (D006, D007), and die with retreat and death like every other piece of run state (D008).
+- Open no new RNG stream. **Free Upgrade is deliberately "every Nth purchase" rather than a roll**, in the shape of Burst Relay, because a new random draw inside a run changes what a run seed reproduces. D006's revisit clause reserves that for run-scoped random content with its own stream; a rolled version needs that stream and its own decision first.
+
 ## What the player sees
 
 These are requirements. The design is not done if any of them is missing.
 
-**Run screen.** This keeps the single ring from the restage.
+### The bottom bar carries whatever is actionable now (D016)
+
+A portrait phone has one strip of thumb-reachable space, and today it holds a five-icon dock — NUMBER, WORKSHOP, LABS, CARDS, MORE — of which three cannot be acted on during a run at all, because permanent purchases are locked while a run is live.
+
+**In a run** the bar is the four categories, and the dock is not shown:
+
+```
+           COINS 1,204   KNOWLEDGE 7
+              WAVE 47 · T1 · BOSS IN 3
+
+                  ╭───────╮
+                  │ 3.4K  │      the ring is wave HP;
+                  ╰───────╯      its colour is time to the hit
+             HITS FOR 900 IN 6s
+
+                   RETREAT
+  ┌────────┬─────────┬─────────┬──────────┐
+  │ ATTACK │ DEFENSE•│ UTILITY │ ULTIMATE │   • = something in
+  └────────┴─────────┴─────────┴──────────┘       here is affordable
+```
+
+Tapping a tab slides its panel over the lower third; tapping the same tab again closes it. The ring, the Number and the wave line are never covered — depth lives in a panel the player opens, which is pillar 1's actual wording. The affordability dot means a player who keeps the panel shut still knows when it is worth opening.
+
+**Between runs** the bar is `RUN · WORKSHOP · MORE`.
+
+### The two lenses read as two lenses
+
+Each panel keeps a one-line banner in the place the Workshop already puts one:
+
+- Workshop: `PERMANENT · APPLIES TO EVERY RUN` (unchanged).
+- Rig: `THIS RUN ONLY · RESETS WHEN THE RUN ENDS`.
+
+Every row in either lens shows the plain stat name, current → next value, and cost in that lens's currency. Each tab opens with its purpose and its "buy this when" line. Defense unlocks the first time a wave hits you, in both lenses. Ultimates shows all four slots from the start, locked, each labelled with the wave that unlocks it.
+
+### Labs, Insight and Prestige stop being tabs (D016)
+
+Research Focus is chosen once per Prestige. Insight is one repeatable row. Prestige is rare and irreversible. None of the three earns a permanent seat on the bar, and two of them currently hold one.
+
+They move into a single **Knowledge sheet**, opened by tapping the Knowledge chip already sitting on the run screen, and listed in MORE. The currency is the door to its own spend; the same rule sends the Coins chip to the Workshop. The `highest_number` gates at 10 / 1,000 / 110,000 move with them and gate rows inside the sheet rather than icons on the bar.
+
+### The run screen
+
+This keeps the single ring from the restage.
 
 - The ring is the wave's HP, closing as you deal damage, and its colour heats as the hit approaches. Both are unchanged.
 - One line under the ring reads `HITS FOR 900 IN 6s`, replacing `LIABILITY … LEFT · COLLECTION …`.
 - When the ring closes, a short `BEATEN` beat plays, then the Number climbs for the rest of the timer. The climb is the reward.
 - A hit shows `−900` in the warning colour on the Number, then `STILL STANDING · HITS AGAIN IN 15s` if the wave survives.
 - Warm-up waves read `WARM-UP · EVERYTHING BANKS`.
+- A ready or firing Ultimate announces itself on the wave line — `SURGE · ALL DAMAGE ×3 FOR 8s` — so it needs no button and no open panel. Ultimates fire on their own (D013, pillar 1); the Rig's Ultimate tab levels them, it does not trigger them.
 
-**Workshop.**
+### The run-over screen becomes the place you fix it
 
-- There are four tabs. Each opens with its one-line purpose and its "buy this when" line.
-- Every row shows the plain stat name, current → next value, and cost.
-- Defense unlocks the first time a wave hits you, so the tab appears exactly when the player first needs it.
-- Ultimates shows all four slots from the start, locked, each labelled with the wave that unlocks it.
-
-**Run-over screen: "What would have saved you".** It shows two numbers, both worked out from the wave that ended the run:
+It shows what killed you, what would have saved you, and the two doors to go and buy it:
 
 - **Attack:** how much more damage per second would have beaten that wave inside one timer, for example `2.4× more damage`.
 - **Defense:** how much smaller the hits needed to be for you to survive until you beat it, for example `hits 35% smaller`.
+- The run's hits taken and the Number lost to them.
+- Two actions: `WORKSHOP` and `SPEND KNOWLEDGE`.
 
-It also shows the run's hits taken and the Number lost to them. The smaller gap points at the tab to open next. Both numbers come deterministically from state the game already holds. This is the vision's "every number that kills you was visible before it did", applied after the fact as well.
+The smaller of the two gaps points at the tab to open next. Both numbers come deterministically from state the game already holds. This is the vision's "every number that kills you was visible before it did", applied after the fact as well — and with Labs and Insight off the bar, this screen is where the meta loop is actually offered, at the moment the currency lands.
 
 ## Strategies this supports
 
@@ -201,6 +321,9 @@ It also shows the run's hits taken and the Number lost to them. The smaller gap 
 | Grinder | Defense (Armor, Siphon, Recoil) | Gets stuck and grinds through; slow but deep | Bosses and walls beyond your damage |
 | Banker | Utility | Farms a comfortable tier for Coins and Knowledge per minute | Funding the next push |
 | Burst | Ultimates | Surge and Breach land on bosses | Boss waves and milestone pushes |
+| Reinvestor | The Rig | Banks overflow on easy waves and spends it the moment a wave starts resisting | Pushing one tier deeper than the permanent build allows |
+
+The Rig does not add a fifth strategy so much as a second timescale to the four above. The same permanent build plays differently depending on whether its owner spends inside the run or hoards Number as a buffer, and that is the choice the run screen has been missing.
 
 Higher tiers can ask for different builds by changing the *shape* of waves as well as their size. Today D002 multiplies both axes by the same 20× and 60×, so every tier asks for the same build. A later decision could skew them. For example, Tier 2 could start hot, with a hit at wave 1 that calls for Cushion and Armor, and Tier 3 could hit hard relative to its HP, calling for Defense first. Tier conditions would enter through the modifier pipeline (D005), which already supports this. **This is a recommendation only. D002 stands until a new decision replaces it.**
 
@@ -215,6 +338,12 @@ Targets 1–4 gate D012's retune; 5 and 6 gate step 4's new stats. `tools/balanc
 5. **The cheapest build that reaches Tier 1 wave 100 includes both Attack and Defense.** This is pillar 2 written as a test. *Not yet measurable: Armor is the only Defense stat until step 4.*
 6. Every stat's first rank visibly moves a simulator outcome. *For step 4: Siphon at 10% added nothing on v1 curves.*
 
+Targets 7–9 gate the Rig (step 7). All three need the simulator to model in-run spending, which is itself part of that step.
+
+7. **The Rig cannot replace the Workshop.** A fresh permanent build playing the Rig perfectly does not reach a wave that previously required Workshop investment. If it does, the meta loop is optional and pillar 3 is decorative.
+8. **The Rig cannot be ignored.** At the top build, playing the Rig reaches meaningfully deeper than hoarding Number does. If it does not, the panel is four tabs of noise.
+9. **No runaway.** Over a long run, Rig cost growth outruns Number income: no build reaches a state where every row is affordable on every wave.
+
 ## Implementation order
 
 Each step lands on its own and clears the gate for its risk level in [`QUALITY_GATES.md`](QUALITY_GATES.md).
@@ -225,10 +354,14 @@ Each step lands on its own and clears the gate for its risk level in [`QUALITY_G
 | 2 | Player vocabulary (D014) in the remaining UI strings: the encounter line, hit toasts, Brace and Shield text, floating `+X` on taps, the drawer's `NUMBER / SEC` | Low to medium |
 | 3 | Four Workshop categories; bays retire; Shield Matrix becomes Armor; Research Focus retargets from bay to category | High: save schema V5 migrates `selected_bay`, `focus`, bay unlock gates and `tax_resistance_rank` without losing ranks |
 | 4 | New Defense stats (Siphon, Recoil, scaled Cushion, Brace Cost, Second Wind), then Boss Damage and the Coin and Knowledge bonuses | High: economy; targets 5 and 6 |
-| 5 | "What would have saved you" on the run-over screen | Medium |
-| 6 | Ultimates | High: new timed effects and saved cooldown state |
+| 5 | The bar reshape (D016): four category tabs between runs, Labs, Insight and Prestige into the Knowledge sheet, `highest_number` gates moved inside it | Medium: presentation only, no save or economy change |
+| 6 | "What would have saved you" and the two doors on the run-over screen | Medium |
+| 7 | **The Rig** (D015): the in-run panel, Number prices against wave HP, run-scoped ranks saved with the active run, Brace into the Defense tab and Shield off the run screen | High: economy and save |
+| 8 | Ultimates, in both lenses | High: new timed effects and saved cooldown state |
 
 Step 2 should follow step 1 closely, so the new rule is explained on screen in the new words.
+
+Step 3 is the only hard prerequisite for the Rig: it needs a catalogue organised by category to draw on. Step 4 is a soft one — without it Defense is a one-row tab, which undercuts the point of having four. Steps 5 and 6 are independent of 7, so **the shortest path to the in-run panel is 3 → 4 → 7**, with step 5's in-run half landing alongside it because the in-run bar and the between-runs bar are the same control. Do not build the in-run bar at step 5 with nothing behind it.
 
 Held true by step 1:
 
@@ -239,6 +372,7 @@ Held true by step 1:
 
 ## Open questions
 
-1. **What Ultimates cost to upgrade.** Recommendation: Knowledge. It gives Knowledge a second sink beside Insight and adds no currency (pillar 4). The alternative, Coins, competes directly with the Workshop.
-2. **The Tier 2+ opening.** Should Cushion scale with the tier, or should every tier get a few warm-up waves? Recommendation: scaled Cushion, because it makes the opening a Defense decision rather than a free pass.
-3. **Tier shapes.** Whether and when to skew Tiers 2 and 3 away from uniform multipliers. That would supersede part of D002.
+1. **Does the Rig spend Number?** The four categories in the run are owner direction. Number as their price is this document's recommendation, for the reasons under [Why Number is the right cost](#why-number-is-the-right-cost). The alternative that keeps the same screen shape is a Rig panel of permanent Workshop rows shown read-only during a run, which costs nothing to build and adds no decision to the run either. **Confirm before step 7 is scheduled.**
+2. **What Ultimates cost to upgrade permanently.** Recommendation: Knowledge. It gives Knowledge a second sink beside Insight and adds no currency (pillar 4). The alternative, Coins, competes directly with the Workshop. Their in-run levels cost Number like every other Rig row.
+3. **The Tier 2+ opening.** Should Cushion scale with the tier, or should every tier get a few warm-up waves? Recommendation: scaled Cushion, because it makes the opening a Defense decision rather than a free pass. The Rig sharpens this: on Tier 2 the first hit lands before there is any Number to spend, so the opening is the one stretch of a run the Rig cannot help with.
+4. **Tier shapes.** Whether and when to skew Tiers 2 and 3 away from uniform multipliers. That would supersede part of D002.
