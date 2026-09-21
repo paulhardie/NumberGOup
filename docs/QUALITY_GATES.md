@@ -34,11 +34,13 @@ Supporting checks:
 ```bash
 GODOT=/Users/paulhardie/Downloads/Godot.app/Contents/MacOS/Godot bash run_balance.sh
 /Users/paulhardie/Downloads/Godot.app/Contents/MacOS/Godot --headless --path . --quit
+/Users/paulhardie/Downloads/Godot.app/Contents/MacOS/Godot --path . -s res://tools/capture_ui.gd
 ```
 
 - `run_tests.sh` runs the whole headless economy suite. A green count printed alongside errors is not a pass.
 - The headless project run imports and parses every script and builds the main scene; it catches UI-script and scene errors the suite does not load.
 - `run_balance.sh` is a measurement tool, not a gate.
+- The capture tool renders the main screens at four window sizes into `user://ui_capture`. Inspect the PNGs; never assert pixel equality.
 - Documentation-only changes do not need the suite. They still need path, link, scope and contradiction checks against the current repository.
 
 ## Risk classification

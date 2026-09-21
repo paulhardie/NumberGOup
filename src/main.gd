@@ -88,6 +88,8 @@ var screens: Dictionary = {}
 var tab_panels: Dictionary = {}
 var current_tab := "number"
 var offline_message := ""
+var drawer_elapsed := 0.0
+var dock_signature := ""
 var audio_feedback: AudioFeedback
 var background_rect: ColorRect
 
@@ -124,12 +126,16 @@ func _process(delta: float) -> void:
 			state.save()
 	save_elapsed += delta
 	refresh_elapsed += delta
+	drawer_elapsed += delta
 	if save_elapsed >= SAVE_INTERVAL_SECONDS:
 		save_elapsed = 0.0
 		state.save()
 	if refresh_elapsed >= 0.12:
 		refresh_elapsed = 0.0
 		_refresh_all()
+	if drawer.visible and drawer_elapsed >= 0.5:
+		drawer_elapsed = 0.0
+		_refresh_drawer()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event.is_action_pressed("tap_number") and not drawer.visible and not died_screen.visible and current_tab == "number":
@@ -269,6 +275,12 @@ func _build_run_bar(parent: Control) -> void:
 	tier_selector.focus_mode = Control.FOCUS_NONE
 	tier_selector.custom_minimum_size = Vector2(0, 34)
 	tier_selector.add_theme_font_size_override("font_size", 12)
+	tier_selector.add_theme_color_override("font_color", TEXT)
+	tier_selector.add_theme_color_override("font_disabled_color", MUTED_TEXT)
+	tier_selector.add_theme_stylebox_override("normal", _panel_style(SURFACE, 12))
+	tier_selector.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 12, ACCENT))
+	tier_selector.add_theme_stylebox_override("pressed", _panel_style(SURFACE_HOVER, 12))
+	tier_selector.add_theme_stylebox_override("disabled", _panel_style(Color(1, 1, 1, 0.04), 12))
 	for tier in state.balance_profile.tiers:
 		tier_selector.add_item("TIER " + str(tier.id), tier.id)
 	tier_selector.item_selected.connect(_on_tier_selected)
@@ -300,7 +312,7 @@ func _make_pill_button(content: String, colour: Color, width: float) -> Button:
 	var button := Button.new()
 	button.text = content
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(width, 40)
+	button.custom_minimum_size = Vector2(width, 44)
 	button.add_theme_font_size_override("font_size", 12)
 	button.add_theme_color_override("font_color", colour)
 	button.add_theme_color_override("font_hover_color", colour)
@@ -736,10 +748,18 @@ func _is_tab_unlocked(tab_id: String) -> bool:
 
 func _refresh_dock() -> void:
 	var unlocked := {}
+	var active := "settings" if drawer.visible else current_tab
+	var signature := active
 	for tab_id in TAB_IDS:
 		unlocked[tab_id] = _is_tab_unlocked(tab_id)
+		signature += "|" + ("1" if unlocked[tab_id] else "0")
 	unlocked["settings"] = _is_tab_unlocked("settings")
-	var active := "settings" if drawer.visible else current_tab
+	signature += "|s" + ("1" if unlocked["settings"] else "0")
+	# Dock restyling is only worth doing when the active tab or an unlock
+	# boundary actually changed; _refresh_all runs eight times a second.
+	if signature == dock_signature:
+		return
+	dock_signature = signature
 	nav_dock.update_state(active, unlocked)
 
 func _tap_number() -> void:
@@ -826,7 +846,6 @@ func _refresh_all() -> void:
 	if offline_message != "":
 		_show_toast(offline_message, ACCENT)
 		offline_message = ""
-	_refresh_drawer()
 	_refresh_dock()
 	if current_tab == "workshop":
 		# Do not rebuild live buttons during the player's press/release cycle.
@@ -1005,7 +1024,6 @@ func _make_insight_card(definition: UpgradeDefinition) -> Button:
 	var owned := state.get_owned(definition.id)
 	var disabled := not state.can_purchase_insight()
 	var button := _make_row_button()
-	button.tooltip_text = definition.description
 	button.disabled = disabled
 	button.add_theme_stylebox_override("normal", _panel_style(SURFACE, 14, Color.TRANSPARENT))
 	button.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 14, CARDS_ACCENT))
@@ -1027,6 +1045,9 @@ func _make_insight_card(definition: UpgradeDefinition) -> Button:
 	row.add_child(mid)
 	mid.add_child(_make_label(definition.title, 14, HORIZONTAL_ALIGNMENT_LEFT, TEXT))
 	mid.add_child(_make_label("RANK " + str(owned), 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
+	var description_label := _make_label(definition.description, 11, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mid.add_child(description_label)
 	row.add_child(_make_label("1 KNOWLEDGE", 12, HORIZONTAL_ALIGNMENT_RIGHT, TEXT if not disabled else MUTED_TEXT))
 	button.pressed.connect(func():
 		if state.purchase_insight():
@@ -1096,7 +1117,6 @@ func _make_ranked_card(definition: UpgradeDefinition, icon_kind: int, is_next: b
 	var maxed := definition.is_maxed(owned)
 	var disabled := maxed or not state.is_unlocked(definition) or state.in_run
 	var button := _make_row_button()
-	button.tooltip_text = definition.description
 	button.disabled = disabled
 	var border := WORKSHOP_ACCENT if (is_next and not disabled) else Color.TRANSPARENT
 	button.add_theme_stylebox_override("normal", _panel_style(SURFACE, 14, border))
@@ -1127,6 +1147,9 @@ func _make_ranked_card(definition: UpgradeDefinition, icon_kind: int, is_next: b
 		tag.add_theme_stylebox_override("panel", _tag_style(WORKSHOP_ACCENT))
 		tag.add_child(_make_label("NEXT", 8, HORIZONTAL_ALIGNMENT_CENTER, WORKSHOP_ACCENT))
 		title_row.add_child(tag)
+	var description_label := _make_label(definition.description, 11, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mid.add_child(description_label)
 	var bar := ProgressBar.new()
 	bar.custom_minimum_size = Vector2(0, 4)
 	bar.show_percentage = false
@@ -1184,7 +1207,7 @@ func _make_locked_panel(title_text: String, subtitle_text: String) -> PanelConta
 	return panel
 
 func _refresh_drawer() -> void:
-	if drawer == null:
+	if drawer == null or not drawer.visible:
 		return
 	_populate_stats_grid()
 	for key in state.settings:
@@ -1322,7 +1345,7 @@ func _make_row_button() -> Button:
 	button.text = ""
 	button.focus_mode = Control.FOCUS_NONE
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.custom_minimum_size = Vector2(0, 78)
+	button.custom_minimum_size = Vector2(0, 104)
 	button.add_theme_stylebox_override("disabled", _panel_style(SURFACE, 14, Color.TRANSPARENT))
 	return button
 
