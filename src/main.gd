@@ -1,27 +1,31 @@
 extends Control
 
 const SAVE_INTERVAL_SECONDS := 20.0
-const BACKGROUND := Color("0d1016")
-const SURFACE := Color("171c26")
-const SURFACE_HOVER := Color("202838")
-const TEXT := Color("f4f7fb")
-const MUTED_TEXT := Color("8f9aac")
-# Event colour is valence, not event type: mint = gain, amber = exciting gain,
-# red = loss. Severity within a valence (routine tax vs a boss hit) is shown
-# through a deeper/more saturated shade of the same hue plus stronger motion,
-# not a separate colour the player would have to learn on its own.
-const ACCENT := Color("91f5c4")
-const CRITICAL := Color("ffcf6b")
-const DANGER := Color("ff9e9e")
-const BOSS_DANGER := Color("ff4d6d")
-const COIN_ACCENT := Color("e8a23c")
+const BACKGROUND_TOP := Color("212224")
+const BACKGROUND_BOTTOM := Color("18191b")
+const BACKGROUND := BACKGROUND_BOTTOM
+const SURFACE := Color("232426")
+const SURFACE_HOVER := Color("2b2c2f")
+const TEXT := Color("ececea")
+const MUTED_TEXT := Color(0.925, 0.925, 0.918, 0.45)
+const FAINT_TEXT := Color(0.925, 0.925, 0.918, 0.3)
+const DIVIDER := Color(0.925, 0.925, 0.918, 0.08)
 
-# Each screen gets its own accent instead of one colour for everything, so
-# Workshop / Labs / Cards read as distinct places rather than one long list.
-# These match the floating dock's per-tab colours one for one.
+# One accent carries every positive state, and a single warning carries every
+# negative one. Severity inside a valence (routine tax against a boss hit) is
+# motion and duration, never an extra hue: more colours on this HUD read as
+# noise rather than as meaning.
+const ACCENT := Color("8fbfa8")
+const WARNING := Color("d68e5c")
+# A critical tick is the one moment worth lifting above the accent, so it
+# brightens towards white instead of introducing a third colour.
+const CRITICAL := Color("f5f5f3")
+const DANGER := WARNING
+const BOSS_DANGER := WARNING
+const COIN_ACCENT := ACCENT
 const WORKSHOP_ACCENT := ACCENT
-const LABS_ACCENT := Color("7ec8ff")
-const CARDS_ACCENT := Color("d9a5ff")
+const LABS_ACCENT := ACCENT
+const CARDS_ACCENT := ACCENT
 
 const BAY_ICON := {
 	"output": 6, # IconGlyph.Kind.CHART
@@ -43,34 +47,35 @@ var save_elapsed := 0.0
 var refresh_elapsed := 0.0
 
 var number_button: Button
-var number_display_lead: Label
-var number_display_tail: Label
+var number_label: Label
 var number_col: VBoxContainer
 var rate_label: Label
 var tap_hint: Label
-var level_label: Label
+var coins_label: Label
+var knowledge_label: Label
 var floating_text_layer: Control
-var ring_a: Panel
-var ring_tween: Tween
+var ring: RingArc
 var stage_glow: TextureRect
+var tracked_font: FontVariation
 var number_flash_tween: Tween
 # Smoothed log10 of the displayed Number (log10(mantissa) + exponent), eased
 # toward the true value every frame instead of snapping to it. -INF means 0.
 var display_log_value := -INF
-var stage_alert := false
 
 const NUMBER_SMOOTH_RATE := 12.0
-const RING_ALERT_THRESHOLD := 0.55
 
 var toast_panel: PanelContainer
 var toast_label: Label
 var toast_tween: Tween
 
 var wave_label: Label
-var run_coins_label: Label
-var tier_selector: OptionButton
+var tier_button: Button
+var boss_label: Label
+var boss_separator: Label
+var encounter_label: Label
 var brace_button: Button
 var shield_button: Button
+var shield_cost_label: Label
 var run_button: Button
 
 var died_screen: Control
@@ -105,7 +110,7 @@ var offline_message := ""
 var drawer_elapsed := 0.0
 var dock_signature := ""
 var audio_feedback: AudioFeedback
-var background_rect: ColorRect
+var background_rect: TextureRect
 
 func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -172,8 +177,14 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func _build_ui() -> void:
-	background_rect = ColorRect.new()
-	background_rect.color = BACKGROUND
+	# A flat fill underneath so High Contrast can simply hide the gradient.
+	var base := ColorRect.new()
+	base.color = Color.BLACK
+	base.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(base)
+	background_rect = TextureRect.new()
+	background_rect.texture = _make_vertical_gradient(BACKGROUND_TOP, BACKGROUND_BOTTOM)
+	background_rect.stretch_mode = TextureRect.STRETCH_SCALE
 	background_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(background_rect)
 
@@ -200,7 +211,6 @@ func _build_ui() -> void:
 	add_child(audio_feedback)
 
 	_select_tab("number")
-	_start_ring_animation()
 
 ## Registers a tab's screen and its fade/slide tween target together, since
 ## every other builder in this file works through _build_flat_screen instead.
@@ -208,152 +218,225 @@ func _register_screen(tab_id: String, screen: Control) -> void:
 	screens[tab_id] = screen
 	tab_panels[tab_id] = screen
 
+## The run screen, staged top to bottom: permanent currency, the run's state
+## line, the ring stage, then the run's own controls sitting above the tab bar.
+## Every control is added after the tap target so it takes input first.
 func _build_number_screen(parent: Control) -> void:
 	var screen := Control.new()
 	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	parent.add_child(screen)
 	_register_screen("number", screen)
 
-	var header := HBoxContainer.new()
-	header.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	header.offset_left = 24
-	header.offset_right = -24
-	header.offset_top = 20
-	header.custom_minimum_size = Vector2(0, 24)
-	screen.add_child(header)
-	var wordmark := _make_label("NUMBER GO UP", 11, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
-	wordmark.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(wordmark)
-	level_label = _make_label("", 11, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT)
-	header.add_child(level_label)
-
 	number_button = Button.new()
 	number_button.flat = true
 	number_button.focus_mode = Control.FOCUS_NONE
 	number_button.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	number_button.offset_top = 56
 	number_button.tooltip_text = "Tap to make Number go up"
 	number_button.pressed.connect(_tap_number)
 	screen.add_child(number_button)
 
-	# Built white and tinted entirely through modulate, so the ambient danger
-	# colour (see _update_stage_colour) can retint it every frame without
-	# rebuilding the gradient texture.
+	_build_currency_stack(screen)
+	_build_wave_line(screen)
+	_build_stage(screen)
+	_build_run_controls(screen)
+
+	floating_text_layer = Control.new()
+	floating_text_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	floating_text_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	screen.add_child(floating_text_layer)
+
+## Permanent currency only: what survives the run, so it reads as a different
+## class of thing from the run state below it.
+func _build_currency_stack(parent: Control) -> void:
+	var stack := VBoxContainer.new()
+	stack.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
+	stack.offset_left = 28
+	stack.offset_top = 30
+	stack.add_theme_constant_override("separation", 8)
+	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(stack)
+	coins_label = _make_currency_row(stack, IconGlyph.Kind.COIN, ACCENT, 17.0, 16, TEXT)
+	knowledge_label = _make_currency_row(stack, IconGlyph.Kind.DIAMOND, MUTED_TEXT, 15.0, 15, Color(0.925, 0.925, 0.918, 0.7))
+
+func _make_currency_row(parent: Control, icon_kind: int, icon_colour: Color, icon_size: float, font_size: int, text_colour: Color) -> Label:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 7)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(row)
+	var icon := IconGlyph.new(icon_kind, icon_colour, icon_size)
+	row.add_child(icon)
+	var label := _make_label("", font_size, HORIZONTAL_ALIGNMENT_LEFT, text_colour)
+	row.add_child(label)
+	return label
+
+## Wave, tier and the boss warning on one line. Tier doubles as the selector:
+## between runs it cycles to the next unlocked tier.
+func _build_wave_line(parent: Control) -> void:
+	var line := HBoxContainer.new()
+	line.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	line.offset_top = 112
+	line.alignment = BoxContainer.ALIGNMENT_CENTER
+	line.add_theme_constant_override("separation", 10)
+	parent.add_child(line)
+
+	wave_label = _make_tracked_label("WAVE 1", 14, Color(0.925, 0.925, 0.918, 0.8))
+	line.add_child(wave_label)
+	line.add_child(_make_tracked_label("·", 14, Color(0.925, 0.925, 0.918, 0.25)))
+	tier_button = Button.new()
+	tier_button.flat = true
+	tier_button.focus_mode = Control.FOCUS_NONE
+	tier_button.add_theme_font_size_override("font_size", 14)
+	tier_button.add_theme_constant_override("outline_size", 0)
+	tier_button.add_theme_color_override("font_color", MUTED_TEXT)
+	tier_button.add_theme_color_override("font_hover_color", ACCENT)
+	tier_button.add_theme_color_override("font_pressed_color", ACCENT)
+	tier_button.add_theme_color_override("font_disabled_color", MUTED_TEXT)
+	tier_button.pressed.connect(_on_tier_pressed)
+	line.add_child(tier_button)
+	boss_separator = _make_tracked_label("·", 14, Color(0.925, 0.925, 0.918, 0.25))
+	line.add_child(boss_separator)
+	boss_label = _make_tracked_label("", 14, WARNING)
+	line.add_child(boss_label)
+
+## The ring stage. The arc is Liability cleared and its colour is time until
+## the Collection hit, so both encounter axes land in one read.
+func _build_stage(parent: Control) -> void:
+	# A centring frame rather than a box: only the ring and the number draw in
+	# it, and the ring's own radius keeps them clear of the controls below.
+	var stage := Control.new()
+	stage.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	stage.offset_top = 150
+	stage.offset_bottom = -250
+	stage.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(stage)
+
+	# Built white and tinted through modulate, so the ring's colour can drive
+	# the glow every frame without rebuilding the gradient texture.
 	stage_glow = TextureRect.new()
 	stage_glow.texture = _make_radial_glow(Color.WHITE, 340)
 	stage_glow.modulate = ACCENT
 	stage_glow.custom_minimum_size = Vector2(340, 340)
 	stage_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage_glow.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	number_button.add_child(stage_glow)
+	stage.add_child(stage_glow)
 
-	ring_a = _make_ring_panel(210, ACCENT)
-	ring_a.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
-	ring_a.pivot_offset = Vector2(105, 105)
-	number_button.add_child(ring_a)
+	ring = RingArc.new()
+	ring.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	stage.add_child(ring)
 
-	var number_center := CenterContainer.new()
-	number_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	number_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	number_button.add_child(number_center)
+	var centre := CenterContainer.new()
+	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stage.add_child(centre)
 	number_col = VBoxContainer.new()
 	number_col.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	number_col.alignment = BoxContainer.ALIGNMENT_CENTER
-	number_col.add_theme_constant_override("separation", 10)
+	number_col.add_theme_constant_override("separation", 6)
 	number_col.resized.connect(func(): number_col.pivot_offset = number_col.size / 2.0)
-	number_center.add_child(number_col)
-	var number_row := HBoxContainer.new()
-	number_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	number_row.add_theme_constant_override("separation", 0)
-	number_col.add_child(number_row)
-	number_display_lead = Label.new()
-	number_display_lead.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	number_display_lead.add_theme_font_size_override("font_size", 74)
-	number_display_lead.add_theme_color_override("font_color", TEXT)
-	number_row.add_child(number_display_lead)
-	number_display_tail = Label.new()
-	number_display_tail.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	number_display_tail.add_theme_font_size_override("font_size", 74)
-	number_display_tail.add_theme_color_override("font_color", MUTED_TEXT)
-	number_row.add_child(number_display_tail)
+	centre.add_child(number_col)
+	number_label = Label.new()
+	number_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	number_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	number_label.add_theme_font_size_override("font_size", 80)
+	number_label.add_theme_color_override("font_color", Color("f5f5f3"))
+	number_col.add_child(number_label)
 	rate_label = _make_label("", 15, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	number_col.add_child(rate_label)
-	tap_hint = _make_label("TAP ANYWHERE", 11, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
-	number_col.add_child(tap_hint)
 
-	floating_text_layer = Control.new()
-	floating_text_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	floating_text_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	number_button.add_child(floating_text_layer)
+## The run's own controls: what the encounter is asking for, the two answers to
+## it, and the way out. All text, no panels, so the stage stays the loud thing.
+func _build_run_controls(parent: Control) -> void:
+	encounter_label = _make_tracked_label("", 12, MUTED_TEXT)
+	encounter_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	encounter_label.offset_top = -295
+	encounter_label.offset_bottom = -270
+	encounter_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	parent.add_child(encounter_label)
 
-	_build_run_bar(number_button)
-
-## Compact Tax-run control surface: tier choice, two-axis encounter status,
-## permanent defence and the explicit start/retreat boundary.
-func _build_run_bar(parent: Control) -> void:
-	var bar := VBoxContainer.new()
-	bar.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	bar.offset_left = 24
-	bar.offset_right = -24
-	bar.offset_bottom = -124
-	bar.offset_top = -334
-	bar.add_theme_constant_override("separation", 8)
-	parent.add_child(bar)
-
-	wave_label = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
-	bar.add_child(wave_label)
-	run_coins_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, COIN_ACCENT)
-	bar.add_child(run_coins_label)
-	tier_selector = OptionButton.new()
-	tier_selector.focus_mode = Control.FOCUS_NONE
-	tier_selector.custom_minimum_size = Vector2(0, 34)
-	tier_selector.add_theme_font_size_override("font_size", 12)
-	tier_selector.add_theme_color_override("font_color", TEXT)
-	tier_selector.add_theme_color_override("font_disabled_color", MUTED_TEXT)
-	tier_selector.add_theme_stylebox_override("normal", _panel_style(SURFACE, 12))
-	tier_selector.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 12, ACCENT))
-	tier_selector.add_theme_stylebox_override("pressed", _panel_style(SURFACE_HOVER, 12))
-	tier_selector.add_theme_stylebox_override("disabled", _panel_style(Color(1, 1, 1, 0.04), 12))
-	for tier in state.balance_profile.tiers:
-		tier_selector.add_item("TIER " + str(tier.id), tier.id)
-	tier_selector.item_selected.connect(_on_tier_selected)
-	bar.add_child(tier_selector)
-
-	var action_row := HBoxContainer.new()
-	action_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	action_row.add_theme_constant_override("separation", 8)
-	bar.add_child(action_row)
-	brace_button = _make_pill_button("BRACE", DANGER, 130)
+	var actions := HBoxContainer.new()
+	actions.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	actions.offset_top = -258
+	actions.offset_bottom = -200
+	actions.alignment = BoxContainer.ALIGNMENT_CENTER
+	actions.add_theme_constant_override("separation", 60)
+	parent.add_child(actions)
+	brace_button = _make_text_action("BRACE", "30% OF NUMBER")
 	brace_button.tooltip_text = "Spend 30% of Number to block the next Collection hit."
 	brace_button.pressed.connect(_on_brace_pressed)
-	action_row.add_child(brace_button)
-	shield_button = _make_pill_button("SHIELD", ACCENT, 150)
+	actions.add_child(brace_button)
+	shield_button = _make_text_action("SHIELD", "")
 	shield_button.tooltip_text = "Spend Coins for a permanent reduction to Collection. Survives every reset."
 	shield_button.pressed.connect(_on_shield_matrix_pressed)
-	action_row.add_child(shield_button)
+	actions.add_child(shield_button)
+	shield_cost_label = shield_button.get_meta("cost_label")
 
+	# Deliberately the quietest control on the screen: ending a run is
+	# destructive and rare, so it should never be the thing a thumb finds first.
 	run_button = Button.new()
+	run_button.flat = true
 	run_button.focus_mode = Control.FOCUS_NONE
-	run_button.custom_minimum_size = Vector2(0, 50)
-	run_button.add_theme_font_size_override("font_size", 14)
-	run_button.add_theme_color_override("font_color", Color("0d1016"))
-	run_button.add_theme_color_override("font_hover_color", Color("0d1016"))
+	run_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	run_button.offset_top = -188
+	run_button.offset_bottom = -154
+	run_button.add_theme_font_size_override("font_size", 11)
+	run_button.add_theme_constant_override("outline_size", 0)
 	run_button.pressed.connect(_on_run_button_pressed)
-	bar.add_child(run_button)
+	parent.add_child(run_button)
 
-func _make_pill_button(content: String, colour: Color, width: float) -> Button:
+	tap_hint = _make_tracked_label("TAP TO PRODUCE", 11, FAINT_TEXT)
+	tap_hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	tap_hint.offset_top = -134
+	tap_hint.offset_bottom = -110
+	tap_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	parent.add_child(tap_hint)
+
+## A borderless action: the verb, and under it what it costs.
+func _make_text_action(verb: String, cost: String) -> Button:
 	var button := Button.new()
-	button.text = content
+	button.flat = true
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(width, 44)
-	button.add_theme_font_size_override("font_size", 12)
-	button.add_theme_color_override("font_color", colour)
-	button.add_theme_color_override("font_hover_color", colour)
-	button.add_theme_color_override("font_disabled_color", MUTED_TEXT)
-	button.add_theme_stylebox_override("normal", _panel_style(Color(colour.r, colour.g, colour.b, 0.1), 999, Color(colour.r, colour.g, colour.b, 0.4)))
-	button.add_theme_stylebox_override("hover", _panel_style(Color(colour.r, colour.g, colour.b, 0.18), 999, colour))
-	button.add_theme_stylebox_override("disabled", _panel_style(Color(1, 1, 1, 0.04), 999, Color.TRANSPARENT))
+	button.custom_minimum_size = Vector2(140, 46)
+	var column := VBoxContainer.new()
+	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", 5)
+	button.add_child(column)
+	var verb_label := _make_tracked_label(verb, 13, ACCENT)
+	verb_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(verb_label)
+	var cost_label := _make_label(cost, 10, HORIZONTAL_ALIGNMENT_CENTER, FAINT_TEXT)
+	column.add_child(cost_label)
+	button.set_meta("verb_label", verb_label)
+	button.set_meta("cost_label", cost_label)
 	return button
+
+## Uppercase micro-copy is the HUD's voice, and it only reads as deliberate
+## with the letter spacing on. Godot has no letter-spacing on Label itself, so
+## the tracking comes from a shared FontVariation.
+func _make_tracked_label(content: String, font_size: int, colour: Color) -> Label:
+	var label := _make_label(content, font_size, HORIZONTAL_ALIGNMENT_CENTER, colour)
+	label.add_theme_font_override("font", _tracked_font())
+	return label
+
+func _tracked_font() -> FontVariation:
+	if tracked_font == null:
+		tracked_font = FontVariation.new()
+		tracked_font.base_font = ThemeDB.fallback_font
+		tracked_font.spacing_glyph = 2
+	return tracked_font
+
+func _make_vertical_gradient(top: Color, bottom: Color) -> GradientTexture2D:
+	var gradient := Gradient.new()
+	gradient.colors = PackedColorArray([top, bottom])
+	gradient.offsets = PackedFloat32Array([0.0, 1.0])
+	var texture := GradientTexture2D.new()
+	texture.gradient = gradient
+	texture.fill_from = Vector2(0.0, 0.0)
+	texture.fill_to = Vector2(0.0, 1.0)
+	texture.width = 8
+	texture.height = 256
+	return texture
 
 func _make_radial_glow(colour: Color, diameter: int) -> GradientTexture2D:
 	var gradient := Gradient.new()
@@ -367,35 +450,6 @@ func _make_radial_glow(colour: Color, diameter: int) -> GradientTexture2D:
 	texture.width = diameter
 	texture.height = diameter
 	return texture
-
-func _make_ring_panel(diameter: int, colour: Color) -> Panel:
-	var panel := Panel.new()
-	panel.custom_minimum_size = Vector2(diameter, diameter)
-	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color.TRANSPARENT
-	style.border_color = Color(colour.r, colour.g, colour.b, 0.24)
-	style.set_border_width_all(1)
-	style.set_corner_radius_all(diameter / 2)
-	panel.add_theme_stylebox_override("panel", style)
-	return panel
-
-## The single expanding "core" ring behind the number: scales up and fades
-## out on an endless loop, restarting cleanly each time via from().
-func _start_ring_animation() -> void:
-	if ring_tween != null and ring_tween.is_valid():
-		ring_tween.kill()
-	if bool(state.settings.reduce_motion):
-		ring_a.visible = false
-		return
-	ring_a.visible = true
-	# Faster breathing while a Collection hit is imminent (see
-	# _update_stage_colour), so the ring's pace itself signals urgency.
-	var duration := 1.1 if stage_alert else 2.2
-	ring_tween = create_tween()
-	ring_tween.set_loops()
-	ring_tween.tween_property(ring_a, "scale", Vector2(1.9, 1.9), duration).from(Vector2(0.7, 0.7)).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	ring_tween.parallel().tween_property(ring_a, "modulate:a", 0.0, duration).from(0.6)
 
 ## Builds a full-bleed screen with a padded VBox content root: the shared
 ## shape behind Workshop, Labs and Cards. The Number screen is custom-built
@@ -533,12 +587,14 @@ func _build_toast() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	toast_wrap.add_child(center)
+	# Bare text rather than a pill: a panel here would be the only card on the
+	# screen, and it would land right on top of the stage.
 	toast_panel = PanelContainer.new()
 	toast_panel.modulate.a = 0.0
 	toast_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	toast_panel.add_theme_stylebox_override("panel", _panel_style(Color("171c26"), 12, Color(1, 1, 1, 0.08)))
+	toast_panel.add_theme_stylebox_override("panel", StyleBoxEmpty.new())
 	center.add_child(toast_panel)
-	toast_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, ACCENT)
+	toast_label = _make_tracked_label("", 12, ACCENT)
 	toast_panel.add_child(toast_label)
 
 func _build_drawer() -> void:
@@ -634,9 +690,7 @@ func _build_drawer() -> void:
 			state.settings[key] = value
 			state.save()
 			_refresh_all()
-			if key == "reduce_motion":
-				_start_ring_animation()
-			elif key == "muted" or key == "ambience":
+			if key == "muted" or key == "ambience":
 				_sync_ambience()
 		)
 		row.add_child(toggle)
@@ -832,14 +886,25 @@ func _on_run_button_pressed() -> void:
 	state.save()
 	_refresh_all()
 
-func _on_tier_selected(index: int) -> void:
-	var tier_id := tier_selector.get_item_id(index)
-	if state.select_tier(tier_id):
-		_show_toast("TIER " + str(tier_id) + " SELECTED", ACCENT)
-		state.save()
-	else:
-		_show_toast("TIER LOCKED", MUTED_TEXT)
-	_refresh_all()
+## The tier label doubles as its own selector: between runs it steps to the
+## next unlocked tier and wraps, which needs no panel of its own.
+func _on_tier_pressed() -> void:
+	var tiers: Array = state.balance_profile.tiers
+	if tiers.is_empty():
+		return
+	var start := 0
+	for index in range(tiers.size()):
+		if tiers[index].id == state.selected_tier:
+			start = index
+			break
+	for step in range(1, tiers.size() + 1):
+		var candidate: int = tiers[(start + step) % tiers.size()].id
+		if state.is_tier_unlocked(candidate) and state.select_tier(candidate):
+			_show_toast("TIER " + str(candidate), ACCENT)
+			state.save()
+			_refresh_all()
+			return
+	_show_toast("NO OTHER TIER UNLOCKED", MUTED_TEXT)
 
 func _on_brace_pressed() -> void:
 	if state.brace():
@@ -876,11 +941,12 @@ func _spawn_floating_text(text: String, colour: Color, local_pos: Vector2) -> vo
 	tween.chain().tween_callback(label.queue_free)
 
 func _refresh_all() -> void:
-	background_rect.color = Color.BLACK if bool(state.settings.high_contrast) else BACKGROUND
+	background_rect.visible = not bool(state.settings.high_contrast)
 	rate_label.visible = true
-	rate_label.text = ("+" if state.in_run else "STARTING +") + state.get_rate_per_second().format_value() + "/sec"
-	tap_hint.text = "TAP ANYWHERE" if state.in_run else "START A RUN TO PRODUCE"
-	level_label.text = "LV " + str(state.get_workshop_level())
+	rate_label.text = ("+" if state.in_run else "STARTING +") + state.get_rate_per_second().format_value() + " / sec"
+	tap_hint.text = "TAP TO PRODUCE" if state.in_run else "START A RUN TO PRODUCE"
+	coins_label.text = str(state.coins)
+	knowledge_label.text = str(state.knowledge)
 	_refresh_run_bar()
 	if offline_message != "":
 		_show_toast(offline_message, ACCENT)
@@ -891,49 +957,71 @@ func _refresh_all() -> void:
 		# Rebuilding a Control tree every refresh can eat touch releases on Web.
 		workshop_header.text = str(state.coins) + " COINS"
 
-## Shows the two independent checks: remaining Liability that production must
-## clear and the absolute Collection hit Number must be able to survive.
+## Shows the two independent checks the run turns on: the remaining Liability
+## production must clear, and the Collection hit Number must survive.
 func _refresh_run_bar() -> void:
-	for index in range(tier_selector.item_count):
-		var tier_id := tier_selector.get_item_id(index)
-		var unlocked := state.is_tier_unlocked(tier_id)
-		tier_selector.set_item_disabled(index, not unlocked)
-		tier_selector.set_item_text(index, "TIER " + str(tier_id) + ("" if unlocked else "  ·  LOCKED"))
-		if tier_id == state.selected_tier:
-			tier_selector.select(index)
-	tier_selector.disabled = state.in_run
-	if not state.in_run:
-		wave_label.text = "TIER " + str(state.selected_tier) + "  ·  WORKSHOP LV " + str(state.get_workshop_level()) + " BASELINE"
-		wave_label.add_theme_color_override("font_color", MUTED_TEXT)
-	else:
-		var encounter: Variant = state.active_encounter
-		var boss_tag := "  ·  BOSS" if encounter != null and encounter.is_boss else ""
-		if encounter == null or encounter.max_liability.is_zero():
-			wave_label.text = "WAVE " + str(state.wave) + "  ·  GRACE" + boss_tag
-			wave_label.add_theme_color_override("font_color", MUTED_TEXT)
-		elif encounter.is_cleared():
-			wave_label.text = "WAVE " + str(state.wave) + "  ·  LIABILITY CLEARED" + boss_tag
-			wave_label.add_theme_color_override("font_color", ACCENT)
-		else:
-			var seconds_left := maxi(0, ceili(GameState.WAVE_INTERVAL_SECONDS - state.wave_accumulator))
-			wave_label.text = "WAVE " + str(state.wave) + "  ·  LIABILITY " + encounter.remaining_liability.format_value() + "  ·  HIT -" + state.get_effective_collection().format_value() + " IN " + str(seconds_left) + "s" + boss_tag
-			wave_label.add_theme_color_override("font_color", CRITICAL if boss_tag != "" else DANGER)
-	run_coins_label.text = "COINS " + str(state.coins) + "   ·   TIER BEST " + str(state.get_tier_best())
+	wave_label.text = "WAVE " + str(state.wave) if state.in_run else "NOT RUNNING"
+	tier_button.text = "TIER " + str(state.selected_tier)
+	tier_button.disabled = state.in_run
+	_refresh_boss_notice()
+	_refresh_encounter_line()
 	brace_button.visible = state.in_run
 	brace_button.disabled = not state.can_brace()
+	_set_action_enabled(brace_button, not brace_button.disabled)
 	shield_button.disabled = not state.can_purchase_tax_resistance()
+	_set_action_enabled(shield_button, not shield_button.disabled)
 	if state.tax_resistance_rank >= GameState.TAX_RESISTANCE_MAX_RANK:
-		shield_button.text = "SHIELD MAXED"
+		shield_cost_label.text = "MAXED"
 	else:
-		shield_button.text = "SHIELD +1 (" + str(state.get_tax_resistance_cost()) + ")"
+		shield_cost_label.text = str(state.get_tax_resistance_cost()) + " COINS"
+	run_button.text = "RETREAT & RESET" if state.in_run else "START RUN  ·  WORKSHOP LV " + str(state.get_workshop_level())
+	var run_colour := FAINT_TEXT if state.in_run else ACCENT
+	run_button.add_theme_color_override("font_color", run_colour)
+	run_button.add_theme_color_override("font_hover_color", TEXT if state.in_run else ACCENT)
+	run_button.add_theme_font_override("font", _tracked_font())
+
+## The boss warning is the only thing besides a landing hit allowed to use the
+## warning colour, so it keeps its weight.
+func _refresh_boss_notice() -> void:
+	var text := ""
 	if state.in_run:
-		run_button.text = "RETREAT & RESET"
-		run_button.add_theme_stylebox_override("normal", _panel_style(DANGER, 999))
-		run_button.add_theme_stylebox_override("hover", _panel_style(DANGER.lightened(0.1), 999))
-	else:
-		run_button.text = "START FROM WORKSHOP LV " + str(state.get_workshop_level())
-		run_button.add_theme_stylebox_override("normal", _panel_style(ACCENT, 999))
-		run_button.add_theme_stylebox_override("hover", _panel_style(ACCENT.lightened(0.1), 999))
+		var encounter: Variant = state.active_encounter
+		if encounter != null and encounter.is_boss:
+			text = "BOSS WAVE"
+		else:
+			var until_boss := _waves_until_boss(state.wave)
+			if until_boss > 0:
+				text = "BOSS IN " + str(until_boss)
+	boss_label.text = text
+	boss_label.visible = text != ""
+	boss_separator.visible = text != ""
+
+## Boss waves land every tenth wave; the profile owns that rule, this only
+## reads it so the HUD can warn a few waves out.
+func _waves_until_boss(current_wave: int) -> int:
+	for ahead in range(1, 4):
+		if state.balance_profile.is_boss_wave(current_wave + ahead):
+			return ahead
+	return 0
+
+func _refresh_encounter_line() -> void:
+	if not state.in_run:
+		encounter_label.text = "TIER BEST " + str(state.get_tier_best()) + "  ·  " + str(state.coins) + " COINS BANKED"
+		return
+	var encounter: Variant = state.active_encounter
+	if encounter == null or encounter.max_liability.is_zero():
+		encounter_label.text = "GRACE WAVE  ·  NOTHING DUE"
+		return
+	if encounter.is_cleared():
+		encounter_label.text = "LIABILITY CLEARED  ·  HIT BLOCKED"
+		return
+	var seconds_left := maxi(0, ceili(GameState.WAVE_INTERVAL_SECONDS - state.wave_accumulator))
+	encounter_label.text = "LIABILITY " + encounter.remaining_liability.format_value() + " LEFT  ·  COLLECTION " + state.get_effective_collection().format_value() + " IN " + str(seconds_left) + "s"
+
+func _set_action_enabled(button: Button, enabled: bool) -> void:
+	var verb: Label = button.get_meta("verb_label")
+	verb.add_theme_color_override("font_color", ACCENT if enabled else FAINT_TEXT)
+	button.modulate.a = 1.0 if enabled else 0.55
 
 func _refresh_workshop() -> void:
 	workshop_header.text = str(state.coins) + " COINS"
@@ -1330,12 +1418,9 @@ func _pulse_number(target_scale: float) -> void:
 func _flash_number(colour: Color, duration: float = 0.35) -> void:
 	if number_flash_tween != null and number_flash_tween.is_valid():
 		number_flash_tween.kill()
-	number_display_lead.add_theme_color_override("font_color", colour)
-	number_display_tail.add_theme_color_override("font_color", colour)
+	number_label.add_theme_color_override("font_color", colour)
 	number_flash_tween = create_tween()
-	number_flash_tween.set_parallel(true)
-	number_flash_tween.tween_property(number_display_lead, "theme_override_colors/font_color", TEXT, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	number_flash_tween.tween_property(number_display_tail, "theme_override_colors/font_color", MUTED_TEXT, duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	number_flash_tween.tween_property(number_label, "theme_override_colors/font_color", Color("f5f5f3"), duration).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 ## A short horizontal rattle reserved for boss hits, so the heaviest loss in
 ## the game reads as a bigger event than routine tax rather than just a
@@ -1363,8 +1448,8 @@ func _pulse_stage_impact(colour: Color) -> void:
 	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	flash.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	flash.modulate = Color(colour.r, colour.g, colour.b, 0.0)
-	number_button.add_child(flash)
-	number_button.move_child(flash, ring_a.get_index())
+	ring.get_parent().add_child(flash)
+	ring.get_parent().move_child(flash, ring.get_index())
 	var tween := create_tween()
 	tween.tween_property(flash, "modulate:a", 0.9, 0.05)
 	tween.tween_property(flash, "modulate:a", 0.0, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
@@ -1381,25 +1466,42 @@ func _stage_danger_progress() -> float:
 		return 0.0
 	return clampf(state.wave_accumulator / GameState.WAVE_INTERVAL_SECONDS, 0.0, 1.0)
 
-## Ties the stage's ring and glow to that danger: calm mint normally, warming
-## toward red (or the deeper boss red) as the hit approaches, so the stage
-## itself foreshadows the wave outcome instead of staying static.
+## Drives the stage ring: its arc is how much Liability is cleared, its colour
+## is how near the Collection hit is. The glow follows the same colour so the
+## whole stage warms together as the hit approaches.
 func _update_stage_colour() -> void:
-	var danger := _stage_danger_progress()
-	var is_boss := state.in_run and state.active_encounter != null and bool(state.active_encounter.is_boss)
-	var hot: Color = BOSS_DANGER if is_boss else DANGER
-	var colour := ACCENT
-	if danger > RING_ALERT_THRESHOLD:
-		var t := (danger - RING_ALERT_THRESHOLD) / (1.0 - RING_ALERT_THRESHOLD)
-		colour = ACCENT.lerp(hot, t)
-	var style := ring_a.get_theme_stylebox("panel") as StyleBoxFlat
-	if style != null:
-		style.border_color = Color(colour.r, colour.g, colour.b, lerpf(0.24, 0.5, danger))
+	var colour := _heat_colour(_stage_danger_progress())
+	ring.set_arc(_liability_cleared(), colour)
 	stage_glow.modulate = colour
-	var alert := danger > RING_ALERT_THRESHOLD
-	if alert != stage_alert:
-		stage_alert = alert
-		_start_ring_animation()
+
+## Accent to warning through hue rather than straight RGB, which would pass
+## through a muddy olive on the way.
+func _heat_colour(t: float) -> Color:
+	if t <= 0.0:
+		return ACCENT
+	var eased := clampf(t, 0.0, 1.0)
+	return Color.from_hsv(
+		lerpf(ACCENT.h, WARNING.h, eased),
+		lerpf(ACCENT.s, WARNING.s, eased),
+		lerpf(ACCENT.v, WARNING.v, eased)
+	)
+
+## How much of this wave's Liability production has already cleared. A wave
+## with nothing due, or one already cleared, reads as a closed ring.
+func _liability_cleared() -> float:
+	if not state.in_run:
+		return 0.0
+	var encounter: Variant = state.active_encounter
+	if encounter == null or encounter.max_liability.is_zero() or encounter.is_cleared():
+		return 1.0
+	var remaining: float = encounter.remaining_liability.log10()
+	var total: float = encounter.max_liability.log10()
+	if is_inf(remaining):
+		return 1.0
+	# Liability spans orders of magnitude, so the arc tracks the ratio of the
+	# real values rather than their logs.
+	var ratio: float = pow(10.0, remaining - total)
+	return clampf(1.0 - ratio, 0.0, 1.0)
 
 ## Moves the displayed number toward the true value every frame instead of
 ## snapping to it, so production reads as a smooth climb even across
@@ -1423,30 +1525,25 @@ func _refresh_number_display() -> void:
 	if not is_inf(display_log_value):
 		var exponent := floori(display_log_value)
 		display_number = ScientificNumber.new(pow(10.0, display_log_value - float(exponent)), exponent)
-	var text := display_number.format_value()
-	var last_comma := text.rfind(",")
-	var lead := text
-	var tail := ""
-	# Fade the trailing digit group instead of animating it: it is the part that
-	# changes almost every refresh, and a static fade reads as calmer than either
-	# a flicker or a per-digit roll animation. Skipped under High Contrast.
-	if last_comma != -1 and not bool(state.settings.get("high_contrast", false)):
-		lead = text.substr(0, last_comma + 1)
-		tail = text.substr(last_comma + 1)
-	number_display_lead.text = lead
-	number_display_tail.text = tail
-	var font_size := _number_font_size(display_number)
-	number_display_lead.add_theme_font_size_override("font_size", font_size)
-	number_display_tail.add_theme_font_size_override("font_size", font_size)
+	number_label.text = display_number.format_value()
+	number_label.add_theme_font_size_override("font_size", _number_font_size(number_label.text))
 
-func _number_font_size(display_number: ScientificNumber) -> int:
-	# Measure the button the number actually lives in, not the whole canvas: the
-	# canvas expands on wide windows, and a font sized from it overflows the panel.
-	var width := maxf(size.x, 320.0)
-	if number_button != null and number_button.size.x > 0.0:
-		width = number_button.size.x
-	var scale := 0.105 if display_number.exponent >= 18 else 0.155
-	return int(clampf(width * scale, 24.0, 96.0))
+## The number has to sit inside the ring, so its size follows the ring's radius
+## and then the measured width of the string it actually has: "9.99e42" and
+## "1,048,576" are very different widths at the same font size.
+func _number_font_size(text: String) -> int:
+	var radius := 168.0
+	if ring != null and ring.radius() > 0.0:
+		radius = ring.radius()
+	var available := radius * 1.62
+	var ideal := int(clampf(radius * 0.46, 22.0, 96.0))
+	var font := number_label.get_theme_font("font")
+	if font == null or text.is_empty():
+		return ideal
+	var measured := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, ideal).x
+	if measured <= available or measured <= 0.0:
+		return ideal
+	return int(clampf(float(ideal) * (available / measured), 16.0, float(ideal)))
 
 func _make_label(content: String, font_size: int, alignment: HorizontalAlignment, colour: Color) -> Label:
 	var label := Label.new()
