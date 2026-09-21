@@ -1,6 +1,6 @@
 # Workshop design
 
-**Status:** Accepted direction. Step 1 (the wave rule and its retune) implemented 21 September 2026; later steps not yet.
+**Status:** Accepted direction. Steps 1 (the wave rule and its retune) and 3 (the four categories) implemented 21 September 2026; later steps not yet.
 **Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four categories), [D014](DECISIONS.md) (player vocabulary), [D015](DECISIONS.md) (the Rig: the same four categories inside a run) and [D016](DECISIONS.md) (the bottom bar carries what is actionable now).
 **Owns:** the wave rule as the player should understand it, the four categories in both lenses — permanent in the Workshop, run-only in the Rig — and every stat's reason to exist, what the player sees, the build strategies this supports, the balance targets the retune must hit, and the implementation order.
 
@@ -85,7 +85,7 @@ Player-facing words move away from tax and collection phrasing. The UI string pa
 | Collection, Tax collected | Hit | `collection` | What the wave takes from your Number when its timer runs out |
 | Grace wave · nothing due | Warm-up wave | `is_pressured_wave() == false` | No HP, no hit; everything banks |
 | Brace | Brace (keep) | `braced` | Spend 30% of your Number to block the next hit |
-| Shield, Shield Matrix | Armor | `tax_resistance_rank` | Every hit is permanently smaller |
+| Armor (was Shield Matrix) | Armor | `tax_resistance` Workshop rank | Every hit is permanently smaller |
 | Number, Coins, Knowledge, Retreat | Keep | — | — |
 | — | The Rig, and `THIS RUN ONLY` on its panel | new (D015) | What you build inside one run, bought with Number |
 
@@ -93,7 +93,7 @@ Player-facing text never calls the Number "health". It says "If a hit takes your
 
 ## The four categories (D013)
 
-Each category opens with the problem it solves, in the player's words, and every stat has a "buy this when" line, so a player can map any failure to a fix. Stats use plain names in the style of The Tower. Existing flavour names (Hand Press, Desk Dynamo) can stay as subtitles, and existing upgrade ids stay stable for saves.
+**Implemented (step 3).** Each category opens with the problem it solves, in the player's words, and every stat has a "buy this when" line, so a player can map any failure to a fix. Stats use plain names in the style of The Tower. The flavour names (Hand Press, Desk Dynamo) open each row's description, and upgrade ids are unchanged, so no save lost a rank.
 
 ### Attack — "Beat waves before they hit"
 
@@ -138,6 +138,19 @@ Each works on a different part of being stuck:
 
 That spread is what makes Defense a build rather than one number.
 
+### What step 3 changed, and what it deliberately did not
+
+Retiring the bays moved nothing: every row's own `workshop_level_required` already equalled its bay's gate, so each row still opens at the same Workshop level (0, 2, 5 or 8). `run_balance.sh` reproduces every baseline row above unchanged, first run through Tier 2.
+
+Four consequences are real and were accepted:
+
+- **Armor is an ordinary Workshop rank now**, so it counts toward the Workshop level. A save with Armor ranks reaches later rows and Research Focus slightly sooner. Never later, so no progress regresses.
+- **Armor is now discounted** by Discount and by a Defense Research Focus, and its cost rounds with the shared ceiling rather than its own `round()`. Over all ten ranks that is 5 Coins more in total: 2,728 against 2,723.
+- **A Logic-shaped Research Focus loses part of its reach.** Logic's three rows split across Attack, Defense and Utility, so no mapping can keep all three; a migrated Logic focus becomes Utility and keeps the Discount row. Output, Speed and Chance all become Attack and keep everything they had.
+- **Defense is open from the start, not gated on the first hit.** The requirement below assumed Defense was all new content, but Armor moves in and is available from wave 1 today. Gating it would take away access a player already has. Revisit when step 4 gives Defense rows a player cannot yet use.
+
+**Research Focus is lopsided until step 4.** Attack holds ten rows, Defense two and Utility one, so focusing Attack is strictly best. It is a non-choice rather than a trap, and step 4's new Defense and Utility stats are what fix it. Do not paper over it with a per-category discount scale: that would need retuning the moment those rows land.
+
 Cushion does nothing on Tier 1, because warm-up waves bank at least 600 Number before the first hit, even for a fresh player. On Tier 2 and above, the first hit lands at wave 1. That is deliberate: Cushion is the first stat whose value depends on which tier you play. It has to scale with the tier, or it is a trap: today's 250 per rank against Tier 2's wave-1 hit of 500.
 
 ### Utility — "Get more from every run"
@@ -170,7 +183,7 @@ Rejected: *Stop the Clock* (pause the wave timer). It breaks the vision's anti-g
 
 ## The Rig — the same four categories inside a run (D015)
 
-**Status:** Designed, not implemented. The four categories in the run are owner direction; the resource and the cost rule below are this document's recommendation.
+**Status:** Designed, not implemented. The four categories in the run and Number as their price are both owner-confirmed (21 September 2026); the cost coefficients below remain this document's recommendation until the simulator tunes them.
 
 A run contains one decision today: Brace, at a flat 30%. Everything else the player does between starting a run and dying is tapping. That is the friction this section answers, and it is the reason the four categories belong on the run screen and not only in the Workshop.
 
@@ -283,7 +296,7 @@ Each panel keeps a one-line banner in the place the Workshop already puts one:
 - Workshop: `PERMANENT · APPLIES TO EVERY RUN` (unchanged).
 - Rig: `THIS RUN ONLY · RESETS WHEN THE RUN ENDS`.
 
-Every row in either lens shows the plain stat name, current → next value, and cost in that lens's currency. Each tab opens with its purpose and its "buy this when" line. Defense unlocks the first time a wave hits you, in both lenses. Ultimates shows all four slots from the start, locked, each labelled with the wave that unlocks it.
+Every row in either lens shows the plain stat name, current → next value, and cost in that lens's currency. Each tab opens with its purpose and its "buy this when" line. Attack, Defense and Utility are open from the start; Ultimates is locked and labelled with the waves that unlock it. (Defense was to unlock on the first hit, but Armor is available from wave 1 today and gating it would remove access — see [What step 3 changed](#what-step-3-changed-and-what-it-deliberately-did-not).)
 
 ### Labs, Insight and Prestige stop being tabs (D016)
 
@@ -352,8 +365,8 @@ Each step lands on its own and clears the gate for its risk level in [`QUALITY_G
 | --- | --- | --- |
 | 1 | **Done.** D012 rule in `GameState._add_number`, `tax-foundation-v2` retune, simulator build matrix, and the run screen's rate line (it said `+X / sec` while output was going into the wave) | High: economy and encounter |
 | 2 | Player vocabulary (D014) in the remaining UI strings: the encounter line, hit toasts, Brace and Shield text, floating `+X` on taps, the drawer's `NUMBER / SEC` | Low to medium |
-| 3 | Four Workshop categories; bays retire; Shield Matrix becomes Armor; Research Focus retargets from bay to category | High: save schema V5 migrates `selected_bay`, `focus`, bay unlock gates and `tax_resistance_rank` without losing ranks |
-| 4 | New Defense stats (Siphon, Recoil, scaled Cushion, Brace Cost, Second Wind), then Boss Damage and the Coin and Knowledge bonuses | High: economy; targets 5 and 6 |
+| 3 | **Done.** Four Workshop categories; bays retire; Shield Matrix becomes the Armor Workshop row; Research Focus retargets from bay to category; save schema V5 (D017) migrates `selected_bay`, `focus` and `tax_resistance_rank` with no rank lost and a live run intact | High: save schema and a purchase path |
+| 4 | New Defense stats (Siphon, Recoil, scaled Cushion, Brace Cost, Second Wind), then Boss Damage and the Coin and Knowledge bonuses. **Recheck Research Focus here**: it is a non-choice while Attack holds ten rows against Defense's two and Utility's one | High: economy; targets 5 and 6 |
 | 5 | The bar reshape (D016): four category tabs between runs, Labs, Insight and Prestige into the Knowledge sheet, `highest_number` gates moved inside it | Medium: presentation only, no save or economy change |
 | 6 | "What would have saved you" and the two doors on the run-over screen | Medium |
 | 7 | **The Rig** (D015): the in-run panel, Number prices against wave HP, run-scoped ranks saved with the active run, Brace into the Defense tab and Shield off the run screen | High: economy and save |
@@ -372,7 +385,6 @@ Held true by step 1:
 
 ## Open questions
 
-1. **Does the Rig spend Number?** The four categories in the run are owner direction. Number as their price is this document's recommendation, for the reasons under [Why Number is the right cost](#why-number-is-the-right-cost). The alternative that keeps the same screen shape is a Rig panel of permanent Workshop rows shown read-only during a run, which costs nothing to build and adds no decision to the run either. **Confirm before step 7 is scheduled.**
-2. **What Ultimates cost to upgrade permanently.** Recommendation: Knowledge. It gives Knowledge a second sink beside Insight and adds no currency (pillar 4). The alternative, Coins, competes directly with the Workshop. Their in-run levels cost Number like every other Rig row.
-3. **The Tier 2+ opening.** Should Cushion scale with the tier, or should every tier get a few warm-up waves? Recommendation: scaled Cushion, because it makes the opening a Defense decision rather than a free pass. The Rig sharpens this: on Tier 2 the first hit lands before there is any Number to spend, so the opening is the one stretch of a run the Rig cannot help with.
-4. **Tier shapes.** Whether and when to skew Tiers 2 and 3 away from uniform multipliers. That would supersede part of D002.
+1. **What Ultimates cost to upgrade permanently.** Recommendation: Knowledge. It gives Knowledge a second sink beside Insight and adds no currency (pillar 4). The alternative, Coins, competes directly with the Workshop. Their in-run levels cost Number like every other Rig row.
+2. **The Tier 2+ opening.** Should Cushion scale with the tier, or should every tier get a few warm-up waves? Recommendation: scaled Cushion, because it makes the opening a Defense decision rather than a free pass. The Rig sharpens this: on Tier 2 the first hit lands before there is any Number to spend, so the opening is the one stretch of a run the Rig cannot help with.
+3. **Tier shapes.** Whether and when to skew Tiers 2 and 3 away from uniform multipliers. That would supersede part of D002.

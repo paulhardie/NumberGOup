@@ -37,7 +37,7 @@ Update whichever of these a change makes stale, in the same change.
 1. **One clear authority per concept.** Balance curves and tier tables live in `src/tax_balance_profile.gd`; encounter state in `src/tax_encounter.gd`; stacking order in `src/rule_modifier_pipeline.gd`; save shape in `src/save_data_v*.gd`. `GameState` coordinates these; it does not re-own them.
 2. **UI never owns domain logic.** `src/main.gd` presents and reports; decisions belong to `GameState`. A rule implemented twice is a bug report waiting to happen.
 3. **All future rules enter through the modifier pipeline.** Laws, Violations, perks, challenges and tier conditions stack in the documented order rather than as special cases in `GameState`.
-4. **Number exists only during an active run.** Permanent power (Workshop, Coins, Knowledge, Insight, Shield Matrix, records) is separate. The temporary layer is the Rig, and it spends Number (D015); do not invent a second one and do not blur the boundary.
+4. **Number exists only during an active run.** Permanent power (Workshop ranks, Coins, Knowledge, Insight, records) is separate. The temporary layer is the Rig, and it spends Number (D015); do not invent a second one and do not blur the boundary.
 5. **Save compatibility is a contract.** Stable keys, versioned schemas, explicit migrations, and no silent loss of declared permanent progress.
 6. **Determinism stays deterministic.** Persist the run seed and RNG state; a saved active encounter must resume identically.
 7. **Factor before you add.** A new domain growing inside `GameState` should become its own class with focused tests, like `TaxBalanceProfile` and `TaxEncounter` did.

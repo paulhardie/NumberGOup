@@ -12,14 +12,14 @@ const ATTACK_MAX := {
 }
 const MID := {"stronger_tap": 5, "generator": 5, "generator_two": 3, "faster_cadence": 3}
 const EARLY := {"stronger_tap": 2, "generator": 2}
-## label, tier, Workshop ranks, Shield Matrix rank. Progressed builds start with
+## label, tier, Workshop ranks, Armor rank. Progressed builds start with
 ## every Tier 1 milestone claimed, so Coins per minute reflects repeatable rewards.
 const BUILD_MATRIX := [
 	["early", 1, EARLY, 0],
 	["mid", 1, MID, 0],
 	["attack max", 1, ATTACK_MAX, 0],
-	["attack max + shield 10", 1, ATTACK_MAX, 10],
-	["attack max + shield 10", 2, ATTACK_MAX, 10],
+	["attack max + armor 10", 1, ATTACK_MAX, 10],
+	["attack max + armor 10", 2, ATTACK_MAX, 10],
 ]
 const PURCHASE_ORDER := [
 	"stronger_tap",
@@ -54,10 +54,10 @@ func _init() -> void:
 		_simulate_build(build[0], build[1], build[2], build[3])
 	quit(0)
 
-func _simulate_build(label: String, tier: int, ranks: Dictionary, shield: int) -> void:
+func _simulate_build(label: String, tier: int, ranks: Dictionary, armor: int) -> void:
 	var state := GameState.new()
 	state.purchased = ranks.duplicate()
-	state.tax_resistance_rank = shield
+	state.purchased[GameState.ARMOR_ID] = armor
 	state.tier_records["1"] = {"highest_wave": 100, "milestones_claimed": [10, 25, 50, 100]}
 	state.start_run(tier, SEED)
 	var hits := 0

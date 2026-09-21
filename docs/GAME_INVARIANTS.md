@@ -8,9 +8,9 @@
 ## Must — run lifecycle and permanence
 
 - Number exists only during an active run. Tapping, production ticks and offline time grant nothing outside a run.
-- Permanent progress — Workshop ranks, Coins, Knowledge, Insight ranks, Shield Matrix rank and tier records — survives death, retreat and Prestige.
-- Research Focus persists through death and retreat and clears only on Prestige.
-- Workshop and Shield Matrix purchases are unavailable during an active run; permanent power is chosen between attempts.
+- Permanent progress — Workshop ranks (Armor among them), Coins, Knowledge, Insight ranks and tier records — survives death, retreat and Prestige.
+- Research Focus persists through death and retreat and clears only on Prestige. It names one of the four Workshop categories.
+- Workshop purchases are unavailable during an active run; permanent power is chosen between attempts. Armor is a Workshop rank, so the run screen's shortcut to it obeys the same lock.
 - Retreat ends and resets the run. It is never a pause.
 - An active run freezes exactly while the app is away; offline time cannot become run progress in any form.
 - The wave clock advances only during an active run.
@@ -38,7 +38,7 @@
 - Upgrade costs and ranks are legible before purchase.
 - The first failed run funds at least one permanent Workshop rank.
 - UI presents and reports; it mutates domain state only by calling `GameState` methods.
-- Bays open at Workshop levels: Output 0, Speed 2, Chance 5, Logic 8. *Retires when D013's four categories are implemented.*
+- Every Workshop row belongs to exactly one of the four categories (Attack, Defense, Utility, Ultimates) and opens at its own Workshop level: 0, 2, 5 or 8. Retired bays gated each row at the same level the row itself required, so their removal moved nothing.
 - Brace spends 30% of current Number and blocks exactly the next Collection hit.
 - A run ending explains itself: the summary states the tier, wave, Coins and Knowledge earned.
 - Highest Number and tier records persist across runs for stats and dock unlocks.

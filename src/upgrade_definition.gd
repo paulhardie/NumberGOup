@@ -6,9 +6,13 @@ var title: String
 var description: String
 var cost: ScientificNumber
 var unlock_lifetime: ScientificNumber
+## The progression layer this row belongs to: "workshop" (Coins) or
+## "knowledge" (Insight). Distinct from workshop_category, which is the shelf
+## a Workshop row sits on.
 var category: String
 var progression_type: String
-var bay: String
+## One of ProgressionTaxonomy.WORKSHOP_CATEGORIES, or "" for a non-Workshop row.
+var workshop_category: String
 var max_rank: int
 var workshop_level_required: int
 var effects: Dictionary
@@ -26,7 +30,7 @@ func _init(
 		is_repeatable: bool = false,
 		growth: float = 1.0,
 		upgrade_progression_type: String = "module",
-		workshop_bay: String = "",
+		shelf: String = "",
 		rank_cap: int = 1,
 		required_workshop_level: int = 0
 	) -> void:
@@ -37,7 +41,7 @@ func _init(
 	unlock_lifetime = unlock_at
 	category = upgrade_category
 	progression_type = upgrade_progression_type
-	bay = workshop_bay
+	workshop_category = shelf
 	max_rank = rank_cap
 	workshop_level_required = required_workshop_level
 	effects = upgrade_effects

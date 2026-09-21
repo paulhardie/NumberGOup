@@ -6,11 +6,12 @@ var failures := 0
 
 func _init() -> void:
 	_test_scientific_number()
-	_test_bay_gates_and_rank_caps()
+	_test_category_gates_and_rank_caps()
+	_test_research_focus_targets_a_category()
 	_test_workshop_effects()
 	_test_burst_and_positive_chance()
 	_test_permanent_baseline_and_starting_reserve()
-	_test_save_v4_and_legacy_migration()
+	_test_save_v5_and_legacy_migration()
 	_test_offline_policy()
 	_test_prestige_reset_and_gain()
 	_test_first_run_funds_permanent_workshop()
@@ -23,7 +24,7 @@ func _init() -> void:
 	_test_collection_is_absolute()
 	_test_boss_axes_and_rewards()
 	_test_brace_blocks_next_collection()
-	_test_shield_matrix_reduces_collection_and_survives_reset()
+	_test_armor_reduces_the_hit_and_survives_reset()
 	_test_wave_death_resets_run_but_keeps_meta_progress()
 	_test_run_gates_the_wave_clock()
 	_test_retreat_ends_and_resets_run()
@@ -52,19 +53,44 @@ func _test_scientific_number() -> void:
 	_expect(sum.compare_to(ScientificNumber.new(1.1, 6)) == 0, "addition should normalize")
 	_expect(ScientificNumber.from_float(5).subtract(ScientificNumber.from_float(9)).is_zero(), "subtraction cannot go negative")
 
-func _test_bay_gates_and_rank_caps() -> void:
+## The retired bays gated every row at the same Workshop level the row already
+## required, so dropping them must not change when anything opens.
+func _test_category_gates_and_rank_caps() -> void:
 	var state := _funded_state()
-	_expect(state.is_bay_active("output"), "Output should be active at Workshop level zero")
-	_expect(not state.is_bay_active("speed"), "Speed should wait for Workshop level two")
-	_expect(state.purchase("stronger_tap"), "Hand Press rank one should purchase")
-	_expect(state.purchase("stronger_tap"), "Hand Press rank two should purchase")
-	_expect(state.is_bay_active("speed"), "Speed should open at Workshop level two")
+	for definition in state.definitions:
+		if definition.category == ProgressionTaxonomy.WORKSHOP:
+			_expect(ProgressionTaxonomy.WORKSHOP_CATEGORIES.has(definition.workshop_category), "every Workshop row needs one of the four categories: " + definition.id)
+	_expect(state.is_unlocked(state.get_definition("stronger_tap")), "Tap Damage should be available at Workshop level zero")
+	_expect(state.is_unlocked(state.get_definition(GameState.ARMOR_ID)), "Armor should be available from the start, as Shield Matrix was")
+	_expect(not state.is_unlocked(state.get_definition("faster_cadence")), "Tick Speed should wait for Workshop level two")
+	_expect(state.purchase("stronger_tap"), "Tap Damage rank one should purchase")
+	_expect(state.purchase("stronger_tap"), "Tap Damage rank two should purchase")
+	_expect(state.is_unlocked(state.get_definition("faster_cadence")), "Tick Speed should open at Workshop level two")
 	state.purchased.stronger_tap = 5
-	_expect(not state.can_purchase("stronger_tap"), "rank cap should prevent a sixth Hand Press")
+	_expect(not state.can_purchase("stronger_tap"), "rank cap should prevent a sixth Tap Damage")
 	state.purchased.generator = 3
-	_expect(state.is_bay_active("chance"), "Chance should open at Workshop level five")
+	_expect(state.is_unlocked(state.get_definition("more_critical")), "Crit Chance should open at Workshop level five")
 	state.purchased.generator_two = 3
-	_expect(state.is_bay_active("logic"), "Logic should open at Workshop level eight")
+	_expect(state.is_unlocked(state.get_definition("smarter_efficiency")), "Discount should open at Workshop level eight")
+	var level_before := state.get_workshop_level()
+	state.purchased[GameState.ARMOR_ID] = 2
+	_expect(state.get_workshop_level() == level_before + 2, "Armor is a Workshop rank now, so it should count toward the Workshop level")
+	_expect(not state.has_category_content(ProgressionTaxonomy.ULTIMATE), "Ultimates should hold no rows until they are authored")
+
+func _test_research_focus_targets_a_category() -> void:
+	var state := _funded_state()
+	state.purchased = {"stronger_tap": 5, "generator": 5, "generator_two": 3}
+	_expect(state.get_workshop_level() >= GameState.RESEARCH_WORKSHOP_LEVEL, "this build should reach the Research Focus level")
+	_expect(not state.select_focus("output"), "a retired bay id should no longer be selectable")
+	_expect(not state.select_focus(ProgressionTaxonomy.ULTIMATE), "a category with no rows should not be selectable")
+	var armor := state.get_definition(GameState.ARMOR_ID)
+	var tap := state.get_definition("stronger_tap")
+	var armor_before := state.get_workshop_coin_cost(armor)
+	var tap_before := state.get_workshop_coin_cost(tap)
+	_expect(state.select_focus(ProgressionTaxonomy.DEFENSE), "Defense should be selectable as a Research Focus")
+	_expect(state.get_workshop_coin_cost(armor) < armor_before, "Research Focus should discount its own category")
+	_expect(state.get_workshop_coin_cost(tap) == tap_before, "Research Focus should not discount another category")
+	_expect(not state.select_focus(ProgressionTaxonomy.ATTACK), "Research Focus should lock in until Prestige")
 
 func _test_workshop_effects() -> void:
 	var state := _funded_state()
@@ -104,7 +130,7 @@ func _test_permanent_baseline_and_starting_reserve() -> void:
 	state.end_run()
 	_expect(state.get_owned("priority_buffer") == 2 and state.get_owned("automation_core") == 1, "Workshop ranks must survive retreat")
 
-func _test_save_v4_and_legacy_migration() -> void:
+func _test_save_v5_and_legacy_migration() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
 	var original: GameState = _funded_state()
 	original.save_path = save_path
@@ -120,11 +146,48 @@ func _test_save_v4_and_legacy_migration() -> void:
 	var restored := GameState.new()
 	restored.save_path = save_path
 	restored.load()
-	_expect(restored.get_owned("stronger_tap") == 2 and restored.workshop.tick_count == 7, "V4 permanent Workshop state should round-trip")
-	_expect(restored.in_run and restored.selected_tier == 2, "V4 should restore the active tier run")
-	_expect(restored.active_encounter.remaining_liability.compare_to(saved_remaining) == 0, "V4 should restore exact encounter liability")
-	_expect(restored.run_seed == 77 and restored.rng.state == saved_rng_state, "V4 should restore deterministic run RNG state")
+	_expect(restored.get_owned("stronger_tap") == 2 and restored.workshop.tick_count == 7, "V5 permanent Workshop state should round-trip")
+	_expect(restored.workshop.selected_category == original.workshop.selected_category, "V5 should round-trip the open Workshop category")
+	_expect(restored.in_run and restored.selected_tier == 2, "V5 should restore the active tier run")
+	_expect(restored.active_encounter.remaining_liability.compare_to(saved_remaining) == 0, "V5 should restore exact encounter liability")
+	_expect(restored.run_seed == 77 and restored.rng.state == saved_rng_state, "V5 should restore deterministic run RNG state")
 	restored.clear_save()
+
+	# A real V4 save: built from a live state, then reshaped exactly as V4 stored
+	# it, with bays and the Armor rank in a field of its own.
+	var v4_source := _funded_state()
+	v4_source.purchased = {"stronger_tap": 2, "generator": 1, "tax_resistance": 3}
+	v4_source.knowledge = 4
+	v4_source.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	_expect(v4_source.start_run(2, 55), "the V4 fixture should start a Tier 2 run")
+	v4_source.tap()
+	var v4_remaining: ScientificNumber = v4_source.active_encounter.remaining_liability.copy()
+	var v4_rng_state := v4_source.rng.state
+	var v4: Dictionary = SaveDataV5.make(v4_source)
+	v4.version = 4
+	v4.purchased = {"stronger_tap": 2, "generator": 1}
+	v4.tax_resistance_rank = 3
+	v4.focus = "speed"
+	v4.workshop = {"selected_bay": "logic", "tick_count": 2, "automation_targets": [], "legacy_credit": 0}
+	_write_json(save_path, v4)
+	var migrated_v4 := GameState.new()
+	migrated_v4.save_path = save_path
+	migrated_v4.load()
+	_expect(migrated_v4.get_owned(GameState.ARMOR_ID) == 3, "a V4 Shield Matrix rank should become the Armor Workshop rank")
+	_expect(migrated_v4.get_owned("stronger_tap") == 2 and migrated_v4.get_owned("generator") == 1, "V4 Workshop ranks should migrate without loss")
+	_expect(migrated_v4.coins == v4_source.coins and migrated_v4.knowledge == 4, "V4 permanent currencies should migrate")
+	_expect(migrated_v4.get_tier_best(1) == GameState.TIER_UNLOCK_WAVE, "V4 tier records should migrate")
+	_expect(migrated_v4.focus_path == ProgressionTaxonomy.ATTACK, "a V4 Speed focus should land on Attack")
+	_expect(migrated_v4.workshop.selected_category == ProgressionTaxonomy.UTILITY, "a V4 Logic tab should land on Utility")
+	_expect(migrated_v4.workshop.tick_count == 2, "V4 Workshop state beside the bay should survive")
+	_expect(migrated_v4.in_run and migrated_v4.selected_tier == 2, "a V4 live run should survive migration")
+	_expect(migrated_v4.active_encounter.remaining_liability.compare_to(v4_remaining) == 0, "a migrated V4 run should keep its exact remaining Liability")
+	_expect(migrated_v4.rng.state == v4_rng_state, "a migrated V4 run should keep its RNG state")
+	var rewritten := GameState.new()
+	rewritten.save_path = save_path
+	rewritten.load()
+	_expect(rewritten.get_owned(GameState.ARMOR_ID) == 3 and rewritten.focus_path == ProgressionTaxonomy.ATTACK, "migration should rewrite the save in V5 shape immediately")
+	rewritten.clear_save()
 
 	var v3 := {
 		"version": 3,
@@ -132,7 +195,9 @@ func _test_save_v4_and_legacy_migration() -> void:
 		"lifetime": ScientificNumber.from_float(1000).to_dict(),
 		"highest": ScientificNumber.from_float(1000).to_dict(),
 		"purchased": {"stronger_tap": 2},
-		"workshop": {},
+		"workshop": {"selected_bay": "chance"},
+		"focus": "output",
+		"tax_resistance_rank": 4,
 		"coins": 25,
 		"tier_records": {},
 		"in_run": false,
@@ -145,6 +210,8 @@ func _test_save_v4_and_legacy_migration() -> void:
 	migrated_v3.load()
 	_expect(migrated_v3.number.is_zero(), "V3 banked Number should retire when migrating to run-only Number")
 	_expect(migrated_v3.get_owned("stronger_tap") == 2 and migrated_v3.coins == 25, "V3 Workshop ranks and Coins should become permanent without loss")
+	_expect(migrated_v3.get_owned(GameState.ARMOR_ID) == 4, "a V3 Shield Matrix rank should become the Armor Workshop rank")
+	_expect(migrated_v3.focus_path == ProgressionTaxonomy.ATTACK and migrated_v3.workshop.selected_category == ProgressionTaxonomy.ATTACK, "V3 bays should map onto categories")
 	migrated_v3.clear_save()
 
 	var v2 := {
@@ -170,6 +237,15 @@ func _test_save_v4_and_legacy_migration() -> void:
 	_expect(not migrated_v2.in_run and migrated_v2.wave == 1, "a banked V2 run should become a fresh, non-exploitable run")
 	migrated_v2.clear_save()
 
+	# Malformed and unknown-version saves must not crash or half-load: the load
+	# returns an empty award and the state stays the fresh default.
+	for broken in [{"version": 99, "number": ScientificNumber.from_float(5).to_dict(), "lifetime": ScientificNumber.from_float(5).to_dict()}, {"version": 5}, {}]:
+		_write_json(save_path, broken)
+		var refused := GameState.new()
+		refused.save_path = save_path
+		refused.load()
+		_expect(refused.number.is_zero() and refused.coins == 0 and not refused.in_run, "an unreadable save should leave a fresh state, not a partial one")
+		refused.clear_save()
 	var v1 := {
 		"version": 1,
 		"number": ScientificNumber.from_float(100).to_dict(),
@@ -398,25 +474,34 @@ func _test_brace_blocks_next_collection() -> void:
 	_expect(event.type == "tax_collection" and event.amount.is_zero(), "Brace should block one Collection hit")
 	_expect(state.number.compare_to(ScientificNumber.from_float(7000)) == 0 and not state.braced, "Brace should preserve Number and then be consumed")
 
-func _test_shield_matrix_reduces_collection_and_survives_reset() -> void:
+func _test_armor_reduces_the_hit_and_survives_reset() -> void:
 	var state := GameState.new()
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	state.coins = 1000
-	var base_cost := state.get_tax_resistance_cost()
-	_expect(state.purchase_tax_resistance(), "Shield Matrix should be purchasable with enough Coins")
+	var armor := state.get_definition(GameState.ARMOR_ID)
+	var base_cost := state.get_workshop_coin_cost(armor)
+	_expect(base_cost == 15, "the first Armor rank should still cost the 15 Coins Shield Matrix did")
+	_expect(state.purchase(GameState.ARMOR_ID), "Armor should be purchasable with enough Coins")
 	state.start_run(2, 6)
 	state.number = ScientificNumber.from_float(10000)
 	var base_collection: ScientificNumber = state.active_encounter.collection.copy()
-	_expect(state.get_effective_collection().compare_to(base_collection.multiply_scalar(0.96)) == 0, "one Shield rank should reduce Collection by 4%")
+	_expect(state.get_effective_collection().compare_to(base_collection.multiply_scalar(0.96)) == 0, "one Armor rank should reduce the hit by 4%")
+	_expect(not state.purchase(GameState.ARMOR_ID), "Armor is a Workshop rank, so it must be locked during a run")
 	state._reset_run_state()
-	_expect(state.coins == 1000 - base_cost and state.tax_resistance_rank == 1, "Coins and Shield ranks must survive reset")
+	_expect(state.coins == 1000 - base_cost and state.get_owned(GameState.ARMOR_ID) == 1, "Coins and Armor ranks must survive reset")
+	state.purchased[GameState.ARMOR_ID] = armor.max_rank
+	_expect(not state.can_purchase(GameState.ARMOR_ID), "Armor should stop at its rank cap")
+	state.start_run(2, 6)
+	var maxed_base: ScientificNumber = state.active_encounter.collection.copy()
+	var maxed_hit := state.get_effective_collection()
+	_expect(maxed_hit.compare_to(maxed_base.multiply_scalar(0.61)) < 0 and maxed_hit.compare_to(maxed_base.multiply_scalar(0.59)) > 0, "ten Armor ranks should take about 40% off the hit")
+	_expect(not maxed_hit.is_zero(), "Armor must never remove the hit entirely")
 
 func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	var state := GameState.new()
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
-	state.purchased = {"stronger_tap": 3}
+	state.purchased = {"stronger_tap": 3, "tax_resistance": 2}
 	state.coins = 42
-	state.tax_resistance_rank = 2
 	state.start_run(2, 7)
 	state.number = ScientificNumber.from_float(1)
 	state.lifetime_generated = ScientificNumber.from_float(GameState.PRESTIGE_TEASER_UNLOCK * 100.0)
@@ -428,7 +513,7 @@ func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	_expect(state.number.is_zero() and state.get_owned("stronger_tap") == 3, "death should reset run Number and retain permanent Workshop progress")
 	_expect(not state.in_run and state.wave == 1, "death should end the run at the hub")
 	_expect(state.knowledge == expected_knowledge and state.coins == 42, "death should retain permanent currencies")
-	_expect(state.tax_resistance_rank == 2, "Shield Matrix should survive death")
+	_expect(state.get_owned(GameState.ARMOR_ID) == 2, "Armor should survive death")
 	_expect(state.last_run_summary != null and state.last_run_summary.tier_id == 2, "death should record the tier")
 	_expect(state.last_run_summary.coins_earned == 5, "failed waves should not award unearned rewards")
 

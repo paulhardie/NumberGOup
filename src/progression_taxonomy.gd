@@ -14,13 +14,43 @@ const KNOWLEDGE := "knowledge"
 const LAW := "law"
 const VIOLATION := "violation"
 
-const WORKSHOP_BAYS := ["output", "speed", "chance", "logic"]
-const BAY_NAMES := {"output": "OUTPUT", "speed": "SPEED", "chance": "CHANCE", "logic": "LOGIC"}
-const BAY_DESCRIPTIONS := {
-	"output": "Make every Number event larger.",
-	"speed": "Create Number events more often.",
-	"chance": "Improve positive special events.",
-	"logic": "Make the machine spend and choose better."
+## The four Workshop categories (D013). Each answers one failure the player can
+## read off the run screen, which is why every row belongs to exactly one.
+const ATTACK := "attack"
+const DEFENSE := "defense"
+const UTILITY := "utility"
+const ULTIMATE := "ultimate"
+
+const WORKSHOP_CATEGORIES := [ATTACK, DEFENSE, UTILITY, ULTIMATE]
+const CATEGORY_NAMES := {
+	ATTACK: "ATTACK",
+	DEFENSE: "DEFENSE",
+	UTILITY: "UTILITY",
+	ULTIMATE: "ULTIMATE"
+}
+const CATEGORY_PURPOSES := {
+	ATTACK: "Beat waves before they hit.",
+	DEFENSE: "Survive the hits you can't beat.",
+	UTILITY: "Get more from every run.",
+	ULTIMATE: "Rare, powerful, earned."
+}
+## The line that lets a player map a failure to a shelf without a wiki.
+const CATEGORY_BUY_WHEN := {
+	ATTACK: "Buy when the ring isn't closing before the timer runs out.",
+	DEFENSE: "Buy when a wave outlasts its timer and the hits drain your Number.",
+	UTILITY: "Buy when you survive comfortably but progress between runs feels slow.",
+	ULTIMATE: "Earned by reaching waves 10, 25, 50 and 100."
+}
+
+## Retired by D013. Kept for migration only, so a pre-V5 save's bay-shaped
+## Research Focus and open tab land on the category that inherited that bay's
+## upgrades. Output, Speed and Chance were all production, so all three become
+## Attack; Logic was "spend and choose better", which is Utility.
+const CATEGORY_FOR_LEGACY_BAY := {
+	"output": ATTACK,
+	"speed": ATTACK,
+	"chance": ATTACK,
+	"logic": UTILITY
 }
 
 const PLAYABLE_ORDER := [WORKSHOP, MODULE, PROTOCOL, ROUTINE]
@@ -59,8 +89,18 @@ static func description(progression_type: String) -> String:
 static func is_future_layer(progression_type: String) -> bool:
 	return FUTURE_ORDER.has(progression_type)
 
-static func bay_name(bay: String) -> String:
-	return str(BAY_NAMES.get(bay, bay.to_upper()))
+static func category_name(category: String) -> String:
+	return str(CATEGORY_NAMES.get(category, category.to_upper()))
 
-static func bay_description(bay: String) -> String:
-	return str(BAY_DESCRIPTIONS.get(bay, ""))
+static func category_purpose(category: String) -> String:
+	return str(CATEGORY_PURPOSES.get(category, ""))
+
+static func category_buy_when(category: String) -> String:
+	return str(CATEGORY_BUY_WHEN.get(category, ""))
+
+## Idempotent: a value that is already a category passes through, a retired bay
+## maps to its heir, and anything else (including "") returns "".
+static func category_for_legacy_bay(bay: String) -> String:
+	if WORKSHOP_CATEGORIES.has(bay):
+		return bay
+	return str(CATEGORY_FOR_LEGACY_BAY.get(bay, ""))

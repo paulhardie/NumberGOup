@@ -27,11 +27,12 @@ const WORKSHOP_ACCENT := ACCENT
 const LABS_ACCENT := ACCENT
 const CARDS_ACCENT := ACCENT
 
-const BAY_ICON := {
-	"output": 6, # IconGlyph.Kind.CHART
-	"speed": 7, # IconGlyph.Kind.BOLT
-	"chance": 8, # IconGlyph.Kind.DICE
-	"logic": 9, # IconGlyph.Kind.CHIP
+# Keyed by the literal category ids so this stays a constant expression.
+const CATEGORY_ICON := {
+	"attack": 7, # IconGlyph.Kind.BOLT
+	"defense": 14, # IconGlyph.Kind.SHIELD
+	"utility": 9, # IconGlyph.Kind.CHIP
+	"ultimate": 12, # IconGlyph.Kind.SPARKLE
 }
 
 const TAB_IDS: Array[String] = ["number", "workshop", "labs", "cards"]
@@ -74,8 +75,8 @@ var boss_label: Label
 var boss_separator: Label
 var encounter_label: Label
 var brace_button: Button
-var shield_button: Button
-var shield_cost_label: Label
+var armor_button: Button
+var armor_cost_label: Label
 var run_button: Button
 
 var died_screen: Control
@@ -364,11 +365,13 @@ func _build_run_controls(parent: Control) -> void:
 	brace_button.tooltip_text = "Spend 30% of Number to block the next Collection hit."
 	brace_button.pressed.connect(_on_brace_pressed)
 	actions.add_child(brace_button)
-	shield_button = _make_text_action("SHIELD", "")
-	shield_button.tooltip_text = "Spend Coins for a permanent reduction to Collection. Survives every reset."
-	shield_button.pressed.connect(_on_shield_matrix_pressed)
-	actions.add_child(shield_button)
-	shield_cost_label = shield_button.get_meta("cost_label")
+	# Armor is an ordinary Workshop rank now (D013); this is a shortcut to the
+	# Defense row, not a second purchase path.
+	armor_button = _make_text_action("ARMOR", "")
+	armor_button.tooltip_text = "Spend Coins to make every hit smaller. A permanent Defense rank that survives every reset."
+	armor_button.pressed.connect(_on_armor_pressed)
+	actions.add_child(armor_button)
+	armor_cost_label = armor_button.get_meta("cost_label")
 
 	# Deliberately the quietest control on the screen: ending a run is
 	# destructive and rare, so it should never be the thing a thumb finds first.
@@ -490,12 +493,11 @@ func _build_workshop_screen(parent: Control) -> void:
 	permanence_copy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content.add_child(permanence_copy)
 
-	content.add_child(_make_label("CHOOSE A BAY", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
 	workshop_board_row = HBoxContainer.new()
 	workshop_board_row.add_theme_constant_override("separation", 8)
 	content.add_child(workshop_board_row)
-	for bay in ProgressionTaxonomy.WORKSHOP_BAYS:
-		workshop_board_row.add_child(_make_bay_tab(bay))
+	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
+		workshop_board_row.add_child(_make_category_tab(category))
 	content.add_child(HSeparator.new())
 
 	var detail_scroll := ScrollContainer.new()
@@ -506,7 +508,7 @@ func _build_workshop_screen(parent: Control) -> void:
 	workshop_detail.add_theme_constant_override("separation", 10)
 	detail_scroll.add_child(workshop_detail)
 
-func _make_bay_tab(bay: String) -> Button:
+func _make_category_tab(category: String) -> Button:
 	var button := Button.new()
 	button.text = ""
 	button.focus_mode = Control.FOCUS_NONE
@@ -516,30 +518,30 @@ func _make_bay_tab(bay: String) -> Button:
 	layout.alignment = BoxContainer.ALIGNMENT_CENTER
 	var icon_wrap := CenterContainer.new()
 	icon_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var icon := IconGlyph.new(BAY_ICON[bay], MUTED_TEXT, 18.0)
+	var icon := IconGlyph.new(CATEGORY_ICON[category], MUTED_TEXT, 18.0)
 	icon_wrap.add_child(icon)
 	layout.add_child(icon_wrap)
-	var label := _make_label(ProgressionTaxonomy.bay_name(bay), 9, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	var label := _make_label(ProgressionTaxonomy.category_name(category), 9, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	layout.add_child(label)
 	var lock_badge := IconGlyph.new(IconGlyph.Kind.LOCK, MUTED_TEXT, 10.0)
 	lock_badge.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
 	lock_badge.position += Vector2(-4, 4)
 	button.add_child(lock_badge)
-	button.pressed.connect(func(selected: String = bay):
-		state.workshop.selected_bay = selected
+	button.pressed.connect(func(selected: String = category):
+		state.workshop.selected_category = selected
 		_refresh_workshop()
 	)
-	workshop_tab_buttons[bay] = button
-	workshop_tab_icons[bay] = icon
-	workshop_tab_labels[bay] = label
-	workshop_lock_badges[bay] = lock_badge
+	workshop_tab_buttons[category] = button
+	workshop_tab_icons[category] = icon
+	workshop_tab_labels[category] = label
+	workshop_lock_badges[category] = lock_badge
 	return button
 
 func _build_labs_screen(parent: Control) -> void:
 	var content := _build_flat_screen(parent, "labs")
 	content.add_child(_make_label("Labs", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT))
 	content.add_child(_make_label("RESEARCH FOCUS", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
-	var description := _make_label("Pick one Workshop bay to discount by 25%. It locks in until your next Prestige.", 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	var description := _make_label("Pick one Workshop category to discount by 25%. It locks in until your next Prestige.", 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	content.add_child(description)
 	content.add_child(HSeparator.new())
@@ -913,13 +915,13 @@ func _on_brace_pressed() -> void:
 	else:
 		_show_toast("CANNOT BRACE YET", MUTED_TEXT)
 
-func _on_shield_matrix_pressed() -> void:
-	if state.purchase_tax_resistance():
-		_show_toast("SHIELD MATRIX +1", ACCENT)
+func _on_armor_pressed() -> void:
+	if state.purchase(GameState.ARMOR_ID):
+		_show_toast("ARMOR +1", ACCENT)
 		state.save()
 		_refresh_all()
 	else:
-		_show_toast("NEED " + str(state.get_tax_resistance_cost()) + " COINS", MUTED_TEXT)
+		_show_toast("NEED " + str(state.get_workshop_coin_cost(state.get_definition(GameState.ARMOR_ID))) + " COINS", MUTED_TEXT)
 
 ## The core per-tap "juice": a short line of text that rises from the tap
 ## point and fades, replacing a single static feedback label.
@@ -974,12 +976,13 @@ func _refresh_run_bar() -> void:
 	brace_button.visible = state.in_run
 	brace_button.disabled = not state.can_brace()
 	_set_action_enabled(brace_button, not brace_button.disabled)
-	shield_button.disabled = not state.can_purchase_tax_resistance()
-	_set_action_enabled(shield_button, not shield_button.disabled)
-	if state.tax_resistance_rank >= GameState.TAX_RESISTANCE_MAX_RANK:
-		shield_cost_label.text = "MAXED"
+	var armor := state.get_definition(GameState.ARMOR_ID)
+	armor_button.disabled = not state.can_purchase(GameState.ARMOR_ID)
+	_set_action_enabled(armor_button, not armor_button.disabled)
+	if armor.is_maxed(state.get_owned(GameState.ARMOR_ID)):
+		armor_cost_label.text = "MAXED"
 	else:
-		shield_cost_label.text = str(state.get_tax_resistance_cost()) + " COINS"
+		armor_cost_label.text = str(state.get_workshop_coin_cost(armor)) + " COINS"
 	run_button.text = "RETREAT & RESET" if state.in_run else "START RUN  ·  WORKSHOP LV " + str(state.get_workshop_level())
 	var run_colour := FAINT_TEXT if state.in_run else ACCENT
 	run_button.add_theme_color_override("font_color", run_colour)
@@ -1031,43 +1034,49 @@ func _set_action_enabled(button: Button, enabled: bool) -> void:
 
 func _refresh_workshop() -> void:
 	workshop_header.text = str(state.coins) + " COINS"
-	for bay in ProgressionTaxonomy.WORKSHOP_BAYS:
-		var active: bool = state.workshop.selected_bay == bay
-		var unlocked := state.is_bay_active(bay)
-		var colour: Color = WORKSHOP_ACCENT if (active and unlocked) else MUTED_TEXT
-		(workshop_tab_icons[bay] as IconGlyph).set_glyph_color(colour)
-		(workshop_tab_labels[bay] as Label).add_theme_color_override("font_color", colour)
-		var button: Button = workshop_tab_buttons[bay]
-		button.disabled = not unlocked
-		var border: Color = WORKSHOP_ACCENT if (active and unlocked) else Color.TRANSPARENT
-		var fill: Color = Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.14) if (active and unlocked) else Color.TRANSPARENT
+	# Every tab opens, including one with nothing in it yet: its panel is where
+	# the player reads what is coming and when. The badge carries the lock.
+	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
+		var active: bool = state.workshop.selected_category == category
+		var has_rows := state.has_category_content(category)
+		var colour: Color = WORKSHOP_ACCENT if active else MUTED_TEXT
+		(workshop_tab_icons[category] as IconGlyph).set_glyph_color(colour)
+		(workshop_tab_labels[category] as Label).add_theme_color_override("font_color", colour)
+		var button: Button = workshop_tab_buttons[category]
+		button.modulate.a = 1.0 if has_rows else 0.6
+		var border: Color = WORKSHOP_ACCENT if active else Color.TRANSPARENT
+		var fill: Color = Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.14) if active else Color.TRANSPARENT
 		button.add_theme_stylebox_override("normal", _panel_style(fill, 14, border))
-		button.add_theme_stylebox_override("disabled", _panel_style(Color.TRANSPARENT, 14, Color.TRANSPARENT))
-		(workshop_lock_badges[bay] as IconGlyph).visible = not unlocked
+		(workshop_lock_badges[category] as IconGlyph).visible = not has_rows
 	_refresh_workshop_detail()
 
 func _refresh_workshop_detail() -> void:
 	_clear_children(workshop_detail)
-	var bay := state.workshop.selected_bay
-	if not ProgressionTaxonomy.WORKSHOP_BAYS.has(bay):
-		bay = "output"
-		state.workshop.selected_bay = bay
-	var description := _make_label(ProgressionTaxonomy.bay_description(bay), 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
-	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	workshop_detail.add_child(description)
+	var category := state.workshop.selected_category
+	if not ProgressionTaxonomy.WORKSHOP_CATEGORIES.has(category):
+		category = ProgressionTaxonomy.ATTACK
+		state.workshop.selected_category = category
+	# Purpose then "buy this when", so a player can map a failure to a shelf
+	# without leaving the screen (D013).
+	var purpose := _make_label(ProgressionTaxonomy.category_purpose(category), 13, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	purpose.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	workshop_detail.add_child(purpose)
+	var buy_when := _make_label(ProgressionTaxonomy.category_buy_when(category), 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	buy_when.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	workshop_detail.add_child(buy_when)
 	if state.in_run:
 		workshop_detail.add_child(_make_locked_panel("AVAILABLE BETWEEN RUNS", "Current ranks are active now and will be retained when this run ends."))
-	if not state.is_bay_active(bay):
-		workshop_detail.add_child(_make_locked_panel("REACH WORKSHOP LEVEL " + str(state.get_bay_required_level(bay)), "Your current level is " + str(state.get_workshop_level()) + "."))
+	if not state.has_category_content(category):
+		workshop_detail.add_child(_make_locked_panel("NOTHING HERE YET", "Ultimates unlock at waves 10, 25, 50 and 100."))
 		return
 	var found_next := false
-	for definition in state.cards_for_bay(bay):
+	for definition in state.cards_for_category(category):
 		var maxed := definition.is_maxed(state.get_owned(definition.id))
 		var unlocked := state.is_unlocked(definition)
 		var is_next := unlocked and not maxed and not found_next
 		if is_next:
 			found_next = true
-		workshop_detail.add_child(_make_ranked_card(definition, BAY_ICON[bay], is_next))
+		workshop_detail.add_child(_make_ranked_card(definition, CATEGORY_ICON[category], is_next))
 
 func _refresh_labs() -> void:
 	_clear_children(labs_content)
@@ -1082,11 +1091,11 @@ func _refresh_labs() -> void:
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 8)
 	labs_content.add_child(grid)
-	for bay in ProgressionTaxonomy.WORKSHOP_BAYS:
-		grid.add_child(_make_focus_card(bay))
+	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
+		grid.add_child(_make_focus_card(category))
 
-func _make_focus_card(bay: String) -> Button:
-	var active := state.is_bay_active(bay)
+func _make_focus_card(category: String) -> Button:
+	var active := state.has_category_content(category)
 	var button := _make_tile_button()
 	button.custom_minimum_size = Vector2(0, 92)
 	button.disabled = not active or state.in_run
@@ -1103,12 +1112,12 @@ func _make_focus_card(bay: String) -> Button:
 	chip_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	chip_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	chip.add_child(chip_center)
-	chip_center.add_child(IconGlyph.new(BAY_ICON[bay], LABS_ACCENT if active else MUTED_TEXT, 15.0))
+	chip_center.add_child(IconGlyph.new(CATEGORY_ICON[category], LABS_ACCENT if active else MUTED_TEXT, 15.0))
 	layout.add_child(chip)
-	layout.add_child(_make_label(ProgressionTaxonomy.bay_name(bay), 13, HORIZONTAL_ALIGNMENT_LEFT, TEXT if active else MUTED_TEXT))
+	layout.add_child(_make_label(ProgressionTaxonomy.category_name(category), 13, HORIZONTAL_ALIGNMENT_LEFT, TEXT if active else MUTED_TEXT))
 	layout.add_child(_make_label("-25% COST", 10, HORIZONTAL_ALIGNMENT_LEFT, LABS_ACCENT if active else MUTED_TEXT))
-	button.pressed.connect(func(chosen_bay: String = bay):
-		if state.select_focus(chosen_bay):
+	button.pressed.connect(func(chosen_category: String = category):
+		if state.select_focus(chosen_category):
 			_show_toast("RESEARCH FOCUS SET", LABS_ACCENT)
 			state.save()
 			_refresh_all()
@@ -1116,7 +1125,7 @@ func _make_focus_card(bay: String) -> Button:
 	)
 	return button
 
-func _make_focus_locked_card(bay: String) -> PanelContainer:
+func _make_focus_locked_card(category: String) -> PanelContainer:
 	var panel := PanelContainer.new()
 	panel.add_theme_stylebox_override("panel", _panel_style(SURFACE, 18, LABS_ACCENT))
 	var inner := VBoxContainer.new()
@@ -1133,14 +1142,14 @@ func _make_focus_locked_card(bay: String) -> PanelContainer:
 	var chip_wrap := CenterContainer.new()
 	chip_wrap.add_child(chip)
 	inner.add_child(chip_wrap)
-	inner.add_child(_make_label(ProgressionTaxonomy.bay_name(bay) + " · Research Focus", 15, HORIZONTAL_ALIGNMENT_CENTER, TEXT))
+	inner.add_child(_make_label(ProgressionTaxonomy.category_name(category) + " · Research Focus", 15, HORIZONTAL_ALIGNMENT_CENTER, TEXT))
 	var badge := PanelContainer.new()
 	badge.add_theme_stylebox_override("panel", _tag_style(LABS_ACCENT))
 	badge.add_child(_make_label("LOCKED IN", 11, HORIZONTAL_ALIGNMENT_CENTER, LABS_ACCENT))
 	var badge_wrap := CenterContainer.new()
 	badge_wrap.add_child(badge)
 	inner.add_child(badge_wrap)
-	var subtitle := _make_label("-25% Coin cost on every " + ProgressionTaxonomy.bay_name(bay) + " upgrade until your next Prestige.", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	var subtitle := _make_label("-25% Coin cost on every " + ProgressionTaxonomy.category_name(category) + " upgrade until your next Prestige.", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inner.add_child(subtitle)
 	return panel

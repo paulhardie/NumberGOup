@@ -4,7 +4,7 @@ extends Control
 ## Minimal monoline vector icons drawn on a 24x24 grid, scaled to fit this
 ## Control's size. Avoids shipping icon image assets for a handful of shapes
 ## that only ever need to be a single flat color.
-enum Kind { HOME, GEAR, FLASK, DIAMOND, SLIDERS, LOCK, CHART, BOLT, DICE, CHIP, CHECK, CLOSE, SPARKLE, COIN }
+enum Kind { HOME, GEAR, FLASK, DIAMOND, SLIDERS, LOCK, CHART, BOLT, DICE, CHIP, CHECK, CLOSE, SPARKLE, COIN, SHIELD }
 
 var kind: int = Kind.HOME
 var glyph_color: Color = Color.WHITE
@@ -100,8 +100,18 @@ func _draw() -> void:
 		Kind.CLOSE:
 			_line(origin, scale, Vector2(5, 5), Vector2(19, 19), w)
 			_line(origin, scale, Vector2(19, 5), Vector2(5, 19), w)
+		Kind.SHIELD:
+			var crest := PackedVector2Array([
+				Vector2(12, 2.5), Vector2(20, 6), Vector2(20, 12), Vector2(12, 21.5), Vector2(4, 12), Vector2(4, 6)
+			])
+			_poly(origin, scale, crest, w, true)
 		Kind.SPARKLE:
-			var star := PackedVector2Array([Vector2(12, 3), Vector2(16, 12), Vector2(12, 21), Vector2(8, 12)])
+			# Concave four-point star: the plain diamond read as a sliver at the
+			# 15-18px sizes the tabs draw it at.
+			var star := PackedVector2Array([
+				Vector2(12, 2), Vector2(13.7, 10.3), Vector2(22, 12), Vector2(13.7, 13.7),
+				Vector2(12, 22), Vector2(10.3, 13.7), Vector2(2, 12), Vector2(10.3, 10.3)
+			])
 			var scaled_star := PackedVector2Array()
 			for point in star:
 				scaled_star.append(origin + point * scale)
