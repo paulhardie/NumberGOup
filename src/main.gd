@@ -38,6 +38,8 @@ const CATEGORY_ICON := {
 ## The category strip's height. It sits above the nav dock between runs, and a
 ## run has no dock, so the same strip can sit flush there later.
 const CATEGORY_STRIP_HEIGHT := 64
+## How long a card must be held to read it rather than act on it.
+const LONG_PRESS_SECONDS := 0.45
 ## The run screen's vertical budget (D018, D032): the stage starts below the
 ## wave line, the hit line and Brace sit under it, and the Rig panel takes the
 ## rest down to its category strip. The stage takes half the free height, but
@@ -176,6 +178,12 @@ var stat_info_title: Label
 var stat_info_body: Label
 var stat_info_level: Label
 var stat_info_max: Label
+var stat_info_extra: Label
+## The Rig panel builds its cards once per category and rank change and
+## updates prices in place: rebuilding every refresh swapped a card out under
+## a held finger, which ate taps on Web and would break a long press.
+var rig_detail_signature := ""
+var rig_card_refs: Dictionary = {}
 var workshop_tab_buttons: Dictionary = {}
 var workshop_tab_icons: Dictionary = {}
 var workshop_tab_labels: Dictionary = {}
@@ -795,7 +803,7 @@ func _build_workshop_screen(parent: Control) -> void:
 	workshop_header = _make_label("", 12, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT)
 	chip.add_child(workshop_header)
 	header_row.add_child(chip)
-	content.add_child(_make_label("PERMANENT · APPLIES TO EVERY RUN", 10, HORIZONTAL_ALIGNMENT_LEFT, WORKSHOP_ACCENT))
+	content.add_child(_make_label("PERMANENT · APPLIES TO EVERY RUN · HOLD A CARD FOR DETAILS", 10, HORIZONTAL_ALIGNMENT_LEFT, WORKSHOP_ACCENT))
 
 	var category_row := HBoxContainer.new()
 	category_row.add_theme_constant_override("separation", 8)
@@ -832,7 +840,7 @@ func _refresh_rig() -> void:
 		category = ProgressionTaxonomy.ATTACK
 		state.workshop.selected_category = category
 	rig_category_header.text = ProgressionTaxonomy.category_name(category) + " UPGRADES"
-	rig_purchase_policy.text = "THIS RUN ONLY · RESETS WHEN THE RUN ENDS  ·  BUY WITH NUMBER"
+	rig_purchase_policy.text = "THIS RUN ONLY · BUY WITH NUMBER · HOLD A CARD FOR DETAILS"
 	rig_multiplier_label.text = _buy_step_label(category)
 	for tab_category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
 		var active: bool = category == tab_category
@@ -846,6 +854,14 @@ func _refresh_rig() -> void:
 	_refresh_rig_detail(category)
 
 func _refresh_rig_detail(category: String) -> void:
+	var signature := "|".join([category, str(state.rig_ranks), str(state.purchased)])
+	if signature == rig_detail_signature and not rig_card_refs.is_empty():
+		for definition in state.cards_for_category(category):
+			if rig_card_refs.has(definition.id):
+				_update_rig_card(definition)
+		return
+	rig_detail_signature = signature
+	rig_card_refs.clear()
 	_clear_children(rig_detail)
 	var grid := GridContainer.new()
 	grid.columns = 2
@@ -1687,9 +1703,10 @@ func _build_stat_info() -> void:
 	stat_info_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(stat_info_screen)
 
+	# Not flat: a flat button skips its stylebox, which left the detail panel
+	# floating over an undimmed screen.
 	var scrim := Button.new()
 	scrim.text = ""
-	scrim.flat = true
 	scrim.focus_mode = Control.FOCUS_NONE
 	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	scrim.add_theme_stylebox_override("normal", _panel_style(Color(0, 0, 0, 0.7), 0))
@@ -1732,18 +1749,33 @@ func _build_stat_info() -> void:
 	inner.add_child(stat_info_level)
 	stat_info_max = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	inner.add_child(stat_info_max)
+	stat_info_extra = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, WORKSHOP_ACCENT)
+	stat_info_extra.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inner.add_child(stat_info_extra)
 
-func _show_stat_info(definition: UpgradeDefinition) -> void:
+## A card's detail: what it does, how many of its ranks are owned against its
+## maximum, its value now and at the cap, and what it waits on. From the Rig,
+## also the run's own ranks and what each is worth.
+func _show_stat_info(definition: UpgradeDefinition, from_rig: bool = false) -> void:
 	if stat_info_screen == null:
 		return
 	var owned := state.get_owned(definition.id)
 	stat_info_title.text = definition.title
 	stat_info_body.text = definition.description
-	stat_info_level.text = "CURRENT RANK  ·  " + str(owned) + "  (" + _stat_value_text(definition, owned) + ")"
+	stat_info_level.text = "RANK " + str(owned) + " / " + str(definition.max_rank) + "  ·  NOW " + _stat_value_text(definition, owned)
 	if definition.is_maxed(owned):
-		stat_info_max.text = "MAX RANK  ·  " + str(definition.max_rank) + "  ·  REACHED"
+		stat_info_max.text = "MAX RANK REACHED"
 	else:
-		stat_info_max.text = "MAX RANK  ·  " + str(definition.max_rank) + "  (" + _stat_value_text(definition, definition.max_rank) + ")"
+		stat_info_max.text = "AT MAX RANK  ·  " + _stat_value_text(definition, definition.max_rank)
+	var extra: Array[String] = []
+	if not state.is_unlocked(definition):
+		extra.append("OPENS AT WORKSHOP LV " + str(definition.workshop_level_required) + "  ·  YOU ARE LV " + str(state.get_workshop_level()))
+	if from_rig:
+		var rig_ranks := state.rig_owned(definition.id)
+		var worth := state.balance_profile.rig_effect_multiplier(definition.workshop_category, definition.id)
+		extra.append("THIS RUN  ·  " + str(rig_ranks) + " RIG RANK" + ("" if rig_ranks == 1 else "S") + ", EACH WORTH " + _trim(worth) + " WORKSHOP RANKS  ·  NEXT " + state.get_rig_cost(definition.id).format_value() + " NUMBER")
+	stat_info_extra.text = "\n".join(extra)
+	stat_info_extra.visible = not extra.is_empty()
 	stat_info_screen.visible = true
 
 ## The run-over report: same scrim-and-sheet shape as the drawer, but modal
@@ -2504,12 +2536,17 @@ func _make_stat_card(definition: UpgradeDefinition, category: String) -> PanelCo
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_layout.add_child(name_label)
-	name_button.pressed.connect(func(): _show_stat_info(definition))
+	_add_long_press(name_button, func(): _show_stat_info(definition))
+	name_button.pressed.connect(func():
+		if not _consume_long_press(name_button):
+			_show_stat_info(definition)
+	)
 	row.add_child(name_button)
 
 	var value_button := _make_tile_button()
 	value_button.custom_minimum_size = Vector2(84, 58)
 	value_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_add_long_press(value_button, func(): _show_stat_info(definition))
 	var box_tint: Color = WORKSHOP_ACCENT if affordable else Color(1, 1, 1, 0.05)
 	value_button.add_theme_stylebox_override("normal", _panel_style(Color(0, 0, 0, 0.25), 10, box_tint))
 	value_button.add_theme_stylebox_override("hover", _panel_style(Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.12), 10, box_tint))
@@ -2518,6 +2555,8 @@ func _make_stat_card(definition: UpgradeDefinition, category: String) -> PanelCo
 	value_layout.add_child(_make_label(_stat_value_text(definition, owned), 13, HORIZONTAL_ALIGNMENT_RIGHT, TEXT if unlocked else MUTED_TEXT))
 	value_layout.add_child(_make_label(_stat_cost_text(definition, owned, maxed, unlocked, plan), 9, HORIZONTAL_ALIGNMENT_RIGHT, WORKSHOP_ACCENT if affordable else MUTED_TEXT))
 	value_button.pressed.connect(func(upgrade_id: String = definition.id, step: int = _buy_step(category)):
+		if _consume_long_press(value_button):
+			return
 		var bought := state.purchase_ranks(upgrade_id, step)
 		if bought > 0:
 			_show_toast("+" + str(bought) + "  " + definition.title, WORKSHOP_ACCENT)
@@ -2538,29 +2577,13 @@ func _make_stat_card(definition: UpgradeDefinition, category: String) -> PanelCo
 
 ## A compact Rig card for a run-scoped rank: name on left, value-and-cost box
 ## on right. Like the Workshop card but with Number cost and a warning if it
-## would leave too little for the next hit.
+## would leave too little for the next hit. Built once; _update_rig_card fills
+## the parts that move with the Number.
 func _make_rig_stat_card(definition: UpgradeDefinition, category: String) -> PanelContainer:
-	var owned := state.rig_owned(definition.id)
-	var permanent := state.get_owned(definition.id)
-	var effective := permanent + int(state.rig_rank_equivalent(definition))
 	var unlocked := state.is_unlocked(definition)
-	var next_cost := state.get_rig_cost(definition.id)
-	var can_afford := state.can_purchase_rig(definition.id)
-
-	var after_purchase := state.number.subtract(next_cost)
-	var encounter: Variant = state.active_encounter
-	var hit_cost := ScientificNumber.new()
-	if encounter != null and not encounter.max_liability.is_zero() and not encounter.is_cleared():
-		hit_cost = state.get_effective_collection()
-	var warning_colour := DANGER if after_purchase.compare_to(hit_cost) < 0 and not hit_cost.is_zero() else Color(1, 1, 1, 0.0)
-
 	var card := PanelContainer.new()
 	card.custom_minimum_size = Vector2(0, 80)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var edge: Color = WORKSHOP_ACCENT if can_afford else Color(1, 1, 1, 0.07)
-	card.add_theme_stylebox_override("panel", _panel_style(SURFACE, 12, edge))
-	if warning_colour.a > 0:
-		card.tooltip_text = "LEAVES " + after_purchase.format_value() + " · HITS FOR " + hit_cost.format_value()
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 6)
 	card.add_child(row)
@@ -2578,21 +2601,26 @@ func _make_rig_stat_card(definition: UpgradeDefinition, category: String) -> Pan
 	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_layout.add_child(name_label)
-	name_button.pressed.connect(func(): _show_stat_info(definition))
+	_add_long_press(name_button, func(): _show_stat_info(definition, true))
+	name_button.pressed.connect(func():
+		if not _consume_long_press(name_button):
+			_show_stat_info(definition, true)
+	)
 	row.add_child(name_button)
 
 	var value_button := _make_tile_button()
 	value_button.custom_minimum_size = Vector2(84, 58)
 	value_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	var box_tint: Color = WORKSHOP_ACCENT if can_afford else Color(1, 1, 1, 0.05)
-	value_button.add_theme_stylebox_override("normal", _panel_style(Color(0, 0, 0, 0.25), 10, box_tint))
-	value_button.add_theme_stylebox_override("hover", _panel_style(Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.12), 10, box_tint))
+	_add_long_press(value_button, func(): _show_stat_info(definition, true))
 	var value_layout := _tile_layout(value_button, 6, 6)
 	value_layout.alignment = BoxContainer.ALIGNMENT_CENTER
-	value_layout.add_child(_make_label(_stat_value_text(definition, effective), 13, HORIZONTAL_ALIGNMENT_RIGHT, TEXT if unlocked else MUTED_TEXT))
-	var cost_label_colour := warning_colour if warning_colour.a > 0 else (WORKSHOP_ACCENT if can_afford else MUTED_TEXT)
-	value_layout.add_child(_make_label(next_cost.format_value() + " #", 9, HORIZONTAL_ALIGNMENT_RIGHT, cost_label_colour))
+	var value_label := _make_label("", 13, HORIZONTAL_ALIGNMENT_RIGHT, TEXT if unlocked else MUTED_TEXT)
+	value_layout.add_child(value_label)
+	var cost_label := _make_label("", 9, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT)
+	value_layout.add_child(cost_label)
 	value_button.pressed.connect(func(upgrade_id: String = definition.id):
+		if _consume_long_press(value_button):
+			return
 		if not state.can_purchase_rig(upgrade_id):
 			_show_toast("NEED " + state.get_rig_cost(upgrade_id).format_value() + " NUMBER", MUTED_TEXT)
 			return
@@ -2604,7 +2632,62 @@ func _make_rig_stat_card(definition: UpgradeDefinition, category: String) -> Pan
 			_show_toast("CANNOT BUY NOW", MUTED_TEXT)
 	)
 	row.add_child(value_button)
+	rig_card_refs[definition.id] = {"card": card, "value_button": value_button, "value_label": value_label, "cost_label": cost_label}
+	_update_rig_card(definition)
 	return card
+
+## The parts of a Rig card that move with the Number: its price, whether it is
+## affordable, and the warning when buying would leave less than the next hit.
+func _update_rig_card(definition: UpgradeDefinition) -> void:
+	var refs: Dictionary = rig_card_refs[definition.id]
+	var card: PanelContainer = refs.card
+	var value_button: Button = refs.value_button
+	if not is_instance_valid(card):
+		return
+	var effective := state.get_owned(definition.id) + int(state.rig_rank_equivalent(definition))
+	var next_cost := state.get_rig_cost(definition.id)
+	var can_afford := state.can_purchase_rig(definition.id)
+	var after_purchase := state.number.subtract(next_cost)
+	var encounter: Variant = state.active_encounter
+	var hit_cost := ScientificNumber.new()
+	if encounter != null and not encounter.max_liability.is_zero() and not encounter.is_cleared():
+		hit_cost = state.get_effective_collection()
+	var warning_colour := DANGER if after_purchase.compare_to(hit_cost) < 0 and not hit_cost.is_zero() else Color(1, 1, 1, 0.0)
+	var edge: Color = WORKSHOP_ACCENT if can_afford else Color(1, 1, 1, 0.07)
+	card.add_theme_stylebox_override("panel", _panel_style(SURFACE, 12, edge))
+	card.tooltip_text = ("LEAVES " + after_purchase.format_value() + " · HITS FOR " + hit_cost.format_value()) if warning_colour.a > 0 else ""
+	var box_tint: Color = WORKSHOP_ACCENT if can_afford else Color(1, 1, 1, 0.05)
+	value_button.add_theme_stylebox_override("normal", _panel_style(Color(0, 0, 0, 0.25), 10, box_tint))
+	value_button.add_theme_stylebox_override("hover", _panel_style(Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.12), 10, box_tint))
+	(refs.value_label as Label).text = _stat_value_text(definition, effective)
+	var cost_label: Label = refs.cost_label
+	cost_label.text = next_cost.format_value() + " #"
+	cost_label.add_theme_color_override("font_color", warning_colour if warning_colour.a > 0 else (WORKSHOP_ACCENT if can_afford else MUTED_TEXT))
+
+## Holding a card reads it instead of acting on it: after LONG_PRESS_SECONDS
+## held, the card's detail opens, and the release that follows is swallowed so
+## a hold never buys.
+func _add_long_press(button: Button, on_long_press: Callable) -> void:
+	button.set_meta("long_pressed", false)
+	# Held weakly: a card can be rebuilt, freeing its button, before the timer
+	# fires, and a strong capture would then call into a freed object.
+	var button_ref: WeakRef = weakref(button)
+	button.button_down.connect(func():
+		(button_ref.get_ref() as Button).set_meta("long_pressed", false)
+		get_tree().create_timer(LONG_PRESS_SECONDS).timeout.connect(func():
+			var held: Button = button_ref.get_ref()
+			if held != null and held.is_pressed():
+				held.set_meta("long_pressed", true)
+				on_long_press.call()
+		)
+	)
+
+## True, once, when this release ends a long press rather than a tap.
+func _consume_long_press(button: Button) -> bool:
+	if bool(button.get_meta("long_pressed", false)):
+		button.set_meta("long_pressed", false)
+		return true
+	return false
 
 ## The row's effect read as a player-facing value, formatted by the unit the
 ## state reports rather than by a per-row special case here.

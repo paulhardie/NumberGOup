@@ -403,7 +403,8 @@ Each category carries a buy multiplier — `x1 · x5 · x10 · MAX` — shown be
 Two cards to a row. Each card carries the stat's name on the left and a value-and-cost box on the right:
 
 - the **name** opens a detail panel with the description, the current rank and its value, and the max rank and its value;
-- the **box** shows the row's value at its current rank, the cost of the next press underneath, and buys when tapped.
+- the **box** shows the row's value at its current rank, the cost of the next press underneath, and buys when tapped;
+- **holding either** (about half a second) opens the same detail instead of acting, in the Workshop and the Rig alike, and the release never buys. The detail reads the rank against its maximum ("RANK 12 / 100"), the value now and at the cap, the Workshop level a locked row waits on, and, from the Rig, the run's own ranks, what each is worth and the next price. Both panels say "HOLD A CARD FOR DETAILS" (owner request, 2026-09-22).
 
 Values are derived from the row's own declared effect rather than authored twice, so a card cannot drift from what the rank grants. Rows with no declared effect (Burst, Crit Chain) show their rank instead, which is what their descriptions already talk in.
 
