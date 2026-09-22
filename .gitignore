@@ -1,4 +1,4 @@
 .godot/
 build/
 *.tmp
-.number_go_up_test_save.json
+.number_go_up_test_save*

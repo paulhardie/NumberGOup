@@ -199,6 +199,7 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_build_ui()
 	var offline := state.load()
+	offline_message = _load_status_message(state.load_status)
 	if not offline.amount.is_zero():
 		offline_message = "WELCOME BACK  +" + offline.amount.format_value() + "  /  " + _format_duration(offline.seconds)
 		if offline.capped:
@@ -206,6 +207,17 @@ func _ready() -> void:
 	_snap_number_display()
 	_refresh_number_display()
 	_refresh_all()
+
+## What the player needs to know about the save the game just opened (D028).
+func _load_status_message(status: String) -> String:
+	match status:
+		GameState.LOAD_RECOVERED:
+			return "SAVE RESTORED FROM BACKUP"
+		GameState.LOAD_UNREADABLE:
+			return "SAVE COULD NOT BE READ  ·  A COPY WAS KEPT  ·  STARTING FRESH"
+		GameState.LOAD_NEWER:
+			return "SAVE IS FROM A NEWER VERSION  ·  PROGRESS HERE WILL NOT BE SAVED"
+	return ""
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_WINDOW_FOCUS_OUT or what == NOTIFICATION_APPLICATION_PAUSED:
@@ -2497,6 +2509,9 @@ func _refresh_drawer() -> void:
 		persistence.text = "Saves are stored on this device. Browser private mode or cleared site data can remove them."
 		if not state.has_persistent_storage():
 			persistence.text = "LOCAL SAVE MAY NOT PERSIST IN THIS BROWSER. Turn off private browsing or allow site storage."
+			persistence.add_theme_color_override("font_color", CRITICAL)
+		if state.saving_paused:
+			persistence.text = "SAVING PAUSED. This save was made by a newer version of the game, so it is left untouched and progress here is not kept."
 			persistence.add_theme_color_override("font_color", CRITICAL)
 
 func _populate_stats_grid() -> void:

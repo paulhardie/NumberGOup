@@ -8,7 +8,7 @@
 ## Must — run lifecycle and permanence
 
 - Number exists only during an active run. Tapping, production ticks and offline time grant nothing outside a run.
-- Permanent progress — Workshop ranks (Armor among them), Coins, Knowledge, Insight ranks, Lab ranks and in-progress research, and tier records — survives death, retreat and Prestige.
+- Permanent progress — Workshop ranks (Armor among them), Coins, Knowledge, Insight ranks, Lab ranks and in-progress research, Gems, Card levels and the Active set, and tier records — survives death, retreat and Prestige.
 - Research Focus persists through death and retreat and clears only on Prestige. It names one of the four Workshop categories.
 - Workshop purchases are unavailable during an active run; permanent power is chosen between attempts. Armor is a Workshop rank, so the run screen's shortcut to it obeys the same lock.
 - Starting a Lab is unavailable during an active run, like a Workshop purchase (D024), but a line already researching keeps its real-time clock regardless of run state or whether the app is open.
@@ -29,10 +29,11 @@
 ## Must — rules and persistence
 
 - Every rule that changes Liability or Collection passes through the ordered modifier pipeline: flat → additive → multiplicative → cap_max → cap_min, each stage applied once.
-- Save data is versioned with explicit migrations. Migration preserves every declared permanent currency and rank; pre-V4 banked Number retires because Number is run-only.
-- A saved active encounter resumes with identical remaining Liability and identical RNG state; matching run seeds reproduce outcomes.
+- Save data is versioned with explicit migrations. Migration preserves every declared permanent currency and rank; pre-V4 banked Number retires because Number is run-only. A new saved field bumps the version (D028).
+- A save the loader cannot read, or one written by a newer build, is never written over: an unreadable save is moved aside intact and the backup loads, and a newer save pauses saving (D028). A load happens whole or not at all.
+- A saved active encounter resumes with identical remaining Liability, RNG state, tick phase and crit chain, so the resumed run produces exactly what the saved one would have; matching run seeds reproduce outcomes.
 - `ScientificNumber` values stay finite and non-negative; subtraction floors at zero; balance evaluation cannot overflow ordinary floats.
-- `user://number_go_up_save.json` is the live save; tests must never leave `res://.number_go_up_test_save.json` behind.
+- `user://number_go_up_save.json` is the live save, with its `.bak` backup beside it; tests must never leave `res://.number_go_up_test_save.json` or any file derived from it behind.
 
 ## Should — expected behaviour
 

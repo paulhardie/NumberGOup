@@ -33,7 +33,7 @@ Tier 1 has 20 grace waves. Tier 2 and Tier 3 unlock by clearing wave 100 in the 
 
 Workshop upgrades are bought with Coins between runs and permanently raise the baseline used by every later attempt. Starting a run resets Number to that baseline; death, retreat, and Prestige never remove Workshop ranks. Number production only happens during an active run, so neither waiting at the hub nor going offline can bank a risk-free head start.
 
-Retreat ends and resets a run—it cannot pause Tax while Number keeps growing. Active runs freeze exactly while the app is away. Save schema V5 preserves the permanent Workshop, active encounter, and deterministic RNG state, with V1/V2/V3/V4 migration.
+Retreat ends and resets a run—it cannot pause Tax while Number keeps growing. Active runs freeze exactly while the app is away. Save schema V6 preserves the permanent Workshop, Labs, Cards, the active encounter and deterministic RNG state, with V1–V5 migration. A save the game cannot read, or one from a newer version, is never written over (D028).
 
 The researched scaling rationale, source links, data contracts, and later-system boundaries are in [`docs/TOWER_SCALING_FOUNDATION.md`](docs/TOWER_SCALING_FOUNDATION.md).
 
