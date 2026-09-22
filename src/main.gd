@@ -1105,7 +1105,7 @@ func _spawn_floating_text(text: String, colour: Color, local_pos: Vector2) -> vo
 func _refresh_all() -> void:
 	background_rect.visible = not bool(state.settings.high_contrast)
 	rate_label.visible = true
-	var rate := state.get_rate_per_second().format_value()
+	var rate := _stat_number(state.get_rate_per_second())
 	if not state.in_run:
 		rate_label.text = "STARTING +" + rate + " / sec"
 	elif state.is_output_banking():
@@ -1488,7 +1488,9 @@ func _stat_value_text(definition: UpgradeDefinition, rank: int) -> String:
 		"multiplier":
 			return "×%.2f" % value
 		"flat":
-			return ScientificNumber.from_float(value).format_value()
+			# The Number formatter rounds to whole units, which would hide a
+			# rank worth 0.05. Small stat values need their decimals.
+			return _stat_number(ScientificNumber.from_float(value))
 		_:
 			return str(rank) + " / " + str(definition.max_rank)
 
@@ -1834,6 +1836,22 @@ func _panel_style(colour: Color, radius: int, border: Color = Color.TRANSPARENT)
 	style.content_margin_top = 10
 	style.content_margin_bottom = 10
 	return style
+
+## Two decimals at most, with trailing zeros dropped, so 1.05 and 6 both read
+## naturally on a card.
+func _trim(value: float) -> String:
+	var text := "%.2f" % value
+	if text.contains("."):
+		text = text.rstrip("0").rstrip(".")
+	return text
+
+## A stat, not a Number: under a thousand it keeps its decimals, because the
+## Number formatter rounds to whole units and a rank worth 0.08 would read as
+## zero. Above that the Number formatter's abbreviations take over.
+func _stat_number(value: ScientificNumber) -> String:
+	if value.exponent < 3:
+		return _trim(value.mantissa * pow(10.0, value.exponent))
+	return value.format_value()
 
 ## Coins share the Number formatter: full digits under a million, abbreviated
 ## above it, so a growing balance never widens the chip that holds it.

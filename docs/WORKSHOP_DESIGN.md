@@ -1,7 +1,7 @@
 # Workshop design
 
-**Status:** Accepted direction. Steps 1 (the wave rule and its retune) and 3 (the four categories) implemented 21 September 2026; later steps not yet.
-**Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four categories), [D014](DECISIONS.md) (player vocabulary), [D015](DECISIONS.md) (the Rig: the same four categories inside a run) and [D016](DECISIONS.md) (the bottom bar carries what is actionable now).
+**Status:** Accepted direction. Steps 1 (the wave rule and its retune), 3 (the four categories) and 3b (the deepened ladders) implemented 21–22 September 2026; later steps not yet.
+**Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four categories), [D014](DECISIONS.md) (player vocabulary), [D015](DECISIONS.md) (the Rig: the same four categories inside a run), [D016](DECISIONS.md) (the bottom bar carries what is actionable now), [D018](DECISIONS.md) (multi-buy and the reference layout) and [D019](DECISIONS.md) (deep rank ladders).
 **Owns:** the wave rule as the player should understand it, the four categories in both lenses — permanent in the Workshop, run-only in the Rig — and every stat's reason to exist, what the player sees, the build strategies this supports, the balance targets the retune must hit, and the implementation order.
 
 This document uses the accepted player vocabulary (Wave HP, Hit, Armor). [Vocabulary](#vocabulary-d014) maps every term to its code name.
@@ -148,6 +148,29 @@ Four consequences are real and were accepted:
 - **Armor is now discounted** by Discount and by a Defense Research Focus, and its cost rounds with the shared ceiling rather than its own `round()`. Over all ten ranks that is 5 Coins more in total: 2,728 against 2,723.
 - **A Logic-shaped Research Focus loses part of its reach.** Logic's three rows split across Attack, Defense and Utility, so no mapping can keep all three; a migrated Logic focus becomes Utility and keeps the Discount row. Output, Speed and Chance all become Attack and keep everything they had.
 - **Defense is open from the start, not gated on the first hit.** The requirement below assumed Defense was all new content, but Armor moves in and is available from wave 1 today. Gating it would take away access a player already has. Revisit when step 4 gives Defense rows a player cannot yet use.
+
+### Deep ladders (step 3b, D019)
+
+Multi-buy made the Workshop's real shortness visible: 51 ranks across 13 rows, which `MAX` collapsed into about thirteen presses. The reference's ladders run to hundreds of levels per stat. Step 3b rebuilds every ladder to that shape.
+
+**The rule: multiply the cap, divide the step, keep the cap's value.** Each row's rank cap rose by roughly 20×, and its per-rank effect fell by the same factor, so the value at maximum rank is exactly what the three-to-ten-rank ladder reached. Cost growth flattens from 1.55–2.00 to 1.038–1.078, and each row's Coins-to-max is designed rather than inherited, which also retires two distortions: Cushion was 30% of the Workshop's price for a stat that does nothing on Tier 1, and Tap Damage was 0.2% of it for a stat used all game.
+
+| | Before | After |
+| --- | --- | --- |
+| Coin-funded rows | 13 | 13 |
+| Total ranks | 51 | **906** |
+| Coins to max everything | 85,635 | **86,007** |
+| Cost growth per rank | 1.55 – 2.00 | 1.038 – 1.078 |
+| Tap Damage: ranks / Coins | 5 / 147 | 100 / 3,005 |
+| Cushion: share of the Workshop | 30% | 12% |
+
+Two rows could not simply be scaled. **Burst** sets a tick interval, so it has as many useful ranks as there are integers between 12 and its floor of 6: it runs 6 ranks, one tick shorter each, reaching the same floor. **Crit Chain** and Burst carry no declared effect, so their cards show a rank rather than a value; their coefficients moved in `GameState` alongside the rest.
+
+Category gates move with the ranks, chosen to hold the old **Coin** pacing rather than the old rank counts: 0 / 12 / 30 / 60 in place of 0 / 2 / 5 / 8, and Research Focus at 120 in place of 12. Reaching the second shelf cost 45 Coins before and costs about 45 now.
+
+**Measured: every baseline row below reproduces exactly** — the same wave, minutes, hits and Coins for the first run and all five build-matrix rows. Peak Number differs by under 0.1%, which is float residue in the per-rank multipliers (1.00701257 to the 60th against 1.15 cubed), not a balance change. A test asserts every cap still lands on its old value, so a future rank-count change that moves one is a failure rather than a silent retune.
+
+What this does not do is lengthen the grind: the Workshop costs what it always did, and the same build still reaches Tier 1 wave 100 in 45 minutes. It buys decisions, not hours. Making the Workshop *longer* as well as deeper is a separate dial — the per-row Coin targets in `_make_definitions` — and a separate decision.
 
 **Research Focus is lopsided until step 4.** Attack holds ten rows, Defense two and Utility one, so focusing Attack is strictly best. It is a non-choice rather than a trap, and step 4's new Defense and Utility stats are what fix it. Do not paper over it with a per-category discount scale: that would need retuning the moment those rows land.
 
@@ -403,6 +426,7 @@ Each step lands on its own and clears the gate for its risk level in [`QUALITY_G
 | 1 | **Done.** D012 rule in `GameState._add_number`, `tax-foundation-v2` retune, simulator build matrix, and the run screen's rate line (it said `+X / sec` while output was going into the wave) | High: economy and encounter |
 | 2 | Player vocabulary (D014) in the remaining UI strings: the encounter line, hit toasts, Brace and Shield text, floating `+X` on taps, the drawer's `NUMBER / SEC` | Low to medium |
 | 3 | **Done.** Four Workshop categories; bays retire; Shield Matrix becomes the Armor Workshop row; Research Focus retargets from bay to category; save schema V5 (D017) migrates `selected_bay`, `focus` and `tax_resistance_rank` with no rank lost and a live run intact. Also the reference layout: category strip pinned at the bottom, compact two-column cards with the detail one tap away, and multi-buy (D018) | High: save schema and a purchase path |
+| 3b | **Done.** Deep rank ladders (D019): 51 ranks become 906 at the same total Coin cost and the same value at every cap; gates move to 0 / 12 / 30 / 60 and Research Focus to 120 | High: economy |
 | 4 | New Defense stats (Siphon, Recoil, scaled Cushion, Brace Cost, Second Wind), then Boss Damage and the Coin and Knowledge bonuses. **Recheck Research Focus here**: it is a non-choice while Attack holds ten rows against Defense's two and Utility's one | High: economy; targets 5 and 6 |
 | 5 | The bar reshape (D016): four category tabs between runs, Labs, Insight and Prestige into the Knowledge sheet, `highest_number` gates moved inside it | Medium: presentation only, no save or economy change |
 | 6 | "What would have saved you" and the two doors on the run-over screen | Medium |
@@ -422,10 +446,6 @@ Held true by step 1:
 
 ## Open questions
 
-1. **The Workshop is too shallow for the layout it now wears.** The reference's ladders run to hundreds or thousands of levels per stat — Defense Absolute alone caps at 5,000. Ours holds **51 ranks across 13 Coin-funded rows, 85,635 Coins to max every one of them**. The Coin cost is not the problem: at the top build's 92.9 Coins a minute that is about fifteen hours. The problem is that 51 ranks is 51 decisions, and MAX-buy collapses them into roughly thirteen presses. D013's context says the owner wants the Workshop to be a large part of the game, as it is in The Tower; a ladder this short is climbed once rather than returned to.
-
-   Recommendation: raise the caps by one to two orders of magnitude and flatten cost growth to match — something near 50–500 ranks per row at 1.02–1.05 growth instead of 3–10 ranks at 1.55–2.00 — so the same total Coin cost spreads across far more choices and the multi-buy control earns its place. **This is a balance rework, not a content row: it invalidates every measured baseline in this document and needs the simulator to re-establish them.** It deserves its own step and its own decision before any of it is written.
-
-2. **What Ultimates cost to upgrade permanently.** Recommendation: Knowledge. It gives Knowledge a second sink beside Insight and adds no currency (pillar 4). The alternative, Coins, competes directly with the Workshop. Their in-run levels cost Number like every other Rig row.
-3. **The Tier 2+ opening.** Should Cushion scale with the tier, or should every tier get a few warm-up waves? Recommendation: scaled Cushion, because it makes the opening a Defense decision rather than a free pass. The Rig sharpens this: on Tier 2 the first hit lands before there is any Number to spend, so the opening is the one stretch of a run the Rig cannot help with.
-4. **Tier shapes.** Whether and when to skew Tiers 2 and 3 away from uniform multipliers. That would supersede part of D002.
+1. **What Ultimates cost to upgrade permanently.** Recommendation: Knowledge. It gives Knowledge a second sink beside Insight and adds no currency (pillar 4). The alternative, Coins, competes directly with the Workshop. Their in-run levels cost Number like every other Rig row.
+2. **The Tier 2+ opening.** Should Cushion scale with the tier, or should every tier get a few warm-up waves? Recommendation: scaled Cushion, because it makes the opening a Defense decision rather than a free pass. The Rig sharpens this: on Tier 2 the first hit lands before there is any Number to spend, so the opening is the one stretch of a run the Rig cannot help with.
+3. **Tier shapes.** Whether and when to skew Tiers 2 and 3 away from uniform multipliers. That would supersede part of D002.

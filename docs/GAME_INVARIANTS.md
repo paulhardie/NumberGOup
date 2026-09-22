@@ -36,9 +36,10 @@
 ## Should — expected behaviour
 
 - Upgrade costs and ranks are legible before purchase. A multi-buy press costs exactly what the same ranks cost one at a time, and exactly what it quoted.
+- A Workshop row's value at its maximum rank is a contract, not a consequence of its rank count: changing a cap without dividing the per-rank effect to match is a retune and needs a decision.
 - The first failed run funds at least one permanent Workshop rank.
 - UI presents and reports; it mutates domain state only by calling `GameState` methods.
-- Every Workshop row belongs to exactly one of the four categories (Attack, Defense, Utility, Ultimates) and opens at its own Workshop level: 0, 2, 5 or 8. Retired bays gated each row at the same level the row itself required, so their removal moved nothing.
+- Every Workshop row belongs to exactly one of the four categories (Attack, Defense, Utility, Ultimates) and opens at its own Workshop level: 0, 12, 30 or 60. Retired bays gated each row at the same level the row itself required, so their removal moved nothing; D019 then moved the levels to hold the same Coin pacing across deeper ladders.
 - Brace spends 30% of current Number and blocks exactly the next Collection hit.
 - A run ending explains itself: the summary states the tier, wave, Coins and Knowledge earned.
 - Highest Number and tier records persist across runs for stats and dock unlocks.

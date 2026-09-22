@@ -10,7 +10,7 @@ const SaveDataV5Class = preload("res://src/save_data_v5.gd")
 
 const SAVE_PATH := "user://number_go_up_save.json"
 const OFFLINE_CAP_SECONDS := 43200.0
-const RESEARCH_WORKSHOP_LEVEL := 12
+const RESEARCH_WORKSHOP_LEVEL := 120
 const PRESTIGE_TEASER_UNLOCK := 110000.0
 const PRESTIGE_KNOWLEDGE_SCALE := 4.0
 
@@ -749,13 +749,16 @@ func _critical_multiplier() -> float:
 	return 2.0 + _effect_sum("critical_multiplier_add")
 
 func _chain_reaction_step() -> float:
-	return 0.1 * get_owned("chain_reaction")
+	return 0.005 * get_owned("chain_reaction")
 
+## Burst shortens the interval by one tick per rank, from 12 down to the same
+## floor of 6 the three-rank version reached. The floor is what keeps deepening
+## this row a pacing change rather than a power change.
 func _burst_interval() -> int:
 	var rank := get_owned("burst_relay")
 	if rank <= 0:
 		return 0
-	return [0, 12, 9, 6][rank]
+	return maxi(6, 12 - rank)
 
 func _effect_sum(effect_name: String) -> float:
 	var total := 0.0
@@ -774,23 +777,29 @@ func _effect_product(effect_name: String, base: float) -> float:
 ## The Workshop catalogue. Every row declares the category it sits on (D013);
 ## ids are stable because saves key ranks by them, so a row can move shelf or
 ## change its player-facing name without touching a save.
+##
+## Ladder shape (D019): each row runs 50-100 ranks at a flat cost growth, rather
+## than 3-10 ranks at 1.55-2.00. A rank's effect is divided by the same factor
+## its cap was multiplied by, so the value at max rank is unchanged, and each
+## row's Coins-to-max is designed rather than inherited: the Workshop still
+## costs about 86,000 Coins in total, now spread over 906 ranks instead of 51.
 func _make_definitions() -> Array[UpgradeDefinition]:
 	const ATTACK := ProgressionTaxonomy.ATTACK
 	const DEFENSE := ProgressionTaxonomy.DEFENSE
 	const UTILITY := ProgressionTaxonomy.UTILITY
 	return [
-		UpgradeDefinition.new("stronger_tap", "TAP DAMAGE", "Hand Press. +1 damage per tap per rank.", ScientificNumber.from_float(10), ScientificNumber.from_float(10), "workshop", {"tap_flat": 1.0}, false, 1.55, ProgressionTaxonomy.MODULE, ATTACK, 5, 0),
-		UpgradeDefinition.new("generator", "DAMAGE PER SECOND", "Desk Dynamo. +1.5 base damage every second per rank.", ScientificNumber.from_float(35), ScientificNumber.from_float(20), "workshop", {"passive_flat": 1.5}, false, 1.7, ProgressionTaxonomy.MODULE, ATTACK, 5, 0),
-		UpgradeDefinition.new("generator_two", "DAMAGE MULTIPLIER", "Number Engine. All damage ×1.15 per rank.", ScientificNumber.from_float(180), ScientificNumber.from_float(120), "workshop", {"base_output_multiplier": 1.15}, false, 2.0, ProgressionTaxonomy.MODULE, ATTACK, 3, 0),
-		UpgradeDefinition.new("faster_cadence", "TICK SPEED", "Tick Wheel. Ticks come ×1.20 faster per rank.", ScientificNumber.from_float(130), ScientificNumber.from_float(100), "workshop", {"tick_rate": 1.20}, false, 1.7, ProgressionTaxonomy.MODULE, ATTACK, 5, 2),
-		UpgradeDefinition.new("faster_echo", "DOUBLE TICK", "+8% chance a tick counts twice per rank.", ScientificNumber.from_float(420), ScientificNumber.from_float(300), "workshop", {"double_tick_chance": 0.08}, false, 1.85, ProgressionTaxonomy.PROTOCOL, ATTACK, 3, 2),
-		UpgradeDefinition.new("burst_relay", "BURST", "Burst Relay. Every 12 / 9 / 6 ticks counts double.", ScientificNumber.from_float(1100), ScientificNumber.from_float(700), "workshop", {}, false, 2.0, ProgressionTaxonomy.PROTOCOL, ATTACK, 3, 2),
-		UpgradeDefinition.new("more_critical", "CRIT CHANCE", "Critical Lens. +5% critical chance per rank.", ScientificNumber.from_float(360), ScientificNumber.from_float(500), "workshop", {"critical_chance": 0.05}, false, 1.75, ProgressionTaxonomy.PROTOCOL, ATTACK, 5, 5),
-		UpgradeDefinition.new("magnitude_coil", "CRIT DAMAGE", "Magnitude Coil. +1 critical multiplier per rank.", ScientificNumber.from_float(1050), ScientificNumber.from_float(900), "workshop", {"critical_multiplier_add": 1.0}, false, 2.0, ProgressionTaxonomy.PROTOCOL, ATTACK, 3, 5),
-		UpgradeDefinition.new("chain_reaction", "CRIT CHAIN", "Chain Reaction. Each critical strengthens the next by 10% per rank.", ScientificNumber.from_float(2400), ScientificNumber.from_float(1800), "workshop", {}, false, 2.0, ProgressionTaxonomy.PROTOCOL, ATTACK, 3, 5),
-		UpgradeDefinition.new("automation_core", "AUTO CRANK", "+5 base damage every second per rank.", ScientificNumber.from_float(4000), ScientificNumber.new(), "workshop", {"passive_flat": 5.0}, false, 1.0, ProgressionTaxonomy.ROUTINE, ATTACK, 1, 8),
-		UpgradeDefinition.new(ARMOR_ID, "ARMOR", "Shield Matrix. Every hit is 4% smaller per rank.", ScientificNumber.from_float(15), ScientificNumber.new(), "workshop", {"collection_resistance": 0.04}, false, 1.6, ProgressionTaxonomy.MODULE, DEFENSE, 10, 0),
-		UpgradeDefinition.new("priority_buffer", "CUSHION", "Starting Reserve. Begin every run with 250 Number per rank.", ScientificNumber.from_float(8500), ScientificNumber.new(), "workshop", {"starting_number_flat": 250.0}, false, 2.0, ProgressionTaxonomy.ROUTINE, DEFENSE, 2, 8),
-		UpgradeDefinition.new("smarter_efficiency", "DISCOUNT", "Efficiency Matrix. All Workshop costs 5% lower per rank.", ScientificNumber.from_float(1000), ScientificNumber.from_float(2500), "workshop", {"cost_discount": 0.05}, false, 2.0, ProgressionTaxonomy.MODULE, UTILITY, 3, 8),
+		UpgradeDefinition.new("stronger_tap", "TAP DAMAGE", "Hand Press. +0.05 damage per tap per rank.", ScientificNumber.from_float(2.77), ScientificNumber.from_float(10), "workshop", {"tap_flat": 0.05}, false, 1.03796, ProgressionTaxonomy.MODULE, ATTACK, 100, 0),
+		UpgradeDefinition.new("generator", "DAMAGE PER SECOND", "Desk Dynamo. +0.075 base damage every second per rank.", ScientificNumber.from_float(3.71), ScientificNumber.from_float(20), "workshop", {"passive_flat": 0.075}, false, 1.03796, ProgressionTaxonomy.MODULE, ATTACK, 100, 0),
+		UpgradeDefinition.new("generator_two", "DAMAGE MULTIPLIER", "Number Engine. All damage ×1.007 per rank.", ScientificNumber.from_float(12.37), ScientificNumber.from_float(120), "workshop", {"base_output_multiplier": 1.00701257}, false, 1.06452, ProgressionTaxonomy.MODULE, ATTACK, 60, 0),
+		UpgradeDefinition.new("faster_cadence", "TICK SPEED", "Tick Wheel. Ticks come ×1.009 faster per rank.", ScientificNumber.from_float(6.52), ScientificNumber.from_float(100), "workshop", {"tick_rate": 1.00915776}, false, 1.03796, ProgressionTaxonomy.MODULE, ATTACK, 100, 12),
+		UpgradeDefinition.new("faster_echo", "DOUBLE TICK", "+0.4% chance a tick counts twice per rank.", ScientificNumber.from_float(7.71), ScientificNumber.from_float(300), "workshop", {"double_tick_chance": 0.004}, false, 1.06452, ProgressionTaxonomy.PROTOCOL, ATTACK, 60, 12),
+		UpgradeDefinition.new("burst_relay", "BURST", "Burst Relay. Every 11th tick counts double, one tick sooner per rank, down to every 6th.", ScientificNumber.from_float(103), ScientificNumber.from_float(700), "workshop", {}, false, 1.64375, ProgressionTaxonomy.PROTOCOL, ATTACK, 6, 12),
+		UpgradeDefinition.new("more_critical", "CRIT CHANCE", "Critical Lens. +0.25% critical chance per rank.", ScientificNumber.from_float(7.45), ScientificNumber.from_float(500), "workshop", {"critical_chance": 0.0025}, false, 1.03796, ProgressionTaxonomy.PROTOCOL, ATTACK, 100, 30),
+		UpgradeDefinition.new("magnitude_coil", "CRIT DAMAGE", "Magnitude Coil. +0.05 critical multiplier per rank.", ScientificNumber.from_float(10.82), ScientificNumber.from_float(900), "workshop", {"critical_multiplier_add": 0.05}, false, 1.06452, ProgressionTaxonomy.PROTOCOL, ATTACK, 60, 30),
+		UpgradeDefinition.new("chain_reaction", "CRIT CHAIN", "Chain Reaction. Each critical strengthens the next by 0.5% per rank.", ScientificNumber.from_float(15.47), ScientificNumber.from_float(1800), "workshop", {}, false, 1.06452, ProgressionTaxonomy.PROTOCOL, ATTACK, 60, 30),
+		UpgradeDefinition.new("automation_core", "AUTO CRANK", "+0.1 base damage every second per rank.", ScientificNumber.from_float(9.23), ScientificNumber.new(), "workshop", {"passive_flat": 0.1}, false, 1.07819, ProgressionTaxonomy.ROUTINE, ATTACK, 50, 60),
+		UpgradeDefinition.new(ARMOR_ID, "ARMOR", "Shield Matrix. Every hit is 0.4% smaller per rank.", ScientificNumber.from_float(7.45), ScientificNumber.new(), "workshop", {"collection_resistance": 0.004}, false, 1.03796, ProgressionTaxonomy.MODULE, DEFENSE, 100, 0),
+		UpgradeDefinition.new("priority_buffer", "CUSHION", "Starting Reserve. Begin every run with 10 Number per rank.", ScientificNumber.from_float(18.51), ScientificNumber.new(), "workshop", {"starting_number_flat": 10.0}, false, 1.07819, ProgressionTaxonomy.ROUTINE, DEFENSE, 50, 60),
+		UpgradeDefinition.new("smarter_efficiency", "DISCOUNT", "Efficiency Matrix. All Workshop costs 0.25% lower per rank.", ScientificNumber.from_float(12.37), ScientificNumber.from_float(2500), "workshop", {"cost_discount": 0.0025}, false, 1.06452, ProgressionTaxonomy.MODULE, UTILITY, 60, 60),
 		UpgradeDefinition.new("insight", "INSIGHT", "Base production ×1.02 per rank. Costs Knowledge; survives every reset.", ScientificNumber.new(), ScientificNumber.new(), "knowledge", {"base_output_multiplier": 1.02}, true, 1.0, ProgressionTaxonomy.KNOWLEDGE, "", 999999, 0)
 	]

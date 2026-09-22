@@ -10,6 +10,7 @@ func _init() -> void:
 	_test_research_focus_targets_a_category()
 	_test_multi_buy_matches_buying_one_at_a_time()
 	_test_stat_values_read_the_row_effect()
+	_test_deepened_ladders_keep_their_old_maxima()
 	_test_workshop_effects()
 	_test_burst_and_positive_chance()
 	_test_permanent_baseline_and_starting_reserve()
@@ -64,16 +65,17 @@ func _test_category_gates_and_rank_caps() -> void:
 			_expect(ProgressionTaxonomy.WORKSHOP_CATEGORIES.has(definition.workshop_category), "every Workshop row needs one of the four categories: " + definition.id)
 	_expect(state.is_unlocked(state.get_definition("stronger_tap")), "Tap Damage should be available at Workshop level zero")
 	_expect(state.is_unlocked(state.get_definition(GameState.ARMOR_ID)), "Armor should be available from the start, as Shield Matrix was")
-	_expect(not state.is_unlocked(state.get_definition("faster_cadence")), "Tick Speed should wait for Workshop level two")
+	_expect(not state.is_unlocked(state.get_definition("faster_cadence")), "Tick Speed should wait for its Workshop level")
 	_expect(state.purchase("stronger_tap"), "Tap Damage rank one should purchase")
-	_expect(state.purchase("stronger_tap"), "Tap Damage rank two should purchase")
-	_expect(state.is_unlocked(state.get_definition("faster_cadence")), "Tick Speed should open at Workshop level two")
-	state.purchased.stronger_tap = 5
-	_expect(not state.can_purchase("stronger_tap"), "rank cap should prevent a sixth Tap Damage")
-	state.purchased.generator = 3
-	_expect(state.is_unlocked(state.get_definition("more_critical")), "Crit Chance should open at Workshop level five")
-	state.purchased.generator_two = 3
-	_expect(state.is_unlocked(state.get_definition("smarter_efficiency")), "Discount should open at Workshop level eight")
+	_expect(state.purchase_ranks("stronger_tap", 11) == 11, "eleven more Tap Damage ranks should purchase")
+	_expect(state.is_unlocked(state.get_definition("faster_cadence")), "Tick Speed should open at Workshop level 12")
+	_expect(not state.is_unlocked(state.get_definition("more_critical")), "Crit Chance should still be shut at Workshop level 12")
+	state.purchased.stronger_tap = 30
+	_expect(state.is_unlocked(state.get_definition("more_critical")), "Crit Chance should open at Workshop level 30")
+	state.purchased.stronger_tap = 60
+	_expect(state.is_unlocked(state.get_definition("smarter_efficiency")), "Discount should open at Workshop level 60")
+	state.purchased.stronger_tap = 100
+	_expect(not state.can_purchase("stronger_tap"), "the rank cap should prevent a 101st Tap Damage")
 	var level_before := state.get_workshop_level()
 	state.purchased[GameState.ARMOR_ID] = 2
 	_expect(state.get_workshop_level() == level_before + 2, "Armor is a Workshop rank now, so it should count toward the Workshop level")
@@ -81,7 +83,7 @@ func _test_category_gates_and_rank_caps() -> void:
 
 func _test_research_focus_targets_a_category() -> void:
 	var state := _funded_state()
-	state.purchased = {"stronger_tap": 5, "generator": 5, "generator_two": 3}
+	state.purchased = {"stronger_tap": 100, "generator": 100, "generator_two": 60}
 	_expect(state.get_workshop_level() >= GameState.RESEARCH_WORKSHOP_LEVEL, "this build should reach the Research Focus level")
 	_expect(not state.select_focus("output"), "a retired bay id should no longer be selectable")
 	_expect(not state.select_focus(ProgressionTaxonomy.ULTIMATE), "a category with no rows should not be selectable")
@@ -109,17 +111,26 @@ func _test_multi_buy_matches_buying_one_at_a_time() -> void:
 	_expect(int(plan.ranks) == 5 and int(plan.cost) == single_total, "a five-rank press should quote exactly what five single presses cost")
 	_expect(bulk.purchase_ranks("stronger_tap", 5) == 5, "a five-rank press should land five ranks")
 	_expect(bulk.coins == one.coins and bulk.get_owned("stronger_tap") == 5, "bulk and single buying should end in the same place")
-	_expect(bulk.purchase_ranks("stronger_tap", GameState.MAX_BUY) == 0, "a maxed row should refuse a further press")
-
 	var capped := _funded_state()
-	capped.coins = 100000
-	_expect(capped.purchase_ranks("stronger_tap", 99) == 5, "a press larger than the rank cap should stop at the cap")
+	capped.coins = 1000000
+	var cap: int = capped.get_definition("stronger_tap").max_rank
+	_expect(capped.purchase_ranks("stronger_tap", cap * 2) == cap, "a press larger than the rank cap should stop at the cap")
+	_expect(capped.purchase_ranks("stronger_tap", GameState.MAX_BUY) == 0, "a maxed row should refuse a further press")
 
+	# Derived rather than hardcoded, so the rule survives retuning: MAX takes
+	# ranks while the next one still fits inside the balance.
 	var short := _funded_state()
 	short.coins = 50
+	var tap := short.get_definition("stronger_tap")
+	var affordable := 0
+	var tally := 0
+	while affordable < tap.max_rank and tally + short.get_workshop_coin_cost_at(tap, affordable) <= 50:
+		tally += short.get_workshop_coin_cost_at(tap, affordable)
+		affordable += 1
+	_expect(affordable > 1 and affordable < tap.max_rank, "50 Coins should be a genuinely partial press on this ladder")
 	var partial := short.plan_purchase("stronger_tap", GameState.MAX_BUY)
-	_expect(int(partial.ranks) == 2 and int(partial.cost) == 26, "MAX should buy only the ranks the player can afford")
-	_expect(short.purchase_ranks("stronger_tap", GameState.MAX_BUY) == 2 and short.coins == 24, "a partial press should spend only what it quoted")
+	_expect(int(partial.ranks) == affordable and int(partial.cost) == tally, "MAX should buy exactly the ranks the player can afford")
+	_expect(short.purchase_ranks("stronger_tap", GameState.MAX_BUY) == affordable and short.coins == 50 - tally, "a partial press should spend only what it quoted")
 
 	var locked := _funded_state()
 	_expect(int(locked.plan_purchase("faster_cadence", 5).ranks) == 0, "a row below its Workshop level should quote nothing")
@@ -133,45 +144,87 @@ func _test_stat_values_read_the_row_effect() -> void:
 	var state := _funded_state()
 	var tap := state.get_definition("stronger_tap")
 	_expect(is_equal_approx(float(state.stat_display(tap, 0).value), 1.0), "Tap Damage at rank zero should read as the base tap")
-	var tap_at_five: Dictionary = state.stat_display(tap, 5)
-	_expect(is_equal_approx(float(tap_at_five.value), 6.0) and str(tap_at_five.unit) == "flat", "Tap Damage should add one per rank")
-	state.purchased = {"stronger_tap": 5}
-	_expect(is_equal_approx(float(state.stat_display(tap, 5).value), state._tap_base()), "the card value should equal what the rank actually grants")
+	var tap_at_cap: Dictionary = state.stat_display(tap, tap.max_rank)
+	_expect(is_equal_approx(float(tap_at_cap.value), 6.0) and str(tap_at_cap.unit) == "flat", "Tap Damage should still reach six at its cap, one rank at a time")
+	state.purchased = {"stronger_tap": tap.max_rank}
+	_expect(is_equal_approx(float(state.stat_display(tap, tap.max_rank).value), state._tap_base()), "the card value should equal what the rank actually grants")
 
 	var multiplier := state.get_definition("generator_two")
-	var at_three: Dictionary = state.stat_display(multiplier, 3)
-	_expect(str(at_three.unit) == "multiplier" and is_equal_approx(float(at_three.value), pow(1.15, 3)), "Damage Multiplier should compound per rank")
-	state.purchased = {"generator_two": 3}
-	_expect(is_equal_approx(float(state.stat_display(multiplier, 3).value), state._base_output_multiplier()), "the compounding card value should equal the applied multiplier")
+	var at_cap: Dictionary = state.stat_display(multiplier, multiplier.max_rank)
+	_expect(str(at_cap.unit) == "multiplier" and is_equal_approx(float(at_cap.value), pow(1.15, 3)), "Damage Multiplier should still compound to its old cap")
+	state.purchased = {"generator_two": multiplier.max_rank}
+	_expect(is_equal_approx(float(state.stat_display(multiplier, multiplier.max_rank).value), state._base_output_multiplier()), "the compounding card value should equal the applied multiplier")
 
-	var armor: Dictionary = state.stat_display(state.get_definition(GameState.ARMOR_ID), 10)
+	var armor_def := state.get_definition(GameState.ARMOR_ID)
+	var armor: Dictionary = state.stat_display(armor_def, armor_def.max_rank)
 	_expect(str(armor.unit) == "percent" and is_equal_approx(float(armor.value), 0.4), "Armor should read as 40% at its rank cap")
+	_expect(is_equal_approx(float(state.stat_display(tap, 1).value), 1.05), "one rank should move the card face, not round away")
 	var burst: Dictionary = state.stat_display(state.get_definition("burst_relay"), 2)
 	_expect(str(burst.unit) == "rank" and is_equal_approx(float(burst.value), 2.0), "a row with no declared effect should fall back to its rank")
 
+## D019 deepened every ladder without moving where it ends. These are the
+## values the three-to-ten-rank ladders reached; a rank count that no longer
+## lands on them is a retune, not a deepening.
+func _test_deepened_ladders_keep_their_old_maxima() -> void:
+	var state := _funded_state()
+	state.purchased = {
+		"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 100,
+		"faster_echo": 60, "burst_relay": 6, "more_critical": 100, "magnitude_coil": 60,
+		"chain_reaction": 60, "automation_core": 50, "tax_resistance": 100,
+		"priority_buffer": 50, "smarter_efficiency": 60,
+	}
+	for definition in state.definitions:
+		if definition.category == ProgressionTaxonomy.WORKSHOP:
+			_expect(state.get_owned(definition.id) == definition.max_rank, "this build should sit at every cap: " + definition.id)
+	_expect(is_equal_approx(state._tap_base(), 6.0), "Tap Damage should still cap at six")
+	_expect(is_equal_approx(state._passive_base(), 12.5), "Damage per Second plus Auto Crank should still cap at 12.5")
+	_expect(is_equal_approx(state._base_output_multiplier(), pow(1.15, 3)), "Damage Multiplier should still cap where three ranks of 1.15 did")
+	_expect(is_equal_approx(state._tick_rate(), pow(1.20, 5)), "Tick Speed should still cap where five ranks of 1.20 did")
+	_expect(is_equal_approx(state._critical_chance(), 0.25), "Crit Chance should still cap at 25%")
+	_expect(is_equal_approx(state._critical_multiplier(), 5.0), "Crit Damage should still cap at 5x")
+	_expect(is_equal_approx(state._chain_reaction_step(), 0.3), "Crit Chain should still cap at 30% per link")
+	_expect(is_equal_approx(state._effect_sum("double_tick_chance"), 0.24), "Double Tick should still cap at 24%")
+	_expect(is_equal_approx(state._effect_sum("cost_discount"), 0.15), "Discount should still cap at 15%")
+	_expect(is_equal_approx(state._effect_sum("collection_resistance"), 0.4), "Armor should still cap at 40%")
+	_expect(is_equal_approx(state._effect_sum("starting_number_flat"), 500.0), "Cushion should still cap at 500 Number")
+	_expect(state._burst_interval() == 6, "Burst should still bottom out at every sixth tick")
+
 func _test_workshop_effects() -> void:
 	var state := _funded_state()
-	state.purchased = {"stronger_tap": 2, "generator": 2, "generator_two": 1, "faster_cadence": 1, "faster_echo": 1, "more_critical": 1, "magnitude_coil": 1, "smarter_efficiency": 1}
+	# The same fractions of each ladder the three-rank build used to hold.
+	state.purchased = {"stronger_tap": 40, "generator": 40, "generator_two": 20, "faster_cadence": 20, "faster_echo": 20, "more_critical": 20, "magnitude_coil": 20, "smarter_efficiency": 20}
 	state.rng.seed = 11
 	state.start_run(1, 11)
 	var event := state.tap()
-	_expect(event.amount.compare_to(ScientificNumber.from_float(3.45)) == 0, "Hand Press and Number Engine should affect taps")
+	_expect(event.amount.compare_to(ScientificNumber.from_float(3.45)) == 0, "Tap Damage and Damage Multiplier should affect taps")
 	_expect(state.get_rate_per_second().compare_to(ScientificNumber.from_float(4.14)) == 0, "Workshop output and speed should affect rate")
-	_expect(state.get_workshop_coin_cost(state.get_definition("generator")) == 97, "Efficiency Matrix should reduce permanent Coin costs")
-	_expect(is_equal_approx(state._critical_chance(), 0.05), "Critical Lens should add positive critical chance")
-	_expect(is_equal_approx(state._critical_multiplier(), 3.0), "Magnitude Coil should add critical size")
+	_expect(is_equal_approx(state._effect_sum("cost_discount"), 0.05), "twenty Discount ranks should still be a 5% discount")
+	_expect(state.get_workshop_coin_cost(state.get_definition("generator")) == 16, "Discount should reduce permanent Coin costs")
+	_expect(is_equal_approx(state._critical_chance(), 0.05), "Crit Chance should add positive critical chance")
+	_expect(is_equal_approx(state._critical_multiplier(), 3.0), "Crit Damage should add critical size")
 
 func _test_burst_and_positive_chance() -> void:
 	var state := _funded_state()
-	state.purchased = {"generator": 1, "faster_cadence": 1, "burst_relay": 1}
+	state.purchased = {"generator": 20, "faster_cadence": 20, "burst_relay": 1}
 	state.start_run(1, 999)
 	state.rng.seed = 999
-	for tick in range(12):
+	# Rank one shortens the interval from twelve to eleven, so the eleventh tick
+	# is the one that doubles. Measured against its neighbour rather than a
+	# fixed total, so the assertion outlives the next tuning pass.
+	var plain := ScientificNumber.new()
+	var burst := ScientificNumber.new()
+	for tick in range(11):
+		var before: ScientificNumber = state.number.copy()
 		state._produce_tick()
-	_expect(state.number.compare_to(ScientificNumber.from_float(19.5)) == 0, "Burst Relay rank one should double exactly the twelfth tick")
+		var gained := state.number.subtract(before)
+		if tick == 9:
+			plain = gained
+		elif tick == 10:
+			burst = gained
+	_expect(not plain.is_zero() and burst.compare_to(plain.multiply_scalar(2.0)) == 0, "Burst rank one should double exactly the eleventh tick")
 	_expect(state.statistics.critical_ticks == 0, "Chance cards must not create forced critical events")
 	var chain := _funded_state()
-	chain.purchased = {"generator": 1, "more_critical": 5, "chain_reaction": 3}
+	chain.purchased = {"generator": 20, "more_critical": 100, "chain_reaction": 60}
 	chain.start_run(1, 3)
 	chain.rng.seed = 3
 	chain._produce_tick()
@@ -179,13 +232,13 @@ func _test_burst_and_positive_chance() -> void:
 
 func _test_permanent_baseline_and_starting_reserve() -> void:
 	var state := _funded_state()
-	state.purchased = {"stronger_tap": 5, "generator": 3, "automation_core": 1, "priority_buffer": 2}
+	state.purchased = {"stronger_tap": 100, "generator": 60, "automation_core": 50, "priority_buffer": 50}
 	_expect(state.start_run(1, 44), "a fresh run should start from the permanent Workshop")
-	_expect(state.number.compare_to(ScientificNumber.from_float(500)) == 0, "Starting Reserve should define the fresh-run Number baseline")
+	_expect(state.number.compare_to(ScientificNumber.from_float(500)) == 0, "Cushion should define the fresh-run Number baseline")
 	_expect(state.get_rate_per_second().compare_to(ScientificNumber.from_float(9.5)) == 0, "Auto Crank should permanently raise run production")
 	_expect(not state.purchase("faster_cadence"), "permanent Workshop purchases must be locked during a run")
 	state.end_run()
-	_expect(state.get_owned("priority_buffer") == 2 and state.get_owned("automation_core") == 1, "Workshop ranks must survive retreat")
+	_expect(state.get_owned("priority_buffer") == 50 and state.get_owned("automation_core") == 50, "Workshop ranks must survive retreat")
 
 func _test_save_v5_and_legacy_migration() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
@@ -361,11 +414,14 @@ func _test_first_run_funds_permanent_workshop() -> void:
 		state._resolve_wave_boundary()
 	_expect(state.coins == 48, "Tier 1 grace should award 48 repeatable Coins through wave 20")
 	state.end_run()
-	_expect(state.purchase("stronger_tap"), "first-run Coins should buy a permanent Hand Press rank")
-	_expect(state.purchase("generator"), "first-run Coins should also buy the first passive generator")
-	_expect(state.coins == 3, "first Workshop purchases should spend Coins, not Number")
+	_expect(state.purchase("stronger_tap"), "first-run Coins should buy a permanent Tap Damage rank")
+	_expect(state.purchase("generator"), "first-run Coins should also buy the first Damage Per Second rank")
+	_expect(state.coins == 41, "first Workshop purchases should spend Coins, not Number")
+	# A deepened ladder (D019) should turn the first run into a visible stack of
+	# ranks rather than the two the five-rank ladders allowed.
+	_expect(state.purchase_ranks("stronger_tap", GameState.MAX_BUY) >= 8, "the first failed run should fund a stack of ranks")
 	state.start_run(1, 8)
-	_expect(state._tap_base() == 2.0 and state._passive_base() == 1.5, "the next run should start from the upgraded permanent baseline")
+	_expect(state._tap_base() > 1.0 and state._passive_base() > 0.0, "the next run should start from the upgraded permanent baseline")
 
 func _test_tier_pressure_and_curve_gates() -> void:
 	var state := GameState.new()
@@ -476,7 +532,7 @@ func _test_mid_wave_save_resumes_identically() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
 	var original := GameState.new()
 	original.save_path = save_path
-	original.purchased = {"stronger_tap": 3, "more_critical": 5}
+	original.purchased = {"stronger_tap": 60, "more_critical": 100}
 	original.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	original.start_run(2, 31)
 	for tap_index in range(5):
@@ -537,12 +593,12 @@ func _test_armor_reduces_the_hit_and_survives_reset() -> void:
 	state.coins = 1000
 	var armor := state.get_definition(GameState.ARMOR_ID)
 	var base_cost := state.get_workshop_coin_cost(armor)
-	_expect(base_cost == 15, "the first Armor rank should still cost the 15 Coins Shield Matrix did")
+	_expect(base_cost == 8, "the first Armor rank should cost the opening price of its ladder")
 	_expect(state.purchase(GameState.ARMOR_ID), "Armor should be purchasable with enough Coins")
 	state.start_run(2, 6)
 	state.number = ScientificNumber.from_float(10000)
 	var base_collection: ScientificNumber = state.active_encounter.collection.copy()
-	_expect(state.get_effective_collection().compare_to(base_collection.multiply_scalar(0.96)) == 0, "one Armor rank should reduce the hit by 4%")
+	_expect(state.get_effective_collection().compare_to(base_collection.multiply_scalar(0.996)) == 0, "one Armor rank should reduce the hit by 0.4%")
 	_expect(not state.purchase(GameState.ARMOR_ID), "Armor is a Workshop rank, so it must be locked during a run")
 	state._reset_run_state()
 	_expect(state.coins == 1000 - base_cost and state.get_owned(GameState.ARMOR_ID) == 1, "Coins and Armor ranks must survive reset")
@@ -551,7 +607,7 @@ func _test_armor_reduces_the_hit_and_survives_reset() -> void:
 	state.start_run(2, 6)
 	var maxed_base: ScientificNumber = state.active_encounter.collection.copy()
 	var maxed_hit := state.get_effective_collection()
-	_expect(maxed_hit.compare_to(maxed_base.multiply_scalar(0.61)) < 0 and maxed_hit.compare_to(maxed_base.multiply_scalar(0.59)) > 0, "ten Armor ranks should take about 40% off the hit")
+	_expect(maxed_hit.compare_to(maxed_base.multiply_scalar(0.61)) < 0 and maxed_hit.compare_to(maxed_base.multiply_scalar(0.59)) > 0, "a maxed Armor should still take about 40% off the hit")
 	_expect(not maxed_hit.is_zero(), "Armor must never remove the hit entirely")
 
 func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
@@ -627,8 +683,8 @@ func _test_modifier_pipeline_order() -> void:
 func _test_deterministic_run_seed() -> void:
 	var left := GameState.new()
 	var right := GameState.new()
-	left.purchased = {"more_critical": 5}
-	right.purchased = {"more_critical": 5}
+	left.purchased = {"more_critical": 100}
+	right.purchased = {"more_critical": 100}
 	left.start_run(1, 123456)
 	right.start_run(1, 123456)
 	for tap_index in range(20):

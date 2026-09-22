@@ -5,21 +5,26 @@ const STEP := 0.5
 const SEED := 7
 const CHECKPOINTS := [1, 21, 50, 100]
 const MATRIX_SECONDS := 5400.0
+## Every Attack row at its cap (D019 deepened the ladders without moving where
+## they end, so this is the same power the three-rank caps used to reach).
 const ATTACK_MAX := {
-	"stronger_tap": 5, "generator": 5, "generator_two": 3, "faster_cadence": 5,
-	"faster_echo": 3, "burst_relay": 3, "more_critical": 5, "magnitude_coil": 3,
-	"chain_reaction": 3, "automation_core": 1,
+	"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 100,
+	"faster_echo": 60, "burst_relay": 6, "more_critical": 100, "magnitude_coil": 60,
+	"chain_reaction": 60, "automation_core": 50,
 }
-const MID := {"stronger_tap": 5, "generator": 5, "generator_two": 3, "faster_cadence": 3}
-const EARLY := {"stronger_tap": 2, "generator": 2}
+## The same fractions of each ladder the shallow builds held: mid was Output and
+## Damage Multiplier maxed with Tick Speed at three fifths; early was two fifths
+## of the two opening rows.
+const MID := {"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 60}
+const EARLY := {"stronger_tap": 40, "generator": 40}
 ## label, tier, Workshop ranks, Armor rank. Progressed builds start with
 ## every Tier 1 milestone claimed, so Coins per minute reflects repeatable rewards.
 const BUILD_MATRIX := [
 	["early", 1, EARLY, 0],
 	["mid", 1, MID, 0],
 	["attack max", 1, ATTACK_MAX, 0],
-	["attack max + armor 10", 1, ATTACK_MAX, 10],
-	["attack max + armor 10", 2, ATTACK_MAX, 10],
+	["attack max + armor 40%", 1, ATTACK_MAX, 100],
+	["attack max + armor 40%", 2, ATTACK_MAX, 100],
 ]
 const PURCHASE_ORDER := [
 	"stronger_tap",
@@ -104,13 +109,20 @@ func _simulate_representative_tier_one() -> void:
 				"  coins=", state.coins,
 				"  knowledge=", state.knowledge
 			)
-			for upgrade_id in PURCHASE_ORDER:
-				state.purchase(upgrade_id)
+			# Spend down the way a player does, not one rank per row: with
+			# ladders 50-100 ranks deep (D019), a single pass through the order
+			# leaves almost all of the first run's Coins unspent.
+			var spending := true
+			while spending:
+				spending = false
+				for upgrade_id in PURCHASE_ORDER:
+					if state.purchase(upgrade_id):
+						spending = true
 			print(
 				"POST-RUN WORKSHOP  level=", state.get_workshop_level(),
 				"  coins_remaining=", state.coins,
 				"  tap=", state._tap_base(),
-				"  number_per_sec=", state.get_rate_per_second().format_value()
+				"  number_per_sec=", snappedf(state.get_rate_per_second().mantissa * pow(10.0, state.get_rate_per_second().exponent), 0.01)
 			)
 			return
 	print(
