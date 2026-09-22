@@ -98,7 +98,7 @@ var statistics := {
 	"coins_spent": 0,
 	"offline_generated": ScientificNumber.new().to_dict()
 }
-var settings := {"muted": false, "haptics": true, "reduce_motion": false, "high_contrast": false, "ambience": true}
+var settings := {"muted": false, "haptics": true, "reduce_motion": false, "high_contrast": false}
 var tick_accumulator := 0.0
 var automation_accumulator := 0.0
 var momentum_stacks := 0
@@ -798,6 +798,9 @@ func _load_common_fields(data: Dictionary) -> void:
 	highest_wave = int(data.get("highest_wave", 1))
 	statistics.merge(data.get("statistics", {}), true)
 	settings.merge(data.get("settings", {}), true)
+	# "ambience" named the retired background pad. Dropping it on load keeps the
+	# dead key out of saves rewritten in the current shape.
+	settings.erase("ambience")
 
 func _migrate_v2(data: Dictionary) -> OfflineAward:
 	_load_common_fields(data)
@@ -824,6 +827,7 @@ func _migrate_v1(data: Dictionary) -> void:
 	highest_number = ScientificNumber.from_dict(data.get("highest", data.number))
 	statistics.merge(data.get("statistics", {}), true)
 	settings.merge(data.get("settings", {}), true)
+	settings.erase("ambience")
 	var legacy: Dictionary = data.get("purchased", {})
 	purchased = {}
 	# Preserve directly comparable items as ranked Workshop cards. Any excess or

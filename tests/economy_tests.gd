@@ -336,12 +336,13 @@ func _test_save_v5_and_legacy_migration() -> void:
 		"tier_records": {},
 		"in_run": false,
 		"statistics": {},
-		"settings": {},
+		"settings": {"ambience": true, "muted": true},
 	}
 	_write_json(save_path, v3)
 	var migrated_v3 := GameState.new()
 	migrated_v3.save_path = save_path
 	migrated_v3.load()
+	_expect(migrated_v3.settings.get("ambience") == null and bool(migrated_v3.settings.get("muted")), "the retired ambience setting should be purged without disturbing the rest")
 	_expect(migrated_v3.number.is_zero(), "V3 banked Number should retire when migrating to run-only Number")
 	_expect(migrated_v3.get_owned("stronger_tap") == 2 and migrated_v3.coins == 25, "V3 Workshop ranks and Coins should become permanent without loss")
 	_expect(migrated_v3.get_owned(GameState.ARMOR_ID) == 4, "a V3 Shield Matrix rank should become the Armor Workshop rank")
@@ -388,13 +389,14 @@ func _test_save_v5_and_legacy_migration() -> void:
 		"purchased": {"stronger_tap": 1, "steady_hand": 1, "workshop_bench": 2, "prototype_oddity": 4},
 		"auto_selected": "generator",
 		"statistics": {},
-		"settings": {},
+		"settings": {"ambience": true},
 		"last_seen_unix": Time.get_unix_time_from_system(),
 	}
 	_write_json(save_path, v1)
 	var migrated_v1 := GameState.new()
 	migrated_v1.save_path = save_path
 	migrated_v1.load()
+	_expect(migrated_v1.settings.get("ambience") == null, "the V1 migration should also purge the retired ambience setting")
 	_expect(migrated_v1.get_owned("stronger_tap") == 2, "V1 hand upgrades should migrate into Hand Press")
 	_expect(migrated_v1.workshop.legacy_credit == 6, "unmatched V1 progress should become Workshop credit")
 	_expect(migrated_v1.workshop.automation_targets == ["generator"], "V1 automation should become first priority")
