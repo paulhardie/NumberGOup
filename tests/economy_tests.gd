@@ -627,15 +627,26 @@ func _test_offline_policy() -> void:
 
 func _test_prestige_reset_and_gain() -> void:
 	var state := GameState.new()
+	state.purchased = {"stronger_tap": 2, "generator": 1}
+	_expect(state.start_run(1, 7), "the Prestige fixture should start a run")
+	state.wave = 12
 	state.number = ScientificNumber.from_float(1)
 	state.lifetime_generated = ScientificNumber.from_float(1000000000.0)
-	state.purchased = {"stronger_tap": 2, "generator": 1}
 	state.workshop.tick_count = 5
+	state.run_coins_earned = 9
+	state.run_gems_earned = 2
+	state.last_run_summary = RunSummary.new(3, 4, 0, null, 1, "retreat")
 	var expected_gain := state.get_prestige_knowledge_gain()
 	_expect(expected_gain > 0, "progress far past the threshold should grant Knowledge")
 	var gain := state.prestige()
 	_expect(gain == expected_gain and state.knowledge == gain, "Prestige should bank the expected Knowledge")
 	_expect(state.number.is_zero() and state.get_owned("stronger_tap") == 2, "Prestige should reset run Number but retain permanent Workshop ranks")
+	var summary := state.last_run_summary
+	_expect(summary != null and summary.outcome == "prestige", "Prestige should replace the previous run summary")
+	_expect(summary.wave_reached == 12 and summary.tier_id == 1, "Prestige should record the run's wave and tier before reset")
+	_expect(summary.coins_earned == 9 and summary.gems_earned == 2 and summary.knowledge_gained == gain, "Prestige should record every reward earned by that run")
+	_expect(summary.final_hit.is_zero() and summary.attack_gap.is_zero() and summary.defense_gap.is_zero(), "Prestige should not record a killing hit or gaps")
+	_expect(state.prestige() == 0 and state.last_run_summary == summary and state.knowledge == gain, "a repeated Prestige should not change the summary or pay twice")
 	_expect(state.purchase_insight(), "Knowledge should buy Insight")
 	_expect(state.get_owned("insight") == 1, "Insight should survive reset")
 

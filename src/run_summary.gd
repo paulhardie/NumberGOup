@@ -1,7 +1,7 @@
 class_name RunSummary
 extends RefCounted
 
-## Snapshot taken at death or retreat, since _reset_run_state() immediately
+## Snapshot taken at death, retreat or Prestige, since _reset_run_state() immediately
 ## wipes the fields a run-end report or toast needs to describe.
 var wave_reached: int = 1
 var coins_earned: int = 0
