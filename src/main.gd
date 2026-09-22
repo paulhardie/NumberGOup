@@ -172,6 +172,7 @@ var knowledge_button: Button
 var lab_research_sheet: Control
 var lab_research_content: VBoxContainer
 var lab_research_slots_label: Label
+var lab_slot_button: Button
 var lab_research_button: Button
 
 ## The Cards sheet (D027): a permanent, gacha-pulled collection with a capped
@@ -1166,6 +1167,21 @@ func _build_lab_research_sheet() -> void:
 	header_row.add_child(chip)
 	column.add_child(_make_label("PERMANENT · KEEPS RESEARCHING WHILE YOU'RE AWAY", 10, HORIZONTAL_ALIGNMENT_LEFT, LABS_ACCENT))
 
+	# More slots open with Gems (D029). Built once and updated in place, so a
+	# refresh cannot swap the button out from under a press.
+	lab_slot_button = Button.new()
+	lab_slot_button.focus_mode = Control.FOCUS_NONE
+	lab_slot_button.custom_minimum_size = Vector2(0, 44)
+	lab_slot_button.add_theme_font_size_override("font_size", 13)
+	lab_slot_button.add_theme_color_override("font_color", Color("0d1016"))
+	lab_slot_button.add_theme_color_override("font_hover_color", Color("0d1016"))
+	lab_slot_button.add_theme_color_override("font_disabled_color", MUTED_TEXT)
+	lab_slot_button.add_theme_stylebox_override("normal", _panel_style(LABS_ACCENT, 12))
+	lab_slot_button.add_theme_stylebox_override("hover", _panel_style(LABS_ACCENT.lightened(0.1), 12))
+	lab_slot_button.add_theme_stylebox_override("disabled", _panel_style(SURFACE, 12))
+	lab_slot_button.pressed.connect(_on_lab_slot_pressed)
+	column.add_child(lab_slot_button)
+
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -1189,9 +1205,24 @@ func _refresh_lab_research() -> void:
 	if lab_research_sheet == null or not lab_research_sheet.visible:
 		return
 	lab_research_slots_label.text = str(state.lab_active_count()) + " / " + str(state.lab_slots_total()) + " SLOTS"
+	var slot_cost := state.get_lab_slot_cost()
+	lab_slot_button.visible = slot_cost > 0
+	lab_slot_button.text = "OPEN SLOT " + str(state.lab_slots_total() + 1) + "  ·  " + str(slot_cost) + " GEMS"
+	lab_slot_button.disabled = not state.can_unlock_lab_slot()
 	_clear_children(lab_research_content)
 	for definition in state.lab_research.definitions:
 		lab_research_content.add_child(_make_lab_research_card(definition))
+
+func _on_lab_slot_pressed() -> void:
+	if state.unlock_lab_slot():
+		_show_toast("LAB SLOT " + str(state.lab_slots_total()) + " OPEN", LABS_ACCENT)
+		state.save()
+		_refresh_all()
+		_refresh_lab_research()
+	elif state.in_run:
+		_show_toast("OPEN SLOTS BETWEEN RUNS", MUTED_TEXT)
+	else:
+		_show_toast("NEED " + str(state.get_lab_slot_cost()) + " GEMS", MUTED_TEXT)
 
 func _make_lab_research_card(definition: LabResearch.Definition) -> Button:
 	var owned := state.get_lab_owned(definition.id)

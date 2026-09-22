@@ -4,10 +4,18 @@ extends RefCounted
 ## Labs (The Tower): permanent research paid in Coins and gated by real time,
 ## distinct from the Workshop's instant Coin purchases and from the Knowledge
 ## sheet's Research Focus / Insight / Prestige (D016), which spend Knowledge
-## and are not time-gated. Two lines can run at once (LAB_SLOTS), so which to
-## prioritise while the others wait is a real decision rather than a queue.
+## and are not time-gated. One line runs at a time to start, and more slots
+## open with Gems (D029), so which to prioritise while the others wait is a
+## real decision rather than a queue.
 const LAB_SPEED_ID := "lab_speed"
-const LAB_SLOTS := 2
+const STARTING_SLOTS := 1
+const MAX_SLOTS := 5
+## Gems for the second, third, fourth and fifth slot. Starting proposals sized
+## against a Card pull (20 Gems), like the Rig's and Labs' first numbers, until
+## the owner's Gem economy pass (D027) replaces them.
+const SLOT_GEM_COSTS := [20, 40, 80, 160]
+## Every save from before slots were bought held two slots, and keeps them.
+const LEGACY_SLOTS := 2
 
 ## How much one rank of Lab Speed shortens every other line's duration, and the
 ## floor that keeps a maxed Speed line a strong discount rather than "instant".
@@ -66,6 +74,13 @@ func get_definition(research_id: String) -> Definition:
 		if definition.id == research_id:
 			return definition
 	return null
+
+## Gems for the next slot when `slots` are open, or 0 once every slot is.
+func slot_cost(slots: int) -> int:
+	var index := slots - STARTING_SLOTS
+	if index < 0 or index >= SLOT_GEM_COSTS.size():
+		return 0
+	return int(SLOT_GEM_COSTS[index])
 
 ## Coins for the next rank. Whole Coins, like every other Coin cost.
 func cost_at(definition: Definition, owned: int) -> int:
