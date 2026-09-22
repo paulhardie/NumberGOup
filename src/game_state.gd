@@ -223,6 +223,8 @@ func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	var target_tier := selected_tier if tier_id < 1 else tier_id
 	if not select_tier(target_tier):
 		return false
+	# Research finished before this run starts counts for all of it (D031).
+	_settle_labs()
 	# Number is run health/resources, never a banked head start. Permanent
 	# Workshop ranks define the baseline applied to every fresh attempt.
 	# Cushion scales with the tier's pressure, or it is a trap above Tier 1:
@@ -494,6 +496,7 @@ func get_category_rank_total(category: String) -> int:
 ## The permanent multiplier every beaten wave's Coins pay through, from the
 ## Workshop's Coin Bonus row and Coin Research in the Labs.
 func get_coin_bonus_multiplier() -> float:
+	_settle_labs()
 	return 1.0 + _effect_sum("coin_bonus")
 
 ## A category is open once it has a row to show. Ultimates have none until they
@@ -565,14 +568,21 @@ func purchase_rig(upgrade_id: String) -> bool:
 	return true
 
 ## Labs (The Tower): permanent research paid in Coins, gated by real time
-## rather than Coins alone, and run entirely outside the run/Workshop split —
-## a line keeps researching whether a run is active or the app is closed.
-## now_unix defaults to wall-clock time; tests pass an explicit value instead
-## of waiting, the same seam `apply_offline`'s explicit seconds already uses.
+## rather than Coins alone. A line keeps researching whether a run is active or
+## the app is closed, but a rank that finishes during a run takes effect from
+## the next one (D031): a run's power never changes with the wall clock, so a
+## seeded run replays identically and permanent power moves only between runs,
+## like the Workshop's. now_unix defaults to wall-clock time; tests pass an
+## explicit value instead of waiting.
 func _resolve_now(now_unix: float) -> float:
 	return now_unix if now_unix >= 0.0 else Time.get_unix_time_from_system()
 
+## Folds finished research into ranks, between runs only. Run start, every run
+## ending and loading a save taken between runs all settle; nothing settles
+## while a run is live.
 func _settle_labs(now_unix: float = -1.0) -> void:
+	if in_run:
+		return
 	var now := _resolve_now(now_unix)
 	for research_id in lab_active.keys().duplicate():
 		var entry: Dictionary = lab_active[research_id]
@@ -594,7 +604,19 @@ func get_lab_time_remaining(research_id: String, now_unix: float = -1.0) -> floa
 	if not lab_active.has(research_id):
 		return 0.0
 	var entry: Dictionary = lab_active[research_id]
-	return maxf(0.0, float(entry.get("duration", 0.0)) - (now - float(entry.get("started_unix", now))))
+	# Clamped both ways: a clock set back must not show more time than the
+	# line takes, and one that finished mid-run shows none left.
+	var duration := float(entry.get("duration", 0.0))
+	return clampf(duration - (now - float(entry.get("started_unix", now))), 0.0, duration)
+
+## A finished line still waiting for the run to end before it counts (D031).
+func lab_is_done_awaiting_run_end(research_id: String, now_unix: float = -1.0) -> bool:
+	return in_run and lab_active.has(research_id) and get_lab_time_remaining(research_id, now_unix) <= 0.0
+
+## The rank that counts toward effects: settled ranks only, so evaluating an
+## effect never reads the clock.
+func _lab_rank(research_id: String) -> int:
+	return int(lab_ranks.get(research_id, 0))
 
 func lab_active_count(now_unix: float = -1.0) -> int:
 	_settle_labs(now_unix)
@@ -900,6 +922,8 @@ func _reset_run_state() -> void:
 	run_coins_earned = 0
 	run_gems_earned = 0
 	active_encounter = null
+	# Research that finished during the run takes effect now, between runs.
+	_settle_labs()
 
 func select_focus(path: String) -> bool:
 	if in_run or focus_path != "" or get_workshop_level() < RESEARCH_WORKSHOP_LEVEL:
@@ -1181,6 +1205,9 @@ func _restore_saved_run(data: Dictionary) -> void:
 		wave = 1
 		wave_accumulator = 0.0
 		rig_ranks = {}
+	# A save taken between runs settles research finished since; one taken
+	# mid-run leaves it for the run's end (D031).
+	_settle_labs()
 
 func _seconds_since(data: Dictionary) -> float:
 	return Time.get_unix_time_from_system() - float(data.get("last_seen_unix", Time.get_unix_time_from_system()))
@@ -1241,7 +1268,6 @@ func _load_common_fields(data: Dictionary) -> void:
 					"started_unix": float(entry.started_unix),
 					"duration": float(entry.duration),
 				}
-	_settle_labs()
 	# V7 (D029). A save without the field predates bought slots, when every
 	# player had two, so it keeps two rather than dropping to the new start.
 	lab_slots = clampi(int(data.get("lab_slots", LabResearchClass.LEGACY_SLOTS)), LabResearchClass.STARTING_SLOTS, LabResearchClass.MAX_SLOTS)
@@ -1485,7 +1511,7 @@ func _effect_product(effect_name: String, base: float) -> float:
 			total *= pow(float(definition.effects[effect_name]), float(get_owned(definition.id)) + rig_rank_equivalent(definition))
 	for lab_definition in lab_research.definitions:
 		if lab_definition.effects.has(effect_name):
-			total *= pow(float(lab_definition.effects[effect_name]), float(get_lab_owned(lab_definition.id)))
+			total *= pow(float(lab_definition.effects[effect_name]), float(_lab_rank(lab_definition.id)))
 	for card_definition in card_collection.definitions:
 		if is_card_active(card_definition.id) and card_definition.effects.has(effect_name):
 			total *= pow(float(card_definition.effects[effect_name]), float(get_card_level(card_definition.id)))
@@ -1497,7 +1523,7 @@ func _lab_effect_sum(effect_name: String) -> float:
 	var total := 0.0
 	for lab_definition in lab_research.definitions:
 		if lab_definition.effects.has(effect_name):
-			total += float(lab_definition.effects[effect_name]) * float(get_lab_owned(lab_definition.id))
+			total += float(lab_definition.effects[effect_name]) * float(_lab_rank(lab_definition.id))
 	total += _card_effect_sum(effect_name)
 	return total
 
