@@ -35,6 +35,13 @@ func _init() -> void:
 	_test_cushion_scales_with_the_tier()
 	_test_boss_damage_applies_only_to_bosses()
 	_test_coin_and_knowledge_bonuses_lift_what_a_run_pays()
+	_test_rig_cost_is_quoted_against_wave_hp()
+	_test_rig_purchase_spends_number_and_stacks()
+	_test_rig_is_run_scoped()
+	_test_rig_refuses_what_it_does_not_sell()
+	_test_rig_save_round_trip()
+	_test_rig_ranks_are_worth_more_than_workshop_ranks()
+	_test_defensive_ceilings_bound_the_combined_effects()
 	_test_wave_death_resets_run_but_keeps_meta_progress()
 	_test_run_gates_the_wave_clock()
 	_test_retreat_ends_and_resets_run()
@@ -904,6 +911,186 @@ func _test_high_wave_values_remain_valid() -> void:
 		var collection := profile.collection_for_wave(tier_id, 100000)
 		_expect(not liability.is_zero() and liability.exponent > 0, "high-wave Liability should remain a valid ScientificNumber")
 		_expect(not collection.is_zero() and collection.exponent > 0, "high-wave Collection should remain a valid ScientificNumber")
+
+## The Rig (D015) is priced against the wave, not in absolute Number, so one
+## table scales across tiers and depth. Attack and Defense start at one wave of
+## HP with 1.7 and 1.6 growth; Utility starts at two waves with 1.5.
+func _test_rig_cost_is_quoted_against_wave_hp() -> void:
+	var state := _funded_state()
+	state.start_run(1, 5)
+	var floor_hp: ScientificNumber = state.balance_profile.liability_for_wave(1, 21)
+	_expect(state.get_rig_reference_hp().compare_to(floor_hp) == 0, "Tier 1 warm-up should quote Rig prices against the first pressured wave")
+	var first := state.get_rig_cost("stronger_tap")
+	_expect(first.compare_to(floor_hp) == 0, "the first Attack rank should cost one wave of HP at k=1")
+	_expect(state.get_rig_cost("stronger_tap", 1).compare_to(first.multiply_scalar(1.7)) == 0, "each Attack rank should cost 1.7x the last")
+	_expect(state.get_rig_cost(GameState.ARMOR_ID).compare_to(floor_hp) == 0, "the first Defense rank should cost one wave of HP at k=1")
+	_expect(state.get_rig_cost("coin_bonus").compare_to(floor_hp.multiply_scalar(2.0)) == 0, "the first Utility rank should cost two waves of HP at k=2")
+	# A pressured wave moves the quote with its own HP.
+	state.wave = 30
+	state.active_encounter = state._make_encounter(30)
+	_expect(state.get_rig_reference_hp().compare_to(state.active_encounter.max_liability) == 0, "a pressured wave should quote against its own HP")
+	_expect(state.get_rig_cost("stronger_tap").compare_to(state.active_encounter.max_liability) == 0, "the quote should follow the current wave")
+
+func _test_rig_purchase_spends_number_and_stacks() -> void:
+	var state := _funded_state()
+	state.start_run(1, 6)
+	state.number = ScientificNumber.from_float(1.0e9)
+	var base_tap := state._tap_base()
+	var price := state.get_rig_cost("stronger_tap")
+	var before: ScientificNumber = state.number.copy()
+	_expect(state.purchase_rig("stronger_tap"), "a Rig rank should purchase with enough Number")
+	_expect(state.rig_owned("stronger_tap") == 1 and state.get_owned("stronger_tap") == 0, "the Rig rank should land beside the permanent Workshop rank, not inside it")
+	_expect(state.number.compare_to(before.subtract(price)) == 0, "the purchase should spend exactly the quoted Number")
+	var multiplier: float = state.balance_profile.rig_effect_multiplier(ProgressionTaxonomy.ATTACK, "stronger_tap")
+	_expect(is_equal_approx(state._tap_base(), base_tap + 0.05 * multiplier), "a Rig rank should grant its multiplier of one Workshop rank's effect")
+	_expect(state.get_workshop_level() == 0, "Rig ranks must not raise the Workshop level")
+	# Uncapped: the Rig keeps selling past the Workshop's rank cap.
+	state.number = ScientificNumber.new(1.0, 40)
+	var cap: int = state.get_definition("stronger_tap").max_rank
+	for rank in range(cap):
+		_expect(state.purchase_rig("stronger_tap"), "Rig ranks are uncapped while Number lasts")
+	_expect(state.rig_owned("stronger_tap") == cap + 1, "the Rig should hold ranks past the Workshop cap")
+
+func _test_rig_is_run_scoped() -> void:
+	var state := _funded_state()
+	state.start_run(1, 7)
+	state.number = ScientificNumber.from_float(1.0e9)
+	var base_tap := state._tap_base()
+	_expect(state.purchase_rig("stronger_tap"), "a Rig rank should purchase during the run")
+	_expect(state.end_run() != null, "retreat should end the run")
+	_expect(state.rig_ranks.is_empty(), "retreat should clear the Rig")
+	_expect(is_equal_approx(state._tap_base(), base_tap), "Rig effects should end with the run")
+
+	# Death shares the ending machinery, so it clears the Rig too.
+	state.start_run(1, 7)
+	state.number = ScientificNumber.from_float(1.0e9)
+	_expect(state.purchase_rig("stronger_tap"), "the next run should buy its own Rig rank")
+	state.wave = 21
+	state.active_encounter = state._make_encounter(21)
+	state.number = ScientificNumber.from_float(1.0)
+	state._resolve_wave_boundary()
+	_expect(not state.in_run and state.rig_ranks.is_empty(), "death should clear the Rig like every other ending")
+
+	# Prestige shares the same reset, so it clears the Rig too.
+	var prestige_state := _funded_state()
+	prestige_state.start_run(1, 7)
+	prestige_state.number = ScientificNumber.from_float(1.0e9)
+	_expect(prestige_state.purchase_rig("stronger_tap"), "the Prestige fixture should hold a Rig rank")
+	prestige_state.lifetime_generated = ScientificNumber.from_float(1.0e6)
+	_expect(prestige_state.prestige() > 0 and prestige_state.rig_ranks.is_empty(), "Prestige should clear the Rig")
+
+func _test_rig_refuses_what_it_does_not_sell() -> void:
+	var state := _funded_state()
+	_expect(not state.purchase_rig("stronger_tap"), "the Rig must refuse a purchase outside a run")
+	state.start_run(1, 8)
+	state.number = ScientificNumber.from_float(1.0e9)
+	for workshop_only in ["priority_buffer", "brace_discount", "second_wind", "knowledge_bonus", "smarter_efficiency"]:
+		_expect(not state.can_purchase_rig(workshop_only), "the Rig must not sell a Workshop-only row: " + workshop_only)
+	_expect(state.can_purchase_rig("coin_bonus"), "the Rig should sell Utility's Coin Bonus")
+	_expect(state.can_purchase_rig(GameState.ARMOR_ID), "the Rig should sell Defense's Armor")
+	_expect(not state.can_purchase_rig("not_a_row"), "an unknown row should quote nothing")
+
+	var poor := _funded_state()
+	poor.start_run(1, 9)
+	poor.number = ScientificNumber.from_float(1.0)
+	_expect(not poor.purchase_rig("stronger_tap"), "a rank the Number cannot cover should refuse")
+
+	# The exact price sells and leaves zero Number: the contract is a visible
+	# price, not a refusal (D015).
+	var exact := _funded_state()
+	exact.start_run(1, 10)
+	exact.number = exact.get_rig_cost("stronger_tap").copy()
+	_expect(exact.purchase_rig("stronger_tap"), "a rank the Number exactly covers should sell")
+	_expect(exact.number.is_zero(), "spending the exact price should leave zero Number")
+
+func _test_rig_save_round_trip() -> void:
+	var save_path := "res://.number_go_up_test_save.json"
+	var original := _funded_state()
+	original.save_path = save_path
+	original.start_run(1, 77)
+	original.number = ScientificNumber.from_float(1.0e9)
+	_expect(original.purchase_rig("stronger_tap") and original.purchase_rig("coin_bonus"), "the fixture should hold two Rig ranks")
+	var saved_number: ScientificNumber = original.number.copy()
+	var saved_rng := original.rng.state
+	_expect(original.save(), "the Rig save should write")
+	var restored := GameState.new()
+	restored.save_path = save_path
+	restored.load()
+	_expect(restored.rig_owned("stronger_tap") == 1 and restored.rig_owned("coin_bonus") == 1, "Rig ranks should round-trip with the active run")
+	_expect(restored.number.compare_to(saved_number) == 0, "the Number left after Rig spending should round-trip")
+	_expect(restored.rng.state == saved_rng, "Rig spending must not disturb the RNG state")
+	restored.clear_save()
+
+	# A save written before the Rig existed resumes with no ranks, and a
+	# malformed Rig block reads as empty rather than crashing.
+	var pre_rig := GameState.new()
+	pre_rig.save_path = save_path
+	pre_rig.start_run(1, 5)
+	var legacy: Dictionary = SaveDataV5.make(pre_rig)
+	legacy.erase("rig_ranks")
+	_write_json(save_path, legacy)
+	var loaded := GameState.new()
+	loaded.save_path = save_path
+	loaded.load()
+	_expect(loaded.in_run and loaded.rig_ranks.is_empty(), "a pre-Rig save should resume with an empty Rig")
+	loaded.clear_save()
+	legacy["rig_ranks"] = "garbage"
+	_write_json(save_path, legacy)
+	var malformed := GameState.new()
+	malformed.save_path = save_path
+	malformed.load()
+	_expect(malformed.in_run and malformed.rig_ranks.is_empty(), "a malformed Rig block should read as empty, not crash")
+	malformed.clear_save()
+
+## D023: one Rig rank is worth a multiple of a Workshop rank, because the
+## Number it spends was the buffer against the next hit. Burst is the one row
+## that stays one-for-one: its ranks are tick-interval steps, not magnitudes.
+func _test_rig_ranks_are_worth_more_than_workshop_ranks() -> void:
+	var state := _funded_state()
+	state.purchased = {"stronger_tap": 10}
+	state.start_run(1, 12)
+	state.number = ScientificNumber.from_float(1.0e12)
+	var before := state._tap_base()
+	var multiplier: float = state.balance_profile.rig_effect_multiplier(ProgressionTaxonomy.ATTACK, "stronger_tap")
+	_expect(multiplier > 1.0, "a Rig rank should be worth more than a Workshop rank")
+	_expect(state.purchase_rig("stronger_tap"), "the Rig rank should buy")
+	_expect(is_equal_approx(state._tap_base(), before + 0.05 * multiplier), "one Rig rank should grant its multiplier of a Workshop rank's effect")
+	_expect(state.purchase_rig("burst_relay"), "a Rig Burst rank should buy")
+	_expect(state._burst_interval() == 11, "a Rig Burst rank should shorten the interval by one step, not by its multiplier")
+
+## D023: the combined defensive effects are bounded, so an uncapped Rig cannot
+## turn a run immortal.
+func _test_defensive_ceilings_bound_the_combined_effects() -> void:
+	var state := _funded_state()
+	state.start_run(1, 13)
+	state.purchased = {GameState.ARMOR_ID: 100, "siphon": 100, "recoil": 100}
+	state.number = ScientificNumber.new(1.0, 40)
+	for rank in range(200):
+		state.purchase_rig(GameState.ARMOR_ID)
+		state.purchase_rig("siphon")
+		state.purchase_rig("recoil")
+	_expect(state._effect_sum("collection_resistance") > state.balance_profile.COLLECTION_RESISTANCE_CEILING, "the fixture should stack Armor past its ceiling")
+	state.wave = 30
+	state.active_encounter = state._make_encounter(30)
+	var base: ScientificNumber = state.active_encounter.collection.copy()
+	var effective := state.get_effective_collection()
+	_expect(effective.compare_to(base.multiply_scalar(1.0 - state.balance_profile.COLLECTION_RESISTANCE_CEILING)) == 0, "a hit should never fall below the combined Armor ceiling")
+	_expect(not effective.is_zero(), "the ceiling keeps hits real, not free")
+
+	# Siphon: the applied share is capped even when the ranks stack past it.
+	_expect(state._effect_sum("siphon_share") > state.balance_profile.SIPHON_CEILING, "the fixture should stack Siphon past its ceiling")
+	state.number = ScientificNumber.new()
+	state._add_number(ScientificNumber.from_float(100))
+	_expect(state.number.compare_to(ScientificNumber.from_float(100.0 * state.balance_profile.SIPHON_CEILING)) == 0, "Siphon should bank exactly the capped share")
+
+	# Recoil: a hit can never be returned more than once over.
+	_expect(state._effect_sum("recoil_share") > state.balance_profile.RECOIL_CEILING, "the fixture should stack Recoil past its ceiling")
+	var liability_before: ScientificNumber = state.active_encounter.remaining_liability.copy()
+	var hit := state.get_effective_collection()
+	state.number = ScientificNumber.new(1.0, 40)
+	state._resolve_wave_boundary()
+	var dealt := liability_before.subtract(state.active_encounter.remaining_liability)
+	_expect(dealt.compare_to(hit) == 0, "Recoil should deal back exactly the hit, never more")
 
 func _advance_seconds(state: GameState, seconds: float) -> void:
 	var elapsed := 0.0

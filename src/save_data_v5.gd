@@ -31,6 +31,9 @@ static func make(state) -> Dictionary:
 		"braced": state.braced,
 		"run_peak_number": state.run_peak_number.to_dict(),
 		"second_wind_used": state.second_wind_used,
+		# Added after V5 shipped, like the run peak: the Rig's run-scoped ranks
+		# are part of the active-run block, not a schema of their own (D015).
+		"rig_ranks": state.rig_ranks,
 		"in_run": state.in_run,
 		"run_coins_earned": state.run_coins_earned,
 		"run_elapsed": state.run_elapsed,

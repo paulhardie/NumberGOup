@@ -76,6 +76,9 @@ var braced := false
 ## highest_number, which is permanent and drives dock unlocks.
 var run_peak_number := ScientificNumber.new()
 var second_wind_used := false
+## Rig ranks are run-scoped like the Number that buys them (D015): they stack
+## with `purchased` for this run only and die with every ending.
+var rig_ranks: Dictionary = {}
 var tax_encounters_enabled := true
 var in_run := false
 var run_coins_earned := 0
@@ -177,6 +180,7 @@ func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	number = ScientificNumber.from_float(_effect_sum("starting_number_flat") * get_cushion_scale())
 	run_peak_number = number.copy()
 	second_wind_used = false
+	rig_ranks = {}
 	lifetime_generated = ScientificNumber.new()
 	workshop.tick_count = 0
 	momentum_stacks = 0
@@ -255,8 +259,9 @@ func _resolve_wave_boundary() -> SimulationEvent:
 		braced = false
 	number = number.subtract(collection)
 	# Recoil turns the hit into progress on the wave that landed it. A braced
-	# boundary deals none, because no hit landed.
-	var recoil := _effect_sum("recoil_share")
+	# boundary deals none, because no hit landed. The combined share is capped
+	# (D023) so a hit can never be returned more than once over.
+	var recoil := minf(_effect_sum("recoil_share"), balance_profile.RECOIL_CEILING)
 	if recoil > 0.0 and not collection.is_zero():
 		active_encounter.apply_compliance(collection.multiply_scalar(recoil))
 	if number.is_zero():
@@ -347,6 +352,15 @@ func get_effective_collection() -> ScientificNumber:
 		"stage": "multiplicative",
 		"value": clampf(1.0 - _effect_sum("collection_resistance"), 0.0, 1.0),
 	})
+	# The combined ceiling (D023): Workshop Armor and Rig Armor stack, and
+	# without a floor a run could stop taking hits entirely. cap_min runs last
+	# in the pipeline, so it bounds the final value whichever lens supplied it.
+	modifiers.append({
+		"source": "armor_ceiling",
+		"target": "collection",
+		"stage": "cap_min",
+		"amount": active_encounter.collection.multiply_scalar(1.0 - balance_profile.COLLECTION_RESISTANCE_CEILING).to_dict(),
+	})
 	return RuleModifierPipelineClass.apply(active_encounter.collection, "collection", modifiers)
 
 func get_effective_liability() -> ScientificNumber:
@@ -406,6 +420,54 @@ func get_owned(upgrade_id: String) -> int:
 	if knowledge_purchased.has(upgrade_id):
 		return int(knowledge_purchased[upgrade_id])
 	return int(purchased.get(upgrade_id, 0))
+
+## The run's Rig ranks, kept beside `purchased` rather than inside it so the
+## Workshop screens, Workshop level and every permanent price never see them.
+func rig_owned(upgrade_id: String) -> int:
+	return int(rig_ranks.get(upgrade_id, 0))
+
+## What a row's Rig ranks are worth in Workshop ranks. Temporary power has to
+## beat the hit buffer its Number spends (D023), so one Rig rank is worth a
+## multiple of a Workshop rank rather than one for one.
+func rig_rank_equivalent(definition: UpgradeDefinition) -> float:
+	var ranks := float(rig_owned(definition.id))
+	if ranks <= 0.0:
+		return 0.0
+	return ranks * balance_profile.rig_effect_multiplier(definition.workshop_category, definition.id)
+
+## The Rig's price reference: the current wave's full HP, floored at the tier's
+## first pressured wave so warm-up cannot make the panel free (D015).
+func get_rig_reference_hp() -> ScientificNumber:
+	var floor_hp := balance_profile.rig_reference_hp(selected_tier, wave)
+	if active_encounter != null and active_encounter.max_liability.compare_to(floor_hp) > 0:
+		return active_encounter.max_liability.copy()
+	return floor_hp
+
+## The Number price of the row's next rank, or of a named rank for a quote.
+func get_rig_cost(upgrade_id: String, rank: int = -1) -> ScientificNumber:
+	var definition := get_definition(upgrade_id)
+	if definition == null or not balance_profile.rig_has_row(definition.workshop_category, upgrade_id):
+		return ScientificNumber.new()
+	var at_rank := rig_owned(upgrade_id) if rank < 0 else rank
+	return balance_profile.rig_cost(definition.workshop_category, at_rank, get_rig_reference_hp())
+
+func can_purchase_rig(upgrade_id: String) -> bool:
+	if not in_run:
+		return false
+	var definition := get_definition(upgrade_id)
+	if definition == null or not balance_profile.rig_has_row(definition.workshop_category, upgrade_id):
+		return false
+	return number.compare_to(get_rig_cost(upgrade_id)) >= 0
+
+## Buys one uncapped run-scoped rank with Number. It sells even when the price
+## eats the buffer against the next hit: the contract is that the price is
+## visible before it kills you, not that the game refuses the decision (D015).
+func purchase_rig(upgrade_id: String) -> bool:
+	if not can_purchase_rig(upgrade_id):
+		return false
+	number = number.subtract(get_rig_cost(upgrade_id))
+	rig_ranks[upgrade_id] = rig_owned(upgrade_id) + 1
+	return true
 
 func get_cost(definition: UpgradeDefinition) -> ScientificNumber:
 	return get_cost_at(definition, get_owned(definition.id))
@@ -539,6 +601,7 @@ func _reset_run_state() -> void:
 	braced = false
 	run_peak_number = ScientificNumber.new()
 	second_wind_used = false
+	rig_ranks = {}
 	in_run = false
 	run_elapsed = 0.0
 	run_seed = 0
@@ -651,6 +714,12 @@ func _restore_saved_run(data: Dictionary) -> void:
 	if in_run:
 		var encounter_data: Variant = data.get("active_encounter", null)
 		active_encounter = TaxEncounterClass.from_dict(encounter_data) if encounter_data is Dictionary else _make_encounter(wave)
+		# Added after V5 shipped, like the run peak: a save without Rig ranks
+		# resumes with none, and malformed ranks read as none rather than crash.
+		var saved_rig: Variant = data.get("rig_ranks", {})
+		if saved_rig is Dictionary:
+			for rig_id in saved_rig:
+				rig_ranks[str(rig_id)] = maxi(0, int(saved_rig[rig_id]))
 		var saved_rng_state := str(data.get("rng_state", "0")).to_int()
 		if saved_rng_state != 0:
 			rng.state = saved_rng_state
@@ -660,6 +729,7 @@ func _restore_saved_run(data: Dictionary) -> void:
 		active_encounter = null
 		wave = 1
 		wave_accumulator = 0.0
+		rig_ranks = {}
 
 func _seconds_since(data: Dictionary) -> float:
 	return Time.get_unix_time_from_system() - float(data.get("last_seen_unix", Time.get_unix_time_from_system()))
@@ -784,7 +854,9 @@ func _add_number(amount: ScientificNumber) -> void:
 	var banked := amount.subtract(into_wave)
 	# Siphon is the one way damage dealt to a wave still reaches Number, which
 	# is what stops a wave you cannot beat from being a slow death sentence.
-	var siphon := _effect_sum("siphon_share")
+	# The combined share is capped (D023): with Rig ranks stacking on the
+	# Workshop's 25%, an uncapped Siphon would bank every point of damage dealt.
+	var siphon := minf(_effect_sum("siphon_share"), balance_profile.SIPHON_CEILING)
 	if siphon > 0.0 and not into_wave.is_zero():
 		banked = banked.add(into_wave.multiply_scalar(siphon))
 	number = number.add(banked)
@@ -835,13 +907,15 @@ func _critical_multiplier() -> float:
 	return 2.0 + _effect_sum("critical_multiplier_add")
 
 func _chain_reaction_step() -> float:
-	return 0.005 * get_owned("chain_reaction")
+	return 0.005 * (float(get_owned("chain_reaction")) + rig_rank_equivalent(get_definition("chain_reaction")))
 
 ## Burst shortens the interval by one tick per rank, from 12 down to the same
 ## floor of 6 the three-rank version reached. The floor is what keeps deepening
-## this row a pacing change rather than a power change.
+## this row a pacing change rather than a power change, and it holds for Rig
+## ranks too: a rank is one step, never multiplied, so one purchase cannot
+## reach the floor by itself.
 func _burst_interval() -> int:
-	var rank := get_owned("burst_relay")
+	var rank := get_owned("burst_relay") + rig_owned("burst_relay")
 	if rank <= 0:
 		return 0
 	return maxi(6, 12 - rank)
@@ -850,14 +924,14 @@ func _effect_sum(effect_name: String) -> float:
 	var total := 0.0
 	for definition in definitions:
 		if definition.effects.has(effect_name):
-			total += float(definition.effects[effect_name]) * get_owned(definition.id)
+			total += float(definition.effects[effect_name]) * (float(get_owned(definition.id)) + rig_rank_equivalent(definition))
 	return total
 
 func _effect_product(effect_name: String, base: float) -> float:
 	var total := base
 	for definition in definitions:
 		if definition.effects.has(effect_name):
-			total *= pow(float(definition.effects[effect_name]), get_owned(definition.id))
+			total *= pow(float(definition.effects[effect_name]), float(get_owned(definition.id)) + rig_rank_equivalent(definition))
 	return total
 
 ## The Workshop catalogue. Every row declares the category it sits on (D013);

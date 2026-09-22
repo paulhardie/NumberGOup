@@ -1,6 +1,6 @@
 # Workshop design
 
-**Status:** Accepted direction. Steps 1 (the wave rule and its retune), 2 (the player vocabulary), 3 (the four categories), 3b (the deepened ladders), 4a and 4b (the Defense, Attack and Utility stats) and 5 (the bar reshape) implemented 21–22 September 2026. Steps 6, 7 and 8 not yet.
+**Status:** Accepted direction. Steps 1 (the wave rule and its retune), 2 (the player vocabulary), 3 (the four categories), 3b (the deepened ladders), 4a and 4b (the Defense, Attack and Utility stats) and 5 (the bar reshape) implemented 21–22 September 2026. Step 7's domain core and its balance targets are implemented (2026-09-22, D023): targets 7, 8 and 9 pass, with early and mid builds an open playtest question. Steps 6, 7's panel and 8 not yet.
 **Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four categories), [D014](DECISIONS.md) (player vocabulary), [D015](DECISIONS.md) (the Rig: the same four categories inside a run), [D016](DECISIONS.md) (the bottom bar carries what is actionable now), [D018](DECISIONS.md) (multi-buy and the reference layout), [D019](DECISIONS.md) (deep rank ladders), [D020](DECISIONS.md) (Defense becomes a build), [D021](DECISIONS.md) (Boss Damage and the Utility bonuses) and [D022](DECISIONS.md) (the run-over screen names what the run was lost to).
 **Owns:** the wave rule as the player should understand it, the four categories in both lenses — permanent in the Workshop, run-only in the Rig — and every stat's reason to exist, what the player sees, the build strategies this supports, the balance targets the retune must hit, and the implementation order.
 
@@ -242,7 +242,7 @@ Rejected: *Stop the Clock* (pause the wave timer). It breaks the vision's anti-g
 
 ## The Rig — the same four categories inside a run (D015)
 
-**Status:** Designed, not implemented. The four categories in the run and Number as their price are both owner-confirmed (21 September 2026); the cost coefficients below remain this document's recommendation until the simulator tunes them.
+**Status:** Domain core, prices, multiplier and ceilings implemented (2026-09-22, D023); the panel is not built. The four categories in the run and Number as their price are both owner-confirmed (21 September 2026). Targets 7, 8 and 9 pass at the swept multiplier; early and mid builds still cannot profit from the Rig under the simulator's policy, which is the open playtest question (see [measured targets](#the-rigs-measured-targets-step-7-core)).
 
 A run contains one decision today: Brace, at a flat 30%. Everything else the player does between starting a run and dying is tapping. That is the friction this section answers, and it is the reason the four categories belong on the run screen and not only in the Workshop.
 
@@ -278,14 +278,38 @@ One rank costs roughly what one wave is worth, which is a price a player can fee
 
 **These coefficients are proposals, not measurements.** They are starting points for `tools/balance_simulator.gd` to tune:
 
-| Category | k | growth |
-| --- | --- | --- |
-| Attack | 0.5–1.5 | 1.7 |
-| Defense | 1.0 | 1.6 |
-| Utility | 2.0 | 1.5 |
-| Ultimate levels | 3.0 | 1.8 |
+| Category | k | growth | Rig rank worth |
+| --- | --- | --- | --- |
+| Attack | 0.5–1.5 | 1.7 | 3 Workshop ranks |
+| Defense | 1.0 | 1.6 | 3 Workshop ranks |
+| Utility | 2.0 | 1.5 | 3 Workshop ranks |
+| Ultimate levels | 3.0 | 1.8 | — (step 8) |
 
 Rig ranks are uncapped; cost growth is the only limit. *Rejected: capping Rig ranks at the matching permanent rank.* It reads well — the Workshop raises the ceiling — but it means the stat a player needs is the one they cannot buy, exactly while they are learning what they need. The Workshop keeps one job: raise the value every rank starts from.
+
+**The rank's worth is the tuned value (D023), not the price.** One Rig rank grants three Workshop ranks' worth of its effect, because the Number it spends was the hit buffer it has to beat. The alternative — cheaper ranks at one-to-one effect — was measured and rejected: k=0.2 with 1.15 growth turned the game into a runaway (mid reached wave 204, top builds never died). The combined defensive effects also gained ceilings: Armor never takes more than 75% off a hit, Siphon never banks more than half the damage dealt, Recoil never returns more than the hit itself.
+
+### The Rig's measured targets (step 7 core)
+
+**Implemented (2026-09-22):** run-scoped ranks in `GameState` with prices from `TaxBalanceProfile` and the D023 multiplier, stacking with Workshop ranks, saved in the active-run block and cleared by every ending. The panel is not built. `tools/balance_simulator.gd` plays a reinvest policy — bank on cleared waves, never spend the Number that covers the next two hits, compounding rows first, Boss Damage ahead of a boss — and reports targets 7–9. At the swept value M=3:
+
+| Build | Wave (hoarding) | Wave (Rig) | Rig ranks | Purchases in last 10 min |
+| --- | --- | --- | --- | --- |
+| fresh | 21 | 21 | 1 | 1 |
+| early | 29 | 24 | 6 | 6 |
+| mid | 50 | 40 | 19 | 19 |
+| attack max | 96 | **103** | 76 | 0 |
+| attack max + armor | 100 | **109** | 76 | 0 |
+| everything maxed | 110 | **120** | 78 | 0 |
+
+The multiplier sweep is the dial: M=2 fails (attack max 97, everything maxed 107), M=3 passes, M=5 and M=8 overshoot (everything maxed 160 and 204+, the latter still alive at 90 minutes). What this says:
+
+- **Target 7 holds.** A fresh build with the Rig reaches wave 21, exactly what it reaches without it; one rank is affordable. The Rig cannot substitute for Workshop investment.
+- **Target 8 holds at M=3.** Every top build reaches meaningfully deeper than hoarding, and the gain is the Rig's own: the hoarding baselines are unchanged.
+- **Target 9 holds at every M.** Purchases stop in the final ten minutes of every top run: cost growth outruns Number income.
+- **Open, and the next playtest question:** early and mid builds still reach *shallower* with the Rig than without it (24 against 29, 40 against 50). Their budget buys too few ranks to beat the buffer those ranks spend. The simulator's policy cannot fix it — a Defense-first order measured worse — so this is either a real ceiling on when the Rig is worth using, or the price curve needs a second look once the panel exists. It is not a target failure, because no target promises the Rig pays at every build.
+
+**The panel is no longer blocked on target 8.** It is blocked on nothing technical; the open mid question above should be watched in playtest rather than pre-solved.
 
 ### Which rows appear in which lens
 
@@ -466,7 +490,7 @@ Each step lands on its own and clears the gate for its risk level in [`QUALITY_G
 | 4b | **Done.** Boss Damage, Coin Bonus and Knowledge Bonus (D021); Research Focus balanced across all three categories | High: economy |
 | 5 | **Done.** The bar reshape (D016): the dock drops to `RUN · WORKSHOP · MORE`, Labs, Insight and Prestige become one Knowledge sheet opened from the Knowledge chip, the `highest_number` gates move inside it, and the run-over screen is reframed as "Lost to" (D022) with both doors | Medium: presentation, plus one field on the run summary |
 | 6 | The two gaps under "Lost to": how far short Attack fell against that wave's HP, and Defense against its hit | Medium |
-| 7 | **The Rig** (D015): the in-run panel, Number prices against wave HP, run-scoped ranks saved with the active run, Brace into the Defense tab and Shield off the run screen | High: economy and save |
+| 7 | **Core and targets done; panel not built.** The Rig (D015): run-scoped ranks bought with Number priced against wave HP, worth 3× a Workshop rank (D023), with combined defensive ceilings, stacking with Workshop ranks, saved with the active run and cleared by every ending. Targets 7–9 pass; early/mid builds are the open playtest question. Remaining: the in-run panel, Brace into the Defense tab and Shield off the run screen | High: economy and save |
 | 8 | Ultimates, in both lenses | High: new timed effects and saved cooldown state |
 
 Step 2 followed step 1 closely, so the new rule is explained on screen in the new words.
