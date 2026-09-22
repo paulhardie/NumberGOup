@@ -1,6 +1,6 @@
 # Tower scaling research and Number Go Up foundation
 
-Status: researched and implemented as foundation profile `tax-foundation-v1`, retuned to `tax-foundation-v2` for D012, then to `tax-foundation-v3` for Tier 1's opening (D034), 22 September 2026.
+Status: researched and implemented as foundation profile `tax-foundation-v1`, retuned to `tax-foundation-v2` for D012, `tax-foundation-v3` for Tier 1's opening (D034), and `tax-foundation-v4` for lower warm-up Wave HP and idle-safe Hit growth (D036), 22 September 2026.
 
 ## Implemented foundation
 
@@ -234,9 +234,9 @@ The committed profile evaluator currently produces:
 | 3 | 21 | 14,293 | 9,364 | 35 |
 | 3 | 100 boss | 3.33M | 735,049 | 845 |
 
-These base curve values carry forward into `tax-foundation-v3`: v1's Liability and Collection were halved and pressured rewards multiplied by 0.65 for D012. Tier 1's effective hits at waves 21–25 now ramp up from its warm-up through a rule modifier; at wave 21 the hit shown and dealt is about 12 rather than the base Collection of 156. Higher tiers and the base pressure ratios keep the table's values. `run_balance.sh` prints both base and effective Tier 1 opening hits. Before-and-after measurements are in [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md).
+These base curve values carry forward into `tax-foundation-v4`: v1's Liability and Collection were halved and pressured rewards multiplied by 0.65 for D012. Tier 1's effective hits at waves 21–25 ramp up from its warm-up through a rule modifier; at wave 21 the hit shown and dealt is about 13 rather than the base Collection of 156. D036 lowers Tier 1 warm-up Wave HP and raises warm-up Hit growth slightly to keep the true no-action run from collecting all twenty rewards. Higher tiers and the base pressure ratios keep the table's values. `run_balance.sh` prints both base and effective Tier 1 opening hits. Before-and-after measurements are in [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md).
 
-The deterministic first-run baseline in `tools/balance_simulator.gd` taps twice per second and buys permanent Workshop upgrades in its standard order after the run. With seed 7 it dies at Tier 1 wave 21 after 360 seconds with 48 Coins. At D035 prices, a chosen mix of 12 Tap Damage, six Damage per Second and one Armor rank costs 47 of those Coins; the simulator's build matrix compares that mix with the old 12-Tap spend. This is a reproducible calibration baseline, not a claim that the balance is final.
+The deterministic first-run baseline in `tools/balance_simulator.gd` taps twice per second and buys permanent Workshop upgrades in its standard order after the run. With seed 7 it dies at Tier 1 wave 23 after 495 seconds with 76 Coins. The simulator's build matrix also compares two fixed builds bought from the former 48-Coin opening budget; those rows remain a D035 pricing comparison, not the current first-run spend. This is a reproducible calibration baseline, not a claim that the balance is final.
 
 ### Data contracts to create before content
 

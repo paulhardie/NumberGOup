@@ -1,6 +1,6 @@
 # Workshop design
 
-**Status:** Accepted direction. Steps 1 (the wave rule and its retune), 2 (the player vocabulary), 3 (the four categories), 3b (the deepened ladders), 4a and 4b (the Defense, Attack and Utility stats), 5 (the bar reshape), 6 (the two gaps under "Lost to") and step 7's Rig domain and panel are implemented. D035 reprices the permanent Workshop after a Tier 1 playtest. Early and mid builds remain an open playtest question; step 8 remains open.
+**Status:** Accepted direction. Steps 1 (the wave rule and its retune), 2 (the player vocabulary), 3 (the four categories), 3b (the deepened ladders), 4a and 4b (the Defense, Attack and Utility stats), 5 (the bar reshape), 6 (the two gaps under "Lost to") and step 7's Rig domain and panel are implemented. D035 reprices the permanent Workshop and D036 lowers opening Wave HP after Tier 1 playtests. Early and mid builds remain an open playtest question; step 8 remains open.
 **Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four categories), [D014](DECISIONS.md) (player vocabulary), [D015](DECISIONS.md) (the Rig: the same four categories inside a run), [D016](DECISIONS.md) (the bottom bar carries what is actionable now), [D018](DECISIONS.md) (multi-buy and the reference layout), [D019](DECISIONS.md) (deep rank ladders), [D020](DECISIONS.md) (Defense becomes a build), [D021](DECISIONS.md) (Boss Damage and the Utility bonuses), [D022](DECISIONS.md) (the run-over screen names what the run was lost to) and [D035](DECISIONS.md) (the cheaper Workshop onramp).
 **Owns:** the wave rule as the player should understand it, the four categories in both lenses — permanent in the Workshop, run-only in the Rig — and every stat's reason to exist, what the player sees, the build strategies this supports, the balance targets the retune must hit, and the implementation order.
 
@@ -188,7 +188,21 @@ The first 48 Coins could buy 12 Tap Damage ranks under the step-4 price curve, a
 | With a 48-Coin budget | 12 Tap Damage ranks, 1 Coin left | 12 Tap Damage + 6 Damage per Second + 1 Armor, 1 Coin left |
 | Next Tier 1 run, seed 7, 2 taps/sec | wave 23, 56 repeatable Coins | wave 24, 71 repeatable Coins |
 
-The comparison uses the two listed builds at the same 48-Coin budget, not an optimal-spend claim. A fresh first run has no Workshop ranks and is unchanged. The user-supplied Tower research supports the shape of cheap opening ranks and smooth capped ladders; its flat-defense/Thorns loop, unlock charges and Coin amounts are not imported into this wave-based game.
+This table records the D035 pricing comparison before D036 changed the first run. It uses the two listed builds at the same 48-Coin budget, not an optimal-spend claim. The user-supplied Tower research supports the shape of cheap opening ranks and smooth capped ladders; its flat-defense/Thorns loop, unlock charges and Coin amounts are not imported into this wave-based game.
+
+### A kinder first run (D036)
+
+The cheaper Workshop still left a fresh player facing the old Wave HP, because its ranks cannot be bought during that run. Lowering Tier 1 warm-up Wave HP from 30 to 20 and its growth from 12% to 8% lets a one-tap-per-second player beat the first ordinary waves and put overflow into Number. Warm-up Hit growth rises slightly from 8% to 8.5%, so a player who takes every Hit without acting cannot collect the full warm-up payout. Starting Number, rewards, Rig prices and the full pressured curve stay the same. The final warm-up boss now has less HP than wave 21, so the transition also rises in Wave HP rather than stepping backwards.
+
+| Fresh Tier 1 opening, seed 7 | Before D036 | After D036 |
+| --- | ---: | ---: |
+| Idle, with cautious Rig buys | wave 15, 38 Coins | wave 16, 39 Coins |
+| No taps or Rig buys | full warm-up payout | wave 20, 43 Coins |
+| 1 tap/sec, with cautious Rig buys | wave 18, 41 Coins | wave 21, 48 Coins |
+| 2 taps/sec, with cautious Rig buys | wave 22, 62 Coins | wave 23, 76 Coins |
+| Representative 2-tap first run | wave 21, 48 Coins in 360 seconds | wave 23, 76 Coins in 495 seconds |
+
+The idle case still ends before the full warm-up reward, while a player who taps steadily can bank Number and reach the first pressured wave. The longer first run and fewer early Hits for active players need a phone playtest; these figures only cover deterministic simulator policies.
 
 Cushion adds starting Number on every tier and scales that buffer with the tier's pressure. The D033/D034 warm-up replaced the old hit-free Tier 1 opening, so its early buffer now has a use even when it does not move the final wave. In the current seed-7, two-tap simulator, maxed Attack plus maxed Cushion still ends at Tier 1 wave 97 but starts with 500 more Number; on Tier 2 it reaches wave 26 rather than 25. The first Tier 1 run cannot buy Cushion because that row opens at Workshop level 60.
 
@@ -480,12 +494,12 @@ Higher tiers can ask for different builds by changing the *shape* of waves as we
 
 Targets 1–4 gate D012's retune; 5 and 6 gate step 4's new stats. `tools/balance_simulator.gd` measures them with its build matrix.
 
-1. A fresh first run still ends around wave 21 and banks at least 48 Coins (D010, and the invariant that the first failed run funds a rank). *Met: wave 21, 48 Coins, now with the D033 opening.*
+1. A fresh first run reaches the first pressured waves and banks enough Coins for permanent progress (D010). *Measured after D036: the seed-7 representative run ends at wave 23 with 76 Coins; one tap per second with cautious Rig spending reaches wave 21 with 48.*
 2. Coins per minute at equal builds are within ±10% of the pre-D012 baseline. *This measures the D012 retune, not the Workshop: Coin Bonus (step 4b) is meant to lift Coins per minute, and does, by 49% at its cap. Compare like builds, not maxed ones.* *Met for the main progression builds: mid −2%, Max Attack −7%, Max Attack + Armor +6%. Two small runs sit above: early is +20% (2.4 Coins a minute) and Tier 2 is +19%, because both go relatively deeper now. Recheck when step 4 adds new Coin sinks.*
 3. Tier 1 wave 100 is reachable for a Workshop investment comparable to before. *Met: Max Attack + Armor 40% reaches wave 100, as it did before.*
 4. A player who has just unlocked Tier 2 survives its opening waves. *Met: that build reaches Tier 2 wave 26 (was 28).*
-5. **The cheapest build that reaches Tier 1 wave 100 includes both Attack and Defense.** This is pillar 2 written as a test. ***Met, and worth watching:*** *maxed Attack alone reaches wave 96 and maxed Defense alone reaches 25, so wave 100 still needs both, and the cheapest route is maxed Attack plus Armor. Boss Damage moved Attack's solo reach from 90 to 96 in step 4b; another Attack row of that size would break this target.*
-6. Every stat's first rank visibly moves a simulator outcome. ***Met at the cap for every new stat, with two qualifications:*** *Cushion moves Tier 2 and deliberately not Tier 1, and Brace Cost cannot be measured by a simulator that never Braces — it is covered by test rather than by simulation. Utility's two bonuses move Coins and Knowledge rather than the wave reached, which is the category's whole point. Sizes were chosen from the older measurements that showed Siphon at 10% adding nothing: Siphon caps at 25% and Recoil at 50%.*
+5. **The cheapest build that reaches Tier 1 wave 100 includes both Attack and Defense.** This is pillar 2 written as a test. ***Met, and worth watching:*** *maxed Attack alone reaches wave 97 after D036, while maxed Attack plus Armor reaches 100. Boss Damage moved Attack's solo reach close to 100 in step 4b; another Attack row of that size would break this target.*
+6. Every stat's first rank visibly moves a simulator outcome. ***Met at the cap for every new stat, with two qualifications:*** *Cushion moves Tier 2's final wave but not Tier 1's at the measured max-Attack build, and Brace Cost cannot be measured by a simulator that never Braces — it is covered by test rather than by simulation. Utility's two bonuses move Coins and Knowledge rather than the wave reached, which is the category's whole point. Sizes were chosen from the older measurements that showed Siphon at 10% adding nothing: Siphon caps at 25% and Recoil at 50%.*
 
 Targets 7–9 gate the Rig (step 7). All three need the simulator to model in-run spending, which is itself part of that step.
 
@@ -493,9 +507,9 @@ Targets 7–9 gate the Rig (step 7). All three need the simulator to model in-ru
 8. **The Rig cannot be ignored.** At the top build, playing the Rig reaches meaningfully deeper than hoarding Number does. If it does not, the panel is four tabs of noise.
 9. **No runaway.** Over a long run, Rig cost growth outruns Number income: no build reaches a state where every row is affordable on every wave.
 
-Target 10 gates the Tier 1 opening (D033, retuned by D034), measured by the OPENING table in `run_balance.sh`.
+Target 10 gates the Tier 1 opening (D033, retuned by D034 and D036), measured by the OPENING table in `run_balance.sh`.
 
-10. **A new player is in the action at once, with room to learn.** From a fresh save the first two Rig purchases together leave over half the starting Number, the player is under visible attack from wave 1, an idle player is hit within the first 15 seconds, and a steady tapper's first hit is survivable. The first run should still fund permanent ranks while one-tap play makes visible progress and idle play does not earn the whole warm-up reward. *Measured at seed 7 after D034: the cautious opening policy buys from the first second; an idle run ends at wave 15 with 38 Coins, two taps a second at wave 22 with 62, and three taps a second at wave 23 with 76. The representative two-tap run without Rig spending still ends at wave 21 with 48.*
+10. **A new player is in the action at once, with room to learn.** From a fresh save the first two Rig purchases together leave over half the starting Number, waves carry HP and Hit from the start, an idle player is hit within the first minute, and a steady tapper's first hit is survivable. The first run should fund permanent ranks while one-tap play makes visible progress and idle play does not earn the whole warm-up reward. *Measured at seed 7 after D036: the cautious opening policy buys from the first second; idle ends at wave 16 with 39 Coins, one tap per second at wave 21 with 48, and two taps at wave 23 with 76. The representative two-tap run without Rig spending also ends at wave 23 with 76.*
 
 ## Implementation order
 

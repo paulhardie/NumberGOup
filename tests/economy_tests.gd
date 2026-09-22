@@ -710,11 +710,20 @@ func _test_tier_one_opening() -> void:
 	_expect(tier_two.number.is_zero(), "a tier with no warm-up should start with no extra Number")
 
 	_expect(profile.liability_for_wave(1, 2).compare_to(ScientificNumber.from_float(profile.WARM_UP_START_HP * profile.WARM_UP_HP_GROWTH)) == 0, "warm-up HP should grow its share each wave")
+	_expect(profile.liability_for_wave(1, 1).compare_to(ScientificNumber.from_float(20.0)) == 0 and profile.liability_for_wave(1, 6).compare_to(ScientificNumber.from_float(30.0)) < 0, "a one-tap-per-second player should clear the first warm-up waves and bank Number")
+	_expect(profile.liability_for_wave(1, 20).compare_to(profile.liability_for_wave(1, 21)) < 0, "the final warm-up boss should lead into the full Wave HP curve")
 	var boss_hp: float = profile.WARM_UP_START_HP * pow(profile.WARM_UP_HP_GROWTH, 9) * profile.WARM_UP_BOSS_HP
 	_expect(profile.liability_for_wave(1, 10).compare_to(ScientificNumber.from_float(boss_hp)) == 0, "a warm-up boss should be softened, not tripled")
 	var boss_hit: float = profile.WARM_UP_START_HIT * pow(profile.WARM_UP_HIT_GROWTH, 19) * profile.WARM_UP_BOSS_HIT
 	_expect(profile.collection_for_wave(1, 20).compare_to(ScientificNumber.from_float(boss_hit)) == 0, "the final warm-up hit should use the gentler growth")
 	_expect(boss_hit < 7.0, "the last warm-up boss should leave a reasonable opening buffer")
+	var no_action := GameState.new()
+	no_action.start_run(1, 7)
+	for step in range(4 * 330):
+		if not no_action.in_run:
+			break
+		no_action.advance(0.25)
+	_expect(not no_action.in_run and no_action.get_tier_best(1) < 20 and no_action.coins < 48, "a true no-action opening must end before collecting the full warm-up payout")
 	# The first pressured hits climb from the warm-up, then return to the full
 	# curve. The reduction belongs only to Tier 1; other tiers keep their base.
 	for opening_wave in range(21, 27):
@@ -927,7 +936,7 @@ func _test_mid_wave_save_resumes_identically() -> void:
 	opening.active_encounter.collection = opening.active_encounter.collection.multiply_scalar(2.0)
 	opening.number = ScientificNumber.from_float(100.0)
 	var opening_hit: ScientificNumber = opening.get_effective_collection()
-	_expect(opening_hit.compare_to(ScientificNumber.from_float(13.0)) < 0, "a saved larger base hit should still use the Tier 1 transition cap")
+	_expect(opening_hit.compare_to(opening.balance_profile.collection_for_wave(1, 21)) < 0, "a saved larger base hit should still use the Tier 1 transition cap")
 	_expect(opening.save(), "a Tier 1 transition wave should save")
 	var opening_restored := GameState.new()
 	opening_restored.save_path = save_path

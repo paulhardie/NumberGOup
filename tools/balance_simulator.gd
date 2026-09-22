@@ -313,6 +313,14 @@ func _simulate_opening() -> void:
 		preview.wave = preview_wave
 		preview.active_encounter = preview._make_encounter(preview_wave)
 		print("  W", preview_wave, "  base=", preview.active_encounter.collection.format_value(), "  effective=", preview.get_effective_collection().format_value())
+	var no_action := GameState.new()
+	no_action.start_run(1, SEED)
+	var idle_seconds := 0.0
+	while idle_seconds < 1800.0 and no_action.in_run:
+		no_action.advance(OPENING_STEP)
+		idle_seconds += OPENING_STEP
+	var no_action_end := "alive at wave " + str(no_action.wave) if no_action.in_run else "wave " + str(no_action.last_run_summary.wave_reached)
+	print("  no action  end=", no_action_end, " at ", snappedf(idle_seconds, 1.0), "s  coins=", no_action.coins)
 	print("OPENING  fresh save, Tier 1, cheapest Rig rank kept 1.5x affordable, seed ", SEED)
 	for rate in OPENING_TAP_RATES:
 		var state := GameState.new()
