@@ -18,6 +18,10 @@ const UTILITY_MAX := {"smarter_efficiency": 60, "coin_bonus": 100, "knowledge_bo
 ## of the two opening rows.
 const MID := {"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 60}
 const EARLY := {"stronger_tap": 40, "generator": 40}
+## Forty-eight Coins is the first Tier 1 warm-up payout with checkpoints. D035's pricing
+## lets that budget buy a mixed opening instead of Tap Damage alone.
+const OLD_FIRST_RUN_SPEND := {"stronger_tap": 12}
+const FIRST_RUN_SPEND := {"stronger_tap": 12, "generator": 6, "tax_resistance": 1}
 ## Defense rows at their caps, and the pieces of that build worth measuring on
 ## their own: balance target 6 asks that each one visibly move an outcome.
 const ARMOR := {"tax_resistance": 100}
@@ -36,6 +40,8 @@ const DEFENSE_MAX := {
 const BUILD_MATRIX := [
 	["fresh", 1, {}],
 	["fresh + rig", 1, {}, "reinvest"],
+	["old 48 Coin spend", 1, OLD_FIRST_RUN_SPEND],
+	["new 48 Coin spend", 1, FIRST_RUN_SPEND],
 	["early", 1, EARLY],
 	["early + rig", 1, EARLY, "reinvest"],
 	["mid", 1, MID],

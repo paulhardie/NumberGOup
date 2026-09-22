@@ -236,7 +236,7 @@ The committed profile evaluator currently produces:
 
 These base curve values carry forward into `tax-foundation-v3`: v1's Liability and Collection were halved and pressured rewards multiplied by 0.65 for D012. Tier 1's effective hits at waves 21–25 now ramp up from its warm-up through a rule modifier; at wave 21 the hit shown and dealt is about 12 rather than the base Collection of 156. Higher tiers and the base pressure ratios keep the table's values. `run_balance.sh` prints both base and effective Tier 1 opening hits. Before-and-after measurements are in [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md).
 
-The deterministic first-run baseline in `tools/balance_simulator.gd` taps twice per second and buys the first affordable permanent Workshop upgrade in the standard order. With seed 7 it currently dies at Tier 1 wave 21 after 360 seconds with 48 Coins, enough to fund the first two Workshop ranks. The same tool's build matrix measures progressed builds on Tiers 1 and 2. This is a reproducible calibration baseline, not a claim that the balance is final.
+The deterministic first-run baseline in `tools/balance_simulator.gd` taps twice per second and buys permanent Workshop upgrades in its standard order after the run. With seed 7 it dies at Tier 1 wave 21 after 360 seconds with 48 Coins. At D035 prices, a chosen mix of 12 Tap Damage, six Damage per Second and one Armor rank costs 47 of those Coins; the simulator's build matrix compares that mix with the old 12-Tap spend. This is a reproducible calibration baseline, not a claim that the balance is final.
 
 ### Data contracts to create before content
 

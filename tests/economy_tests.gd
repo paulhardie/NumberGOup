@@ -9,6 +9,7 @@ func _init() -> void:
 	_test_category_gates_and_rank_caps()
 	_test_research_focus_targets_a_category()
 	_test_multi_buy_matches_buying_one_at_a_time()
+	_test_workshop_price_onramp()
 	_test_stat_values_read_the_row_effect()
 	_test_deepened_ladders_keep_their_old_maxima()
 	_test_workshop_effects()
@@ -178,6 +179,27 @@ func _test_multi_buy_matches_buying_one_at_a_time() -> void:
 	running.start_run(1, 3)
 	_expect(int(running.plan_purchase("stronger_tap", 5).ranks) == 0, "a run should refuse a Workshop press of any size")
 
+func _test_workshop_price_onramp() -> void:
+	var state := GameState.new()
+	var tap := state.get_definition("stronger_tap")
+	var damage_per_second := state.get_definition("generator")
+	var armor := state.get_definition(GameState.ARMOR_ID)
+	_expect(state.get_workshop_coin_cost(tap) == 2 and state.get_workshop_coin_cost(damage_per_second) == 2 and state.get_workshop_coin_cost(armor) == 4, "the opening Attack and Defense ranks should be cheap")
+	_expect(state.get_workshop_coin_cost_at(tap, 20) == 4 and state.get_workshop_coin_cost_at(tap, 99) == 84, "Tap Damage should rise smoothly through its cap")
+	_expect(state.get_workshop_coin_cost_at(armor, 20) == 9 and state.get_workshop_coin_cost_at(armor, 99) == 224, "Armor should have an affordable start and a meaningful late price")
+	var category_totals := {ProgressionTaxonomy.ATTACK: 0, ProgressionTaxonomy.DEFENSE: 0, ProgressionTaxonomy.UTILITY: 0}
+	for definition in state.definitions:
+		if definition.category != ProgressionTaxonomy.WORKSHOP:
+			continue
+		for rank in range(definition.max_rank):
+			category_totals[definition.workshop_category] += state.get_workshop_coin_cost_at(definition, rank)
+	_expect(category_totals[ProgressionTaxonomy.ATTACK] == 46590 and category_totals[ProgressionTaxonomy.DEFENSE] == 41070 and category_totals[ProgressionTaxonomy.UTILITY] == 46503, "the full Workshop should keep the authored category prices")
+	state.coins = 48
+	_expect(state.purchase_ranks("stronger_tap", 12) == 12, "a first run should fund twelve Tap Damage ranks")
+	_expect(state.purchase_ranks("generator", 6) == 6, "a first run should also fund six Damage Per Second ranks")
+	_expect(state.purchase(GameState.ARMOR_ID) and state.coins == 1, "a first run should still afford an Armor rank with one Coin left")
+	_expect(state.start_run(1, 7) and state._tap_base() > 1.5 and state._passive_base() > 0.4, "the next run should feel the permanent Attack purchases")
+
 ## The card face is derived from the row's own effect, so it cannot drift from
 ## what the rank actually does.
 func _test_stat_values_read_the_row_effect() -> void:
@@ -249,7 +271,7 @@ func _test_workshop_effects() -> void:
 	# 4.14 from the Workshop, plus the flat output every run has (D033).
 	_expect(state.get_rate_per_second().compare_to(ScientificNumber.from_float(4.14 + state.balance_profile.BASE_DAMAGE_PER_SECOND)) == 0, "Workshop output and speed should affect rate")
 	_expect(is_equal_approx(state._effect_sum("cost_discount"), 0.05), "twenty Discount ranks should still be a 5% discount")
-	_expect(state.get_workshop_coin_cost(state.get_definition("generator")) == 16, "Discount should reduce permanent Coin costs")
+	_expect(state.get_workshop_coin_cost(state.get_definition("generator")) == 10, "Discount should reduce permanent Coin costs")
 	_expect(is_equal_approx(state._critical_chance(), 0.05), "Crit Chance should add positive critical chance")
 	_expect(is_equal_approx(state._critical_multiplier(), 3.0), "Crit Damage should add critical size")
 
@@ -660,7 +682,7 @@ func _test_first_run_funds_permanent_workshop() -> void:
 	state.end_run()
 	_expect(state.purchase("stronger_tap"), "first-run Coins should buy a permanent Tap Damage rank")
 	_expect(state.purchase("generator"), "first-run Coins should also buy the first Damage Per Second rank")
-	_expect(state.coins == 41, "first Workshop purchases should spend Coins, not Number")
+	_expect(state.coins == 44, "first Workshop purchases should spend Coins, not Number")
 	# A deepened ladder (D019) should turn the first run into a visible stack of
 	# ranks rather than the two the five-rank ladders allowed.
 	_expect(state.purchase_ranks("stronger_tap", GameState.MAX_BUY) >= 8, "the first failed run should fund a stack of ranks")
@@ -958,7 +980,7 @@ func _test_armor_reduces_the_hit_and_survives_reset() -> void:
 	state.coins = 1000
 	var armor := state.get_definition(GameState.ARMOR_ID)
 	var base_cost := state.get_workshop_coin_cost(armor)
-	_expect(base_cost == 8, "the first Armor rank should cost the opening price of its ladder")
+	_expect(base_cost == 4, "the first Armor rank should cost the opening price of its ladder")
 	_expect(state.purchase(GameState.ARMOR_ID), "Armor should be purchasable with enough Coins")
 	state.start_run(2, 6)
 	state.number = ScientificNumber.from_float(10000)

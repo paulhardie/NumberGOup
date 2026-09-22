@@ -1,7 +1,7 @@
 # Workshop design
 
-**Status:** Accepted direction. Steps 1 (the wave rule and its retune), 2 (the player vocabulary), 3 (the four categories), 3b (the deepened ladders), 4a and 4b (the Defense, Attack and Utility stats), 5 (the bar reshape) and 6 (the two gaps under "Lost to") implemented 21–22 September 2026. Step 7's domain core and its balance targets are implemented (2026-09-22, D023): targets 7, 8 and 9 pass, with early and mid builds an open playtest question. Step 7's panel and step 8 not yet.
-**Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four categories), [D014](DECISIONS.md) (player vocabulary), [D015](DECISIONS.md) (the Rig: the same four categories inside a run), [D016](DECISIONS.md) (the bottom bar carries what is actionable now), [D018](DECISIONS.md) (multi-buy and the reference layout), [D019](DECISIONS.md) (deep rank ladders), [D020](DECISIONS.md) (Defense becomes a build), [D021](DECISIONS.md) (Boss Damage and the Utility bonuses) and [D022](DECISIONS.md) (the run-over screen names what the run was lost to).
+**Status:** Accepted direction. Steps 1 (the wave rule and its retune), 2 (the player vocabulary), 3 (the four categories), 3b (the deepened ladders), 4a and 4b (the Defense, Attack and Utility stats), 5 (the bar reshape), 6 (the two gaps under "Lost to") and step 7's Rig domain and panel are implemented. D035 reprices the permanent Workshop after a Tier 1 playtest. Early and mid builds remain an open playtest question; step 8 remains open.
+**Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four categories), [D014](DECISIONS.md) (player vocabulary), [D015](DECISIONS.md) (the Rig: the same four categories inside a run), [D016](DECISIONS.md) (the bottom bar carries what is actionable now), [D018](DECISIONS.md) (multi-buy and the reference layout), [D019](DECISIONS.md) (deep rank ladders), [D020](DECISIONS.md) (Defense becomes a build), [D021](DECISIONS.md) (Boss Damage and the Utility bonuses), [D022](DECISIONS.md) (the run-over screen names what the run was lost to) and [D035](DECISIONS.md) (the cheaper Workshop onramp).
 **Owns:** the wave rule as the player should understand it, the four categories in both lenses — permanent in the Workshop, run-only in the Rig — and every stat's reason to exist, what the player sees, the build strategies this supports, the balance targets the retune must hit, and the implementation order.
 
 This document uses the accepted player vocabulary (Wave HP, Hit, Armor). [Vocabulary](#vocabulary-d014) maps every term to its code name.
@@ -118,7 +118,7 @@ Attack is today's Output, Speed and Chance bays, nearly unchanged. Boss Damage i
 
 **Buy Defense when** a wave outlasts its timer and the hits drain your Number. That happens most often on bosses, and from wave 1 on Tier 2 and above.
 
-**Implemented (step 4a, D020).** Six rows, 460 ranks, 60,008 Coins to max — within one Coin of Attack's total, which is what makes a Defense Research Focus a real choice rather than a consolation.
+**Implemented (step 4a, D020).** Six rows, 460 ranks. At that step Defense cost 60,008 Coins to max — within one Coin of Attack's total. D035 later lowered all Workshop prices; the current category totals are below.
 
 | Stat | Does | Ranks | At its cap |
 | --- | --- | --- | --- |
@@ -172,11 +172,25 @@ Category gates move with the ranks, chosen to hold the old **Coin** pacing rathe
 
 **Measured: every baseline row below reproduces exactly** — the same wave, minutes, hits and Coins for the first run and all five build-matrix rows. Peak Number differs by under 0.1%, which is float residue in the per-rank multipliers (1.00701257 to the 60th against 1.15 cubed), not a balance change. A test asserts every cap still lands on its old value, so a future rank-count change that moves one is a failure rather than a silent retune.
 
-What this does not do is lengthen the grind: the Workshop costs what it always did, and the same build still reaches Tier 1 wave 100 in 45 minutes. It buys decisions, not hours. Making the Workshop *longer* as well as deeper is a separate dial — the per-row Coin targets in `_make_definitions` — and a separate decision.
+At step 3b, this did not lengthen the grind: the Workshop cost what it previously did, and the same build still reached Tier 1 wave 100 in 45 minutes. It bought decisions, not hours. D035 subsequently lowered the Coin prices for the owner-tested opening.
 
-**Research Focus was lopsided until step 4a**, when Attack held ten rows against Defense's two and Utility's one. The fix was not a per-category discount scale but **balancing the categories by Coin cost rather than row count**: a 25% discount is worth a quarter of what the category costs, so Defense's six rows now total 60,008 Coins against Attack's 60,009 and the two focuses are worth the same. Step 4b closed it. The Workshop now holds **20 rows, 1,466 ranks and 196,006 Coins**, split Attack 68,008 / Defense 60,008 / Utility 67,990 — within 12%, so a Research Focus is a genuine three-way choice. The growth from 86,007 is new content rather than repricing: every row that existed before step 4 still costs what it did.
+**Research Focus was lopsided until step 4a**, when Attack held ten rows against Defense's two and Utility's one. The fix was not a per-category discount scale but **balancing the categories by Coin cost rather than row count**: a 25% discount is worth a quarter of what the category costs. Step 4b closed it at **20 rows, 1,466 ranks and 196,006 Coins**, split Attack 68,008 / Defense 60,008 / Utility 67,990 — within 12%. The growth from 86,007 was new content rather than repricing; every row that existed before step 4 kept its price until D035.
 
-Cushion does nothing on Tier 1, because warm-up waves bank at least 600 Number before the first hit, even for a fresh player. On Tier 2 and above, the first hit lands at wave 1. That is deliberate: Cushion is the first stat whose value depends on which tier you play, and it is now priced in that tier's hits — its face value times the tier's pressure multiplier — rather than in absolute Number. Measured, that is exactly the intended shape: **+0 waves on Tier 1 and +2 on Tier 2.**
+### First-build Workshop prices (D035)
+
+The first 48 Coins could buy 12 Tap Damage ranks under the step-4 price curve, adding 0.6 tap damage. The new curve starts each row at half its old unrounded Coin price and rises smoothly to about 75% of its old final-rank price. It cuts the full Workshop from 196,006 to **134,163 Coins** without moving unlocks, rank caps or maximum stat values. Attack, Defense and Utility now cost **46,590 / 41,070 / 46,503 Coins** to max at list price, so a category Research Focus is still a meaningful choice.
+
+| Opening spend | Before D035 | After D035 |
+| --- | ---: | ---: |
+| First Tap Damage rank | 3 Coins | 2 Coins |
+| First Damage per Second rank | 4 Coins | 2 Coins |
+| First Armor rank | 8 Coins | 4 Coins |
+| With a 48-Coin budget | 12 Tap Damage ranks, 1 Coin left | 12 Tap Damage + 6 Damage per Second + 1 Armor, 1 Coin left |
+| Next Tier 1 run, seed 7, 2 taps/sec | wave 23, 56 repeatable Coins | wave 24, 71 repeatable Coins |
+
+The comparison uses the two listed builds at the same 48-Coin budget, not an optimal-spend claim. A fresh first run has no Workshop ranks and is unchanged. The user-supplied Tower research supports the shape of cheap opening ranks and smooth capped ladders; its flat-defense/Thorns loop, unlock charges and Coin amounts are not imported into this wave-based game.
+
+Cushion adds starting Number on every tier and scales that buffer with the tier's pressure. The D033/D034 warm-up replaced the old hit-free Tier 1 opening, so its early buffer now has a use even when it does not move the final wave. In the current seed-7, two-tap simulator, maxed Attack plus maxed Cushion still ends at Tier 1 wave 97 but starts with 500 more Number; on Tier 2 it reaches wave 26 rather than 25. The first Tier 1 run cannot buy Cushion because that row opens at Workshop level 60.
 
 ### What Defense is worth (step 4a, measured)
 
