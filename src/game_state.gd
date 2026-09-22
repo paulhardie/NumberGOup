@@ -21,6 +21,9 @@ const FREE_WAVES := 20
 const BOSS_WAVE_INTERVAL := 10
 const TIER_UNLOCK_WAVE := 100
 const BRACE_COST_PERCENT := 0.3
+## Brace Cost buys the gap down to here, never to free: a Brace that costs
+## nothing stops being a decision.
+const BRACE_COST_FLOOR := 0.15
 ## Armor's id is stable from the Shield Matrix save key it replaced (D013).
 const ARMOR_ID := "tax_resistance"
 ## How many ranks one Workshop press buys. MAX_BUY takes every rank the player
@@ -43,6 +46,11 @@ const STAT_DISPLAY := {
 	"cost_discount": {"unit": "percent", "base": 0.0, "op": "add"},
 	"starting_number_flat": {"unit": "flat", "base": 0.0, "op": "add"},
 	"collection_resistance": {"unit": "percent", "base": 0.0, "op": "add"},
+	"siphon_share": {"unit": "percent", "base": 0.0, "op": "add"},
+	"recoil_share": {"unit": "percent", "base": 0.0, "op": "add"},
+	# The card reads as what Brace costs, so it starts at 30% and descends.
+	"brace_discount": {"unit": "percent", "base": BRACE_COST_PERCENT, "op": "add"},
+	"second_wind_share": {"unit": "percent", "base": 0.0, "op": "add"},
 }
 
 var number := ScientificNumber.new()
@@ -60,6 +68,10 @@ var wave_accumulator := 0.0
 var coins := 0
 var highest_wave := 1
 var braced := false
+## The run's own peak, which Second Wind restores a share of. Distinct from
+## highest_number, which is permanent and drives dock unlocks.
+var run_peak_number := ScientificNumber.new()
+var second_wind_used := false
 var tax_encounters_enabled := true
 var in_run := false
 var run_coins_earned := 0
@@ -156,7 +168,11 @@ func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 		return false
 	# Number is run health/resources, never a banked head start. Permanent
 	# Workshop ranks define the baseline applied to every fresh attempt.
-	number = ScientificNumber.from_float(_effect_sum("starting_number_flat"))
+	# Cushion scales with the tier's pressure, or it is a trap above Tier 1:
+	# a flat 500 against a wave-1 hit twenty times that size buys nothing.
+	number = ScientificNumber.from_float(_effect_sum("starting_number_flat") * get_cushion_scale())
+	run_peak_number = number.copy()
+	second_wind_used = false
 	lifetime_generated = ScientificNumber.new()
 	workshop.tick_count = 0
 	momentum_stacks = 0
@@ -196,6 +212,11 @@ func is_tier_unlocked(tier_id: int) -> bool:
 		return false
 	return get_tier_best(tier_id - 1) >= balance_profile.get_tier(tier_id).unlock_previous_tier_wave
 
+## Cushion is the first stat whose worth depends on which tier is being played,
+## so it is priced in that tier's hits rather than in absolute Number.
+func get_cushion_scale(tier_id: int = selected_tier) -> float:
+	return balance_profile.get_tier(tier_id).collection_multiplier
+
 func get_tier_best(tier_id: int = selected_tier) -> int:
 	var record: Dictionary = tier_records.get(str(tier_id), {})
 	return int(record.get("highest_wave", 0))
@@ -229,9 +250,33 @@ func _resolve_wave_boundary() -> SimulationEvent:
 		collection = ScientificNumber.new()
 		braced = false
 	number = number.subtract(collection)
+	# Recoil turns the hit into progress on the wave that landed it. A braced
+	# boundary deals none, because no hit landed.
+	var recoil := _effect_sum("recoil_share")
+	if recoil > 0.0 and not collection.is_zero():
+		active_encounter.apply_compliance(collection.multiply_scalar(recoil))
 	if number.is_zero():
-		return _wave_death(wave)
+		var rescued := _try_second_wind()
+		if not rescued:
+			return _wave_death(wave)
+		return SimulationEvent.new("second_wind", number.copy())
 	return SimulationEvent.new("boss_collection" if active_encounter.is_boss else "tax_collection", collection)
+
+## Once per run, a hit that would end the run leaves a share of the run's peak
+## Number instead. The share is the rank's own value, so an early rank buys a
+## breath rather than a rescue.
+func _try_second_wind() -> bool:
+	if second_wind_used:
+		return false
+	var share := _effect_sum("second_wind_share")
+	if share <= 0.0:
+		return false
+	var restored := run_peak_number.multiply_scalar(share)
+	if restored.is_zero():
+		return false
+	second_wind_used = true
+	number = restored
+	return true
 
 func _complete_current_wave() -> SimulationEvent:
 	var completed_wave := wave
@@ -301,10 +346,13 @@ func get_effective_liability() -> ScientificNumber:
 func can_brace() -> bool:
 	return in_run and active_encounter != null and not active_encounter.is_cleared() and not braced and not number.is_zero()
 
+func get_brace_cost_percent() -> float:
+	return clampf(BRACE_COST_PERCENT + _effect_sum("brace_discount"), BRACE_COST_FLOOR, BRACE_COST_PERCENT)
+
 func brace() -> bool:
 	if not can_brace():
 		return false
-	number = number.subtract(number.multiply_scalar(BRACE_COST_PERCENT))
+	number = number.subtract(number.multiply_scalar(get_brace_cost_percent()))
 	braced = true
 	return true
 
@@ -477,6 +525,8 @@ func _reset_run_state() -> void:
 	wave = 1
 	wave_accumulator = 0.0
 	braced = false
+	run_peak_number = ScientificNumber.new()
+	second_wind_used = false
 	in_run = false
 	run_elapsed = 0.0
 	run_seed = 0
@@ -581,6 +631,11 @@ func _restore_saved_run(data: Dictionary) -> void:
 	run_elapsed = maxf(0.0, float(data.get("run_elapsed", 0.0)))
 	run_seed = str(data.get("run_seed", "0")).to_int()
 	braced = bool(data.get("braced", false))
+	# Added after V5 shipped; a save without them resumes with an unspent Second
+	# Wind and its peak re-established from the Number it restores.
+	var saved_peak: Variant = data.get("run_peak_number", null)
+	run_peak_number = ScientificNumber.from_dict(saved_peak) if saved_peak is Dictionary else number.copy()
+	second_wind_used = bool(data.get("second_wind_used", false))
 	if in_run:
 		var encounter_data: Variant = data.get("active_encounter", null)
 		active_encounter = TaxEncounterClass.from_dict(encounter_data) if encounter_data is Dictionary else _make_encounter(wave)
@@ -711,12 +766,20 @@ func has_persistent_storage() -> bool:
 ## (D012); lifetime production still counts all of it, so Knowledge is unchanged.
 func _add_number(amount: ScientificNumber) -> void:
 	lifetime_generated = lifetime_generated.add(amount)
-	var overflow := amount
+	var into_wave := ScientificNumber.new()
 	if in_run and active_encounter != null:
-		overflow = amount.subtract(active_encounter.apply_compliance(amount))
-	number = number.add(overflow)
+		into_wave = active_encounter.apply_compliance(amount)
+	var banked := amount.subtract(into_wave)
+	# Siphon is the one way damage dealt to a wave still reaches Number, which
+	# is what stops a wave you cannot beat from being a slow death sentence.
+	var siphon := _effect_sum("siphon_share")
+	if siphon > 0.0 and not into_wave.is_zero():
+		banked = banked.add(into_wave.multiply_scalar(siphon))
+	number = number.add(banked)
 	if number.compare_to(highest_number) > 0:
 		highest_number = number.copy()
+	if number.compare_to(run_peak_number) > 0:
+		run_peak_number = number.copy()
 
 func _ensure_tier_records() -> void:
 	for tier in balance_profile.tiers:
@@ -799,7 +862,11 @@ func _make_definitions() -> Array[UpgradeDefinition]:
 		UpgradeDefinition.new("chain_reaction", "CRIT CHAIN", "Chain Reaction. Each critical strengthens the next by 0.5% per rank.", ScientificNumber.from_float(15.47), ScientificNumber.from_float(1800), "workshop", {}, false, 1.06452, ProgressionTaxonomy.PROTOCOL, ATTACK, 60, 30),
 		UpgradeDefinition.new("automation_core", "AUTO CRANK", "+0.1 base damage every second per rank.", ScientificNumber.from_float(9.23), ScientificNumber.new(), "workshop", {"passive_flat": 0.1}, false, 1.07819, ProgressionTaxonomy.ROUTINE, ATTACK, 50, 60),
 		UpgradeDefinition.new(ARMOR_ID, "ARMOR", "Shield Matrix. Every hit is 0.4% smaller per rank.", ScientificNumber.from_float(7.45), ScientificNumber.new(), "workshop", {"collection_resistance": 0.004}, false, 1.03796, ProgressionTaxonomy.MODULE, DEFENSE, 100, 0),
+		UpgradeDefinition.new("siphon", "SIPHON", "+0.25% of the damage you deal still reaches your Number, per rank.", ScientificNumber.from_float(13.08), ScientificNumber.new(), "workshop", {"siphon_share": 0.0025}, false, 1.03796, ProgressionTaxonomy.MODULE, DEFENSE, 100, 30),
+		UpgradeDefinition.new("recoil", "RECOIL", "+0.5% of every hit you take is dealt back to the wave, per rank.", ScientificNumber.from_float(13.08), ScientificNumber.new(), "workshop", {"recoil_share": 0.005}, false, 1.03796, ProgressionTaxonomy.MODULE, DEFENSE, 100, 30),
 		UpgradeDefinition.new("priority_buffer", "CUSHION", "Starting Reserve. Begin every run with 10 Number per rank.", ScientificNumber.from_float(18.51), ScientificNumber.new(), "workshop", {"starting_number_flat": 10.0}, false, 1.07819, ProgressionTaxonomy.ROUTINE, DEFENSE, 50, 60),
+		UpgradeDefinition.new("brace_discount", "BRACE COST", "Brace costs 0.25 points less of your Number per rank, down to 15%.", ScientificNumber.from_float(10.82), ScientificNumber.new(), "workshop", {"brace_discount": -0.0025}, false, 1.06452, ProgressionTaxonomy.PROTOCOL, DEFENSE, 60, 12),
+		UpgradeDefinition.new("second_wind", "SECOND WIND", "Once per run, a hit that would end it leaves you 0.5% of your peak Number per rank.", ScientificNumber.from_float(12.95), ScientificNumber.new(), "workshop", {"second_wind_share": 0.005}, false, 1.07819, ProgressionTaxonomy.PROTOCOL, DEFENSE, 50, 60),
 		UpgradeDefinition.new("smarter_efficiency", "DISCOUNT", "Efficiency Matrix. All Workshop costs 0.25% lower per rank.", ScientificNumber.from_float(12.37), ScientificNumber.from_float(2500), "workshop", {"cost_discount": 0.0025}, false, 1.06452, ProgressionTaxonomy.MODULE, UTILITY, 60, 60),
 		UpgradeDefinition.new("insight", "INSIGHT", "Base production ×1.02 per rank. Costs Knowledge; survives every reset.", ScientificNumber.new(), ScientificNumber.new(), "knowledge", {"base_output_multiplier": 1.02}, true, 1.0, ProgressionTaxonomy.KNOWLEDGE, "", 999999, 0)
 	]

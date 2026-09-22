@@ -28,6 +28,11 @@ func _init() -> void:
 	_test_boss_axes_and_rewards()
 	_test_brace_blocks_next_collection()
 	_test_armor_reduces_the_hit_and_survives_reset()
+	_test_siphon_banks_a_share_of_damage_dealt()
+	_test_recoil_deals_the_hit_back_to_the_wave()
+	_test_brace_cost_falls_to_its_floor()
+	_test_second_wind_forgives_one_ending_hit()
+	_test_cushion_scales_with_the_tier()
 	_test_wave_death_resets_run_but_keeps_meta_progress()
 	_test_run_gates_the_wave_clock()
 	_test_retreat_ends_and_resets_run()
@@ -171,7 +176,8 @@ func _test_deepened_ladders_keep_their_old_maxima() -> void:
 		"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 100,
 		"faster_echo": 60, "burst_relay": 6, "more_critical": 100, "magnitude_coil": 60,
 		"chain_reaction": 60, "automation_core": 50, "tax_resistance": 100,
-		"priority_buffer": 50, "smarter_efficiency": 60,
+		"siphon": 100, "recoil": 100, "priority_buffer": 50, "brace_discount": 60,
+		"second_wind": 50, "smarter_efficiency": 60,
 	}
 	for definition in state.definitions:
 		if definition.category == ProgressionTaxonomy.WORKSHOP:
@@ -188,6 +194,10 @@ func _test_deepened_ladders_keep_their_old_maxima() -> void:
 	_expect(is_equal_approx(state._effect_sum("collection_resistance"), 0.4), "Armor should still cap at 40%")
 	_expect(is_equal_approx(state._effect_sum("starting_number_flat"), 500.0), "Cushion should still cap at 500 Number")
 	_expect(state._burst_interval() == 6, "Burst should still bottom out at every sixth tick")
+	_expect(is_equal_approx(state._effect_sum("siphon_share"), 0.25), "Siphon should cap at a quarter of the damage dealt")
+	_expect(is_equal_approx(state._effect_sum("recoil_share"), 0.5), "Recoil should cap at half of every hit")
+	_expect(is_equal_approx(state.get_brace_cost_percent(), GameState.BRACE_COST_FLOOR), "Brace Cost should cap at its floor")
+	_expect(is_equal_approx(state._effect_sum("second_wind_share"), 0.25), "Second Wind should cap at a quarter of the run's peak")
 
 func _test_workshop_effects() -> void:
 	var state := _funded_state()
@@ -261,6 +271,7 @@ func _test_save_v5_and_legacy_migration() -> void:
 	_expect(restored.in_run and restored.selected_tier == 2, "V5 should restore the active tier run")
 	_expect(restored.active_encounter.remaining_liability.compare_to(saved_remaining) == 0, "V5 should restore exact encounter liability")
 	_expect(restored.run_seed == 77 and restored.rng.state == saved_rng_state, "V5 should restore deterministic run RNG state")
+	_expect(restored.run_peak_number.compare_to(original.run_peak_number) == 0 and restored.second_wind_used == original.second_wind_used, "V5 should restore the run's peak and whether Second Wind is spent")
 	restored.clear_save()
 
 	# A real V4 save: built from a live state, then reshaped exactly as V4 stored
@@ -609,6 +620,104 @@ func _test_armor_reduces_the_hit_and_survives_reset() -> void:
 	var maxed_hit := state.get_effective_collection()
 	_expect(maxed_hit.compare_to(maxed_base.multiply_scalar(0.61)) < 0 and maxed_hit.compare_to(maxed_base.multiply_scalar(0.59)) > 0, "a maxed Armor should still take about 40% off the hit")
 	_expect(not maxed_hit.is_zero(), "Armor must never remove the hit entirely")
+
+## Siphon is the only route by which damage dealt to a wave also reaches Number.
+## It must not reduce what the wave takes.
+func _test_siphon_banks_a_share_of_damage_dealt() -> void:
+	var plain := GameState.new()
+	plain.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	plain.start_run(2, 40)
+	plain.number = ScientificNumber.from_float(1000)
+	plain.active_encounter.remaining_liability = ScientificNumber.from_float(100)
+	plain._add_number(ScientificNumber.from_float(40))
+	_expect(plain.number.compare_to(ScientificNumber.from_float(1000)) == 0, "without Siphon, damage into a wave banks nothing")
+
+	var state := GameState.new()
+	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	state.purchased = {"siphon": 100}
+	_expect(state.start_run(2, 41), "Tier 2 run should start after unlock")
+	state.number = ScientificNumber.from_float(1000)
+	state.active_encounter.remaining_liability = ScientificNumber.from_float(100)
+	state._add_number(ScientificNumber.from_float(40))
+	_expect(state.active_encounter.remaining_liability.compare_to(ScientificNumber.from_float(60)) == 0, "Siphon must not reduce the damage the wave takes")
+	_expect(state.number.compare_to(ScientificNumber.from_float(1010)) == 0, "a quarter of the 40 damage dealt should still reach Number")
+	state._add_number(ScientificNumber.from_float(100))
+	_expect(state.active_encounter.is_cleared(), "output past the remaining HP should beat the wave")
+	_expect(state.number.compare_to(ScientificNumber.from_float(1065)) == 0, "40 of overflow plus a quarter of the 60 absorbed should bank")
+
+func _test_recoil_deals_the_hit_back_to_the_wave() -> void:
+	var state := GameState.new()
+	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	state.purchased = {"recoil": 100}
+	state.start_run(2, 42)
+	state.number = ScientificNumber.from_float(100000)
+	state.active_encounter.remaining_liability = ScientificNumber.from_float(100000)
+	var hit := state.get_effective_collection()
+	var before: ScientificNumber = state.active_encounter.remaining_liability.copy()
+	var event := state._resolve_wave_boundary()
+	_expect(event.type == "tax_collection", "an uncleared wave should still hit")
+	_expect(state.active_encounter.remaining_liability.compare_to(before.subtract(hit.multiply_scalar(0.5))) == 0, "half the hit should be dealt back to the wave")
+	state.active_encounter.remaining_liability = ScientificNumber.from_float(100000)
+	var braced_before: ScientificNumber = state.active_encounter.remaining_liability.copy()
+	_expect(state.brace(), "Brace should be available against an active wave")
+	state._resolve_wave_boundary()
+	_expect(state.active_encounter.remaining_liability.compare_to(braced_before) == 0, "a braced boundary should deal no recoil, because no hit landed")
+
+func _test_brace_cost_falls_to_its_floor() -> void:
+	var state := GameState.new()
+	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	_expect(is_equal_approx(state.get_brace_cost_percent(), GameState.BRACE_COST_PERCENT), "Brace should cost 30% with no ranks")
+	var row := state.get_definition("brace_discount")
+	state.purchased = {"brace_discount": row.max_rank * 2}
+	_expect(is_equal_approx(state.get_brace_cost_percent(), GameState.BRACE_COST_FLOOR), "Brace must never fall below its floor, whatever the rank")
+	state.purchased = {"brace_discount": row.max_rank}
+	state.start_run(2, 43)
+	state.number = ScientificNumber.from_float(10000)
+	_expect(state.brace(), "Brace should be available against an active wave")
+	_expect(state.number.compare_to(ScientificNumber.from_float(8500)) == 0, "a maxed Brace Cost should spend 15%, not 30%")
+
+func _test_second_wind_forgives_one_ending_hit() -> void:
+	var bare := GameState.new()
+	bare.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	bare.start_run(2, 44)
+	bare.number = ScientificNumber.from_float(10)
+	_expect(bare._resolve_wave_boundary().type == "wave_death", "without the rank, an ending hit should still end the run")
+
+	var state := GameState.new()
+	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	state.purchased = {"second_wind": 50}
+	state.start_run(2, 45)
+	state.active_encounter.remaining_liability = ScientificNumber.new()
+	state._add_number(ScientificNumber.from_float(20000))
+	_expect(state.run_peak_number.compare_to(ScientificNumber.from_float(20000)) == 0, "the run should track its own peak Number")
+	state.active_encounter = state._make_encounter(1)
+	state.number = ScientificNumber.from_float(10)
+	var event := state._resolve_wave_boundary()
+	_expect(event.type == "second_wind", "a hit that would end the run should trigger Second Wind instead")
+	_expect(state.in_run and not state.number.is_zero(), "Second Wind should keep the run alive")
+	_expect(state.number.compare_to(ScientificNumber.from_float(5000)) == 0, "Second Wind should leave a quarter of the run's peak")
+	state.number = ScientificNumber.from_float(10)
+	_expect(state._resolve_wave_boundary().type == "wave_death", "Second Wind should fire at most once per run")
+
+	var fresh := GameState.new()
+	fresh.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	fresh.purchased = {"second_wind": 50}
+	fresh.start_run(2, 46)
+	_expect(not fresh.second_wind_used and fresh.run_peak_number.compare_to(ScientificNumber.new()) == 0, "a new run should start with Second Wind unspent and no peak")
+
+## Cushion is priced in the tier's hits rather than in absolute Number, or it is
+## a trap everywhere above Tier 1.
+func _test_cushion_scales_with_the_tier() -> void:
+	var state := GameState.new()
+	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	state.purchased = {"priority_buffer": 50}
+	state.start_run(1, 47)
+	_expect(state.number.compare_to(ScientificNumber.from_float(500)) == 0, "Cushion should be worth its face value on Tier 1")
+	state.end_run()
+	state.start_run(2, 47)
+	var scale := state.get_cushion_scale(2)
+	_expect(is_equal_approx(scale, 20.0), "Tier 2 should scale Cushion by its own pressure multiplier")
+	_expect(state.number.compare_to(ScientificNumber.from_float(500.0 * scale)) == 0, "Cushion should be worth twenty times as much against Tier 2 hits")
 
 func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	var state := GameState.new()

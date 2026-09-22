@@ -17,14 +17,36 @@ const ATTACK_MAX := {
 ## of the two opening rows.
 const MID := {"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 60}
 const EARLY := {"stronger_tap": 40, "generator": 40}
-## label, tier, Workshop ranks, Armor rank. Progressed builds start with
-## every Tier 1 milestone claimed, so Coins per minute reflects repeatable rewards.
+## Defense rows at their caps, and the pieces of that build worth measuring on
+## their own: balance target 6 asks that each one visibly move an outcome.
+const ARMOR := {"tax_resistance": 100}
+const SIPHON := {"siphon": 100}
+const RECOIL := {"recoil": 100}
+const CUSHION := {"priority_buffer": 50}
+const SECOND_WIND := {"second_wind": 50}
+const DEFENSE_MAX := {
+	"tax_resistance": 100, "siphon": 100, "recoil": 100,
+	"priority_buffer": 50, "brace_discount": 60, "second_wind": 50,
+}
+## label, tier, Workshop ranks. Progressed builds start with every Tier 1
+## milestone claimed, so Coins per minute reflects repeatable rewards.
 const BUILD_MATRIX := [
-	["early", 1, EARLY, 0],
-	["mid", 1, MID, 0],
-	["attack max", 1, ATTACK_MAX, 0],
-	["attack max + armor 40%", 1, ATTACK_MAX, 100],
-	["attack max + armor 40%", 2, ATTACK_MAX, 100],
+	["early", 1, EARLY],
+	["mid", 1, MID],
+	["attack max", 1, ATTACK_MAX],
+	["attack max + armor", 1, [ATTACK_MAX, ARMOR]],
+	["attack max + siphon", 1, [ATTACK_MAX, SIPHON]],
+	["attack max + recoil", 1, [ATTACK_MAX, RECOIL]],
+	["attack max + cushion", 1, [ATTACK_MAX, CUSHION]],
+	["attack max + 2nd wind", 1, [ATTACK_MAX, SECOND_WIND]],
+	["attack max + defense max", 1, [ATTACK_MAX, DEFENSE_MAX]],
+	["defense max only", 1, DEFENSE_MAX],
+	["attack max", 2, ATTACK_MAX],
+	["attack max + armor", 2, [ATTACK_MAX, ARMOR]],
+	# Cushion is the one stat whose worth depends on the tier, so it is measured
+	# where it is meant to matter as well as where it is meant not to.
+	["attack max + cushion", 2, [ATTACK_MAX, CUSHION]],
+	["attack max + defense max", 2, [ATTACK_MAX, DEFENSE_MAX]],
 ]
 const PURCHASE_ORDER := [
 	"stronger_tap",
@@ -56,13 +78,23 @@ func _init() -> void:
 	_simulate_representative_tier_one()
 	print("BUILD MATRIX  2 taps/sec, seed ", SEED)
 	for build in BUILD_MATRIX:
-		_simulate_build(build[0], build[1], build[2], build[3])
+		_simulate_build(build[0], build[1], _ranks(build[2]))
 	quit(0)
 
-func _simulate_build(label: String, tier: int, ranks: Dictionary, armor: int) -> void:
+## A build is one rank dictionary or a list of them merged, so the pieces can be
+## named once and combined without repeating every Attack rank.
+func _ranks(spec: Variant) -> Dictionary:
+	if spec is Dictionary:
+		return (spec as Dictionary).duplicate()
+	var merged := {}
+	for part in spec as Array:
+		for key in part as Dictionary:
+			merged[key] = (part as Dictionary)[key]
+	return merged
+
+func _simulate_build(label: String, tier: int, ranks: Dictionary) -> void:
 	var state := GameState.new()
 	state.purchased = ranks.duplicate()
-	state.purchased[GameState.ARMOR_ID] = armor
 	state.tier_records["1"] = {"highest_wave": 100, "milestones_claimed": [10, 25, 50, 100]}
 	state.start_run(tier, SEED)
 	var hits := 0

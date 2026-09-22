@@ -79,6 +79,7 @@ var boss_label: Label
 var boss_separator: Label
 var encounter_label: Label
 var brace_button: Button
+var brace_cost_label: Label
 var armor_button: Button
 var armor_cost_label: Label
 var run_button: Button
@@ -169,6 +170,11 @@ func _process(delta: float) -> void:
 			_show_toast("BOSS CLEARED  ·  +" + event.amount.format_value() + " COINS", CRITICAL)
 		elif event.type == "tier_unlock":
 			_show_toast("TIER " + event.amount.format_value() + " UNLOCKED", CRITICAL)
+		elif event.type == "second_wind":
+			_show_toast("SECOND WIND  ·  " + event.amount.format_value() + " LEFT", CRITICAL)
+			_flash_number(CRITICAL, 0.6)
+			_pulse_stage_impact(CRITICAL)
+			_shake_number()
 		elif event.type == "wave_death":
 			_show_died_screen(state.last_run_summary)
 			_snap_number_display()
@@ -379,8 +385,9 @@ func _build_run_controls(parent: Control) -> void:
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	actions.add_theme_constant_override("separation", 60)
 	parent.add_child(actions)
-	brace_button = _make_text_action("BRACE", "30% OF NUMBER")
-	brace_button.tooltip_text = "Spend 30% of Number to block the next Collection hit."
+	brace_button = _make_text_action("BRACE", "")
+	brace_button.tooltip_text = "Spend a share of Number to block the next hit. Brace Cost lowers the share."
+	brace_cost_label = brace_button.get_meta("cost_label")
 	brace_button.pressed.connect(_on_brace_pressed)
 	actions.add_child(brace_button)
 	# Armor is an ordinary Workshop rank now (D013); this is a shortcut to the
@@ -1134,6 +1141,7 @@ func _refresh_run_bar() -> void:
 	_refresh_boss_notice()
 	_refresh_encounter_line()
 	brace_button.visible = state.in_run
+	brace_cost_label.text = "%.0f%% OF NUMBER" % (state.get_brace_cost_percent() * 100.0)
 	brace_button.disabled = not state.can_brace()
 	_set_action_enabled(brace_button, not brace_button.disabled)
 	var armor := state.get_definition(GameState.ARMOR_ID)

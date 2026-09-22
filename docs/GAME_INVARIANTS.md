@@ -18,7 +18,7 @@
 ## Must — encounter contracts
 
 - During a run, every unit produced damages the active wave's remaining Liability first; only output beyond it is added to Number (D012). Liability floors at zero, and lifetime production counts all output.
-- Collection is an absolute value deducted from Number at each wave boundary while Liability remains. Number reaching zero ends and resets the run.
+- Collection is an absolute value deducted from Number at each wave boundary while Liability remains. Number reaching zero ends and resets the run, unless an unspent Second Wind restores a share of the run's peak Number, which it may do at most once per run (D020).
 - Tier 2 and Tier 3 apply exactly 20× and 60× Tier 1 Liability and Collection at equal pressured waves; reward multipliers are 1.8× and 2.6×.
 - Boss waves multiply Liability (3×), Collection (1.5×) and reward (5×) independently.
 - Milestones at waves 10/25/50/100 are claimable at most once per tier record.
@@ -40,7 +40,7 @@
 - The first failed run funds at least one permanent Workshop rank.
 - UI presents and reports; it mutates domain state only by calling `GameState` methods.
 - Every Workshop row belongs to exactly one of the four categories (Attack, Defense, Utility, Ultimates) and opens at its own Workshop level: 0, 12, 30 or 60. Retired bays gated each row at the same level the row itself required, so their removal moved nothing; D019 then moved the levels to hold the same Coin pacing across deeper ladders.
-- Brace spends 30% of current Number and blocks exactly the next Collection hit.
+- Brace spends 30% of current Number, less whatever Brace Cost has bought, never below a 15% floor, and blocks exactly the next Collection hit. A blocked boundary deals no Recoil, because no hit landed.
 - A run ending explains itself: the summary states the tier, wave, Coins and Knowledge earned.
 - Highest Number and tier records persist across runs for stats and dock unlocks.
 
