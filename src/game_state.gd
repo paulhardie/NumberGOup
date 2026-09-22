@@ -10,6 +10,7 @@ const SaveDataV3Class = preload("res://src/save_data_v3.gd")
 const SaveDataV4Class = preload("res://src/save_data_v4.gd")
 const SaveDataV5Class = preload("res://src/save_data_v5.gd")
 const SaveDataV6Class = preload("res://src/save_data_v6.gd")
+const SaveDataV7Class = preload("res://src/save_data_v7.gd")
 
 const SAVE_PATH := "user://number_go_up_save.json"
 ## What the last load() found, for the UI to report (D028).
@@ -113,7 +114,10 @@ var lab_research = LabResearchClass.new()
 ## Permanent, like `purchased`: a finished rank never resets. Keyed by
 ## research id.
 var lab_ranks: Dictionary = {}
-## Research in progress, at most LAB_SLOTS entries. Each value is
+## Research slots open, from STARTING_SLOTS to MAX_SLOTS. Permanent: bought
+## with Gems and never reset (D029).
+var lab_slots: int = LabResearchClass.STARTING_SLOTS
+## Research in progress, at most lab_slots entries. Each value is
 ## {"started_unix": float, "duration": float}; an entry is removed the moment
 ## it settles into a rank, so this dictionary's size is the slots in use.
 var lab_active: Dictionary = {}
@@ -587,7 +591,23 @@ func lab_active_count(now_unix: float = -1.0) -> int:
 	return lab_active.size()
 
 func lab_slots_total() -> int:
-	return LabResearchClass.LAB_SLOTS
+	return lab_slots
+
+## Gems for the next Lab slot, or 0 once all of them are open.
+func get_lab_slot_cost() -> int:
+	return lab_research.slot_cost(lab_slots)
+
+## Opening a slot spends Gems, which like Coins are a between-run resource.
+func can_unlock_lab_slot() -> bool:
+	var cost := get_lab_slot_cost()
+	return not in_run and cost > 0 and gems >= cost
+
+func unlock_lab_slot() -> bool:
+	if not can_unlock_lab_slot():
+		return false
+	gems -= get_lab_slot_cost()
+	lab_slots += 1
+	return true
 
 func get_lab_cost(research_id: String, now_unix: float = -1.0) -> int:
 	var definition := lab_research.get_definition(research_id)
@@ -906,7 +926,7 @@ func save() -> bool:
 	var file := FileAccess.open(temp, FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify(SaveDataV6Class.make(self), "", true, true))
+	file.store_string(JSON.stringify(SaveDataV7Class.make(self), "", true, true))
 	var write_error := file.get_error()
 	file.close()
 	if write_error != OK:
@@ -952,7 +972,7 @@ func _read_save(path: String) -> Dictionary:
 		return {"status": READ_UNREADABLE}
 	var data: Dictionary = json.data
 	var version := int(data.get("version", 0)) if (data.get("version") is int or data.get("version") is float) else 0
-	if version > SaveDataV6Class.VERSION:
+	if version > SaveDataV7Class.VERSION:
 		return {"status": READ_NEWER}
 	var known := (
 		SaveDataV2.is_legacy_v1(data)
@@ -961,8 +981,9 @@ func _read_save(path: String) -> Dictionary:
 		or SaveDataV4Class.is_valid(data)
 		or SaveDataV5Class.is_valid(data)
 		or SaveDataV6Class.is_valid(data)
+		or SaveDataV7Class.is_valid(data)
 	)
-	if not known or SaveDataV6Class.problem(data) != "":
+	if not known or SaveDataV7Class.problem(data) != "":
 		return {"status": READ_UNREADABLE}
 	return {"status": READ_OK, "data": data}
 
@@ -979,11 +1000,14 @@ func _load_parsed(data: Dictionary, source_path: String) -> OfflineAward:
 			return _migrate_v4(data, source_path)
 		5:
 			return _migrate_v5(data, source_path)
+		6:
+			return _migrate_v6(data, source_path)
 	return _load_current(data)
 
-## V5 and V6 share every key and meaning; V6 only declares the fields added to
-## V5 after it shipped and adds the run's tick phase and crit chain, which a
-## V5 save resumes without, as it always did.
+## V5, V6 and V7 share every key and meaning. V6 declared the fields added to
+## V5 after it shipped and added the run's tick phase and crit chain, which a
+## V5 save resumes without, as it always did; V7 adds the Lab slot count, which
+## an older save reads as the two slots every player then had.
 func _load_current(data: Dictionary) -> OfflineAward:
 	_load_common_fields(data)
 	_load_tier_progress(data)
@@ -993,6 +1017,11 @@ func _load_current(data: Dictionary) -> OfflineAward:
 func _migrate_v5(data: Dictionary, source_path: String) -> OfflineAward:
 	var award := _load_current(data)
 	_save_migrated_state(5, source_path)
+	return award
+
+func _migrate_v6(data: Dictionary, source_path: String) -> OfflineAward:
+	var award := _load_current(data)
+	_save_migrated_state(6, source_path)
 	return award
 
 ## V4 kept the Workshop in four bays, with the Armor rank in a field of its own.
@@ -1144,6 +1173,9 @@ func _load_common_fields(data: Dictionary) -> void:
 					"duration": float(entry.duration),
 				}
 	_settle_labs()
+	# V7 (D029). A save without the field predates bought slots, when every
+	# player had two, so it keeps two rather than dropping to the new start.
+	lab_slots = clampi(int(data.get("lab_slots", LabResearchClass.LEGACY_SLOTS)), LabResearchClass.STARTING_SLOTS, LabResearchClass.MAX_SLOTS)
 	# Added after V5 shipped too: Cards are permanent, like Labs (D027).
 	gems = int(data.get("gems", 0))
 	var saved_card_ranks: Variant = data.get("card_ranks", {})
@@ -1219,6 +1251,7 @@ func _migrate_v1(data: Dictionary, source_path: String) -> void:
 		if not mapped_ids.has(legacy_id):
 			credit += maxi(0, int(legacy[legacy_id]))
 	workshop.legacy_credit = credit
+	lab_slots = LabResearchClass.LEGACY_SLOTS
 	focus_path = ProgressionTaxonomy.category_for_legacy_bay(str(data.get("focus", "")))
 	var old_target := str(data.get("auto_selected", ""))
 	if old_target != "":
@@ -1240,7 +1273,7 @@ func _save_migrated_state(from_version: int, source_path: String) -> void:
 func clear_save() -> void:
 	for path in [save_path, _backup_path(), _temp_path()]:
 		_remove_if_present(path)
-	for version in range(1, SaveDataV6Class.VERSION):
+	for version in range(1, SaveDataV7Class.VERSION):
 		_remove_if_present(_migration_backup_path(version))
 	var folder := save_path.get_base_dir()
 	var quarantine_prefix := save_path.get_file().get_basename() + QUARANTINE_INFIX
