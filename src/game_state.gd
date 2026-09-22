@@ -413,20 +413,16 @@ func get_effective_collection() -> ScientificNumber:
 	if active_encounter == null:
 		return ScientificNumber.new()
 	var modifiers := active_rule_modifiers.duplicate(true)
+	# The combined ceiling (D023): Workshop, Rig, Lab and Card Armor stack, and
+	# without a limit a run could stop taking hits entirely. The ceiling bounds
+	# Armor's own share rather than the final hit, so a later rule that shrinks
+	# hits for its own reason keeps its effect instead of being clawed back.
+	var resistance := clampf(_effect_sum("collection_resistance"), 0.0, balance_profile.COLLECTION_RESISTANCE_CEILING)
 	modifiers.append({
 		"source": "armor",
 		"target": "collection",
 		"stage": "multiplicative",
-		"value": clampf(1.0 - _effect_sum("collection_resistance"), 0.0, 1.0),
-	})
-	# The combined ceiling (D023): Workshop Armor and Rig Armor stack, and
-	# without a floor a run could stop taking hits entirely. cap_min runs last
-	# in the pipeline, so it bounds the final value whichever lens supplied it.
-	modifiers.append({
-		"source": "armor_ceiling",
-		"target": "collection",
-		"stage": "cap_min",
-		"amount": active_encounter.collection.multiply_scalar(1.0 - balance_profile.COLLECTION_RESISTANCE_CEILING).to_dict(),
+		"value": 1.0 - resistance,
 	})
 	return RuleModifierPipelineClass.apply(active_encounter.collection, "collection", modifiers)
 
@@ -1153,15 +1149,20 @@ func _load_common_fields(data: Dictionary) -> void:
 	number = ScientificNumber.from_dict(data.number)
 	lifetime_generated = ScientificNumber.from_dict(data.lifetime)
 	highest_number = ScientificNumber.from_dict(data.get("highest", data.number))
-	purchased = data.get("purchased", {})
+	purchased = _ranks_within_caps(data.get("purchased", {}))
 	knowledge = int(data.get("knowledge", 0))
-	knowledge_purchased = data.get("knowledge_purchased", {})
+	knowledge_purchased = _ranks_within_caps(data.get("knowledge_purchased", {}))
 	# Added after V5 shipped, like the Rig's ranks (D015): a save without Labs
 	# resumes with none, and a malformed block reads as empty rather than
 	# crashing. Labs are permanent, so they load in the common fields rather
 	# than the active-run block.
 	var saved_lab_ranks: Variant = data.get("lab_ranks", {})
-	lab_ranks = saved_lab_ranks.duplicate(true) if saved_lab_ranks is Dictionary else {}
+	lab_ranks = {}
+	if saved_lab_ranks is Dictionary:
+		for research_id in saved_lab_ranks:
+			var lab_definition = lab_research.get_definition(str(research_id))
+			var lab_rank := maxi(0, int(saved_lab_ranks[research_id])) if (saved_lab_ranks[research_id] is int or saved_lab_ranks[research_id] is float) else 0
+			lab_ranks[str(research_id)] = mini(lab_rank, lab_definition.max_rank) if lab_definition != null else lab_rank
 	lab_active.clear()
 	var saved_lab_active: Variant = data.get("lab_active", {})
 	if saved_lab_active is Dictionary:
@@ -1179,7 +1180,11 @@ func _load_common_fields(data: Dictionary) -> void:
 	# Added after V5 shipped too: Cards are permanent, like Labs (D027).
 	gems = int(data.get("gems", 0))
 	var saved_card_ranks: Variant = data.get("card_ranks", {})
-	card_ranks = saved_card_ranks.duplicate(true) if saved_card_ranks is Dictionary else {}
+	card_ranks = {}
+	if saved_card_ranks is Dictionary:
+		for card_id in saved_card_ranks:
+			var level: Variant = saved_card_ranks[card_id]
+			card_ranks[str(card_id)] = clampi(int(level), 0, CardCollectionClass.MAX_LEVEL) if (level is int or level is float) else 0
 	card_active.clear()
 	var saved_card_active: Variant = data.get("card_active", [])
 	if saved_card_active is Array:
@@ -1199,6 +1204,19 @@ func _load_common_fields(data: Dictionary) -> void:
 	# "ambience" named the retired background pad. Dropping it on load keeps the
 	# dead key out of saves rewritten in the current shape.
 	settings.erase("ambience")
+
+## Ranks as the catalogue allows them: whole, never negative, and never past a
+## row's cap, so a cap lowered by a retune takes effect on saves that already
+## hold more. A rank under an id the catalogue no longer has is kept as it was:
+## nothing counts it, and keeping it leaves a refund possible later.
+func _ranks_within_caps(saved: Dictionary) -> Dictionary:
+	var ranks := {}
+	for upgrade_id in saved:
+		var value: Variant = saved[upgrade_id]
+		var rank := maxi(0, int(value)) if (value is int or value is float) else 0
+		var definition := get_definition(str(upgrade_id))
+		ranks[str(upgrade_id)] = mini(rank, definition.max_rank) if definition != null else rank
+	return ranks
 
 func _migrate_v2(data: Dictionary, source_path: String) -> OfflineAward:
 	_load_common_fields(data)
