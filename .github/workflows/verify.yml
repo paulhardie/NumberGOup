@@ -1,0 +1,54 @@
+name: Verify
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: Economy tests and headless boot
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GODOT_VERSION: 4.7.2-stable
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Godot
+        run: |
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}"
+          curl -fsSLO "${base}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          curl -fsSLO "${base}/SHA512-SUMS.txt"
+          expected="$(grep -F "  Godot_v${GODOT_VERSION}_linux.x86_64.zip" SHA512-SUMS.txt)"
+          test -n "${expected}" || { echo "checksum entry missing"; exit 1; }
+          printf '%s\n' "${expected}" | sha512sum -c -
+          unzip -q "Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          mv "Godot_v${GODOT_VERSION}_linux.x86_64" godot
+          chmod +x godot
+          echo "GODOT=${PWD}/godot" >> "$GITHUB_ENV"
+
+      - name: Import project
+        run: bash run_godot.sh --headless --path . --import
+
+      - name: Economy tests
+        run: bash run_tests.sh
+
+      - name: Headless boot
+        run: |
+          output="$(bash run_godot.sh --headless --path . --quit 2>&1)"
+          printf '%s\n' "$output"
+          if printf '%s\n' "$output" | grep -E 'SCRIPT ERROR|Parse Error'; then
+            echo "::error::Godot reported script or parse errors"
+            exit 1
+          fi
