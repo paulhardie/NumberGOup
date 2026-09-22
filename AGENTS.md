@@ -235,7 +235,7 @@ bash run_godot.sh --path . -s res://tools/capture_ui.gd
 - The headless project run catches parse and scene-build errors in `main.gd` and the UI classes.
 - CI runs the same baseline on every pull request and push to `main` (`.github/workflows/verify.yml`), with its Godot version pinned to match the development build — update the pin when upgrading Godot. `main` requires a pull request with a passing "Economy tests and headless boot" check.
 - The capture tool opens briefly and writes hub/run/run_standing/boss/workshop/knowledge/lost/drawer PNGs at four window sizes to `user://ui_capture` for visual review, and prints the folder it wrote to; inspect them, never assert pixel equality. It saves to a throwaway file, never the real save.
-- Tests write `res://.number_go_up_test_save.json` and clear it; a leftover file is a bug in the test, not content.
+- Tests write `res://.number_go_up_test_save.json` (and, since D028, its `.bak`, migration and moved-aside copies) and clear them; a leftover file is a bug in the test, not content.
 - `opencode.json` disables the GDScript language server for agents that read it. Godot's LSP is TCP and only runs while the editor is open, which hangs clients that expect stdio; the [`opencode-godot-lsp`](https://github.com/MasuRii/opencode-godot-lsp) bridge is the way to turn it back on.
 
 ### Verifying

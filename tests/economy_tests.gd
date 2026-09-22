@@ -14,7 +14,10 @@ func _init() -> void:
 	_test_workshop_effects()
 	_test_burst_and_positive_chance()
 	_test_permanent_baseline_and_starting_reserve()
-	_test_save_v5_and_legacy_migration()
+	_test_save_v6_and_legacy_migration()
+	_test_bad_saves_are_never_written_over()
+	_test_v5_saves_migrate_to_v6_without_loss()
+	_test_long_run_replays_identically_across_a_reload()
 	_test_offline_policy()
 	_test_prestige_reset_and_gain()
 	_test_first_run_funds_permanent_workshop()
@@ -278,7 +281,7 @@ func _test_permanent_baseline_and_starting_reserve() -> void:
 	state.end_run()
 	_expect(state.get_owned("priority_buffer") == 50 and state.get_owned("automation_core") == 50, "Workshop ranks must survive retreat")
 
-func _test_save_v5_and_legacy_migration() -> void:
+func _test_save_v6_and_legacy_migration() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
 	var original: GameState = _funded_state()
 	original.save_path = save_path
@@ -290,16 +293,16 @@ func _test_save_v5_and_legacy_migration() -> void:
 	original.tap()
 	var saved_remaining: ScientificNumber = original.active_encounter.remaining_liability.copy()
 	var saved_rng_state := original.rng.state
-	_expect(original.save(), "V4 save should write")
+	_expect(original.save(), "the current save should write")
 	var restored := GameState.new()
 	restored.save_path = save_path
 	restored.load()
-	_expect(restored.get_owned("stronger_tap") == 2 and restored.workshop.tick_count == 7, "V5 permanent Workshop state should round-trip")
-	_expect(restored.workshop.selected_category == original.workshop.selected_category, "V5 should round-trip the open Workshop category")
-	_expect(restored.in_run and restored.selected_tier == 2, "V5 should restore the active tier run")
-	_expect(restored.active_encounter.remaining_liability.compare_to(saved_remaining) == 0, "V5 should restore exact encounter liability")
-	_expect(restored.run_seed == 77 and restored.rng.state == saved_rng_state, "V5 should restore deterministic run RNG state")
-	_expect(restored.run_peak_number.compare_to(original.run_peak_number) == 0 and restored.second_wind_used == original.second_wind_used, "V5 should restore the run's peak and whether Second Wind is spent")
+	_expect(restored.get_owned("stronger_tap") == 2 and restored.workshop.tick_count == 7, "V6 permanent Workshop state should round-trip")
+	_expect(restored.workshop.selected_category == original.workshop.selected_category, "V6 should round-trip the open Workshop category")
+	_expect(restored.in_run and restored.selected_tier == 2, "V6 should restore the active tier run")
+	_expect(restored.active_encounter.remaining_liability.compare_to(saved_remaining) == 0, "V6 should restore exact encounter liability")
+	_expect(restored.run_seed == 77 and restored.rng.state == saved_rng_state, "V6 should restore deterministic run RNG state")
+	_expect(restored.run_peak_number.compare_to(original.run_peak_number) == 0 and restored.second_wind_used == original.second_wind_used, "V6 should restore the run's peak and whether Second Wind is spent")
 	restored.clear_save()
 
 	# A real V4 save: built from a live state, then reshaped exactly as V4 stored
@@ -312,7 +315,7 @@ func _test_save_v5_and_legacy_migration() -> void:
 	v4_source.tap()
 	var v4_remaining: ScientificNumber = v4_source.active_encounter.remaining_liability.copy()
 	var v4_rng_state := v4_source.rng.state
-	var v4: Dictionary = SaveDataV5.make(v4_source)
+	var v4: Dictionary = SaveDataV6.make(v4_source)
 	v4.version = 4
 	v4.purchased = {"stronger_tap": 2, "generator": 1}
 	v4.tax_resistance_rank = 3
@@ -335,8 +338,12 @@ func _test_save_v5_and_legacy_migration() -> void:
 	var rewritten := GameState.new()
 	rewritten.save_path = save_path
 	rewritten.load()
-	_expect(rewritten.get_owned(GameState.ARMOR_ID) == 3 and rewritten.focus_path == ProgressionTaxonomy.ATTACK, "migration should rewrite the save in V5 shape immediately")
+	_expect(rewritten.get_owned(GameState.ARMOR_ID) == 3 and rewritten.focus_path == ProgressionTaxonomy.ATTACK, "migration should rewrite the save in the current shape immediately")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV6.VERSION, "the rewritten save should carry the current version")
+	var kept_v4 := "res://.number_go_up_test_save.v4-backup.json"
+	_expect(int(_read_json(kept_v4).get("version", 0)) == 4, "migration should keep the V4 file it read, unchanged, beside the new save")
 	rewritten.clear_save()
+	_expect(not FileAccess.file_exists(kept_v4), "clearing the save should also remove its migration copy")
 
 	var v3 := {
 		"version": 3,
@@ -387,8 +394,8 @@ func _test_save_v5_and_legacy_migration() -> void:
 	_expect(not migrated_v2.in_run and migrated_v2.wave == 1, "a banked V2 run should become a fresh, non-exploitable run")
 	migrated_v2.clear_save()
 
-	# Malformed and unknown-version saves must not crash or half-load: the load
-	# returns an empty award and the state stays the fresh default.
+	# Malformed and newer-version saves must not crash or half-load: the load
+	# leaves the fresh default state.
 	for broken in [{"version": 99, "number": ScientificNumber.from_float(5).to_dict(), "lifetime": ScientificNumber.from_float(5).to_dict()}, {"version": 5}, {}]:
 		_write_json(save_path, broken)
 		var refused := GameState.new()
@@ -396,6 +403,7 @@ func _test_save_v5_and_legacy_migration() -> void:
 		refused.load()
 		_expect(refused.number.is_zero() and refused.coins == 0 and not refused.in_run, "an unreadable save should leave a fresh state, not a partial one")
 		refused.clear_save()
+	_expect(_leftover_save_files().is_empty(), "clearing the save should leave no file behind")
 	var v1 := {
 		"version": 1,
 		"number": ScientificNumber.from_float(100).to_dict(),
@@ -416,6 +424,156 @@ func _test_save_v5_and_legacy_migration() -> void:
 	_expect(migrated_v1.workshop.legacy_credit == 6, "unmatched V1 progress should become Workshop credit")
 	_expect(migrated_v1.workshop.automation_targets == ["generator"], "V1 automation should become first priority")
 	migrated_v1.clear_save()
+
+## D028: no save the loader cannot read is ever written over. A newer build's
+## save pauses saving; an unreadable one is moved aside intact and the backup
+## the previous save left behind loads instead; a write swaps in whole.
+func _test_bad_saves_are_never_written_over() -> void:
+	var save_path := "res://.number_go_up_test_save.json"
+	var backup_path := save_path + ".bak"
+
+	# Every save after the first keeps the one it replaced as the backup, and
+	# leaves no temp file behind.
+	var writer := _funded_state()
+	writer.save_path = save_path
+	writer.coins = 111
+	_expect(writer.save(), "a first save should write")
+	writer.coins = 222
+	_expect(writer.save(), "a second save should write")
+	_expect(int(_read_json(save_path).get("coins", 0)) == 222 and int(_read_json(backup_path).get("coins", 0)) == 111, "a save should keep the save it replaced as the backup")
+	_expect(not FileAccess.file_exists(save_path + ".tmp"), "a finished save should leave no temp file")
+	writer.clear_save()
+
+	# A save from a newer build is left byte for byte, and saving pauses.
+	var future: Dictionary = SaveDataV6.make(_funded_state())
+	future.version = SaveDataV6.VERSION + 1
+	_write_json(save_path, future)
+	var future_text := FileAccess.get_file_as_string(save_path)
+	var older_build := GameState.new()
+	older_build.save_path = save_path
+	older_build.load()
+	_expect(older_build.load_status == GameState.LOAD_NEWER and older_build.saving_paused, "a newer save should pause saving")
+	_expect(older_build.coins == 0, "a newer save should not be half-read")
+	_expect(not older_build.save(), "a paused save should refuse to write")
+	_expect(FileAccess.get_file_as_string(save_path) == future_text, "a newer save should be left exactly as it was")
+	older_build.clear_save()
+
+	# A live save that cannot be read is moved aside, and the backup loads.
+	var good := _funded_state()
+	good.coins = 999
+	_write_json(backup_path, SaveDataV6.make(good))
+	var torn := JSON.stringify(SaveDataV6.make(_funded_state()))
+	_write_text(save_path, torn.substr(0, torn.length() / 2))
+	var recovered := GameState.new()
+	recovered.save_path = save_path
+	recovered.load()
+	_expect(recovered.load_status == GameState.LOAD_RECOVERED and recovered.coins == 999, "a torn live save should fall back to the backup")
+	var moved_aside := _leftover_save_files().filter(func(name): return str(name).contains(GameState.QUARANTINE_INFIX))
+	_expect(moved_aside.size() == 1 and FileAccess.get_file_as_string("res://" + str(moved_aside[0])) == torn.substr(0, torn.length() / 2), "the torn save should be kept, byte for byte, beside the live one")
+	_expect(recovered.save() and int(_read_json(save_path).get("coins", 0)) == 999, "saving after a recovery should write the recovered state")
+	recovered.clear_save()
+	_expect(_leftover_save_files().is_empty(), "clearing the save should also remove the moved-aside copy")
+
+	# With no backup to fall back to, the game starts fresh and says so, and
+	# the unreadable save is still kept.
+	var typed_wrong: Dictionary = SaveDataV6.make(_funded_state())
+	typed_wrong.purchased = "not a dictionary"
+	var not_finite := JSON.stringify(SaveDataV6.make(_funded_state())).replace('"highest":{"exponent":0,"mantissa":0.0}', '"highest":{"exponent":0,"mantissa":1e999}')
+	for unreadable in [JSON.stringify(typed_wrong), not_finite, "{", ""]:
+		_write_text(save_path, unreadable)
+		var fresh := GameState.new()
+		fresh.save_path = save_path
+		fresh.load()
+		_expect(fresh.load_status == GameState.LOAD_UNREADABLE and fresh.coins == 0 and not fresh.in_run, "an unreadable save with no backup should start a fresh game")
+		_expect(not FileAccess.file_exists(save_path) and _leftover_save_files().size() == 1, "the unreadable save should be moved aside rather than left to be written over")
+		fresh.clear_save()
+
+	# A live save that vanished between the two renames of a save still has its
+	# backup.
+	_write_json(backup_path, SaveDataV6.make(good))
+	var interrupted := GameState.new()
+	interrupted.save_path = save_path
+	interrupted.load()
+	_expect(interrupted.load_status == GameState.LOAD_RECOVERED and interrupted.coins == 999, "a missing live save should fall back to the backup")
+	interrupted.clear_save()
+	var nothing := GameState.new()
+	nothing.save_path = save_path
+	nothing.load()
+	_expect(nothing.load_status == GameState.LOAD_NEW_GAME, "no save at all should read as a new game")
+	_expect(ScientificNumber.new(INF, 0).is_zero() and ScientificNumber.new(NAN, 3).is_zero(), "a non-finite value should read as zero rather than hang")
+	_expect(_leftover_save_files().is_empty(), "the bad-save checks should leave no file behind")
+
+## Every field V5 gained after it shipped survives the move to V6, and the V5
+## file is kept beside the new save.
+func _test_v5_saves_migrate_to_v6_without_loss() -> void:
+	var save_path := "res://.number_go_up_test_save.json"
+	var source := _funded_state()
+	source.purchased = {"stronger_tap": 7, "tax_resistance": 3}
+	source.knowledge = 9
+	source.gems = 41
+	source.card_ranks = {"card_damage": 3}
+	source.card_active = ["card_damage"]
+	source.lab_ranks = {"lab_damage": 2}
+	source.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	source.tier_records["1"].milestones_claimed = [10, 25]
+	_expect(source.start_lab("lab_speed"), "the V5 fixture should have research running")
+	_expect(source.start_run(2, 88), "the V5 fixture should hold a live run")
+	source.rig_ranks = {"stronger_tap": 2}
+	for tap_index in range(4):
+		source.tap()
+	var v5: Dictionary = SaveDataV6.make(source)
+	v5.version = 5
+	v5.erase("tick_accumulator")
+	v5.erase("critical_chain")
+	_write_json(save_path, v5)
+	var migrated := GameState.new()
+	migrated.save_path = save_path
+	migrated.load()
+	_expect(migrated.load_status == GameState.LOAD_OK, "a V5 save should load")
+	_expect(migrated.coins == source.coins and migrated.knowledge == 9 and migrated.gems == 41, "V5 currencies should survive the move to V6")
+	_expect(migrated.get_owned("stronger_tap") == 7 and migrated.get_owned(GameState.ARMOR_ID) == 3, "V5 Workshop ranks should survive the move to V6")
+	_expect(migrated.get_card_level("card_damage") == 3 and migrated.is_card_active("card_damage"), "V5 Cards should survive the move to V6")
+	_expect(migrated.lab_ranks.get("lab_damage") == 2.0 and migrated.lab_active.has("lab_speed"), "V5 Labs should survive the move to V6")
+	_expect(migrated.get_tier_record(1).milestones_claimed == [10, 25], "V5 records should survive the move to V6")
+	_expect(migrated.in_run and migrated.rig_owned("stronger_tap") == 2 and migrated.rng.state == source.rng.state, "a V5 live run should survive the move to V6")
+	_expect(int(_read_json(save_path).get("version", 0)) == 6, "a V5 save should be rewritten as V6 at once")
+	_expect(int(_read_json("res://.number_go_up_test_save.v5-backup.json").get("version", 0)) == 5, "the V5 file should be kept beside the new save")
+	migrated.clear_save()
+	_expect(_leftover_save_files().is_empty(), "the V5 migration check should leave no file behind")
+
+## D006 holds past the moment of saving: a run reloaded mid-way, with ticks,
+## taps and a live crit chain, ends exactly where the uninterrupted run does.
+func _test_long_run_replays_identically_across_a_reload() -> void:
+	var save_path := "res://.number_go_up_test_save.json"
+	var build := {"generator": 100, "automation_core": 50, "faster_cadence": 100, "more_critical": 100, "faster_echo": 60, "chain_reaction": 60, "tax_resistance": 100}
+	var frames := 60 * 400
+	var straight := GameState.new()
+	straight.purchased = build.duplicate()
+	straight.start_run(1, 2024)
+	for frame in range(frames):
+		straight.advance(1.0 / 60.0)
+		if frame % 20 == 0:
+			straight.tap()
+	var reloaded := GameState.new()
+	reloaded.save_path = save_path
+	reloaded.purchased = build.duplicate()
+	reloaded.start_run(1, 2024)
+	var saw_chain := false
+	for frame in range(frames):
+		if frame == 60 * 137 + 7:
+			saw_chain = reloaded.critical_chain > 0 or reloaded.tick_accumulator > 0.0
+			reloaded.save()
+			var resumed := GameState.new()
+			resumed.save_path = save_path
+			resumed.load()
+			reloaded = resumed
+		reloaded.advance(1.0 / 60.0)
+		if frame % 20 == 0:
+			reloaded.tap()
+	_expect(saw_chain, "the reload should land mid-tick or mid-chain, or this check proves nothing")
+	_expect(reloaded.lifetime_generated.to_dict() == straight.lifetime_generated.to_dict() and reloaded.number.to_dict() == straight.number.to_dict(), "a reloaded run should produce exactly what the uninterrupted run did")
+	_expect(reloaded.rng.state == straight.rng.state and reloaded.wave == straight.wave and reloaded.coins == straight.coins, "a reloaded run should reach the same wave, Coins and RNG state")
+	reloaded.clear_save()
 
 func _test_offline_policy() -> void:
 	var outside := GameState.new()
@@ -958,7 +1116,7 @@ func _test_claimed_milestones_survive_a_reload() -> void:
 
 	# A save written before the fix can hold the same wave twice, plus junk;
 	# it collapses to each real wave once.
-	var damaged: Dictionary = SaveDataV5.make(GameState.new())
+	var damaged: Dictionary = SaveDataV6.make(GameState.new())
 	damaged.tier_records["1"] = {"highest_wave": 30, "best_time": 0.0, "milestones_claimed": [10, 10.0, "junk", -3, 25]}
 	damaged.tier_records["9"] = "a tier this build does not know"
 	_write_json(save_path, damaged)
@@ -1120,7 +1278,7 @@ func _test_rig_save_round_trip() -> void:
 	var pre_rig := GameState.new()
 	pre_rig.save_path = save_path
 	pre_rig.start_run(1, 5)
-	var legacy: Dictionary = SaveDataV5.make(pre_rig)
+	var legacy: Dictionary = SaveDataV6.make(pre_rig)
 	legacy.erase("rig_ranks")
 	_write_json(save_path, legacy)
 	var loaded := GameState.new()
@@ -1220,7 +1378,7 @@ func _test_lab_save_round_trip() -> void:
 
 	# A save written before Labs existed resumes with none, and a malformed
 	# Labs block reads as empty rather than crashing.
-	var legacy: Dictionary = SaveDataV5.make(_funded_state())
+	var legacy: Dictionary = SaveDataV6.make(_funded_state())
 	legacy.erase("lab_ranks")
 	legacy.erase("lab_active")
 	_write_json(save_path, legacy)
@@ -1331,7 +1489,7 @@ func _test_card_save_round_trip() -> void:
 
 	# A save written before Cards existed resumes with none, and a malformed
 	# block reads as empty rather than crashing.
-	var legacy: Dictionary = SaveDataV5.make(_funded_state())
+	var legacy: Dictionary = SaveDataV6.make(_funded_state())
 	legacy.erase("gems")
 	legacy.erase("card_ranks")
 	legacy.erase("card_active")
@@ -1429,6 +1587,27 @@ func _advance_seconds(state: GameState, seconds: float) -> void:
 func _write_json(path: String, value: Dictionary) -> void:
 	var file := FileAccess.open(path, FileAccess.WRITE)
 	file.store_string(JSON.stringify(value))
+
+func _write_text(path: String, text: String) -> void:
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	file.store_string(text)
+
+func _read_json(path: String) -> Dictionary:
+	var json := JSON.new()
+	if not FileAccess.file_exists(path) or json.parse(FileAccess.get_file_as_string(path)) != OK or not (json.data is Dictionary):
+		return {}
+	return json.data
+
+## Every test save file still on disk; a test that leaves one is a bug.
+func _leftover_save_files() -> Array:
+	var leftovers := []
+	var directory := DirAccess.open("res://")
+	if directory != null:
+		directory.include_hidden = true
+		for file_name in directory.get_files():
+			if file_name.begins_with(".number_go_up_test_save"):
+				leftovers.append(file_name)
+	return leftovers
 
 func _funded_state() -> GameState:
 	var state := GameState.new()

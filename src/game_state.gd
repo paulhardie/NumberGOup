@@ -9,8 +9,26 @@ const CardCollectionClass = preload("res://src/card_collection.gd")
 const SaveDataV3Class = preload("res://src/save_data_v3.gd")
 const SaveDataV4Class = preload("res://src/save_data_v4.gd")
 const SaveDataV5Class = preload("res://src/save_data_v5.gd")
+const SaveDataV6Class = preload("res://src/save_data_v6.gd")
 
 const SAVE_PATH := "user://number_go_up_save.json"
+## What the last load() found, for the UI to report (D028).
+const LOAD_NEW_GAME := "new_game"
+const LOAD_OK := "ok"
+## The live save was missing or unreadable and the backup loaded instead.
+const LOAD_RECOVERED := "recovered"
+## Neither the live save nor the backup could be read; the live one was moved
+## aside intact and a fresh game started.
+const LOAD_UNREADABLE := "unreadable"
+## The save was written by a newer build; it is left untouched and saving
+## pauses until this build is replaced or the save is cleared.
+const LOAD_NEWER := "newer"
+## Unreadable saves are moved aside under this infix rather than deleted.
+const QUARANTINE_INFIX := ".unreadable-"
+const READ_OK := "ok"
+const READ_MISSING := "missing"
+const READ_UNREADABLE := "unreadable"
+const READ_NEWER := "newer"
 const OFFLINE_CAP_SECONDS := 43200.0
 const RESEARCH_WORKSHOP_LEVEL := 120
 const PRESTIGE_TEASER_UNLOCK := 110000.0
@@ -123,6 +141,9 @@ var critical_chain := 0
 var rng := RandomNumberGenerator.new()
 var definitions: Array[UpgradeDefinition] = []
 var save_path := SAVE_PATH
+var load_status := LOAD_NEW_GAME
+## True while the save on disk belongs to a newer build (LOAD_NEWER).
+var saving_paused := false
 
 func _init() -> void:
 	rng.randomize()
@@ -875,47 +896,115 @@ func apply_offline(seconds_elapsed: float) -> OfflineAward:
 	# layer, so there is no run Number to generate offline.
 	return OfflineAward.new()
 
+## Writes the new save beside the live one and swaps it in only once it is
+## whole, so an interrupted write can never leave a half-written live save.
+## The save it replaces becomes the backup a later load falls back to.
 func save() -> bool:
-	var file := FileAccess.open(save_path, FileAccess.WRITE)
+	if saving_paused:
+		return false
+	var temp := _temp_path()
+	var file := FileAccess.open(temp, FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify(SaveDataV5Class.make(self)))
-	return true
+	file.store_string(JSON.stringify(SaveDataV6Class.make(self), "", true, true))
+	var write_error := file.get_error()
+	file.close()
+	if write_error != OK:
+		_remove_if_present(temp)
+		return false
+	if FileAccess.file_exists(save_path):
+		_remove_if_present(_backup_path())
+		if DirAccess.rename_absolute(_global(save_path), _global(_backup_path())) != OK:
+			_remove_if_present(temp)
+			return false
+	return DirAccess.rename_absolute(_global(temp), _global(save_path)) == OK
 
+## Loads the live save, or the backup when the live one is missing or cannot
+## be read. Nothing the loader cannot read is ever written over (D028): an
+## unreadable live save is moved aside intact, and a save from a newer build
+## pauses saving, because writing it back would strip what this build does
+## not know. `load_status` says which of these happened, for the UI to report.
 func load() -> OfflineAward:
-	if not FileAccess.file_exists(save_path):
+	saving_paused = false
+	var live := _read_save(save_path)
+	if live.status == READ_NEWER:
+		saving_paused = true
+		load_status = LOAD_NEWER
 		return OfflineAward.new()
-	var file := FileAccess.open(save_path, FileAccess.READ)
-	if file == null:
-		return OfflineAward.new()
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	if SaveDataV2.is_legacy_v1(parsed):
-		_migrate_v1(parsed)
-		return OfflineAward.new()
-	if SaveDataV2.is_valid(parsed):
-		return _migrate_v2(parsed)
-	if SaveDataV3Class.is_valid(parsed):
-		return _migrate_v3(parsed)
-	if SaveDataV4Class.is_valid(parsed):
-		return _migrate_v4(parsed)
-	if not SaveDataV5Class.is_valid(parsed):
-		return OfflineAward.new()
-	var data: Dictionary = parsed
+	if live.status == READ_OK:
+		load_status = LOAD_OK
+		return _load_parsed(live.data, save_path)
+	if live.status == READ_UNREADABLE:
+		DirAccess.rename_absolute(_global(save_path), _global(_quarantine_path()))
+	var backup := _read_save(_backup_path())
+	if backup.status == READ_OK:
+		load_status = LOAD_RECOVERED
+		return _load_parsed(backup.data, _backup_path())
+	load_status = LOAD_UNREADABLE if live.status == READ_UNREADABLE else LOAD_NEW_GAME
+	return OfflineAward.new()
+
+## Reads and classifies one save file without changing any state.
+func _read_save(path: String) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {"status": READ_MISSING}
+	var json := JSON.new()
+	if json.parse(FileAccess.get_file_as_string(path)) != OK or not (json.data is Dictionary):
+		return {"status": READ_UNREADABLE}
+	var data: Dictionary = json.data
+	var version := int(data.get("version", 0)) if (data.get("version") is int or data.get("version") is float) else 0
+	if version > SaveDataV6Class.VERSION:
+		return {"status": READ_NEWER}
+	var known := (
+		SaveDataV2.is_legacy_v1(data)
+		or SaveDataV2.is_valid(data)
+		or SaveDataV3Class.is_valid(data)
+		or SaveDataV4Class.is_valid(data)
+		or SaveDataV5Class.is_valid(data)
+		or SaveDataV6Class.is_valid(data)
+	)
+	if not known or SaveDataV6Class.problem(data) != "":
+		return {"status": READ_UNREADABLE}
+	return {"status": READ_OK, "data": data}
+
+func _load_parsed(data: Dictionary, source_path: String) -> OfflineAward:
+	match int(data.version):
+		1:
+			_migrate_v1(data, source_path)
+			return OfflineAward.new()
+		2:
+			return _migrate_v2(data, source_path)
+		3:
+			return _migrate_v3(data, source_path)
+		4:
+			return _migrate_v4(data, source_path)
+		5:
+			return _migrate_v5(data, source_path)
+	return _load_current(data)
+
+## V5 and V6 share every key and meaning; V6 only declares the fields added to
+## V5 after it shipped and adds the run's tick phase and crit chain, which a
+## V5 save resumes without, as it always did.
+func _load_current(data: Dictionary) -> OfflineAward:
 	_load_common_fields(data)
 	_load_tier_progress(data)
 	_restore_saved_run(data)
 	return apply_offline(_seconds_since(data))
 
+func _migrate_v5(data: Dictionary, source_path: String) -> OfflineAward:
+	var award := _load_current(data)
+	_save_migrated_state(5, source_path)
+	return award
+
 ## V4 kept the Workshop in four bays, with the Armor rank in a field of its own.
 ## V5 reads the same run, records and currencies; only the Workshop's shape
 ## changes, and no rank is lost: the Armor rank becomes an ordinary Workshop
 ## rank and a bay-shaped Research Focus lands on the category that inherited it.
-func _migrate_v4(data: Dictionary) -> OfflineAward:
+func _migrate_v4(data: Dictionary, source_path: String) -> OfflineAward:
 	_load_common_fields(data)
 	_fold_retired_workshop_shape(data)
 	_load_tier_progress(data)
 	_restore_saved_run(data)
-	_save_migrated_state()
+	_save_migrated_state(4, source_path)
 	return apply_offline(_seconds_since(data))
 
 ## Shared by the V2, V3 and V4 migrations, and by nothing else: a V5 save
@@ -974,6 +1063,12 @@ func _restore_saved_run(data: Dictionary) -> void:
 	var saved_peak: Variant = data.get("run_peak_number", null)
 	run_peak_number = ScientificNumber.from_dict(saved_peak) if saved_peak is Dictionary else number.copy()
 	second_wind_used = bool(data.get("second_wind_used", false))
+	# V6 keeps the tick phase and crit chain, so the outputs after a reload are
+	# the ones the saved run would have produced (D006). Older saves resume at
+	# a fresh phase and an unbroken chain, as they always did.
+	tick_accumulator = maxf(0.0, float(data.get("tick_accumulator", 0.0))) if in_run else 0.0
+	critical_chain = maxi(0, int(data.get("critical_chain", 0))) if in_run else 0
+	rig_ranks = {}
 	if in_run:
 		var encounter_data: Variant = data.get("active_encounter", null)
 		active_encounter = TaxEncounterClass.from_dict(encounter_data) if encounter_data is Dictionary else _make_encounter(wave)
@@ -997,7 +1092,7 @@ func _restore_saved_run(data: Dictionary) -> void:
 func _seconds_since(data: Dictionary) -> float:
 	return Time.get_unix_time_from_system() - float(data.get("last_seen_unix", Time.get_unix_time_from_system()))
 
-func _migrate_v3(data: Dictionary) -> OfflineAward:
+func _migrate_v3(data: Dictionary, source_path: String) -> OfflineAward:
 	_load_common_fields(data)
 	_fold_retired_workshop_shape(data)
 	_load_tier_progress(data)
@@ -1022,7 +1117,7 @@ func _migrate_v3(data: Dictionary) -> OfflineAward:
 			rng.seed = run_seed
 	else:
 		_reset_run_state()
-	_save_migrated_state()
+	_save_migrated_state(3, source_path)
 	return OfflineAward.new()
 
 func _load_common_fields(data: Dictionary) -> void:
@@ -1073,7 +1168,7 @@ func _load_common_fields(data: Dictionary) -> void:
 	# dead key out of saves rewritten in the current shape.
 	settings.erase("ambience")
 
-func _migrate_v2(data: Dictionary) -> OfflineAward:
+func _migrate_v2(data: Dictionary, source_path: String) -> OfflineAward:
 	_load_common_fields(data)
 	_fold_retired_workshop_shape(data)
 	selected_tier = 1
@@ -1089,10 +1184,10 @@ func _migrate_v2(data: Dictionary) -> OfflineAward:
 	active_encounter = _make_encounter(wave) if in_run else null
 	if not in_run:
 		_reset_run_state()
-	_save_migrated_state()
+	_save_migrated_state(2, source_path)
 	return OfflineAward.new()
 
-func _migrate_v1(data: Dictionary) -> void:
+func _migrate_v1(data: Dictionary, source_path: String) -> void:
 	number = ScientificNumber.from_dict(data.number)
 	lifetime_generated = ScientificNumber.from_dict(data.lifetime)
 	highest_number = ScientificNumber.from_dict(data.get("highest", data.number))
@@ -1129,14 +1224,52 @@ func _migrate_v1(data: Dictionary) -> void:
 	if old_target != "":
 		workshop.automation_targets = [old_target]
 	_reset_run_state()
-	_save_migrated_state()
+	_save_migrated_state(1, source_path)
 
-func _save_migrated_state() -> void:
+## The file a migration read is copied aside, once per version, before the
+## migrated save replaces it: a migration that turns out to be wrong can then
+## be undone by hand rather than being final.
+func _save_migrated_state(from_version: int, source_path: String) -> void:
+	var kept := _migration_backup_path(from_version)
+	if FileAccess.file_exists(source_path) and not FileAccess.file_exists(kept):
+		DirAccess.copy_absolute(_global(source_path), _global(kept))
 	save()
 
+## Clearing the save removes every file this save path owns: the live save,
+## its backup and temp file, migration copies and moved-aside unreadable saves.
 func clear_save() -> void:
-	if FileAccess.file_exists(save_path):
-		DirAccess.remove_absolute(ProjectSettings.globalize_path(save_path))
+	for path in [save_path, _backup_path(), _temp_path()]:
+		_remove_if_present(path)
+	for version in range(1, SaveDataV6Class.VERSION):
+		_remove_if_present(_migration_backup_path(version))
+	var folder := save_path.get_base_dir()
+	var quarantine_prefix := save_path.get_file().get_basename() + QUARANTINE_INFIX
+	var directory := DirAccess.open(folder)
+	if directory != null:
+		directory.include_hidden = true
+		for file_name in directory.get_files():
+			if file_name.begins_with(quarantine_prefix) and file_name.ends_with(".json"):
+				_remove_if_present(folder.path_join(file_name))
+	saving_paused = false
+
+func _backup_path() -> String:
+	return save_path + ".bak"
+
+func _temp_path() -> String:
+	return save_path + ".tmp"
+
+func _migration_backup_path(version: int) -> String:
+	return save_path.get_basename() + ".v%d-backup.json" % version
+
+func _quarantine_path() -> String:
+	return save_path.get_basename() + QUARANTINE_INFIX + str(int(Time.get_unix_time_from_system())) + ".json"
+
+func _global(path: String) -> String:
+	return ProjectSettings.globalize_path(path)
+
+func _remove_if_present(path: String) -> void:
+	if FileAccess.file_exists(path):
+		DirAccess.remove_absolute(_global(path))
 
 func has_persistent_storage() -> bool:
 	return OS.is_userfs_persistent()

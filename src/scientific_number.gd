@@ -103,7 +103,9 @@ func format_value(decimals: int = 2) -> String:
 	return _trim_decimal(mantissa, decimals) + "e" + str(exponent)
 
 func _normalize() -> void:
-	if mantissa <= 0.000000000001:
+	# Infinity divided by ten is still infinity, so a non-finite mantissa would
+	# loop below forever; it has no honest magnitude either, so it reads as zero.
+	if not is_finite(mantissa) or mantissa <= 0.000000000001:
 		mantissa = 0.0
 		exponent = 0
 		return
