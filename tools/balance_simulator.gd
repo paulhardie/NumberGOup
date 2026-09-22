@@ -5,21 +5,51 @@ const STEP := 0.5
 const SEED := 7
 const CHECKPOINTS := [1, 21, 50, 100]
 const MATRIX_SECONDS := 5400.0
+## Every Attack row at its cap (D019 deepened the ladders without moving where
+## they end, so this is the same power the three-rank caps used to reach).
 const ATTACK_MAX := {
-	"stronger_tap": 5, "generator": 5, "generator_two": 3, "faster_cadence": 5,
-	"faster_echo": 3, "burst_relay": 3, "more_critical": 5, "magnitude_coil": 3,
-	"chain_reaction": 3, "automation_core": 1,
+	"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 100,
+	"faster_echo": 60, "burst_relay": 6, "more_critical": 100, "magnitude_coil": 60,
+	"chain_reaction": 60, "automation_core": 50, "boss_damage": 100,
 }
-const MID := {"stronger_tap": 5, "generator": 5, "generator_two": 3, "faster_cadence": 3}
-const EARLY := {"stronger_tap": 2, "generator": 2}
-## label, tier, Workshop ranks, Shield Matrix rank. Progressed builds start with
-## every Tier 1 milestone claimed, so Coins per minute reflects repeatable rewards.
+const UTILITY_MAX := {"smarter_efficiency": 60, "coin_bonus": 100, "knowledge_bonus": 50}
+## The same fractions of each ladder the shallow builds held: mid was Output and
+## Damage Multiplier maxed with Tick Speed at three fifths; early was two fifths
+## of the two opening rows.
+const MID := {"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 60}
+const EARLY := {"stronger_tap": 40, "generator": 40}
+## Defense rows at their caps, and the pieces of that build worth measuring on
+## their own: balance target 6 asks that each one visibly move an outcome.
+const ARMOR := {"tax_resistance": 100}
+const SIPHON := {"siphon": 100}
+const RECOIL := {"recoil": 100}
+const CUSHION := {"priority_buffer": 50}
+const SECOND_WIND := {"second_wind": 50}
+const DEFENSE_MAX := {
+	"tax_resistance": 100, "siphon": 100, "recoil": 100,
+	"priority_buffer": 50, "brace_discount": 60, "second_wind": 50,
+}
+## label, tier, Workshop ranks. Progressed builds start with every Tier 1
+## milestone claimed, so Coins per minute reflects repeatable rewards.
 const BUILD_MATRIX := [
-	["early", 1, EARLY, 0],
-	["mid", 1, MID, 0],
-	["attack max", 1, ATTACK_MAX, 0],
-	["attack max + shield 10", 1, ATTACK_MAX, 10],
-	["attack max + shield 10", 2, ATTACK_MAX, 10],
+	["early", 1, EARLY],
+	["mid", 1, MID],
+	["attack max", 1, ATTACK_MAX],
+	["attack max + armor", 1, [ATTACK_MAX, ARMOR]],
+	["attack max + siphon", 1, [ATTACK_MAX, SIPHON]],
+	["attack max + recoil", 1, [ATTACK_MAX, RECOIL]],
+	["attack max + cushion", 1, [ATTACK_MAX, CUSHION]],
+	["attack max + 2nd wind", 1, [ATTACK_MAX, SECOND_WIND]],
+	["attack max + defense max", 1, [ATTACK_MAX, DEFENSE_MAX]],
+	["attack max + utility max", 1, [ATTACK_MAX, UTILITY_MAX]],
+	["everything maxed", 1, [ATTACK_MAX, DEFENSE_MAX, UTILITY_MAX]],
+	["defense max only", 1, DEFENSE_MAX],
+	["attack max", 2, ATTACK_MAX],
+	["attack max + armor", 2, [ATTACK_MAX, ARMOR]],
+	# Cushion is the one stat whose worth depends on the tier, so it is measured
+	# where it is meant to matter as well as where it is meant not to.
+	["attack max + cushion", 2, [ATTACK_MAX, CUSHION]],
+	["attack max + defense max", 2, [ATTACK_MAX, DEFENSE_MAX]],
 ]
 const PURCHASE_ORDER := [
 	"stronger_tap",
@@ -51,13 +81,23 @@ func _init() -> void:
 	_simulate_representative_tier_one()
 	print("BUILD MATRIX  2 taps/sec, seed ", SEED)
 	for build in BUILD_MATRIX:
-		_simulate_build(build[0], build[1], build[2], build[3])
+		_simulate_build(build[0], build[1], _ranks(build[2]))
 	quit(0)
 
-func _simulate_build(label: String, tier: int, ranks: Dictionary, shield: int) -> void:
+## A build is one rank dictionary or a list of them merged, so the pieces can be
+## named once and combined without repeating every Attack rank.
+func _ranks(spec: Variant) -> Dictionary:
+	if spec is Dictionary:
+		return (spec as Dictionary).duplicate()
+	var merged := {}
+	for part in spec as Array:
+		for key in part as Dictionary:
+			merged[key] = (part as Dictionary)[key]
+	return merged
+
+func _simulate_build(label: String, tier: int, ranks: Dictionary) -> void:
 	var state := GameState.new()
 	state.purchased = ranks.duplicate()
-	state.tax_resistance_rank = shield
 	state.tier_records["1"] = {"highest_wave": 100, "milestones_claimed": [10, 25, 50, 100]}
 	state.start_run(tier, SEED)
 	var hits := 0
@@ -104,13 +144,20 @@ func _simulate_representative_tier_one() -> void:
 				"  coins=", state.coins,
 				"  knowledge=", state.knowledge
 			)
-			for upgrade_id in PURCHASE_ORDER:
-				state.purchase(upgrade_id)
+			# Spend down the way a player does, not one rank per row: with
+			# ladders 50-100 ranks deep (D019), a single pass through the order
+			# leaves almost all of the first run's Coins unspent.
+			var spending := true
+			while spending:
+				spending = false
+				for upgrade_id in PURCHASE_ORDER:
+					if state.purchase(upgrade_id):
+						spending = true
 			print(
 				"POST-RUN WORKSHOP  level=", state.get_workshop_level(),
 				"  coins_remaining=", state.coins,
 				"  tap=", state._tap_base(),
-				"  number_per_sec=", state.get_rate_per_second().format_value()
+				"  number_per_sec=", snappedf(state.get_rate_per_second().mantissa * pow(10.0, state.get_rate_per_second().exponent), 0.01)
 			)
 			return
 	print(

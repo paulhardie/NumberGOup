@@ -8,9 +8,9 @@
 ## Must — run lifecycle and permanence
 
 - Number exists only during an active run. Tapping, production ticks and offline time grant nothing outside a run.
-- Permanent progress — Workshop ranks, Coins, Knowledge, Insight ranks, Shield Matrix rank and tier records — survives death, retreat and Prestige.
-- Research Focus persists through death and retreat and clears only on Prestige.
-- Workshop and Shield Matrix purchases are unavailable during an active run; permanent power is chosen between attempts.
+- Permanent progress — Workshop ranks (Armor among them), Coins, Knowledge, Insight ranks and tier records — survives death, retreat and Prestige.
+- Research Focus persists through death and retreat and clears only on Prestige. It names one of the four Workshop categories.
+- Workshop purchases are unavailable during an active run; permanent power is chosen between attempts. Armor is a Workshop rank, so the run screen's shortcut to it obeys the same lock.
 - Retreat ends and resets the run. It is never a pause.
 - An active run freezes exactly while the app is away; offline time cannot become run progress in any form.
 - The wave clock advances only during an active run.
@@ -18,8 +18,8 @@
 ## Must — encounter contracts
 
 - During a run, every unit produced damages the active wave's remaining Liability first; only output beyond it is added to Number (D012). Liability floors at zero, and lifetime production counts all output.
-- Collection is an absolute value deducted from Number at each wave boundary while Liability remains. Number reaching zero ends and resets the run.
-- Tier 2 and Tier 3 apply exactly 20× and 60× Tier 1 Liability and Collection at equal pressured waves; reward multipliers are 1.8× and 2.6×.
+- Collection is an absolute value deducted from Number at each wave boundary while Liability remains. Number reaching zero ends and resets the run, unless an unspent Second Wind restores a share of the run's peak Number, which it may do at most once per run (D020).
+- Tier 2 and Tier 3 apply exactly 20× and 60× Tier 1 Liability and Collection at equal pressured waves; reward multipliers are 1.8× and 2.6×. These are the profile's ratios; what a player is paid may differ, because Coin Bonus lifts it.
 - Boss waves multiply Liability (3×), Collection (1.5×) and reward (5×) independently.
 - Milestones at waves 10/25/50/100 are claimable at most once per tier record.
 - Tier 2 and Tier 3 unlock only by clearing wave 100 of the preceding tier.
@@ -35,11 +35,12 @@
 
 ## Should — expected behaviour
 
-- Upgrade costs and ranks are legible before purchase.
+- Upgrade costs and ranks are legible before purchase. A multi-buy press costs exactly what the same ranks cost one at a time, and exactly what it quoted.
+- A Workshop row's value at its maximum rank is a contract, not a consequence of its rank count: changing a cap without dividing the per-rank effect to match is a retune and needs a decision.
 - The first failed run funds at least one permanent Workshop rank.
 - UI presents and reports; it mutates domain state only by calling `GameState` methods.
-- Bays open at Workshop levels: Output 0, Speed 2, Chance 5, Logic 8. *Retires when D013's four categories are implemented.*
-- Brace spends 30% of current Number and blocks exactly the next Collection hit.
+- Every Workshop row belongs to exactly one of the four categories (Attack, Defense, Utility, Ultimates) and opens at its own Workshop level: 0, 12, 30 or 60. Retired bays gated each row at the same level the row itself required, so their removal moved nothing; D019 then moved the levels to hold the same Coin pacing across deeper ladders.
+- Brace spends 30% of current Number, less whatever Brace Cost has bought, never below a 15% floor, and blocks exactly the next Collection hit. A blocked boundary deals no Recoil, because no hit landed.
 - A run ending explains itself: the summary states the tier, wave, Coins and Knowledge earned.
 - Highest Number and tier records persist across runs for stats and dock unlocks.
 
@@ -49,4 +50,4 @@
 - **Dormant momentum.** No upgrade definition grants `momentum_per_tick`, so momentum stacks never rise. The mechanic is either awaiting a card or dead code.
 - **Migration automation remnants.** `automation_enabled`, `workshop.automation_targets`, `has_automation()` and `get_auto_slot_count()` exist only to migrate V1/V2 saves. Automation is not an active system.
 - **Unused offline cap.** `OFFLINE_CAP_SECONDS` is unused while `apply_offline()` always returns an empty award.
-- **Dock unlock thresholds** are keyed to `highest_number` at 10 / 1,000 / 110,000. The values are presentation, not balance.
+- **Unlock thresholds** are keyed to `highest_number` at 10 / 1,000 / 110,000. Since D016 they gate the Workshop tab and the rows inside the Knowledge sheet rather than dock icons. The values are presentation, not balance.
