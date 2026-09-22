@@ -110,9 +110,9 @@ Player-facing text never calls the Number "health". It says "If a hit takes your
 | Crit Chance | More critical hits | `more_critical` |
 | Crit Damage | Bigger critical hits | `magnitude_coil` |
 | Crit Chain | Each crit strengthens the next | `chain_reaction` |
-| Boss Damage | More damage against boss waves | New |
+| Boss Damage | More damage against boss waves, ×2 at its cap | 100 ranks |
 
-Attack is today's Output, Speed and Chance bays, nearly unchanged. Boss Damage is the one new stat: a targeted choice for players whose runs end on bosses.
+Attack is today's Output, Speed and Chance bays, nearly unchanged. Boss Damage is the one new stat (step 4b): a targeted choice for players whose runs end on bosses, and worth +6 waves on its own at the cap.
 
 ### Defense — "Survive the hits"
 
@@ -174,7 +174,7 @@ Category gates move with the ranks, chosen to hold the old **Coin** pacing rathe
 
 What this does not do is lengthen the grind: the Workshop costs what it always did, and the same build still reaches Tier 1 wave 100 in 45 minutes. It buys decisions, not hours. Making the Workshop *longer* as well as deeper is a separate dial — the per-row Coin targets in `_make_definitions` — and a separate decision.
 
-**Research Focus was lopsided until step 4a**, when Attack held ten rows against Defense's two and Utility's one. The fix was not a per-category discount scale but **balancing the categories by Coin cost rather than row count**: a 25% discount is worth a quarter of what the category costs, so Defense's six rows now total 60,008 Coins against Attack's 60,009 and the two focuses are worth the same. Utility is still one row at 8,000, which step 4b closes.
+**Research Focus was lopsided until step 4a**, when Attack held ten rows against Defense's two and Utility's one. The fix was not a per-category discount scale but **balancing the categories by Coin cost rather than row count**: a 25% discount is worth a quarter of what the category costs, so Defense's six rows now total 60,008 Coins against Attack's 60,009 and the two focuses are worth the same. Step 4b closed it. The Workshop now holds **20 rows, 1,466 ranks and 196,006 Coins**, split Attack 68,008 / Defense 60,008 / Utility 67,990 — within 12%, so a Research Focus is a genuine three-way choice. The growth from 86,007 is new content rather than repricing: every row that existed before step 4 still costs what it did.
 
 Cushion does nothing on Tier 1, because warm-up waves bank at least 600 Number before the first hit, even for a fresh player. On Tier 2 and above, the first hit lands at wave 1. That is deliberate: Cushion is the first stat whose value depends on which tier you play, and it is now priced in that tier's hits — its face value times the tier's pressure multiplier — rather than in absolute Number. Measured, that is exactly the intended shape: **+0 waves on Tier 1 and +2 on Tier 2.**
 
@@ -182,36 +182,46 @@ Cushion does nothing on Tier 1, because warm-up waves bank at least 600 Number b
 
 `run_balance.sh`, each stat at its cap on top of the maxed Attack build, seed 7, two taps a second.
 
-| Tier 1 build | Wave | Minutes | Hits | Coins/min |
-| --- | --- | --- | --- | --- |
-| attack max | 90 | 35.5 | 53 | 94.5 |
-| + Armor | **100** | 45.3 | 82 | 92.9 |
-| + Siphon | 97 | 42.0 | 72 | 95.5 |
-| + Recoil | **100** | 39.3 | 58 | 107.1 |
-| + Cushion | 90 | 35.5 | 53 | 94.5 |
-| + Second Wind | 93 | 38.3 | 60 | 98.5 |
-| + all six | **108** | 52.5 | 102 | 95.3 |
-| Defense alone, no Attack | 25 | 9.8 | 14 | 8.9 |
+These are the step 4b numbers, with Boss Damage in the maxed Attack build.
+
+| Tier 1 build | Wave | Minutes | Hits | Coins | Coins/min |
+| --- | --- | --- | --- | --- | --- |
+| attack max | 96 | 38.8 | 60 | 3,950 | 101.9 |
+| + Armor | **100** | 44.3 | 78 | 4,203 | 95.0 |
+| + Siphon | **100** | 43.3 | 74 | 4,203 | 97.2 |
+| + Recoil | **100** | 38.8 | 56 | 4,203 | 108.5 |
+| + Cushion | 96 | 38.8 | 60 | 3,950 | 101.9 |
+| + Second Wind | 99 | 41.8 | 68 | 4,139 | 99.1 |
+| + all six Defense | **110** | 53.0 | 102 | 5,143 | 97.0 |
+| + all three Utility | 96 | 38.8 | 60 | **5,896** | **152.2** |
+| everything maxed | **110** | 53.0 | 102 | 7,683 | 145.0 |
+| Defense alone, no Attack | 25 | 9.8 | 14 | 87 | 8.9 |
 
 | Tier 2 build | Wave |
 | --- | --- |
-| attack max | 22 |
-| + Armor | 26 |
-| + Cushion | 24 |
-| + all six | 35 |
+| attack max | 25 |
+| + Armor | 28 |
+| + Cushion | 26 |
+| + all six Defense | 37 |
 
-Armor and Recoil both reach wave 100 and get there differently: Armor soaks 82 hits over 45 minutes, Recoil turns the hits into progress and finishes in 39 with 58. Recoil costs 14,004 Coins against Armor's 7,999, so Armor stays the cheapest route to 100 and Recoil is the faster one. That is Defense as a build rather than one number, which is what the category was for.
+Armor, Siphon and Recoil all reach wave 100 and get there differently: Armor soaks 78 hits over 44 minutes, Recoil turns the hits into progress and finishes in 39 with 56. Recoil costs 14,004 Coins against Armor's 7,999, so Armor stays the cheapest route to 100 and Recoil is the faster one. That is Defense as a build rather than one number, which is what the category was for.
+
+Utility behaves exactly as the category promised: **it never wins a wave** — the same 96 with and without it — and it pays 49% more Coins and a Knowledge for doing so.
 
 ### Utility — "Get more from every run"
 
 **Buy Utility when** you survive comfortably but progress between runs feels slow.
 
-| Stat | Does | Source |
-| --- | --- | --- |
-| Coin Bonus | +X% Coins from every wave beaten | New |
-| Knowledge Bonus | +X% Knowledge when a run ends | New |
-| Discount | Workshop costs X% lower | `smarter_efficiency` |
-| Auto-Brace (later) | Braces for you when the next hit would take more than X% of your Number | New; waits until Brace is a solved decision |
+**Implemented (step 4b, D021)**, apart from Auto-Brace.
+
+| Stat | Does | Ranks | At its cap |
+| --- | --- | --- | --- |
+| Coin Bonus | +X% Coins from every wave beaten | 100 | half again |
+| Knowledge Bonus | +X% Knowledge when a run ends | 50 | half again |
+| Discount | Workshop costs X% lower | 60 | 15% off |
+| Auto-Brace (later) | Braces for you when the next hit would take more than X% of your Number | — | waits until Brace is a solved decision |
+
+Coin Bonus is **floored, not rounded**, per wave: "+50% Coins" that sometimes pays +100% reads as a bug. Coins are whole, so a one-Coin grace wave carries no percentage at all, which costs nothing real — the row opens at Workshop level 60, far past the waves that pay one Coin.
 
 Utility never wins a wave. It is the shelf for farming, and it is where automation arrives, following the vision: automation removes decisions the player has already solved.
 
@@ -431,11 +441,11 @@ Higher tiers can ask for different builds by changing the *shape* of waves as we
 Targets 1–4 gate D012's retune; 5 and 6 gate step 4's new stats. `tools/balance_simulator.gd` measures them with its build matrix.
 
 1. A fresh first run still ends around wave 21 and banks at least 48 Coins (D010, and the invariant that the first failed run funds a rank). *Met: wave 21, 48 Coins.*
-2. Coins per minute at equal builds are within ±10% of the pre-D012 baseline. *Met for the main progression builds: mid −2%, Max Attack −7%, Max Attack + Armor +6%. Two small runs sit above: early is +20% (2.4 Coins a minute) and Tier 2 is +19%, because both go relatively deeper now. Recheck when step 4 adds new Coin sinks.*
+2. Coins per minute at equal builds are within ±10% of the pre-D012 baseline. *This measures the D012 retune, not the Workshop: Coin Bonus (step 4b) is meant to lift Coins per minute, and does, by 49% at its cap. Compare like builds, not maxed ones.* *Met for the main progression builds: mid −2%, Max Attack −7%, Max Attack + Armor +6%. Two small runs sit above: early is +20% (2.4 Coins a minute) and Tier 2 is +19%, because both go relatively deeper now. Recheck when step 4 adds new Coin sinks.*
 3. Tier 1 wave 100 is reachable for a Workshop investment comparable to before. *Met: Max Attack + Armor 40% reaches wave 100, as it did before.*
 4. A player who has just unlocked Tier 2 survives its opening waves. *Met: that build reaches Tier 2 wave 26 (was 28).*
-5. **The cheapest build that reaches Tier 1 wave 100 includes both Attack and Defense.** This is pillar 2 written as a test. ***Met (step 4a):*** *maxed Attack alone reaches wave 90 and maxed Defense alone reaches 25, so wave 100 needs both. The cheapest route is maxed Attack plus Armor, at 7,999 Coins of Defense.*
-6. Every stat's first rank visibly moves a simulator outcome. ***Met at the cap for every Defense stat, with two qualifications:*** *Cushion moves Tier 2 and deliberately not Tier 1, and Brace Cost cannot be measured by a simulator that never Braces — it is covered by test rather than by simulation. Sizes were chosen from the older measurements that showed Siphon at 10% adding nothing: Siphon caps at 25% and Recoil at 50%.*
+5. **The cheapest build that reaches Tier 1 wave 100 includes both Attack and Defense.** This is pillar 2 written as a test. ***Met, and worth watching:*** *maxed Attack alone reaches wave 96 and maxed Defense alone reaches 25, so wave 100 still needs both, and the cheapest route is maxed Attack plus Armor. Boss Damage moved Attack's solo reach from 90 to 96 in step 4b; another Attack row of that size would break this target.*
+6. Every stat's first rank visibly moves a simulator outcome. ***Met at the cap for every new stat, with two qualifications:*** *Cushion moves Tier 2 and deliberately not Tier 1, and Brace Cost cannot be measured by a simulator that never Braces — it is covered by test rather than by simulation. Utility's two bonuses move Coins and Knowledge rather than the wave reached, which is the category's whole point. Sizes were chosen from the older measurements that showed Siphon at 10% adding nothing: Siphon caps at 25% and Recoil at 50%.*
 
 Targets 7–9 gate the Rig (step 7). All three need the simulator to model in-run spending, which is itself part of that step.
 
@@ -454,7 +464,7 @@ Each step lands on its own and clears the gate for its risk level in [`QUALITY_G
 | 3 | **Done.** Four Workshop categories; bays retire; Shield Matrix becomes the Armor Workshop row; Research Focus retargets from bay to category; save schema V5 (D017) migrates `selected_bay`, `focus` and `tax_resistance_rank` with no rank lost and a live run intact. Also the reference layout: category strip pinned at the bottom, compact two-column cards with the detail one tap away, and multi-buy (D018) | High: save schema and a purchase path |
 | 3b | **Done.** Deep rank ladders (D019): 51 ranks become 906 at the same total Coin cost and the same value at every cap; gates move to 0 / 12 / 30 / 60 and Research Focus to 120 | High: economy |
 | 4a | **Done.** The five new Defense stats (D020): Siphon, Recoil, tier-scaled Cushion, Brace Cost, Second Wind. Targets 5 and 6 met | High: economy |
-| 4b | Boss Damage, and the Coin and Knowledge bonuses. **Recheck Research Focus here**: Defense now matches Attack on Coin cost, but Utility still holds one row | High: economy |
+| 4b | **Done.** Boss Damage, Coin Bonus and Knowledge Bonus (D021); Research Focus balanced across all three categories | High: economy |
 | 5 | The bar reshape (D016): four category tabs between runs, Labs, Insight and Prestige into the Knowledge sheet, `highest_number` gates moved inside it | Medium: presentation only, no save or economy change |
 | 6 | "What would have saved you" and the two doors on the run-over screen | Medium |
 | 7 | **The Rig** (D015): the in-run panel, Number prices against wave HP, run-scoped ranks saved with the active run, Brace into the Defense tab and Shield off the run screen | High: economy and save |

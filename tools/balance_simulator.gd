@@ -10,8 +10,9 @@ const MATRIX_SECONDS := 5400.0
 const ATTACK_MAX := {
 	"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 100,
 	"faster_echo": 60, "burst_relay": 6, "more_critical": 100, "magnitude_coil": 60,
-	"chain_reaction": 60, "automation_core": 50,
+	"chain_reaction": 60, "automation_core": 50, "boss_damage": 100,
 }
+const UTILITY_MAX := {"smarter_efficiency": 60, "coin_bonus": 100, "knowledge_bonus": 50}
 ## The same fractions of each ladder the shallow builds held: mid was Output and
 ## Damage Multiplier maxed with Tick Speed at three fifths; early was two fifths
 ## of the two opening rows.
@@ -40,6 +41,8 @@ const BUILD_MATRIX := [
 	["attack max + cushion", 1, [ATTACK_MAX, CUSHION]],
 	["attack max + 2nd wind", 1, [ATTACK_MAX, SECOND_WIND]],
 	["attack max + defense max", 1, [ATTACK_MAX, DEFENSE_MAX]],
+	["attack max + utility max", 1, [ATTACK_MAX, UTILITY_MAX]],
+	["everything maxed", 1, [ATTACK_MAX, DEFENSE_MAX, UTILITY_MAX]],
 	["defense max only", 1, DEFENSE_MAX],
 	["attack max", 2, ATTACK_MAX],
 	["attack max + armor", 2, [ATTACK_MAX, ARMOR]],

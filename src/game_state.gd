@@ -51,6 +51,10 @@ const STAT_DISPLAY := {
 	# The card reads as what Brace costs, so it starts at 30% and descends.
 	"brace_discount": {"unit": "percent", "base": BRACE_COST_PERCENT, "op": "add"},
 	"second_wind_share": {"unit": "percent", "base": 0.0, "op": "add"},
+	# Boss Damage reads as what it multiplies boss damage by, so it starts at x1.
+	"boss_damage": {"unit": "multiplier", "base": 1.0, "op": "add"},
+	"coin_bonus": {"unit": "percent", "base": 0.0, "op": "add"},
+	"knowledge_bonus": {"unit": "percent", "base": 0.0, "op": "add"},
 }
 
 var number := ScientificNumber.new()
@@ -110,7 +114,7 @@ func tap() -> SimulationEvent:
 		return SimulationEvent.new("tap", ScientificNumber.new(), false)
 	statistics.taps += 1
 	var is_critical := rng.randf() < _critical_chance()
-	var amount := ScientificNumber.from_float(_tap_base() * _base_output_multiplier() * _momentum_multiplier())
+	var amount := ScientificNumber.from_float(_tap_base() * _damage_multiplier() * _momentum_multiplier())
 	if is_critical:
 		amount = amount.multiply_scalar(_critical_multiplier() * (1.0 + _chain_reaction_step() * critical_chain))
 		critical_chain += 1
@@ -139,7 +143,7 @@ func _produce_tick() -> SimulationEvent:
 	if _effect_sum("momentum_per_tick") > 0.0:
 		momentum_stacks = mini(100, momentum_stacks + 1)
 	var is_critical := rng.randf() < _critical_chance()
-	var amount := ScientificNumber.from_float(_passive_base() * _base_output_multiplier() * _momentum_multiplier())
+	var amount := ScientificNumber.from_float(_passive_base() * _damage_multiplier() * _momentum_multiplier())
 	if is_critical:
 		amount = amount.multiply_scalar(_critical_multiplier() * (1.0 + _chain_reaction_step() * critical_chain))
 		statistics.critical_ticks += 1
@@ -158,7 +162,7 @@ func is_output_banking() -> bool:
 	return in_run and (active_encounter == null or active_encounter.is_cleared())
 
 func get_rate_per_second() -> ScientificNumber:
-	return ScientificNumber.from_float(_passive_base() * _base_output_multiplier() * _momentum_multiplier() * _tick_rate())
+	return ScientificNumber.from_float(_passive_base() * _damage_multiplier() * _momentum_multiplier() * _tick_rate())
 
 func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	if in_run:
@@ -296,6 +300,13 @@ func _complete_current_wave() -> SimulationEvent:
 			record.best_time = run_elapsed
 	tier_records[str(selected_tier)] = record
 	highest_wave = maxi(highest_wave, completed_wave)
+	# Coin Bonus lifts everything a beaten wave pays, milestone bonuses included:
+	# a milestone is a wave beaten, and one rule is easier to read than two.
+	# Floored, not rounded: "+50% Coins" that sometimes pays +100% reads as a
+	# bug. Coins are whole, so a 1-Coin grace wave carries no percentage at all
+	# — which costs nothing real, because this row opens at Workshop level 60,
+	# far past the waves that pay one Coin.
+	coin_gain = floori(float(coin_gain) * (1.0 + _effect_sum("coin_bonus")))
 	coins += coin_gain
 	run_coins_earned += coin_gain
 	wave += 1
@@ -498,7 +509,8 @@ func get_prestige_knowledge_gain() -> int:
 	if lifetime_generated.is_zero():
 		return 0
 	var order_of_magnitude := lifetime_generated.log10() - log(PRESTIGE_TEASER_UNLOCK) / log(10.0)
-	return maxi(0, floori(order_of_magnitude * PRESTIGE_KNOWLEDGE_SCALE))
+	var earned := order_of_magnitude * PRESTIGE_KNOWLEDGE_SCALE * (1.0 + _effect_sum("knowledge_bonus"))
+	return maxi(0, floori(earned))
 
 func can_prestige() -> bool:
 	return get_prestige_knowledge_gain() > 0
@@ -799,6 +811,17 @@ func _passive_base() -> float:
 func _tick_rate() -> float:
 	return _effect_product("tick_rate", 1.0)
 
+## Everything that scales produced damage, including the boss-only bonus. Taps,
+## ticks and the displayed rate all read it, so a boss wave cannot show one
+## number and deal another.
+func _damage_multiplier() -> float:
+	return _base_output_multiplier() * _boss_damage_multiplier()
+
+func _boss_damage_multiplier() -> float:
+	if active_encounter == null or not active_encounter.is_boss:
+		return 1.0
+	return 1.0 + _effect_sum("boss_damage")
+
 func _base_output_multiplier() -> float:
 	return _effect_product("base_output_multiplier", 1.0)
 
@@ -861,6 +884,7 @@ func _make_definitions() -> Array[UpgradeDefinition]:
 		UpgradeDefinition.new("magnitude_coil", "CRIT DAMAGE", "Magnitude Coil. +0.05 critical multiplier per rank.", ScientificNumber.from_float(10.82), ScientificNumber.from_float(900), "workshop", {"critical_multiplier_add": 0.05}, false, 1.06452, ProgressionTaxonomy.PROTOCOL, ATTACK, 60, 30),
 		UpgradeDefinition.new("chain_reaction", "CRIT CHAIN", "Chain Reaction. Each critical strengthens the next by 0.5% per rank.", ScientificNumber.from_float(15.47), ScientificNumber.from_float(1800), "workshop", {}, false, 1.06452, ProgressionTaxonomy.PROTOCOL, ATTACK, 60, 30),
 		UpgradeDefinition.new("automation_core", "AUTO CRANK", "+0.1 base damage every second per rank.", ScientificNumber.from_float(9.23), ScientificNumber.new(), "workshop", {"passive_flat": 0.1}, false, 1.07819, ProgressionTaxonomy.ROUTINE, ATTACK, 50, 60),
+		UpgradeDefinition.new("boss_damage", "BOSS DAMAGE", "+1% damage against boss waves per rank.", ScientificNumber.from_float(7.45), ScientificNumber.new(), "workshop", {"boss_damage": 0.01}, false, 1.03796, ProgressionTaxonomy.PROTOCOL, ATTACK, 100, 30),
 		UpgradeDefinition.new(ARMOR_ID, "ARMOR", "Shield Matrix. Every hit is 0.4% smaller per rank.", ScientificNumber.from_float(7.45), ScientificNumber.new(), "workshop", {"collection_resistance": 0.004}, false, 1.03796, ProgressionTaxonomy.MODULE, DEFENSE, 100, 0),
 		UpgradeDefinition.new("siphon", "SIPHON", "+0.25% of the damage you deal still reaches your Number, per rank.", ScientificNumber.from_float(13.08), ScientificNumber.new(), "workshop", {"siphon_share": 0.0025}, false, 1.03796, ProgressionTaxonomy.MODULE, DEFENSE, 100, 30),
 		UpgradeDefinition.new("recoil", "RECOIL", "+0.5% of every hit you take is dealt back to the wave, per rank.", ScientificNumber.from_float(13.08), ScientificNumber.new(), "workshop", {"recoil_share": 0.005}, false, 1.03796, ProgressionTaxonomy.MODULE, DEFENSE, 100, 30),
@@ -868,5 +892,7 @@ func _make_definitions() -> Array[UpgradeDefinition]:
 		UpgradeDefinition.new("brace_discount", "BRACE COST", "Brace costs 0.25 points less of your Number per rank, down to 15%.", ScientificNumber.from_float(10.82), ScientificNumber.new(), "workshop", {"brace_discount": -0.0025}, false, 1.06452, ProgressionTaxonomy.PROTOCOL, DEFENSE, 60, 12),
 		UpgradeDefinition.new("second_wind", "SECOND WIND", "Once per run, a hit that would end it leaves you 0.5% of your peak Number per rank.", ScientificNumber.from_float(12.95), ScientificNumber.new(), "workshop", {"second_wind_share": 0.005}, false, 1.07819, ProgressionTaxonomy.PROTOCOL, DEFENSE, 50, 60),
 		UpgradeDefinition.new("smarter_efficiency", "DISCOUNT", "Efficiency Matrix. All Workshop costs 0.25% lower per rank.", ScientificNumber.from_float(12.37), ScientificNumber.from_float(2500), "workshop", {"cost_discount": 0.0025}, false, 1.06452, ProgressionTaxonomy.MODULE, UTILITY, 60, 60),
+		UpgradeDefinition.new("coin_bonus", "COIN BONUS", "+0.5% Coins from every wave beaten, per rank.", ScientificNumber.from_float(28.07), ScientificNumber.new(), "workshop", {"coin_bonus": 0.005}, false, 1.03796, ProgressionTaxonomy.ROUTINE, UTILITY, 100, 60),
+		UpgradeDefinition.new("knowledge_bonus", "KNOWLEDGE BONUS", "+1% Knowledge when a run ends, per rank.", ScientificNumber.from_float(55.62), ScientificNumber.new(), "workshop", {"knowledge_bonus": 0.01}, false, 1.07819, ProgressionTaxonomy.ROUTINE, UTILITY, 50, 60),
 		UpgradeDefinition.new("insight", "INSIGHT", "Base production ×1.02 per rank. Costs Knowledge; survives every reset.", ScientificNumber.new(), ScientificNumber.new(), "knowledge", {"base_output_multiplier": 1.02}, true, 1.0, ProgressionTaxonomy.KNOWLEDGE, "", 999999, 0)
 	]

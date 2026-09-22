@@ -33,6 +33,8 @@ func _init() -> void:
 	_test_brace_cost_falls_to_its_floor()
 	_test_second_wind_forgives_one_ending_hit()
 	_test_cushion_scales_with_the_tier()
+	_test_boss_damage_applies_only_to_bosses()
+	_test_coin_and_knowledge_bonuses_lift_what_a_run_pays()
 	_test_wave_death_resets_run_but_keeps_meta_progress()
 	_test_run_gates_the_wave_clock()
 	_test_retreat_ends_and_resets_run()
@@ -175,9 +177,10 @@ func _test_deepened_ladders_keep_their_old_maxima() -> void:
 	state.purchased = {
 		"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 100,
 		"faster_echo": 60, "burst_relay": 6, "more_critical": 100, "magnitude_coil": 60,
-		"chain_reaction": 60, "automation_core": 50, "tax_resistance": 100,
-		"siphon": 100, "recoil": 100, "priority_buffer": 50, "brace_discount": 60,
-		"second_wind": 50, "smarter_efficiency": 60,
+		"chain_reaction": 60, "automation_core": 50, "boss_damage": 100,
+		"tax_resistance": 100, "siphon": 100, "recoil": 100, "priority_buffer": 50,
+		"brace_discount": 60, "second_wind": 50,
+		"smarter_efficiency": 60, "coin_bonus": 100, "knowledge_bonus": 50,
 	}
 	for definition in state.definitions:
 		if definition.category == ProgressionTaxonomy.WORKSHOP:
@@ -198,6 +201,9 @@ func _test_deepened_ladders_keep_their_old_maxima() -> void:
 	_expect(is_equal_approx(state._effect_sum("recoil_share"), 0.5), "Recoil should cap at half of every hit")
 	_expect(is_equal_approx(state.get_brace_cost_percent(), GameState.BRACE_COST_FLOOR), "Brace Cost should cap at its floor")
 	_expect(is_equal_approx(state._effect_sum("second_wind_share"), 0.25), "Second Wind should cap at a quarter of the run's peak")
+	_expect(is_equal_approx(state._effect_sum("boss_damage"), 1.0), "Boss Damage should cap at double damage against bosses")
+	_expect(is_equal_approx(state._effect_sum("coin_bonus"), 0.5), "Coin Bonus should cap at half again")
+	_expect(is_equal_approx(state._effect_sum("knowledge_bonus"), 0.5), "Knowledge Bonus should cap at half again")
 
 func _test_workshop_effects() -> void:
 	var state := _funded_state()
@@ -718,6 +724,72 @@ func _test_cushion_scales_with_the_tier() -> void:
 	var scale := state.get_cushion_scale(2)
 	_expect(is_equal_approx(scale, 20.0), "Tier 2 should scale Cushion by its own pressure multiplier")
 	_expect(state.number.compare_to(ScientificNumber.from_float(500.0 * scale)) == 0, "Cushion should be worth twenty times as much against Tier 2 hits")
+
+## Boss Damage must be a boss-only multiplier: the same ranks on a normal wave
+## change nothing, and the displayed rate must agree with what is dealt.
+func _test_boss_damage_applies_only_to_bosses() -> void:
+	var state := GameState.new()
+	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	state.purchased = {"stronger_tap": 100, "generator": 100, "boss_damage": 100}
+	state.start_run(2, 50)
+	state.wave = 9
+	state.active_encounter = state._make_encounter(9)
+	_expect(not state.active_encounter.is_boss, "wave nine should not be a boss")
+	var plain := state.tap()
+	state.wave = 10
+	state.active_encounter = state._make_encounter(10)
+	_expect(state.active_encounter.is_boss, "wave ten should be a boss")
+	var against_boss := state.tap()
+	_expect(against_boss.amount.compare_to(plain.amount.multiply_scalar(2.0)) == 0, "a maxed Boss Damage should double what a tap deals to a boss")
+	var boss_rate := state.get_rate_per_second()
+	state.active_encounter = state._make_encounter(9)
+	_expect(boss_rate.compare_to(state.get_rate_per_second()) > 0, "the displayed rate should carry the boss bonus too, not just the damage")
+
+	var bare := GameState.new()
+	bare.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	bare.purchased = {"stronger_tap": 100, "generator": 100}
+	bare.start_run(2, 50)
+	bare.active_encounter = bare._make_encounter(10)
+	var unbuffed := bare.tap()
+	_expect(unbuffed.amount.compare_to(plain.amount) == 0, "without the rank, a boss wave should take ordinary damage")
+
+func _test_coin_and_knowledge_bonuses_lift_what_a_run_pays() -> void:
+	var plain := GameState.new()
+	plain.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	plain.start_run(2, 51)
+	for wave in range(1, 31):
+		plain.active_encounter.remaining_liability = ScientificNumber.new()
+		plain._resolve_wave_boundary()
+	var base_coins := plain.coins
+	_expect(base_coins > 0, "thirty pressured waves should pay something to compare against")
+
+	var rich := GameState.new()
+	rich.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	rich.purchased = {"coin_bonus": 100}
+	rich.start_run(2, 51)
+	for wave in range(1, 31):
+		rich.active_encounter.remaining_liability = ScientificNumber.new()
+		rich._resolve_wave_boundary()
+	_expect(rich.coins > base_coins, "Coin Bonus should lift what beaten waves pay")
+	# Floored per wave, so the bonus lands just under the stated half again and
+	# never over it. That direction is the contract.
+	_expect(rich.coins <= int(float(base_coins) * 1.5), "Coin Bonus must never pay more than it states")
+	_expect(rich.coins >= int(float(base_coins) * 1.45), "Coin Bonus should land within rounding of its stated half again")
+
+	var grace := GameState.new()
+	grace.purchased = {"coin_bonus": 100}
+	grace.start_run(1, 52)
+	grace.active_encounter.remaining_liability = ScientificNumber.new()
+	grace._resolve_wave_boundary()
+	_expect(grace.coins == 1, "a one-Coin grace wave cannot carry a percentage, and must not round up into two")
+
+	var learner := GameState.new()
+	learner.lifetime_generated = ScientificNumber.from_float(GameState.PRESTIGE_TEASER_UNLOCK * 1000000.0)
+	var without := learner.get_prestige_knowledge_gain()
+	learner.purchased = {"knowledge_bonus": 50}
+	var with_bonus := learner.get_prestige_knowledge_gain()
+	_expect(without > 0 and with_bonus > without, "Knowledge Bonus should lift what a run ending grants")
+	_expect(with_bonus == int(floor(float(without) * 1.5)) or with_bonus == int(floor(float(without) * 1.5)) + 1, "a maxed Knowledge Bonus should grant about half again")
 
 func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	var state := GameState.new()

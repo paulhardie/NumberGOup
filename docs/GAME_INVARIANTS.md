@@ -19,7 +19,7 @@
 
 - During a run, every unit produced damages the active wave's remaining Liability first; only output beyond it is added to Number (D012). Liability floors at zero, and lifetime production counts all output.
 - Collection is an absolute value deducted from Number at each wave boundary while Liability remains. Number reaching zero ends and resets the run, unless an unspent Second Wind restores a share of the run's peak Number, which it may do at most once per run (D020).
-- Tier 2 and Tier 3 apply exactly 20× and 60× Tier 1 Liability and Collection at equal pressured waves; reward multipliers are 1.8× and 2.6×.
+- Tier 2 and Tier 3 apply exactly 20× and 60× Tier 1 Liability and Collection at equal pressured waves; reward multipliers are 1.8× and 2.6×. These are the profile's ratios; what a player is paid may differ, because Coin Bonus lifts it.
 - Boss waves multiply Liability (3×), Collection (1.5×) and reward (5×) independently.
 - Milestones at waves 10/25/50/100 are claimable at most once per tier record.
 - Tier 2 and Tier 3 unlock only by clearing wave 100 of the preceding tier.
