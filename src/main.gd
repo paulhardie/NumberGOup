@@ -1280,6 +1280,8 @@ func _make_lab_research_card(definition: LabResearch.Definition) -> Button:
 func _lab_status_text(definition: LabResearch.Definition, maxed: bool, active: bool) -> String:
 	if maxed:
 		return "MAXED"
+	if state.lab_is_done_awaiting_run_end(definition.id):
+		return "DONE\nNEXT RUN"
 	if active:
 		return _format_duration(state.get_lab_time_remaining(definition.id)) + "\nLEFT"
 	return _coins(state.get_lab_cost(definition.id)) + " ©\n" + _format_duration(state.get_lab_duration(definition.id))

@@ -48,6 +48,7 @@ func _init() -> void:
 	_test_lab_research_costs_coins_and_takes_real_time()
 	_test_lab_slots_limit_concurrent_research()
 	_test_lab_slots_open_with_gems()
+	_test_research_finished_mid_run_waits_for_the_next_run()
 	_test_lab_research_is_a_between_run_action()
 	_test_finished_lab_research_applies_its_effect()
 	_test_lab_speed_shortens_other_lines_not_itself()
@@ -1582,6 +1583,59 @@ func _test_lab_slots_open_with_gems() -> void:
 		_expect(clamped.lab_slots_total() >= LabResearch.STARTING_SLOTS and clamped.lab_slots_total() <= LabResearch.MAX_SLOTS, "a stored slot count should stay between one and five")
 		clamped.clear_save()
 	_expect(_leftover_save_files().is_empty(), "the slot checks should leave no file behind")
+
+## D031: research that finishes during a run takes effect from the next one,
+## so a run's power never changes with the wall clock and a seeded run replays
+## identically however long research takes.
+func _test_research_finished_mid_run_waits_for_the_next_run() -> void:
+	var build := {"generator": 100, "automation_core": 50, "more_critical": 100}
+	var outcomes := []
+	for finish_mid_run in [false, true]:
+		var state := _funded_state()
+		state.purchased = build.duplicate()
+		_expect(state.start_lab("lab_damage"), "the fixture should have Damage Research running")
+		state.start_run(1, 42)
+		for frame in range(1200):
+			if finish_mid_run and frame == 600:
+				# The clock passes the line's end mid-run, and the UI asks.
+				state.lab_active["lab_damage"].started_unix = 0.0
+				_expect(state.get_lab_owned("lab_damage") == 0 and state.lab_is_done_awaiting_run_end("lab_damage"), "a line finishing mid-run should wait, and say so")
+			state.advance(1.0 / 60.0)
+		outcomes.append([state.lifetime_generated.to_dict(), state.rng.state])
+		state.end_run()
+		if finish_mid_run:
+			_expect(state.get_lab_owned("lab_damage") == 1 and not state.lab_active.has("lab_damage"), "the run's end should settle the finished line")
+	_expect(outcomes[0] == outcomes[1], "a seeded run should produce the same output whether research finishes during it or not")
+
+	# Research finished before a run starts counts for all of that run.
+	var early := _funded_state()
+	early.start_lab("lab_damage")
+	early.lab_active["lab_damage"].started_unix = 0.0
+	early.start_run(1, 3)
+	_expect(early.get_lab_owned("lab_damage") == 1 and is_equal_approx(early._base_output_multiplier(), 1.01), "research finished before the run should count from its start")
+	early.end_run()
+
+	# A save taken mid-run keeps the finished line waiting through the reload.
+	var save_path := "res://.number_go_up_test_save.json"
+	var mid := _funded_state()
+	mid.save_path = save_path
+	mid.start_lab("lab_damage")
+	mid.start_run(1, 3)
+	mid.lab_active["lab_damage"].started_unix = 0.0
+	mid.save()
+	var resumed := GameState.new()
+	resumed.save_path = save_path
+	resumed.load()
+	_expect(resumed.in_run and resumed.get_lab_owned("lab_damage") == 0 and is_equal_approx(resumed._base_output_multiplier(), 1.0), "a run resumed from a save should not gain research that finished while it was away")
+	resumed.end_run()
+	_expect(resumed.get_lab_owned("lab_damage") == 1, "the resumed run's end should settle the line")
+	resumed.clear_save()
+
+	# A clock set back never shows more time left than the line takes.
+	var rewound := _funded_state()
+	rewound.start_lab("lab_speed", 5000.0)
+	var duration := float(rewound.lab_active["lab_speed"].duration)
+	_expect(is_equal_approx(rewound.get_lab_time_remaining("lab_speed", 5000.0 - 3600.0), duration), "a clock set back should show the line's full time, not more")
 
 func _test_lab_research_is_a_between_run_action() -> void:
 	var state := _funded_state()
