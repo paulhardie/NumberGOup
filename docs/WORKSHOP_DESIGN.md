@@ -479,9 +479,9 @@ Targets 7–9 gate the Rig (step 7). All three need the simulator to model in-ru
 8. **The Rig cannot be ignored.** At the top build, playing the Rig reaches meaningfully deeper than hoarding Number does. If it does not, the panel is four tabs of noise.
 9. **No runaway.** Over a long run, Rig cost growth outruns Number income: no build reaches a state where every row is affordable on every wave.
 
-Target 10 gates the Tier 1 opening (D033), measured by the OPENING table in `run_balance.sh`.
+Target 10 gates the Tier 1 opening (D033, retuned by D034), measured by the OPENING table in `run_balance.sh`.
 
-10. **A new player is in the action at once.** From a fresh save the first Rig purchase is affordable within about 15 seconds, the player is under visible attack from wave 1, an idle player is hit within the first 15 seconds, a steady tapper's first hit is survivable, and the first run still ends around wave 21 in about five minutes. *Met: first purchase from the first second; first hit at 15 seconds idle and 105 to 150 seconds tapping; wave 21 at 2 to 4 taps a second, 48 Coins.*
+10. **A new player is in the action at once, with room to learn.** From a fresh save the first two Rig purchases together leave over half the starting Number, the player is under visible attack from wave 1, an idle player is hit within the first 15 seconds, and a steady tapper's first hit is survivable. The first run should still fund permanent ranks while one-tap play makes visible progress and idle play does not earn the whole warm-up reward. *Measured at seed 7 after D034: the cautious opening policy buys from the first second; an idle run ends at wave 15 with 38 Coins, two taps a second at wave 22 with 62, and three taps a second at wave 23 with 76. The representative two-tap run without Rig spending still ends at wave 21 with 48.*
 
 ## Implementation order
 

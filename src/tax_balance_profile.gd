@@ -6,7 +6,7 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v2"
+const PROFILE_ID := "tax-foundation-v3"
 const WAVE_INTERVAL_SECONDS := 15.0
 const BOSS_WAVE_INTERVAL := 10
 const TIER_UNLOCK_WAVE := 100
@@ -40,13 +40,15 @@ const BOSS_REWARD_MULTIPLIER := 5.0
 const WARM_UP_START_HP := 30.0
 const WARM_UP_HP_GROWTH := 1.12
 const WARM_UP_START_HIT := 1.0
-const WARM_UP_HIT_GROWTH := 1.12
+const WARM_UP_HIT_GROWTH := 1.08
 const WARM_UP_BOSS_HP := 1.4
 const WARM_UP_BOSS_HIT := 1.4
 const WARM_UP_STARTING_NUMBER := 50.0
 const BASE_DAMAGE_PER_SECOND := 1.0
-const RIG_WARM_UP_PRICE_SCALE := 0.1
+const RIG_WARM_UP_PRICE_SCALE := 0.05
 const RIG_WARM_UP_DISCOUNTED_PURCHASES := 2
+const TIER_ONE_TRANSITION_LAST_WAVE := 25
+const TIER_ONE_TRANSITION_HIT_GROWTH := 2.0
 
 var tiers: Array = []
 
@@ -125,6 +127,19 @@ func collection_for_wave(tier_id: int, wave: int) -> ScientificNumber:
 	var boss_multiplier := BOSS_COLLECTION_MULTIPLIER if is_boss_wave(wave) else 1.0
 	var value_log := log(COLLECTION_SCALE * body * tier.collection_multiplier * boss_multiplier) / log(10.0) + milestone_log
 	return _from_log10(value_log)
+
+## Tier 1's first pressured hits grow from its final warm-up boss rather than
+## jumping straight to the full curve. The full curve remains the encounter's
+## base Collection, so higher tiers keep their exact pressure ratios and Armor
+## still reduces the effective hit through the shared modifier pipeline.
+func tier_one_transition_hit_multiplier(tier_id: int, wave: int, base_hit: ScientificNumber) -> float:
+	if tier_id != 1 or wave <= get_tier(1).free_waves or wave > TIER_ONE_TRANSITION_LAST_WAVE or base_hit.is_zero():
+		return 1.0
+	var last_warm_up_hit := WARM_UP_START_HIT * pow(WARM_UP_HIT_GROWTH, float(get_tier(1).free_waves - 1)) * WARM_UP_BOSS_HIT
+	var ramped_hit := ScientificNumber.from_float(last_warm_up_hit * pow(TIER_ONE_TRANSITION_HIT_GROWTH, float(wave - get_tier(1).free_waves)))
+	if ramped_hit.compare_to(base_hit) >= 0:
+		return 1.0
+	return pow(10.0, ramped_hit.log10() - base_hit.log10())
 
 func reward_for_wave(tier_id: int, wave: int) -> int:
 	if not is_pressured_wave(tier_id, wave):

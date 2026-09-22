@@ -690,6 +690,27 @@ func _test_tier_one_opening() -> void:
 	_expect(profile.liability_for_wave(1, 2).compare_to(ScientificNumber.from_float(profile.WARM_UP_START_HP * profile.WARM_UP_HP_GROWTH)) == 0, "warm-up HP should grow its share each wave")
 	var boss_hp: float = profile.WARM_UP_START_HP * pow(profile.WARM_UP_HP_GROWTH, 9) * profile.WARM_UP_BOSS_HP
 	_expect(profile.liability_for_wave(1, 10).compare_to(ScientificNumber.from_float(boss_hp)) == 0, "a warm-up boss should be softened, not tripled")
+	var boss_hit: float = profile.WARM_UP_START_HIT * pow(profile.WARM_UP_HIT_GROWTH, 19) * profile.WARM_UP_BOSS_HIT
+	_expect(profile.collection_for_wave(1, 20).compare_to(ScientificNumber.from_float(boss_hit)) == 0, "the final warm-up hit should use the gentler growth")
+	_expect(boss_hit < 7.0, "the last warm-up boss should leave a reasonable opening buffer")
+	# The first pressured hits climb from the warm-up, then return to the full
+	# curve. The reduction belongs only to Tier 1; other tiers keep their base.
+	for opening_wave in range(21, 27):
+		fresh.wave = opening_wave
+		fresh.active_encounter = fresh._make_encounter(opening_wave)
+		var full_hit: ScientificNumber = profile.collection_for_wave(1, opening_wave)
+		var ramped_hit := ScientificNumber.from_float(boss_hit * pow(profile.TIER_ONE_TRANSITION_HIT_GROWTH, float(opening_wave - 20)))
+		var expected_hit: ScientificNumber = ramped_hit if opening_wave <= profile.TIER_ONE_TRANSITION_LAST_WAVE and ramped_hit.compare_to(full_hit) < 0 else full_hit
+		_expect(fresh.get_effective_collection().compare_to(expected_hit) == 0, "Tier 1's effective hit should climb to the full curve at wave " + str(opening_wave))
+		_expect(fresh.active_encounter.collection.compare_to(full_hit) == 0, "the encounter should retain the base hit for wave " + str(opening_wave))
+	var armored := GameState.new()
+	armored.purchased = {"tax_resistance": 1}
+	armored.start_run(1, 3)
+	armored.wave = 21
+	armored.active_encounter = armored._make_encounter(21)
+	var opening_hit: ScientificNumber = fresh.balance_profile.collection_for_wave(1, 21).multiply_scalar(profile.tier_one_transition_hit_multiplier(1, 21, profile.collection_for_wave(1, 21)))
+	_expect(armored.get_effective_collection().compare_to(opening_hit.multiply_scalar(0.996)) == 0, "Armor should still reduce Tier 1's transition hit")
+	_expect(tier_two.get_effective_collection().compare_to(tier_two.active_encounter.collection) == 0, "Tier 2's opening hit should be unchanged")
 
 	# An unbeaten warm-up wave lands its hit, then ends and pays as if beaten.
 	var stuck := GameState.new()
@@ -710,6 +731,19 @@ func _test_tier_one_opening() -> void:
 	# The run's first Rig purchases are cheap during the warm-up; later ones,
 	# and any after the warm-up, pay the full price.
 	var rig := GameState.new()
+	rig.start_run(1, 3)
+	var opening_cost: ScientificNumber = rig.get_rig_cost("generator")
+	_expect(opening_cost.compare_to(ScientificNumber.from_float(12.0)) < 0, "the first Rig rank should cost about 12 Number")
+	_expect(rig.purchase_rig("generator") and rig.purchase_rig("stronger_tap"), "both opening Rig ranks should be affordable immediately")
+	_expect(rig.number.compare_to(ScientificNumber.from_float(25.0)) > 0, "two opening purchases should leave over half the starting Number")
+	var repeat := GameState.new()
+	repeat.start_run(1, 3)
+	_expect(repeat.purchase_rig("generator") and repeat.get_rig_cost("generator").compare_to(opening_cost) == 0, "a repeated second rank should keep the same opening price")
+	var mixed := GameState.new()
+	mixed.start_run(1, 3)
+	_expect(mixed.get_rig_cost("coin_bonus").compare_to(opening_cost) == 0, "the Utility category should keep the same opening price")
+	_expect(mixed.purchase_rig("coin_bonus") and mixed.get_rig_cost("generator").compare_to(opening_cost) == 0, "a mixed-category pair should keep the same opening price")
+	rig = GameState.new()
 	rig.start_run(1, 3)
 	rig.number = ScientificNumber.new(1.0, 9)
 	var discounted: ScientificNumber = profile.rig_warm_up_reference_hp(1)
@@ -859,6 +893,28 @@ func _test_mid_wave_save_resumes_identically() -> void:
 	_expect(restored.active_encounter.remaining_liability.compare_to(original.active_encounter.remaining_liability) == 0, "a restored run should deal the same damage as the original")
 	_expect(restored.lifetime_generated.compare_to(original.lifetime_generated) == 0 and restored.rng.state == original.rng.state, "a restored run should stay deterministic")
 	restored.clear_save()
+
+	# The Tier 1 transition is applied when a hit is read, not stored in the
+	# encounter. A saved older encounter may have a larger base hit; reloading
+	# at wave 21 must still cap that hit, without applying the cap twice.
+	var opening := GameState.new()
+	opening.save_path = save_path
+	opening.start_run(1, 31)
+	opening.wave = 21
+	opening.active_encounter = opening._make_encounter(21)
+	opening.active_encounter.collection = opening.active_encounter.collection.multiply_scalar(2.0)
+	opening.number = ScientificNumber.from_float(100.0)
+	var opening_hit: ScientificNumber = opening.get_effective_collection()
+	_expect(opening_hit.compare_to(ScientificNumber.from_float(13.0)) < 0, "a saved larger base hit should still use the Tier 1 transition cap")
+	_expect(opening.save(), "a Tier 1 transition wave should save")
+	var opening_restored := GameState.new()
+	opening_restored.save_path = save_path
+	opening_restored.load()
+	_expect(opening_restored.wave == 21 and opening_restored.get_effective_collection().compare_to(opening_hit) == 0, "a reloaded Tier 1 transition should keep the same effective hit")
+	opening._resolve_wave_boundary()
+	opening_restored._resolve_wave_boundary()
+	_expect(opening_restored.number.compare_to(opening.number) == 0 and opening_restored.wave == opening.wave, "the reloaded Tier 1 hit should resolve identically")
+	opening_restored.clear_save()
 
 func _test_collection_is_absolute() -> void:
 	var small := GameState.new()

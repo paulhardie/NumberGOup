@@ -1,6 +1,6 @@
 # Tower scaling research and Number Go Up foundation
 
-Status: researched and implemented as foundation profile `tax-foundation-v1`, then retuned to `tax-foundation-v2` for D012, 21 September 2026.
+Status: researched and implemented as foundation profile `tax-foundation-v1`, retuned to `tax-foundation-v2` for D012, then to `tax-foundation-v3` for Tier 1's opening (D034), 22 September 2026.
 
 ## Implemented foundation
 
@@ -234,7 +234,7 @@ The committed profile evaluator currently produces:
 | 3 | 21 | 14,293 | 9,364 | 35 |
 | 3 | 100 boss | 3.33M | 735,049 | 845 |
 
-These are `tax-foundation-v2` values: v1's Liability and Collection halved and pressured rewards ×0.65, retuned for D012. Before-and-after measurements are in [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md).
+These base curve values carry forward into `tax-foundation-v3`: v1's Liability and Collection were halved and pressured rewards multiplied by 0.65 for D012. Tier 1's effective hits at waves 21–25 now ramp up from its warm-up through a rule modifier; at wave 21 the hit shown and dealt is about 12 rather than the base Collection of 156. Higher tiers and the base pressure ratios keep the table's values. `run_balance.sh` prints both base and effective Tier 1 opening hits. Before-and-after measurements are in [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md).
 
 The deterministic first-run baseline in `tools/balance_simulator.gd` taps twice per second and buys the first affordable permanent Workshop upgrade in the standard order. With seed 7 it currently dies at Tier 1 wave 21 after 360 seconds with 48 Coins, enough to fund the first two Workshop ranks. The same tool's build matrix measures progressed builds on Tiers 1 and 2. This is a reproducible calibration baseline, not a claim that the balance is final.
 
