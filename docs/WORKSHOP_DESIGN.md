@@ -1,10 +1,10 @@
 # Workshop design
 
-**Status:** Accepted direction. Steps 1 (the wave rule and its retune), 3 (the four categories), 3b (the deepened ladders), 4a and 4b (the Defense, Attack and Utility stats) and 5 (the bar reshape) implemented 21–22 September 2026. Steps 2, 6, 7 and 8 not yet.
-**Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four categories), [D014](DECISIONS.md) (player vocabulary), [D015](DECISIONS.md) (the Rig: the same four categories inside a run), [D016](DECISIONS.md) (the bottom bar carries what is actionable now), [D018](DECISIONS.md) (multi-buy and the reference layout), [D019](DECISIONS.md) (deep rank ladders), [D020](DECISIONS.md) (Defense becomes a build), [D021](DECISIONS.md) (Boss Damage and the Utility bonuses) and [D022](DECISIONS.md) (the run-over screen names what the run was lost to).
-**Owns:** the wave rule as the player should understand it, the four categories in both lenses — permanent in the Workshop, run-only in the Rig — and every stat's reason to exist, what the player sees, the build strategies this supports, the balance targets the retune must hit, and the implementation order.
+**Status:** Accepted direction. Steps 1–3 (the wave rule, retune, player vocabulary and Workshop categories) implemented 21 September 2026; later steps not yet.
+**Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four Workshop categories) and [D014](DECISIONS.md) (player vocabulary).
+**Owns:** the wave rule as the player should understand it, the four Workshop categories and every stat's reason to exist, what the player sees, the build strategies this supports, the balance targets the retune must hit, and the implementation order.
 
-This document uses the accepted player vocabulary (Wave HP, Hit, Armor). [Vocabulary](#vocabulary-d014) maps every term to its code name.
+This document uses the accepted player vocabulary (Wave HP, Hit, Armor). [Vocabulary](#vocabulary-d014) maps every term to its current code or save authority.
 
 ## The wave, in one paragraph
 
@@ -74,9 +74,9 @@ Armor 40% is worth +10 waves on Max Attack (+15 before D012, +5 on v1 curves). K
 
 ## Vocabulary (D014)
 
-Player-facing words move away from tax and collection phrasing. The UI string pass is step 2; so far only the run screen's rate line uses the new words (`16 DAMAGE / sec` while a wave stands). Code names and save keys stay as they are. Renaming a save key needs a migration under the save contract, and renaming classes is a separate mechanical change.
+Player-facing words move away from tax and collection phrasing. The UI string pass is step 2. Encounter code names remain unchanged; D013's later Workshop migration deliberately moved Armor into the normal Workshop purchase map under save V5.
 
-| Player sees today | Player sees after step 2 | Code name (unchanged) | Plain meaning |
+| Former wording | Player sees | Current code or save authority | Plain meaning |
 | --- | --- | --- | --- |
 | Tax encounter | Wave | `TaxEncounter` | One 15-second fight |
 | Liability | Wave HP, shown as the ring | `liability`, `remaining_liability` | How much damage beats this wave |
@@ -85,7 +85,7 @@ Player-facing words move away from tax and collection phrasing. The UI string pa
 | Collection, Tax collected | Hit | `collection` | What the wave takes from your Number when its timer runs out |
 | Grace wave · nothing due | Warm-up wave | `is_pressured_wave() == false` | No HP, no hit; everything banks |
 | Brace | Brace (keep) | `braced` | Spend 30% of your Number to block the next hit |
-| Armor (was Shield Matrix) | Armor | `tax_resistance` Workshop rank | Every hit is permanently smaller |
+| Shield, Shield Matrix | Armor | `purchased["armor"]` | Every hit is permanently smaller |
 | Number, Coins, Knowledge, Retreat | Keep | — | — |
 | — | The Rig, and `THIS RUN ONLY` on its panel | new (D015) | What you build inside one run, bought with Number |
 
@@ -112,22 +112,20 @@ Player-facing text never calls the Number "health". It says "If a hit takes your
 | Crit Chain | Each crit strengthens the next | `chain_reaction` |
 | Boss Damage | More damage against boss waves, ×2 at its cap | 100 ranks |
 
-Attack is today's Output, Speed and Chance bays, nearly unchanged. Boss Damage is the one new stat (step 4b): a targeted choice for players whose runs end on bosses, and worth +6 waves on its own at the cap.
+Attack consolidates the former Output, Speed and Chance bays, otherwise nearly unchanged. Boss Damage is the one new stat: a targeted choice for players whose runs end on bosses.
 
 ### Defense — "Survive the hits"
 
 **Buy Defense when** a wave outlasts its timer and the hits drain your Number. That happens most often on bosses, and from wave 1 on Tier 2 and above.
 
-**Implemented (step 4a, D020).** Six rows, 460 ranks, 60,008 Coins to max — within one Coin of Attack's total, which is what makes a Defense Research Focus a real choice rather than a consolation.
-
-| Stat | Does | Ranks | At its cap |
-| --- | --- | --- | --- |
-| Armor | Every hit is X% smaller | 100 | hits 40% smaller |
-| Siphon | X% of the damage you deal still reaches your Number | 100 | 25% of damage dealt |
-| Recoil | X% of every hit you take is dealt back to the wave | 100 | half of every hit |
-| Cushion | Start every run with X Number, scaled by the tier | 50 | 500 × the tier's pressure |
-| Brace Cost | Brace costs less than 30% of your Number | 60 | 15%, its floor |
-| Second Wind | Once per run, a hit that would end the run leaves you X% of your peak Number this run instead | 50 | a quarter of the peak |
+| Stat | Does | Source |
+| --- | --- | --- |
+| Armor | Every hit is X% smaller | Former Shield Matrix rank; now `purchased["armor"]` |
+| Siphon | X% of the damage you deal still reaches your Number | New |
+| Recoil | X% of every hit you take is dealt back to the wave | New |
+| Cushion | Start every run with X Number | `priority_buffer` moves here |
+| Brace Cost | Brace costs less than 30% of your Number | New |
+| Second Wind | Once per run, a hit that would end the run leaves you with X% of your highest Number this run instead | New |
 
 Each works on a different part of being stuck:
 
@@ -457,17 +455,13 @@ Each step lands on its own and clears the gate for its risk level in [`QUALITY_G
 | Step | What | Risk |
 | --- | --- | --- |
 | 1 | **Done.** D012 rule in `GameState._add_number`, `tax-foundation-v2` retune, simulator build matrix, and the run screen's rate line (it said `+X / sec` while output was going into the wave) | High: economy and encounter |
-| 2 | Player vocabulary (D014) in the remaining UI strings: the encounter line, hit toasts, Brace and Shield text, floating `+X` on taps, the drawer's `NUMBER / SEC` | Low to medium |
-| 3 | **Done.** Four Workshop categories; bays retire; Shield Matrix becomes the Armor Workshop row; Research Focus retargets from bay to category; save schema V5 (D017) migrates `selected_bay`, `focus` and `tax_resistance_rank` with no rank lost and a live run intact. Also the reference layout: category strip pinned at the bottom, compact two-column cards with the detail one tap away, and multi-buy (D018) | High: save schema and a purchase path |
-| 3b | **Done.** Deep rank ladders (D019): 51 ranks become 906 at the same total Coin cost and the same value at every cap; gates move to 0 / 12 / 30 / 60 and Research Focus to 120 | High: economy |
-| 4a | **Done.** The five new Defense stats (D020): Siphon, Recoil, tier-scaled Cushion, Brace Cost, Second Wind. Targets 5 and 6 met | High: economy |
-| 4b | **Done.** Boss Damage, Coin Bonus and Knowledge Bonus (D021); Research Focus balanced across all three categories | High: economy |
-| 5 | **Done.** The bar reshape (D016): the dock drops to `RUN · WORKSHOP · MORE`, Labs, Insight and Prestige become one Knowledge sheet opened from the Knowledge chip, the `highest_number` gates move inside it, and the run-over screen is reframed as "Lost to" (D022) with both doors | Medium: presentation, plus one field on the run summary |
-| 6 | The two gaps under "Lost to": how far short Attack fell against that wave's HP, and Defense against its hit | Medium |
-| 7 | **The Rig** (D015): the in-run panel, Number prices against wave HP, run-scoped ranks saved with the active run, Brace into the Defense tab and Shield off the run screen | High: economy and save |
-| 8 | Ultimates, in both lenses | High: new timed effects and saved cooldown state |
+| 2 | **Done.** Player vocabulary (D014) in the encounter line, hit toasts, Brace and Armor text, tap feedback and the drawer's `DAMAGE / SEC` | Low to medium |
+| 3 | **Done.** Four Workshop categories; bays retired; Shield Matrix became Armor; Research Focus retargeted from bay to category | High: save schema V5 migrates `selected_bay`, `focus`, bay unlock access and `tax_resistance_rank` without losing ranks |
+| 4 | New Defense stats (Siphon, Recoil, scaled Cushion, Brace Cost, Second Wind), then Boss Damage and the Coin and Knowledge bonuses | High: economy; targets 5 and 6 |
+| 5 | "What would have saved you" on the run-over screen | Medium |
+| 6 | Ultimates | High: new timed effects and saved cooldown state |
 
-Step 2 should follow step 1 closely, so the new rule is explained on screen in the new words.
+Step 2 followed step 1 closely, so the new rule is explained on screen in the new words. Step 3 preserves every existing upgrade id and rank. Armor also preserves Shield Matrix's effect, price sequence and exclusion from Workshop-level gates; only the Workshop organisation, Research Focus scope and Armor save authority changed.
 
 Step 3 is the only hard prerequisite for the Rig: it needs a catalogue organised by category to draw on. Step 4 is a soft one — without it Defense is a one-row tab, which undercuts the point of having four. Steps 5 and 6 are independent of 7, so **the shortest path to the in-run panel is 3 → 4 → 7**, with step 5's in-run half landing alongside it because the in-run bar and the between-runs bar are the same control. Do not build the in-run bar at step 5 with nothing behind it.
 

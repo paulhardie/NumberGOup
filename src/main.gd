@@ -27,12 +27,11 @@ const WORKSHOP_ACCENT := ACCENT
 const LABS_ACCENT := ACCENT
 const CARDS_ACCENT := ACCENT
 
-# Keyed by the literal category ids so this stays a constant expression.
 const CATEGORY_ICON := {
-	"attack": 7, # IconGlyph.Kind.BOLT
-	"defense": 14, # IconGlyph.Kind.SHIELD
-	"utility": 9, # IconGlyph.Kind.CHIP
-	"ultimate": 12, # IconGlyph.Kind.SPARKLE
+	"attack": 6, # IconGlyph.Kind.CHART
+	"defense": 9, # IconGlyph.Kind.CHIP
+	"utility": 13, # IconGlyph.Kind.COIN
+	"ultimates": 12, # IconGlyph.Kind.SPARKLE
 }
 
 ## The category strip's height. It sits above the nav dock between runs, and a
@@ -82,9 +81,6 @@ var boss_label: Label
 var boss_separator: Label
 var encounter_label: Label
 var brace_button: Button
-var brace_cost_label: Label
-var armor_button: Button
-var armor_cost_label: Label
 var run_button: Button
 
 var died_screen: Control
@@ -162,15 +158,15 @@ func _process(delta: float) -> void:
 	var events := state.advance(delta)
 	for event in events:
 		if event.is_critical:
-			_spawn_floating_text("CRITICAL +" + event.amount.format_value(), CRITICAL, floating_text_layer.size * Vector2(0.5, 0.42))
+			_spawn_floating_text(_production_feedback_text(event.amount, true, state.is_output_banking()), CRITICAL, floating_text_layer.size * Vector2(0.5, 0.42))
 			_pulse_number(1.06)
 			_flash_number(CRITICAL)
 		elif event.type == "tax_collection":
-			_show_toast("TAX COLLECTED  -" + event.amount.format_value(), DANGER)
+			_show_toast("HIT  -" + event.amount.format_value(), DANGER)
 			_flash_number(DANGER)
 			_pulse_stage_impact(DANGER)
 		elif event.type == "boss_collection":
-			_show_toast("BOSS COLLECTION  -" + event.amount.format_value(), BOSS_DANGER)
+			_show_toast("BOSS HIT  -" + event.amount.format_value(), BOSS_DANGER)
 			_flash_number(BOSS_DANGER, 0.5)
 			_pulse_stage_impact(BOSS_DANGER)
 			_shake_number()
@@ -418,18 +414,10 @@ func _build_run_controls(parent: Control) -> void:
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	actions.add_theme_constant_override("separation", 60)
 	parent.add_child(actions)
-	brace_button = _make_text_action("BRACE", "")
-	brace_button.tooltip_text = "Spend a share of Number to block the next hit. Brace Cost lowers the share."
-	brace_cost_label = brace_button.get_meta("cost_label")
+	brace_button = _make_text_action("BRACE", "30% OF NUMBER")
+	brace_button.tooltip_text = "Spend 30% of Number to block the next Hit."
 	brace_button.pressed.connect(_on_brace_pressed)
 	actions.add_child(brace_button)
-	# Armor is an ordinary Workshop rank now (D013); this is a shortcut to the
-	# Defense row, not a second purchase path.
-	armor_button = _make_text_action("ARMOR", "")
-	armor_button.tooltip_text = "Spend Coins to make every hit smaller. A permanent Defense rank that survives every reset."
-	armor_button.pressed.connect(_on_armor_pressed)
-	actions.add_child(armor_button)
-	armor_cost_label = armor_button.get_meta("cost_label")
 
 	# Deliberately the quietest control on the screen: ending a run is
 	# destructive and rare, so it should never be the thing a thumb finds first.
@@ -555,21 +543,17 @@ func _build_workshop_screen(parent: Control) -> void:
 	chip.add_child(workshop_header)
 	header_row.add_child(chip)
 	content.add_child(_make_label("PERMANENT · APPLIES TO EVERY RUN", 10, HORIZONTAL_ALIGNMENT_LEFT, WORKSHOP_ACCENT))
+	var permanence_copy := _make_label("Spend Coins between runs to raise the starting stats used by every future attempt.", 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	permanence_copy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(permanence_copy)
 
-	var category_row := HBoxContainer.new()
-	category_row.add_theme_constant_override("separation", 8)
-	content.add_child(category_row)
-	workshop_category_header = _make_label("", 16, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
-	workshop_category_header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	category_row.add_child(workshop_category_header)
-	category_row.add_child(_make_multiplier_chip())
-
-	workshop_purpose = _make_label("", 12, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
-	workshop_purpose.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	content.add_child(workshop_purpose)
-	workshop_buy_when = _make_label("", 11, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
-	workshop_buy_when.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	content.add_child(workshop_buy_when)
+	content.add_child(_make_label("CHOOSE A CATEGORY", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
+	workshop_board_row = HBoxContainer.new()
+	workshop_board_row.add_theme_constant_override("separation", 8)
+	content.add_child(workshop_board_row)
+	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
+		workshop_board_row.add_child(_make_category_tab(category))
+	content.add_child(HSeparator.new())
 
 	var detail_scroll := ScrollContainer.new()
 	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -579,66 +563,6 @@ func _build_workshop_screen(parent: Control) -> void:
 	workshop_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	workshop_detail.add_theme_constant_override("separation", 8)
 	detail_scroll.add_child(workshop_detail)
-
-	workshop_board_row = _build_category_strip(screens["workshop"], NavDock.BAR_HEIGHT)
-
-## The multi-buy control: one press cycles x1 → x5 → x10 → MAX for the open
-## category, which is how a player buys a ladder without a hundred taps.
-func _make_multiplier_chip() -> Button:
-	var button := Button.new()
-	button.text = ""
-	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(62, 30)
-	button.add_theme_stylebox_override("normal", _panel_style(Color.TRANSPARENT, 8, WORKSHOP_ACCENT))
-	button.add_theme_stylebox_override("hover", _panel_style(Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.14), 8, WORKSHOP_ACCENT))
-	var centre := CenterContainer.new()
-	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	button.add_child(centre)
-	workshop_multiplier_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, WORKSHOP_ACCENT)
-	centre.add_child(workshop_multiplier_label)
-	button.pressed.connect(func():
-		var category: String = state.workshop.selected_category
-		buy_step_index[category] = (_buy_step_index(category) + 1) % GameState.BUY_STEPS.size()
-		_refresh_workshop()
-	)
-	return button
-
-func _buy_step_index(category: String) -> int:
-	return int(buy_step_index.get(category, 0))
-
-func _buy_step(category: String) -> int:
-	return int(GameState.BUY_STEPS[_buy_step_index(category)])
-
-func _buy_step_label(category: String) -> String:
-	var step := _buy_step(category)
-	return "MAX" if step == GameState.MAX_BUY else "x" + str(step)
-
-## The four category buttons, pinned to the bottom of the screen that owns them.
-## bottom_offset lifts them clear of the nav dock; a run screen has no dock, so
-## the same strip can sit flush there when the Rig arrives (D015, D016).
-func _build_category_strip(parent: Control, bottom_offset: float) -> HBoxContainer:
-	var strip := Control.new()
-	strip.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	strip.offset_top = -(bottom_offset + float(CATEGORY_STRIP_HEIGHT))
-	strip.offset_bottom = -bottom_offset
-	parent.add_child(strip)
-	var divider := ColorRect.new()
-	divider.color = DIVIDER
-	divider.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	divider.offset_bottom = 1
-	strip.add_child(divider)
-	var row := HBoxContainer.new()
-	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	row.offset_left = 10
-	row.offset_right = -10
-	row.offset_top = 6
-	row.offset_bottom = -6
-	row.add_theme_constant_override("separation", 8)
-	strip.add_child(row)
-	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
-		row.add_child(_make_category_tab(category))
-	return row
 
 func _make_category_tab(category: String) -> Button:
 	var button := Button.new()
@@ -669,55 +593,21 @@ func _make_category_tab(category: String) -> Button:
 	workshop_lock_badges[category] = lock_badge
 	return button
 
-## Research Focus, Insight and Prestige in one sheet (D016). None of the three
-## is visited often enough to hold a seat on a three-icon bar: Focus is chosen
-## once per Prestige, Insight is one repeatable row, and Prestige is rare and
-## irreversible. The Knowledge chip on the run screen opens it.
-func _build_knowledge_sheet() -> void:
-	knowledge_sheet = Control.new()
-	knowledge_sheet.visible = false
-	knowledge_sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(knowledge_sheet)
-
-	var scrim := ColorRect.new()
-	scrim.color = Color(0, 0, 0, 0.55)
-	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	scrim.mouse_filter = Control.MOUSE_FILTER_STOP
-	scrim.gui_input.connect(func(event: InputEvent):
-		if event is InputEventMouseButton and event.pressed:
-			knowledge_sheet.visible = false
-	)
-	knowledge_sheet.add_child(scrim)
-
-	var sheet := PanelContainer.new()
-	sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	sheet.offset_top = 150
-	var sheet_style := StyleBoxFlat.new()
-	sheet_style.bg_color = Color("111722")
-	sheet_style.corner_radius_top_left = 24
-	sheet_style.corner_radius_top_right = 24
-	sheet.add_theme_stylebox_override("panel", sheet_style)
-	knowledge_sheet.add_child(sheet)
-
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 22)
-	margin.add_theme_constant_override("margin_right", 22)
-	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_bottom", 24)
-	sheet.add_child(margin)
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 12)
-	margin.add_child(column)
-
-	var handle := Panel.new()
-	handle.custom_minimum_size = Vector2(36, 4)
-	var handle_style := StyleBoxFlat.new()
-	handle_style.bg_color = Color(1, 1, 1, 0.16)
-	handle_style.set_corner_radius_all(2)
-	handle.add_theme_stylebox_override("panel", handle_style)
-	var handle_wrap := CenterContainer.new()
-	handle_wrap.add_child(handle)
-	column.add_child(handle_wrap)
+func _build_labs_screen(parent: Control) -> void:
+	var content := _build_flat_screen(parent, "labs")
+	content.add_child(_make_label("Labs", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT))
+	content.add_child(_make_label("RESEARCH FOCUS", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
+	var description := _make_label("Pick one Workshop category to discount by 25%. It locks in until your next Prestige.", 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	content.add_child(description)
+	content.add_child(HSeparator.new())
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content.add_child(scroll)
+	labs_content = VBoxContainer.new()
+	labs_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	labs_content.add_theme_constant_override("separation", 10)
+	scroll.add_child(labs_content)
 
 	var header_row := HBoxContainer.new()
 	column.add_child(header_row)
@@ -1196,16 +1086,17 @@ func _tap_number() -> void:
 	if not state.in_run:
 		_show_toast("START A RUN TO PRODUCE NUMBER", MUTED_TEXT)
 		return
+	var was_banking := state.is_output_banking()
 	var event := state.tap()
 	var spawn_pos := floating_text_layer.get_local_mouse_position()
 	if not Rect2(Vector2.ZERO, floating_text_layer.size).has_point(spawn_pos):
 		spawn_pos = floating_text_layer.size * Vector2(0.5, 0.42)
 	if event.is_critical:
-		_spawn_floating_text("CRITICAL +" + event.amount.format_value(), CRITICAL, spawn_pos)
+		_spawn_floating_text(_production_feedback_text(event.amount, true, was_banking), CRITICAL, spawn_pos)
 		_pulse_number(1.09)
 		_flash_number(CRITICAL)
 	else:
-		_spawn_floating_text("+" + event.amount.format_value(), ACCENT, spawn_pos)
+		_spawn_floating_text(_production_feedback_text(event.amount, false, was_banking), ACCENT, spawn_pos)
 		_pulse_number(1.035)
 	if state.settings.haptics:
 		Input.vibrate_handheld(8)
@@ -1251,14 +1142,6 @@ func _on_brace_pressed() -> void:
 	else:
 		_show_toast("CANNOT BRACE YET", MUTED_TEXT)
 
-func _on_armor_pressed() -> void:
-	if state.purchase(GameState.ARMOR_ID):
-		_show_toast("ARMOR +1", ACCENT)
-		state.save()
-		_refresh_all()
-	else:
-		_show_toast("NEED " + _coins(state.get_workshop_coin_cost(state.get_definition(GameState.ARMOR_ID))) + " COINS", MUTED_TEXT)
-
 ## The core per-tap "juice": a short line of text that rises from the tap
 ## point and fades, replacing a single static feedback label.
 func _spawn_floating_text(text: String, colour: Color, local_pos: Vector2) -> void:
@@ -1277,6 +1160,12 @@ func _spawn_floating_text(text: String, colour: Color, local_pos: Vector2) -> vo
 	tween.tween_property(label, "position:y", label.position.y - 70.0, 0.9).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
 	tween.parallel().tween_property(label, "modulate:a", 0.0, 0.9).set_delay(0.15)
 	tween.chain().tween_callback(label.queue_free)
+
+func _production_feedback_text(amount: ScientificNumber, critical: bool, banking: bool) -> String:
+	var value := ("+" if banking else "") + amount.format_value()
+	if not banking:
+		value += " DAMAGE"
+	return ("CRITICAL " if critical else "") + value
 
 func _refresh_all() -> void:
 	background_rect.visible = not bool(state.settings.high_contrast)
@@ -1302,8 +1191,8 @@ func _refresh_all() -> void:
 		# Rebuilding a Control tree every refresh can eat touch releases on Web.
 		workshop_header.text = _coins(state.coins) + " COINS"
 
-## Shows the two independent checks the run turns on: the remaining Liability
-## production must clear, and the Collection hit Number must survive.
+## Shows the two independent checks the run turns on: the remaining Wave HP
+## production must clear, and the Hit Number must survive.
 func _refresh_run_bar() -> void:
 	wave_label.text = "WAVE " + str(state.wave) if state.in_run else "NOT RUNNING"
 	tier_button.text = "TIER " + str(state.selected_tier)
@@ -1314,13 +1203,6 @@ func _refresh_run_bar() -> void:
 	brace_cost_label.text = "%.0f%% OF NUMBER" % (state.get_brace_cost_percent() * 100.0)
 	brace_button.disabled = not state.can_brace()
 	_set_action_enabled(brace_button, not brace_button.disabled)
-	var armor := state.get_definition(GameState.ARMOR_ID)
-	armor_button.disabled = not state.can_purchase(GameState.ARMOR_ID)
-	_set_action_enabled(armor_button, not armor_button.disabled)
-	if armor.is_maxed(state.get_owned(GameState.ARMOR_ID)):
-		armor_cost_label.text = "MAXED"
-	else:
-		armor_cost_label.text = _coins(state.get_workshop_coin_cost(armor)) + " COINS"
 	run_button.text = "RETREAT & RESET" if state.in_run else "START RUN  ·  WORKSHOP LV " + str(state.get_workshop_level())
 	var run_colour := FAINT_TEXT if state.in_run else ACCENT
 	run_button.add_theme_color_override("font_color", run_colour)
@@ -1357,13 +1239,13 @@ func _refresh_encounter_line() -> void:
 		return
 	var encounter: Variant = state.active_encounter
 	if encounter == null or encounter.max_liability.is_zero():
-		encounter_label.text = "GRACE WAVE  ·  NOTHING DUE"
+		encounter_label.text = "WARM-UP  ·  EVERYTHING BANKS"
 		return
 	if encounter.is_cleared():
-		encounter_label.text = "LIABILITY CLEARED  ·  HIT BLOCKED"
+		encounter_label.text = "BEATEN  ·  HIT BLOCKED"
 		return
 	var seconds_left := maxi(0, ceili(GameState.WAVE_INTERVAL_SECONDS - state.wave_accumulator))
-	encounter_label.text = "LIABILITY " + encounter.remaining_liability.format_value() + " LEFT  ·  COLLECTION " + state.get_effective_collection().format_value() + " IN " + str(seconds_left) + "s"
+	encounter_label.text = "HITS FOR " + state.get_effective_collection().format_value() + " IN " + str(seconds_left) + "s"
 
 func _set_action_enabled(button: Button, enabled: bool) -> void:
 	var verb: Label = button.get_meta("verb_label")
@@ -1371,65 +1253,71 @@ func _set_action_enabled(button: Button, enabled: bool) -> void:
 	button.modulate.a = 1.0 if enabled else 0.55
 
 func _refresh_workshop() -> void:
-	var category: String = state.workshop.selected_category
+	workshop_header.text = str(state.coins) + " COINS"
+	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
+		var active: bool = state.workshop.selected_category == category
+		var unlocked := state.is_category_active(category)
+		var colour: Color = WORKSHOP_ACCENT if (active and unlocked) else MUTED_TEXT
+		(workshop_tab_icons[category] as IconGlyph).set_glyph_color(colour)
+		(workshop_tab_labels[category] as Label).add_theme_color_override("font_color", colour)
+		var button: Button = workshop_tab_buttons[category]
+		button.visible = category != ProgressionTaxonomy.DEFENSE or state.defense_unlocked
+		button.disabled = not unlocked
+		var border: Color = WORKSHOP_ACCENT if (active and unlocked) else Color.TRANSPARENT
+		var fill: Color = Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.14) if (active and unlocked) else Color.TRANSPARENT
+		button.add_theme_stylebox_override("normal", _panel_style(fill, 14, border))
+		button.add_theme_stylebox_override("disabled", _panel_style(Color.TRANSPARENT, 14, Color.TRANSPARENT))
+		(workshop_lock_badges[category] as IconGlyph).visible = not unlocked
+	_refresh_workshop_detail()
+
+func _refresh_workshop_detail() -> void:
+	_clear_children(workshop_detail)
+	var category := state.workshop.selected_category
 	if not ProgressionTaxonomy.WORKSHOP_CATEGORIES.has(category):
 		category = ProgressionTaxonomy.ATTACK
 		state.workshop.selected_category = category
-	workshop_header.text = _coins(state.coins) + " COINS"
-	workshop_category_header.text = ProgressionTaxonomy.category_name(category) + " UPGRADES"
-	workshop_purpose.text = ProgressionTaxonomy.category_purpose(category)
-	workshop_buy_when.text = ProgressionTaxonomy.category_buy_when(category)
-	workshop_multiplier_label.text = _buy_step_label(category)
-	# Every tab opens, including one with nothing in it yet: its panel is where
-	# the player reads what is coming and when. The badge carries the lock.
-	for tab_category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
-		var active: bool = category == tab_category
-		var has_rows := state.has_category_content(tab_category)
-		var colour: Color = WORKSHOP_ACCENT if active else MUTED_TEXT
-		(workshop_tab_icons[tab_category] as IconGlyph).set_glyph_color(colour)
-		(workshop_tab_labels[tab_category] as Label).add_theme_color_override("font_color", colour)
-		var button: Button = workshop_tab_buttons[tab_category]
-		button.modulate.a = 1.0 if has_rows else 0.6
-		var border: Color = WORKSHOP_ACCENT if active else Color.TRANSPARENT
-		var fill: Color = Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.14) if active else Color.TRANSPARENT
-		button.add_theme_stylebox_override("normal", _panel_style(fill, 12, border))
-		(workshop_lock_badges[tab_category] as IconGlyph).visible = not has_rows
-	_refresh_workshop_detail(category)
-
-func _refresh_workshop_detail(category: String) -> void:
-	_clear_children(workshop_detail)
+	var description := _make_label(ProgressionTaxonomy.category_description(category), 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	workshop_detail.add_child(description)
 	if state.in_run:
 		workshop_detail.add_child(_make_locked_panel("AVAILABLE BETWEEN RUNS", "Current ranks are active now and will be retained when this run ends."))
-	if not state.has_category_content(category):
-		workshop_detail.add_child(_make_locked_panel("NOTHING HERE YET", "Ultimates unlock at waves 10, 25, 50 and 100."))
+	if not state.is_category_active(category):
+		if category == ProgressionTaxonomy.DEFENSE:
+			workshop_detail.add_child(_make_locked_panel("TAKE YOUR FIRST HIT", "Defense appears after a wave survives its timer and Hits your Number."))
+		else:
+			workshop_detail.add_child(_make_locked_panel("REACH WORKSHOP LEVEL " + str(state.get_category_required_level(category)), "Your current level is " + str(state.get_workshop_level()) + "."))
 		return
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 8)
-	workshop_detail.add_child(grid)
-	for definition in state.cards_for_category(category):
-		grid.add_child(_make_stat_card(definition, category))
+	if category == ProgressionTaxonomy.ULTIMATES:
+		for ultimate in [["SURGE", 10], ["BULWARK", 25], ["BREACH", 50], ["WINDFALL", 100]]:
+			workshop_detail.add_child(_make_locked_panel(ultimate[0], "UNLOCKS AT WAVE " + str(ultimate[1])))
+		return
+	var found_next := false
+	for definition in state.upgrades_for_category(category):
+		var maxed := definition.is_maxed(state.get_owned(definition.id))
+		var unlocked := state.is_unlocked(definition)
+		var is_next := unlocked and not maxed and not found_next
+		if is_next:
+			found_next = true
+		workshop_detail.add_child(_make_ranked_card(definition, CATEGORY_ICON[category], is_next))
 
 func _refresh_labs() -> void:
 	_clear_children(labs_content)
 	if state.get_workshop_level() < GameState.RESEARCH_WORKSHOP_LEVEL:
 		labs_content.add_child(_make_locked_panel("REACH WORKSHOP LEVEL " + str(GameState.RESEARCH_WORKSHOP_LEVEL), "Your current level is " + str(state.get_workshop_level()) + "."))
 		return
-	if state.focus_path != "":
-		labs_content.add_child(_make_focus_locked_card(state.focus_path))
+	if state.focus_category != "":
+		labs_content.add_child(_make_focus_locked_card(state.focus_category))
 		return
 	var grid := GridContainer.new()
 	grid.columns = 2
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 8)
 	labs_content.add_child(grid)
-	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
+	for category in ProgressionTaxonomy.RESEARCH_FOCUS_CATEGORIES:
 		grid.add_child(_make_focus_card(category))
 
 func _make_focus_card(category: String) -> Button:
-	var active := state.has_category_content(category)
+	var active := state.is_category_active(category)
 	var button := _make_tile_button()
 	button.custom_minimum_size = Vector2(0, 92)
 	button.disabled = not active or state.in_run
@@ -1730,7 +1618,7 @@ func _populate_stats_grid() -> void:
 		["TIER BEST", str(state.get_tier_best())],
 		["KNOWLEDGE", str(state.knowledge)],
 		["WORKSHOP LEVEL", str(state.get_workshop_level())],
-		["NUMBER / SEC", state.get_rate_per_second().format_value()],
+		["DAMAGE / SEC", state.get_rate_per_second().format_value()],
 		["HIGHEST NUMBER", state.highest_number.format_value()],
 		["THIS RUN GENERATED", state.lifetime_generated.format_value()],
 		["TAPS", str(int(state.statistics.taps))],

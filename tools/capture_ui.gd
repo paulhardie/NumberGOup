@@ -28,9 +28,13 @@ func _capture_size(window_size: Vector2i, label: String) -> void:
 	await _capture_state(window_size, label, "hub", false)
 	await _capture_state(window_size, label, "run", false)
 	await _capture_state(window_size, label, "run_standing", false)
+	await _capture_state(window_size, label, "workshop_fresh", false)
 	await _capture_state(window_size, label, "workshop", false)
-	await _capture_state(window_size, label, "knowledge", false)
-	await _capture_state(window_size, label, "lost", false)
+	await _capture_state(window_size, label, "workshop_defense", false)
+	await _capture_state(window_size, label, "workshop_utility", false)
+	await _capture_state(window_size, label, "workshop_ultimates", false)
+	await _capture_state(window_size, label, "labs", false)
+	await _capture_state(window_size, label, "cards", false)
 	await _capture_state(window_size, label, "drawer", true)
 
 func _capture_state(window_size: Vector2i, label: String, state_name: String, open_drawer: bool) -> void:
@@ -51,6 +55,7 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 		"faster_echo": 1,
 		"more_critical": 2,
 	}
+	state.defense_unlocked = true
 	state.settings["reduce_motion"] = true
 	if state_name == "run" or state_name == "run_standing":
 		state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
@@ -64,15 +69,22 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 			state.active_encounter.apply_compliance(state.active_encounter.max_liability.multiply_scalar(0.55))
 		else:
 			state.active_encounter.apply_compliance(ScientificNumber.from_float(55900))
-	elif state_name == "workshop":
+	elif state_name.begins_with("workshop"):
 		main._select_tab("workshop")
-	elif state_name == "knowledge":
-		main._open_knowledge_sheet()
-	elif state_name == "lost":
-		main._show_died_screen(RunSummary.new(
-			96, 4203, 2, ScientificNumber.from_float(142580), 1, "death",
-			ScientificNumber.from_float(12300), true
-		))
+		if state_name == "workshop_fresh":
+			state.defense_unlocked = false
+			state.workshop.selected_category = ProgressionTaxonomy.ATTACK
+		elif state_name == "workshop_defense":
+			state.workshop.selected_category = ProgressionTaxonomy.DEFENSE
+		elif state_name == "workshop_utility":
+			state.workshop.selected_category = ProgressionTaxonomy.UTILITY
+		elif state_name == "workshop_ultimates":
+			state.workshop.selected_category = ProgressionTaxonomy.ULTIMATES
+		main._refresh_workshop()
+	elif state_name == "labs":
+		main._select_tab("labs")
+	elif state_name == "cards":
+		main._select_tab("cards")
 	if open_drawer:
 		main._toggle_drawer()
 	main._refresh_all()

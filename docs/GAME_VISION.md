@@ -78,8 +78,8 @@ The run loop is the game. The meta loop exists to make the next run different, n
 | Vision element | Implemented today | Grows into |
 | --- | --- | --- |
 | Two honest axes | Absolute Liability and Collection per encounter | More encounter patterns, boss modifiers, conditions |
-| Permanent progression | Coin-funded Workshop in four categories, Knowledge/Insight | Research tree, Breakthroughs |
-| Run lifecycle | Start from baseline, retreat-as-reset, frozen offline | The Rig: run-only upgrades bought with Number (D015) |
+| Permanent progression | Coin-funded Workshop, Knowledge/Insight, Armor | Research tree, Breakthroughs |
+| Run lifecycle | Start from baseline, retreat-as-reset, frozen offline | Temporary in-run layer with its own resource |
 | Tiered difficulty | Tiers 1–3 with records and wave-100 unlocks | More tiers behind the same unlock spine |
 | Shared rules | Ordered modifier pipeline | Laws, Violations, challenges, battle conditions |
 | Vocabulary | `ProgressionTaxonomy` and reserved layer names | Card loadouts, Perks, Modules |
