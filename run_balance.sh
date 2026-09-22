@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 set -euo pipefail
-GODOT_BIN="${GODOT:-/Users/paulhardie/Downloads/Godot.app/Contents/MacOS/Godot}"
-"${GODOT_BIN}" --headless --path "$(cd "$(dirname "$0")" && pwd)" -s res://tools/balance_simulator.gd
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+bash "${ROOT}/run_godot.sh" --headless --path "${ROOT}" -s res://tools/balance_simulator.gd

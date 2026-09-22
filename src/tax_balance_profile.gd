@@ -97,6 +97,75 @@ func milestone_bonus(tier_id: int, wave: int) -> int:
 		return 0
 	return maxi(1, roundi(float(wave) * get_tier(tier_id).reward_multiplier * 2.0))
 
+## The Rig (D015): run-scoped ranks bought with Number during a run. Prices are
+## quoted against the wave's HP rather than in absolute Number, so one table
+## scales across tiers and depth with no per-tier data. These coefficients are
+## the design's starting proposals until the balance simulator tunes them.
+const RIG_COST_K := {
+	"attack": 1.0,
+	"defense": 1.0,
+	"utility": 2.0,
+}
+const RIG_COST_GROWTH := {
+	"attack": 1.7,
+	"defense": 1.6,
+	"utility": 1.5,
+}
+## Which rows the Rig sells: the shared catalogue minus the rows whose value is
+## decided before a run starts. Brace is the Defense tab's first row as a free
+## action, not a purchase. Cushion, Brace Cost, Second Wind, Knowledge Bonus and
+## Workshop Discount stay Workshop-only, because buying them mid-run is either
+## meaningless or a solved decision (D015).
+const RIG_ROWS := {
+	"attack": [
+		"stronger_tap", "generator", "generator_two", "faster_cadence",
+		"faster_echo", "burst_relay", "more_critical", "magnitude_coil",
+		"chain_reaction", "boss_damage",
+	],
+	"defense": ["tax_resistance", "siphon", "recoil"],
+	"utility": ["coin_bonus"],
+}
+
+func rig_has_row(category: String, upgrade_id: String) -> bool:
+	var rows: Array = RIG_ROWS.get(category, [])
+	return rows.has(upgrade_id)
+
+## A Rig rank is worth more than a Workshop rank. The measurement that forced
+## this: with one-to-one effects, spending Number was a net loss at every build
+## (mid 40 against 50, attack max 94 against 96), because the rank's effect was
+## worth less than the hit buffer its Number bought. Temporary power has to beat
+## the buffer, or the optimal player ignores the Rig and the panel is noise.
+## Mutable so the balance simulator can sweep it; the sweep picks the value.
+var RIG_EFFECT_MULTIPLIER := {
+	"attack": 3.0,
+	"defense": 3.0,
+	"utility": 3.0,
+}
+
+func rig_effect_multiplier(category: String, upgrade_id: String) -> float:
+	return float(RIG_EFFECT_MULTIPLIER.get(category, 1.0))
+
+## Combined defensive ceilings (D023). Workshop caps alone cannot bound a layer
+## that stacks on top of them and is uncapped: Rig Armor at 2% a rank would
+## reach immunity within one run's Number. These are the ceilings the combined
+## effect can never pass, whichever lens the ranks came from.
+const COLLECTION_RESISTANCE_CEILING := 0.75
+const SIPHON_CEILING := 0.5
+const RECOIL_CEILING := 1.0
+
+## One rank costs `k` waves' worth of HP at the first rank and grows from there.
+## Ranks are uncapped; cost growth is the only limit (D015).
+func rig_cost(category: String, rank: int, reference_hp: ScientificNumber) -> ScientificNumber:
+	var scale := float(RIG_COST_K.get(category, 1.0))
+	var growth := float(RIG_COST_GROWTH.get(category, 1.7))
+	return reference_hp.multiply_scalar(scale * pow(growth, float(maxi(0, rank))))
+
+## The price floor: the tier's first pressured wave, so Tier 1's warm-up waves
+## cannot make the whole panel free.
+func rig_reference_hp(tier_id: int, wave: int) -> ScientificNumber:
+	var first_pressured: int = get_tier(tier_id).free_waves + 1
+	return liability_for_wave(tier_id, maxi(wave, first_pressured))
+
 func _from_log10(value_log: float) -> ScientificNumber:
 	if not is_finite(value_log):
 		return ScientificNumber.new()

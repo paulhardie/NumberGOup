@@ -12,16 +12,86 @@ const ATTACK_MAX := {
 	"faster_echo": 60, "burst_relay": 6, "more_critical": 100, "magnitude_coil": 60,
 	"chain_reaction": 60, "automation_core": 50, "boss_damage": 100,
 }
-const MID := {"stronger_tap": 5, "generator": 5, "generator_two": 3, "faster_cadence": 3}
-const EARLY := {"stronger_tap": 2, "generator": 2}
-## label, tier, Workshop ranks, Armor rank. Progressed builds start with
-## every Tier 1 milestone claimed, so Coins per minute reflects repeatable rewards.
+const UTILITY_MAX := {"smarter_efficiency": 60, "coin_bonus": 100, "knowledge_bonus": 50}
+## The same fractions of each ladder the shallow builds held: mid was Output and
+## Damage Multiplier maxed with Tick Speed at three fifths; early was two fifths
+## of the two opening rows.
+const MID := {"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 60}
+const EARLY := {"stronger_tap": 40, "generator": 40}
+## Defense rows at their caps, and the pieces of that build worth measuring on
+## their own: balance target 6 asks that each one visibly move an outcome.
+const ARMOR := {"tax_resistance": 100}
+const SIPHON := {"siphon": 100}
+const RECOIL := {"recoil": 100}
+const CUSHION := {"priority_buffer": 50}
+const SECOND_WIND := {"second_wind": 50}
+const DEFENSE_MAX := {
+	"tax_resistance": 100, "siphon": 100, "recoil": 100,
+	"priority_buffer": 50, "brace_discount": 60, "second_wind": 50,
+}
+## label, tier, Workshop ranks, optional Rig policy. Progressed builds start
+## with every Tier 1 milestone claimed, so Coins per minute reflects repeatable
+## rewards. The Rig rows (targets 7-9) pair a build with and without in-run
+## spending so the difference is the Rig's own.
 const BUILD_MATRIX := [
-	["early", 1, EARLY, 0],
-	["mid", 1, MID, 0],
-	["attack max", 1, ATTACK_MAX, 0],
-	["attack max + armor 10", 1, ATTACK_MAX, 10],
-	["attack max + armor 10", 2, ATTACK_MAX, 10],
+	["fresh", 1, {}],
+	["fresh + rig", 1, {}, "reinvest"],
+	["early", 1, EARLY],
+	["early + rig", 1, EARLY, "reinvest"],
+	["mid", 1, MID],
+	["mid + rig", 1, MID, "reinvest"],
+	["attack max", 1, ATTACK_MAX],
+	["attack max + rig", 1, ATTACK_MAX, "reinvest"],
+	["attack max + armor", 1, [ATTACK_MAX, ARMOR]],
+	["attack max + armor + rig", 1, [ATTACK_MAX, ARMOR], "reinvest"],
+	["attack max + siphon", 1, [ATTACK_MAX, SIPHON]],
+	["attack max + recoil", 1, [ATTACK_MAX, RECOIL]],
+	["attack max + cushion", 1, [ATTACK_MAX, CUSHION]],
+	["attack max + 2nd wind", 1, [ATTACK_MAX, SECOND_WIND]],
+	["attack max + defense max", 1, [ATTACK_MAX, DEFENSE_MAX]],
+	["attack max + utility max", 1, [ATTACK_MAX, UTILITY_MAX]],
+	["everything maxed", 1, [ATTACK_MAX, DEFENSE_MAX, UTILITY_MAX]],
+	["everything maxed + rig", 1, [ATTACK_MAX, DEFENSE_MAX, UTILITY_MAX], "reinvest"],
+	["defense max only", 1, DEFENSE_MAX],
+	["defense max only + rig", 1, DEFENSE_MAX, "reinvest"],
+	["attack max", 2, ATTACK_MAX],
+	["attack max + armor", 2, [ATTACK_MAX, ARMOR]],
+	# Cushion is the one stat whose worth depends on the tier, so it is measured
+	# where it is meant to matter as well as where it is meant not to.
+	["attack max + cushion", 2, [ATTACK_MAX, CUSHION]],
+	["attack max + defense max", 2, [ATTACK_MAX, DEFENSE_MAX]],
+]
+## The Rig policy the simulator plays. "reinvest" spends everything above the
+## next hit on Rig ranks, in this order, restarting from the top after every
+## purchase: the compounding damage rows first, because they are the ones worth
+## going deep on, then the flat ones, then Defense when damage alone is not the
+## answer. Deterministic, so a seeded run stays reproducible.
+const RIG_PRIORITY := [
+	"generator_two", "faster_cadence", "magnitude_coil", "more_critical",
+	"stronger_tap", "generator", "faster_echo", "chain_reaction",
+	"boss_damage", "tax_resistance", "siphon", "recoil", "coin_bonus",
+]
+## A boss within the HUD's three-wave warning puts Boss Damage first: the design
+## says buying it two waves before a boss is the intended moment, and the first
+## policy died on wave 40 bosses because it never did.
+const RIG_BOSS_PRIORITY := ["boss_damage", "generator_two", "faster_cadence", "magnitude_coil", "more_critical"]
+## Purchases inside this many seconds of the run's end measure whether Rig cost
+## growth has outrun income (target 9).
+const RIG_LATE_WINDOW := 600.0
+## How many incoming hits the policy keeps in reserve. One is not enough: after
+## a hit lands, a stuck wave keeps Number flat, so a second hit at zero ends the
+## run. A prudent player keeps a margin, and so does the measurement.
+const RIG_RESERVE_HITS := 2.0
+## The Rig effect multiplier sweep (D023): one Rig rank is worth M Workshop
+## ranks. Target 8 needs the Rig to beat hoarding; target 7 forbids a fresh
+## build substituting for Workshop investment. The smallest M that passes both
+## is the value the profile should keep.
+const RIG_MULTIPLIER_SWEEP := [2.0, 3.0, 5.0, 8.0]
+const SWEEP_BUILDS := [
+	["fresh", 1, {}],
+	["mid", 1, MID],
+	["attack max", 1, ATTACK_MAX],
+	["everything maxed", 1, [ATTACK_MAX, DEFENSE_MAX, UTILITY_MAX]],
 ]
 const PURCHASE_ORDER := [
 	"stronger_tap",
@@ -53,31 +123,58 @@ func _init() -> void:
 	_simulate_representative_tier_one()
 	print("BUILD MATRIX  2 taps/sec, seed ", SEED)
 	for build in BUILD_MATRIX:
-		_simulate_build(build[0], build[1], _ranks(build[2]))
+		_simulate_build(build[0], build[1], _ranks(build[2]), str(build[3]) if build.size() > 3 else "none")
+	print("RIG EFFECT MULTIPLIER SWEEP  (reinvest policy, one rank worth M Workshop ranks)")
+	for multiplier in RIG_MULTIPLIER_SWEEP:
+		for build in SWEEP_BUILDS:
+			_simulate_build("M" + str(multiplier) + " " + str(build[0]), build[1], _ranks(build[2]), "reinvest", multiplier)
 	quit(0)
 
-func _simulate_build(label: String, tier: int, ranks: Dictionary, armor: int) -> void:
+## A build is one rank dictionary or a list of them merged, so the pieces can be
+## named once and combined without repeating every Attack rank.
+func _ranks(spec: Variant) -> Dictionary:
+	if spec is Dictionary:
+		return (spec as Dictionary).duplicate()
+	var merged := {}
+	for part in spec as Array:
+		for key in part as Dictionary:
+			merged[key] = (part as Dictionary)[key]
+	return merged
+
+func _simulate_build(label: String, tier: int, ranks: Dictionary, rig_policy: String = "none", rig_multiplier: float = -1.0) -> void:
 	var state := GameState.new()
+	if rig_multiplier > 0.0:
+		for category in state.balance_profile.RIG_EFFECT_MULTIPLIER.keys():
+			state.balance_profile.RIG_EFFECT_MULTIPLIER[category] = rig_multiplier
 	state.purchased = ranks.duplicate()
-	if armor > 0:
-		state.purchased["armor"] = armor
 	state.tier_records["1"] = {"highest_wave": 100, "milestones_claimed": [10, 25, 50, 100]}
 	state.start_run(tier, SEED)
 	var hits := 0
 	var seconds := 0.0
 	var reached := 0
 	var peak := ScientificNumber.new()
+	var rig_bought := 0
+	var rig_late := 0
+	var rig_purchases: Array = []
 	while seconds < MATRIX_SECONDS and state.in_run:
 		reached = state.wave
 		state.tap()
 		var events: Array[SimulationEvent] = state.advance(STEP * 0.5)
 		events.append_array(state.advance(STEP * 0.5))
 		seconds += STEP
+		if rig_policy == "reinvest" and _rig_can_spend(state):
+			var bought := _play_rig(state)
+			if bought > 0:
+				rig_bought += bought
+				rig_purchases.append([seconds, bought])
 		for event in events:
 			if event.type in ["tax_collection", "boss_collection", "wave_death"]:
 				hits += 1
 		if state.number.compare_to(peak) > 0:
 			peak = state.number.copy()
+	for purchase in rig_purchases:
+		if float(purchase[0]) >= seconds - RIG_LATE_WINDOW:
+			rig_late += int(purchase[1])
 	var minutes := seconds / 60.0
 	print(
 		"  T", tier, "  ", label.rpad(24),
@@ -88,8 +185,57 @@ func _simulate_build(label: String, tier: int, ranks: Dictionary, armor: int) ->
 		"  coins=", state.coins,
 		"  coins_per_min=", snappedf(float(state.coins) / minutes, 0.1),
 		"  knowledge=", state.knowledge,
-		"  peak_number=", peak.format_value()
+		"  peak_number=", peak.format_value(),
+		"  rig_ranks=", rig_bought,
+		"  rig_last_10m=", rig_late
 	)
+
+## Plays the Rig the way a player reaching for the next wave does: never spend
+## the Number that covers the incoming hit, and put everything else into the
+## cheapest useful rank in priority order. Returns how many ranks landed.
+func _play_rig(state: GameState) -> int:
+	var bought := 0
+	var order: Array = RIG_PRIORITY
+	for ahead in range(1, 4):
+		if state.balance_profile.is_boss_wave(state.wave + ahead):
+			order = RIG_BOSS_PRIORITY
+			break
+	while true:
+		var reserve := _rig_reserve(state)
+		var purchased := false
+		for upgrade_id in order:
+			if not state.can_purchase_rig(upgrade_id):
+				continue
+			var cost: ScientificNumber = state.get_rig_cost(upgrade_id)
+			if state.number.subtract(cost).compare_to(reserve) < 0:
+				continue
+			if state.purchase_rig(upgrade_id):
+				bought += 1
+				purchased = true
+				break
+		if not purchased:
+			break
+	return bought
+
+## The Reinvestor spends "the moment a wave starts resisting": while a wave is
+## cleared or still in warm-up the Number is left to bank, so the buffer grows
+## before the spend. Buying during banking time is what made the first policy
+## drain the buffer and die early.
+func _rig_can_spend(state: GameState) -> bool:
+	if state.active_encounter == null:
+		return false
+	return not state.active_encounter.is_cleared() and not state.active_encounter.max_liability.is_zero()
+
+## The Number the policy will not spend: the hits that are actually coming, with
+## a one-hit margin. While a wave is cleared, that is the next wave's hit, so
+## banking time is spent down to a real reserve rather than to zero.
+func _rig_reserve(state: GameState) -> ScientificNumber:
+	var hit := ScientificNumber.new()
+	if state.active_encounter != null and not state.active_encounter.is_cleared() and not state.active_encounter.max_liability.is_zero():
+		hit = state.get_effective_collection()
+	else:
+		hit = state.balance_profile.collection_for_wave(state.selected_tier, state.wave + 1)
+	return hit.multiply_scalar(RIG_RESERVE_HITS)
 
 func _simulate_representative_tier_one() -> void:
 	var state := GameState.new()

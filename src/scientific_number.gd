@@ -80,12 +80,10 @@ func multiply(other: ScientificNumber) -> ScientificNumber:
 		return ScientificNumber.new()
 	return ScientificNumber.new(mantissa * other.mantissa, exponent + other.exponent)
 
-func pow_scalar(power: float) -> ScientificNumber:
+func log10() -> float:
 	if is_zero():
-		return ScientificNumber.new()
-	var log_value: float = (log(mantissa) / log(10.0) + float(exponent)) * power
-	var new_exponent: int = floori(log_value)
-	return ScientificNumber.new(pow(10.0, log_value - float(new_exponent)), new_exponent)
+		return -INF
+	return log(mantissa) / log(10.0) + float(exponent)
 
 ## Numbers stay as full grouped digits below this exponent (10^6 = under a million)
 ## rather than abbreviating to "1K" right away — a short suffix reads as tiny inside

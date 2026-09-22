@@ -1,6 +1,6 @@
 # Tower scaling research and Number Go Up foundation
 
-Status: researched and implemented as foundation profile `tax-foundation-v1`, retuned to `tax-foundation-v2` for D012, then migrated to Workshop categories under save V5 for D013, 21 September 2026.
+Status: researched and implemented as foundation profile `tax-foundation-v1`, then retuned to `tax-foundation-v2` for D012, 21 September 2026.
 
 ## Implemented foundation
 
@@ -11,8 +11,8 @@ The first complete slice now includes:
 - Tiers 1–3 with 1×/20×/60× pressure and 1×/1.8×/2.6× rewards;
 - Tier 1's 20-wave onboarding grace, with immediate pressure in Tiers 2–3;
 - per-tier wave records, milestones at 10/25/50/100, and wave-100 tier unlocks;
-- deterministic run seeds and exact RNG/encounter restoration in save V5;
-- V1–V4 migration;
+- deterministic run seeds and exact RNG/encounter restoration in save V4;
+- V1, V2 and V3 migration;
 - a shared ordered rule-modifier pipeline;
 - retreat-as-reset and active-run offline freezing, removing pause-and-grow;
 - a permanent Coin-funded Workshop whose ranks form every run's baseline;
@@ -301,7 +301,7 @@ A clean first rule is:
 
 ### 2. Workshop permanence
 
-The Tower's Workshop is a permanent baseline, while its in-run cash upgrades reset. Number Go Up now follows that boundary: the four Workshop categories use Coins between runs, their ranks survive every run ending, and every attempt starts from those upgraded production stats. Number exists only during an active run.
+The Tower's Workshop is a permanent baseline, while its in-run cash upgrades reset. Number Go Up now follows that boundary: the four Workshop bays use Coins between runs, their ranks survive every run ending, and every attempt starts from those upgraded production stats. Number exists only during an active run.
 
 The former Autopilot/Priority Buffer cards conflicted with this boundary because they bought Workshop ranks during play. Their saved IDs are retained for migration, but their gameplay roles are now permanent Auto Crank production and Starting Reserve baseline. A later temporary in-run upgrade layer must have a distinct name, currency and reset contract.
 
@@ -311,7 +311,7 @@ The former Autopilot/Priority Buffer cards conflicted with this boundary because
 
 ### 4. Randomness and reproducibility
 
-Run seeds and RNG state are persisted in save V5, so a saved active encounter resumes with identical random outcomes; fresh runs still seed from the clock.
+Run seeds and RNG state are persisted in save V4, so a saved active encounter resumes with identical random outcomes; fresh runs still seed from the clock.
 
 **Decision: a run seed and all encounter-relevant random state are persisted before Perks, Cards, battle conditions or random offers are added.** That keeps saves reproducible and balance failures debuggable.
 
@@ -350,8 +350,7 @@ The Tower also has many currencies for these layers: cash, coins, gems, stones, 
 8. Added tier selection, Tier 1–3 unlocks and milestones.
 9. Converted Workshop ranks into permanent, between-run Coin purchases and made every run start from that baseline.
 10. Added save V4 and V1/V2/V3 migration while preserving Workshop ranks and declared permanent progress.
-11. Added save V5 and V1–V4 migration for Attack, Defense, Utility and Ultimates; existing ranks, active encounters and RNG state remain intact, and Armor moves into the Workshop purchase map.
-12. Deferred temporary in-run upgrades, perks, challenge/Law content and loadouts until the three-tier balance is playtested.
+11. Deferred temporary in-run upgrades, perks, challenge/Law content and loadouts until the three-tier balance is playtested.
 
 ## Balance and regression gates
 
