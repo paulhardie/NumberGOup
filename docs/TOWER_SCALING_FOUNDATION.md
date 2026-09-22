@@ -9,7 +9,7 @@ The first complete slice now includes:
 - absolute Liability and Collection encounters;
 - original wave curves with milestone growth and separate boss multipliers;
 - Tiers 1–3 with 1×/20×/60× pressure and 1×/1.8×/2.6× rewards;
-- Tier 1's 20-wave onboarding grace, with immediate pressure in Tiers 2–3;
+- Tier 1's 20-wave onboarding warm-up (a ramp from small waves since D033, originally a grace with no pressure), with immediate pressure in Tiers 2–3;
 - per-tier wave records, milestones at 10/25/50/100, and wave-100 tier unlocks;
 - deterministic run seeds and exact RNG/encounter restoration in save V4;
 - V1, V2 and V3 migration;

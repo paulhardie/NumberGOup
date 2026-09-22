@@ -22,6 +22,7 @@ func _init() -> void:
 	_test_prestige_reset_and_gain()
 	_test_first_run_funds_permanent_workshop()
 	_test_tier_pressure_and_curve_gates()
+	_test_tier_one_opening()
 	_test_production_clears_liability()
 	_test_output_beats_the_wave_before_it_becomes_number()
 	_test_repeated_taps_count_once()
@@ -245,7 +246,8 @@ func _test_workshop_effects() -> void:
 	state.start_run(1, 11)
 	var event := state.tap()
 	_expect(event.amount.compare_to(ScientificNumber.from_float(3.45)) == 0, "Tap Damage and Damage Multiplier should affect taps")
-	_expect(state.get_rate_per_second().compare_to(ScientificNumber.from_float(4.14)) == 0, "Workshop output and speed should affect rate")
+	# 4.14 from the Workshop, plus the flat output every run has (D033).
+	_expect(state.get_rate_per_second().compare_to(ScientificNumber.from_float(4.14 + state.balance_profile.BASE_DAMAGE_PER_SECOND)) == 0, "Workshop output and speed should affect rate")
 	_expect(is_equal_approx(state._effect_sum("cost_discount"), 0.05), "twenty Discount ranks should still be a 5% discount")
 	_expect(state.get_workshop_coin_cost(state.get_definition("generator")) == 16, "Discount should reduce permanent Coin costs")
 	_expect(is_equal_approx(state._critical_chance(), 0.05), "Crit Chance should add positive critical chance")
@@ -256,6 +258,8 @@ func _test_burst_and_positive_chance() -> void:
 	state.purchased = {"generator": 20, "faster_cadence": 20, "burst_relay": 1}
 	state.start_run(1, 999)
 	state.rng.seed = 999
+	# A beaten wave banks everything, so each tick's gain is its whole output.
+	state.active_encounter.remaining_liability = ScientificNumber.new()
 	# Rank one shortens the interval from twelve to eleven, so the eleventh tick
 	# is the one that doubles. Measured against its neighbour rather than a
 	# fixed total, so the assertion outlives the next tuning pass.
@@ -282,8 +286,10 @@ func _test_permanent_baseline_and_starting_reserve() -> void:
 	var state := _funded_state()
 	state.purchased = {"stronger_tap": 100, "generator": 60, "automation_core": 50, "priority_buffer": 50}
 	_expect(state.start_run(1, 44), "a fresh run should start from the permanent Workshop")
-	_expect(state.number.compare_to(ScientificNumber.from_float(500)) == 0, "Cushion should define the fresh-run Number baseline")
-	_expect(state.get_rate_per_second().compare_to(ScientificNumber.from_float(9.5)) == 0, "Auto Crank should permanently raise run production")
+	# Tier 1 adds its warm-up's starting Number, and every run its flat base
+	# output (D033), to what the Workshop provides.
+	_expect(state.number.compare_to(ScientificNumber.from_float(500 + state.balance_profile.WARM_UP_STARTING_NUMBER)) == 0, "Cushion should define the fresh-run Number baseline")
+	_expect(state.get_rate_per_second().compare_to(ScientificNumber.from_float(9.5 + state.balance_profile.BASE_DAMAGE_PER_SECOND)) == 0, "Auto Crank should permanently raise run production")
 	_expect(not state.purchase("faster_cadence"), "permanent Workshop purchases must be locked during a run")
 	state.end_run()
 	_expect(state.get_owned("priority_buffer") == 50 and state.get_owned("automation_core") == 50, "Workshop ranks must survive retreat")
@@ -650,11 +656,71 @@ func _test_first_run_funds_permanent_workshop() -> void:
 	state.start_run(1, 8)
 	_expect(state._tap_base() > 1.0 and state._passive_base() > 0.0, "the next run should start from the upgraded permanent baseline")
 
+## D033: Tier 1 opens under attack without a hit that can end the run. Every
+## run has a flat base output that upgrades do not raise; a Tier 1 run starts
+## with some Number; warm-up waves carry small HP and hits, softer bosses, and
+## end on their timer, landing their hit and paying as if beaten; and a run's
+## first Rig purchases are cheap during the warm-up.
+func _test_tier_one_opening() -> void:
+	var fresh := GameState.new()
+	fresh.start_run(1, 3)
+	var profile = fresh.balance_profile
+	_expect(fresh.get_rate_per_second().compare_to(ScientificNumber.from_float(profile.BASE_DAMAGE_PER_SECOND)) == 0, "a fresh run should produce from its first second")
+	_expect(fresh.number.compare_to(ScientificNumber.from_float(profile.WARM_UP_STARTING_NUMBER)) == 0, "a Tier 1 run should start with the warm-up's Number")
+	var multiplied := GameState.new()
+	multiplied.purchased = {"generator_two": 60}
+	multiplied.start_run(1, 3)
+	_expect(multiplied.get_rate_per_second().compare_to(fresh.get_rate_per_second()) == 0, "upgrades should not raise the flat base output")
+	var tier_two := GameState.new()
+	tier_two.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	tier_two.start_run(2, 3)
+	_expect(tier_two.number.is_zero(), "a tier with no warm-up should start with no extra Number")
+
+	_expect(profile.liability_for_wave(1, 2).compare_to(ScientificNumber.from_float(profile.WARM_UP_START_HP * profile.WARM_UP_HP_GROWTH)) == 0, "warm-up HP should grow its share each wave")
+	var boss_hp: float = profile.WARM_UP_START_HP * pow(profile.WARM_UP_HP_GROWTH, 9) * profile.WARM_UP_BOSS_HP
+	_expect(profile.liability_for_wave(1, 10).compare_to(ScientificNumber.from_float(boss_hp)) == 0, "a warm-up boss should be softened, not tripled")
+
+	# An unbeaten warm-up wave lands its hit, then ends and pays as if beaten.
+	var stuck := GameState.new()
+	stuck.start_run(1, 3)
+	var before: ScientificNumber = stuck.number.copy()
+	var hit := stuck.get_effective_collection()
+	var event := stuck._resolve_wave_boundary()
+	_expect(event.type == "tax_collection" and event.amount.compare_to(hit) == 0, "an unbeaten warm-up wave should land its hit")
+	_expect(stuck.number.compare_to(before.subtract(hit)) == 0, "the hit should cost Number, not the run")
+	_expect(stuck.wave == 2 and stuck.coins == 1 and stuck.get_tier_best(1) == 1, "the warm-up wave should then end, pay its Coin and count")
+	# Past the warm-up an unbeaten wave keeps its HP and hits again (D012).
+	stuck.wave = 21
+	stuck.active_encounter = stuck._make_encounter(21)
+	stuck.number = ScientificNumber.new(1.0, 9)
+	stuck._resolve_wave_boundary()
+	_expect(stuck.wave == 21, "past the warm-up an unbeaten wave should stay")
+
+	# The run's first Rig purchases are cheap during the warm-up; later ones,
+	# and any after the warm-up, pay the full price.
+	var rig := GameState.new()
+	rig.start_run(1, 3)
+	rig.number = ScientificNumber.new(1.0, 9)
+	var discounted: ScientificNumber = profile.rig_warm_up_reference_hp(1)
+	_expect(rig.get_rig_cost("generator").compare_to(discounted) == 0, "the first warm-up purchase should be discounted")
+	rig.purchase_rig("generator")
+	_expect(rig.get_rig_cost("stronger_tap").compare_to(discounted) == 0, "the second warm-up purchase should be discounted too, whatever the row")
+	rig.purchase_rig("stronger_tap")
+	_expect(rig.get_rig_cost("generator_two").compare_to(profile.liability_for_wave(1, 21)) == 0, "the third should pay the full warm-up price")
+	var late := GameState.new()
+	late.start_run(1, 3)
+	late.wave = 21
+	late.active_encounter = late._make_encounter(21)
+	_expect(late.get_rig_cost("generator").compare_to(profile.liability_for_wave(1, 21)) == 0, "past the warm-up no purchase should be discounted")
+
 func _test_tier_pressure_and_curve_gates() -> void:
 	var state := GameState.new()
 	var profile = state.balance_profile
-	_expect(profile.liability_for_wave(1, 1).is_zero(), "Tier 1 should retain its 20-wave grace")
-	_expect(profile.collection_for_wave(1, 20).is_zero(), "Tier 1 wave 20 should still be free")
+	# Tier 1's 20-wave warm-up ramps from a small wave HP and hit (D033); the
+	# full curves begin at wave 21.
+	_expect(profile.liability_for_wave(1, 1).compare_to(ScientificNumber.from_float(profile.WARM_UP_START_HP)) == 0, "Tier 1 wave 1 should carry the warm-up's opening HP")
+	_expect(profile.collection_for_wave(1, 1).compare_to(ScientificNumber.from_float(profile.WARM_UP_START_HIT)) == 0, "Tier 1 wave 1 should carry the warm-up's opening hit")
+	_expect(profile.liability_for_wave(1, 19).compare_to(profile.liability_for_wave(1, 21)) < 0 and profile.collection_for_wave(1, 19).compare_to(profile.collection_for_wave(1, 21)) < 0, "the warm-up should stay below the first full wave")
 	_expect(not profile.liability_for_wave(1, 21).is_zero(), "Tier 1 pressure should begin at wave 21")
 	var tier1_liability := profile.liability_for_wave(1, 21)
 	var tier2_liability := profile.liability_for_wave(2, 21)
@@ -718,10 +784,15 @@ func _test_output_beats_the_wave_before_it_becomes_number() -> void:
 	state._add_number(ScientificNumber.new(7.0, 300))
 	_expect(state.active_encounter.is_cleared() and state.number.compare_to(ScientificNumber.new(2.0, 300)) == 0, "overflow should stay exact at very large values")
 
+	# The warm-up is small but real (D033): its first wave has a little HP, and
+	# only output past it banks.
 	var warm_up := GameState.new()
 	warm_up.start_run(1, 22)
-	warm_up._add_number(ScientificNumber.from_float(5))
-	_expect(warm_up.number.compare_to(ScientificNumber.from_float(5)) == 0, "warm-up waves have no Liability, so all output should bank")
+	var warm_up_hp: ScientificNumber = warm_up.active_encounter.remaining_liability.copy()
+	var starting: ScientificNumber = warm_up.number.copy()
+	_expect(warm_up_hp.compare_to(ScientificNumber.from_float(warm_up.balance_profile.WARM_UP_START_HP)) == 0, "warm-up wave 1 should carry a small Wave HP")
+	warm_up._add_number(warm_up_hp.add(ScientificNumber.from_float(5)))
+	_expect(warm_up.number.compare_to(starting.add(ScientificNumber.from_float(5))) == 0, "output past a warm-up wave's HP should bank")
 
 	var outside := GameState.new()
 	outside.tap()
@@ -928,7 +999,7 @@ func _test_cushion_scales_with_the_tier() -> void:
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	state.purchased = {"priority_buffer": 50}
 	state.start_run(1, 47)
-	_expect(state.number.compare_to(ScientificNumber.from_float(500)) == 0, "Cushion should be worth its face value on Tier 1")
+	_expect(state.number.compare_to(ScientificNumber.from_float(500 + state.balance_profile.WARM_UP_STARTING_NUMBER)) == 0, "Cushion should be worth its face value on Tier 1, on top of the warm-up's start")
 	state.end_run()
 	state.start_run(2, 47)
 	var scale := state.get_cushion_scale(2)
@@ -1364,11 +1435,13 @@ func _test_rig_cost_is_quoted_against_wave_hp() -> void:
 	state.start_run(1, 5)
 	var floor_hp: ScientificNumber = state.balance_profile.liability_for_wave(1, 21)
 	_expect(state.get_rig_reference_hp().compare_to(floor_hp) == 0, "Tier 1 warm-up should quote Rig prices against the first pressured wave")
-	var first := state.get_rig_cost("stronger_tap")
+	# Quoting a named rank reads the ladder itself; the warm-up discount (D033)
+	# applies only to the run's next purchase.
+	var first := state.get_rig_cost("stronger_tap", 0)
 	_expect(first.compare_to(floor_hp) == 0, "the first Attack rank should cost one wave of HP at k=1")
 	_expect(state.get_rig_cost("stronger_tap", 1).compare_to(first.multiply_scalar(1.7)) == 0, "each Attack rank should cost 1.7x the last")
-	_expect(state.get_rig_cost(GameState.ARMOR_ID).compare_to(floor_hp) == 0, "the first Defense rank should cost one wave of HP at k=1")
-	_expect(state.get_rig_cost("coin_bonus").compare_to(floor_hp.multiply_scalar(2.0)) == 0, "the first Utility rank should cost two waves of HP at k=2")
+	_expect(state.get_rig_cost(GameState.ARMOR_ID, 0).compare_to(floor_hp) == 0, "the first Defense rank should cost one wave of HP at k=1")
+	_expect(state.get_rig_cost("coin_bonus", 0).compare_to(floor_hp.multiply_scalar(2.0)) == 0, "the first Utility rank should cost two waves of HP at k=2")
 	# A pressured wave moves the quote with its own HP.
 	state.wave = 30
 	state.active_encounter = state._make_encounter(30)

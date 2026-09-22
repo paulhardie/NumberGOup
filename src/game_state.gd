@@ -196,7 +196,7 @@ func _produce_tick() -> SimulationEvent:
 	if _effect_sum("momentum_per_tick") > 0.0:
 		momentum_stacks = mini(100, momentum_stacks + 1)
 	var is_critical := rng.randf() < _critical_chance()
-	var amount := ScientificNumber.from_float(_passive_base() * _damage_multiplier() * _momentum_multiplier())
+	var amount := ScientificNumber.from_float(_passive_base() * _damage_multiplier() * _momentum_multiplier() + _base_output_per_tick())
 	if is_critical:
 		amount = amount.multiply_scalar(_critical_multiplier() * (1.0 + _chain_reaction_step() * critical_chain))
 		statistics.critical_ticks += 1
@@ -215,7 +215,7 @@ func is_output_banking() -> bool:
 	return in_run and (active_encounter == null or active_encounter.is_cleared())
 
 func get_rate_per_second() -> ScientificNumber:
-	return ScientificNumber.from_float(_passive_base() * _damage_multiplier() * _momentum_multiplier() * _tick_rate())
+	return ScientificNumber.from_float(_passive_base() * _damage_multiplier() * _momentum_multiplier() * _tick_rate() + balance_profile.BASE_DAMAGE_PER_SECOND)
 
 func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	if in_run:
@@ -229,7 +229,7 @@ func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	# Workshop ranks define the baseline applied to every fresh attempt.
 	# Cushion scales with the tier's pressure, or it is a trap above Tier 1:
 	# a flat 500 against a wave-1 hit twenty times that size buys nothing.
-	number = ScientificNumber.from_float(_effect_sum("starting_number_flat") * get_cushion_scale())
+	number = ScientificNumber.from_float(balance_profile.starting_number(selected_tier) + _effect_sum("starting_number_flat") * get_cushion_scale())
 	run_peak_number = number.copy()
 	second_wind_used = false
 	rig_ranks = {}
@@ -326,12 +326,21 @@ func _resolve_wave_boundary() -> SimulationEvent:
 	var recoil := minf(_effect_sum("recoil_share"), balance_profile.RECOIL_CEILING)
 	if recoil > 0.0 and not collection.is_zero():
 		active_encounter.apply_compliance(collection.multiply_scalar(recoil))
+	var hit_event: SimulationEvent
 	if number.is_zero():
 		var rescued := _try_second_wind()
 		if not rescued:
 			return _wave_death(wave, collection, active_encounter.is_boss, number_before_hit, wave_hp_left)
-		return SimulationEvent.new("second_wind", number.copy())
-	return SimulationEvent.new("boss_collection" if active_encounter.is_boss else "tax_collection", collection)
+		hit_event = SimulationEvent.new("second_wind", number.copy())
+	else:
+		hit_event = SimulationEvent.new("boss_collection" if active_encounter.is_boss else "tax_collection", collection)
+	# The warm-up is survival training (D033): a wave that outlasts its timer
+	# lands its hit and then ends, paying as if beaten, so the opening keeps its
+	# five-minute pace instead of stalling on a wave a new player cannot beat
+	# yet. Past the warm-up a stuck wave keeps its HP and hits again (D012).
+	if not balance_profile.is_pressured_wave(selected_tier, wave):
+		_complete_current_wave()
+	return hit_event
 
 ## Once per run, a hit that would end the run leaves a share of the run's peak
 ## Number instead. The share is the rank's own value, so an early rank buys a
@@ -524,6 +533,13 @@ func get_owned(upgrade_id: String) -> int:
 func rig_owned(upgrade_id: String) -> int:
 	return int(rig_ranks.get(upgrade_id, 0))
 
+## Every Rig rank this run has bought, across all rows.
+func rig_ranks_bought() -> int:
+	var total := 0
+	for upgrade_id in rig_ranks:
+		total += int(rig_ranks[upgrade_id])
+	return total
+
 ## What a row's Rig ranks are worth in Workshop ranks. Temporary power has to
 ## beat the hit buffer its Number spends (D023), so one Rig rank is worth a
 ## multiple of a Workshop rank rather than one for one.
@@ -547,7 +563,13 @@ func get_rig_cost(upgrade_id: String, rank: int = -1) -> ScientificNumber:
 	if definition == null or not balance_profile.rig_has_row(definition.workshop_category, upgrade_id):
 		return ScientificNumber.new()
 	var at_rank := rig_owned(upgrade_id) if rank < 0 else rank
-	return balance_profile.rig_cost(definition.workshop_category, at_rank, get_rig_reference_hp())
+	# A run's first Rig purchases are cheap during the warm-up (D033), so a new
+	# player buys within seconds; only the first few of the run, whatever the
+	# row, so a strong build cannot stock a run with cut-price ranks.
+	var reference := get_rig_reference_hp()
+	if rank < 0 and rig_ranks_bought() < balance_profile.RIG_WARM_UP_DISCOUNTED_PURCHASES and not balance_profile.is_pressured_wave(selected_tier, wave):
+		reference = balance_profile.rig_warm_up_reference_hp(selected_tier)
+	return balance_profile.rig_cost(definition.workshop_category, at_rank, reference)
 
 func can_purchase_rig(upgrade_id: String) -> bool:
 	if not in_run:
@@ -1455,6 +1477,14 @@ func _tap_base() -> float:
 
 func _passive_base() -> float:
 	return _effect_sum("passive_flat")
+
+## Every run produces from its first second (D033): an idle game that does
+## nothing until a Workshop rank is bought reads as broken. The base is a flat
+## floor per second, not raised by upgrades, so it starts a new player without
+## making a built-up one stronger. Per tick it is shared across the ticks in a
+## second.
+func _base_output_per_tick() -> float:
+	return balance_profile.BASE_DAMAGE_PER_SECOND / _tick_rate()
 
 func _tick_rate() -> float:
 	return _effect_product("tick_rate", 1.0)

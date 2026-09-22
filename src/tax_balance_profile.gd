@@ -32,6 +32,22 @@ const BOSS_LIABILITY_MULTIPLIER := 3.0
 const BOSS_COLLECTION_MULTIPLIER := 1.5
 const BOSS_REWARD_MULTIPLIER := 5.0
 
+## The Tier 1 opening (D033): warm-up wave HP and hit at wave 1 and how much
+## each grows per wave, what a warm-up boss multiplies them by, the Number a run with
+## a warm-up starts with, output every run has before any Workshop rank, and
+## the share of the first full wave's HP the Rig quotes for a run's first few
+## purchases during the warm-up.
+const WARM_UP_START_HP := 30.0
+const WARM_UP_HP_GROWTH := 1.12
+const WARM_UP_START_HIT := 1.0
+const WARM_UP_HIT_GROWTH := 1.12
+const WARM_UP_BOSS_HP := 1.4
+const WARM_UP_BOSS_HIT := 1.4
+const WARM_UP_STARTING_NUMBER := 50.0
+const BASE_DAMAGE_PER_SECOND := 1.0
+const RIG_WARM_UP_PRICE_SCALE := 0.1
+const RIG_WARM_UP_DISCOUNTED_PURCHASES := 2
+
 var tiers: Array = []
 
 func _init() -> void:
@@ -58,12 +74,31 @@ func has_tier(tier_id: int) -> bool:
 func is_boss_wave(wave: int) -> bool:
 	return wave > 0 and wave % BOSS_WAVE_INTERVAL == 0
 
+## Past the tier's warm-up: the full curves apply and waves pay by depth. A
+## warm-up wave is not free (D033); it ramps into the first full wave.
 func is_pressured_wave(tier_id: int, wave: int) -> bool:
 	return wave > get_tier(tier_id).free_waves
 
+## Tier 1's opening (D033). Its warm-up waves are small but real: wave HP and
+## the hit start low and grow a fixed share each wave, so a new player is under
+## attack from the first wave without a hit that can end the run, and a warm-up
+## boss is softened rather than tripled. The first full wave after the warm-up
+## is where the curves take over. Tiers without a warm-up are pressured from
+## wave 1 already.
+func _warm_up_value(wave: int, start: float, growth: float, boss_factor: float) -> ScientificNumber:
+	var value := start * pow(growth, float(maxi(1, wave) - 1))
+	if is_boss_wave(wave):
+		value *= boss_factor
+	return ScientificNumber.from_float(value)
+
+## What every run of a tier starts with, before any Workshop rank: a tier with
+## a warm-up gives a little, so the first hit costs Number instead of the run.
+func starting_number(tier_id: int) -> float:
+	return WARM_UP_STARTING_NUMBER if get_tier(tier_id).free_waves > 0 else 0.0
+
 func liability_for_wave(tier_id: int, wave: int) -> ScientificNumber:
 	if not is_pressured_wave(tier_id, wave):
-		return ScientificNumber.new()
+		return _warm_up_value(wave, WARM_UP_START_HP, WARM_UP_HP_GROWTH, WARM_UP_BOSS_HP)
 	var w := float(maxi(1, wave))
 	var body := 0.05 * pow(w, 2.13) + 0.8 * w + 1.5
 	var milestone_log := (
@@ -78,7 +113,7 @@ func liability_for_wave(tier_id: int, wave: int) -> ScientificNumber:
 
 func collection_for_wave(tier_id: int, wave: int) -> ScientificNumber:
 	if not is_pressured_wave(tier_id, wave):
-		return ScientificNumber.new()
+		return _warm_up_value(wave, WARM_UP_START_HIT, WARM_UP_HIT_GROWTH, WARM_UP_BOSS_HIT)
 	var w := float(maxi(1, wave))
 	var body := 0.021 * pow(w, 2.007) + 0.16 * w + 1.07
 	var milestone_log := (
@@ -93,8 +128,8 @@ func collection_for_wave(tier_id: int, wave: int) -> ScientificNumber:
 
 func reward_for_wave(tier_id: int, wave: int) -> int:
 	if not is_pressured_wave(tier_id, wave):
-		# Grace is safe onboarding, not empty time. A small repeatable payout makes
-		# the first failed attempt fund permanent Workshop progress.
+		# The warm-up pays a small repeatable amount, so the first failed attempt
+		# funds permanent Workshop progress (D010).
 		return 5 if is_boss_wave(wave) else 1
 	# Once a wave is pressured every tier shares the same wave base. This keeps
 	# 1.8x/2.6x reward ratios honest at equal waves.
@@ -189,6 +224,11 @@ func rig_cost(category: String, rank: int, reference_hp: ScientificNumber) -> Sc
 func rig_reference_hp(tier_id: int, wave: int) -> ScientificNumber:
 	var first_pressured: int = get_tier(tier_id).free_waves + 1
 	return liability_for_wave(tier_id, maxi(wave, first_pressured))
+
+## What the warm-up's discounted Rig ranks are quoted against (D033): a share
+## of the first full wave's HP.
+func rig_warm_up_reference_hp(tier_id: int) -> ScientificNumber:
+	return liability_for_wave(tier_id, get_tier(tier_id).free_waves + 1).multiply_scalar(RIG_WARM_UP_PRICE_SCALE)
 
 func _from_log10(value_log: float) -> ScientificNumber:
 	if not is_finite(value_log):
