@@ -81,6 +81,8 @@ var stage_root: Control
 var landing_panel: Control
 var landing_last_run_label: Label
 var landing_last_run_detail: Label
+var landing_difficulty_label: Label
+var landing_category_labels: Dictionary = {}
 var tracked_font: FontVariation
 var number_flash_tween: Tween
 # Smoothed log10 of the displayed Number (log10(mantissa) + exponent), eased
@@ -494,6 +496,32 @@ func _build_landing_panel(parent: Control) -> void:
 	landing_last_run_detail = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	landing_last_run_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(landing_last_run_detail)
+
+	column.add_child(HSeparator.new())
+	landing_difficulty_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	landing_difficulty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(landing_difficulty_label)
+
+	# The build at a glance, placeholder-simple: a rank count per category
+	# rather than a fabricated single multiplier (WORKSHOP_DESIGN.md D025).
+	var category_row := HBoxContainer.new()
+	category_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	category_row.add_theme_constant_override("separation", 18)
+	category_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(category_row)
+	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
+		var tile := VBoxContainer.new()
+		tile.alignment = BoxContainer.ALIGNMENT_CENTER
+		tile.add_theme_constant_override("separation", 2)
+		tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		category_row.add_child(tile)
+		var icon_wrap := CenterContainer.new()
+		icon_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		icon_wrap.add_child(IconGlyph.new(CATEGORY_ICON[category], MUTED_TEXT, 15.0))
+		tile.add_child(icon_wrap)
+		var rank_label := _make_label("0", 12, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
+		tile.add_child(rank_label)
+		landing_category_labels[category] = rank_label
 
 ## The run's own controls: what the encounter is asking for, the two answers to
 ## it, and the way out. All text, no panels, so the stage stays the loud thing.
@@ -1784,13 +1812,18 @@ func _refresh_landing() -> void:
 	if summary == null:
 		landing_last_run_label.text = "NO RUNS YET"
 		landing_last_run_detail.text = "Start your first run when you're ready."
-		return
-	landing_last_run_label.text = "LAST RUN  ·  TIER " + str(summary.tier_id) + "  ·  WAVE " + str(summary.wave_reached)
-	var cause := "RETREATED" if summary.outcome == "retreat" else "LOST TO A HIT OF " + summary.final_hit.format_value()
-	var reward := "+" + _coins(summary.coins_earned) + " COINS"
-	if summary.knowledge_gained > 0:
-		reward += "  ·  +" + str(summary.knowledge_gained) + " KNOWLEDGE"
-	landing_last_run_detail.text = cause + "  ·  " + reward
+	else:
+		landing_last_run_label.text = "LAST RUN  ·  TIER " + str(summary.tier_id) + "  ·  WAVE " + str(summary.wave_reached)
+		var cause := "RETREATED" if summary.outcome == "retreat" else "LOST TO A HIT OF " + summary.final_hit.format_value()
+		var reward := "+" + _coins(summary.coins_earned) + " COINS"
+		if summary.knowledge_gained > 0:
+			reward += "  ·  +" + str(summary.knowledge_gained) + " KNOWLEDGE"
+		landing_last_run_detail.text = cause + "  ·  " + reward
+	var tier: Variant = state.balance_profile.get_tier(state.selected_tier)
+	landing_difficulty_label.text = "TIER " + str(state.selected_tier) + "  ·  BEST WAVE " + str(state.get_tier_best()) + "  ·  REWARD ×" + ("%.1f" % tier.reward_multiplier) + "  ·  COIN BONUS ×" + ("%.2f" % state.get_coin_bonus_multiplier())
+	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
+		var rank_label: Label = landing_category_labels[category]
+		rank_label.text = str(state.get_category_rank_total(category))
 
 ## The boss warning is the only thing besides a landing hit allowed to use the
 ## warning colour, so it keeps its weight.

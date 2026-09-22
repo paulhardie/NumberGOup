@@ -432,6 +432,24 @@ func get_workshop_level() -> int:
 			level += get_owned(definition.id)
 	return level
 
+## How built out one category is, at a glance: Workshop ranks plus any Lab
+## ranks on the same shelf. A rank count rather than a fabricated single
+## multiplier, since Attack alone already spans several different effects.
+func get_category_rank_total(category: String) -> int:
+	var total := 0
+	for definition in definitions:
+		if definition.workshop_category == category:
+			total += get_owned(definition.id)
+	for lab_definition in lab_research.definitions:
+		if lab_definition.category == category:
+			total += get_lab_owned(lab_definition.id)
+	return total
+
+## The permanent multiplier every beaten wave's Coins pay through, from the
+## Workshop's Coin Bonus row and Coin Research in the Labs.
+func get_coin_bonus_multiplier() -> float:
+	return 1.0 + _effect_sum("coin_bonus")
+
 ## A category is open once it has a row to show. Ultimates have none until they
 ## are authored, so the tab reads as locked without a gate of its own.
 func has_category_content(category: String) -> bool:
