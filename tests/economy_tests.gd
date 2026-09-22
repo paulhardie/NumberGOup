@@ -60,6 +60,7 @@ func _init() -> void:
 	_test_run_gates_the_wave_clock()
 	_test_retreat_ends_and_resets_run()
 	_test_tier_records_milestones_and_unlocks()
+	_test_claimed_milestones_survive_a_reload()
 	_test_modifier_pipeline_order()
 	_test_deterministic_run_seed()
 	_test_high_wave_values_remain_valid()
@@ -929,6 +930,49 @@ func _test_tier_records_milestones_and_unlocks() -> void:
 	_expect(not state.is_tier_unlocked(3), "Tier 3 should remain locked until Tier 2 wave 100")
 	state.end_run()
 	_expect(state.select_tier(2), "an unlocked tier should be selectable outside a run")
+
+## A milestone claimed before a reload stays claimed after it. JSON reads the
+## claimed waves back as floats, which once made every milestone pay again on
+## the first pass after each load.
+func _test_claimed_milestones_survive_a_reload() -> void:
+	var save_path := "res://.number_go_up_test_save.json"
+	var first := GameState.new()
+	first.save_path = save_path
+	first.start_run(1, 5)
+	_clear_waves_through(first, 10)
+	first.end_run()
+	_expect(first.coins == 34 and first.gems == 1, "the first wave-10 clear should pay 14 wave Coins, the 20-Coin milestone bonus and one Gem")
+	_expect(first.save(), "the milestone save should write")
+	var reloaded := GameState.new()
+	reloaded.save_path = save_path
+	reloaded.load()
+	var claimed: Array = reloaded.get_tier_record(1).milestones_claimed
+	_expect(claimed == [10] and typeof(claimed[0]) == TYPE_INT, "a claimed milestone should reload as the whole-number wave it was")
+	reloaded.start_run(1, 5)
+	_clear_waves_through(reloaded, 10)
+	reloaded.end_run()
+	_expect(reloaded.coins == 34 + 14, "a reloaded milestone should pay only its wave Coins, not its bonus again")
+	_expect(reloaded.gems == 1, "a reloaded milestone should not grant its Gem again")
+	_expect(reloaded.get_tier_record(1).milestones_claimed == [10], "a reclaimed pass should not list the milestone twice")
+	reloaded.clear_save()
+
+	# A save written before the fix can hold the same wave twice, plus junk;
+	# it collapses to each real wave once.
+	var damaged: Dictionary = SaveDataV5.make(GameState.new())
+	damaged.tier_records["1"] = {"highest_wave": 30, "best_time": 0.0, "milestones_claimed": [10, 10.0, "junk", -3, 25]}
+	damaged.tier_records["9"] = "a tier this build does not know"
+	_write_json(save_path, damaged)
+	var repaired := GameState.new()
+	repaired.save_path = save_path
+	repaired.load()
+	_expect(repaired.get_tier_record(1).milestones_claimed == [10, 25], "duplicate and junk milestone entries should collapse on load")
+	_expect(typeof(repaired.get_tier_record(1).highest_wave) == TYPE_INT and repaired.get_tier_best(1) == 30, "a reloaded tier best should stay a whole-number wave")
+	repaired.clear_save()
+
+func _clear_waves_through(state: GameState, last_wave: int) -> void:
+	while state.in_run and state.wave <= last_wave:
+		state.active_encounter.remaining_liability = ScientificNumber.new()
+		state._resolve_wave_boundary()
 
 func _test_modifier_pipeline_order() -> void:
 	var modifiers: Array = [

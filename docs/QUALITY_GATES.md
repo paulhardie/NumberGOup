@@ -39,7 +39,7 @@ bash run_godot.sh --path . -s res://tools/capture_ui.gd
 
 - Every Godot run goes through `run_godot.sh`, which keeps it away from the live save (see "Protect the real save" in [`AGENTS.md`](../AGENTS.md)).
 
-- `run_tests.sh` runs the whole headless economy suite. A green count printed alongside errors is not a pass.
+- `run_tests.sh` runs the whole headless economy suite. A green count printed alongside errors is not a pass, and the script enforces it: any `SCRIPT ERROR`, parse error or `ERROR:` line fails the run, because a runtime error aborts only the test it happens in and the suite still prints PASS. A stale `.godot` class cache shows up the same way; `bash run_godot.sh --headless --path . --import` refreshes it.
 - The headless project run imports and parses every script and builds the main scene; it catches UI-script and scene errors the suite does not load.
 - `run_balance.sh` is a measurement tool, not a gate.
 - The capture tool renders the main screens at four window sizes into `user://ui_capture`. Inspect the PNGs; never assert pixel equality.
