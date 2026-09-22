@@ -44,6 +44,10 @@ const TAB_NAMES := {"number": "RUN", "workshop": "WORKSHOP", "settings": "SETTIN
 ## Lifetime Number required before a row inside the Knowledge sheet can be used.
 ## These were the Labs and Cards dock gates before D016 moved them inside.
 const RESEARCH_UNLOCK := 1000.0
+## Non-critical passive ticks are batched into one float rather than one per
+## tick: at a deepened Tick Speed, dozens of ticks land per second, and a
+## label per tick would be noise (pillar 1) and a node-churn cost, not signal.
+const PASSIVE_FLOAT_INTERVAL := 0.45
 
 var state := GameState.new()
 # Lifetime Number required before a dock icon even appears tappable. Each
@@ -53,6 +57,10 @@ var state := GameState.new()
 var tab_unlock_lifetime := {"number": 0.0, "workshop": 10.0, "settings": 10.0}
 var save_elapsed := 0.0
 var refresh_elapsed := 0.0
+## Batches non-critical tick production into one periodic "+X" float, so
+## passive gain becomes visible without spamming a label per tick.
+var passive_float_accumulator := ScientificNumber.new()
+var passive_float_elapsed := 0.0
 
 var number_button: Button
 var number_label: Label
@@ -191,6 +199,9 @@ func _process(delta: float) -> void:
 			_spawn_floating_text(_output_float_text(event.amount, true), CRITICAL, floating_text_layer.size * Vector2(0.5, 0.42))
 			_pulse_number(1.06)
 			_flash_number(CRITICAL)
+		elif event.type == "tick":
+			if not event.amount.is_zero():
+				passive_float_accumulator = passive_float_accumulator.add(event.amount)
 		elif event.type == "tax_collection" or event.type == "boss_collection":
 			var boss_hit: bool = event.type == "boss_collection"
 			var hit_colour: Color = BOSS_DANGER if boss_hit else DANGER
@@ -227,6 +238,13 @@ func _process(delta: float) -> void:
 			_show_died_screen(state.last_run_summary)
 			_snap_number_display()
 			state.save()
+			passive_float_accumulator = ScientificNumber.new()
+	passive_float_elapsed += delta
+	if passive_float_elapsed >= PASSIVE_FLOAT_INTERVAL:
+		passive_float_elapsed = 0.0
+		if not passive_float_accumulator.is_zero():
+			_spawn_floating_text(_output_float_text(passive_float_accumulator, false), ACCENT, floating_text_layer.size * Vector2(0.5, 0.42))
+			passive_float_accumulator = ScientificNumber.new()
 	_advance_display_number(delta)
 	_refresh_number_display()
 	_update_stage_colour()
@@ -1592,6 +1610,8 @@ func _on_run_button_pressed() -> void:
 	else:
 		state.start_run()
 		_show_toast("RUN STARTED  ·  WORKSHOP LV " + str(state.get_workshop_level()) + " APPLIED", ACCENT)
+	passive_float_accumulator = ScientificNumber.new()
+	passive_float_elapsed = 0.0
 	_snap_number_display()
 	state.save()
 	_refresh_all()
