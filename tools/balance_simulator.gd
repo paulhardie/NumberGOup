@@ -5,10 +5,12 @@ const STEP := 0.5
 const SEED := 7
 const CHECKPOINTS := [1, 21, 50, 100]
 const MATRIX_SECONDS := 5400.0
+## Every Attack row at its cap (D019 deepened the ladders without moving where
+## they end, so this is the same power the three-rank caps used to reach).
 const ATTACK_MAX := {
-	"stronger_tap": 5, "generator": 5, "generator_two": 3, "faster_cadence": 5,
-	"faster_echo": 3, "burst_relay": 3, "more_critical": 5, "magnitude_coil": 3,
-	"chain_reaction": 3, "automation_core": 1,
+	"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 100,
+	"faster_echo": 60, "burst_relay": 6, "more_critical": 100, "magnitude_coil": 60,
+	"chain_reaction": 60, "automation_core": 50, "boss_damage": 100,
 }
 const MID := {"stronger_tap": 5, "generator": 5, "generator_two": 3, "faster_cadence": 3}
 const EARLY := {"stronger_tap": 2, "generator": 2}
@@ -51,7 +53,7 @@ func _init() -> void:
 	_simulate_representative_tier_one()
 	print("BUILD MATRIX  2 taps/sec, seed ", SEED)
 	for build in BUILD_MATRIX:
-		_simulate_build(build[0], build[1], build[2], build[3])
+		_simulate_build(build[0], build[1], _ranks(build[2]))
 	quit(0)
 
 func _simulate_build(label: String, tier: int, ranks: Dictionary, armor: int) -> void:
@@ -105,13 +107,20 @@ func _simulate_representative_tier_one() -> void:
 				"  coins=", state.coins,
 				"  knowledge=", state.knowledge
 			)
-			for upgrade_id in PURCHASE_ORDER:
-				state.purchase(upgrade_id)
+			# Spend down the way a player does, not one rank per row: with
+			# ladders 50-100 ranks deep (D019), a single pass through the order
+			# leaves almost all of the first run's Coins unspent.
+			var spending := true
+			while spending:
+				spending = false
+				for upgrade_id in PURCHASE_ORDER:
+					if state.purchase(upgrade_id):
+						spending = true
 			print(
 				"POST-RUN WORKSHOP  level=", state.get_workshop_level(),
 				"  coins_remaining=", state.coins,
 				"  tap=", state._tap_base(),
-				"  number_per_sec=", state.get_rate_per_second().format_value()
+				"  number_per_sec=", snappedf(state.get_rate_per_second().mantissa * pow(10.0, state.get_rate_per_second().exponent), 0.01)
 			)
 			return
 	print(

@@ -1,6 +1,8 @@
 class_name SaveDataV2
 extends RefCounted
 
+## V1 and V2 are read-only migration sources (D007): only is_valid and
+## is_legacy_v1 are still used, so the writer that described this shape is gone.
 const VERSION := 2
 
 static func make(state: GameState) -> Dictionary:

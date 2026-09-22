@@ -13,6 +13,8 @@ GODOT=/Users/paulhardie/Downloads/Godot.app/Contents/MacOS/Godot bash run_balanc
 
 Open the project in Godot 4.7.2 and run `scenes/main.tscn` for the playable build.
 
+`opencode.json` turns the GDScript language server off for coding agents that read it. Godot's LSP speaks TCP and only exists while the editor is open, so a client expecting stdio hangs on a `.gd` project; the [`opencode-godot-lsp`](https://github.com/MasuRii/opencode-godot-lsp) bridge is the way to turn it back on. Agent behaviour itself lives in [`AGENTS.md`](AGENTS.md).
+
 ## Web export
 
 `export_presets.cfg` defines a single-threaded, PWA-enabled Web export at `build/web/index.html`.

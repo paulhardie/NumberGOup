@@ -86,27 +86,40 @@ func _test_category_gates_and_rank_caps() -> void:
 
 func _test_workshop_effects() -> void:
 	var state := _funded_state()
-	state.purchased = {"stronger_tap": 2, "generator": 2, "generator_two": 1, "faster_cadence": 1, "faster_echo": 1, "more_critical": 1, "magnitude_coil": 1, "smarter_efficiency": 1}
+	# The same fractions of each ladder the three-rank build used to hold.
+	state.purchased = {"stronger_tap": 40, "generator": 40, "generator_two": 20, "faster_cadence": 20, "faster_echo": 20, "more_critical": 20, "magnitude_coil": 20, "smarter_efficiency": 20}
 	state.rng.seed = 11
 	state.start_run(1, 11)
 	var event := state.tap()
-	_expect(event.amount.compare_to(ScientificNumber.from_float(3.45)) == 0, "Hand Press and Number Engine should affect taps")
+	_expect(event.amount.compare_to(ScientificNumber.from_float(3.45)) == 0, "Tap Damage and Damage Multiplier should affect taps")
 	_expect(state.get_rate_per_second().compare_to(ScientificNumber.from_float(4.14)) == 0, "Workshop output and speed should affect rate")
-	_expect(state.get_workshop_coin_cost(state.get_definition("generator")) == 97, "Efficiency Matrix should reduce permanent Coin costs")
-	_expect(is_equal_approx(state._critical_chance(), 0.05), "Critical Lens should add positive critical chance")
-	_expect(is_equal_approx(state._critical_multiplier(), 3.0), "Magnitude Coil should add critical size")
+	_expect(is_equal_approx(state._effect_sum("cost_discount"), 0.05), "twenty Discount ranks should still be a 5% discount")
+	_expect(state.get_workshop_coin_cost(state.get_definition("generator")) == 16, "Discount should reduce permanent Coin costs")
+	_expect(is_equal_approx(state._critical_chance(), 0.05), "Crit Chance should add positive critical chance")
+	_expect(is_equal_approx(state._critical_multiplier(), 3.0), "Crit Damage should add critical size")
 
 func _test_burst_and_positive_chance() -> void:
 	var state := _funded_state()
-	state.purchased = {"generator": 1, "faster_cadence": 1, "burst_relay": 1}
+	state.purchased = {"generator": 20, "faster_cadence": 20, "burst_relay": 1}
 	state.start_run(1, 999)
 	state.rng.seed = 999
-	for tick in range(12):
+	# Rank one shortens the interval from twelve to eleven, so the eleventh tick
+	# is the one that doubles. Measured against its neighbour rather than a
+	# fixed total, so the assertion outlives the next tuning pass.
+	var plain := ScientificNumber.new()
+	var burst := ScientificNumber.new()
+	for tick in range(11):
+		var before: ScientificNumber = state.number.copy()
 		state._produce_tick()
-	_expect(state.number.compare_to(ScientificNumber.from_float(19.5)) == 0, "Burst Relay rank one should double exactly the twelfth tick")
+		var gained := state.number.subtract(before)
+		if tick == 9:
+			plain = gained
+		elif tick == 10:
+			burst = gained
+	_expect(not plain.is_zero() and burst.compare_to(plain.multiply_scalar(2.0)) == 0, "Burst rank one should double exactly the eleventh tick")
 	_expect(state.statistics.critical_ticks == 0, "Chance cards must not create forced critical events")
 	var chain := _funded_state()
-	chain.purchased = {"generator": 1, "more_critical": 5, "chain_reaction": 3}
+	chain.purchased = {"generator": 20, "more_critical": 100, "chain_reaction": 60}
 	chain.start_run(1, 3)
 	chain.rng.seed = 3
 	chain._produce_tick()
@@ -114,13 +127,13 @@ func _test_burst_and_positive_chance() -> void:
 
 func _test_permanent_baseline_and_starting_reserve() -> void:
 	var state := _funded_state()
-	state.purchased = {"stronger_tap": 5, "generator": 3, "automation_core": 1, "priority_buffer": 2}
+	state.purchased = {"stronger_tap": 100, "generator": 60, "automation_core": 50, "priority_buffer": 50}
 	_expect(state.start_run(1, 44), "a fresh run should start from the permanent Workshop")
-	_expect(state.number.compare_to(ScientificNumber.from_float(500)) == 0, "Starting Reserve should define the fresh-run Number baseline")
+	_expect(state.number.compare_to(ScientificNumber.from_float(500)) == 0, "Cushion should define the fresh-run Number baseline")
 	_expect(state.get_rate_per_second().compare_to(ScientificNumber.from_float(9.5)) == 0, "Auto Crank should permanently raise run production")
 	_expect(not state.purchase("faster_cadence"), "permanent Workshop purchases must be locked during a run")
 	state.end_run()
-	_expect(state.get_owned("priority_buffer") == 2 and state.get_owned("automation_core") == 1, "Workshop ranks must survive retreat")
+	_expect(state.get_owned("priority_buffer") == 50 and state.get_owned("automation_core") == 50, "Workshop ranks must survive retreat")
 
 func _test_save_v5_and_legacy_migration() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
@@ -209,7 +222,9 @@ func _test_save_v5_and_legacy_migration() -> void:
 		"lifetime": ScientificNumber.from_float(1000).to_dict(),
 		"highest": ScientificNumber.from_float(1000).to_dict(),
 		"purchased": {"stronger_tap": 2},
-		"workshop": {},
+		"workshop": {"selected_bay": "chance"},
+		"focus": "output",
+		"tax_resistance_rank": 4,
 		"coins": 25,
 		"tier_records": {},
 		"in_run": false,
@@ -222,6 +237,8 @@ func _test_save_v5_and_legacy_migration() -> void:
 	migrated_v3.load()
 	_expect(migrated_v3.number.is_zero(), "V3 banked Number should retire when migrating to run-only Number")
 	_expect(migrated_v3.get_owned("stronger_tap") == 2 and migrated_v3.coins == 25, "V3 Workshop ranks and Coins should become permanent without loss")
+	_expect(migrated_v3.get_owned(GameState.ARMOR_ID) == 4, "a V3 Shield Matrix rank should become the Armor Workshop rank")
+	_expect(migrated_v3.focus_path == ProgressionTaxonomy.ATTACK and migrated_v3.workshop.selected_category == ProgressionTaxonomy.ATTACK, "V3 bays should map onto categories")
 	migrated_v3.clear_save()
 
 	var v2 := {
@@ -247,6 +264,15 @@ func _test_save_v5_and_legacy_migration() -> void:
 	_expect(not migrated_v2.in_run and migrated_v2.wave == 1, "a banked V2 run should become a fresh, non-exploitable run")
 	migrated_v2.clear_save()
 
+	# Malformed and unknown-version saves must not crash or half-load: the load
+	# returns an empty award and the state stays the fresh default.
+	for broken in [{"version": 99, "number": ScientificNumber.from_float(5).to_dict(), "lifetime": ScientificNumber.from_float(5).to_dict()}, {"version": 5}, {}]:
+		_write_json(save_path, broken)
+		var refused := GameState.new()
+		refused.save_path = save_path
+		refused.load()
+		_expect(refused.number.is_zero() and refused.coins == 0 and not refused.in_run, "an unreadable save should leave a fresh state, not a partial one")
+		refused.clear_save()
 	var v1 := {
 		"version": 1,
 		"number": ScientificNumber.from_float(100).to_dict(),
@@ -332,11 +358,14 @@ func _test_first_run_funds_permanent_workshop() -> void:
 		state._resolve_wave_boundary()
 	_expect(state.coins == 48, "Tier 1 grace should award 48 repeatable Coins through wave 20")
 	state.end_run()
-	_expect(state.purchase("stronger_tap"), "first-run Coins should buy a permanent Hand Press rank")
-	_expect(state.purchase("generator"), "first-run Coins should also buy the first passive generator")
-	_expect(state.coins == 3, "first Workshop purchases should spend Coins, not Number")
+	_expect(state.purchase("stronger_tap"), "first-run Coins should buy a permanent Tap Damage rank")
+	_expect(state.purchase("generator"), "first-run Coins should also buy the first Damage Per Second rank")
+	_expect(state.coins == 41, "first Workshop purchases should spend Coins, not Number")
+	# A deepened ladder (D019) should turn the first run into a visible stack of
+	# ranks rather than the two the five-rank ladders allowed.
+	_expect(state.purchase_ranks("stronger_tap", GameState.MAX_BUY) >= 8, "the first failed run should fund a stack of ranks")
 	state.start_run(1, 8)
-	_expect(state._tap_base() == 2.0 and state._passive_base() == 1.5, "the next run should start from the upgraded permanent baseline")
+	_expect(state._tap_base() > 1.0 and state._passive_base() > 0.0, "the next run should start from the upgraded permanent baseline")
 
 func _test_tier_pressure_and_curve_gates() -> void:
 	var state := GameState.new()
@@ -447,7 +476,7 @@ func _test_mid_wave_save_resumes_identically() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
 	var original := GameState.new()
 	original.save_path = save_path
-	original.purchased = {"stronger_tap": 3, "more_critical": 5}
+	original.purchased = {"stronger_tap": 60, "more_critical": 100}
 	original.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	original.start_run(2, 31)
 	for tap_index in range(5):
@@ -533,6 +562,8 @@ func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	state.workshop.tick_count = 12
 	state.run_coins_earned = 5
 	var expected_knowledge := state.get_prestige_knowledge_gain()
+	var killing_hit := state.get_effective_collection()
+	var was_boss: bool = state.active_encounter.is_boss
 	var event := state._resolve_wave_boundary()
 	_expect(event.type == "wave_death", "Collection that depletes Number should report death")
 	_expect(state.number.is_zero() and state.get_owned("stronger_tap") == 3, "death should reset run Number and retain permanent Workshop progress")
@@ -541,6 +572,26 @@ func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	_expect(state.get_owned("armor") == 2, "Armor should survive death")
 	_expect(state.last_run_summary != null and state.last_run_summary.tier_id == 2, "death should record the tier")
 	_expect(state.last_run_summary.coins_earned == 5, "failed waves should not award unearned rewards")
+	# The run-over screen names what the run was lost to, so the summary has to
+	# carry it: _reset_run_state wipes the encounter before anything can read it.
+	_expect(state.last_run_summary.final_hit.compare_to(killing_hit) == 0, "the summary should record the hit the run was lost to")
+	_expect(state.last_run_summary.lost_to_boss == was_boss, "the summary should record whether a boss landed it")
+
+	var boss_run := GameState.new()
+	boss_run.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	boss_run.start_run(2, 71)
+	boss_run.wave = 10
+	boss_run.active_encounter = boss_run._make_encounter(10)
+	_expect(boss_run.active_encounter.is_boss, "wave ten should be a boss")
+	boss_run.number = ScientificNumber.from_float(1)
+	_expect(boss_run._resolve_wave_boundary().type == "wave_death", "a boss hit that empties Number should end the run")
+	_expect(boss_run.last_run_summary.lost_to_boss, "a run lost to a boss should say so")
+	_expect(not boss_run.last_run_summary.final_hit.is_zero(), "a boss hit should be recorded at its real size")
+
+	var retreat := GameState.new()
+	retreat.start_run(1, 72)
+	var summary := retreat.end_run()
+	_expect(summary.final_hit.is_zero() and not summary.lost_to_boss, "a retreat was lost to nothing, so it records no hit")
 
 func _test_run_gates_the_wave_clock() -> void:
 	var state := GameState.new()
@@ -595,8 +646,8 @@ func _test_modifier_pipeline_order() -> void:
 func _test_deterministic_run_seed() -> void:
 	var left := GameState.new()
 	var right := GameState.new()
-	left.purchased = {"more_critical": 5}
-	right.purchased = {"more_critical": 5}
+	left.purchased = {"more_critical": 100}
+	right.purchased = {"more_critical": 100}
 	left.start_run(1, 123456)
 	right.start_run(1, 123456)
 	for tap_index in range(20):

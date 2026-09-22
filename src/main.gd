@@ -34,15 +34,22 @@ const CATEGORY_ICON := {
 	"ultimates": 12, # IconGlyph.Kind.SPARKLE
 }
 
-const TAB_IDS: Array[String] = ["number", "workshop", "labs", "cards"]
-const TAB_NAMES := {"number": "NUMBER", "workshop": "WORKSHOP", "labs": "LABS", "cards": "CARDS", "settings": "SETTINGS"}
+## The category strip's height. It sits above the nav dock between runs, and a
+## run has no dock, so the same strip can sit flush there later.
+const CATEGORY_STRIP_HEIGHT := 64
+
+const TAB_IDS: Array[String] = ["number", "workshop"]
+const TAB_NAMES := {"number": "RUN", "workshop": "WORKSHOP", "settings": "SETTINGS"}
+## Lifetime Number required before a row inside the Knowledge sheet can be used.
+## These were the Labs and Cards dock gates before D016 moved them inside.
+const RESEARCH_UNLOCK := 1000.0
 
 var state := GameState.new()
 # Lifetime Number required before a dock icon even appears tappable. Each
 # tab's own feature may still gate further inside itself (e.g. Labs needs
 # Workshop level 12). "settings" gates the stats/settings sheet the same way
 # the old top-right MENU button used to appear only once the player was in.
-var tab_unlock_lifetime := {"number": 0.0, "workshop": 10.0, "labs": 1000.0, "cards": GameState.PRESTIGE_TEASER_UNLOCK, "settings": 10.0}
+var tab_unlock_lifetime := {"number": 0.0, "workshop": 10.0, "settings": 10.0}
 var save_elapsed := 0.0
 var refresh_elapsed := 0.0
 
@@ -81,6 +88,8 @@ var died_wave_label: Label
 var died_coins_label: Label
 var died_knowledge_label: Label
 var died_peak_label: Label
+var died_cause_label: Label
+var died_knowledge_door: Button
 
 var nav_dock: NavDock
 var drawer: Control
@@ -90,6 +99,19 @@ var stats_grid: GridContainer
 var workshop_header: Label
 var workshop_board_row: HBoxContainer
 var workshop_detail: VBoxContainer
+var workshop_category_header: Label
+var workshop_purpose: Label
+var workshop_buy_when: Label
+var workshop_multiplier_label: Label
+## Which multi-buy step each category is set to, by index into
+## GameState.BUY_STEPS. Presentation only: it is not worth a save key until a
+## player would miss it across sessions.
+var buy_step_index: Dictionary = {}
+var stat_info_screen: Control
+var stat_info_title: Label
+var stat_info_body: Label
+var stat_info_level: Label
+var stat_info_max: Label
 var workshop_tab_buttons: Dictionary = {}
 var workshop_tab_icons: Dictionary = {}
 var workshop_tab_labels: Dictionary = {}
@@ -98,6 +120,11 @@ var workshop_lock_badges: Dictionary = {}
 var labs_content: VBoxContainer
 var cards_content: VBoxContainer
 var cards_knowledge_label: Label
+var knowledge_sheet: Control
+var knowledge_research_header: Control
+var knowledge_insight_header: Control
+var coins_button: Button
+var knowledge_button: Button
 
 var screens: Dictionary = {}
 # The content root inside each slide-up screen, kept separately so it (not
@@ -149,6 +176,11 @@ func _process(delta: float) -> void:
 			_show_toast("BOSS CLEARED  ·  +" + event.amount.format_value() + " COINS", CRITICAL)
 		elif event.type == "tier_unlock":
 			_show_toast("TIER " + event.amount.format_value() + " UNLOCKED", CRITICAL)
+		elif event.type == "second_wind":
+			_show_toast("SECOND WIND  ·  " + event.amount.format_value() + " LEFT", CRITICAL)
+			_flash_number(CRITICAL, 0.6)
+			_pulse_stage_impact(CRITICAL)
+			_shake_number()
 		elif event.type == "wave_death":
 			_show_died_screen(state.last_run_summary)
 			_snap_number_display()
@@ -191,8 +223,6 @@ func _build_ui() -> void:
 	add_child(content_area)
 	_build_number_screen(content_area)
 	_build_workshop_screen(content_area)
-	_build_labs_screen(content_area)
-	_build_cards_screen(content_area)
 
 	_build_toast()
 
@@ -203,6 +233,8 @@ func _build_ui() -> void:
 	nav_dock.tab_selected.connect(_on_dock_tab_selected)
 
 	_build_drawer()
+	_build_knowledge_sheet()
+	_build_stat_info()
 	_build_died_screen()
 
 	audio_feedback = AudioFeedback.new()
@@ -245,27 +277,51 @@ func _build_number_screen(parent: Control) -> void:
 
 ## Permanent currency only: what survives the run, so it reads as a different
 ## class of thing from the run state below it.
+## A currency is the door to its own spend (D016): Coins open the Workshop and
+## Knowledge opens the Knowledge sheet, which is why neither needs a dock seat.
 func _build_currency_stack(parent: Control) -> void:
 	var stack := VBoxContainer.new()
 	stack.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	stack.offset_left = 28
-	stack.offset_top = 30
-	stack.add_theme_constant_override("separation", 8)
-	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.offset_left = 22
+	stack.offset_top = 26
+	stack.add_theme_constant_override("separation", 4)
 	parent.add_child(stack)
-	coins_label = _make_currency_row(stack, IconGlyph.Kind.COIN, ACCENT, 17.0, 16, TEXT)
-	knowledge_label = _make_currency_row(stack, IconGlyph.Kind.DIAMOND, MUTED_TEXT, 15.0, 15, Color(0.925, 0.925, 0.918, 0.7))
+	coins_button = _make_currency_row(stack, IconGlyph.Kind.COIN, ACCENT, 17.0, 16, TEXT)
+	coins_label = coins_button.get_meta("value_label")
+	coins_button.tooltip_text = "Open the Workshop"
+	coins_button.pressed.connect(func(): _on_dock_tab_selected("workshop"))
+	knowledge_button = _make_currency_row(stack, IconGlyph.Kind.DIAMOND, MUTED_TEXT, 15.0, 15, Color(0.925, 0.925, 0.918, 0.7))
+	knowledge_label = knowledge_button.get_meta("value_label")
+	knowledge_button.tooltip_text = "Spend Knowledge"
+	knowledge_button.pressed.connect(_open_knowledge_sheet)
 
-func _make_currency_row(parent: Control, icon_kind: int, icon_colour: Color, icon_size: float, font_size: int, text_colour: Color) -> Label:
+func _make_currency_row(parent: Control, icon_kind: int, icon_colour: Color, icon_size: float, font_size: int, text_colour: Color) -> Button:
+	var button := Button.new()
+	button.text = ""
+	button.flat = true
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(96, 30)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	parent.add_child(button)
 	var row := HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 6
 	row.add_theme_constant_override("separation", 7)
+	row.alignment = BoxContainer.ALIGNMENT_BEGIN
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent.add_child(row)
-	var icon := IconGlyph.new(icon_kind, icon_colour, icon_size)
-	row.add_child(icon)
+	button.add_child(row)
+	var icon_wrap := CenterContainer.new()
+	icon_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon_wrap.add_child(IconGlyph.new(icon_kind, icon_colour, icon_size))
+	row.add_child(icon_wrap)
+	var value_wrap := CenterContainer.new()
+	value_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(value_wrap)
 	var label := _make_label("", font_size, HORIZONTAL_ALIGNMENT_LEFT, text_colour)
-	row.add_child(label)
-	return label
+	value_wrap.add_child(label)
+	button.set_meta("value_label", label)
+	return button
 
 ## Wave, tier and the boss warning on one line. Tier doubles as the selector:
 ## between runs it cycles to the next unlocked tier.
@@ -466,11 +522,19 @@ func _build_flat_screen(parent: Control, tab_id: String) -> VBoxContainer:
 	tab_panels[tab_id] = content
 	return content
 
+## Header, then the open category's rows, then the four category buttons pinned
+## above the nav dock. The strip stays put while the rows scroll, so switching
+## shelf is always one thumb reach away.
 func _build_workshop_screen(parent: Control) -> void:
 	var content := _build_flat_screen(parent, "workshop")
+	var margin := content.get_parent() as MarginContainer
+	margin.add_theme_constant_override("margin_left", 14)
+	margin.add_theme_constant_override("margin_right", 14)
+	margin.add_theme_constant_override("margin_bottom", CATEGORY_STRIP_HEIGHT + int(NavDock.BAR_HEIGHT))
+
 	var header_row := HBoxContainer.new()
 	content.add_child(header_row)
-	var title := _make_label("Permanent Workshop", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	var title := _make_label("WORKSHOP", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(title)
 	var chip := PanelContainer.new()
@@ -493,19 +557,20 @@ func _build_workshop_screen(parent: Control) -> void:
 
 	var detail_scroll := ScrollContainer.new()
 	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	detail_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	content.add_child(detail_scroll)
 	workshop_detail = VBoxContainer.new()
 	workshop_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	workshop_detail.add_theme_constant_override("separation", 10)
+	workshop_detail.add_theme_constant_override("separation", 8)
 	detail_scroll.add_child(workshop_detail)
 
 func _make_category_tab(category: String) -> Button:
 	var button := Button.new()
 	button.text = ""
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(0, 64)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var layout := _tile_layout(button, 4, 10)
+	button.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	var layout := _tile_layout(button, 4, 4)
 	layout.alignment = BoxContainer.ALIGNMENT_CENTER
 	var icon_wrap := CenterContainer.new()
 	icon_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -544,11 +609,9 @@ func _build_labs_screen(parent: Control) -> void:
 	labs_content.add_theme_constant_override("separation", 10)
 	scroll.add_child(labs_content)
 
-func _build_cards_screen(parent: Control) -> void:
-	var content := _build_flat_screen(parent, "cards")
 	var header_row := HBoxContainer.new()
-	content.add_child(header_row)
-	var title := _make_label("Cards", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	column.add_child(header_row)
+	var title := _make_label("Knowledge", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(title)
 	var chip := PanelContainer.new()
@@ -560,14 +623,67 @@ func _build_cards_screen(parent: Control) -> void:
 	cards_knowledge_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_LEFT, CARDS_ACCENT)
 	chip_row.add_child(cards_knowledge_label)
 	header_row.add_child(chip)
-	content.add_child(_make_label("INSIGHTS", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
+
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_child(scroll)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(scroll)
+	var inner := VBoxContainer.new()
+	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inner.add_theme_constant_override("separation", 10)
+	scroll.add_child(inner)
+
+	knowledge_research_header = VBoxContainer.new()
+	knowledge_research_header.add_theme_constant_override("separation", 4)
+	inner.add_child(knowledge_research_header)
+	knowledge_research_header.add_child(_make_label("RESEARCH FOCUS", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
+	var focus_copy := _make_label("Pick one Workshop category to discount by 25%. It locks in until your next Prestige.", 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	focus_copy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	knowledge_research_header.add_child(focus_copy)
+	labs_content = VBoxContainer.new()
+	labs_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	labs_content.add_theme_constant_override("separation", 10)
+	inner.add_child(labs_content)
+
+	knowledge_insight_header = VBoxContainer.new()
+	knowledge_insight_header.add_theme_constant_override("separation", 4)
+	inner.add_child(knowledge_insight_header)
+	knowledge_insight_header.add_child(HSeparator.new())
+	knowledge_insight_header.add_child(_make_label("INSIGHTS", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
 	cards_content = VBoxContainer.new()
 	cards_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cards_content.add_theme_constant_override("separation", 10)
-	scroll.add_child(cards_content)
+	inner.add_child(cards_content)
+
+func _open_knowledge_sheet() -> void:
+	if knowledge_sheet == null:
+		return
+	if drawer != null and drawer.visible:
+		drawer.visible = false
+	knowledge_sheet.visible = true
+	_refresh_knowledge()
+
+## The two gates that used to decide whether a dock icon appeared now decide
+## whether a row inside the sheet does (D016).
+func _refresh_knowledge() -> void:
+	if knowledge_sheet == null or not knowledge_sheet.visible:
+		return
+	cards_knowledge_label.text = str(state.knowledge)
+	var research_open := state.highest_number.compare_to(ScientificNumber.from_float(RESEARCH_UNLOCK)) >= 0
+	knowledge_research_header.visible = research_open
+	labs_content.visible = research_open
+	_clear_children(labs_content)
+	if research_open:
+		_refresh_labs()
+	var insight_open := state.highest_number.compare_to(ScientificNumber.from_float(GameState.PRESTIGE_TEASER_UNLOCK)) >= 0
+	knowledge_insight_header.visible = insight_open
+	cards_content.visible = insight_open
+	_clear_children(cards_content)
+	if insight_open:
+		_refresh_cards()
+	elif not research_open:
+		labs_content.visible = true
+		labs_content.add_child(_make_locked_panel("REACH " + ScientificNumber.from_float(RESEARCH_UNLOCK).format_value() + " NUMBER", "Research Focus opens first, then Insight once a run has earned Knowledge."))
 
 func _build_toast() -> void:
 	var toast_wrap := Control.new()
@@ -662,6 +778,23 @@ func _build_drawer() -> void:
 	stats_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats_scroll.add_child(stats_column)
 
+	var knowledge_route := _make_row_button()
+	knowledge_route.custom_minimum_size = Vector2(0, 62)
+	knowledge_route.add_theme_stylebox_override("normal", _panel_style(SURFACE, 14, Color(CARDS_ACCENT.r, CARDS_ACCENT.g, CARDS_ACCENT.b, 0.35)))
+	knowledge_route.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 14, CARDS_ACCENT))
+	var route_row := _row_layout(knowledge_route, 14, 10)
+	route_row.add_child(IconGlyph.new(IconGlyph.Kind.DIAMOND, CARDS_ACCENT, 16.0))
+	var route_label := _make_label("Spend Knowledge", 14, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	route_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	route_row.add_child(route_label)
+	route_row.add_child(_make_label("RESEARCH · INSIGHT · RESET", 9, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT))
+	knowledge_route.pressed.connect(func():
+		_toggle_drawer()
+		_open_knowledge_sheet()
+	)
+	stats_column.add_child(knowledge_route)
+	stats_column.add_child(HSeparator.new())
+
 	stats_grid = GridContainer.new()
 	stats_grid.columns = 2
 	stats_grid.add_theme_constant_override("h_separation", 14)
@@ -705,6 +838,74 @@ func _build_drawer() -> void:
 	clear.pressed.connect(_clear_local_save)
 	stats_column.add_child(clear)
 
+## What a stat is and where it stands, opened by tapping a Workshop card's name.
+## The card itself stays compact because this holds the description, so a whole
+## category fits on one screen. Tapping anywhere dismisses it.
+func _build_stat_info() -> void:
+	stat_info_screen = Control.new()
+	stat_info_screen.visible = false
+	stat_info_screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(stat_info_screen)
+
+	var scrim := Button.new()
+	scrim.text = ""
+	scrim.flat = true
+	scrim.focus_mode = Control.FOCUS_NONE
+	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scrim.add_theme_stylebox_override("normal", _panel_style(Color(0, 0, 0, 0.7), 0))
+	scrim.add_theme_stylebox_override("hover", _panel_style(Color(0, 0, 0, 0.7), 0))
+	scrim.add_theme_stylebox_override("pressed", _panel_style(Color(0, 0, 0, 0.7), 0))
+	scrim.pressed.connect(func(): stat_info_screen.visible = false)
+	stat_info_screen.add_child(scrim)
+
+	var centre := CenterContainer.new()
+	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stat_info_screen.add_child(centre)
+
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(272, 0)
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_theme_stylebox_override("panel", _panel_style(Color("171c26"), 20, Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.5)))
+	centre.add_child(panel)
+
+	var margin := MarginContainer.new()
+	margin.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	margin.add_theme_constant_override("margin_left", 22)
+	margin.add_theme_constant_override("margin_right", 22)
+	margin.add_theme_constant_override("margin_top", 24)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	panel.add_child(margin)
+
+	var inner := VBoxContainer.new()
+	inner.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inner.add_theme_constant_override("separation", 14)
+	margin.add_child(inner)
+
+	stat_info_title = _make_label("", 19, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
+	inner.add_child(stat_info_title)
+	stat_info_body = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
+	stat_info_body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inner.add_child(stat_info_body)
+	inner.add_child(HSeparator.new())
+	stat_info_level = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	inner.add_child(stat_info_level)
+	stat_info_max = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	inner.add_child(stat_info_max)
+
+func _show_stat_info(definition: UpgradeDefinition) -> void:
+	if stat_info_screen == null:
+		return
+	var owned := state.get_owned(definition.id)
+	stat_info_title.text = definition.title
+	stat_info_body.text = definition.description
+	stat_info_level.text = "CURRENT RANK  ·  " + str(owned) + "  (" + _stat_value_text(definition, owned) + ")"
+	if definition.is_maxed(owned):
+		stat_info_max.text = "MAX RANK  ·  " + str(definition.max_rank) + "  ·  REACHED"
+	else:
+		stat_info_max.text = "MAX RANK  ·  " + str(definition.max_rank) + "  (" + _stat_value_text(definition, definition.max_rank) + ")"
+	stat_info_screen.visible = true
+
 ## The run-over report: same scrim-and-sheet shape as the drawer, but modal
 ## (no scrim-tap-to-dismiss) since a death should be acknowledged, not brushed
 ## past, and its content is a fixed summary rather than a live-editing form.
@@ -741,10 +942,13 @@ func _build_died_screen() -> void:
 	inner.add_theme_constant_override("separation", 6)
 	margin.add_child(inner)
 
-	inner.add_child(_make_label("RUN OVER", 12, HORIZONTAL_ALIGNMENT_CENTER, DANGER))
+	inner.add_child(_make_label("LOST TO", 12, HORIZONTAL_ALIGNMENT_CENTER, DANGER))
 	died_wave_label = _make_label("", 26, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
 	inner.add_child(died_wave_label)
-	var subtitle := _make_label("The equation finally asked for more than you had. Your Workshop was retained.", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	died_cause_label = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, DANGER)
+	died_cause_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inner.add_child(died_cause_label)
+	var subtitle := _make_label("Your Workshop was retained.", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inner.add_child(subtitle)
 	inner.add_child(HSeparator.new())
@@ -755,6 +959,20 @@ func _build_died_screen() -> void:
 	inner.add_child(died_knowledge_label)
 	died_peak_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	inner.add_child(died_peak_label)
+
+	# Both doors, at the moment the currency lands (D016).
+	var doors := HBoxContainer.new()
+	doors.add_theme_constant_override("separation", 8)
+	inner.add_child(doors)
+	doors.add_child(_make_door("WORKSHOP", ACCENT, func():
+		_dismiss_died_screen()
+		_on_dock_tab_selected("workshop")
+	))
+	died_knowledge_door = _make_door("SPEND KNOWLEDGE", CARDS_ACCENT, func():
+		_dismiss_died_screen()
+		_open_knowledge_sheet()
+	)
+	doors.add_child(died_knowledge_door)
 
 	var continue_button := Button.new()
 	continue_button.text = "CONTINUE"
@@ -768,17 +986,36 @@ func _build_died_screen() -> void:
 	continue_button.pressed.connect(_dismiss_died_screen)
 	inner.add_child(continue_button)
 
+## A named cause, not a counterfactual: the run was lost to a particular wave's
+## hit, and the screen says which and how big.
+func _make_door(text: String, tint: Color, on_press: Callable) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.focus_mode = Control.FOCUS_NONE
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.custom_minimum_size = Vector2(0, 42)
+	button.add_theme_font_size_override("font_size", 11)
+	button.add_theme_color_override("font_color", tint)
+	button.add_theme_color_override("font_hover_color", tint)
+	button.add_theme_stylebox_override("normal", _panel_style(Color(tint.r, tint.g, tint.b, 0.1), 999, Color(tint.r, tint.g, tint.b, 0.4)))
+	button.add_theme_stylebox_override("hover", _panel_style(Color(tint.r, tint.g, tint.b, 0.2), 999, tint))
+	button.pressed.connect(on_press)
+	return button
+
 func _show_died_screen(summary: RunSummary) -> void:
 	if summary == null or died_screen == null:
 		return
-	died_wave_label.text = "TIER " + str(summary.tier_id) + "  ·  WAVE " + str(summary.wave_reached)
-	died_coins_label.text = "+" + str(summary.coins_earned) + " COINS EARNED"
+	var wave_name := "BOSS WAVE " if summary.lost_to_boss else "WAVE "
+	died_wave_label.text = wave_name + str(summary.wave_reached)
+	died_cause_label.text = "Its hit took " + summary.final_hit.format_value() + " and you had less."
+	died_knowledge_door.visible = summary.knowledge_gained > 0 or state.knowledge > 0
+	died_coins_label.text = "+" + _coins(summary.coins_earned) + " COINS EARNED"
 	if summary.knowledge_gained > 0:
 		died_knowledge_label.text = "+" + str(summary.knowledge_gained) + " KNOWLEDGE"
 		died_knowledge_label.visible = true
 	else:
 		died_knowledge_label.visible = false
-	died_peak_label.text = "PEAK NUMBER  ·  " + summary.peak_number.format_value()
+	died_peak_label.text = "TIER " + str(summary.tier_id) + "  ·  PEAK NUMBER " + summary.peak_number.format_value()
 	died_screen.visible = true
 
 func _dismiss_died_screen() -> void:
@@ -793,10 +1030,6 @@ func _select_tab(tab_id: String) -> void:
 		screens[id].visible = (id == tab_id)
 	if tab_id == "workshop":
 		_refresh_workshop()
-	elif tab_id == "labs":
-		_refresh_labs()
-	elif tab_id == "cards":
-		_refresh_cards()
 	_animate_tab_panel(tab_id)
 	_refresh_dock()
 
@@ -825,6 +1058,8 @@ func _on_dock_tab_selected(tab_id: String) -> void:
 		return
 	if drawer.visible:
 		drawer.visible = false
+	if knowledge_sheet != null and knowledge_sheet.visible:
+		knowledge_sheet.visible = false
 	_select_tab(tab_id)
 
 func _is_tab_unlocked(tab_id: String) -> bool:
@@ -935,7 +1170,7 @@ func _production_feedback_text(amount: ScientificNumber, critical: bool, banking
 func _refresh_all() -> void:
 	background_rect.visible = not bool(state.settings.high_contrast)
 	rate_label.visible = true
-	var rate := state.get_rate_per_second().format_value()
+	var rate := _stat_number(state.get_rate_per_second())
 	if not state.in_run:
 		rate_label.text = "STARTING +" + rate + " / sec"
 	elif state.is_output_banking():
@@ -943,17 +1178,18 @@ func _refresh_all() -> void:
 	else:
 		rate_label.text = rate + " DAMAGE / sec"
 	tap_hint.text = "TAP TO PRODUCE" if state.in_run else "START A RUN TO PRODUCE"
-	coins_label.text = str(state.coins)
+	coins_label.text = _coins(state.coins)
 	knowledge_label.text = str(state.knowledge)
 	_refresh_run_bar()
 	if offline_message != "":
 		_show_toast(offline_message, ACCENT)
 		offline_message = ""
 	_refresh_dock()
+	_refresh_knowledge()
 	if current_tab == "workshop":
 		# Do not rebuild live buttons during the player's press/release cycle.
 		# Rebuilding a Control tree every refresh can eat touch releases on Web.
-		workshop_header.text = str(state.coins) + " COINS"
+		workshop_header.text = _coins(state.coins) + " COINS"
 
 ## Shows the two independent checks the run turns on: the remaining Wave HP
 ## production must clear, and the Hit Number must survive.
@@ -964,6 +1200,7 @@ func _refresh_run_bar() -> void:
 	_refresh_boss_notice()
 	_refresh_encounter_line()
 	brace_button.visible = state.in_run
+	brace_cost_label.text = "%.0f%% OF NUMBER" % (state.get_brace_cost_percent() * 100.0)
 	brace_button.disabled = not state.can_brace()
 	_set_action_enabled(brace_button, not brace_button.disabled)
 	run_button.text = "RETREAT & RESET" if state.in_run else "START RUN  ·  WORKSHOP LV " + str(state.get_workshop_level())
@@ -998,7 +1235,7 @@ func _waves_until_boss(current_wave: int) -> int:
 
 func _refresh_encounter_line() -> void:
 	if not state.in_run:
-		encounter_label.text = "TIER BEST " + str(state.get_tier_best()) + "  ·  " + str(state.coins) + " COINS BANKED"
+		encounter_label.text = "TIER BEST " + str(state.get_tier_best()) + "  ·  " + _coins(state.coins) + " COINS BANKED"
 		return
 	var encounter: Variant = state.active_encounter
 	if encounter == null or encounter.max_liability.is_zero():
@@ -1106,7 +1343,7 @@ func _make_focus_card(category: String) -> Button:
 			_show_toast("RESEARCH FOCUS SET", LABS_ACCENT)
 			state.save()
 			_refresh_all()
-			_refresh_labs()
+			_refresh_knowledge()
 	)
 	return button
 
@@ -1181,7 +1418,7 @@ func _make_insight_card(definition: UpgradeDefinition) -> Button:
 			_show_toast("INSIGHT IMPROVED", CARDS_ACCENT)
 			state.save()
 			_refresh_all()
-			_refresh_cards()
+			_refresh_knowledge()
 		else:
 			_show_toast("NEED KNOWLEDGE", MUTED_TEXT)
 	)
@@ -1235,81 +1472,104 @@ func _confirm_prestige() -> void:
 	_snap_number_display()
 	state.save()
 	_refresh_all()
-	_refresh_cards()
+	_refresh_knowledge()
 
 ## A row card for a ranked, permanent Coin-funded Workshop upgrade: an icon chip, a
 ## title with an optional NEXT tag, a thin fill bar for rank, and cost/rank
 ## at the right.
-func _make_ranked_card(definition: UpgradeDefinition, icon_kind: int, is_next: bool) -> Button:
+## A compact Workshop card, two to a row: the stat's name on the left, which
+## opens its detail, and the value-and-cost box on the right, which buys. The
+## description lives in the detail popup rather than on the card, so a category
+## fits on one screen.
+func _make_stat_card(definition: UpgradeDefinition, category: String) -> PanelContainer:
 	var owned := state.get_owned(definition.id)
 	var maxed := definition.is_maxed(owned)
-	var disabled := maxed or not state.is_unlocked(definition) or state.in_run
-	var button := _make_row_button()
-	button.disabled = disabled
-	var border := WORKSHOP_ACCENT if (is_next and not disabled) else Color.TRANSPARENT
-	button.add_theme_stylebox_override("normal", _panel_style(SURFACE, 14, border))
-	button.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 14, WORKSHOP_ACCENT))
-	button.add_theme_stylebox_override("pressed", _panel_style(Color("0f5848"), 14, WORKSHOP_ACCENT))
-	var row := _row_layout(button, 14, 10)
-	var chip := Panel.new()
-	chip.custom_minimum_size = Vector2(36, 36)
-	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var chip_tint := MUTED_TEXT if disabled else WORKSHOP_ACCENT
-	chip.add_theme_stylebox_override("panel", _panel_style(Color(chip_tint.r, chip_tint.g, chip_tint.b, 0.14), 10))
-	var chip_center := CenterContainer.new()
-	chip_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	chip_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	chip.add_child(chip_center)
-	chip_center.add_child(IconGlyph.new(icon_kind, chip_tint, 16.0))
-	row.add_child(chip)
-	var mid := VBoxContainer.new()
-	mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	mid.add_theme_constant_override("separation", 7)
-	row.add_child(mid)
-	var title_row := HBoxContainer.new()
-	title_row.add_theme_constant_override("separation", 6)
-	mid.add_child(title_row)
-	title_row.add_child(_make_label(definition.title, 14, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT if disabled else TEXT))
-	if is_next and not disabled:
-		var tag := PanelContainer.new()
-		tag.add_theme_stylebox_override("panel", _tag_style(WORKSHOP_ACCENT))
-		tag.add_child(_make_label("NEXT", 8, HORIZONTAL_ALIGNMENT_CENTER, WORKSHOP_ACCENT))
-		title_row.add_child(tag)
-	var description_label := _make_label(definition.description, 11, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
-	description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	mid.add_child(description_label)
-	var bar := ProgressBar.new()
-	bar.custom_minimum_size = Vector2(0, 4)
-	bar.show_percentage = false
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bar.max_value = maxf(1, definition.max_rank)
-	bar.value = owned
-	var bar_bg := StyleBoxFlat.new()
-	bar_bg.bg_color = Color(1, 1, 1, 0.1)
-	bar_bg.set_corner_radius_all(2)
-	var bar_fill := StyleBoxFlat.new()
-	bar_fill.bg_color = MUTED_TEXT if disabled else WORKSHOP_ACCENT
-	bar_fill.set_corner_radius_all(2)
-	bar.add_theme_stylebox_override("background", bar_bg)
-	bar.add_theme_stylebox_override("fill", bar_fill)
-	mid.add_child(bar)
-	var right := VBoxContainer.new()
-	right.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	right.alignment = BoxContainer.ALIGNMENT_CENTER
-	row.add_child(right)
-	var value_text := "MAXED" if maxed else str(state.get_workshop_coin_cost(definition)) + " COINS"
-	right.add_child(_make_label(value_text, 14, HORIZONTAL_ALIGNMENT_RIGHT, TEXT if not disabled else MUTED_TEXT))
-	right.add_child(_make_label(str(owned) + "/" + str(definition.max_rank), 9, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT))
-	button.pressed.connect(func(upgrade_id: String = definition.id):
-		if state.purchase(upgrade_id):
-			_show_toast("WORKSHOP IMPROVED", WORKSHOP_ACCENT)
+	var unlocked := state.is_unlocked(definition)
+	var plan := state.plan_purchase(definition.id, _buy_step(category))
+	var ranks := int(plan.ranks)
+	var affordable := ranks > 0
+
+	var card := PanelContainer.new()
+	card.custom_minimum_size = Vector2(0, 80)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var edge: Color = WORKSHOP_ACCENT if affordable else Color(1, 1, 1, 0.07)
+	card.add_theme_stylebox_override("panel", _panel_style(SURFACE, 12, edge))
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	card.add_child(row)
+
+	var name_button := Button.new()
+	name_button.text = ""
+	name_button.flat = true
+	name_button.focus_mode = Control.FOCUS_NONE
+	name_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_button.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	name_button.tooltip_text = definition.description
+	var name_layout := _tile_layout(name_button, 10, 6)
+	name_layout.alignment = BoxContainer.ALIGNMENT_CENTER
+	var name_label := _make_label(definition.title, 12, HORIZONTAL_ALIGNMENT_LEFT, TEXT if unlocked else MUTED_TEXT)
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_layout.add_child(name_label)
+	name_button.pressed.connect(func(): _show_stat_info(definition))
+	row.add_child(name_button)
+
+	var value_button := _make_tile_button()
+	value_button.custom_minimum_size = Vector2(84, 58)
+	value_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	var box_tint: Color = WORKSHOP_ACCENT if affordable else Color(1, 1, 1, 0.05)
+	value_button.add_theme_stylebox_override("normal", _panel_style(Color(0, 0, 0, 0.25), 10, box_tint))
+	value_button.add_theme_stylebox_override("hover", _panel_style(Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.12), 10, box_tint))
+	var value_layout := _tile_layout(value_button, 6, 6)
+	value_layout.alignment = BoxContainer.ALIGNMENT_CENTER
+	value_layout.add_child(_make_label(_stat_value_text(definition, owned), 13, HORIZONTAL_ALIGNMENT_RIGHT, TEXT if unlocked else MUTED_TEXT))
+	value_layout.add_child(_make_label(_stat_cost_text(definition, owned, maxed, unlocked, plan), 9, HORIZONTAL_ALIGNMENT_RIGHT, WORKSHOP_ACCENT if affordable else MUTED_TEXT))
+	value_button.pressed.connect(func(upgrade_id: String = definition.id, step: int = _buy_step(category)):
+		var bought := state.purchase_ranks(upgrade_id, step)
+		if bought > 0:
+			_show_toast("+" + str(bought) + "  " + definition.title, WORKSHOP_ACCENT)
 			state.save()
 			_refresh_all()
 			_refresh_workshop()
+		elif maxed:
+			_show_toast("ALREADY MAXED", MUTED_TEXT)
+		elif not unlocked:
+			_show_toast("NEEDS WORKSHOP LV " + str(definition.workshop_level_required), MUTED_TEXT)
+		elif state.in_run:
+			_show_toast("AVAILABLE BETWEEN RUNS", MUTED_TEXT)
 		else:
-			_show_toast("NEED " + str(state.get_workshop_coin_cost(definition)) + " COINS", MUTED_TEXT)
+			_show_toast("NEED " + _coins(state.get_workshop_coin_cost(definition)) + " COINS", MUTED_TEXT)
 	)
-	return button
+	row.add_child(value_button)
+	return card
+
+## The row's effect read as a player-facing value, formatted by the unit the
+## state reports rather than by a per-row special case here.
+func _stat_value_text(definition: UpgradeDefinition, rank: int) -> String:
+	var display := state.stat_display(definition, rank)
+	var value := float(display.value)
+	match str(display.unit):
+		"percent":
+			return "%.2f%%" % (value * 100.0)
+		"multiplier":
+			return "×%.2f" % value
+		"flat":
+			# The Number formatter rounds to whole units, which would hide a
+			# rank worth 0.05. Small stat values need their decimals.
+			return _stat_number(ScientificNumber.from_float(value))
+		_:
+			return str(rank) + " / " + str(definition.max_rank)
+
+func _stat_cost_text(definition: UpgradeDefinition, owned: int, maxed: bool, unlocked: bool, plan: Dictionary) -> String:
+	if maxed:
+		return "MAX"
+	if not unlocked:
+		return "LV " + str(definition.workshop_level_required)
+	if int(plan.ranks) > 1:
+		return "x" + str(int(plan.ranks)) + " · " + _coins(int(plan.cost)) + " ©"
+	if int(plan.ranks) == 1:
+		return _coins(int(plan.cost)) + " ©"
+	return _coins(state.get_workshop_coin_cost_at(definition, owned)) + " ©"
 
 func _make_locked_panel(title_text: String, subtitle_text: String) -> PanelContainer:
 	var panel := PanelContainer.new()
@@ -1642,6 +1902,27 @@ func _panel_style(colour: Color, radius: int, border: Color = Color.TRANSPARENT)
 	style.content_margin_top = 10
 	style.content_margin_bottom = 10
 	return style
+
+## Two decimals at most, with trailing zeros dropped, so 1.05 and 6 both read
+## naturally on a card.
+func _trim(value: float) -> String:
+	var text := "%.2f" % value
+	if text.contains("."):
+		text = text.rstrip("0").rstrip(".")
+	return text
+
+## A stat, not a Number: under a thousand it keeps its decimals, because the
+## Number formatter rounds to whole units and a rank worth 0.08 would read as
+## zero. Above that the Number formatter's abbreviations take over.
+func _stat_number(value: ScientificNumber) -> String:
+	if value.exponent < 3:
+		return _trim(value.mantissa * pow(10.0, value.exponent))
+	return value.format_value()
+
+## Coins share the Number formatter: full digits under a million, abbreviated
+## above it, so a growing balance never widens the chip that holds it.
+func _coins(amount: int) -> String:
+	return ScientificNumber.from_float(float(amount)).format_value()
 
 func _clear_children(parent: Node) -> void:
 	for child in parent.get_children():

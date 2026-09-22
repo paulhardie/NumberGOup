@@ -1,6 +1,8 @@
 class_name SaveDataV3
 extends RefCounted
 
+## V3 is a read-only migration source (D007): the writer that described this
+## shape is gone, because the state it read no longer has V3's fields.
 const VERSION := 3
 
 static func make(state) -> Dictionary:

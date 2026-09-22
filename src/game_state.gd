@@ -10,7 +10,7 @@ const SaveDataV5Class = preload("res://src/save_data_v5.gd")
 
 const SAVE_PATH := "user://number_go_up_save.json"
 const OFFLINE_CAP_SECONDS := 43200.0
-const RESEARCH_WORKSHOP_LEVEL := 12
+const RESEARCH_WORKSHOP_LEVEL := 120
 const PRESTIGE_TEASER_UNLOCK := 110000.0
 const PRESTIGE_KNOWLEDGE_SCALE := 4.0
 
@@ -77,7 +77,7 @@ func tap() -> SimulationEvent:
 		return SimulationEvent.new("tap", ScientificNumber.new(), false)
 	statistics.taps += 1
 	var is_critical := rng.randf() < _critical_chance()
-	var amount := ScientificNumber.from_float(_tap_base() * _base_output_multiplier() * _momentum_multiplier())
+	var amount := ScientificNumber.from_float(_tap_base() * _damage_multiplier() * _momentum_multiplier())
 	if is_critical:
 		amount = amount.multiply_scalar(_critical_multiplier() * (1.0 + _chain_reaction_step() * critical_chain))
 		critical_chain += 1
@@ -106,7 +106,7 @@ func _produce_tick() -> SimulationEvent:
 	if _effect_sum("momentum_per_tick") > 0.0:
 		momentum_stacks = mini(100, momentum_stacks + 1)
 	var is_critical := rng.randf() < _critical_chance()
-	var amount := ScientificNumber.from_float(_passive_base() * _base_output_multiplier() * _momentum_multiplier())
+	var amount := ScientificNumber.from_float(_passive_base() * _damage_multiplier() * _momentum_multiplier())
 	if is_critical:
 		amount = amount.multiply_scalar(_critical_multiplier() * (1.0 + _chain_reaction_step() * critical_chain))
 		statistics.critical_ticks += 1
@@ -125,7 +125,7 @@ func is_output_banking() -> bool:
 	return in_run and (active_encounter == null or active_encounter.is_cleared())
 
 func get_rate_per_second() -> ScientificNumber:
-	return ScientificNumber.from_float(_passive_base() * _base_output_multiplier() * _momentum_multiplier() * _tick_rate())
+	return ScientificNumber.from_float(_passive_base() * _damage_multiplier() * _momentum_multiplier() * _tick_rate())
 
 func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	if in_run:
@@ -135,7 +135,11 @@ func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 		return false
 	# Number is run health/resources, never a banked head start. Permanent
 	# Workshop ranks define the baseline applied to every fresh attempt.
-	number = ScientificNumber.from_float(_effect_sum("starting_number_flat"))
+	# Cushion scales with the tier's pressure, or it is a trap above Tier 1:
+	# a flat 500 against a wave-1 hit twenty times that size buys nothing.
+	number = ScientificNumber.from_float(_effect_sum("starting_number_flat") * get_cushion_scale())
+	run_peak_number = number.copy()
+	second_wind_used = false
 	lifetime_generated = ScientificNumber.new()
 	workshop.tick_count = 0
 	momentum_stacks = 0
@@ -175,6 +179,11 @@ func is_tier_unlocked(tier_id: int) -> bool:
 		return false
 	return get_tier_best(tier_id - 1) >= balance_profile.get_tier(tier_id).unlock_previous_tier_wave
 
+## Cushion is the first stat whose worth depends on which tier is being played,
+## so it is priced in that tier's hits rather than in absolute Number.
+func get_cushion_scale(tier_id: int = selected_tier) -> float:
+	return balance_profile.get_tier(tier_id).collection_multiplier
+
 func get_tier_best(tier_id: int = selected_tier) -> int:
 	var record: Dictionary = tier_records.get(str(tier_id), {})
 	return int(record.get("highest_wave", 0))
@@ -209,9 +218,33 @@ func _resolve_wave_boundary() -> SimulationEvent:
 		collection = ScientificNumber.new()
 		braced = false
 	number = number.subtract(collection)
+	# Recoil turns the hit into progress on the wave that landed it. A braced
+	# boundary deals none, because no hit landed.
+	var recoil := _effect_sum("recoil_share")
+	if recoil > 0.0 and not collection.is_zero():
+		active_encounter.apply_compliance(collection.multiply_scalar(recoil))
 	if number.is_zero():
-		return _wave_death(wave)
+		var rescued := _try_second_wind()
+		if not rescued:
+			return _wave_death(wave, collection, active_encounter.is_boss)
+		return SimulationEvent.new("second_wind", number.copy())
 	return SimulationEvent.new("boss_collection" if active_encounter.is_boss else "tax_collection", collection)
+
+## Once per run, a hit that would end the run leaves a share of the run's peak
+## Number instead. The share is the rank's own value, so an early rank buys a
+## breath rather than a rescue.
+func _try_second_wind() -> bool:
+	if second_wind_used:
+		return false
+	var share := _effect_sum("second_wind_share")
+	if share <= 0.0:
+		return false
+	var restored := run_peak_number.multiply_scalar(share)
+	if restored.is_zero():
+		return false
+	second_wind_used = true
+	number = restored
+	return true
 
 func _complete_current_wave() -> SimulationEvent:
 	var completed_wave := wave
@@ -231,6 +264,13 @@ func _complete_current_wave() -> SimulationEvent:
 			record.best_time = run_elapsed
 	tier_records[str(selected_tier)] = record
 	highest_wave = maxi(highest_wave, completed_wave)
+	# Coin Bonus lifts everything a beaten wave pays, milestone bonuses included:
+	# a milestone is a wave beaten, and one rule is easier to read than two.
+	# Floored, not rounded: "+50% Coins" that sometimes pays +100% reads as a
+	# bug. Coins are whole, so a 1-Coin grace wave carries no percentage at all
+	# — which costs nothing real, because this row opens at Workshop level 60,
+	# far past the waves that pay one Coin.
+	coin_gain = floori(float(coin_gain) * (1.0 + _effect_sum("coin_bonus")))
 	coins += coin_gain
 	run_coins_earned += coin_gain
 	wave += 1
@@ -254,10 +294,10 @@ func _make_encounter(target_wave: int):
 		balance_profile.is_boss_wave(target_wave)
 	)
 
-func _wave_death(reached: int) -> SimulationEvent:
+func _wave_death(reached: int, hit: ScientificNumber, boss: bool) -> SimulationEvent:
 	var knowledge_gain := get_prestige_knowledge_gain()
 	knowledge += knowledge_gain
-	last_run_summary = RunSummary.new(reached, run_coins_earned, knowledge_gain, lifetime_generated.copy(), selected_tier, "death")
+	last_run_summary = RunSummary.new(reached, run_coins_earned, knowledge_gain, lifetime_generated.copy(), selected_tier, "death", hit, boss)
 	_reset_run_state()
 	return SimulationEvent.new("wave_death", ScientificNumber.from_float(float(reached)))
 
@@ -281,10 +321,13 @@ func get_effective_liability() -> ScientificNumber:
 func can_brace() -> bool:
 	return in_run and active_encounter != null and not active_encounter.is_cleared() and not braced and not number.is_zero()
 
+func get_brace_cost_percent() -> float:
+	return clampf(BRACE_COST_PERCENT + _effect_sum("brace_discount"), BRACE_COST_FLOOR, BRACE_COST_PERCENT)
+
 func brace() -> bool:
 	if not can_brace():
 		return false
-	number = number.subtract(number.multiply_scalar(BRACE_COST_PERCENT))
+	number = number.subtract(number.multiply_scalar(get_brace_cost_percent()))
 	braced = true
 	return true
 
@@ -332,19 +375,49 @@ func get_owned(upgrade_id: String) -> int:
 	return int(purchased.get(upgrade_id, 0))
 
 func get_cost(definition: UpgradeDefinition) -> ScientificNumber:
+	return get_cost_at(definition, get_owned(definition.id))
+
+func get_cost_at(definition: UpgradeDefinition, owned: int) -> ScientificNumber:
 	var discount := _effect_sum("cost_discount")
 	# Focus is a nudge toward a first build, never a permanent branch lock.
 	if definition.workshop_category == focus_category:
 		discount += 0.25
-	return definition.cost_at(get_owned(definition.id), discount)
+	return definition.cost_at(owned, discount)
 
 func get_workshop_coin_cost(definition: UpgradeDefinition) -> int:
-	var cost := get_cost(definition)
+	return get_workshop_coin_cost_at(definition, get_owned(definition.id))
+
+func get_workshop_coin_cost_at(definition: UpgradeDefinition, owned: int) -> int:
+	var cost := get_cost_at(definition, owned)
 	if cost.is_zero():
 		return 0
 	# Authored Workshop costs stay in the exact-number helper so growth and
 	# discounts remain inspectable, while Coins themselves are whole units.
 	return maxi(1, ceili(cost.mantissa * pow(10.0, cost.exponent)))
+
+## What one press of a multi-buy would actually do: how many ranks land and what
+## they cost together. Ranks are priced one at a time and summed, so buying in
+## bulk is never cheaper than buying the same ranks one by one. The quote uses
+## the discount in force now, so buying Discount ranks in bulk does not make the
+## later ranks of that same press cheaper: the price shown is the price paid.
+func plan_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
+	var refused := {"ranks": 0, "cost": 0}
+	var definition := get_definition(upgrade_id)
+	if definition == null or definition.category != ProgressionTaxonomy.WORKSHOP:
+		return refused
+	if in_run or not is_unlocked(definition):
+		return refused
+	var owned := get_owned(upgrade_id)
+	var wanted := definition.max_rank - owned if count == MAX_BUY else maxi(0, count)
+	var ranks := 0
+	var spent := 0
+	while ranks < wanted and owned + ranks < definition.max_rank:
+		var step := get_workshop_coin_cost_at(definition, owned + ranks)
+		if spent + step > coins:
+			break
+		spent += step
+		ranks += 1
+	return {"ranks": ranks, "cost": spent}
 
 func is_unlocked(definition: UpgradeDefinition) -> bool:
 	if definition.category == "workshop":
@@ -352,22 +425,40 @@ func is_unlocked(definition: UpgradeDefinition) -> bool:
 	return lifetime_generated.compare_to(definition.unlock_lifetime) >= 0
 
 func can_purchase(upgrade_id: String) -> bool:
-	var definition := get_definition(upgrade_id)
-	if definition == null or definition.category != "workshop" or in_run or not is_unlocked(definition):
-		return false
-	if definition.is_maxed(get_owned(upgrade_id)):
-		return false
-	return coins >= get_workshop_coin_cost(definition)
+	return int(plan_purchase(upgrade_id, 1).ranks) > 0
 
 func purchase(upgrade_id: String, silent: bool = false) -> bool:
-	if not can_purchase(upgrade_id):
-		return false
-	var definition := get_definition(upgrade_id)
-	var cost := get_workshop_coin_cost(definition)
+	return purchase_ranks(upgrade_id, 1) > 0
+
+## Buys what plan_purchase quoted and returns the ranks that landed, so the
+## press and the quote can never disagree about the price.
+func purchase_ranks(upgrade_id: String, count: int = 1) -> int:
+	var plan := plan_purchase(upgrade_id, count)
+	var ranks := int(plan.ranks)
+	if ranks <= 0:
+		return 0
+	var cost := int(plan.cost)
 	coins -= cost
-	purchased[upgrade_id] = get_owned(upgrade_id) + 1
+	purchased[upgrade_id] = get_owned(upgrade_id) + ranks
 	statistics.coins_spent = int(statistics.get("coins_spent", 0)) + cost
-	return true
+	return ranks
+
+## The value a row reads as at a given rank, and the unit to read it in. Rows
+## with no declared effect (Burst, Crit Chain) fall back to their rank, which is
+## what their description already talks in.
+func stat_display(definition: UpgradeDefinition, rank: int) -> Dictionary:
+	for effect_name in definition.effects:
+		if not STAT_DISPLAY.has(effect_name):
+			continue
+		var shape: Dictionary = STAT_DISPLAY[effect_name]
+		var step := float(definition.effects[effect_name])
+		var value: float = float(shape.base)
+		if str(shape.op) == "mul":
+			value *= pow(step, rank)
+		else:
+			value += step * float(rank)
+		return {"value": value, "unit": str(shape.unit)}
+	return {"value": float(rank), "unit": "rank"}
 
 func can_purchase_insight() -> bool:
 	return knowledge > 0
@@ -383,7 +474,8 @@ func get_prestige_knowledge_gain() -> int:
 	if lifetime_generated.is_zero():
 		return 0
 	var order_of_magnitude := lifetime_generated.log10() - log(PRESTIGE_TEASER_UNLOCK) / log(10.0)
-	return maxi(0, floori(order_of_magnitude * PRESTIGE_KNOWLEDGE_SCALE))
+	var earned := order_of_magnitude * PRESTIGE_KNOWLEDGE_SCALE * (1.0 + _effect_sum("knowledge_bonus"))
+	return maxi(0, floori(earned))
 
 func can_prestige() -> bool:
 	return get_prestige_knowledge_gain() > 0
@@ -410,6 +502,8 @@ func _reset_run_state() -> void:
 	wave = 1
 	wave_accumulator = 0.0
 	braced = false
+	run_peak_number = ScientificNumber.new()
+	second_wind_used = false
 	in_run = false
 	run_elapsed = 0.0
 	run_seed = 0
@@ -480,6 +574,10 @@ func _restore_tier_and_run_fields(data: Dictionary) -> void:
 	selected_tier = int(data.get("selected_tier", 1))
 	if not balance_profile.has_tier(selected_tier):
 		selected_tier = 1
+
+## A saved active run resumes with identical remaining Liability and identical
+## RNG state (D006). A save taken between runs restores a clean run instead.
+func _restore_saved_run(data: Dictionary) -> void:
 	wave = maxi(1, int(data.get("wave", 1)))
 	wave_accumulator = clampf(float(data.get("wave_accumulator", 0.0)), 0.0, WAVE_INTERVAL_SECONDS)
 	in_run = bool(data.get("in_run", false))
@@ -489,6 +587,11 @@ func _restore_tier_and_run_fields(data: Dictionary) -> void:
 	run_elapsed = maxf(0.0, float(data.get("run_elapsed", 0.0)))
 	run_seed = str(data.get("run_seed", "0")).to_int()
 	braced = bool(data.get("braced", false))
+	# Added after V5 shipped; a save without them resumes with an unspent Second
+	# Wind and its peak re-established from the Number it restores.
+	var saved_peak: Variant = data.get("run_peak_number", null)
+	run_peak_number = ScientificNumber.from_dict(saved_peak) if saved_peak is Dictionary else number.copy()
+	second_wind_used = bool(data.get("second_wind_used", false))
 	if in_run:
 		var encounter_data: Variant = data.get("active_encounter", null)
 		active_encounter = TaxEncounterClass.from_dict(encounter_data) if encounter_data is Dictionary else _make_encounter(wave)
@@ -632,12 +735,20 @@ func has_persistent_storage() -> bool:
 ## (D012); lifetime production still counts all of it, so Knowledge is unchanged.
 func _add_number(amount: ScientificNumber) -> void:
 	lifetime_generated = lifetime_generated.add(amount)
-	var overflow := amount
+	var into_wave := ScientificNumber.new()
 	if in_run and active_encounter != null:
-		overflow = amount.subtract(active_encounter.apply_compliance(amount))
-	number = number.add(overflow)
+		into_wave = active_encounter.apply_compliance(amount)
+	var banked := amount.subtract(into_wave)
+	# Siphon is the one way damage dealt to a wave still reaches Number, which
+	# is what stops a wave you cannot beat from being a slow death sentence.
+	var siphon := _effect_sum("siphon_share")
+	if siphon > 0.0 and not into_wave.is_zero():
+		banked = banked.add(into_wave.multiply_scalar(siphon))
+	number = number.add(banked)
 	if number.compare_to(highest_number) > 0:
 		highest_number = number.copy()
+	if number.compare_to(run_peak_number) > 0:
+		run_peak_number = number.copy()
 
 func _ensure_tier_records() -> void:
 	for tier in balance_profile.tiers:
@@ -657,6 +768,17 @@ func _passive_base() -> float:
 func _tick_rate() -> float:
 	return _effect_product("tick_rate", 1.0)
 
+## Everything that scales produced damage, including the boss-only bonus. Taps,
+## ticks and the displayed rate all read it, so a boss wave cannot show one
+## number and deal another.
+func _damage_multiplier() -> float:
+	return _base_output_multiplier() * _boss_damage_multiplier()
+
+func _boss_damage_multiplier() -> float:
+	if active_encounter == null or not active_encounter.is_boss:
+		return 1.0
+	return 1.0 + _effect_sum("boss_damage")
+
 func _base_output_multiplier() -> float:
 	return _effect_product("base_output_multiplier", 1.0)
 
@@ -670,13 +792,16 @@ func _critical_multiplier() -> float:
 	return 2.0 + _effect_sum("critical_multiplier_add")
 
 func _chain_reaction_step() -> float:
-	return 0.1 * get_owned("chain_reaction")
+	return 0.005 * get_owned("chain_reaction")
 
+## Burst shortens the interval by one tick per rank, from 12 down to the same
+## floor of 6 the three-rank version reached. The floor is what keeps deepening
+## this row a pacing change rather than a power change.
 func _burst_interval() -> int:
 	var rank := get_owned("burst_relay")
 	if rank <= 0:
 		return 0
-	return [0, 12, 9, 6][rank]
+	return maxi(6, 12 - rank)
 
 func _effect_sum(effect_name: String) -> float:
 	var total := 0.0
@@ -692,7 +817,19 @@ func _effect_product(effect_name: String, base: float) -> float:
 			total *= pow(float(definition.effects[effect_name]), get_owned(definition.id))
 	return total
 
+## The Workshop catalogue. Every row declares the category it sits on (D013);
+## ids are stable because saves key ranks by them, so a row can move shelf or
+## change its player-facing name without touching a save.
+##
+## Ladder shape (D019): each row runs 50-100 ranks at a flat cost growth, rather
+## than 3-10 ranks at 1.55-2.00. A rank's effect is divided by the same factor
+## its cap was multiplied by, so the value at max rank is unchanged, and each
+## row's Coins-to-max is designed rather than inherited: the Workshop still
+## costs about 86,000 Coins in total, now spread over 906 ranks instead of 51.
 func _make_definitions() -> Array[UpgradeDefinition]:
+	const ATTACK := ProgressionTaxonomy.ATTACK
+	const DEFENSE := ProgressionTaxonomy.DEFENSE
+	const UTILITY := ProgressionTaxonomy.UTILITY
 	return [
 		UpgradeDefinition.new("stronger_tap", "HAND PRESS", "+1 base tap per rank.", ScientificNumber.from_float(10), ScientificNumber.from_float(10), "workshop", {"tap_flat": 1.0}, false, 1.55, ProgressionTaxonomy.MODULE, ProgressionTaxonomy.ATTACK, 5, 0),
 		UpgradeDefinition.new("generator", "DESK DYNAMO", "+1.5 base Number/sec per rank.", ScientificNumber.from_float(35), ScientificNumber.from_float(20), "workshop", {"passive_flat": 1.5}, false, 1.7, ProgressionTaxonomy.MODULE, ProgressionTaxonomy.ATTACK, 5, 0),

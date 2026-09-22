@@ -6,6 +6,9 @@ var title: String
 var description: String
 var cost: ScientificNumber
 var unlock_lifetime: ScientificNumber
+## The progression layer this row belongs to: "workshop" (Coins) or
+## "knowledge" (Insight). Distinct from workshop_category, which is the shelf
+## a Workshop row sits on.
 var category: String
 var progression_type: String
 var workshop_category: String

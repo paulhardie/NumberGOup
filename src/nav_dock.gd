@@ -1,12 +1,14 @@
 class_name NavDock
 extends Control
 
-## The floating bottom icon dock: one shared, reusable strip of five circular
-## buttons that replaces the old text tab bar plus the separate MENU button.
+## The bottom navigation strip. It carries only what can be acted on between
+## runs (D016): the run itself, the Workshop, and everything rarer behind MORE.
+## Labs, Insight and Prestige left it for the Knowledge sheet, which the
+## Knowledge chip on the run screen opens.
 
 signal tab_selected(tab_id: String)
 
-const TAB_ORDER: Array[String] = ["number", "workshop", "labs", "cards", "settings"]
+const TAB_ORDER: Array[String] = ["number", "workshop", "settings"]
 const MUTED := Color(0.925, 0.925, 0.918, 0.35)
 const DIVIDER := Color(0.925, 0.925, 0.918, 0.08)
 const BAR_HEIGHT := 92.0
@@ -15,8 +17,6 @@ const ICON_SIZE := 21.0
 var _icon_kind := {
 	"number": IconGlyph.Kind.HOME,
 	"workshop": IconGlyph.Kind.GEAR,
-	"labs": IconGlyph.Kind.FLASK,
-	"cards": IconGlyph.Kind.DIAMOND,
 	"settings": IconGlyph.Kind.SLIDERS,
 }
 # One accent for every tab: per-tab hues were HUD noise, and the active tab is
@@ -25,8 +25,6 @@ const ACCENT := Color("8fbfa8")
 var _accent := {
 	"number": ACCENT,
 	"workshop": ACCENT,
-	"labs": ACCENT,
-	"cards": ACCENT,
 	"settings": ACCENT,
 }
 var _buttons: Dictionary = {}
@@ -101,7 +99,13 @@ func _make_button(tab_id: String) -> Button:
 	return button
 
 func _tab_label(tab_id: String) -> String:
-	return "MORE" if tab_id == "settings" else tab_id.to_upper()
+	match tab_id:
+		"settings":
+			return "MORE"
+		"number":
+			return "RUN"
+		_:
+			return tab_id.to_upper()
 
 ## unlocked maps each tab id to whether it can be opened; active_id is the
 ## tab currently showing (or "settings" while the sheet is open).
