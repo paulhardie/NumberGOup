@@ -473,7 +473,7 @@ func purchase_insight() -> bool:
 func get_prestige_knowledge_gain() -> int:
 	if lifetime_generated.is_zero():
 		return 0
-	var order_of_magnitude := lifetime_generated.log10() - log(PRESTIGE_TEASER_UNLOCK) / log(10.0)
+	var order_of_magnitude := (log(lifetime_generated.mantissa) / log(10.0) + float(lifetime_generated.exponent)) - log(PRESTIGE_TEASER_UNLOCK) / log(10.0)
 	var earned := order_of_magnitude * PRESTIGE_KNOWLEDGE_SCALE * (1.0 + _effect_sum("knowledge_bonus"))
 	return maxi(0, floori(earned))
 

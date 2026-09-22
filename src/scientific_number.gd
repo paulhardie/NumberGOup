@@ -80,11 +80,6 @@ func multiply(other: ScientificNumber) -> ScientificNumber:
 		return ScientificNumber.new()
 	return ScientificNumber.new(mantissa * other.mantissa, exponent + other.exponent)
 
-func log10() -> float:
-	if is_zero():
-		return -INF
-	return log(mantissa) / log(10.0) + float(exponent)
-
 func pow_scalar(power: float) -> ScientificNumber:
 	if is_zero():
 		return ScientificNumber.new()

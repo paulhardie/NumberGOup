@@ -1754,8 +1754,8 @@ func _liability_cleared() -> float:
 	var encounter: Variant = state.active_encounter
 	if encounter == null or encounter.max_liability.is_zero() or encounter.is_cleared():
 		return 1.0
-	var remaining: float = encounter.remaining_liability.log10()
-	var total: float = encounter.max_liability.log10()
+	var remaining: float = -INF if encounter.remaining_liability.is_zero() else (log(encounter.remaining_liability.mantissa) / log(10.0) + float(encounter.remaining_liability.exponent))
+	var total: float = -INF if encounter.max_liability.is_zero() else (log(encounter.max_liability.mantissa) / log(10.0) + float(encounter.max_liability.exponent))
 	if is_inf(remaining):
 		return 1.0
 	# Liability spans orders of magnitude, so the arc tracks the ratio of the
@@ -1771,14 +1771,14 @@ func _liability_cleared() -> float:
 ## over. Discrete resets (run start/end, death, prestige, clearing the save)
 ## call _snap_number_display() instead of easing into them.
 func _advance_display_number(delta: float) -> void:
-	var target := -INF if state.number.is_zero() else state.number.log10()
+	var target := -INF if state.number.is_zero() else (log(state.number.mantissa) / log(10.0) + float(state.number.exponent))
 	if state.settings.reduce_motion or is_inf(display_log_value) or is_inf(target):
 		display_log_value = target
 		return
 	display_log_value = lerp(display_log_value, target, clampf(delta * NUMBER_SMOOTH_RATE, 0.0, 1.0))
 
 func _snap_number_display() -> void:
-	display_log_value = -INF if state.number.is_zero() else state.number.log10()
+	display_log_value = -INF if state.number.is_zero() else (log(state.number.mantissa) / log(10.0) + float(state.number.exponent))
 
 func _refresh_number_display() -> void:
 	var display_number := ScientificNumber.new()
