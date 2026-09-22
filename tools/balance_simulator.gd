@@ -294,13 +294,19 @@ func _simulate_representative_tier_one() -> void:
 ## The Tier 1 opening from a fresh save (D033), at the tap rates a new player
 ## actually manages. The player buys the cheapest Attack Rig rank they can
 ## while keeping half again its price as a buffer. Opening targets: a first
-## purchase within about 15 seconds and a first, survivable hit within the
-## first minute at 3 taps a second, and a first run that still ends around
-## waves 20 to 25 and funds Workshop ranks.
-const OPENING_TAP_RATES := [0.0, 2.0, 3.0, 4.0, 6.0]
+## purchase within about 15 seconds, hits that do not erase the starting
+## buffer, and a first run that funds Workshop ranks without idle farming.
+const OPENING_TAP_RATES := [0.0, 1.0, 2.0, 3.0, 4.0, 6.0]
 const OPENING_STEP := 1.0 / 30.0
 
 func _simulate_opening() -> void:
+	var preview := GameState.new()
+	preview.start_run(1, SEED)
+	print("TIER 1 OPENING HITS  base Collection and hit after the intro rule")
+	for preview_wave in range(20, 27):
+		preview.wave = preview_wave
+		preview.active_encounter = preview._make_encounter(preview_wave)
+		print("  W", preview_wave, "  base=", preview.active_encounter.collection.format_value(), "  effective=", preview.get_effective_collection().format_value())
 	print("OPENING  fresh save, Tier 1, cheapest Rig rank kept 1.5x affordable, seed ", SEED)
 	for rate in OPENING_TAP_RATES:
 		var state := GameState.new()
