@@ -230,7 +230,7 @@ bash run_godot.sh --path . -s res://tools/capture_ui.gd
 ```
 
 - All of these use the Godot in `/Users/paulhardie/Downloads/Godot.app`; set `GODOT` to point them at another binary.
-- `run_tests.sh` is the economy suite; a green count with errors printed is not a pass.
+- `run_tests.sh` is the economy suite; a green count with errors printed is not a pass, and the script fails the run on any error line. If it fails on classes it cannot find, the `.godot` cache is stale: run `bash run_godot.sh --headless --path . --import`.
 - `run_balance.sh` prints the curve and the representative first run; it is a measurement tool, not a gate.
 - The headless project run catches parse and scene-build errors in `main.gd` and the UI classes.
 - CI runs the same baseline on every pull request and push to `main` (`.github/workflows/verify.yml`), with its Godot version pinned to match the development build — update the pin when upgrading Godot. `main` requires a pull request with a passing "Economy tests and headless boot" check.

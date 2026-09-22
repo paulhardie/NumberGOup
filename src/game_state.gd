@@ -929,11 +929,33 @@ func _fold_retired_workshop_shape(data: Dictionary) -> void:
 	focus_path = ProgressionTaxonomy.category_for_legacy_bay(focus_path)
 
 func _load_tier_progress(data: Dictionary) -> void:
-	tier_records = data.get("tier_records", {})
+	var saved_records: Variant = data.get("tier_records", {})
+	tier_records = saved_records if saved_records is Dictionary else {}
 	_ensure_tier_records()
+	for key in tier_records:
+		if tier_records[key] is Dictionary:
+			_normalise_tier_record(tier_records[key])
 	selected_tier = int(data.get("selected_tier", 1))
 	if not balance_profile.has_tier(selected_tier):
 		selected_tier = 1
+
+## JSON reads every number back as a float, and Array.has(10) does not match
+## 10.0, so a milestone claimed before a reload looked unclaimed and paid its
+## bonus again. Whole-number waves, each listed once, keep the claim to one
+## per tier record; saves that already hold a duplicate collapse to one entry.
+func _normalise_tier_record(record: Dictionary) -> void:
+	var saved_best: Variant = record.get("highest_wave", 0)
+	record.highest_wave = int(saved_best) if (saved_best is int or saved_best is float) else 0
+	var claimed: Array = []
+	var saved_claimed: Variant = record.get("milestones_claimed", [])
+	if saved_claimed is Array:
+		for value in saved_claimed:
+			if not (value is int or value is float):
+				continue
+			var claimed_wave := int(value)
+			if claimed_wave > 0 and not claimed.has(claimed_wave):
+				claimed.append(claimed_wave)
+	record.milestones_claimed = claimed
 
 ## A saved active run resumes with identical remaining Liability and identical
 ## RNG state (D006). A save taken between runs restores a clean run instead.
