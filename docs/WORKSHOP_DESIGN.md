@@ -83,7 +83,7 @@ Player-facing words move away from tax and collection phrasing. **Implemented in
 | Compliance | Damage | `apply_compliance()` | What your taps and ticks do to the wave |
 | Liability cleared | Beaten | `is_cleared()` | The wave is done and can't hit you |
 | Collection, Tax collected | Hit | `collection` | What the wave takes from your Number when its timer runs out |
-| Grace wave · nothing due | Warm-up wave | `is_pressured_wave() == false` | No HP, no hit; everything banks |
+| Grace wave · nothing due | Warm-up wave | `is_pressured_wave() == false` | Small HP and hit that grow each wave; ends on its timer (D033) |
 | Brace | Brace (keep) | `braced` | Spend 30% of your Number to block the next hit |
 | Armor (was Shield Matrix) | Armor | `tax_resistance` Workshop rank | Every hit is permanently smaller |
 | Number, Coins, Knowledge, Retreat | Keep | — | — |
@@ -466,7 +466,7 @@ Higher tiers can ask for different builds by changing the *shape* of waves as we
 
 Targets 1–4 gate D012's retune; 5 and 6 gate step 4's new stats. `tools/balance_simulator.gd` measures them with its build matrix.
 
-1. A fresh first run still ends around wave 21 and banks at least 48 Coins (D010, and the invariant that the first failed run funds a rank). *Met: wave 21, 48 Coins.*
+1. A fresh first run still ends around wave 21 and banks at least 48 Coins (D010, and the invariant that the first failed run funds a rank). *Met: wave 21, 48 Coins, now with the D033 opening.*
 2. Coins per minute at equal builds are within ±10% of the pre-D012 baseline. *This measures the D012 retune, not the Workshop: Coin Bonus (step 4b) is meant to lift Coins per minute, and does, by 49% at its cap. Compare like builds, not maxed ones.* *Met for the main progression builds: mid −2%, Max Attack −7%, Max Attack + Armor +6%. Two small runs sit above: early is +20% (2.4 Coins a minute) and Tier 2 is +19%, because both go relatively deeper now. Recheck when step 4 adds new Coin sinks.*
 3. Tier 1 wave 100 is reachable for a Workshop investment comparable to before. *Met: Max Attack + Armor 40% reaches wave 100, as it did before.*
 4. A player who has just unlocked Tier 2 survives its opening waves. *Met: that build reaches Tier 2 wave 26 (was 28).*
@@ -478,6 +478,10 @@ Targets 7–9 gate the Rig (step 7). All three need the simulator to model in-ru
 7. **The Rig cannot replace the Workshop.** A fresh permanent build playing the Rig perfectly does not reach a wave that previously required Workshop investment. If it does, the meta loop is optional and pillar 3 is decorative.
 8. **The Rig cannot be ignored.** At the top build, playing the Rig reaches meaningfully deeper than hoarding Number does. If it does not, the panel is four tabs of noise.
 9. **No runaway.** Over a long run, Rig cost growth outruns Number income: no build reaches a state where every row is affordable on every wave.
+
+Target 10 gates the Tier 1 opening (D033), measured by the OPENING table in `run_balance.sh`.
+
+10. **A new player is in the action at once.** From a fresh save the first Rig purchase is affordable within about 15 seconds, the player is under visible attack from wave 1, an idle player is hit within the first 15 seconds, a steady tapper's first hit is survivable, and the first run still ends around wave 21 in about five minutes. *Met: first purchase from the first second; first hit at 15 seconds idle and 105 to 150 seconds tapping; wave 21 at 2 to 4 taps a second, 48 Coins.*
 
 ## Implementation order
 

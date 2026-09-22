@@ -109,6 +109,11 @@ const PURCHASE_ORDER := [
 ]
 
 func _init() -> void:
+	# `-- --opening` measures only the Tier 1 opening, for quick tuning passes.
+	if OS.get_cmdline_user_args().has("--opening"):
+		_simulate_opening()
+		quit(0)
+		return
 	var state := GameState.new()
 	print("BALANCE PROFILE  ", state.balance_profile.PROFILE_ID)
 	for tier in state.balance_profile.tiers:
@@ -121,6 +126,7 @@ func _init() -> void:
 				"  reward=", state.balance_profile.reward_for_wave(tier.id, checkpoint)
 			)
 	_simulate_representative_tier_one()
+	_simulate_opening()
 	print("BUILD MATRIX  2 taps/sec, seed ", SEED)
 	for build in BUILD_MATRIX:
 		_simulate_build(build[0], build[1], _ranks(build[2]), str(build[3]) if build.size() > 3 else "none")
@@ -284,3 +290,64 @@ func _simulate_representative_tier_one() -> void:
 		"  number=", state.number.format_value(),
 		"  coins=", state.coins
 	)
+
+## The Tier 1 opening from a fresh save (D033), at the tap rates a new player
+## actually manages. The player buys the cheapest Attack Rig rank they can
+## while keeping half again its price as a buffer. Opening targets: a first
+## purchase within about 15 seconds and a first, survivable hit within the
+## first minute at 3 taps a second, and a first run that still ends around
+## waves 20 to 25 and funds Workshop ranks.
+const OPENING_TAP_RATES := [0.0, 2.0, 3.0, 4.0, 6.0]
+const OPENING_STEP := 1.0 / 30.0
+
+func _simulate_opening() -> void:
+	print("OPENING  fresh save, Tier 1, cheapest Rig rank kept 1.5x affordable, seed ", SEED)
+	for rate in OPENING_TAP_RATES:
+		var state := GameState.new()
+		state.start_run(1, SEED)
+		var seconds := 0.0
+		var tap_clock := 0.0
+		var first_purchase := -1.0
+		var first_hit := -1.0
+		var hits_first_minute := 0
+		var hits := 0
+		var three_minute := ""
+		while seconds < 1800.0 and state.in_run:
+			var events: Array[SimulationEvent] = state.advance(OPENING_STEP)
+			seconds += OPENING_STEP
+			if rate > 0.0:
+				tap_clock += OPENING_STEP
+				while tap_clock >= 1.0 / rate:
+					tap_clock -= 1.0 / rate
+					state.tap()
+			for event in events:
+				var landed: bool = event.type in ["tax_collection", "boss_collection", "second_wind"] and not event.amount.is_zero()
+				if landed or event.type == "wave_death":
+					hits += 1
+					if seconds <= 60.0:
+						hits_first_minute += 1
+					if first_hit < 0.0:
+						first_hit = seconds
+			var cheapest := ""
+			var cheapest_cost: ScientificNumber = null
+			for row_id in ["generator", "stronger_tap", "generator_two"]:
+				var cost := state.get_rig_cost(row_id)
+				if cheapest_cost == null or cost.compare_to(cheapest_cost) < 0:
+					cheapest = row_id
+					cheapest_cost = cost
+			if state.number.compare_to(cheapest_cost.multiply_scalar(1.5)) >= 0 and state.purchase_rig(cheapest):
+				if first_purchase < 0.0:
+					first_purchase = seconds
+			if three_minute == "" and seconds >= 180.0:
+				three_minute = "wave=" + str(state.wave) + " number=" + state.number.format_value()
+		var summary := state.last_run_summary
+		print(
+			"  taps/s=", rate,
+			"  first_buy=", (str(snappedf(first_purchase, 1.0)) + "s") if first_purchase >= 0.0 else "never",
+			"  first_hit=", (str(snappedf(first_hit, 1.0)) + "s") if first_hit >= 0.0 else "never",
+			"  hits_1m=", hits_first_minute,
+			"  at_3m=", three_minute if three_minute != "" else "ended",
+			"  end=", ("wave " + str(summary.wave_reached) + " at " + str(snappedf(seconds, 1.0)) + "s") if not state.in_run else "alive",
+			"  hits=", hits,
+			"  coins=", state.coins
+		)
