@@ -102,6 +102,8 @@ var died_coins_label: Label
 var died_knowledge_label: Label
 var died_peak_label: Label
 var died_cause_label: Label
+var died_attack_gap_label: Label
+var died_defense_gap_label: Label
 var died_knowledge_door: Button
 
 var nav_dock: NavDock
@@ -1080,6 +1082,10 @@ func _build_died_screen() -> void:
 	died_cause_label = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, DANGER)
 	died_cause_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inner.add_child(died_cause_label)
+	died_attack_gap_label = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
+	inner.add_child(died_attack_gap_label)
+	died_defense_gap_label = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
+	inner.add_child(died_defense_gap_label)
 	var subtitle := _make_label("Your Workshop was retained.", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inner.add_child(subtitle)
@@ -1140,6 +1146,19 @@ func _show_died_screen(summary: RunSummary) -> void:
 	var wave_name := "BOSS WAVE " if summary.lost_to_boss else "WAVE "
 	died_wave_label.text = wave_name + str(summary.wave_reached)
 	died_cause_label.text = "Its hit took " + summary.final_hit.format_value() + " and you had less."
+	# The two gaps under "Lost to" (D022, step 6): how far short Attack fell
+	# against the wave's HP and Defense against its hit. The smaller gap is the
+	# closer fix, so it carries the accent: the screen points at the category
+	# to open next without saying so in words. A tie leaves both lines plain.
+	var lost_to_a_hit := not summary.final_hit.is_zero()
+	died_attack_gap_label.visible = lost_to_a_hit
+	died_defense_gap_label.visible = lost_to_a_hit
+	if lost_to_a_hit:
+		var smaller_gap := summary.attack_gap.compare_to(summary.defense_gap)
+		died_attack_gap_label.text = "ATTACK  ·  " + summary.attack_gap.format_value() + " HP SHORT"
+		died_defense_gap_label.text = "DEFENSE  ·  " + summary.defense_gap.format_value() + " SHORT OF THE HIT"
+		died_attack_gap_label.add_theme_color_override("font_color", ACCENT if smaller_gap < 0 else TEXT)
+		died_defense_gap_label.add_theme_color_override("font_color", ACCENT if smaller_gap > 0 else TEXT)
 	died_knowledge_door.visible = summary.knowledge_gained > 0 or state.knowledge > 0
 	_count_total(died_coins_label, summary.coins_earned, func(value: int): return "+" + _coins(value) + " COINS EARNED")
 	if summary.knowledge_gained > 0:

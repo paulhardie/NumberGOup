@@ -1,6 +1,6 @@
 # Workshop design
 
-**Status:** Accepted direction. Steps 1 (the wave rule and its retune), 2 (the player vocabulary), 3 (the four categories), 3b (the deepened ladders), 4a and 4b (the Defense, Attack and Utility stats) and 5 (the bar reshape) implemented 21–22 September 2026. Step 7's domain core and its balance targets are implemented (2026-09-22, D023): targets 7, 8 and 9 pass, with early and mid builds an open playtest question. Steps 6, 7's panel and 8 not yet.
+**Status:** Accepted direction. Steps 1 (the wave rule and its retune), 2 (the player vocabulary), 3 (the four categories), 3b (the deepened ladders), 4a and 4b (the Defense, Attack and Utility stats), 5 (the bar reshape) and 6 (the two gaps under "Lost to") implemented 21–22 September 2026. Step 7's domain core and its balance targets are implemented (2026-09-22, D023): targets 7, 8 and 9 pass, with early and mid builds an open playtest question. Step 7's panel and step 8 not yet.
 **Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four categories), [D014](DECISIONS.md) (player vocabulary), [D015](DECISIONS.md) (the Rig: the same four categories inside a run), [D016](DECISIONS.md) (the bottom bar carries what is actionable now), [D018](DECISIONS.md) (multi-buy and the reference layout), [D019](DECISIONS.md) (deep rank ladders), [D020](DECISIONS.md) (Defense becomes a build), [D021](DECISIONS.md) (Boss Damage and the Utility bonuses) and [D022](DECISIONS.md) (the run-over screen names what the run was lost to).
 **Owns:** the wave rule as the player should understand it, the four categories in both lenses — permanent in the Workshop, run-only in the Rig — and every stat's reason to exist, what the player sees, the build strategies this supports, the balance targets the retune must hit, and the implementation order.
 
@@ -443,7 +443,7 @@ This keeps the single ring from the restage.
 
 **Implemented in step 5:** the heading, the wave and whether a boss landed it, the size of the hit, the run's Coins and Knowledge, and the two doors — `WORKSHOP` and `SPEND KNOWLEDGE` — at the moment the currency lands. `RunSummary` carries the killing hit and the boss flag, because the run state that held them is wiped before the screen can read it. A retreat records neither, having been lost to nothing.
 
-**Step 6 adds the two gaps underneath**, in the same voice: how far short Attack fell against that wave's HP, and how far short Defense fell against its hit. Both come deterministically from state the game already holds. The smaller gap points at the category to open next, without saying so in words.
+**Step 6 (implemented 2026-09-22) adds the two gaps underneath**, in the same voice: how far short Attack fell against that wave's HP — the wave HP Attack left when the timer ran out, before Recoil returned any of the hit — and how far short Defense fell against its hit — the hit minus the Number held before it. They read `ATTACK · <X> HP SHORT` and `DEFENSE · <Y> SHORT OF THE HIT`. Both come deterministically from state the game already holds, and the smaller gap carries the accent, pointing at the category to open next without saying so in words.
 
 ## Strategies this supports
 
@@ -489,7 +489,7 @@ Each step lands on its own and clears the gate for its risk level in [`QUALITY_G
 | 4a | **Done.** The five new Defense stats (D020): Siphon, Recoil, tier-scaled Cushion, Brace Cost, Second Wind. Targets 5 and 6 met | High: economy |
 | 4b | **Done.** Boss Damage, Coin Bonus and Knowledge Bonus (D021); Research Focus balanced across all three categories | High: economy |
 | 5 | **Done.** The bar reshape (D016): the dock drops to `RUN · WORKSHOP · MORE`, Labs, Insight and Prestige become one Knowledge sheet opened from the Knowledge chip, the `highest_number` gates move inside it, and the run-over screen is reframed as "Lost to" (D022) with both doors | Medium: presentation, plus one field on the run summary |
-| 6 | The two gaps under "Lost to": how far short Attack fell against that wave's HP, and Defense against its hit | Medium |
+| 6 | **Done.** The two gaps under "Lost to": how far short Attack fell against that wave's HP, and Defense against its hit | Medium |
 | 7 | **Core and targets done; panel not built.** The Rig (D015): run-scoped ranks bought with Number priced against wave HP, worth 3× a Workshop rank (D023), with combined defensive ceilings, stacking with Workshop ranks, saved with the active run and cleared by every ending. Targets 7–9 pass; early/mid builds are the open playtest question. Remaining: the in-run panel, Brace into the Defense tab and Shield off the run screen | High: economy and save |
 | 8 | Ultimates, in both lenses | High: new timed effects and saved cooldown state |
 

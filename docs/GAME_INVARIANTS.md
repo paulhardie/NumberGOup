@@ -41,7 +41,7 @@
 - UI presents and reports; it mutates domain state only by calling `GameState` methods.
 - Every Workshop row belongs to exactly one of the four categories (Attack, Defense, Utility, Ultimates) and opens at its own Workshop level: 0, 12, 30 or 60. Retired bays gated each row at the same level the row itself required, so their removal moved nothing; D019 then moved the levels to hold the same Coin pacing across deeper ladders.
 - Brace spends 30% of current Number, less whatever Brace Cost has bought, never below a 15% floor, and blocks exactly the next Collection hit. A blocked boundary deals no Recoil, because no hit landed.
-- A run ending explains itself: the summary states the tier, wave, Coins and Knowledge earned.
+- A run ending explains itself: the summary states the tier, wave, Coins and Knowledge earned. A run lost to a hit also names the hit and the two gaps — the wave HP Attack left and the Number shortfall against the hit — while a retreat records no hit and no gaps.
 - Highest Number and tier records persist across runs for stats and dock unlocks.
 
 ## Open — not yet contracts

@@ -804,6 +804,9 @@ func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	state.purchased = {"stronger_tap": 3, "tax_resistance": 2}
 	state.coins = 42
 	state.start_run(2, 7)
+	# Chip the wave down first, so a summary that recorded the wave's full HP
+	# would differ from the HP Attack actually left.
+	state.active_encounter.apply_compliance(state.active_encounter.max_liability.multiply_scalar(0.4))
 	state.number = ScientificNumber.from_float(1)
 	state.lifetime_generated = ScientificNumber.from_float(GameState.PRESTIGE_TEASER_UNLOCK * 100.0)
 	state.workshop.tick_count = 12
@@ -811,6 +814,8 @@ func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	var expected_knowledge := state.get_prestige_knowledge_gain()
 	var killing_hit := state.get_effective_collection()
 	var was_boss: bool = state.active_encounter.is_boss
+	var expected_attack_gap: ScientificNumber = state.active_encounter.remaining_liability.copy()
+	var number_before_hit := state.number.copy()
 	var event := state._resolve_wave_boundary()
 	_expect(event.type == "wave_death", "Collection that depletes Number should report death")
 	_expect(state.number.is_zero() and state.get_owned("stronger_tap") == 3, "death should reset run Number and retain permanent Workshop progress")
@@ -823,6 +828,10 @@ func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	# carry it: _reset_run_state wipes the encounter before anything can read it.
 	_expect(state.last_run_summary.final_hit.compare_to(killing_hit) == 0, "the summary should record the hit the run was lost to")
 	_expect(state.last_run_summary.lost_to_boss == was_boss, "the summary should record whether a boss landed it")
+	# The two gaps under "Lost to" (step 6): the wave HP Attack left, and the
+	# Number the hit exceeded. Both are read before the encounter is wiped.
+	_expect(state.last_run_summary.attack_gap.compare_to(expected_attack_gap) == 0, "the summary should record how much wave HP Attack left")
+	_expect(state.last_run_summary.defense_gap.compare_to(killing_hit.subtract(number_before_hit)) == 0, "the summary should record how far short of the hit the Number fell")
 
 	var boss_run := GameState.new()
 	boss_run.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
@@ -835,10 +844,35 @@ func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	_expect(boss_run.last_run_summary.lost_to_boss, "a run lost to a boss should say so")
 	_expect(not boss_run.last_run_summary.final_hit.is_zero(), "a boss hit should be recorded at its real size")
 
+	# Recoil can finish the wave on the very boundary that lands the killing
+	# hit. The Attack gap must still be what Attack itself left: Recoil's return
+	# is Defense's damage, and crediting it to Attack would mispoint the screen.
+	var recoil_death := GameState.new()
+	recoil_death.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	recoil_death.purchased = {"recoil": 100}
+	recoil_death.start_run(2, 73)
+	recoil_death.number = ScientificNumber.from_float(1)
+	var recoil_hit := recoil_death.get_effective_collection()
+	var recoil_hp_left := recoil_hit.multiply_scalar(0.25)
+	recoil_death.active_encounter.remaining_liability = recoil_hp_left
+	var recoil_event := recoil_death._resolve_wave_boundary()
+	_expect(recoil_event.type == "wave_death", "a killing hit should still end the run when Recoil clears the wave")
+	_expect(recoil_death.last_run_summary.attack_gap.compare_to(recoil_hp_left) == 0, "the Attack gap should be the HP Attack left, before Recoil returned part of the hit")
+	_expect(recoil_death.last_run_summary.defense_gap.compare_to(recoil_hit.subtract(ScientificNumber.from_float(1))) == 0, "the hit shortfall should still be recorded when Recoil clears the wave")
+
+	# A hit exactly equal to the Number is still a death, with no Defense gap.
+	var exact_death := GameState.new()
+	exact_death.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	exact_death.start_run(2, 74)
+	exact_death.number = exact_death.get_effective_collection()
+	exact_death._resolve_wave_boundary()
+	_expect(exact_death.last_run_summary.defense_gap.is_zero(), "a Number exactly equal to the hit should leave no Defense gap")
+
 	var retreat := GameState.new()
 	retreat.start_run(1, 72)
 	var summary := retreat.end_run()
 	_expect(summary.final_hit.is_zero() and not summary.lost_to_boss, "a retreat was lost to nothing, so it records no hit")
+	_expect(summary.attack_gap.is_zero() and summary.defense_gap.is_zero(), "a retreat was lost to nothing, so it records no gaps")
 
 func _test_run_gates_the_wave_clock() -> void:
 	var state := GameState.new()

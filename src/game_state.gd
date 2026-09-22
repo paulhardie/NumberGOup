@@ -257,6 +257,14 @@ func _resolve_wave_boundary() -> SimulationEvent:
 	if braced:
 		collection = ScientificNumber.new()
 		braced = false
+	# The buffer the hit is about to test, kept for the run-over screen's
+	# Defense gap: subtraction floors at zero, so the Number that died is gone
+	# by the time _wave_death builds the summary.
+	var number_before_hit := number.copy()
+	# Attack's gap is what the wave had left when the timer ran out. Read it
+	# before Recoil returns part of the hit, so the screen credits Attack only
+	# with Attack's own damage.
+	var wave_hp_left: ScientificNumber = active_encounter.remaining_liability.copy()
 	number = number.subtract(collection)
 	# Recoil turns the hit into progress on the wave that landed it. A braced
 	# boundary deals none, because no hit landed. The combined share is capped
@@ -267,7 +275,7 @@ func _resolve_wave_boundary() -> SimulationEvent:
 	if number.is_zero():
 		var rescued := _try_second_wind()
 		if not rescued:
-			return _wave_death(wave, collection, active_encounter.is_boss)
+			return _wave_death(wave, collection, active_encounter.is_boss, number_before_hit, wave_hp_left)
 		return SimulationEvent.new("second_wind", number.copy())
 	return SimulationEvent.new("boss_collection" if active_encounter.is_boss else "tax_collection", collection)
 
@@ -335,10 +343,24 @@ func _make_encounter(target_wave: int):
 		balance_profile.is_boss_wave(target_wave)
 	)
 
-func _wave_death(reached: int, hit: ScientificNumber, boss: bool) -> SimulationEvent:
+func _wave_death(reached: int, hit: ScientificNumber, boss: bool, number_before_hit: ScientificNumber, wave_hp_left: ScientificNumber) -> SimulationEvent:
 	var knowledge_gain := get_prestige_knowledge_gain()
 	knowledge += knowledge_gain
-	last_run_summary = RunSummary.new(reached, run_coins_earned, knowledge_gain, lifetime_generated.copy(), selected_tier, "death", hit, boss)
+	# The two gaps under "Lost to" (D022, step 6): how far short Attack fell
+	# against the wave's HP, and how far short Defense fell against its hit.
+	# Both are captured before _reset_run_state wipes the encounter and Number.
+	last_run_summary = RunSummary.new(
+		reached,
+		run_coins_earned,
+		knowledge_gain,
+		lifetime_generated.copy(),
+		selected_tier,
+		"death",
+		hit,
+		boss,
+		wave_hp_left,
+		hit.subtract(number_before_hit)
+	)
 	_reset_run_state()
 	return SimulationEvent.new("wave_death", ScientificNumber.from_float(float(reached)))
 
