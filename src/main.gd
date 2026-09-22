@@ -92,6 +92,14 @@ var run_actions: HBoxContainer
 ## Which layout the run screen holds, so it is only reapplied when the run
 ## state, the tab or the height changes.
 var screen_layout_key := ""
+## What each open sheet last showed. A sheet rebuilds its buttons only when
+## this changes: rebuilding a Control tree every refresh can swap a button out
+## between a press and its release, which eats the tap on Web, the reason the
+## Workshop already avoids it. Countdowns tick in place instead.
+var knowledge_sheet_signature := ""
+var lab_sheet_signature := ""
+var card_sheet_signature := ""
+var lab_status_labels: Dictionary = {}
 ## Shown in the stage's place between runs, since Number exists only during a
 ## run (pillar 3) and an empty ring/number stage has nothing live to say.
 var landing_panel: Control
@@ -1115,6 +1123,14 @@ func _refresh_knowledge() -> void:
 		return
 	cards_knowledge_label.text = str(state.knowledge)
 	var research_open := state.highest_number.compare_to(ScientificNumber.from_float(RESEARCH_UNLOCK)) >= 0
+	var insight_signature_open := state.highest_number.compare_to(ScientificNumber.from_float(GameState.PRESTIGE_TEASER_UNLOCK)) >= 0
+	var signature := "|".join([
+		state.knowledge, research_open, insight_signature_open, state.focus_path, state.in_run,
+		state.get_workshop_level(), state.get_owned("insight"), state.get_prestige_knowledge_gain(),
+	])
+	if signature == knowledge_sheet_signature:
+		return
+	knowledge_sheet_signature = signature
 	knowledge_research_header.visible = research_open
 	labs_content.visible = research_open
 	_clear_children(labs_content)
@@ -1234,7 +1250,20 @@ func _refresh_lab_research() -> void:
 	lab_slot_button.visible = slot_cost > 0
 	lab_slot_button.text = "OPEN SLOT " + str(state.lab_slots_total() + 1) + "  ·  " + str(slot_cost) + " GEMS"
 	lab_slot_button.disabled = not state.can_unlock_lab_slot()
+	var parts: Array = [state.in_run, state.coins, state.lab_slots_total(), state.lab_active_count()]
+	for definition in state.lab_research.definitions:
+		parts.append_array([state.get_lab_owned(definition.id), state.lab_is_active(definition.id), state.lab_is_done_awaiting_run_end(definition.id), state.can_start_lab(definition.id)])
+	var signature := "|".join(parts)
+	if signature == lab_sheet_signature:
+		# Only the countdowns move between changes; they tick in place.
+		for definition in state.lab_research.definitions:
+			var status: Label = lab_status_labels.get(definition.id)
+			if status != null and is_instance_valid(status):
+				status.text = _lab_status_text(definition, definition.is_maxed(state.get_lab_owned(definition.id)), state.lab_is_active(definition.id))
+		return
+	lab_sheet_signature = signature
 	_clear_children(lab_research_content)
+	lab_status_labels.clear()
 	for definition in state.lab_research.definitions:
 		lab_research_content.add_child(_make_lab_research_card(definition))
 
@@ -1282,6 +1311,7 @@ func _make_lab_research_card(definition: LabResearch.Definition) -> Button:
 	var right := _make_label(_lab_status_text(definition, maxed, active), 12, HORIZONTAL_ALIGNMENT_RIGHT, LABS_ACCENT if active else (TEXT if not button.disabled else MUTED_TEXT))
 	right.custom_minimum_size = Vector2(84, 0)
 	row.add_child(right)
+	lab_status_labels[definition.id] = right
 	button.pressed.connect(func():
 		if state.start_lab(definition.id):
 			_show_toast(definition.title + " STARTED", LABS_ACCENT)
@@ -1433,6 +1463,10 @@ func _refresh_card_collection() -> void:
 	card_collection_pull_button.text = "PULL A CARD  ·  " + str(state.get_pull_cost()) + " GEMS"
 	card_collection_pull_button.disabled = not state.can_pull_card()
 	card_collection_active_label.text = "ACTIVE  " + str(state.active_card_count()) + " / " + str(state.card_slots_total())
+	var signature := "|".join([state.in_run, str(state.card_ranks), str(state.card_active)])
+	if signature == card_sheet_signature:
+		return
+	card_sheet_signature = signature
 	_clear_children(card_collection_active_content)
 	_clear_children(card_collection_inventory_content)
 	var any_active := false
