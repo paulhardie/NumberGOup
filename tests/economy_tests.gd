@@ -802,6 +802,8 @@ func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	state.workshop.tick_count = 12
 	state.run_coins_earned = 5
 	var expected_knowledge := state.get_prestige_knowledge_gain()
+	var killing_hit := state.get_effective_collection()
+	var was_boss: bool = state.active_encounter.is_boss
 	var event := state._resolve_wave_boundary()
 	_expect(event.type == "wave_death", "Collection that depletes Number should report death")
 	_expect(state.number.is_zero() and state.get_owned("stronger_tap") == 3, "death should reset run Number and retain permanent Workshop progress")
@@ -810,6 +812,26 @@ func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	_expect(state.get_owned(GameState.ARMOR_ID) == 2, "Armor should survive death")
 	_expect(state.last_run_summary != null and state.last_run_summary.tier_id == 2, "death should record the tier")
 	_expect(state.last_run_summary.coins_earned == 5, "failed waves should not award unearned rewards")
+	# The run-over screen names what the run was lost to, so the summary has to
+	# carry it: _reset_run_state wipes the encounter before anything can read it.
+	_expect(state.last_run_summary.final_hit.compare_to(killing_hit) == 0, "the summary should record the hit the run was lost to")
+	_expect(state.last_run_summary.lost_to_boss == was_boss, "the summary should record whether a boss landed it")
+
+	var boss_run := GameState.new()
+	boss_run.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	boss_run.start_run(2, 71)
+	boss_run.wave = 10
+	boss_run.active_encounter = boss_run._make_encounter(10)
+	_expect(boss_run.active_encounter.is_boss, "wave ten should be a boss")
+	boss_run.number = ScientificNumber.from_float(1)
+	_expect(boss_run._resolve_wave_boundary().type == "wave_death", "a boss hit that empties Number should end the run")
+	_expect(boss_run.last_run_summary.lost_to_boss, "a run lost to a boss should say so")
+	_expect(not boss_run.last_run_summary.final_hit.is_zero(), "a boss hit should be recorded at its real size")
+
+	var retreat := GameState.new()
+	retreat.start_run(1, 72)
+	var summary := retreat.end_run()
+	_expect(summary.final_hit.is_zero() and not summary.lost_to_boss, "a retreat was lost to nothing, so it records no hit")
 
 func _test_run_gates_the_wave_clock() -> void:
 	var state := GameState.new()

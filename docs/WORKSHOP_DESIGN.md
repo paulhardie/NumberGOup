@@ -1,7 +1,7 @@
 # Workshop design
 
-**Status:** Accepted direction. Steps 1 (the wave rule and its retune), 3 (the four categories) and 3b (the deepened ladders) implemented 21–22 September 2026; later steps not yet.
-**Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four categories), [D014](DECISIONS.md) (player vocabulary), [D015](DECISIONS.md) (the Rig: the same four categories inside a run), [D016](DECISIONS.md) (the bottom bar carries what is actionable now), [D018](DECISIONS.md) (multi-buy and the reference layout) and [D019](DECISIONS.md) (deep rank ladders).
+**Status:** Accepted direction. Steps 1 (the wave rule and its retune), 3 (the four categories), 3b (the deepened ladders), 4a and 4b (the Defense, Attack and Utility stats) and 5 (the bar reshape) implemented 21–22 September 2026. Steps 2, 6, 7 and 8 not yet.
+**Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four categories), [D014](DECISIONS.md) (player vocabulary), [D015](DECISIONS.md) (the Rig: the same four categories inside a run), [D016](DECISIONS.md) (the bottom bar carries what is actionable now), [D018](DECISIONS.md) (multi-buy and the reference layout), [D019](DECISIONS.md) (deep rank ladders), [D020](DECISIONS.md) (Defense becomes a build), [D021](DECISIONS.md) (Boss Damage and the Utility bonuses) and [D022](DECISIONS.md) (the run-over screen names what the run was lost to).
 **Owns:** the wave rule as the player should understand it, the four categories in both lenses — permanent in the Workshop, run-only in the Rig — and every stat's reason to exist, what the player sees, the build strategies this supports, the balance targets the retune must hit, and the implementation order.
 
 This document uses the accepted player vocabulary (Wave HP, Hit, Armor). [Vocabulary](#vocabulary-d014) maps every term to its code name.
@@ -348,7 +348,7 @@ The owner's reference layout (The Tower, 21 September 2026) settles the shape in
   ┌────────┬─────────┬─────────┬──────────┐
   │ ATTACK │ DEFENSE │ UTILITY │ ULTIMATE │            ← fixed strip
   └────────┴─────────┴─────────┴──────────┘
-  [ NUMBER  WORKSHOP  LABS  CARDS  MORE ]              ← nav dock
+  [ RUN      WORKSHOP      MORE ]                      ← nav dock, three seats
 ```
 
 **In a run** — step 7, when the Rig arrives. The dock is not shown, so the strip sits flush:
@@ -394,7 +394,7 @@ Each category opens with its purpose and its "buy this when" line. Attack, Defen
 
 Not adopted from the reference: Preset 1 / Preset 2, Respec, and the Upgrade / Enhance split. Presets and Respec need a reason to exist before they earn a seat, and Enhance is a second permanent tier that the four categories do not yet need. The reference's per-category colours are also not adopted: this HUD deliberately carries one accent, because per-tab hues read as noise against the stage.
 
-### Labs, Insight and Prestige stop being tabs (D016)
+### Labs, Insight and Prestige stop being tabs (D016) — done in step 5
 
 Research Focus is chosen once per Prestige. Insight is one repeatable row. Prestige is rare and irreversible. None of the three earns a permanent seat on the bar, and two of them currently hold one.
 
@@ -411,16 +411,13 @@ This keeps the single ring from the restage.
 - Warm-up waves read `WARM-UP · EVERYTHING BANKS`.
 - A ready or firing Ultimate announces itself on the wave line — `SURGE · ALL DAMAGE ×3 FOR 8s` — so it needs no button and no open panel. Ultimates fire on their own (D013, pillar 1); the Rig's Ultimate tab levels them, it does not trigger them.
 
-### The run-over screen becomes the place you fix it
+### The run-over screen says what the run was lost to (D022)
 
-It shows what killed you, what would have saved you, and the two doors to go and buy it:
+**"Lost to", not "what would have saved you".** The screen names the thing that ended the run rather than prescribing the purchase that would have prevented it. A counterfactual (`2.4× more damage would have saved you`) reads as a lecture and quietly tells the player what to buy; a cause (`LOST TO · BOSS WAVE 96 · Its hit took 12.3K and you had less`) tells them what happened and leaves the conclusion to them. The vision asks that every number that kills you was visible before it did — naming the number that did it is the honest form of that, and it is a fact about the run rather than advice about the next one.
 
-- **Attack:** how much more damage per second would have beaten that wave inside one timer, for example `2.4× more damage`.
-- **Defense:** how much smaller the hits needed to be for you to survive until you beat it, for example `hits 35% smaller`.
-- The run's hits taken and the Number lost to them.
-- Two actions: `WORKSHOP` and `SPEND KNOWLEDGE`.
+**Implemented in step 5:** the heading, the wave and whether a boss landed it, the size of the hit, the run's Coins and Knowledge, and the two doors — `WORKSHOP` and `SPEND KNOWLEDGE` — at the moment the currency lands. `RunSummary` carries the killing hit and the boss flag, because the run state that held them is wiped before the screen can read it. A retreat records neither, having been lost to nothing.
 
-The smaller of the two gaps points at the tab to open next. Both numbers come deterministically from state the game already holds. This is the vision's "every number that kills you was visible before it did", applied after the fact as well — and with Labs and Insight off the bar, this screen is where the meta loop is actually offered, at the moment the currency lands.
+**Step 6 adds the two gaps underneath**, in the same voice: how far short Attack fell against that wave's HP, and how far short Defense fell against its hit. Both come deterministically from state the game already holds. The smaller gap points at the category to open next, without saying so in words.
 
 ## Strategies this supports
 
@@ -465,8 +462,8 @@ Each step lands on its own and clears the gate for its risk level in [`QUALITY_G
 | 3b | **Done.** Deep rank ladders (D019): 51 ranks become 906 at the same total Coin cost and the same value at every cap; gates move to 0 / 12 / 30 / 60 and Research Focus to 120 | High: economy |
 | 4a | **Done.** The five new Defense stats (D020): Siphon, Recoil, tier-scaled Cushion, Brace Cost, Second Wind. Targets 5 and 6 met | High: economy |
 | 4b | **Done.** Boss Damage, Coin Bonus and Knowledge Bonus (D021); Research Focus balanced across all three categories | High: economy |
-| 5 | The bar reshape (D016): four category tabs between runs, Labs, Insight and Prestige into the Knowledge sheet, `highest_number` gates moved inside it | Medium: presentation only, no save or economy change |
-| 6 | "What would have saved you" and the two doors on the run-over screen | Medium |
+| 5 | **Done.** The bar reshape (D016): the dock drops to `RUN · WORKSHOP · MORE`, Labs, Insight and Prestige become one Knowledge sheet opened from the Knowledge chip, the `highest_number` gates move inside it, and the run-over screen is reframed as "Lost to" (D022) with both doors | Medium: presentation, plus one field on the run summary |
+| 6 | The two gaps under "Lost to": how far short Attack fell against that wave's HP, and Defense against its hit | Medium |
 | 7 | **The Rig** (D015): the in-run panel, Number prices against wave HP, run-scoped ranks saved with the active run, Brace into the Defense tab and Shield off the run screen | High: economy and save |
 | 8 | Ultimates, in both lenses | High: new timed effects and saved cooldown state |
 

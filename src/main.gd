@@ -39,15 +39,18 @@ const CATEGORY_ICON := {
 ## run has no dock, so the same strip can sit flush there later.
 const CATEGORY_STRIP_HEIGHT := 64
 
-const TAB_IDS: Array[String] = ["number", "workshop", "labs", "cards"]
-const TAB_NAMES := {"number": "NUMBER", "workshop": "WORKSHOP", "labs": "LABS", "cards": "CARDS", "settings": "SETTINGS"}
+const TAB_IDS: Array[String] = ["number", "workshop"]
+const TAB_NAMES := {"number": "RUN", "workshop": "WORKSHOP", "settings": "SETTINGS"}
+## Lifetime Number required before a row inside the Knowledge sheet can be used.
+## These were the Labs and Cards dock gates before D016 moved them inside.
+const RESEARCH_UNLOCK := 1000.0
 
 var state := GameState.new()
 # Lifetime Number required before a dock icon even appears tappable. Each
 # tab's own feature may still gate further inside itself (e.g. Labs needs
 # Workshop level 12). "settings" gates the stats/settings sheet the same way
 # the old top-right MENU button used to appear only once the player was in.
-var tab_unlock_lifetime := {"number": 0.0, "workshop": 10.0, "labs": 1000.0, "cards": GameState.PRESTIGE_TEASER_UNLOCK, "settings": 10.0}
+var tab_unlock_lifetime := {"number": 0.0, "workshop": 10.0, "settings": 10.0}
 var save_elapsed := 0.0
 var refresh_elapsed := 0.0
 
@@ -89,6 +92,8 @@ var died_wave_label: Label
 var died_coins_label: Label
 var died_knowledge_label: Label
 var died_peak_label: Label
+var died_cause_label: Label
+var died_knowledge_door: Button
 
 var nav_dock: NavDock
 var drawer: Control
@@ -119,6 +124,11 @@ var workshop_lock_badges: Dictionary = {}
 var labs_content: VBoxContainer
 var cards_content: VBoxContainer
 var cards_knowledge_label: Label
+var knowledge_sheet: Control
+var knowledge_research_header: Control
+var knowledge_insight_header: Control
+var coins_button: Button
+var knowledge_button: Button
 
 var screens: Dictionary = {}
 # The content root inside each slide-up screen, kept separately so it (not
@@ -217,8 +227,6 @@ func _build_ui() -> void:
 	add_child(content_area)
 	_build_number_screen(content_area)
 	_build_workshop_screen(content_area)
-	_build_labs_screen(content_area)
-	_build_cards_screen(content_area)
 
 	_build_toast()
 
@@ -229,6 +237,7 @@ func _build_ui() -> void:
 	nav_dock.tab_selected.connect(_on_dock_tab_selected)
 
 	_build_drawer()
+	_build_knowledge_sheet()
 	_build_stat_info()
 	_build_died_screen()
 
@@ -272,27 +281,51 @@ func _build_number_screen(parent: Control) -> void:
 
 ## Permanent currency only: what survives the run, so it reads as a different
 ## class of thing from the run state below it.
+## A currency is the door to its own spend (D016): Coins open the Workshop and
+## Knowledge opens the Knowledge sheet, which is why neither needs a dock seat.
 func _build_currency_stack(parent: Control) -> void:
 	var stack := VBoxContainer.new()
 	stack.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	stack.offset_left = 28
-	stack.offset_top = 30
-	stack.add_theme_constant_override("separation", 8)
-	stack.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	stack.offset_left = 22
+	stack.offset_top = 26
+	stack.add_theme_constant_override("separation", 4)
 	parent.add_child(stack)
-	coins_label = _make_currency_row(stack, IconGlyph.Kind.COIN, ACCENT, 17.0, 16, TEXT)
-	knowledge_label = _make_currency_row(stack, IconGlyph.Kind.DIAMOND, MUTED_TEXT, 15.0, 15, Color(0.925, 0.925, 0.918, 0.7))
+	coins_button = _make_currency_row(stack, IconGlyph.Kind.COIN, ACCENT, 17.0, 16, TEXT)
+	coins_label = coins_button.get_meta("value_label")
+	coins_button.tooltip_text = "Open the Workshop"
+	coins_button.pressed.connect(func(): _on_dock_tab_selected("workshop"))
+	knowledge_button = _make_currency_row(stack, IconGlyph.Kind.DIAMOND, MUTED_TEXT, 15.0, 15, Color(0.925, 0.925, 0.918, 0.7))
+	knowledge_label = knowledge_button.get_meta("value_label")
+	knowledge_button.tooltip_text = "Spend Knowledge"
+	knowledge_button.pressed.connect(_open_knowledge_sheet)
 
-func _make_currency_row(parent: Control, icon_kind: int, icon_colour: Color, icon_size: float, font_size: int, text_colour: Color) -> Label:
+func _make_currency_row(parent: Control, icon_kind: int, icon_colour: Color, icon_size: float, font_size: int, text_colour: Color) -> Button:
+	var button := Button.new()
+	button.text = ""
+	button.flat = true
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(96, 30)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	parent.add_child(button)
 	var row := HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 6
 	row.add_theme_constant_override("separation", 7)
+	row.alignment = BoxContainer.ALIGNMENT_BEGIN
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent.add_child(row)
-	var icon := IconGlyph.new(icon_kind, icon_colour, icon_size)
-	row.add_child(icon)
+	button.add_child(row)
+	var icon_wrap := CenterContainer.new()
+	icon_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon_wrap.add_child(IconGlyph.new(icon_kind, icon_colour, icon_size))
+	row.add_child(icon_wrap)
+	var value_wrap := CenterContainer.new()
+	value_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(value_wrap)
 	var label := _make_label("", font_size, HORIZONTAL_ALIGNMENT_LEFT, text_colour)
-	row.add_child(label)
-	return label
+	value_wrap.add_child(label)
+	button.set_meta("value_label", label)
+	return button
 
 ## Wave, tier and the boss warning on one line. Tier doubles as the selector:
 ## between runs it cycles to the next unlocked tier.
@@ -636,27 +669,59 @@ func _make_category_tab(category: String) -> Button:
 	workshop_lock_badges[category] = lock_badge
 	return button
 
-func _build_labs_screen(parent: Control) -> void:
-	var content := _build_flat_screen(parent, "labs")
-	content.add_child(_make_label("Labs", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT))
-	content.add_child(_make_label("RESEARCH FOCUS", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
-	var description := _make_label("Pick one Workshop category to discount by 25%. It locks in until your next Prestige.", 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
-	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	content.add_child(description)
-	content.add_child(HSeparator.new())
-	var scroll := ScrollContainer.new()
-	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_child(scroll)
-	labs_content = VBoxContainer.new()
-	labs_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	labs_content.add_theme_constant_override("separation", 10)
-	scroll.add_child(labs_content)
+## Research Focus, Insight and Prestige in one sheet (D016). None of the three
+## is visited often enough to hold a seat on a three-icon bar: Focus is chosen
+## once per Prestige, Insight is one repeatable row, and Prestige is rare and
+## irreversible. The Knowledge chip on the run screen opens it.
+func _build_knowledge_sheet() -> void:
+	knowledge_sheet = Control.new()
+	knowledge_sheet.visible = false
+	knowledge_sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(knowledge_sheet)
 
-func _build_cards_screen(parent: Control) -> void:
-	var content := _build_flat_screen(parent, "cards")
+	var scrim := ColorRect.new()
+	scrim.color = Color(0, 0, 0, 0.55)
+	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scrim.mouse_filter = Control.MOUSE_FILTER_STOP
+	scrim.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.pressed:
+			knowledge_sheet.visible = false
+	)
+	knowledge_sheet.add_child(scrim)
+
+	var sheet := PanelContainer.new()
+	sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	sheet.offset_top = 150
+	var sheet_style := StyleBoxFlat.new()
+	sheet_style.bg_color = Color("111722")
+	sheet_style.corner_radius_top_left = 24
+	sheet_style.corner_radius_top_right = 24
+	sheet.add_theme_stylebox_override("panel", sheet_style)
+	knowledge_sheet.add_child(sheet)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 22)
+	margin.add_theme_constant_override("margin_right", 22)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	sheet.add_child(margin)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 12)
+	margin.add_child(column)
+
+	var handle := Panel.new()
+	handle.custom_minimum_size = Vector2(36, 4)
+	var handle_style := StyleBoxFlat.new()
+	handle_style.bg_color = Color(1, 1, 1, 0.16)
+	handle_style.set_corner_radius_all(2)
+	handle.add_theme_stylebox_override("panel", handle_style)
+	var handle_wrap := CenterContainer.new()
+	handle_wrap.add_child(handle)
+	column.add_child(handle_wrap)
+
 	var header_row := HBoxContainer.new()
-	content.add_child(header_row)
-	var title := _make_label("Cards", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	column.add_child(header_row)
+	var title := _make_label("Knowledge", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(title)
 	var chip := PanelContainer.new()
@@ -668,14 +733,67 @@ func _build_cards_screen(parent: Control) -> void:
 	cards_knowledge_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_LEFT, CARDS_ACCENT)
 	chip_row.add_child(cards_knowledge_label)
 	header_row.add_child(chip)
-	content.add_child(_make_label("INSIGHTS", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
+
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content.add_child(scroll)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(scroll)
+	var inner := VBoxContainer.new()
+	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inner.add_theme_constant_override("separation", 10)
+	scroll.add_child(inner)
+
+	knowledge_research_header = VBoxContainer.new()
+	knowledge_research_header.add_theme_constant_override("separation", 4)
+	inner.add_child(knowledge_research_header)
+	knowledge_research_header.add_child(_make_label("RESEARCH FOCUS", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
+	var focus_copy := _make_label("Pick one Workshop category to discount by 25%. It locks in until your next Prestige.", 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	focus_copy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	knowledge_research_header.add_child(focus_copy)
+	labs_content = VBoxContainer.new()
+	labs_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	labs_content.add_theme_constant_override("separation", 10)
+	inner.add_child(labs_content)
+
+	knowledge_insight_header = VBoxContainer.new()
+	knowledge_insight_header.add_theme_constant_override("separation", 4)
+	inner.add_child(knowledge_insight_header)
+	knowledge_insight_header.add_child(HSeparator.new())
+	knowledge_insight_header.add_child(_make_label("INSIGHTS", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
 	cards_content = VBoxContainer.new()
 	cards_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	cards_content.add_theme_constant_override("separation", 10)
-	scroll.add_child(cards_content)
+	inner.add_child(cards_content)
+
+func _open_knowledge_sheet() -> void:
+	if knowledge_sheet == null:
+		return
+	if drawer != null and drawer.visible:
+		drawer.visible = false
+	knowledge_sheet.visible = true
+	_refresh_knowledge()
+
+## The two gates that used to decide whether a dock icon appeared now decide
+## whether a row inside the sheet does (D016).
+func _refresh_knowledge() -> void:
+	if knowledge_sheet == null or not knowledge_sheet.visible:
+		return
+	cards_knowledge_label.text = str(state.knowledge)
+	var research_open := state.highest_number.compare_to(ScientificNumber.from_float(RESEARCH_UNLOCK)) >= 0
+	knowledge_research_header.visible = research_open
+	labs_content.visible = research_open
+	_clear_children(labs_content)
+	if research_open:
+		_refresh_labs()
+	var insight_open := state.highest_number.compare_to(ScientificNumber.from_float(GameState.PRESTIGE_TEASER_UNLOCK)) >= 0
+	knowledge_insight_header.visible = insight_open
+	cards_content.visible = insight_open
+	_clear_children(cards_content)
+	if insight_open:
+		_refresh_cards()
+	elif not research_open:
+		labs_content.visible = true
+		labs_content.add_child(_make_locked_panel("REACH " + ScientificNumber.from_float(RESEARCH_UNLOCK).format_value() + " NUMBER", "Research Focus opens first, then Insight once a run has earned Knowledge."))
 
 func _build_toast() -> void:
 	var toast_wrap := Control.new()
@@ -769,6 +887,23 @@ func _build_drawer() -> void:
 	stats_column.add_theme_constant_override("separation", 18)
 	stats_column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	stats_scroll.add_child(stats_column)
+
+	var knowledge_route := _make_row_button()
+	knowledge_route.custom_minimum_size = Vector2(0, 62)
+	knowledge_route.add_theme_stylebox_override("normal", _panel_style(SURFACE, 14, Color(CARDS_ACCENT.r, CARDS_ACCENT.g, CARDS_ACCENT.b, 0.35)))
+	knowledge_route.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 14, CARDS_ACCENT))
+	var route_row := _row_layout(knowledge_route, 14, 10)
+	route_row.add_child(IconGlyph.new(IconGlyph.Kind.DIAMOND, CARDS_ACCENT, 16.0))
+	var route_label := _make_label("Spend Knowledge", 14, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	route_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	route_row.add_child(route_label)
+	route_row.add_child(_make_label("RESEARCH · INSIGHT · RESET", 9, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT))
+	knowledge_route.pressed.connect(func():
+		_toggle_drawer()
+		_open_knowledge_sheet()
+	)
+	stats_column.add_child(knowledge_route)
+	stats_column.add_child(HSeparator.new())
 
 	stats_grid = GridContainer.new()
 	stats_grid.columns = 2
@@ -917,10 +1052,13 @@ func _build_died_screen() -> void:
 	inner.add_theme_constant_override("separation", 6)
 	margin.add_child(inner)
 
-	inner.add_child(_make_label("RUN OVER", 12, HORIZONTAL_ALIGNMENT_CENTER, DANGER))
+	inner.add_child(_make_label("LOST TO", 12, HORIZONTAL_ALIGNMENT_CENTER, DANGER))
 	died_wave_label = _make_label("", 26, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
 	inner.add_child(died_wave_label)
-	var subtitle := _make_label("The equation finally asked for more than you had. Your Workshop was retained.", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	died_cause_label = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, DANGER)
+	died_cause_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	inner.add_child(died_cause_label)
+	var subtitle := _make_label("Your Workshop was retained.", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inner.add_child(subtitle)
 	inner.add_child(HSeparator.new())
@@ -931,6 +1069,20 @@ func _build_died_screen() -> void:
 	inner.add_child(died_knowledge_label)
 	died_peak_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	inner.add_child(died_peak_label)
+
+	# Both doors, at the moment the currency lands (D016).
+	var doors := HBoxContainer.new()
+	doors.add_theme_constant_override("separation", 8)
+	inner.add_child(doors)
+	doors.add_child(_make_door("WORKSHOP", ACCENT, func():
+		_dismiss_died_screen()
+		_on_dock_tab_selected("workshop")
+	))
+	died_knowledge_door = _make_door("SPEND KNOWLEDGE", CARDS_ACCENT, func():
+		_dismiss_died_screen()
+		_open_knowledge_sheet()
+	)
+	doors.add_child(died_knowledge_door)
 
 	var continue_button := Button.new()
 	continue_button.text = "CONTINUE"
@@ -944,17 +1096,36 @@ func _build_died_screen() -> void:
 	continue_button.pressed.connect(_dismiss_died_screen)
 	inner.add_child(continue_button)
 
+## A named cause, not a counterfactual: the run was lost to a particular wave's
+## hit, and the screen says which and how big.
+func _make_door(text: String, tint: Color, on_press: Callable) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.focus_mode = Control.FOCUS_NONE
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.custom_minimum_size = Vector2(0, 42)
+	button.add_theme_font_size_override("font_size", 11)
+	button.add_theme_color_override("font_color", tint)
+	button.add_theme_color_override("font_hover_color", tint)
+	button.add_theme_stylebox_override("normal", _panel_style(Color(tint.r, tint.g, tint.b, 0.1), 999, Color(tint.r, tint.g, tint.b, 0.4)))
+	button.add_theme_stylebox_override("hover", _panel_style(Color(tint.r, tint.g, tint.b, 0.2), 999, tint))
+	button.pressed.connect(on_press)
+	return button
+
 func _show_died_screen(summary: RunSummary) -> void:
 	if summary == null or died_screen == null:
 		return
-	died_wave_label.text = "TIER " + str(summary.tier_id) + "  ·  WAVE " + str(summary.wave_reached)
+	var wave_name := "BOSS WAVE " if summary.lost_to_boss else "WAVE "
+	died_wave_label.text = wave_name + str(summary.wave_reached)
+	died_cause_label.text = "Its hit took " + summary.final_hit.format_value() + " and you had less."
+	died_knowledge_door.visible = summary.knowledge_gained > 0 or state.knowledge > 0
 	died_coins_label.text = "+" + _coins(summary.coins_earned) + " COINS EARNED"
 	if summary.knowledge_gained > 0:
 		died_knowledge_label.text = "+" + str(summary.knowledge_gained) + " KNOWLEDGE"
 		died_knowledge_label.visible = true
 	else:
 		died_knowledge_label.visible = false
-	died_peak_label.text = "PEAK NUMBER  ·  " + summary.peak_number.format_value()
+	died_peak_label.text = "TIER " + str(summary.tier_id) + "  ·  PEAK NUMBER " + summary.peak_number.format_value()
 	died_screen.visible = true
 
 func _dismiss_died_screen() -> void:
@@ -969,10 +1140,6 @@ func _select_tab(tab_id: String) -> void:
 		screens[id].visible = (id == tab_id)
 	if tab_id == "workshop":
 		_refresh_workshop()
-	elif tab_id == "labs":
-		_refresh_labs()
-	elif tab_id == "cards":
-		_refresh_cards()
 	_animate_tab_panel(tab_id)
 	_refresh_dock()
 
@@ -1001,6 +1168,8 @@ func _on_dock_tab_selected(tab_id: String) -> void:
 		return
 	if drawer.visible:
 		drawer.visible = false
+	if knowledge_sheet != null and knowledge_sheet.visible:
+		knowledge_sheet.visible = false
 	_select_tab(tab_id)
 
 func _is_tab_unlocked(tab_id: String) -> bool:
@@ -1127,6 +1296,7 @@ func _refresh_all() -> void:
 		_show_toast(offline_message, ACCENT)
 		offline_message = ""
 	_refresh_dock()
+	_refresh_knowledge()
 	if current_tab == "workshop":
 		# Do not rebuild live buttons during the player's press/release cycle.
 		# Rebuilding a Control tree every refresh can eat touch releases on Web.
@@ -1285,7 +1455,7 @@ func _make_focus_card(category: String) -> Button:
 			_show_toast("RESEARCH FOCUS SET", LABS_ACCENT)
 			state.save()
 			_refresh_all()
-			_refresh_labs()
+			_refresh_knowledge()
 	)
 	return button
 
@@ -1360,7 +1530,7 @@ func _make_insight_card(definition: UpgradeDefinition) -> Button:
 			_show_toast("INSIGHT IMPROVED", CARDS_ACCENT)
 			state.save()
 			_refresh_all()
-			_refresh_cards()
+			_refresh_knowledge()
 		else:
 			_show_toast("NEED KNOWLEDGE", MUTED_TEXT)
 	)
@@ -1414,7 +1584,7 @@ func _confirm_prestige() -> void:
 	_snap_number_display()
 	state.save()
 	_refresh_all()
-	_refresh_cards()
+	_refresh_knowledge()
 
 ## A row card for a ranked, permanent Coin-funded Workshop upgrade: an icon chip, a
 ## title with an optional NEXT tag, a thin fill bar for rank, and cost/rank

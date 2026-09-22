@@ -262,7 +262,7 @@ func _resolve_wave_boundary() -> SimulationEvent:
 	if number.is_zero():
 		var rescued := _try_second_wind()
 		if not rescued:
-			return _wave_death(wave)
+			return _wave_death(wave, collection, active_encounter.is_boss)
 		return SimulationEvent.new("second_wind", number.copy())
 	return SimulationEvent.new("boss_collection" if active_encounter.is_boss else "tax_collection", collection)
 
@@ -330,10 +330,10 @@ func _make_encounter(target_wave: int):
 		balance_profile.is_boss_wave(target_wave)
 	)
 
-func _wave_death(reached: int) -> SimulationEvent:
+func _wave_death(reached: int, hit: ScientificNumber, boss: bool) -> SimulationEvent:
 	var knowledge_gain := get_prestige_knowledge_gain()
 	knowledge += knowledge_gain
-	last_run_summary = RunSummary.new(reached, run_coins_earned, knowledge_gain, lifetime_generated.copy(), selected_tier, "death")
+	last_run_summary = RunSummary.new(reached, run_coins_earned, knowledge_gain, lifetime_generated.copy(), selected_tier, "death", hit, boss)
 	_reset_run_state()
 	return SimulationEvent.new("wave_death", ScientificNumber.from_float(float(reached)))
 

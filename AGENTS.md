@@ -70,7 +70,7 @@ GODOT=/Users/paulhardie/Downloads/Godot.app/Contents/MacOS/Godot bash run_balanc
 - `run_tests.sh` is the economy suite; a green count with errors printed is not a pass.
 - `run_balance.sh` prints the curve and the representative first run; it is a measurement tool, not a gate.
 - The headless project run catches parse and scene-build errors in `main.gd` and the UI classes.
-- The capture tool opens briefly and writes hub/run/run_standing/workshop/labs/cards/drawer PNGs at four window sizes to `user://ui_capture` for visual review; inspect them, never assert pixel equality.
+- The capture tool opens briefly and writes hub/run/run_standing/workshop/knowledge/lost/drawer PNGs at four window sizes to `user://ui_capture` for visual review; inspect them, never assert pixel equality.
 - Tests write `res://.number_go_up_test_save.json` and clear it; a leftover file is a bug in the test, not content.
 
 Never weaken a test, fixture or gate to get green.
