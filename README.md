@@ -29,11 +29,11 @@ Tax runs use two independent absolute stats:
 - **Liability** is depleted by production first. Output that damages the wave does not become Number; only output beyond the wave's remaining Liability does.
 - **Collection** is deducted from Number every 15 seconds while Liability remains. Number reaching zero ends and resets the run.
 
-Tier 1 has 20 grace waves. Tier 2 and Tier 3 unlock by clearing wave 100 in the preceding tier and apply 20× and 60× Liability/Collection pressure from wave 1. Rewards rise by smaller 1.8× and 2.6× multipliers. Every tenth wave is a boss; milestones are tracked at waves 10, 25, 50, and 100.
+Tier 1 has 20 grace waves. Tier 2 and Tier 3 unlock by clearing wave 100 in the preceding tier and apply 20× and 60× Liability/Collection pressure from wave 1. Rewards rise by smaller 1.8× and 2.6× multipliers. Every tenth wave is a boss and pays a Gem; each tier has thirteen milestone checkpoints from wave 10 to 200 that pay Gems once, and those at 10, 25, 50 and 100 also pay a Coin bonus (D030).
 
 Workshop upgrades are bought with Coins between runs and permanently raise the baseline used by every later attempt. Starting a run resets Number to that baseline; death, retreat, and Prestige never remove Workshop ranks. Number production only happens during an active run, so neither waiting at the hub nor going offline can bank a risk-free head start.
 
-Retreat ends and resets a run—it cannot pause Tax while Number keeps growing. Active runs freeze exactly while the app is away. Save schema V7 preserves the permanent Workshop, Labs (with their slots), Cards, the active encounter and deterministic RNG state, with V1–V6 migration. A save the game cannot read, or one from a newer version, is never written over (D028).
+Retreat ends and resets a run—it cannot pause Tax while Number keeps growing. Active runs freeze exactly while the app is away. Save schema V8 preserves the permanent Workshop, Labs (with their slots), Cards, Gems, the active encounter and deterministic RNG state, with V1–V7 migration. A save the game cannot read, or one from a newer version, is never written over (D028).
 
 The researched scaling rationale, source links, data contracts, and later-system boundaries are in [`docs/TOWER_SCALING_FOUNDATION.md`](docs/TOWER_SCALING_FOUNDATION.md).
 
