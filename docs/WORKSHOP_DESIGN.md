@@ -511,6 +511,40 @@ Target 10 gates the Tier 1 opening (D033, retuned by D034 and D036), measured by
 
 10. **A new player is in the action at once, with room to learn.** From a fresh save the first two Rig purchases together leave over half the starting Number, waves carry HP and Hit from the start, an idle player is hit within the first minute, and a steady tapper's first hit is survivable. The first run should fund permanent ranks while one-tap play makes visible progress and idle play does not earn the whole warm-up reward. *Measured at seed 7 after D036: the cautious opening policy buys from the first second; idle ends at wave 16 with 39 Coins, one tap per second at wave 21 with 48, and two taps at wave 23 with 76. The representative two-tap run without Rig spending also ends at wave 23 with 76.*
 
+### Core-loop balance review — proposed, 23 September 2026
+
+The owner reports that the first five minutes still feel brutal and that producing damage while the ring has HP does not feel like earning Number. This reopens D012's stated playtest condition; it does not yet change the accepted rule. Lower Workshop prices cannot affect a first run because Workshop purchases happen between runs. A Tier 1 warm-up that times out currently pays its full Coin and checkpoint rewards even if its HP was not cleared (D033).
+
+The current rule has a sharp threshold. For a wave with HP `H`, approximately constant damage per second `P`, and a 15-second boundary, the Number banked before that boundary is `max(0, 15P - H)`. Below the clear threshold, damage still reduces Wave HP, but Number does not rise. If the wave survives, its Hit reduces Number and the next Rig rank becomes harder to buy: the Rig price is tied to the same rising Wave HP. This makes a long stalled stretch possible precisely when the player needs a way out. The next tuning pass should measure *how long* that state lasts, not only the final wave and Coin payout.
+
+Use the deterministic core-loop matrix (`bash run_godot.sh --headless --path . -s res://tools/balance_simulator.gd -- --core-loop`) to record, per run: elapsed time and final wave, Coins, first Hit, first and longest stretches with no *displayed* Number gain, the longest such stretch in the first three minutes, Rig purchases, and whether scripted Rig spending improves the outcome over keeping the Number. Include no taps, one tap per second, and two taps per second on a fresh build; compare the first permanent spend, early, mid, and advanced Workshop builds with hoarding, the first two discounted Rig buys, and the existing reinvest policy where applicable. Also include a progressed Lab/Card loadout, because the existing build matrix does not model those layers together. These injected ranks are a scaling stress test, not an affordable progression path. The simulator-only `CoreLoopVariantState` diverts either 10% or 25% of all output, or only tap output, into Number while Wave HP remains. The remainder damages the wave; a unit of output is never counted twice. The shipped `GameState` and D012 rule stay unchanged.
+
+Proposed acceptance targets for the next Tier 1 design, subject to phone playtest:
+
+1. A fresh player sees Number rise and can make a consequential Rig choice in the first 30 seconds. The first survivable Hit creates a choice to respond to, not minutes of waiting for a forced ending.
+2. Through the first three minutes, a one-tap-per-second player has no stretch of more than 45 seconds without Number rising. If a wave is deliberately unwinnable for that build, end the run or offer a meaningful response promptly instead of making the player repeat an ineffective action.
+3. A first active run lasts about 3–4 minutes, funds at least two *felt* permanent improvements, and a second attempt shows a measurable gain. No-action play still makes some progress but does not earn almost the same opening reward as active play.
+4. At early and mid builds, at least one affordable, understandable Rig decision improves a run's depth, Coins or time. At advanced builds, Rig spending still has a cost and eventually stops paying back; a single global effect increase must not make the strongest build run indefinitely.
+5. Before authoring many more waves or tiers, measure the real-time floor: 100 waves already require at least 25 minutes at 15 seconds each. Later content needs a deliberate way through mastered waves, and later tiers need different HP-versus-Hit demands rather than only larger multipliers.
+
+The first four targets are measurements of the proposed experience, not claims that the current build meets them. A change to when Number rises, to timed-out wave rewards, or to tier pressure ratios would supersede an accepted decision and needs its own comparison against Attack/Defense separation, Coin rates, Rig value, and old-save behaviour before implementation.
+
+The seed-7 simulator results below use one tap a second, no Rig purchase, and a fresh Tier 1 save unless noted. `dry3m` is the longest gap without an upward change in the Number *as formatted on screen* during the first three minutes. Fractional gains smaller than the displayed digit do not count. These are controlled rule experiments, not phone playtests.
+
+| Output rule while Wave HP remains | First displayed Number gain | `dry3m` | First run | No-action first run |
+| --- | ---: | ---: | --- | --- |
+| Current: all damage goes to Wave HP | 11 s | 105 s | wave 21, 360 s, 48 Coins | wave 20, 300 s, 43 Coins |
+| Divert 10% of all output | 3 s | 9.5 s | wave 21, 420 s, 48 Coins | wave 21, 345 s, 48 Coins |
+| Divert 25% of all output | 1 s | 3.5 s | wave 22, 570 s, 62 Coins | wave 21, 420 s, 48 Coins |
+| Divert 10% of tap output only | 6 s | 15.5 s | wave 21, 390 s, 48 Coins | unchanged from current |
+| Divert 25% of tap output only | 2 s | 6.5 s | wave 22, 480 s, 62 Coins | unchanged from current |
+
+The all-output split makes waiting strong enough to collect the full warm-up payout, while tap-only splits preserve the no-action result and make tapping visibly productive. With the first two discounted Damage per Second Rig buys, the 10%-tap split reaches wave 22 and 62 Coins in 420 seconds, against wave 21 and 48 Coins in 390 seconds under D012. It is a promising interaction to study, **not a solved opening**: every candidate above still misses the proposed 3–4-minute first-run target, and diverting more output delays wave clears and often extends the run.
+
+The wider matrix also exposes an independent Rig problem. At two taps a second under D012, an early Workshop build hoards to wave 30 and 175 Coins but the scripted reinvest policy ends at wave 25 and 87 Coins; a mid build goes from wave 50/871 Coins to wave 40/477 Coins. A 10%-tap split barely changes that early result and moves the mid reinvest result only to wave 47/777 Coins. The policy preserves two current Hits, but a cheap warm-up Hit is a poor reserve for the larger upcoming Hit. This is policy evidence, not proof that every possible Rig purchase is bad. The combined max-Attack/Armor plus injected max Lab/Card stress build was still alive at the 60-minute simulation cap, at wave 123 hoarding and wave 149 reinvesting under D012. Its eventual ending and realistic acquisition cost were not measured.
+
+**Recommendation before changing the live rule:** retune the opening's duration, clear-versus-timeout rewards, and first few Rig prices together with either D012 or the 10%-tap split as explicit alternatives. Require the same player-policy matrix to pass on the second run and early/mid builds; do not choose a split only because its Number animates. Keep the all-output splits as negative controls for idle farming. A phone playtest decides whether the tap-only split's visible gain is worth the extra tapping it encourages in an idle game.
+
 ## Implementation order
 
 Each step lands on its own and clears the gate for its risk level in [`QUALITY_GATES.md`](QUALITY_GATES.md).

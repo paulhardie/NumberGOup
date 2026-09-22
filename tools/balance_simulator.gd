@@ -1,5 +1,6 @@
 extends SceneTree
 
+const CoreLoopVariantStateClass = preload("res://tools/core_loop_variant_state.gd")
 const DEFAULT_SECONDS := 3600.0
 const STEP := 0.5
 const SEED := 7
@@ -93,6 +94,14 @@ const RIG_RESERVE_HITS := 2.0
 ## build substituting for Workshop investment. The smallest M that passes both
 ## is the value the profile should keep.
 const RIG_MULTIPLIER_SWEEP := [2.0, 3.0, 5.0, 8.0]
+## Simulator-only conserved-output experiments. Zero is the shipped D012 rule.
+## The final two divert only tap damage, keeping the idle production unchanged.
+const CORE_OUTPUT_VARIANTS := [
+	["current", 0.0, false],
+	["all10", 0.10, false], ["all25", 0.25, false],
+	["tap10", 0.10, true], ["tap25", 0.25, true],
+]
+const CORE_SECONDS := 3600.0
 const SWEEP_BUILDS := [
 	["fresh", 1, {}],
 	["mid", 1, MID],
@@ -120,6 +129,10 @@ func _init() -> void:
 		_simulate_opening()
 		quit(0)
 		return
+	if OS.get_cmdline_user_args().has("--core-loop"):
+		_simulate_core_loop()
+		quit(0)
+		return
 	var state := GameState.new()
 	print("BALANCE PROFILE  ", state.balance_profile.PROFILE_ID)
 	for tier in state.balance_profile.tiers:
@@ -141,6 +154,141 @@ func _init() -> void:
 		for build in SWEEP_BUILDS:
 			_simulate_build("M" + str(multiplier) + " " + str(build[0]), build[1], _ranks(build[2]), "reinvest", multiplier)
 	quit(0)
+
+## Compare D012 with two conserved-output alternatives. Injected ranks test
+## scaling interactions; they do not assert that a player can afford the build.
+## The existing full matrix remains the authority for current balance gates.
+func _simulate_core_loop() -> void:
+	var check = CoreLoopVariantStateClass.new()
+	check.bank_while_uncleared_share = 0.25
+	check.start_run(1, SEED)
+	var before_number: ScientificNumber = check.number.copy()
+	var before_hp: ScientificNumber = check.active_encounter.remaining_liability.copy()
+	var sample := ScientificNumber.from_float(10.0)
+	check._add_number(sample)
+	var accounted: ScientificNumber = check.number.subtract(before_number).add(before_hp.subtract(check.active_encounter.remaining_liability))
+	if not is_equal_approx(accounted.mantissa * pow(10.0, accounted.exponent), sample.mantissa * pow(10.0, sample.exponent)):
+		push_error("Core-loop split counted output more than once")
+		quit(1)
+		return
+	var tap_check = CoreLoopVariantStateClass.new()
+	tap_check.bank_while_uncleared_share = 0.10
+	tap_check.bank_taps_only = true
+	tap_check.start_run(1, SEED)
+	for step in range(4):
+		tap_check.advance(0.25)
+	if tap_check.number.compare_to(before_number) != 0 or tap_check.active_encounter.remaining_liability.compare_to(ScientificNumber.from_float(19.0)) != 0:
+		push_error("Tap-only split changed idle Number income")
+		quit(1)
+		return
+	var before_tap_bank: ScientificNumber = tap_check.number.copy()
+	var before_tap_hp: ScientificNumber = tap_check.active_encounter.remaining_liability.copy()
+	var tap_event: SimulationEvent = tap_check.tap()
+	var tap_accounted: ScientificNumber = tap_check.number.subtract(before_tap_bank).add(before_tap_hp.subtract(tap_check.active_encounter.remaining_liability))
+	if not is_equal_approx(tap_accounted.mantissa * pow(10.0, tap_accounted.exponent), tap_event.amount.mantissa * pow(10.0, tap_event.amount.exponent)):
+		push_error("Tap-only split counted tap output more than once")
+		quit(1)
+		return
+	print("CORE LOOP  seed=", SEED, "  15s waves  banked share is diverted from Wave HP, never counted twice")
+	print("CORE LOOP  metrics: first_visible/first_hit and dry3m/dry_run are seconds; cap=", CORE_SECONDS, "s")
+	_core_group("fresh", 1, {}, {}, {}, [], [0.0, 1.0, 2.0])
+	_core_group("first spend", 1, FIRST_RUN_SPEND, {}, {}, [], [1.0, 2.0])
+	_core_group("early", 1, EARLY, {}, {}, [], [2.0])
+	_core_group("mid", 1, MID, {}, {}, [], [2.0])
+	_core_group("attack + armor", 1, _ranks([ATTACK_MAX, ARMOR]), {}, {}, [], [2.0])
+	_core_group("attack + armor", 2, _ranks([ATTACK_MAX, ARMOR]), {}, {}, [], [2.0])
+	_core_group(
+		"advanced layers", 1, _ranks([ATTACK_MAX, ARMOR]),
+		{"lab_damage": 40, "lab_resilience": 40, "lab_coin_research": 40},
+		{"card_damage": 7, "card_attack_speed": 7, "card_coins": 7, "card_extra_defense": 7},
+		["card_damage", "card_attack_speed", "card_coins", "card_extra_defense"], [2.0]
+	)
+
+func _core_group(label: String, tier: int, ranks: Dictionary, labs: Dictionary, cards: Dictionary, active_cards: Array, tap_rates: Array) -> void:
+	var rig_policies := ["hoard", "reinvest"]
+	if label == "fresh" or label == "first spend":
+		rig_policies = ["hoard", "first_two", "reinvest"]
+	for variant in CORE_OUTPUT_VARIANTS:
+		for tap_rate in tap_rates:
+			for rig_policy in rig_policies:
+				_core_case(label, tier, ranks, labs, cards, active_cards, float(tap_rate), str(rig_policy), str(variant[0]), float(variant[1]), bool(variant[2]))
+
+func _core_case(label: String, tier: int, ranks: Dictionary, labs: Dictionary, cards: Dictionary, active_cards: Array, tap_rate: float, rig_policy: String, variant_name: String, bank_share: float, taps_only: bool) -> void:
+	var state = CoreLoopVariantStateClass.new()
+	state.bank_while_uncleared_share = bank_share
+	state.bank_taps_only = taps_only
+	state.purchased = ranks.duplicate()
+	state.lab_ranks = labs.duplicate()
+	state.card_ranks = cards.duplicate()
+	state.card_active.assign(active_cards)
+	if label == "first spend":
+		state.tier_records["1"] = {"highest_wave": 20, "milestones_claimed": [10, 20]}
+	elif not ranks.is_empty():
+		var claimed: Array = []
+		for checkpoint in state.balance_profile.MILESTONE_WAVES:
+			if checkpoint <= 100:
+				claimed.append(checkpoint)
+		state.tier_records["1"] = {"highest_wave": 100, "milestones_claimed": claimed}
+	if tier > 1:
+		state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	state.start_run(tier, SEED)
+	var seconds := 0.0
+	var tap_clock := 0.0
+	var last_gain := 0.0
+	var first_visible := -1.0
+	var first_hit := -1.0
+	var dry_run := 0.0
+	var dry_intro := 0.0
+	var rig_buys := 0
+	while seconds < CORE_SECONDS and state.in_run:
+		seconds += STEP
+		if tap_rate > 0.0:
+			tap_clock += STEP
+			while tap_clock + 0.00001 >= 1.0 / tap_rate:
+				tap_clock -= 1.0 / tap_rate
+				var before_tap: ScientificNumber = state.number.copy()
+				var before_tap_display: String = state.number.format_value()
+				state.tap()
+				if state.number.compare_to(before_tap) > 0 and state.number.format_value() != before_tap_display:
+					last_gain = seconds
+					if first_visible < 0.0:
+						first_visible = seconds
+		var before_ticks: ScientificNumber = state.number.copy()
+		var before_ticks_display: String = state.number.format_value()
+		var events: Array[SimulationEvent] = state.advance(STEP * 0.5)
+		events.append_array(state.advance(STEP * 0.5))
+		if state.in_run and state.number.compare_to(before_ticks) > 0 and state.number.format_value() != before_ticks_display:
+			last_gain = seconds
+			if first_visible < 0.0:
+				first_visible = seconds
+		for event in events:
+			if first_hit < 0.0 and event.type in ["tax_collection", "boss_collection", "wave_death"]:
+				first_hit = seconds
+		if rig_policy != "hoard" and state.in_run and _rig_can_spend(state):
+			if tier == 1 and state.wave <= 20 and state.rig_ranks_bought() < 2:
+				var cost: ScientificNumber = state.get_rig_cost("generator")
+				if state.can_purchase_rig("generator") and state.number.subtract(cost).compare_to(_rig_reserve(state)) >= 0 and state.purchase_rig("generator"):
+					rig_buys += 1
+			elif rig_policy == "reinvest":
+				rig_buys += _play_rig(state)
+		var dry := seconds - last_gain
+		dry_run = maxf(dry_run, dry)
+		if seconds <= 180.0:
+			dry_intro = maxf(dry_intro, dry)
+	var final_wave: int = state.wave if state.in_run else state.last_run_summary.wave_reached
+	print(
+		"  ", label.rpad(17), " T", tier,
+		" model=", variant_name,
+		" taps=", tap_rate, " rig=", rig_policy,
+		" wave=", final_wave, " time=", snappedf(seconds, 0.1),
+		" coins=", state.coins,
+		" first_visible=", snappedf(first_visible, 0.1),
+		" first_hit=", snappedf(first_hit, 0.1),
+		" dry3m=", snappedf(dry_intro, 0.1),
+		" dry_run=", snappedf(dry_run, 0.1),
+		" buys=", rig_buys,
+		" status=", "alive" if state.in_run else "ended"
+	)
 
 ## A build is one rank dictionary or a list of them merged, so the pieces can be
 ## named once and combined without repeating every Attack rank.
