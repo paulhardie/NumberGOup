@@ -15,8 +15,12 @@ func to_dict() -> Dictionary:
 	}
 
 func from_dict(data: Dictionary) -> void:
-	var saved_category := str(data.get("selected_category", data.get("selected_bay", ProgressionTaxonomy.ATTACK)))
-	selected_category = ProgressionTaxonomy.migrate_legacy_category(saved_category)
+	# Pre-V5 saves stored a bay here; category_for_legacy_bay maps it and passes
+	# a category through unchanged.
+	var stored := str(data.get("selected_category", data.get("selected_bay", ProgressionTaxonomy.ATTACK)))
+	selected_category = ProgressionTaxonomy.category_for_legacy_bay(stored)
+	if selected_category == "":
+		selected_category = ProgressionTaxonomy.ATTACK
 	tick_count = int(data.get("tick_count", 0))
 	legacy_credit = int(data.get("legacy_credit", 0))
 	automation_targets.clear()

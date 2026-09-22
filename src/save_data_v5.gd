@@ -1,30 +1,41 @@
 class_name SaveDataV5
 extends RefCounted
 
+## V5 is V4 with the Workshop reorganised into four categories (D013, D017).
+## Two keys change meaning and one disappears:
+##   - `focus` holds a category id instead of a retired bay id;
+##   - `workshop.selected_category` replaces `workshop.selected_bay`;
+##   - `tax_resistance_rank` is gone, because Armor is now an ordinary Workshop
+##     rank inside `purchased` under its stable id `tax_resistance`.
+## Every other key keeps its V4 name and meaning, so a V4 reader's expectations
+## about run state, RNG and records still hold.
 const VERSION := 5
 
 static func make(state) -> Dictionary:
 	return {
 		"version": VERSION,
-		"economy_model": "workshop-categories-v2",
+		"economy_model": "workshop-categories-v1",
 		"number": state.number.to_dict(),
 		"lifetime": state.lifetime_generated.to_dict(),
 		"highest": state.highest_number.to_dict(),
 		"purchased": state.purchased,
 		"knowledge": state.knowledge,
 		"knowledge_purchased": state.knowledge_purchased,
-		"focus_category": state.focus_category,
+		"focus": state.focus_path,
 		"automation_enabled": state.automation_enabled,
 		"workshop": state.workshop.to_dict(),
 		"wave": state.wave,
 		"wave_accumulator": state.wave_accumulator,
 		"coins": state.coins,
 		"highest_wave": state.highest_wave,
-		"defense_unlocked": state.defense_unlocked,
 		"braced": state.braced,
+		"run_peak_number": state.run_peak_number.to_dict(),
+		"second_wind_used": state.second_wind_used,
 		"in_run": state.in_run,
 		"run_coins_earned": state.run_coins_earned,
 		"run_elapsed": state.run_elapsed,
+		# JSON numbers cannot exactly represent every 64-bit RNG value. Strings
+		# preserve deterministic replay across save/load without precision loss.
 		"run_seed": str(state.run_seed),
 		"rng_state": str(state.rng.state),
 		"selected_tier": state.selected_tier,
@@ -38,12 +49,9 @@ static func make(state) -> Dictionary:
 	}
 
 static func is_valid(data: Variant) -> bool:
-	if not (data is Dictionary) or int(data.get("version", 0)) != VERSION:
-		return false
-	for key in ["number", "lifetime", "highest", "purchased", "knowledge_purchased", "workshop", "tier_records", "statistics", "settings"]:
-		if not data.has(key) or not (data.get(key) is Dictionary):
-			return false
-	if not data.has("active_rule_modifiers") or not (data.get("active_rule_modifiers") is Array):
-		return false
-	var encounter: Variant = data.get("active_encounter", null)
-	return encounter == null or encounter is Dictionary
+	return (
+		data is Dictionary
+		and int(data.get("version", 0)) == VERSION
+		and data.has("number")
+		and data.has("lifetime")
+	)
