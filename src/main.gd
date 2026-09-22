@@ -38,6 +38,16 @@ const CATEGORY_ICON := {
 ## The category strip's height. It sits above the nav dock between runs, and a
 ## run has no dock, so the same strip can sit flush there later.
 const CATEGORY_STRIP_HEIGHT := 64
+## The run screen's vertical budget (D018, D032): the stage starts below the
+## wave line, the hit line and Brace sit under it, and the Rig panel takes the
+## rest down to its category strip. The stage takes half the free height, but
+## never less than a ring the Number can read in.
+const RUN_STAGE_TOP := 136.0
+const RUN_ENCOUNTER_ROW := 24.0
+const RUN_ACTION_ROW := 46.0
+const RUN_STAGE_MIN := 170.0
+const RUN_STAGE_MAX := 460.0
+const RUN_STAGE_SHARE := 0.5
 
 const TAB_IDS: Array[String] = ["number", "workshop"]
 const TAB_NAMES := {"number": "RUN", "workshop": "WORKSHOP", "settings": "SETTINGS"}
@@ -78,6 +88,10 @@ var stage_glow: TextureRect
 ## column: a container re-sorts its child whenever the number's width changes,
 ## which would overwrite a position tween mid-shake.
 var stage_root: Control
+var run_actions: HBoxContainer
+## Which layout the run screen holds, so it is only reapplied when the run
+## state, the tab or the height changes.
+var screen_layout_key := ""
 ## Shown in the stage's place between runs, since Number exists only during a
 ## run (pillar 3) and an empty ring/number stage has nothing live to say.
 var landing_panel: Control
@@ -235,7 +249,7 @@ func _process(delta: float) -> void:
 	var gem_gain := state.gems - gems_before
 	for event in events:
 		if event.is_critical:
-			_spawn_floating_text(_output_float_text(event.amount, true), CRITICAL, floating_text_layer.size * Vector2(0.5, 0.42))
+			_spawn_floating_text(_output_float_text(event.amount, true), CRITICAL, _stage_float_point())
 			_pulse_number(1.06)
 			_flash_number(CRITICAL)
 		elif event.type == "tick":
@@ -249,7 +263,7 @@ func _process(delta: float) -> void:
 				_flash_number(ACCENT)
 				_pulse_ring_hit(1.008)
 			else:
-				_spawn_floating_text("-" + event.amount.format_value(), hit_colour, floating_text_layer.size * Vector2(0.5, 0.42))
+				_spawn_floating_text("-" + event.amount.format_value(), hit_colour, _stage_float_point())
 				_show_toast("STILL STANDING  ·  HITS AGAIN IN " + str(int(GameState.WAVE_INTERVAL_SECONDS)) + "s", hit_colour)
 				_flash_number(hit_colour, 0.5 if boss_hit else 0.35)
 				_pulse_stage_impact(hit_colour)
@@ -284,7 +298,7 @@ func _process(delta: float) -> void:
 	if passive_float_elapsed >= PASSIVE_FLOAT_INTERVAL:
 		passive_float_elapsed = 0.0
 		if not passive_float_accumulator.is_zero():
-			_spawn_floating_text(_output_float_text(passive_float_accumulator, false), ACCENT, floating_text_layer.size * Vector2(0.5, 0.42))
+			_spawn_floating_text(_output_float_text(passive_float_accumulator, false), ACCENT, _stage_float_point())
 			passive_float_accumulator = ScientificNumber.new()
 	_advance_display_number(delta)
 	_refresh_number_display()
@@ -579,6 +593,7 @@ func _build_run_controls(parent: Control) -> void:
 	actions.alignment = BoxContainer.ALIGNMENT_CENTER
 	actions.add_theme_constant_override("separation", 60)
 	parent.add_child(actions)
+	run_actions = actions
 	brace_button = _make_text_action("BRACE", "")
 	brace_button.tooltip_text = "Spend a share of Number to block the next hit. Brace Cost lowers the share."
 	brace_cost_label = brace_button.get_meta("cost_label")
@@ -605,29 +620,30 @@ func _build_run_controls(parent: Control) -> void:
 	run_button.pressed.connect(_on_run_button_pressed)
 	parent.add_child(run_button)
 
+	# Under the Number, where the tap lands, rather than at the foot of the
+	# screen where the Rig panel now sits (D032).
 	tap_hint = _make_tracked_label("TAP TO PRODUCE", 11, FAINT_TEXT)
-	tap_hint.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	tap_hint.offset_top = -134
-	tap_hint.offset_bottom = -110
 	tap_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	parent.add_child(tap_hint)
+	tap_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	number_col.add_child(tap_hint)
 
 ## The Rig panel: buy ranks with Number during a run. Sits above the category
 ## strip and shows the currently selected category's rows priced in Number.
 func _build_rig_panel(parent: Control) -> void:
 	rig_panel = Control.new()
 	rig_panel.visible = false
+	# Placed below the stage by _apply_screen_layout, never over it (D032); its
+	# category strip sits flush at the foot of the screen, where no dock shows
+	# during a run (D016), so the rows stop above the strip.
 	rig_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	rig_panel.offset_top = 150
-	rig_panel.offset_bottom = -CATEGORY_STRIP_HEIGHT - int(NavDock.BAR_HEIGHT) - 12
 	parent.add_child(rig_panel)
 
 	var margin := MarginContainer.new()
 	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	margin.add_theme_constant_override("margin_left", 14)
 	margin.add_theme_constant_override("margin_right", 14)
-	margin.add_theme_constant_override("margin_top", 12)
-	margin.add_theme_constant_override("margin_bottom", 12)
+	margin.add_theme_constant_override("margin_top", 4)
+	margin.add_theme_constant_override("margin_bottom", CATEGORY_STRIP_HEIGHT + 6)
 	rig_panel.add_child(margin)
 
 	var content := VBoxContainer.new()
@@ -1838,6 +1854,7 @@ func _select_tab(tab_id: String) -> void:
 	if not _is_tab_unlocked(tab_id):
 		return
 	current_tab = tab_id
+	_apply_screen_layout()
 	for id in screens:
 		screens[id].visible = (id == tab_id)
 	if tab_id == "workshop":
@@ -1914,7 +1931,7 @@ func _tap_number() -> void:
 	var event := state.tap()
 	var spawn_pos := floating_text_layer.get_local_mouse_position()
 	if not Rect2(Vector2.ZERO, floating_text_layer.size).has_point(spawn_pos):
-		spawn_pos = floating_text_layer.size * Vector2(0.5, 0.42)
+		spawn_pos = _stage_float_point()
 	if event.is_critical:
 		_spawn_floating_text(_output_float_text(event.amount, true), CRITICAL, spawn_pos)
 		_pulse_number(1.09)
@@ -2027,9 +2044,68 @@ func _refresh_all() -> void:
 		# Rebuilding a Control tree every refresh can eat touch releases on Web.
 		workshop_header.text = _coins(state.coins) + " COINS"
 
+## The run screen has two layouts (D032). During a run the Number keeps the
+## top of the screen: the stage sits under the wave line, the hit line and
+## Brace under it, and the Rig panel fills the rest above its strip, with no
+## dock (D016) and Retreat tucked top right, away from the thumb. Between runs
+## the landing panel, the Armor shortcut, the RUN button and the dock keep the
+## layout they had. The dock still shows on other tabs mid-run, so the
+## Workshop always has a way back.
+func _apply_screen_layout() -> void:
+	var screen: Control = screens.get("number")
+	if screen == null or stage_root == null:
+		return
+	var height := screen.size.y
+	var key := ("run" if state.in_run else "between") + "|" + current_tab + "|" + str(int(height))
+	if key == screen_layout_key or height <= 0.0:
+		return
+	screen_layout_key = key
+	nav_dock.visible = not (state.in_run and current_tab == "number")
+	if state.in_run:
+		var free := height - RUN_STAGE_TOP - CATEGORY_STRIP_HEIGHT - RUN_ENCOUNTER_ROW - RUN_ACTION_ROW
+		var stage_height := clampf(free * RUN_STAGE_SHARE, minf(RUN_STAGE_MIN, free), RUN_STAGE_MAX)
+		var stage_bottom := RUN_STAGE_TOP + stage_height
+		_place(stage_root, 0.0, RUN_STAGE_TOP, 0.0, stage_bottom)
+		_place(encounter_label, 0.0, stage_bottom, 0.0, stage_bottom + RUN_ENCOUNTER_ROW)
+		_place(run_actions, 0.0, stage_bottom + RUN_ENCOUNTER_ROW, 0.0, stage_bottom + RUN_ENCOUNTER_ROW + RUN_ACTION_ROW)
+		_place(rig_panel, 0.0, stage_bottom + RUN_ENCOUNTER_ROW + RUN_ACTION_ROW, 1.0, 0.0)
+		run_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+		run_button.offset_left = -150
+		run_button.offset_right = -16
+		run_button.offset_top = 24
+		run_button.offset_bottom = 54
+		run_button.alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	else:
+		_place(stage_root, 0.0, 150.0, 1.0, -250.0)
+		_place(encounter_label, 1.0, -295.0, 1.0, -270.0)
+		_place(run_actions, 1.0, -258.0, 1.0, -200.0)
+		run_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+		run_button.offset_top = -188
+		run_button.offset_bottom = -154
+		run_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
+
+## Stretches a control across the screen's width between two edges, each an
+## anchor (0 top, 1 bottom) plus a pixel offset from it.
+func _place(control: Control, top_anchor: float, top: float, bottom_anchor: float, bottom: float) -> void:
+	control.anchor_left = 0.0
+	control.anchor_right = 1.0
+	control.offset_left = 0.0
+	control.offset_right = 0.0
+	control.anchor_top = top_anchor
+	control.anchor_bottom = bottom_anchor
+	control.offset_top = top
+	control.offset_bottom = bottom
+
+## Where floating numbers rise from: the Number itself, wherever the stage is.
+func _stage_float_point() -> Vector2:
+	if stage_root == null or not stage_root.visible:
+		return floating_text_layer.size * Vector2(0.5, 0.42)
+	return stage_root.position + stage_root.size * Vector2(0.5, 0.42)
+
 ## Shows the two independent checks the run turns on: the remaining Liability
 ## production must clear, and the Collection hit Number must survive.
 func _refresh_run_bar() -> void:
+	_apply_screen_layout()
 	wave_label.text = "WAVE " + str(state.wave) if state.in_run else "NOT RUNNING"
 	tier_button.text = "TIER " + str(state.selected_tier)
 	tier_button.disabled = state.in_run
@@ -2042,6 +2118,9 @@ func _refresh_run_bar() -> void:
 	_refresh_landing()
 	tap_hint.visible = state.in_run
 	brace_button.visible = state.in_run
+	# Armor is a Workshop rank, locked during a run, so its shortcut only
+	# earns its place between runs.
+	armor_button.visible = not state.in_run
 	brace_cost_label.text = "%.0f%% OF NUMBER" % (state.get_brace_cost_percent() * 100.0)
 	brace_button.disabled = not state.can_brace()
 	_set_action_enabled(brace_button, not brace_button.disabled)

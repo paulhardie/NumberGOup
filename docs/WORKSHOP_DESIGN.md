@@ -242,7 +242,7 @@ Rejected: *Stop the Clock* (pause the wave timer). It breaks the vision's anti-g
 
 ## The Rig — the same four categories inside a run (D015)
 
-**Status:** Domain core, prices, multiplier and ceilings implemented (2026-09-22, D023); the panel is not built. The four categories in the run and Number as their price are both owner-confirmed (21 September 2026). Targets 7, 8 and 9 pass at the swept multiplier; early and mid builds still cannot profit from the Rig under the simulator's policy, which is the open playtest question (see [measured targets](#the-rigs-measured-targets-step-7-core)).
+**Status:** Domain core, prices, multiplier and ceilings implemented (2026-09-22, D023); the panel shipped the same day and sits below the Number on the run screen (D032). The four categories in the run and Number as their price are both owner-confirmed (21 September 2026). Targets 7, 8 and 9 pass at the swept multiplier; early and mid builds still cannot profit from the Rig under the simulator's policy, which is the open playtest question (see [measured targets](#the-rigs-measured-targets-step-7-core)).
 
 A run contains one decision today: Brace, at a flat 30%. Everything else the player does between starting a run and dying is tapping. That is the friction this section answers, and it is the reason the four categories belong on the run screen and not only in the Workshop.
 
@@ -291,7 +291,7 @@ Rig ranks are uncapped; cost growth is the only limit. *Rejected: capping Rig ra
 
 ### The Rig's measured targets (step 7 core)
 
-**Implemented (2026-09-22):** run-scoped ranks in `GameState` with prices from `TaxBalanceProfile` and the D023 multiplier, stacking with Workshop ranks, saved in the active-run block and cleared by every ending. The panel is not built. `tools/balance_simulator.gd` plays a reinvest policy — bank on cleared waves, never spend the Number that covers the next two hits, compounding rows first, Boss Damage ahead of a boss — and reports targets 7–9. At the swept value M=3:
+**Implemented (2026-09-22):** run-scoped ranks in `GameState` with prices from `TaxBalanceProfile` and the D023 multiplier, stacking with Workshop ranks, saved in the active-run block and cleared by every ending. The panel shipped the same day and sits below the Number (D032). `tools/balance_simulator.gd` plays a reinvest policy — bank on cleared waves, never spend the Number that covers the next two hits, compounding rows first, Boss Damage ahead of a boss — and reports targets 7–9. At the swept value M=3:
 
 | Build | Wave (hoarding) | Wave (Rig) | Rig ranks | Purchases in last 10 min |
 | --- | --- | --- | --- | --- |
@@ -492,7 +492,7 @@ Each step lands on its own and clears the gate for its risk level in [`QUALITY_G
 | 4b | **Done.** Boss Damage, Coin Bonus and Knowledge Bonus (D021); Research Focus balanced across all three categories | High: economy |
 | 5 | **Done.** The bar reshape (D016): the dock drops to `RUN · WORKSHOP · MORE`, Labs, Insight and Prestige become one Knowledge sheet opened from the Knowledge chip, the `highest_number` gates move inside it, and the run-over screen is reframed as "Lost to" (D022) with both doors | Medium: presentation, plus one field on the run summary |
 | 6 | **Done.** The two gaps under "Lost to": how far short Attack fell against that wave's HP, and Defense against its hit | Medium |
-| 7 | **Core and targets done; panel not built.** The Rig (D015): run-scoped ranks bought with Number priced against wave HP, worth 3× a Workshop rank (D023), with combined defensive ceilings, stacking with Workshop ranks, saved with the active run and cleared by every ending. Targets 7–9 pass; early/mid builds are the open playtest question. Remaining: the in-run panel, Brace into the Defense tab and Shield off the run screen | High: economy and save |
+| 7 | **Core, targets and panel done** (panel laid out below the Number by D032). The Rig (D015): run-scoped ranks bought with Number priced against wave HP, worth 3× a Workshop rank (D023), with combined defensive ceilings, stacking with Workshop ranks, saved with the active run and cleared by every ending. Targets 7–9 pass; early/mid builds are the open playtest question. Remaining: Brace into the Defense tab (deliberately kept on the run screen for now, D032); Shield is off the run screen during runs | High: economy and save |
 | 8 | Ultimates, in both lenses | High: new timed effects and saved cooldown state |
 
 Step 2 followed step 1 closely, so the new rule is explained on screen in the new words.
