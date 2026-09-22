@@ -76,6 +76,11 @@ var stage_glow: TextureRect
 ## column: a container re-sorts its child whenever the number's width changes,
 ## which would overwrite a position tween mid-shake.
 var stage_root: Control
+## Shown in the stage's place between runs, since Number exists only during a
+## run (pillar 3) and an empty ring/number stage has nothing live to say.
+var landing_panel: Control
+var landing_last_run_label: Label
+var landing_last_run_detail: Label
 var tracked_font: FontVariation
 var number_flash_tween: Tween
 # Smoothed log10 of the displayed Number (log10(mantissa) + exponent), eased
@@ -329,6 +334,7 @@ func _build_number_screen(parent: Control) -> void:
 	_build_currency_stack(screen)
 	_build_wave_line(screen)
 	_build_stage(screen)
+	_build_landing_panel(screen)
 	_build_run_controls(screen)
 	_build_rig_panel(screen)
 
@@ -459,6 +465,35 @@ func _build_stage(parent: Control) -> void:
 	number_col.add_child(number_label)
 	rate_label = _make_label("", 15, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	number_col.add_child(rate_label)
+
+## Fills the stage's rect between runs, in place of the ring and the number:
+## a landing beat with what the last run did, rather than an idle stage
+## waiting for a tap that does nothing (D025).
+func _build_landing_panel(parent: Control) -> void:
+	landing_panel = Control.new()
+	landing_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	landing_panel.offset_top = 150
+	landing_panel.offset_bottom = -250
+	landing_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(landing_panel)
+
+	var centre := CenterContainer.new()
+	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	landing_panel.add_child(centre)
+
+	var column := VBoxContainer.new()
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", 8)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	centre.add_child(column)
+
+	column.add_child(_make_label("READY", 14, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT))
+	landing_last_run_label = _make_label("", 17, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
+	column.add_child(landing_last_run_label)
+	landing_last_run_detail = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	landing_last_run_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(landing_last_run_detail)
 
 ## The run's own controls: what the encounter is asking for, the two answers to
 ## it, and the way out. All text, no panels, so the stage stays the loud thing.
@@ -1706,6 +1741,10 @@ func _refresh_run_bar() -> void:
 	_refresh_encounter_line()
 	if rig_panel != null:
 		rig_panel.visible = state.in_run
+	if stage_root != null:
+		stage_root.visible = state.in_run
+	_refresh_landing()
+	tap_hint.visible = state.in_run
 	brace_button.visible = state.in_run
 	brace_cost_label.text = "%.0f%% OF NUMBER" % (state.get_brace_cost_percent() * 100.0)
 	brace_button.disabled = not state.can_brace()
@@ -1718,10 +1757,40 @@ func _refresh_run_bar() -> void:
 	else:
 		armor_cost_label.text = _coins(state.get_workshop_coin_cost(armor)) + " COINS"
 	run_button.text = "RETREAT & RESET" if state.in_run else "START RUN  ·  WORKSHOP LV " + str(state.get_workshop_level())
-	var run_colour := FAINT_TEXT if state.in_run else ACCENT
+	# Retreat is destructive and rare, so it stays the quietest control on the
+	# screen (flat text). Starting is the whole point of being here, so it
+	# gets the same filled pill the run-over screen's CONTINUE door uses (D025).
+	run_button.flat = state.in_run
+	var run_colour := FAINT_TEXT if state.in_run else Color("0d1016")
 	run_button.add_theme_color_override("font_color", run_colour)
-	run_button.add_theme_color_override("font_hover_color", TEXT if state.in_run else ACCENT)
+	run_button.add_theme_color_override("font_hover_color", TEXT if state.in_run else Color("0d1016"))
 	run_button.add_theme_font_override("font", _tracked_font())
+	if state.in_run:
+		run_button.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
+		run_button.add_theme_stylebox_override("hover", StyleBoxEmpty.new())
+	else:
+		run_button.add_theme_stylebox_override("normal", _panel_style(ACCENT, 999))
+		run_button.add_theme_stylebox_override("hover", _panel_style(ACCENT.lightened(0.1), 999))
+
+## The landing beat (D025): what the stage shows in place of the ring and the
+## number between runs, since Number exists only during a run (pillar 3).
+func _refresh_landing() -> void:
+	if landing_panel == null:
+		return
+	landing_panel.visible = not state.in_run
+	if state.in_run:
+		return
+	var summary := state.last_run_summary
+	if summary == null:
+		landing_last_run_label.text = "NO RUNS YET"
+		landing_last_run_detail.text = "Start your first run when you're ready."
+		return
+	landing_last_run_label.text = "LAST RUN  ·  TIER " + str(summary.tier_id) + "  ·  WAVE " + str(summary.wave_reached)
+	var cause := "RETREATED" if summary.outcome == "retreat" else "LOST TO A HIT OF " + summary.final_hit.format_value()
+	var reward := "+" + _coins(summary.coins_earned) + " COINS"
+	if summary.knowledge_gained > 0:
+		reward += "  ·  +" + str(summary.knowledge_gained) + " KNOWLEDGE"
+	landing_last_run_detail.text = cause + "  ·  " + reward
 
 ## The boss warning is the only thing besides a landing hit allowed to use the
 ## warning colour, so it keeps its weight.
