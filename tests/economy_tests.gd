@@ -60,6 +60,9 @@ func _init() -> void:
 	_test_active_card_applies_its_effect_but_inventory_does_not()
 	_test_card_save_round_trip()
 	_test_defensive_ceilings_bound_the_combined_effects()
+	_test_armor_ceiling_bounds_armor_not_other_rules()
+	_test_catalogues_are_internally_consistent()
+	_test_loaded_ranks_stay_within_their_caps()
 	_test_wave_death_resets_run_but_keeps_meta_progress()
 	_test_run_gates_the_wave_clock()
 	_test_retreat_ends_and_resets_run()
@@ -975,6 +978,88 @@ func _test_coin_and_knowledge_bonuses_lift_what_a_run_pays() -> void:
 	var with_bonus := learner.get_prestige_knowledge_gain()
 	_expect(without > 0 and with_bonus > without, "Knowledge Bonus should lift what a run ending grants")
 	_expect(with_bonus == int(floor(float(without) * 1.5)) or with_bonus == int(floor(float(without) * 1.5)) + 1, "a maxed Knowledge Bonus should grant about half again")
+
+## The Armor ceiling (D023) bounds Armor's own share of a hit. A rule that
+## shrinks hits for its own reason stacks on top rather than being clawed back
+## to the ceiling.
+func _test_armor_ceiling_bounds_armor_not_other_rules() -> void:
+	var state := GameState.new()
+	state.purchased = {GameState.ARMOR_ID: 100}
+	state.lab_ranks = {"lab_resilience": 40}
+	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	state.start_run(2, 4)
+	state.rig_ranks = {GameState.ARMOR_ID: 20}
+	_expect(state._effect_sum("collection_resistance") > state.balance_profile.COLLECTION_RESISTANCE_CEILING, "the fixture should stack Armor past its ceiling")
+	var base: ScientificNumber = state.active_encounter.collection
+	_expect(state.get_effective_collection().compare_to(base.multiply_scalar(0.25)) == 0, "stacked Armor alone should stop at its ceiling")
+	state.active_rule_modifiers = [{"source": "test_rule", "target": "collection", "stage": "multiplicative", "value": 0.2}]
+	_expect(state.get_effective_collection().compare_to(base.multiply_scalar(0.25 * 0.2)) == 0, "a separate rule that shrinks hits should still apply past Armor's ceiling")
+
+## Every catalogue a save keys ranks by: ids unique across all three, effects
+## the game knows how to read, shelves that exist, caps and prices that make
+## sense, Rig rows that are real Workshop rows, and Workshop levels a player
+## can actually reach.
+func _test_catalogues_are_internally_consistent() -> void:
+	var state := GameState.new()
+	var ids := {}
+	var effect_keys: Array = []
+	for definition in state.definitions:
+		_expect(not ids.has(definition.id), "catalogue id %s should be unique" % definition.id)
+		ids[definition.id] = true
+		effect_keys.append_array(definition.effects.keys())
+		_expect(definition.max_rank > 0 and definition.cost_growth >= 1.0, "%s should have a positive cap and non-shrinking cost growth" % definition.id)
+		if definition.category == ProgressionTaxonomy.WORKSHOP:
+			_expect(ProgressionTaxonomy.WORKSHOP_CATEGORIES.has(definition.workshop_category), "%s should sit on one of the four Workshop categories" % definition.id)
+			_expect(not definition.cost.is_zero(), "%s should cost something" % definition.id)
+	for lab_definition in state.lab_research.definitions:
+		_expect(not ids.has(lab_definition.id), "catalogue id %s should be unique" % lab_definition.id)
+		ids[lab_definition.id] = true
+		effect_keys.append_array(lab_definition.effects.keys())
+		_expect(lab_definition.max_rank > 0 and lab_definition.base_cost > 0 and lab_definition.base_duration > 0.0, "%s should have a cap, a price and a duration" % lab_definition.id)
+		_expect(lab_definition.category == "main" or ProgressionTaxonomy.WORKSHOP_CATEGORIES.has(lab_definition.category), "%s should sit on Main or a Workshop category" % lab_definition.id)
+	for card_definition in state.card_collection.definitions:
+		_expect(not ids.has(card_definition.id), "catalogue id %s should be unique" % card_definition.id)
+		ids[card_definition.id] = true
+		effect_keys.append_array(card_definition.effects.keys())
+		_expect(CardCollection.RARITY_WEIGHT.has(card_definition.rarity), "%s should have a known rarity" % card_definition.id)
+	for effect_name in effect_keys:
+		_expect(GameState.STAT_DISPLAY.has(effect_name), "effect %s should be one the game reads and displays; a typo would do nothing" % effect_name)
+	for category in state.balance_profile.RIG_ROWS:
+		for row_id in state.balance_profile.RIG_ROWS[category]:
+			var row := state.get_definition(row_id)
+			_expect(row != null and row.workshop_category == category, "Rig row %s should be a Workshop row on the %s shelf" % [row_id, category])
+	# A row's Workshop level must be reachable from the rows open below it.
+	var rows := state.definitions_for_progression_type(ProgressionTaxonomy.MODULE) + state.definitions_for_progression_type(ProgressionTaxonomy.PROTOCOL) + state.definitions_for_progression_type(ProgressionTaxonomy.ROUTINE)
+	for definition in rows:
+		if definition.category != ProgressionTaxonomy.WORKSHOP:
+			continue
+		var reachable := 0
+		for other in rows:
+			if other.category == ProgressionTaxonomy.WORKSHOP and other.workshop_level_required < definition.workshop_level_required:
+				reachable += other.max_rank
+		_expect(reachable >= definition.workshop_level_required, "%s should open at a Workshop level the rows below it can reach" % definition.id)
+
+## A save holding more ranks than a row allows loads at the cap, so a lowered
+## cap takes effect; a rank under a retired id is kept but counts for nothing.
+func _test_loaded_ranks_stay_within_their_caps() -> void:
+	var save_path := "res://.number_go_up_test_save.json"
+	var data: Dictionary = SaveDataV7.make(GameState.new())
+	data.purchased = {"stronger_tap": 5000, "generator": -4, "retired_row": 30}
+	data.knowledge_purchased = {"insight": 3}
+	data.lab_ranks = {"lab_damage": 900, "retired_line": 2}
+	data.card_ranks = {"card_damage": 500, "card_coins": -1}
+	data.card_active = ["card_damage"]
+	_write_json(save_path, data)
+	var loaded := GameState.new()
+	loaded.save_path = save_path
+	loaded.load()
+	var tap := loaded.get_definition("stronger_tap")
+	_expect(loaded.get_owned("stronger_tap") == tap.max_rank and loaded.get_owned("generator") == 0, "Workshop ranks should load between zero and the row's cap")
+	_expect(loaded.purchased.get("retired_row") == 30 and loaded.get_workshop_level() == tap.max_rank, "a retired row's ranks should be kept but not counted")
+	_expect(loaded.get_owned("insight") == 3, "Insight ranks should load unchanged")
+	_expect(loaded.get_lab_owned("lab_damage") == loaded.lab_research.get_definition("lab_damage").max_rank and loaded.lab_ranks.get("retired_line") == 2, "Lab ranks should load within their cap, and a retired line's kept")
+	_expect(loaded.get_card_level("card_damage") == CardCollection.MAX_LEVEL and loaded.get_card_level("card_coins") == 0, "Card levels should load between zero and the top level")
+	loaded.clear_save()
 
 func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	var state := GameState.new()
