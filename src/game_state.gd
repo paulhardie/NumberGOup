@@ -473,6 +473,29 @@ func get_rig_cost(upgrade_id: String, rank: int = -1) -> ScientificNumber:
 	var at_rank := rig_owned(upgrade_id) if rank < 0 else rank
 	return balance_profile.rig_cost(definition.workshop_category, at_rank, get_rig_reference_hp())
 
+## Quotes a Rig multi-buy from the same individual ranks it will purchase.
+## Unlike the Workshop, the Rig is uncapped, so MAX means every rank the
+## current Number can buy. Geometric growth guarantees that this stays finite.
+func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
+	var refused := {"ranks": 0, "cost": ScientificNumber.new()}
+	if not in_run:
+		return refused
+	var definition := get_definition(upgrade_id)
+	if definition == null or not balance_profile.rig_has_row(definition.workshop_category, upgrade_id):
+		return refused
+	var remaining := number.copy()
+	var total := ScientificNumber.new()
+	var ranks := 0
+	var wanted := maxi(0, count)
+	while count == MAX_BUY or ranks < wanted:
+		var step := get_rig_cost(upgrade_id, rig_owned(upgrade_id) + ranks)
+		if remaining.compare_to(step) < 0:
+			break
+		remaining = remaining.subtract(step)
+		total = total.add(step)
+		ranks += 1
+	return {"ranks": ranks, "cost": total}
+
 func can_purchase_rig(upgrade_id: String) -> bool:
 	if not in_run:
 		return false
@@ -485,11 +508,20 @@ func can_purchase_rig(upgrade_id: String) -> bool:
 ## eats the buffer against the next hit: the contract is that the price is
 ## visible before it kills you, not that the game refuses the decision (D015).
 func purchase_rig(upgrade_id: String) -> bool:
-	if not can_purchase_rig(upgrade_id):
-		return false
-	number = number.subtract(get_rig_cost(upgrade_id))
-	rig_ranks[upgrade_id] = rig_owned(upgrade_id) + 1
-	return true
+	return purchase_rig_ranks(upgrade_id, 1) > 0
+
+## Commits exactly the ranks quoted by plan_rig_purchase. The rank count and
+## Number cost are calculated before state changes, so a multi-buy cannot be
+## cheaper or dearer than the same single presses.
+func purchase_rig_ranks(upgrade_id: String, count: int = 1) -> int:
+	var plan := plan_rig_purchase(upgrade_id, count)
+	var ranks := int(plan.ranks)
+	if ranks <= 0:
+		return 0
+	var cost: ScientificNumber = plan.cost
+	number = number.subtract(cost)
+	rig_ranks[upgrade_id] = rig_owned(upgrade_id) + ranks
+	return ranks
 
 func get_cost(definition: UpgradeDefinition) -> ScientificNumber:
 	return get_cost_at(definition, get_owned(definition.id))
@@ -565,7 +597,7 @@ func purchase_ranks(upgrade_id: String, count: int = 1) -> int:
 ## The value a row reads as at a given rank, and the unit to read it in. Rows
 ## with no declared effect (Burst, Crit Chain) fall back to their rank, which is
 ## what their description already talks in.
-func stat_display(definition: UpgradeDefinition, rank: int) -> Dictionary:
+func stat_display(definition: UpgradeDefinition, rank: float) -> Dictionary:
 	for effect_name in definition.effects:
 		if not STAT_DISPLAY.has(effect_name):
 			continue

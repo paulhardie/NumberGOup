@@ -375,7 +375,7 @@ The owner's reference layout (The Tower, 21 September 2026) settles the shape in
   [ RUN      WORKSHOP      MORE ]                      ← nav dock, three seats
 ```
 
-**In a run** — step 7, when the Rig arrives. The dock is not shown, so the strip sits flush:
+**In a run** — implemented in step 7. The dock is not shown, so the strip sits flush:
 
 ```
               $ 66.99K      WAVE 10 / 191
@@ -392,11 +392,11 @@ The owner's reference layout (The Tower, 21 September 2026) settles the shape in
   └────────┴─────────┴─────────┴──────────┘
 ```
 
-**This costs the run screen real estate, and that is the accepted trade.** The ring stage has to shrink to roughly the top half so the panel can hold four rows without scrolling. Pillar 1 says the main screen never becomes a spreadsheet; a permanently open panel is closer to that line than the sheet this document first proposed. What keeps it the right side of the line is that the panel holds one category at a time, four rows of two, with no description text — the detail lives behind a tap, as the reference does it.
+**This costs the run screen real estate, and that is the accepted trade.** The ring stage shrinks to the upper part of the screen while the panel stays open. Attack now has ten Rig rows, so the fixed-height panel has a short internal scroll rather than hiding half the catalogue; Defense and Utility fit without it. Pillar 1 says the main screen never becomes a spreadsheet; one category at a time, compact two-column cards and detail behind a tap keep this on the right side of that line.
 
 ### Multi-buy (D018)
 
-Each category carries a buy multiplier — `x1 · x5 · x10 · MAX` — shown beside the category header and cycled by tapping it. `MAX` takes every rank the player can afford, up to the row's cap. Ranks are priced one at a time and summed, so a press is never cheaper or dearer than buying the same ranks individually, and the cost shown is the cost paid. The card's cost line shows what the press will actually do: `x3 · 539 ©` when three ranks will land, a bare price when one will.
+Each category carries a buy multiplier — `x1 · x5 · x10 · MAX` — shown beside the category header and cycled by tapping it. Workshop `MAX` stops at the row cap; Rig `MAX` takes every uncapped rank the current Number can afford. Ranks are priced one at a time and summed, so a press is never cheaper or dearer than buying the same ranks individually, and the cost shown is the cost paid. The card's cost line shows what the press will actually do: `x3 · 539 ©` when three ranks will land, a bare price when one will.
 
 ### The card is compact; the detail is one tap away
 
@@ -490,7 +490,7 @@ Each step lands on its own and clears the gate for its risk level in [`QUALITY_G
 | 4b | **Done.** Boss Damage, Coin Bonus and Knowledge Bonus (D021); Research Focus balanced across all three categories | High: economy |
 | 5 | **Done.** The bar reshape (D016): the dock drops to `RUN · WORKSHOP · MORE`, Labs, Insight and Prestige become one Knowledge sheet opened from the Knowledge chip, the `highest_number` gates move inside it, and the run-over screen is reframed as "Lost to" (D022) with both doors | Medium: presentation, plus one field on the run summary |
 | 6 | **Done.** The two gaps under "Lost to": how far short Attack fell against that wave's HP, and Defense against its hit | Medium |
-| 7 | **Core and targets done; panel not built.** The Rig (D015): run-scoped ranks bought with Number priced against wave HP, worth 3× a Workshop rank (D023), with combined defensive ceilings, stacking with Workshop ranks, saved with the active run and cleared by every ending. Targets 7–9 pass; early/mid builds are the open playtest question. Remaining: the in-run panel, Brace into the Defense tab and Shield off the run screen | High: economy and save |
+| 7 | **Done.** The Rig (D015): run-scoped ranks bought with Number priced against wave HP, worth 3× a Workshop rank (D023), with combined defensive ceilings, stacking with Workshop ranks, saved with the active run and cleared by every ending. The always-open in-run panel has its own category strip and multi-buy, Brace is Defense's first row, and permanent Armor has left the run screen. Targets 7–9 pass; early/mid builds are the open playtest question | High: economy, save and presentation |
 | 8 | Ultimates, in both lenses | High: new timed effects and saved cooldown state |
 
 Step 2 followed step 1 closely, so the new rule is explained on screen in the new words.

@@ -27,6 +27,7 @@ func _capture_size(window_size: Vector2i, label: String) -> void:
 	await process_frame
 	await _capture_state(window_size, label, "hub", false)
 	await _capture_state(window_size, label, "run", false)
+	await _capture_state(window_size, label, "rig_defense", false)
 	await _capture_state(window_size, label, "run_standing", false)
 	await _capture_state(window_size, label, "boss", false)
 	await _capture_state(window_size, label, "workshop", false)
@@ -53,7 +54,7 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 		"more_critical": 2,
 	}
 	state.settings["reduce_motion"] = true
-	if state_name == "run" or state_name == "run_standing" or state_name == "boss":
+	if state_name == "run" or state_name == "rig_defense" or state_name == "run_standing" or state_name == "boss":
 		state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 		state.start_run(2, 99)
 		state.number = ScientificNumber.from_float(238500)
@@ -71,6 +72,8 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 			state.active_encounter.apply_compliance(state.active_encounter.max_liability.multiply_scalar(0.55))
 		else:
 			state.active_encounter.apply_compliance(ScientificNumber.from_float(55900))
+		if state_name == "rig_defense":
+			main.rig_selected_category = ProgressionTaxonomy.DEFENSE
 	elif state_name == "workshop":
 		main._select_tab("workshop")
 	elif state_name == "knowledge":
