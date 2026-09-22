@@ -26,16 +26,18 @@ For a low-risk change this may be a few sentences. Expand it only when the blast
 Run for any maintained-source change:
 
 ```bash
-GODOT=/Users/paulhardie/Downloads/Godot.app/Contents/MacOS/Godot bash run_tests.sh
+bash run_tests.sh
 ```
 
 Supporting checks:
 
 ```bash
-GODOT=/Users/paulhardie/Downloads/Godot.app/Contents/MacOS/Godot bash run_balance.sh
-/Users/paulhardie/Downloads/Godot.app/Contents/MacOS/Godot --headless --path . --quit
-/Users/paulhardie/Downloads/Godot.app/Contents/MacOS/Godot --path . -s res://tools/capture_ui.gd
+bash run_balance.sh
+bash run_godot.sh --headless --path . --quit
+bash run_godot.sh --path . -s res://tools/capture_ui.gd
 ```
+
+- Every Godot run goes through `run_godot.sh`, which keeps it away from the live save (see "Protect the real save" in [`AGENTS.md`](../AGENTS.md)).
 
 - `run_tests.sh` runs the whole headless economy suite. A green count printed alongside errors is not a pass.
 - The headless project run imports and parses every script and builds the main scene; it catches UI-script and scene errors the suite does not load.
