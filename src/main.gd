@@ -69,6 +69,8 @@ var rate_label: Label
 var tap_hint: Label
 var coins_label: Label
 var knowledge_label: Label
+var gems_label: Label
+var gems_button: Button
 var floating_text_layer: Control
 var ring: RingArc
 var stage_glow: TextureRect
@@ -171,6 +173,16 @@ var lab_research_sheet: Control
 var lab_research_content: VBoxContainer
 var lab_research_slots_label: Label
 var lab_research_button: Button
+
+## The Cards sheet (D027): a permanent, gacha-pulled collection with a capped
+## Active set. Opened from a chip on the Workshop screen, next to LABS.
+var card_collection_sheet: Control
+var card_collection_active_content: VBoxContainer
+var card_collection_active_label: Label
+var card_collection_inventory_content: VBoxContainer
+var card_collection_gems_label: Label
+var card_collection_pull_button: Button
+var card_collection_button: Button
 
 var screens: Dictionary = {}
 # The content root inside each slide-up screen, kept separately so it (not
@@ -302,6 +314,7 @@ func _build_ui() -> void:
 	_build_drawer()
 	_build_knowledge_sheet()
 	_build_lab_research_sheet()
+	_build_card_collection_sheet()
 	_build_stat_info()
 	_build_died_screen()
 
@@ -364,6 +377,10 @@ func _build_currency_stack(parent: Control) -> void:
 	knowledge_label = knowledge_button.get_meta("value_label")
 	knowledge_button.tooltip_text = "Spend Knowledge"
 	knowledge_button.pressed.connect(_open_knowledge_sheet)
+	gems_button = _make_currency_row(stack, IconGlyph.Kind.DICE, CARDS_ACCENT, 15.0, 15, Color(0.925, 0.925, 0.918, 0.7))
+	gems_label = gems_button.get_meta("value_label")
+	gems_button.tooltip_text = "Pull a Card"
+	gems_button.pressed.connect(_open_card_collection_sheet)
 
 func _make_currency_row(parent: Control, icon_kind: int, icon_colour: Color, icon_size: float, font_size: int, text_colour: Color) -> Button:
 	var button := Button.new()
@@ -730,6 +747,19 @@ func _build_workshop_screen(parent: Control) -> void:
 	lab_research_button.add_child(lab_button_row)
 	lab_research_button.pressed.connect(_open_lab_research_sheet)
 	header_row.add_child(lab_research_button)
+	card_collection_button = Button.new()
+	card_collection_button.text = ""
+	card_collection_button.flat = true
+	card_collection_button.focus_mode = Control.FOCUS_NONE
+	card_collection_button.tooltip_text = "Open Cards"
+	var card_button_row := HBoxContainer.new()
+	card_button_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	card_button_row.add_theme_constant_override("separation", 4)
+	card_button_row.add_child(IconGlyph.new(IconGlyph.Kind.DICE, CARDS_ACCENT, 15.0))
+	card_button_row.add_child(_make_label("CARDS", 12, HORIZONTAL_ALIGNMENT_LEFT, CARDS_ACCENT))
+	card_collection_button.add_child(card_button_row)
+	card_collection_button.pressed.connect(_open_card_collection_sheet)
+	header_row.add_child(card_collection_button)
 	var chip := PanelContainer.new()
 	chip.add_theme_stylebox_override("panel", _chip_style(SURFACE))
 	workshop_header = _make_label("", 12, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT)
@@ -1218,6 +1248,197 @@ func _lab_status_text(definition: LabResearch.Definition, maxed: bool, active: b
 		return _format_duration(state.get_lab_time_remaining(definition.id)) + "\nLEFT"
 	return _coins(state.get_lab_cost(definition.id)) + " ©\n" + _format_duration(state.get_lab_duration(definition.id))
 
+## Cards (D027): a permanent, Gem-pulled collection with a capped Active set.
+## Toned down from the reference: one flat per-level step per card, one
+## Active set rather than named loadout presets, no Mastery tie to Labs yet.
+func _build_card_collection_sheet() -> void:
+	card_collection_sheet = Control.new()
+	card_collection_sheet.visible = false
+	card_collection_sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(card_collection_sheet)
+
+	var scrim := ColorRect.new()
+	scrim.color = Color(0, 0, 0, 0.55)
+	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scrim.mouse_filter = Control.MOUSE_FILTER_STOP
+	scrim.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.pressed:
+			card_collection_sheet.visible = false
+	)
+	card_collection_sheet.add_child(scrim)
+
+	var sheet := PanelContainer.new()
+	sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	sheet.offset_top = 150
+	var sheet_style := StyleBoxFlat.new()
+	sheet_style.bg_color = Color("111722")
+	sheet_style.corner_radius_top_left = 24
+	sheet_style.corner_radius_top_right = 24
+	sheet.add_theme_stylebox_override("panel", sheet_style)
+	card_collection_sheet.add_child(sheet)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 22)
+	margin.add_theme_constant_override("margin_right", 22)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	sheet.add_child(margin)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 12)
+	margin.add_child(column)
+
+	var handle := Panel.new()
+	handle.custom_minimum_size = Vector2(36, 4)
+	var handle_style := StyleBoxFlat.new()
+	handle_style.bg_color = Color(1, 1, 1, 0.16)
+	handle_style.set_corner_radius_all(2)
+	handle.add_theme_stylebox_override("panel", handle_style)
+	var handle_wrap := CenterContainer.new()
+	handle_wrap.add_child(handle)
+	column.add_child(handle_wrap)
+
+	var header_row := HBoxContainer.new()
+	column.add_child(header_row)
+	var title := _make_label("Cards", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_child(title)
+	var chip := PanelContainer.new()
+	chip.add_theme_stylebox_override("panel", _chip_style(SURFACE))
+	var chip_row := HBoxContainer.new()
+	chip_row.add_theme_constant_override("separation", 6)
+	chip.add_child(chip_row)
+	chip_row.add_child(IconGlyph.new(IconGlyph.Kind.DIAMOND, CARDS_ACCENT, 13.0))
+	card_collection_gems_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_LEFT, CARDS_ACCENT)
+	chip_row.add_child(card_collection_gems_label)
+	header_row.add_child(chip)
+	column.add_child(_make_label("PERMANENT · ACTIVE CARDS APPLY TO EVERY RUN", 10, HORIZONTAL_ALIGNMENT_LEFT, CARDS_ACCENT))
+
+	card_collection_pull_button = Button.new()
+	card_collection_pull_button.focus_mode = Control.FOCUS_NONE
+	card_collection_pull_button.custom_minimum_size = Vector2(0, 44)
+	card_collection_pull_button.add_theme_font_size_override("font_size", 13)
+	card_collection_pull_button.add_theme_color_override("font_color", Color("0d1016"))
+	card_collection_pull_button.add_theme_color_override("font_hover_color", Color("0d1016"))
+	card_collection_pull_button.add_theme_color_override("font_disabled_color", MUTED_TEXT)
+	card_collection_pull_button.add_theme_stylebox_override("normal", _panel_style(CARDS_ACCENT, 12))
+	card_collection_pull_button.add_theme_stylebox_override("hover", _panel_style(CARDS_ACCENT.lightened(0.1), 12))
+	card_collection_pull_button.add_theme_stylebox_override("disabled", _panel_style(SURFACE, 12))
+	card_collection_pull_button.pressed.connect(_on_card_pull_pressed)
+	column.add_child(card_collection_pull_button)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(scroll)
+	var inner := VBoxContainer.new()
+	inner.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	inner.add_theme_constant_override("separation", 10)
+	scroll.add_child(inner)
+
+	card_collection_active_label = _make_label("ACTIVE", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	inner.add_child(card_collection_active_label)
+	card_collection_active_content = VBoxContainer.new()
+	card_collection_active_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_collection_active_content.add_theme_constant_override("separation", 8)
+	inner.add_child(card_collection_active_content)
+
+	inner.add_child(HSeparator.new())
+	inner.add_child(_make_label("INVENTORY", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
+	card_collection_inventory_content = VBoxContainer.new()
+	card_collection_inventory_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card_collection_inventory_content.add_theme_constant_override("separation", 8)
+	inner.add_child(card_collection_inventory_content)
+
+func _open_card_collection_sheet() -> void:
+	if card_collection_sheet == null:
+		return
+	if drawer != null and drawer.visible:
+		drawer.visible = false
+	if knowledge_sheet != null and knowledge_sheet.visible:
+		knowledge_sheet.visible = false
+	if lab_research_sheet != null and lab_research_sheet.visible:
+		lab_research_sheet.visible = false
+	card_collection_sheet.visible = true
+	_refresh_card_collection()
+
+func _on_card_pull_pressed() -> void:
+	var drawn := state.pull_card()
+	if drawn == "":
+		_show_toast("NEED " + str(state.get_pull_cost()) + " GEMS", MUTED_TEXT)
+		return
+	var definition := state.card_collection.get_definition(drawn)
+	_show_toast((definition.title if definition != null else "CARD") + " · LEVEL " + str(state.get_card_level(drawn)), CARDS_ACCENT)
+	state.save()
+	_refresh_all()
+	_refresh_card_collection()
+
+func _refresh_card_collection() -> void:
+	if card_collection_sheet == null or not card_collection_sheet.visible:
+		return
+	card_collection_gems_label.text = str(state.gems)
+	card_collection_pull_button.text = "PULL A CARD  ·  " + str(state.get_pull_cost()) + " GEMS"
+	card_collection_pull_button.disabled = not state.can_pull_card()
+	card_collection_active_label.text = "ACTIVE  " + str(state.active_card_count()) + " / " + str(state.card_slots_total())
+	_clear_children(card_collection_active_content)
+	_clear_children(card_collection_inventory_content)
+	var any_active := false
+	for definition in state.card_collection.definitions:
+		if state.is_card_active(definition.id):
+			any_active = true
+			card_collection_active_content.add_child(_make_card_tile(definition, true))
+	if not any_active:
+		card_collection_active_content.add_child(_make_label("No cards equipped yet.", 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
+	for definition in state.card_collection.definitions:
+		card_collection_inventory_content.add_child(_make_card_tile(definition, false))
+
+## One row: the card's rarity-tinted chip, its title and level, and the tap
+## action — unequip in Active, equip in Inventory (an equipped card does not
+## repeat in Inventory's own tap target, but still shows so its level reads).
+func _make_card_tile(definition: CardCollection.Definition, in_active_section: bool) -> Button:
+	var owned := state.get_card_level(definition.id)
+	var locked := owned <= 0
+	var active := state.is_card_active(definition.id)
+	var tint: Color = CRITICAL if definition.rarity == CardCollection.RARE else CARDS_ACCENT
+	var button := _make_row_button()
+	button.custom_minimum_size = Vector2(0, 72)
+	var can_act := (not in_active_section and state.can_equip_card(definition.id)) or (in_active_section and not state.in_run and active)
+	button.disabled = locked or not can_act
+	button.add_theme_stylebox_override("normal", _panel_style(SURFACE, 14, Color.TRANSPARENT))
+	button.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 14, tint))
+	button.add_theme_stylebox_override("pressed", _panel_style(Color("0f5848"), 14, tint))
+	var row := _row_layout(button, 14, 8)
+	var chip := Panel.new()
+	chip.custom_minimum_size = Vector2(32, 32)
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_theme_stylebox_override("panel", _panel_style(Color(tint.r, tint.g, tint.b, 0.14 if not locked else 0.06), 9))
+	var chip_center := CenterContainer.new()
+	chip_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	chip_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_child(chip_center)
+	chip_center.add_child(IconGlyph.new(IconGlyph.Kind.DICE, tint if not locked else MUTED_TEXT, 15.0))
+	row.add_child(chip)
+	var mid := VBoxContainer.new()
+	mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mid.add_theme_constant_override("separation", 2)
+	row.add_child(mid)
+	mid.add_child(_make_label(definition.title, 13, HORIZONTAL_ALIGNMENT_LEFT, TEXT if not locked else MUTED_TEXT))
+	var level_text := "NOT OWNED" if locked else ("LEVEL " + str(owned) + " / " + str(CardCollection.MAX_LEVEL))
+	mid.add_child(_make_label(level_text, 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
+	var status := "ACTIVE" if active else ("EQUIP" if not locked else "")
+	row.add_child(_make_label("UNEQUIP" if (in_active_section and active) else status, 11, HORIZONTAL_ALIGNMENT_RIGHT, tint if not button.disabled else MUTED_TEXT))
+	button.pressed.connect(func():
+		if in_active_section:
+			state.unequip_card(definition.id)
+		else:
+			if not state.equip_card(definition.id):
+				_show_toast("ACTIVE IS FULL", MUTED_TEXT)
+				return
+		state.save()
+		_refresh_all()
+		_refresh_card_collection()
+	)
+	return button
+
 func _build_toast() -> void:
 	var toast_wrap := Control.new()
 	toast_wrap.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
@@ -1610,6 +1831,8 @@ func _on_dock_tab_selected(tab_id: String) -> void:
 		knowledge_sheet.visible = false
 	if lab_research_sheet != null and lab_research_sheet.visible:
 		lab_research_sheet.visible = false
+	if card_collection_sheet != null and card_collection_sheet.visible:
+		card_collection_sheet.visible = false
 	_select_tab(tab_id)
 
 func _is_tab_unlocked(tab_id: String) -> bool:
@@ -1746,6 +1969,7 @@ func _refresh_all() -> void:
 	tap_hint.text = "TAP TO PRODUCE" if state.in_run else "START A RUN TO PRODUCE"
 	coins_label.text = _coins(state.coins)
 	knowledge_label.text = str(state.knowledge)
+	gems_label.text = str(state.gems)
 	_refresh_run_bar()
 	_refresh_rig()
 	if offline_message != "":
@@ -1754,6 +1978,7 @@ func _refresh_all() -> void:
 	_refresh_dock()
 	_refresh_knowledge()
 	_refresh_lab_research()
+	_refresh_card_collection()
 	if current_tab == "workshop":
 		# Do not rebuild live buttons during the player's press/release cycle.
 		# Rebuilding a Control tree every refresh can eat touch releases on Web.
