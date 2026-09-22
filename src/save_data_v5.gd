@@ -1,26 +1,26 @@
-class_name SaveDataV4
+class_name SaveDataV5
 extends RefCounted
 
-const VERSION := 4
+const VERSION := 5
 
 static func make(state) -> Dictionary:
 	return {
 		"version": VERSION,
-		"economy_model": "permanent-workshop-v1",
+		"economy_model": "workshop-categories-v2",
 		"number": state.number.to_dict(),
 		"lifetime": state.lifetime_generated.to_dict(),
 		"highest": state.highest_number.to_dict(),
 		"purchased": state.purchased,
 		"knowledge": state.knowledge,
 		"knowledge_purchased": state.knowledge_purchased,
-		"focus": state.focus_category,
+		"focus_category": state.focus_category,
 		"automation_enabled": state.automation_enabled,
 		"workshop": state.workshop.to_dict(),
 		"wave": state.wave,
 		"wave_accumulator": state.wave_accumulator,
 		"coins": state.coins,
 		"highest_wave": state.highest_wave,
-		"tax_resistance_rank": state.get_owned("armor"),
+		"defense_unlocked": state.defense_unlocked,
 		"braced": state.braced,
 		"in_run": state.in_run,
 		"run_coins_earned": state.run_coins_earned,
@@ -38,9 +38,12 @@ static func make(state) -> Dictionary:
 	}
 
 static func is_valid(data: Variant) -> bool:
-	return (
-		data is Dictionary
-		and int(data.get("version", 0)) == VERSION
-		and data.has("number")
-		and data.has("lifetime")
-	)
+	if not (data is Dictionary) or int(data.get("version", 0)) != VERSION:
+		return false
+	for key in ["number", "lifetime", "highest", "purchased", "knowledge_purchased", "workshop", "tier_records", "statistics", "settings"]:
+		if not data.has(key) or not (data.get(key) is Dictionary):
+			return false
+	if not data.has("active_rule_modifiers") or not (data.get("active_rule_modifiers") is Array):
+		return false
+	var encounter: Variant = data.get("active_encounter", null)
+	return encounter == null or encounter is Dictionary

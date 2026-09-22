@@ -1,9 +1,7 @@
 class_name ProgressionTaxonomy
 extends RefCounted
 
-## This is the shared vocabulary for every progression layer. Keeping it separate
-## from a build track (MORE / FASTER / SMARTER) prevents future systems from
-## turning the main screen into an unstructured list of currencies and upgrades.
+## Shared vocabulary for progression layers and the permanent Workshop.
 const RESEARCH := "research"
 const WORKSHOP := "workshop"
 const MODULE := "module"
@@ -14,13 +12,30 @@ const KNOWLEDGE := "knowledge"
 const LAW := "law"
 const VIOLATION := "violation"
 
-const WORKSHOP_BAYS := ["output", "speed", "chance", "logic"]
-const BAY_NAMES := {"output": "OUTPUT", "speed": "SPEED", "chance": "CHANCE", "logic": "LOGIC"}
-const BAY_DESCRIPTIONS := {
-	"output": "Make every Number event larger.",
-	"speed": "Create Number events more often.",
-	"chance": "Improve positive special events.",
-	"logic": "Make the machine spend and choose better."
+const ATTACK := "attack"
+const DEFENSE := "defense"
+const UTILITY := "utility"
+const ULTIMATES := "ultimates"
+
+const WORKSHOP_CATEGORIES := [ATTACK, DEFENSE, UTILITY, ULTIMATES]
+const RESEARCH_FOCUS_CATEGORIES := [ATTACK, DEFENSE, UTILITY]
+const CATEGORY_NAMES := {
+	ATTACK: "ATTACK",
+	DEFENSE: "DEFENSE",
+	UTILITY: "UTILITY",
+	ULTIMATES: "ULTIMATES",
+}
+const CATEGORY_DESCRIPTIONS := {
+	ATTACK: "Beat waves before they Hit. Buy Attack when the ring is not closing before the timer runs out.",
+	DEFENSE: "Survive the Hits. Buy Defense when Hits drain your Number.",
+	UTILITY: "Get more from every run. Buy Utility when permanent progress feels slow.",
+	ULTIMATES: "Rare, powerful and earned. Milestones unlock abilities that fire automatically.",
+}
+const LEGACY_CATEGORY_MAP := {
+	"output": ATTACK,
+	"speed": ATTACK,
+	"chance": ATTACK,
+	"logic": UTILITY,
 }
 
 const PLAYABLE_ORDER := [WORKSHOP, MODULE, PROTOCOL, ROUTINE]
@@ -59,8 +74,13 @@ static func description(progression_type: String) -> String:
 static func is_future_layer(progression_type: String) -> bool:
 	return FUTURE_ORDER.has(progression_type)
 
-static func bay_name(bay: String) -> String:
-	return str(BAY_NAMES.get(bay, bay.to_upper()))
+static func category_name(category: String) -> String:
+	return str(CATEGORY_NAMES.get(category, category.to_upper()))
 
-static func bay_description(bay: String) -> String:
-	return str(BAY_DESCRIPTIONS.get(bay, ""))
+static func category_description(category: String) -> String:
+	return str(CATEGORY_DESCRIPTIONS.get(category, ""))
+
+static func migrate_legacy_category(value: String, fallback: String = ATTACK) -> String:
+	if WORKSHOP_CATEGORIES.has(value):
+		return value
+	return str(LEGACY_CATEGORY_MAP.get(value, fallback))

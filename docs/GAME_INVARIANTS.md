@@ -8,9 +8,9 @@
 ## Must — run lifecycle and permanence
 
 - Number exists only during an active run. Tapping, production ticks and offline time grant nothing outside a run.
-- Permanent progress — Workshop ranks, Coins, Knowledge, Insight ranks, Shield Matrix rank and tier records — survives death, retreat and Prestige.
+- Permanent progress — Workshop ranks (including Armor), Coins, Knowledge, Insight ranks and tier records — survives death, retreat and Prestige.
 - Research Focus persists through death and retreat and clears only on Prestige.
-- Workshop and Shield Matrix purchases are unavailable during an active run; permanent power is chosen between attempts.
+- Workshop purchases are unavailable during an active run; permanent power is chosen between attempts.
 - Retreat ends and resets the run. It is never a pause.
 - An active run freezes exactly while the app is away; offline time cannot become run progress in any form.
 - The wave clock advances only during an active run.
@@ -28,7 +28,7 @@
 ## Must — rules and persistence
 
 - Every rule that changes Liability or Collection passes through the ordered modifier pipeline: flat → additive → multiplicative → cap_max → cap_min, each stage applied once.
-- Save data is versioned with explicit migrations. Migration preserves every declared permanent currency and rank; pre-V4 banked Number retires because Number is run-only.
+- Save data is versioned with explicit migrations. V5 owns the current Workshop-category shape; V1–V4 migrate explicitly and preserve every declared permanent currency and rank. Pre-V4 banked Number retires because Number is run-only.
 - A saved active encounter resumes with identical remaining Liability and identical RNG state; matching run seeds reproduce outcomes.
 - `ScientificNumber` values stay finite and non-negative; subtraction floors at zero; balance evaluation cannot overflow ordinary floats.
 - `user://number_go_up_save.json` is the live save; tests must never leave `res://.number_go_up_test_save.json` behind.
@@ -38,7 +38,7 @@
 - Upgrade costs and ranks are legible before purchase.
 - The first failed run funds at least one permanent Workshop rank.
 - UI presents and reports; it mutates domain state only by calling `GameState` methods.
-- Bays open at Workshop levels: Output 0, Speed 2, Chance 5, Logic 8. *Retires when D013's four categories are implemented.*
+- Attack is available from the start. Defense unlocks permanently after the first Hit; every legacy save retains Defense access because Armor was previously directly available. Utility opens at Workshop level 8. Ultimates remains visible from the start with milestone-locked slots.
 - Brace spends 30% of current Number and blocks exactly the next Collection hit.
 - A run ending explains itself: the summary states the tier, wave, Coins and Knowledge earned.
 - Highest Number and tier records persist across runs for stats and dock unlocks.

@@ -1,10 +1,10 @@
 # Workshop design
 
-**Status:** Accepted direction. Step 1 (the wave rule and its retune) implemented 21 September 2026; later steps not yet.
+**Status:** Accepted direction. Steps 1–3 (the wave rule, retune, player vocabulary and Workshop categories) implemented 21 September 2026; later steps not yet.
 **Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four Workshop categories) and [D014](DECISIONS.md) (player vocabulary).
 **Owns:** the wave rule as the player should understand it, the four Workshop categories and every stat's reason to exist, what the player sees, the build strategies this supports, the balance targets the retune must hit, and the implementation order.
 
-This document uses the accepted player vocabulary (Wave HP, Hit, Armor). [Vocabulary](#vocabulary-d014) maps every term to its code name.
+This document uses the accepted player vocabulary (Wave HP, Hit, Armor). [Vocabulary](#vocabulary-d014) maps every term to its current code or save authority.
 
 ## The wave, in one paragraph
 
@@ -74,9 +74,9 @@ Armor 40% is worth +10 waves on Max Attack (+15 before D012, +5 on v1 curves). K
 
 ## Vocabulary (D014)
 
-Player-facing words move away from tax and collection phrasing. The UI string pass is step 2; so far only the run screen's rate line uses the new words (`16 DAMAGE / sec` while a wave stands). Code names and save keys stay as they are. Renaming a save key needs a migration under the save contract, and renaming classes is a separate mechanical change.
+Player-facing words move away from tax and collection phrasing. The UI string pass is step 2. Encounter code names remain unchanged; D013's later Workshop migration deliberately moved Armor into the normal Workshop purchase map under save V5.
 
-| Player sees today | Player sees after step 2 | Code name (unchanged) | Plain meaning |
+| Former wording | Player sees | Current code or save authority | Plain meaning |
 | --- | --- | --- | --- |
 | Tax encounter | Wave | `TaxEncounter` | One 15-second fight |
 | Liability | Wave HP, shown as the ring | `liability`, `remaining_liability` | How much damage beats this wave |
@@ -85,7 +85,7 @@ Player-facing words move away from tax and collection phrasing. The UI string pa
 | Collection, Tax collected | Hit | `collection` | What the wave takes from your Number when its timer runs out |
 | Grace wave · nothing due | Warm-up wave | `is_pressured_wave() == false` | No HP, no hit; everything banks |
 | Brace | Brace (keep) | `braced` | Spend 30% of your Number to block the next hit |
-| Shield, Shield Matrix | Armor | `tax_resistance_rank` | Every hit is permanently smaller |
+| Shield, Shield Matrix | Armor | `purchased["armor"]` | Every hit is permanently smaller |
 | Number, Coins, Knowledge, Retreat | Keep | — | — |
 
 Player-facing text never calls the Number "health". It says "If a hit takes your Number to zero, the run ends." That keeps one HP on screen, not two.
@@ -111,7 +111,7 @@ Each category opens with the problem it solves, in the player's words, and every
 | Crit Chain | Each crit strengthens the next | `chain_reaction` |
 | Boss Damage | More damage against boss waves | New |
 
-Attack is today's Output, Speed and Chance bays, nearly unchanged. Boss Damage is the one new stat: a targeted choice for players whose runs end on bosses.
+Attack consolidates the former Output, Speed and Chance bays, otherwise nearly unchanged. Boss Damage is the one new stat: a targeted choice for players whose runs end on bosses.
 
 ### Defense — "Survive the hits"
 
@@ -119,7 +119,7 @@ Attack is today's Output, Speed and Chance bays, nearly unchanged. Boss Damage i
 
 | Stat | Does | Source |
 | --- | --- | --- |
-| Armor | Every hit is X% smaller | Shield Matrix (`tax_resistance_rank`) moves here |
+| Armor | Every hit is X% smaller | Former Shield Matrix rank; now `purchased["armor"]` |
 | Siphon | X% of the damage you deal still reaches your Number | New |
 | Recoil | X% of every hit you take is dealt back to the wave | New |
 | Cushion | Start every run with X Number | `priority_buffer` moves here |
@@ -222,13 +222,13 @@ Each step lands on its own and clears the gate for its risk level in [`QUALITY_G
 | Step | What | Risk |
 | --- | --- | --- |
 | 1 | **Done.** D012 rule in `GameState._add_number`, `tax-foundation-v2` retune, simulator build matrix, and the run screen's rate line (it said `+X / sec` while output was going into the wave) | High: economy and encounter |
-| 2 | Player vocabulary (D014) in the remaining UI strings: the encounter line, hit toasts, Brace and Shield text, floating `+X` on taps, the drawer's `NUMBER / SEC` | Low to medium |
-| 3 | Four Workshop categories; bays retire; Shield Matrix becomes Armor; Research Focus retargets from bay to category | High: save schema V5 migrates `selected_bay`, `focus`, bay unlock gates and `tax_resistance_rank` without losing ranks |
+| 2 | **Done.** Player vocabulary (D014) in the encounter line, hit toasts, Brace and Armor text, tap feedback and the drawer's `DAMAGE / SEC` | Low to medium |
+| 3 | **Done.** Four Workshop categories; bays retired; Shield Matrix became Armor; Research Focus retargeted from bay to category | High: save schema V5 migrates `selected_bay`, `focus`, bay unlock access and `tax_resistance_rank` without losing ranks |
 | 4 | New Defense stats (Siphon, Recoil, scaled Cushion, Brace Cost, Second Wind), then Boss Damage and the Coin and Knowledge bonuses | High: economy; targets 5 and 6 |
 | 5 | "What would have saved you" on the run-over screen | Medium |
 | 6 | Ultimates | High: new timed effects and saved cooldown state |
 
-Step 2 should follow step 1 closely, so the new rule is explained on screen in the new words.
+Step 2 followed step 1 closely, so the new rule is explained on screen in the new words. Step 3 preserves every existing upgrade id and rank. Armor also preserves Shield Matrix's effect, price sequence and exclusion from Workshop-level gates; only the Workshop organisation, Research Focus scope and Armor save authority changed.
 
 Held true by step 1:
 

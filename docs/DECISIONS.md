@@ -38,7 +38,7 @@ Rules:
 
 ## D004 — Workshop is permanent; Number is run-only
 
-- **Status:** Accepted (2026-09-21)
+- **Status:** Accepted (2026-09-21). The four-bay organisation is superseded by D013; the permanence boundary stands.
 - **Context:** A run-scoped Workshop reset every attempt, which made permanent progress only Knowledge/Insight and left Coins with little long-term purpose. The Tower keeps a permanent Workshop baseline separate from in-run cash upgrades.
 - **Decision:** The four Workshop bays are bought with Coins between runs and permanently raise every later run's baseline. Number and lifetime production exist only during an active run and reset on every ending.
 - **Consequences:** Coin rewards fund permanent power; Workshop purchases are locked during runs; a fresh run starts from `starting_number_flat` plus permanent effects, never from banked Number; a future temporary in-run upgrade layer must have its own name and resource.
@@ -62,7 +62,7 @@ Rules:
 
 ## D007 — Save schema V4 with explicit migrations
 
-- **Status:** Accepted (2026-09-21)
+- **Status:** Accepted (2026-09-21). Historical schema; superseded for current writes by D015.
 - **Context:** The permanent Workshop and run-only Number changed what a save must contain.
 - **Decision:** Save schema V4 stores the permanent Workshop, active encounter and RNG state. V1/V2/V3 saves migrate forward without losing declared permanent progress. Banked pre-V4 Number retires because Number is run-only.
 - **Consequences:** `SaveDataV4` owns the shape; older schemas stay readable for migration only; migration writes the upgraded save immediately.
@@ -72,7 +72,7 @@ Rules:
 
 - **Status:** Accepted (2026-09-21)
 - **Context:** The reset boundary needs to be unambiguous for players and for future systems.
-- **Decision:** Workshop ranks, Coins, Knowledge, Insight ranks, Shield Matrix rank, tier records and highest Number survive every run ending. Number, lifetime production, momentum, critical chain and the active encounter reset. Research Focus survives death and retreat and clears on Prestige.
+- **Decision:** Workshop ranks, Coins, Knowledge, Insight ranks, Armor rank, tier records and highest Number survive every run ending. Number, lifetime production, momentum, critical chain and the active encounter reset. Research Focus survives death and retreat and clears on Prestige.
 - **Consequences:** "Start over, a bit stronger" is the loop; no future layer may blur which side of the line it lives on.
 - **Revisit when:** A new permanent or temporary layer is proposed; state its side of the boundary explicitly.
 
@@ -110,16 +110,24 @@ Rules:
 
 ## D013 — The Workshop has four categories: Attack, Defense, Utility, Ultimates
 
-- **Status:** Accepted (2026-09-21). Not yet implemented.
+- **Status:** Implemented (2026-09-21).
 - **Context:** All twelve Workshop upgrades served production; Defense existed only as Shield Matrix and Brace, outside the Workshop. With two checks per wave, each needs a shelf, and the owner wants the Workshop to be a large part of the game, as it is in The Tower.
 - **Decision:** The Workshop is organised as Attack (beat the wave inside its timer), Defense (survive the hits when you can't), Utility (get more from every run) and Ultimates (milestone-unlocked abilities that fire on their own). The Output, Speed, Chance and Logic bays retire into these categories and Shield Matrix becomes the Defense stat Armor. Every stat carries a one-line player-facing reason to buy it. The stat list, presentation and strategy set live in [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md).
-- **Consequences:** Retiring bays is a save schema V5 migration covering `selected_bay`, `focus` (Research Focus discounts by bay today), the bay unlock gates and `tax_resistance_rank`, with no loss of ranks; upgrade ids stay stable. Research Focus retargets from a bay to a category. Vision pillar 8 changes from four bays to four categories.
+- **Consequences:** Save schema V5 maps Output, Speed and Chance to Attack; Logic to Utility; and `tax_resistance_rank` to `purchased["armor"]`, without losing ranks. Existing upgrade ids stay stable. Research Focus now discounts Attack, Defense or Utility. Defense unlocks permanently after the first Hit, while legacy saves retain access because Armor was previously directly available. Vision pillar 8 changes from four bays to four categories.
 - **Revisit when:** A category has no stat worth buying at some stage of the game, or a fifth shelf is proposed.
 
 ## D014 — Player-facing vocabulary: Wave HP, Hit, Armor
 
-- **Status:** Accepted (2026-09-21). Only the run screen's damage-rate line uses it so far.
+- **Status:** Implemented (2026-09-21). Encounter code names remain unchanged; D013 and D015 own the intentional Armor save-key migration.
 - **Context:** Tax phrasing (Liability, Collection, Compliance, Shield Matrix) made the two checks harder to read than they need to be. The owner wanted plain words that make every Workshop stat's purpose obvious.
-- **Decision:** Player-facing text uses Wave, Wave HP (shown as the ring), Damage, Beaten, Hit, Warm-up wave, Brace and Armor, mapped term by term in [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md). The Number is never called health on screen. Code names and save keys keep their current names.
-- **Consequences:** A UI string pass replaces the tax wording. Renaming classes is a separate mechanical change, and renaming a save key would need a migration; neither is implied.
+- **Decision:** Player-facing text uses Wave, Wave HP (shown as the ring), Damage, Beaten, Hit, Warm-up wave, Brace and Armor, mapped term by term in [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md). The Number is never called health on screen. Encounter code names keep their current names.
+- **Consequences:** A UI string pass replaces the tax wording. Renaming encounter classes is a separate mechanical change. Armor's save key moved only as part of D013's explicit V5 migration.
 - **Revisit when:** Playtest shows a term being misread, or a new mechanic needs a word the set lacks.
+
+## D015 — Save schema V5 owns Workshop categories
+
+- **Status:** Implemented (2026-09-21). Supersedes D007 for current writes; V4 remains a migration source.
+- **Context:** D013 retires four legacy bays, moves Shield Matrix into the Workshop as Armor, and changes Research Focus from a bay choice to a category choice. Widening V4 silently would break the versioned-save contract.
+- **Decision:** `SaveDataV5` is the sole current writer. It stores `selected_category`, `focus_category`, `defense_unlocked`, and Armor as `purchased["armor"]`. V1–V4 remain readable and are rewritten immediately as V5. V4 migration maps Output, Speed and Chance to Attack; Logic to Utility; and `tax_resistance_rank` to Armor.
+- **Consequences:** Existing currencies, ranks, active encounter state and RNG state survive migration. All legacy saves retain Defense access because Shield Matrix was directly accessible before the first-Hit gate existed. New saves unlock Defense permanently on the first Hit. Armor retains Shield Matrix's effect, ten-rank Coin-price sequence and exclusion from Workshop-level gates; no economy curve is retuned by this schema change.
+- **Revisit when:** Another permanent system needs saved state; bump the schema and add old/current/malformed fixtures rather than widening V5 silently.

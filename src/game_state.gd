@@ -6,6 +6,7 @@ const TaxEncounterClass = preload("res://src/tax_encounter.gd")
 const RuleModifierPipelineClass = preload("res://src/rule_modifier_pipeline.gd")
 const SaveDataV3Class = preload("res://src/save_data_v3.gd")
 const SaveDataV4Class = preload("res://src/save_data_v4.gd")
+const SaveDataV5Class = preload("res://src/save_data_v5.gd")
 
 const SAVE_PATH := "user://number_go_up_save.json"
 const OFFLINE_CAP_SECONDS := 43200.0
@@ -20,10 +21,7 @@ const FREE_WAVES := 20
 const BOSS_WAVE_INTERVAL := 10
 const TIER_UNLOCK_WAVE := 100
 const BRACE_COST_PERCENT := 0.3
-const TAX_RESISTANCE_PER_RANK := 0.04
-const TAX_RESISTANCE_MAX_RANK := 10
-const TAX_RESISTANCE_COST_BASE := 15
-const TAX_RESISTANCE_COST_GROWTH := 1.6
+const ARMOR_PER_RANK := 0.04
 
 var number := ScientificNumber.new()
 var lifetime_generated := ScientificNumber.new()
@@ -31,7 +29,7 @@ var highest_number := ScientificNumber.new()
 var purchased: Dictionary = {}
 var knowledge := 0
 var knowledge_purchased: Dictionary = {}
-var focus_path := ""
+var focus_category := ""
 var auto_selected_id := "" # V1 compatibility only; new saves use workshop.automation_targets.
 var automation_enabled := true
 var workshop := WorkshopState.new()
@@ -39,8 +37,8 @@ var wave := 1
 var wave_accumulator := 0.0
 var coins := 0
 var highest_wave := 1
-var tax_resistance_rank := 0
 var braced := false
+var defense_unlocked := false
 var tax_encounters_enabled := true
 var in_run := false
 var run_coins_earned := 0
@@ -156,7 +154,7 @@ func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	return true
 
 ## Retreat is an actual run ending, not a pause. It preserves permanent
-## Workshop ranks, Coins, Knowledge, Insights, Shield and tier records.
+## Workshop ranks, Coins, Knowledge, Insights, Armor and tier records.
 func end_run() -> RunSummary:
 	if not in_run:
 		return null
@@ -205,6 +203,7 @@ func _resolve_wave_boundary() -> SimulationEvent:
 		active_encounter = _make_encounter(wave)
 	if active_encounter.is_cleared():
 		return _complete_current_wave()
+	defense_unlocked = true
 	var collection := get_effective_collection()
 	if braced:
 		collection = ScientificNumber.new()
@@ -267,10 +266,10 @@ func get_effective_collection() -> ScientificNumber:
 		return ScientificNumber.new()
 	var modifiers := active_rule_modifiers.duplicate(true)
 	modifiers.append({
-		"source": "shield_matrix",
+		"source": "armor",
 		"target": "collection",
 		"stage": "multiplicative",
-		"value": maxf(0.0, 1.0 - float(tax_resistance_rank) * TAX_RESISTANCE_PER_RANK),
+		"value": maxf(0.0, 1.0 - _effect_sum("hit_reduction")),
 	})
 	return RuleModifierPipelineClass.apply(active_encounter.collection, "collection", modifiers)
 
@@ -289,19 +288,6 @@ func brace() -> bool:
 	braced = true
 	return true
 
-func get_tax_resistance_cost() -> int:
-	return int(round(float(TAX_RESISTANCE_COST_BASE) * pow(TAX_RESISTANCE_COST_GROWTH, tax_resistance_rank)))
-
-func can_purchase_tax_resistance() -> bool:
-	return not in_run and tax_resistance_rank < TAX_RESISTANCE_MAX_RANK and coins >= get_tax_resistance_cost()
-
-func purchase_tax_resistance() -> bool:
-	if not can_purchase_tax_resistance():
-		return false
-	coins -= get_tax_resistance_cost()
-	tax_resistance_rank += 1
-	return true
-
 func get_definition(upgrade_id: String) -> UpgradeDefinition:
 	for definition in definitions:
 		if definition.id == upgrade_id:
@@ -318,20 +304,25 @@ func definitions_for_progression_type(progression_type: String) -> Array[Upgrade
 func get_workshop_level() -> int:
 	var level := workshop.legacy_credit
 	for definition in definitions:
-		if definition.bay != "":
+		if definition.workshop_category != "" and definition.counts_toward_workshop_level:
 			level += get_owned(definition.id)
 	return level
 
-func is_bay_active(bay: String) -> bool:
-	return get_workshop_level() >= get_bay_required_level(bay)
+func is_category_active(category: String) -> bool:
+	return get_workshop_level() >= get_category_required_level(category)
 
-func get_bay_required_level(bay: String) -> int:
-	return {"output": 0, "speed": 2, "chance": 5, "logic": 8}.get(bay, 99)
+func get_category_required_level(category: String) -> int:
+	return {
+		ProgressionTaxonomy.ATTACK: 0,
+		ProgressionTaxonomy.DEFENSE: 0 if defense_unlocked else 99,
+		ProgressionTaxonomy.UTILITY: 8,
+		ProgressionTaxonomy.ULTIMATES: 0,
+	}.get(category, 99)
 
-func cards_for_bay(bay: String) -> Array[UpgradeDefinition]:
+func upgrades_for_category(category: String) -> Array[UpgradeDefinition]:
 	var cards: Array[UpgradeDefinition] = []
 	for definition in definitions:
-		if definition.bay == bay:
+		if definition.workshop_category == category:
 			cards.append(definition)
 	return cards
 
@@ -343,7 +334,7 @@ func get_owned(upgrade_id: String) -> int:
 func get_cost(definition: UpgradeDefinition) -> ScientificNumber:
 	var discount := _effect_sum("cost_discount")
 	# Focus is a nudge toward a first build, never a permanent branch lock.
-	if definition.bay == focus_path:
+	if definition.workshop_category == focus_category:
 		discount += 0.25
 	return definition.cost_at(get_owned(definition.id), discount)
 
@@ -357,7 +348,7 @@ func get_workshop_coin_cost(definition: UpgradeDefinition) -> int:
 
 func is_unlocked(definition: UpgradeDefinition) -> bool:
 	if definition.category == "workshop":
-		return get_workshop_level() >= definition.workshop_level_required and is_bay_active(definition.bay)
+		return get_workshop_level() >= definition.workshop_level_required and is_category_active(definition.workshop_category)
 	return lifetime_generated.compare_to(definition.unlock_lifetime) >= 0
 
 func can_purchase(upgrade_id: String) -> bool:
@@ -403,7 +394,7 @@ func prestige() -> int:
 		return 0
 	knowledge += gain
 	_reset_run_state()
-	focus_path = ""
+	focus_category = ""
 	return gain
 
 ## Shared by voluntary Prestige and run endings. Workshop ranks are permanent;
@@ -425,12 +416,12 @@ func _reset_run_state() -> void:
 	run_coins_earned = 0
 	active_encounter = null
 
-func select_focus(path: String) -> bool:
-	if in_run or focus_path != "" or get_workshop_level() < RESEARCH_WORKSHOP_LEVEL:
+func select_focus(category: String) -> bool:
+	if in_run or focus_category != "" or get_workshop_level() < RESEARCH_WORKSHOP_LEVEL:
 		return false
-	if not ProgressionTaxonomy.WORKSHOP_BAYS.has(path):
+	if not ProgressionTaxonomy.RESEARCH_FOCUS_CATEGORIES.has(category) or not is_category_active(category):
 		return false
-	focus_path = path
+	focus_category = category
 	return true
 
 func has_automation() -> bool:
@@ -455,7 +446,7 @@ func save() -> bool:
 	var file := FileAccess.open(save_path, FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify(SaveDataV4Class.make(self)))
+	file.store_string(JSON.stringify(SaveDataV5Class.make(self)))
 	return true
 
 func load() -> OfflineAward:
@@ -472,11 +463,19 @@ func load() -> OfflineAward:
 		return _migrate_v2(parsed)
 	if SaveDataV3Class.is_valid(parsed):
 		return _migrate_v3(parsed)
-	if not SaveDataV4Class.is_valid(parsed):
+	if SaveDataV4Class.is_valid(parsed):
+		return _migrate_v4(parsed)
+	if not SaveDataV5Class.is_valid(parsed):
 		return OfflineAward.new()
 	var data: Dictionary = parsed
 	_load_common_fields(data)
-	tier_records = data.get("tier_records", {})
+	_restore_tier_and_run_fields(data)
+	var elapsed := Time.get_unix_time_from_system() - float(data.get("last_seen_unix", Time.get_unix_time_from_system()))
+	return apply_offline(elapsed)
+
+func _restore_tier_and_run_fields(data: Dictionary) -> void:
+	var saved_tier_records: Variant = data.get("tier_records", {})
+	tier_records = saved_tier_records.duplicate(true) if saved_tier_records is Dictionary else {}
 	_ensure_tier_records()
 	selected_tier = int(data.get("selected_tier", 1))
 	if not balance_profile.has_tier(selected_tier):
@@ -502,36 +501,21 @@ func load() -> OfflineAward:
 		active_encounter = null
 		wave = 1
 		wave_accumulator = 0.0
-	var elapsed := Time.get_unix_time_from_system() - float(data.get("last_seen_unix", Time.get_unix_time_from_system()))
-	return apply_offline(elapsed)
+
+func _migrate_v4(data: Dictionary) -> OfflineAward:
+	_load_common_fields(data)
+	_migrate_legacy_workshop(data)
+	_restore_tier_and_run_fields(data)
+	_save_migrated_state()
+	return OfflineAward.new()
 
 func _migrate_v3(data: Dictionary) -> OfflineAward:
 	_load_common_fields(data)
-	tier_records = data.get("tier_records", {})
-	_ensure_tier_records()
-	selected_tier = int(data.get("selected_tier", 1))
-	if not balance_profile.has_tier(selected_tier):
-		selected_tier = 1
+	_migrate_legacy_workshop(data)
 	# V3 Workshop ranks become permanent without any rank loss. A live run is
 	# restored; banked Number is retired because V4 Number exists only in runs.
-	in_run = bool(data.get("in_run", false))
-	var loaded_modifiers: Variant = data.get("active_rule_modifiers", [])
-	active_rule_modifiers = loaded_modifiers if loaded_modifiers is Array else []
-	if in_run:
-		wave = maxi(1, int(data.get("wave", 1)))
-		wave_accumulator = clampf(float(data.get("wave_accumulator", 0.0)), 0.0, WAVE_INTERVAL_SECONDS)
-		run_coins_earned = int(data.get("run_coins_earned", 0))
-		run_elapsed = maxf(0.0, float(data.get("run_elapsed", 0.0)))
-		run_seed = str(data.get("run_seed", "0")).to_int()
-		braced = bool(data.get("braced", false))
-		var encounter_data: Variant = data.get("active_encounter", null)
-		active_encounter = TaxEncounterClass.from_dict(encounter_data) if encounter_data is Dictionary else _make_encounter(wave)
-		var saved_rng_state := str(data.get("rng_state", "0")).to_int()
-		if saved_rng_state != 0:
-			rng.state = saved_rng_state
-		elif run_seed != 0:
-			rng.seed = run_seed
-	else:
+	_restore_tier_and_run_fields(data)
+	if not in_run:
 		_reset_run_state()
 	_save_migrated_state()
 	return OfflineAward.new()
@@ -540,20 +524,40 @@ func _load_common_fields(data: Dictionary) -> void:
 	number = ScientificNumber.from_dict(data.number)
 	lifetime_generated = ScientificNumber.from_dict(data.lifetime)
 	highest_number = ScientificNumber.from_dict(data.get("highest", data.number))
-	purchased = data.get("purchased", {})
+	var saved_purchased: Variant = data.get("purchased", {})
+	purchased = saved_purchased.duplicate(true) if saved_purchased is Dictionary else {}
 	knowledge = int(data.get("knowledge", 0))
-	knowledge_purchased = data.get("knowledge_purchased", {})
-	focus_path = str(data.get("focus", ""))
+	var saved_knowledge: Variant = data.get("knowledge_purchased", {})
+	knowledge_purchased = saved_knowledge.duplicate(true) if saved_knowledge is Dictionary else {}
+	focus_category = str(data.get("focus_category", ""))
+	if not ProgressionTaxonomy.RESEARCH_FOCUS_CATEGORIES.has(focus_category):
+		focus_category = ""
 	automation_enabled = bool(data.get("automation_enabled", true))
-	workshop.from_dict(data.get("workshop", {}))
+	var saved_workshop: Variant = data.get("workshop", {})
+	workshop.from_dict(saved_workshop if saved_workshop is Dictionary else {})
 	coins = int(data.get("coins", 0))
 	highest_wave = int(data.get("highest_wave", 1))
-	tax_resistance_rank = int(data.get("tax_resistance_rank", 0))
-	statistics.merge(data.get("statistics", {}), true)
-	settings.merge(data.get("settings", {}), true)
+	defense_unlocked = bool(data.get("defense_unlocked", false)) or int(purchased.get("armor", 0)) > 0
+	var saved_statistics: Variant = data.get("statistics", {})
+	if saved_statistics is Dictionary:
+		statistics.merge(saved_statistics, true)
+	var saved_settings: Variant = data.get("settings", {})
+	if saved_settings is Dictionary:
+		settings.merge(saved_settings, true)
+
+func _migrate_legacy_workshop(data: Dictionary) -> void:
+	# Armor was directly purchasable before categories existed, so every legacy
+	# player retains access even if the save has no evidence of taking a Hit.
+	defense_unlocked = true
+	var old_focus := str(data.get("focus", ""))
+	focus_category = ProgressionTaxonomy.migrate_legacy_category(old_focus, "")
+	var old_armor_rank := maxi(0, int(data.get("tax_resistance_rank", 0)))
+	if old_armor_rank > 0:
+		purchased["armor"] = maxi(int(purchased.get("armor", 0)), old_armor_rank)
 
 func _migrate_v2(data: Dictionary) -> OfflineAward:
 	_load_common_fields(data)
+	_migrate_legacy_workshop(data)
 	selected_tier = 1
 	var old_best := maxi(1, int(data.get("highest_wave", 1)))
 	tier_records = {"1": {"highest_wave": old_best, "best_time": 0.0, "milestones_claimed": []}}
@@ -571,6 +575,7 @@ func _migrate_v2(data: Dictionary) -> OfflineAward:
 	return OfflineAward.new()
 
 func _migrate_v1(data: Dictionary) -> void:
+	defense_unlocked = true
 	number = ScientificNumber.from_dict(data.number)
 	lifetime_generated = ScientificNumber.from_dict(data.lifetime)
 	highest_number = ScientificNumber.from_dict(data.get("highest", data.number))
@@ -601,8 +606,12 @@ func _migrate_v1(data: Dictionary) -> void:
 		if not mapped_ids.has(legacy_id):
 			credit += maxi(0, int(legacy[legacy_id]))
 	workshop.legacy_credit = credit
-	if str(data.get("focus", "")) in ProgressionTaxonomy.WORKSHOP_BAYS:
-		focus_path = str(data.get("focus", ""))
+	var old_focus := str(data.get("focus", ""))
+	if old_focus != "":
+		focus_category = ProgressionTaxonomy.migrate_legacy_category(old_focus, "")
+	var old_armor_rank := maxi(0, int(data.get("tax_resistance_rank", 0)))
+	if old_armor_rank > 0:
+		purchased["armor"] = old_armor_rank
 	var old_target := str(data.get("auto_selected", ""))
 	if old_target != "":
 		workshop.automation_targets = [old_target]
@@ -685,17 +694,21 @@ func _effect_product(effect_name: String, base: float) -> float:
 
 func _make_definitions() -> Array[UpgradeDefinition]:
 	return [
-		UpgradeDefinition.new("stronger_tap", "HAND PRESS", "+1 base tap per rank.", ScientificNumber.from_float(10), ScientificNumber.from_float(10), "workshop", {"tap_flat": 1.0}, false, 1.55, ProgressionTaxonomy.MODULE, "output", 5, 0),
-		UpgradeDefinition.new("generator", "DESK DYNAMO", "+1.5 base Number/sec per rank.", ScientificNumber.from_float(35), ScientificNumber.from_float(20), "workshop", {"passive_flat": 1.5}, false, 1.7, ProgressionTaxonomy.MODULE, "output", 5, 0),
-		UpgradeDefinition.new("generator_two", "NUMBER ENGINE", "Base production ×1.15 per rank.", ScientificNumber.from_float(180), ScientificNumber.from_float(120), "workshop", {"base_output_multiplier": 1.15}, false, 2.0, ProgressionTaxonomy.MODULE, "output", 3, 0),
-		UpgradeDefinition.new("faster_cadence", "TICK WHEEL", "Production ticks ×1.20 faster per rank.", ScientificNumber.from_float(130), ScientificNumber.from_float(100), "workshop", {"tick_rate": 1.20}, false, 1.7, ProgressionTaxonomy.MODULE, "speed", 5, 2),
-		UpgradeDefinition.new("faster_echo", "DOUBLE TICK", "+8% repeated production-tick chance per rank.", ScientificNumber.from_float(420), ScientificNumber.from_float(300), "workshop", {"double_tick_chance": 0.08}, false, 1.85, ProgressionTaxonomy.PROTOCOL, "speed", 3, 2),
-		UpgradeDefinition.new("burst_relay", "BURST RELAY", "Every 12 / 9 / 6 ticks produces an extra tick.", ScientificNumber.from_float(1100), ScientificNumber.from_float(700), "workshop", {}, false, 2.0, ProgressionTaxonomy.PROTOCOL, "speed", 3, 2),
-		UpgradeDefinition.new("more_critical", "CRITICAL LENS", "+5% critical chance per rank.", ScientificNumber.from_float(360), ScientificNumber.from_float(500), "workshop", {"critical_chance": 0.05}, false, 1.75, ProgressionTaxonomy.PROTOCOL, "chance", 5, 5),
-		UpgradeDefinition.new("magnitude_coil", "MAGNITUDE COIL", "+1 critical multiplier per rank.", ScientificNumber.from_float(1050), ScientificNumber.from_float(900), "workshop", {"critical_multiplier_add": 1.0}, false, 2.0, ProgressionTaxonomy.PROTOCOL, "chance", 3, 5),
-		UpgradeDefinition.new("chain_reaction", "CHAIN REACTION", "Each critical strengthens the next critical by 10% per rank.", ScientificNumber.from_float(2400), ScientificNumber.from_float(1800), "workshop", {}, false, 2.0, ProgressionTaxonomy.PROTOCOL, "chance", 3, 5),
-		UpgradeDefinition.new("smarter_efficiency", "EFFICIENCY MATRIX", "All upgrade costs 5% lower per rank.", ScientificNumber.from_float(1000), ScientificNumber.from_float(2500), "workshop", {"cost_discount": 0.05}, false, 2.0, ProgressionTaxonomy.MODULE, "logic", 3, 8),
-		UpgradeDefinition.new("automation_core", "AUTO CRANK", "+5 base Number/sec per rank.", ScientificNumber.from_float(4000), ScientificNumber.new(), "workshop", {"passive_flat": 5.0}, false, 1.0, ProgressionTaxonomy.ROUTINE, "logic", 1, 8),
-		UpgradeDefinition.new("priority_buffer", "STARTING RESERVE", "Begin every run with 250 Number per rank.", ScientificNumber.from_float(8500), ScientificNumber.new(), "workshop", {"starting_number_flat": 250.0}, false, 2.0, ProgressionTaxonomy.ROUTINE, "logic", 2, 8),
+		UpgradeDefinition.new("stronger_tap", "HAND PRESS", "+1 base tap per rank.", ScientificNumber.from_float(10), ScientificNumber.from_float(10), "workshop", {"tap_flat": 1.0}, false, 1.55, ProgressionTaxonomy.MODULE, ProgressionTaxonomy.ATTACK, 5, 0),
+		UpgradeDefinition.new("generator", "DESK DYNAMO", "+1.5 base Number/sec per rank.", ScientificNumber.from_float(35), ScientificNumber.from_float(20), "workshop", {"passive_flat": 1.5}, false, 1.7, ProgressionTaxonomy.MODULE, ProgressionTaxonomy.ATTACK, 5, 0),
+		UpgradeDefinition.new("generator_two", "NUMBER ENGINE", "Base production ×1.15 per rank.", ScientificNumber.from_float(180), ScientificNumber.from_float(120), "workshop", {"base_output_multiplier": 1.15}, false, 2.0, ProgressionTaxonomy.MODULE, ProgressionTaxonomy.ATTACK, 3, 0),
+		UpgradeDefinition.new("faster_cadence", "TICK WHEEL", "Production ticks ×1.20 faster per rank.", ScientificNumber.from_float(130), ScientificNumber.from_float(100), "workshop", {"tick_rate": 1.20}, false, 1.7, ProgressionTaxonomy.MODULE, ProgressionTaxonomy.ATTACK, 5, 2),
+		UpgradeDefinition.new("faster_echo", "DOUBLE TICK", "+8% repeated production-tick chance per rank.", ScientificNumber.from_float(420), ScientificNumber.from_float(300), "workshop", {"double_tick_chance": 0.08}, false, 1.85, ProgressionTaxonomy.PROTOCOL, ProgressionTaxonomy.ATTACK, 3, 2),
+		UpgradeDefinition.new("burst_relay", "BURST RELAY", "Every 12 / 9 / 6 ticks produces an extra tick.", ScientificNumber.from_float(1100), ScientificNumber.from_float(700), "workshop", {}, false, 2.0, ProgressionTaxonomy.PROTOCOL, ProgressionTaxonomy.ATTACK, 3, 2),
+		UpgradeDefinition.new("more_critical", "CRITICAL LENS", "+5% critical chance per rank.", ScientificNumber.from_float(360), ScientificNumber.from_float(500), "workshop", {"critical_chance": 0.05}, false, 1.75, ProgressionTaxonomy.PROTOCOL, ProgressionTaxonomy.ATTACK, 5, 5),
+		UpgradeDefinition.new("magnitude_coil", "MAGNITUDE COIL", "+1 critical multiplier per rank.", ScientificNumber.from_float(1050), ScientificNumber.from_float(900), "workshop", {"critical_multiplier_add": 1.0}, false, 2.0, ProgressionTaxonomy.PROTOCOL, ProgressionTaxonomy.ATTACK, 3, 5),
+		UpgradeDefinition.new("chain_reaction", "CHAIN REACTION", "Each critical strengthens the next critical by 10% per rank.", ScientificNumber.from_float(2400), ScientificNumber.from_float(1800), "workshop", {}, false, 2.0, ProgressionTaxonomy.PROTOCOL, ProgressionTaxonomy.ATTACK, 3, 5),
+		UpgradeDefinition.new("automation_core", "AUTO CRANK", "+5 base Number/sec per rank.", ScientificNumber.from_float(4000), ScientificNumber.new(), "workshop", {"passive_flat": 5.0}, false, 1.0, ProgressionTaxonomy.ROUTINE, ProgressionTaxonomy.ATTACK, 1, 8),
+		# Armor keeps Shield Matrix's round-to-nearest base prices and its former
+		# exclusion from Workshop-level gates. Only the category presentation and
+		# new Research Focus discount change.
+		UpgradeDefinition.new("armor", "ARMOR", "Every Hit is 4% smaller per rank.", ScientificNumber.from_float(15), ScientificNumber.new(), "workshop", {"hit_reduction": ARMOR_PER_RANK}, false, 1.6, ProgressionTaxonomy.MODULE, ProgressionTaxonomy.DEFENSE, 10, 0, true, false),
+		UpgradeDefinition.new("priority_buffer", "STARTING RESERVE", "Begin every run with 250 Number per rank.", ScientificNumber.from_float(8500), ScientificNumber.new(), "workshop", {"starting_number_flat": 250.0}, false, 2.0, ProgressionTaxonomy.ROUTINE, ProgressionTaxonomy.DEFENSE, 2, 8),
+		UpgradeDefinition.new("smarter_efficiency", "EFFICIENCY MATRIX", "All upgrade costs 5% lower per rank.", ScientificNumber.from_float(1000), ScientificNumber.from_float(2500), "workshop", {"cost_discount": 0.05}, false, 2.0, ProgressionTaxonomy.MODULE, ProgressionTaxonomy.UTILITY, 3, 8),
 		UpgradeDefinition.new("insight", "INSIGHT", "Base production ×1.02 per rank. Costs Knowledge; survives every reset.", ScientificNumber.new(), ScientificNumber.new(), "knowledge", {"base_output_multiplier": 1.02}, true, 1.0, ProgressionTaxonomy.KNOWLEDGE, "", 999999, 0)
 	]
