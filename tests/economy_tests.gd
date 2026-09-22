@@ -68,6 +68,8 @@ func _init() -> void:
 	_test_retreat_ends_and_resets_run()
 	_test_tier_records_milestones_and_unlocks()
 	_test_claimed_milestones_survive_a_reload()
+	_test_boss_waves_and_checkpoints_pay_gems()
+	_test_passed_checkpoints_are_paid_on_load()
 	_test_modifier_pipeline_order()
 	_test_deterministic_run_seed()
 	_test_high_wave_values_remain_valid()
@@ -319,7 +321,7 @@ func _test_save_round_trip_and_legacy_migration() -> void:
 	v4_source.tap()
 	var v4_remaining: ScientificNumber = v4_source.active_encounter.remaining_liability.copy()
 	var v4_rng_state := v4_source.rng.state
-	var v4: Dictionary = SaveDataV7.make(v4_source)
+	var v4: Dictionary = SaveDataV8.make(v4_source)
 	v4.version = 4
 	v4.purchased = {"stronger_tap": 2, "generator": 1}
 	v4.tax_resistance_rank = 3
@@ -331,7 +333,12 @@ func _test_save_round_trip_and_legacy_migration() -> void:
 	migrated_v4.load()
 	_expect(migrated_v4.get_owned(GameState.ARMOR_ID) == 3, "a V4 Shield Matrix rank should become the Armor Workshop rank")
 	_expect(migrated_v4.get_owned("stronger_tap") == 2 and migrated_v4.get_owned("generator") == 1, "V4 Workshop ranks should migrate without loss")
-	_expect(migrated_v4.coins == v4_source.coins and migrated_v4.knowledge == 4, "V4 permanent currencies should migrate")
+	# The fixture's record reached wave 100 with nothing claimed, so migration
+	# also pays those checkpoints' Coin bonuses on load (D030).
+	var v4_owed_coins := 0
+	for checkpoint in migrated_v4.balance_profile.COIN_MILESTONE_WAVES:
+		v4_owed_coins += migrated_v4.balance_profile.milestone_bonus(1, checkpoint)
+	_expect(migrated_v4.coins == v4_source.coins + v4_owed_coins and migrated_v4.knowledge == 4, "V4 permanent currencies should migrate, plus the checkpoints the record had passed")
 	_expect(migrated_v4.get_tier_best(1) == GameState.TIER_UNLOCK_WAVE, "V4 tier records should migrate")
 	_expect(migrated_v4.focus_path == ProgressionTaxonomy.ATTACK, "a V4 Speed focus should land on Attack")
 	_expect(migrated_v4.workshop.selected_category == ProgressionTaxonomy.UTILITY, "a V4 Logic tab should land on Utility")
@@ -343,7 +350,7 @@ func _test_save_round_trip_and_legacy_migration() -> void:
 	rewritten.save_path = save_path
 	rewritten.load()
 	_expect(rewritten.get_owned(GameState.ARMOR_ID) == 3 and rewritten.focus_path == ProgressionTaxonomy.ATTACK, "migration should rewrite the save in the current shape immediately")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV7.VERSION, "the rewritten save should carry the current version")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV8.VERSION, "the rewritten save should carry the current version")
 	var kept_v4 := "res://.number_go_up_test_save.v4-backup.json"
 	_expect(int(_read_json(kept_v4).get("version", 0)) == 4, "migration should keep the V4 file it read, unchanged, beside the new save")
 	rewritten.clear_save()
@@ -449,8 +456,8 @@ func _test_bad_saves_are_never_written_over() -> void:
 	writer.clear_save()
 
 	# A save from a newer build is left byte for byte, and saving pauses.
-	var future: Dictionary = SaveDataV7.make(_funded_state())
-	future.version = SaveDataV7.VERSION + 1
+	var future: Dictionary = SaveDataV8.make(_funded_state())
+	future.version = SaveDataV8.VERSION + 1
 	_write_json(save_path, future)
 	var future_text := FileAccess.get_file_as_string(save_path)
 	var older_build := GameState.new()
@@ -465,8 +472,8 @@ func _test_bad_saves_are_never_written_over() -> void:
 	# A live save that cannot be read is moved aside, and the backup loads.
 	var good := _funded_state()
 	good.coins = 999
-	_write_json(backup_path, SaveDataV7.make(good))
-	var torn := JSON.stringify(SaveDataV7.make(_funded_state()))
+	_write_json(backup_path, SaveDataV8.make(good))
+	var torn := JSON.stringify(SaveDataV8.make(_funded_state()))
 	_write_text(save_path, torn.substr(0, torn.length() / 2))
 	var recovered := GameState.new()
 	recovered.save_path = save_path
@@ -480,9 +487,9 @@ func _test_bad_saves_are_never_written_over() -> void:
 
 	# With no backup to fall back to, the game starts fresh and says so, and
 	# the unreadable save is still kept.
-	var typed_wrong: Dictionary = SaveDataV7.make(_funded_state())
+	var typed_wrong: Dictionary = SaveDataV8.make(_funded_state())
 	typed_wrong.purchased = "not a dictionary"
-	var not_finite := JSON.stringify(SaveDataV7.make(_funded_state())).replace('"highest":{"exponent":0,"mantissa":0.0}', '"highest":{"exponent":0,"mantissa":1e999}')
+	var not_finite := JSON.stringify(SaveDataV8.make(_funded_state())).replace('"highest":{"exponent":0,"mantissa":0.0}', '"highest":{"exponent":0,"mantissa":1e999}')
 	for unreadable in [JSON.stringify(typed_wrong), not_finite, "{", ""]:
 		_write_text(save_path, unreadable)
 		var fresh := GameState.new()
@@ -494,7 +501,7 @@ func _test_bad_saves_are_never_written_over() -> void:
 
 	# A live save that vanished between the two renames of a save still has its
 	# backup.
-	_write_json(backup_path, SaveDataV7.make(good))
+	_write_json(backup_path, SaveDataV8.make(good))
 	var interrupted := GameState.new()
 	interrupted.save_path = save_path
 	interrupted.load()
@@ -525,7 +532,7 @@ func _test_v5_saves_migrate_without_loss() -> void:
 	source.rig_ranks = {"stronger_tap": 2}
 	for tap_index in range(4):
 		source.tap()
-	var v5: Dictionary = SaveDataV7.make(source)
+	var v5: Dictionary = SaveDataV8.make(source)
 	v5.version = 5
 	v5.erase("tick_accumulator")
 	v5.erase("critical_chain")
@@ -535,14 +542,28 @@ func _test_v5_saves_migrate_without_loss() -> void:
 	migrated.save_path = save_path
 	migrated.load()
 	_expect(migrated.load_status == GameState.LOAD_OK, "a V5 save should load")
-	_expect(migrated.coins == source.coins and migrated.knowledge == 9 and migrated.gems == 41, "V5 currencies should survive migration")
+	# The record reached wave 100 but claimed only 10 and 25 at the old rate of
+	# one Gem (D030): those two are topped up, and every other checkpoint up to
+	# 100 is paid on load, Coin bonus included.
+	var profile = migrated.balance_profile
+	var expected_gems := 41
+	var expected_coins := source.coins
+	for checkpoint in profile.MILESTONE_WAVES:
+		if checkpoint > GameState.TIER_UNLOCK_WAVE:
+			continue
+		if checkpoint == 10 or checkpoint == 25:
+			expected_gems += profile.milestone_gems(1, checkpoint) - GameState.PRE_V8_MILESTONE_GEMS
+		else:
+			expected_gems += profile.milestone_gems(1, checkpoint)
+			expected_coins += profile.milestone_bonus(1, checkpoint)
+	_expect(migrated.coins == expected_coins and migrated.knowledge == 9 and migrated.gems == expected_gems, "V5 currencies should survive migration, plus the milestones it is owed")
 	_expect(migrated.get_owned("stronger_tap") == 7 and migrated.get_owned(GameState.ARMOR_ID) == 3, "V5 Workshop ranks should survive migration")
 	_expect(migrated.get_card_level("card_damage") == 3 and migrated.is_card_active("card_damage"), "V5 Cards should survive migration")
 	_expect(migrated.lab_ranks.get("lab_damage") == 2.0 and migrated.lab_active.has("lab_speed"), "V5 Labs should survive migration")
-	_expect(migrated.get_tier_record(1).milestones_claimed == [10, 25], "V5 records should survive migration")
+	_expect(migrated.get_tier_record(1).milestones_claimed == [10, 20, 25, 30, 40, 50, 60, 75, 90, 100], "V5 records should survive migration, with every passed checkpoint claimed")
 	_expect(migrated.in_run and migrated.rig_owned("stronger_tap") == 2 and migrated.rng.state == source.rng.state, "a V5 live run should survive migration")
 	_expect(migrated.lab_slots_total() == LabResearch.LEGACY_SLOTS, "a V5 save should keep the two Lab slots every player then had")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV7.VERSION, "a V5 save should be rewritten in the current shape at once")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV8.VERSION, "a V5 save should be rewritten in the current shape at once")
 	_expect(int(_read_json("res://.number_go_up_test_save.v5-backup.json").get("version", 0)) == 5, "the V5 file should be kept beside the new save")
 	migrated.clear_save()
 	_expect(_leftover_save_files().is_empty(), "the V5 migration check should leave no file behind")
@@ -1043,7 +1064,7 @@ func _test_catalogues_are_internally_consistent() -> void:
 ## cap takes effect; a rank under a retired id is kept but counts for nothing.
 func _test_loaded_ranks_stay_within_their_caps() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
-	var data: Dictionary = SaveDataV7.make(GameState.new())
+	var data: Dictionary = SaveDataV8.make(GameState.new())
 	data.purchased = {"stronger_tap": 5000, "generator": -4, "retired_row": 30}
 	data.knowledge_purchased = {"insight": 3}
 	data.lab_ranks = {"lab_damage": 900, "retired_line": 2}
@@ -1170,7 +1191,7 @@ func _test_tier_records_milestones_and_unlocks() -> void:
 		unlock_event = state._resolve_wave_boundary()
 	_expect(state.get_tier_best(1) == GameState.TIER_UNLOCK_WAVE, "Tier 1 record should track the highest cleared wave")
 	var claimed: Array = state.get_tier_record(1).milestones_claimed
-	_expect(claimed == [10, 25, 50, 100], "milestones should be claimed once at authored checkpoints")
+	_expect(claimed == [10, 20, 25, 30, 40, 50, 60, 75, 90, 100], "milestones should be claimed once at authored checkpoints")
 	_expect(state.is_tier_unlocked(2), "clearing Tier 1 wave 100 should unlock Tier 2")
 	_expect(unlock_event != null and unlock_event.type == "tier_unlock", "the first wave-100 clear should announce the newly unlocked tier")
 	_expect(not state.is_tier_unlocked(3), "Tier 3 should remain locked until Tier 2 wave 100")
@@ -1187,7 +1208,8 @@ func _test_claimed_milestones_survive_a_reload() -> void:
 	first.start_run(1, 5)
 	_clear_waves_through(first, 10)
 	first.end_run()
-	_expect(first.coins == 34 and first.gems == 1, "the first wave-10 clear should pay 14 wave Coins, the 20-Coin milestone bonus and one Gem")
+	var first_gems: int = first.balance_profile.milestone_gems(1, 10) + first.balance_profile.BOSS_WAVE_GEMS
+	_expect(first.coins == 34 and first.gems == first_gems, "the first wave-10 clear should pay 14 wave Coins, the 20-Coin milestone bonus, and the checkpoint's and the boss wave's Gems")
 	_expect(first.save(), "the milestone save should write")
 	var reloaded := GameState.new()
 	reloaded.save_path = save_path
@@ -1198,22 +1220,103 @@ func _test_claimed_milestones_survive_a_reload() -> void:
 	_clear_waves_through(reloaded, 10)
 	reloaded.end_run()
 	_expect(reloaded.coins == 34 + 14, "a reloaded milestone should pay only its wave Coins, not its bonus again")
-	_expect(reloaded.gems == 1, "a reloaded milestone should not grant its Gem again")
+	_expect(reloaded.gems == first_gems + reloaded.balance_profile.BOSS_WAVE_GEMS, "a reloaded milestone should not grant its Gems again; only the boss wave pays")
 	_expect(reloaded.get_tier_record(1).milestones_claimed == [10], "a reclaimed pass should not list the milestone twice")
 	reloaded.clear_save()
 
 	# A save written before the fix can hold the same wave twice, plus junk;
 	# it collapses to each real wave once.
-	var damaged: Dictionary = SaveDataV7.make(GameState.new())
+	var damaged: Dictionary = SaveDataV8.make(GameState.new())
 	damaged.tier_records["1"] = {"highest_wave": 30, "best_time": 0.0, "milestones_claimed": [10, 10.0, "junk", -3, 25]}
 	damaged.tier_records["9"] = "a tier this build does not know"
 	_write_json(save_path, damaged)
 	var repaired := GameState.new()
 	repaired.save_path = save_path
 	repaired.load()
-	_expect(repaired.get_tier_record(1).milestones_claimed == [10, 25], "duplicate and junk milestone entries should collapse on load")
+	_expect(repaired.get_tier_record(1).milestones_claimed == [10, 20, 25, 30], "duplicate and junk milestone entries should collapse on load, and passed checkpoints be claimed")
 	_expect(typeof(repaired.get_tier_record(1).highest_wave) == TYPE_INT and repaired.get_tier_best(1) == 30, "a reloaded tier best should stay a whole-number wave")
 	repaired.clear_save()
+
+## D030: every boss wave pays a Gem, every run; each tier's checkpoints pay a
+## larger, growing number of Gems once per tier record; harder tiers pay more.
+func _test_boss_waves_and_checkpoints_pay_gems() -> void:
+	var profile = GameState.new().balance_profile
+	_expect(profile.milestone_gems(1, 10) == 6 and profile.milestone_gems(1, 100) == 20 and profile.milestone_gems(1, 200) == 28, "checkpoint Gems should grow with the wave")
+	_expect(profile.milestone_gems(2, 100) == 36 and profile.milestone_gems(3, 100) == 52, "harder tiers should pay more for the same checkpoint")
+	_expect(profile.milestone_gems(1, 11) == 0 and profile.wave_gems(11) == 0 and profile.wave_gems(30) == 1, "only checkpoints and boss waves should pay Gems")
+	var first_run_gems := 0
+	for checkpoint in profile.MILESTONE_WAVES:
+		first_run_gems += profile.milestone_gems(1, checkpoint)
+	_expect(first_run_gems >= 200, "Tier 1's checkpoints should be worth a lot together")
+
+	var state := GameState.new()
+	state.start_run(1, 5)
+	_clear_waves_through(state, 30)
+	var expected := 0
+	for completed in range(1, 31):
+		expected += profile.wave_gems(completed) + profile.milestone_gems(1, completed)
+	_expect(state.gems == expected and state.run_gems_earned == expected, "a run through wave 30 should pay three boss Gems and four checkpoints")
+	var summary := state.end_run()
+	_expect(summary.gems_earned == expected and state.run_gems_earned == 0, "the run summary should report the run's Gems, and the next run start at none")
+	state.start_run(1, 5)
+	_clear_waves_through(state, 30)
+	_expect(state.gems == expected + 3, "a second run should pay only the three boss waves again")
+	state.end_run()
+
+	# The run's Gems so far survive a mid-run reload.
+	var save_path := "res://.number_go_up_test_save.json"
+	var mid := GameState.new()
+	mid.save_path = save_path
+	mid.start_run(1, 6)
+	_clear_waves_through(mid, 10)
+	var mid_gems := mid.run_gems_earned
+	_expect(mid_gems > 0 and mid.save(), "the mid-run fixture should have Gems to save")
+	var resumed := GameState.new()
+	resumed.save_path = save_path
+	resumed.load()
+	_expect(resumed.run_gems_earned == mid_gems, "a reloaded run should remember the Gems it has paid")
+	resumed.clear_save()
+
+## A checkpoint a record has passed but not claimed pays on load, once; a save
+## from before V8 has its old one-Gem claims topped up, once.
+func _test_passed_checkpoints_are_paid_on_load() -> void:
+	var save_path := "res://.number_go_up_test_save.json"
+	var profile = GameState.new().balance_profile
+	var passed: Dictionary = SaveDataV8.make(GameState.new())
+	passed.tier_records["1"] = {"highest_wave": 60, "best_time": 0.0, "milestones_claimed": [10, 25, 50]}
+	_write_json(save_path, passed)
+	var loaded := GameState.new()
+	loaded.save_path = save_path
+	loaded.load()
+	var owed: int = profile.milestone_gems(1, 20) + profile.milestone_gems(1, 30) + profile.milestone_gems(1, 40) + profile.milestone_gems(1, 60)
+	_expect(loaded.gems == owed and loaded.milestone_gems_caught_up == owed, "passed but unclaimed checkpoints should pay their Gems on load")
+	_expect(loaded.coins == 0, "checkpoints without a Coin bonus should pay no Coins")
+	_expect(loaded.get_tier_record(1).milestones_claimed == [10, 20, 25, 30, 40, 50, 60], "paid checkpoints should be claimed")
+	loaded.save()
+	var again := GameState.new()
+	again.save_path = save_path
+	again.load()
+	_expect(again.gems == owed and again.milestone_gems_caught_up == 0, "a second load should pay nothing more")
+	again.clear_save()
+
+	var old: Dictionary = SaveDataV8.make(GameState.new())
+	old.version = 7
+	old.erase("run_gems_earned")
+	old.gems = 2
+	old.tier_records["1"] = {"highest_wave": 25, "best_time": 0.0, "milestones_claimed": [10, 20, 25]}
+	_write_json(save_path, old)
+	var topped := GameState.new()
+	topped.save_path = save_path
+	topped.load()
+	var top_up: int = (profile.milestone_gems(1, 10) - GameState.PRE_V8_MILESTONE_GEMS) + (profile.milestone_gems(1, 25) - GameState.PRE_V8_MILESTONE_GEMS)
+	_expect(topped.gems == 2 + top_up, "a pre-V8 save should have its old one-Gem Coin checkpoints topped up")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV8.VERSION, "the topped-up save should be rewritten as V8 at once")
+	var reread := GameState.new()
+	reread.save_path = save_path
+	reread.load()
+	_expect(reread.gems == 2 + top_up, "a top-up should never be paid twice")
+	reread.clear_save()
+	_expect(_leftover_save_files().is_empty(), "the checkpoint checks should leave no file behind")
 
 func _clear_waves_through(state: GameState, last_wave: int) -> void:
 	while state.in_run and state.wave <= last_wave:
@@ -1366,7 +1469,7 @@ func _test_rig_save_round_trip() -> void:
 	var pre_rig := GameState.new()
 	pre_rig.save_path = save_path
 	pre_rig.start_run(1, 5)
-	var legacy: Dictionary = SaveDataV7.make(pre_rig)
+	var legacy: Dictionary = SaveDataV8.make(pre_rig)
 	legacy.erase("rig_ranks")
 	_write_json(save_path, legacy)
 	var loaded := GameState.new()
@@ -1459,7 +1562,7 @@ func _test_lab_slots_open_with_gems() -> void:
 	restored.clear_save()
 
 	# A V6 save predates bought slots: it keeps two, and becomes V7 at once.
-	var v6: Dictionary = SaveDataV7.make(_funded_state())
+	var v6: Dictionary = SaveDataV8.make(_funded_state())
 	v6.version = 6
 	v6.erase("lab_slots")
 	_write_json(save_path, v6)
@@ -1467,10 +1570,10 @@ func _test_lab_slots_open_with_gems() -> void:
 	migrated.save_path = save_path
 	migrated.load()
 	_expect(migrated.lab_slots_total() == LabResearch.LEGACY_SLOTS, "a V6 save should keep its two Lab slots")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV7.VERSION and int(_read_json("res://.number_go_up_test_save.v6-backup.json").get("version", 0)) == 6, "a V6 save should be rewritten as V7, with the V6 file kept")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV8.VERSION and int(_read_json("res://.number_go_up_test_save.v6-backup.json").get("version", 0)) == 6, "a V6 save should be rewritten as V7, with the V6 file kept")
 	migrated.clear_save()
 	for stored in [99, -3, 0]:
-		var odd: Dictionary = SaveDataV7.make(_funded_state())
+		var odd: Dictionary = SaveDataV8.make(_funded_state())
 		odd.lab_slots = stored
 		_write_json(save_path, odd)
 		var clamped := GameState.new()
@@ -1527,7 +1630,7 @@ func _test_lab_save_round_trip() -> void:
 
 	# A save written before Labs existed resumes with none, and a malformed
 	# Labs block reads as empty rather than crashing.
-	var legacy: Dictionary = SaveDataV7.make(_funded_state())
+	var legacy: Dictionary = SaveDataV8.make(_funded_state())
 	legacy.erase("lab_ranks")
 	legacy.erase("lab_active")
 	_write_json(save_path, legacy)
@@ -1638,7 +1741,7 @@ func _test_card_save_round_trip() -> void:
 
 	# A save written before Cards existed resumes with none, and a malformed
 	# block reads as empty rather than crashing.
-	var legacy: Dictionary = SaveDataV7.make(_funded_state())
+	var legacy: Dictionary = SaveDataV8.make(_funded_state())
 	legacy.erase("gems")
 	legacy.erase("card_ranks")
 	legacy.erase("card_active")

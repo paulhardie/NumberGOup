@@ -22,7 +22,8 @@
 - Collection is an absolute value deducted from Number at each wave boundary while Liability remains. Number reaching zero ends and resets the run, unless an unspent Second Wind restores a share of the run's peak Number, which it may do at most once per run (D020).
 - Tier 2 and Tier 3 apply exactly 20× and 60× Tier 1 Liability and Collection at equal pressured waves; reward multipliers are 1.8× and 2.6×. These are the profile's ratios; what a player is paid may differ, because Coin Bonus lifts it.
 - Boss waves multiply Liability (3×), Collection (1.5×) and reward (5×) independently.
-- Milestones at waves 10/25/50/100 are claimable at most once per tier record.
+- Each tier's milestone checkpoints pay once per tier record: Gems at every checkpoint, and the Coin bonus at 10/25/50/100 (D030). A checkpoint a record has already passed is paid on load, never twice.
+- Every boss wave beaten pays one Gem, every run (D030).
 - Tier 2 and Tier 3 unlock only by clearing wave 100 of the preceding tier.
 - Tier 1 waves 1–20 are grace waves: no Liability or Collection, with repeatable Coin rewards (1 per wave, 5 on boss waves).
 

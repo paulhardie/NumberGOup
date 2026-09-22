@@ -126,6 +126,7 @@ var died_screen: Control
 var died_wave_label: Label
 var died_coins_label: Label
 var died_knowledge_label: Label
+var died_gems_label: Label
 var died_peak_label: Label
 var died_cause_label: Label
 var died_attack_gap_label: Label
@@ -201,6 +202,8 @@ func _ready() -> void:
 	_build_ui()
 	var offline := state.load()
 	offline_message = _load_status_message(state.load_status)
+	if offline_message == "" and state.milestone_gems_caught_up > 0:
+		offline_message = "MILESTONES CAUGHT UP  ·  +" + str(state.milestone_gems_caught_up) + " GEMS"
 	if not offline.amount.is_zero():
 		offline_message = "WELCOME BACK  +" + offline.amount.format_value() + "  /  " + _format_duration(offline.seconds)
 		if offline.capped:
@@ -225,7 +228,11 @@ func _notification(what: int) -> void:
 		state.save()
 
 func _process(delta: float) -> void:
+	var gems_before := state.gems
 	var events := state.advance(delta)
+	# Gems land with a wave's clear (D030); a boss's toast carries them, and a
+	# checkpoint that is not a boss wave gets a toast of its own.
+	var gem_gain := state.gems - gems_before
 	for event in events:
 		if event.is_critical:
 			_spawn_floating_text(_output_float_text(event.amount, true), CRITICAL, floating_text_layer.size * Vector2(0.5, 0.42))
@@ -258,7 +265,9 @@ func _process(delta: float) -> void:
 			if not event.amount.is_zero():
 				_pop_label(coins_label, 1.15 if boss_clear else 1.08)
 			if boss_clear:
-				_show_toast("BOSS BEATEN  ·  +" + event.amount.format_value() + " COINS", CRITICAL)
+				_show_toast("BOSS BEATEN  ·  +" + event.amount.format_value() + " COINS" + ("  ·  +" + str(gem_gain) + " GEMS" if gem_gain > 0 else ""), CRITICAL)
+			elif gem_gain > 0:
+				_show_toast("MILESTONE  ·  +" + str(gem_gain) + " GEMS", CRITICAL)
 		elif event.type == "tier_unlock":
 			_show_toast("TIER " + event.amount.format_value() + " UNLOCKED", CRITICAL)
 		elif event.type == "second_wind":
@@ -1740,6 +1749,8 @@ func _build_died_screen() -> void:
 	inner.add_child(died_coins_label)
 	died_knowledge_label = _make_label("", 14, HORIZONTAL_ALIGNMENT_CENTER, CARDS_ACCENT)
 	inner.add_child(died_knowledge_label)
+	died_gems_label = _make_label("", 14, HORIZONTAL_ALIGNMENT_CENTER, CRITICAL)
+	inner.add_child(died_gems_label)
 	died_peak_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	inner.add_child(died_peak_label)
 
@@ -1811,6 +1822,9 @@ func _show_died_screen(summary: RunSummary) -> void:
 		_count_total(died_knowledge_label, summary.knowledge_gained, func(value: int): return "+" + str(value) + " KNOWLEDGE", 0.7)
 	else:
 		died_knowledge_label.visible = false
+	died_gems_label.visible = summary.gems_earned > 0
+	if summary.gems_earned > 0:
+		_count_total(died_gems_label, summary.gems_earned, func(value: int): return "+" + str(value) + " GEMS", 0.7)
 	died_peak_label.text = "TIER " + str(summary.tier_id) + "  ·  PEAK NUMBER " + summary.peak_number.format_value()
 	died_screen.visible = true
 
@@ -2070,6 +2084,8 @@ func _refresh_landing() -> void:
 		var reward := "+" + _coins(summary.coins_earned) + " COINS"
 		if summary.knowledge_gained > 0:
 			reward += "  ·  +" + str(summary.knowledge_gained) + " KNOWLEDGE"
+		if summary.gems_earned > 0:
+			reward += "  ·  +" + str(summary.gems_earned) + " GEMS"
 		landing_last_run_detail.text = cause + "  ·  " + reward
 	var tier: Variant = state.balance_profile.get_tier(state.selected_tier)
 	landing_difficulty_label.text = "TIER " + str(state.selected_tier) + "  ·  BEST WAVE " + str(state.get_tier_best()) + "  ·  REWARD ×" + ("%.1f" % tier.reward_multiplier) + "  ·  COIN BONUS ×" + ("%.2f" % state.get_coin_bonus_multiplier())

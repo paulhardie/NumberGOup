@@ -60,7 +60,7 @@ The run loop is the game. The meta loop exists to make the next run different, n
 - **Two lenses on them.** The Workshop raises the value every run starts from, with Coins. The Rig raises it inside one run, with Number, and loses it at the end. The same permanent build plays differently depending on whether its owner reinvests during the run or hoards Number as a buffer against the next hit.
 - **Research Focus.** A one-time discount that nudges a build direction without locking alternatives.
 - **Tier choice.** Higher tiers multiply pressure faster than rewards, so farming and pushing are different decisions.
-- **Milestones and records.** Waves 10/25/50/100 give the run a visible spine; per-tier bests make progress comparable run to run.
+- **Milestones and records.** Checkpoints from wave 10 to 200 on every tier give the run a visible spine and pay Gems once; per-tier bests make progress comparable run to run.
 - **Automation as a mastered-repetition remover.** Automation should remove decisions the player has already solved, never make the decisions for them.
 - **Future tree layers.** Breakthroughs, Laws and Violations are reserved in the taxonomy and must arrive as graph content through the modifier pipeline, not as new special cases.
 
