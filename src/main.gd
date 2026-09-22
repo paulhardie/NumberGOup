@@ -2227,7 +2227,11 @@ func _refresh_landing() -> void:
 		landing_last_run_detail.text = "Start your first run when you're ready."
 	else:
 		landing_last_run_label.text = "LAST RUN  ·  TIER " + str(summary.tier_id) + "  ·  WAVE " + str(summary.wave_reached)
-		var cause := "RETREATED" if summary.outcome == "retreat" else "LOST TO A HIT OF " + summary.final_hit.format_value()
+		var cause := ""
+		match summary.outcome:
+			"retreat": cause = "RETREATED"
+			"prestige": cause = "PRESTIGED"
+			_: cause = "LOST TO A HIT OF " + summary.final_hit.format_value()
 		var reward := "+" + _coins(summary.coins_earned) + " COINS"
 		if summary.knowledge_gained > 0:
 			reward += "  ·  +" + str(summary.knowledge_gained) + " KNOWLEDGE"

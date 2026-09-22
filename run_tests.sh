@@ -9,7 +9,7 @@ printf '%s\n' "${output}"
 if [ "${status}" -ne 0 ]; then
 	exit "${status}"
 fi
-if printf '%s\n' "${output}" | grep -qE 'SCRIPT ERROR|Parse Error|^ERROR:'; then
+if printf '%s\n' "${output}" | grep -E 'SCRIPT ERROR|Parse Error|^ERROR:' >/dev/null; then
 	echo "FAIL: Godot reported errors during the economy tests" >&2
 	exit 1
 fi

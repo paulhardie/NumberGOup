@@ -917,6 +917,8 @@ func prestige() -> int:
 	var gain := get_prestige_knowledge_gain()
 	if gain <= 0:
 		return 0
+	last_run_summary = RunSummary.new(wave, run_coins_earned, gain, lifetime_generated.copy(), selected_tier, "prestige")
+	last_run_summary.gems_earned = run_gems_earned
 	knowledge += gain
 	_reset_run_state()
 	focus_path = ""
