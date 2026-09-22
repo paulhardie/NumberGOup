@@ -36,6 +36,7 @@ func _init() -> void:
 	_test_boss_damage_applies_only_to_bosses()
 	_test_coin_and_knowledge_bonuses_lift_what_a_run_pays()
 	_test_wave_death_resets_run_but_keeps_meta_progress()
+	_test_lost_to_reports_both_gaps()
 	_test_run_gates_the_wave_clock()
 	_test_retreat_ends_and_resets_run()
 	_test_tier_records_milestones_and_unlocks()
@@ -832,6 +833,53 @@ func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	retreat.start_run(1, 72)
 	var summary := retreat.end_run()
 	_expect(summary.final_hit.is_zero() and not summary.lost_to_boss, "a retreat was lost to nothing, so it records no hit")
+
+## The two gaps on the run-over screen are facts about the final stand, so they
+## have to be read off the run before _reset_run_state wipes it.
+func _test_lost_to_reports_both_gaps() -> void:
+	var state := GameState.new()
+	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	state.start_run(2, 80)
+	state.active_encounter.remaining_liability = ScientificNumber.from_float(1000)
+	# Damage dealt in the timer that ends the run, banked through the same path
+	# a tap or tick would take.
+	state._add_number(ScientificNumber.from_float(400))
+	_expect(state.wave_damage_this_timer.compare_to(ScientificNumber.from_float(400)) == 0, "damage into the wave should count toward this timer")
+	state.number = ScientificNumber.from_float(100)
+	var hit := state.get_effective_collection()
+	_expect(hit.compare_to(ScientificNumber.from_float(100)) > 0, "this wave should hit for more than the Number left")
+	_expect(state._resolve_wave_boundary().type == "wave_death", "the hit should end the run")
+
+	var summary := state.last_run_summary
+	_expect(summary.wave_hp_left.compare_to(ScientificNumber.from_float(600)) == 0, "the summary should record the HP still standing")
+	_expect(summary.damage_in_timer.compare_to(ScientificNumber.from_float(400)) == 0, "the summary should record what the last timer dealt")
+	_expect(summary.number_before_hit.compare_to(ScientificNumber.from_float(100)) == 0, "the summary should record the Number the hit landed on")
+	_expect(is_equal_approx(summary.attack_shortfall(), 1.5), "Attack's gap is the HP left over what a timer could deal")
+	_expect(is_equal_approx(summary.defense_shortfall(), pow(10.0, hit.log10() - ScientificNumber.from_float(100).log10())), "Defense's gap is the hit over the Number it landed on")
+	_expect(summary.nearest_gap() == "attack", "the nearer miss here is Attack, and it is the one the screen leans on")
+
+	# The counter restarts every boundary, so a later death reports its own timer.
+	var restarts := GameState.new()
+	restarts.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	restarts.start_run(2, 81)
+	restarts.number = ScientificNumber.from_float(1000000)
+	restarts._add_number(ScientificNumber.from_float(50))
+	restarts._resolve_wave_boundary()
+	_expect(restarts.wave_damage_this_timer.is_zero(), "each boundary should restart the timer's damage count")
+
+	# Nothing dealt and nothing left are both real openings, not error states.
+	var bare := GameState.new()
+	bare.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	bare.start_run(2, 82)
+	_expect(bare.number.is_zero(), "a Tier 2 run without Cushion opens on nothing")
+	_expect(bare._resolve_wave_boundary().type == "wave_death", "the first hit should end it")
+	_expect(is_inf(bare.last_run_summary.attack_shortfall()), "no damage dealt should read as an unmeasurable Attack gap")
+	_expect(is_inf(bare.last_run_summary.defense_shortfall()), "nothing left should read as an unmeasurable Defense gap")
+
+	var retreat := GameState.new()
+	retreat.start_run(1, 83)
+	var quit_summary := retreat.end_run()
+	_expect(quit_summary.wave_hp_left.is_zero() and quit_summary.damage_in_timer.is_zero(), "a retreat has no final stand to report")
 
 func _test_run_gates_the_wave_clock() -> void:
 	var state := GameState.new()

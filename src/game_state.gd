@@ -76,6 +76,9 @@ var braced := false
 ## highest_number, which is permanent and drives dock unlocks.
 var run_peak_number := ScientificNumber.new()
 var second_wind_used := false
+## Damage landed on the active wave since the last boundary. It restarts every
+## timer, and the run-over screen reads Attack's gap from the last full one.
+var wave_damage_this_timer := ScientificNumber.new()
 var tax_encounters_enabled := true
 var in_run := false
 var run_coins_earned := 0
@@ -177,6 +180,7 @@ func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	number = ScientificNumber.from_float(_effect_sum("starting_number_flat") * get_cushion_scale())
 	run_peak_number = number.copy()
 	second_wind_used = false
+	wave_damage_this_timer = ScientificNumber.new()
 	lifetime_generated = ScientificNumber.new()
 	workshop.tick_count = 0
 	momentum_stacks = 0
@@ -247,12 +251,17 @@ func _advance_waves(delta: float) -> Array[SimulationEvent]:
 func _resolve_wave_boundary() -> SimulationEvent:
 	if active_encounter == null:
 		active_encounter = _make_encounter(wave)
+	# Captured before the counter restarts, because a death reads it and the
+	# restart happens on every boundary either way.
+	var dealt_this_timer := wave_damage_this_timer
+	wave_damage_this_timer = ScientificNumber.new()
 	if active_encounter.is_cleared():
 		return _complete_current_wave()
 	var collection := get_effective_collection()
 	if braced:
 		collection = ScientificNumber.new()
 		braced = false
+	var number_before_hit := number.copy()
 	number = number.subtract(collection)
 	# Recoil turns the hit into progress on the wave that landed it. A braced
 	# boundary deals none, because no hit landed.
@@ -262,7 +271,7 @@ func _resolve_wave_boundary() -> SimulationEvent:
 	if number.is_zero():
 		var rescued := _try_second_wind()
 		if not rescued:
-			return _wave_death(wave, collection, active_encounter.is_boss)
+			return _wave_death(wave, collection, dealt_this_timer, number_before_hit)
 		return SimulationEvent.new("second_wind", number.copy())
 	return SimulationEvent.new("boss_collection" if active_encounter.is_boss else "tax_collection", collection)
 
@@ -330,10 +339,17 @@ func _make_encounter(target_wave: int):
 		balance_profile.is_boss_wave(target_wave)
 	)
 
-func _wave_death(reached: int, hit: ScientificNumber, boss: bool) -> SimulationEvent:
+## Everything the run-over screen needs is read here, while the encounter is
+## still alive: _reset_run_state wipes it on the next line.
+func _wave_death(reached: int, hit: ScientificNumber, dealt: ScientificNumber, number_before: ScientificNumber) -> SimulationEvent:
 	var knowledge_gain := get_prestige_knowledge_gain()
 	knowledge += knowledge_gain
+	var boss: bool = active_encounter != null and active_encounter.is_boss
 	last_run_summary = RunSummary.new(reached, run_coins_earned, knowledge_gain, lifetime_generated.copy(), selected_tier, "death", hit, boss)
+	if active_encounter != null:
+		last_run_summary.wave_hp_left = active_encounter.remaining_liability.copy()
+	last_run_summary.damage_in_timer = dealt.copy()
+	last_run_summary.number_before_hit = number_before.copy()
 	_reset_run_state()
 	return SimulationEvent.new("wave_death", ScientificNumber.from_float(float(reached)))
 
@@ -539,6 +555,7 @@ func _reset_run_state() -> void:
 	braced = false
 	run_peak_number = ScientificNumber.new()
 	second_wind_used = false
+	wave_damage_this_timer = ScientificNumber.new()
 	in_run = false
 	run_elapsed = 0.0
 	run_seed = 0
@@ -648,6 +665,8 @@ func _restore_saved_run(data: Dictionary) -> void:
 	var saved_peak: Variant = data.get("run_peak_number", null)
 	run_peak_number = ScientificNumber.from_dict(saved_peak) if saved_peak is Dictionary else number.copy()
 	second_wind_used = bool(data.get("second_wind_used", false))
+	var saved_dealt: Variant = data.get("wave_damage_this_timer", null)
+	wave_damage_this_timer = ScientificNumber.from_dict(saved_dealt) if saved_dealt is Dictionary else ScientificNumber.new()
 	if in_run:
 		var encounter_data: Variant = data.get("active_encounter", null)
 		active_encounter = TaxEncounterClass.from_dict(encounter_data) if encounter_data is Dictionary else _make_encounter(wave)
@@ -784,6 +803,8 @@ func _add_number(amount: ScientificNumber) -> void:
 	var banked := amount.subtract(into_wave)
 	# Siphon is the one way damage dealt to a wave still reaches Number, which
 	# is what stops a wave you cannot beat from being a slow death sentence.
+	if not into_wave.is_zero():
+		wave_damage_this_timer = wave_damage_this_timer.add(into_wave)
 	var siphon := _effect_sum("siphon_share")
 	if siphon > 0.0 and not into_wave.is_zero():
 		banked = banked.add(into_wave.multiply_scalar(siphon))

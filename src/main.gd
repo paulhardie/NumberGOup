@@ -94,6 +94,8 @@ var died_knowledge_label: Label
 var died_peak_label: Label
 var died_cause_label: Label
 var died_knowledge_door: Button
+var died_attack_gap: Label
+var died_defense_gap: Label
 
 var nav_dock: NavDock
 var drawer: Control
@@ -1063,6 +1065,13 @@ func _build_died_screen() -> void:
 	inner.add_child(subtitle)
 	inner.add_child(HSeparator.new())
 
+	# The two gaps, in the same voice as the heading: what the wave had against
+	# what the run could answer with. The nearer miss carries the accent, which
+	# points at the category to open without spending a word on saying so.
+	died_attack_gap = _make_gap_row(inner, "ATTACK")
+	died_defense_gap = _make_gap_row(inner, "DEFENSE")
+	inner.add_child(HSeparator.new())
+
 	died_coins_label = _make_label("", 14, HORIZONTAL_ALIGNMENT_CENTER, COIN_ACCENT)
 	inner.add_child(died_coins_label)
 	died_knowledge_label = _make_label("", 14, HORIZONTAL_ALIGNMENT_CENTER, CARDS_ACCENT)
@@ -1096,6 +1105,28 @@ func _build_died_screen() -> void:
 	continue_button.pressed.connect(_dismiss_died_screen)
 	inner.add_child(continue_button)
 
+func _make_gap_row(parent: Control, heading: String) -> Label:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	parent.add_child(row)
+	var name_label := _make_label(heading, 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	name_label.custom_minimum_size = Vector2(56, 0)
+	row.add_child(name_label)
+	var value := _make_label("", 12, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT)
+	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	value.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	row.add_child(value)
+	value.set_meta("heading", name_label)
+	return value
+
+## A shortfall reads as what the wave had over what the run could answer with,
+## which is a fact about the run rather than a purchase to go and make.
+func _set_gap(label: Label, text: String, nearest: bool) -> void:
+	label.text = text
+	var tint: Color = TEXT if nearest else MUTED_TEXT
+	label.add_theme_color_override("font_color", tint)
+	(label.get_meta("heading") as Label).add_theme_color_override("font_color", DANGER if nearest else MUTED_TEXT)
+
 ## A named cause, not a counterfactual: the run was lost to a particular wave's
 ## hit, and the screen says which and how big.
 func _make_door(text: String, tint: Color, on_press: Callable) -> Button:
@@ -1119,6 +1150,9 @@ func _show_died_screen(summary: RunSummary) -> void:
 	died_wave_label.text = wave_name + str(summary.wave_reached)
 	died_cause_label.text = "Its hit took " + summary.final_hit.format_value() + " and you had less."
 	died_knowledge_door.visible = summary.knowledge_gained > 0 or state.knowledge > 0
+	var nearest := summary.nearest_gap()
+	_set_gap(died_attack_gap, _gap_text(summary.attack_shortfall(), "what you could deal in a timer", "no damage dealt to it", "you had it beaten"), nearest == "attack")
+	_set_gap(died_defense_gap, _gap_text(summary.defense_shortfall(), "the Number you had", "you had nothing left", ""), nearest == "defense")
 	died_coins_label.text = "+" + _coins(summary.coins_earned) + " COINS EARNED"
 	if summary.knowledge_gained > 0:
 		died_knowledge_label.text = "+" + str(summary.knowledge_gained) + " KNOWLEDGE"
@@ -1127,6 +1161,15 @@ func _show_died_screen(summary: RunSummary) -> void:
 		died_knowledge_label.visible = false
 	died_peak_label.text = "TIER " + str(summary.tier_id) + "  ·  PEAK NUMBER " + summary.peak_number.format_value()
 	died_screen.visible = true
+
+## INF means the run had nothing to measure against, and a shortfall at or below
+## one means that side was not what lost it.
+func _gap_text(shortfall: float, against: String, when_nothing: String, when_beaten: String) -> String:
+	if is_inf(shortfall):
+		return when_nothing
+	if shortfall <= 1.0:
+		return when_beaten if when_beaten != "" else "it took less than you had"
+	return "%.1f× %s" % [shortfall, against]
 
 func _dismiss_died_screen() -> void:
 	died_screen.visible = false

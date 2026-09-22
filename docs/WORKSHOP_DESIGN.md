@@ -1,6 +1,6 @@
 # Workshop design
 
-**Status:** Accepted direction. Steps 1 (the wave rule and its retune), 3 (the four categories), 3b (the deepened ladders), 4a and 4b (the Defense, Attack and Utility stats) and 5 (the bar reshape) implemented 21–22 September 2026. Steps 2, 6, 7 and 8 not yet.
+**Status:** Accepted direction. Steps 1 (the wave rule and its retune), 3 (the four categories), 3b (the deepened ladders), 4a and 4b (the Defense, Attack and Utility stats), 5 (the bar reshape) and 6 (the two gaps) implemented 21–22 September 2026. Steps 2, 7 and 8 not yet.
 **Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four categories), [D014](DECISIONS.md) (player vocabulary), [D015](DECISIONS.md) (the Rig: the same four categories inside a run), [D016](DECISIONS.md) (the bottom bar carries what is actionable now), [D018](DECISIONS.md) (multi-buy and the reference layout), [D019](DECISIONS.md) (deep rank ladders), [D020](DECISIONS.md) (Defense becomes a build), [D021](DECISIONS.md) (Boss Damage and the Utility bonuses) and [D022](DECISIONS.md) (the run-over screen names what the run was lost to).
 **Owns:** the wave rule as the player should understand it, the four categories in both lenses — permanent in the Workshop, run-only in the Rig — and every stat's reason to exist, what the player sees, the build strategies this supports, the balance targets the retune must hit, and the implementation order.
 
@@ -417,7 +417,24 @@ This keeps the single ring from the restage.
 
 **Implemented in step 5:** the heading, the wave and whether a boss landed it, the size of the hit, the run's Coins and Knowledge, and the two doors — `WORKSHOP` and `SPEND KNOWLEDGE` — at the moment the currency lands. `RunSummary` carries the killing hit and the boss flag, because the run state that held them is wiped before the screen can read it. A retreat records neither, having been lost to nothing.
 
-**Step 6 adds the two gaps underneath**, in the same voice: how far short Attack fell against that wave's HP, and how far short Defense fell against its hit. Both come deterministically from state the game already holds. The smaller gap points at the category to open next, without saying so in words.
+**The two gaps sit underneath (step 6)**, in the same voice — what the wave had, over what the run could answer it with:
+
+```
+LOST TO
+BOSS WAVE 96
+Its hit took 12,300 and you had less.
+────────────────────────────────────
+ATTACK    2.4× what you could deal in a timer
+DEFENSE   3.1× the Number you had
+```
+
+Both are read off the final stand, which `RunSummary` carries for the same reason it carries the hit: `_reset_run_state` wipes the encounter on the next line. Three numbers do it — the HP still standing after the last timer, what the run dealt to the wave in that timer, and the Number the hit landed on. Damage per timer is measured rather than inferred from the production rate, so a player who taps hard is credited for it.
+
+**The nearer miss carries the accent and the other is muted.** That is the whole of "points at the category to open next": no sentence tells the player what to buy, and a 2.4 beside a 3.1 says which was closer without the screen having an opinion. Attack wins ties, because it is the check that stops a wave hitting at all.
+
+**The two multiples are not strictly comparable, and the screen does not pretend they are.** 2.4× the damage and 3.1× the Number cost different numbers of Coins, so the smaller multiple is the nearer miss rather than the cheaper fix. It is a fact placed next to another fact; the player draws the line.
+
+Three readings are not gaps at all and say so plainly: `no damage dealt to it` when the run landed nothing that timer, `you had nothing left` when the hit fell on an empty Number — the ordinary Tier 2 opening before Cushion — and `you had it beaten` when Recoil cleared the wave with the same hit that ended the run.
 
 ## Strategies this supports
 
@@ -463,7 +480,7 @@ Each step lands on its own and clears the gate for its risk level in [`QUALITY_G
 | 4a | **Done.** The five new Defense stats (D020): Siphon, Recoil, tier-scaled Cushion, Brace Cost, Second Wind. Targets 5 and 6 met | High: economy |
 | 4b | **Done.** Boss Damage, Coin Bonus and Knowledge Bonus (D021); Research Focus balanced across all three categories | High: economy |
 | 5 | **Done.** The bar reshape (D016): the dock drops to `RUN · WORKSHOP · MORE`, Labs, Insight and Prestige become one Knowledge sheet opened from the Knowledge chip, the `highest_number` gates move inside it, and the run-over screen is reframed as "Lost to" (D022) with both doors | Medium: presentation, plus one field on the run summary |
-| 6 | The two gaps under "Lost to": how far short Attack fell against that wave's HP, and Defense against its hit | Medium |
+| 6 | **Done.** The two gaps under "Lost to" (D022), read off the final stand the run summary now carries; the nearer miss carries the accent | Medium |
 | 7 | **The Rig** (D015): the in-run panel, Number prices against wave HP, run-scoped ranks saved with the active run, Brace into the Defense tab and Shield off the run screen | High: economy and save |
 | 8 | Ultimates, in both lenses | High: new timed effects and saved cooldown state |
 

@@ -31,6 +31,7 @@ static func make(state) -> Dictionary:
 		"braced": state.braced,
 		"run_peak_number": state.run_peak_number.to_dict(),
 		"second_wind_used": state.second_wind_used,
+		"wave_damage_this_timer": state.wave_damage_this_timer.to_dict(),
 		"in_run": state.in_run,
 		"run_coins_earned": state.run_coins_earned,
 		"run_elapsed": state.run_elapsed,
