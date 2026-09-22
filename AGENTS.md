@@ -1,6 +1,6 @@
 # Number Go Up agent guide
 
-**Read [`docs/AGENT_CONSTITUTION.md`](docs/AGENT_CONSTITUTION.md) before doing any task work.** It is the shared behavioural foundation across tools and roles; this guide adds Number Go Up's specific rules without weakening it.
+This is the working agreement for Number Go Up. [`docs/AGENT_CONSTITUTION.md`](docs/AGENT_CONSTITUTION.md) is the behavioural foundation underneath it; this guide adds the project's own rules without weakening it.
 
 ## Who works this repo
 
@@ -19,8 +19,9 @@ Replies use **Answer → What changed → Where we are → Next**. Small chat st
 
 ## Read the right source
 
-Start with the smallest set of current sources:
+Start with the smallest set of current sources, and read them when the work needs them rather than all at once:
 
+- [`docs/AGENT_CONSTITUTION.md`](docs/AGENT_CONSTITUTION.md) — **read this before any task work.** It is the shared behavioural foundation across tools and roles, and it wins over this guide wherever they conflict on how to behave.
 - [`README.md`](README.md) — what the game is and how to run it.
 - [`docs/GAME_VISION.md`](docs/GAME_VISION.md) — the player experience, pillars and anti-goals.
 - [`docs/TOWER_SCALING_FOUNDATION.md`](docs/TOWER_SCALING_FOUNDATION.md) — researched encounter foundation and rationale.
@@ -72,6 +73,7 @@ GODOT=/Users/paulhardie/Downloads/Godot.app/Contents/MacOS/Godot bash run_balanc
 - The headless project run catches parse and scene-build errors in `main.gd` and the UI classes.
 - The capture tool opens briefly and writes hub/run/run_standing/workshop/knowledge/lost/drawer PNGs at four window sizes to `user://ui_capture` for visual review; inspect them, never assert pixel equality.
 - Tests write `res://.number_go_up_test_save.json` and clear it; a leftover file is a bug in the test, not content.
+- `opencode.json` disables the GDScript language server for agents that read it. Godot's LSP is TCP and only runs while the editor is open, which hangs clients that expect stdio; the [`opencode-godot-lsp`](https://github.com/MasuRii/opencode-godot-lsp) bridge is the way to turn it back on.
 
 Never weaken a test, fixture or gate to get green.
 
