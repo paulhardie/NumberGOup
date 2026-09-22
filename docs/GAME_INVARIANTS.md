@@ -8,9 +8,10 @@
 ## Must — run lifecycle and permanence
 
 - Number exists only during an active run. Tapping, production ticks and offline time grant nothing outside a run.
-- Permanent progress — Workshop ranks (Armor among them), Coins, Knowledge, Insight ranks and tier records — survives death, retreat and Prestige.
+- Permanent progress — Workshop ranks (Armor among them), Coins, Knowledge, Insight ranks, Lab ranks and in-progress research, and tier records — survives death, retreat and Prestige.
 - Research Focus persists through death and retreat and clears only on Prestige. It names one of the four Workshop categories.
 - Workshop purchases are unavailable during an active run; permanent power is chosen between attempts. Armor is a Workshop rank, so the run screen's shortcut to it obeys the same lock.
+- Starting a Lab is unavailable during an active run, like a Workshop purchase (D024), but a line already researching keeps its real-time clock regardless of run state or whether the app is open.
 - Retreat ends and resets the run. It is never a pause.
 - An active run freezes exactly while the app is away; offline time cannot become run progress in any form.
 - The wave clock advances only during an active run.

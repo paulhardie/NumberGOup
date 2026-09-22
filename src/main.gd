@@ -150,6 +150,13 @@ var knowledge_insight_header: Control
 var coins_button: Button
 var knowledge_button: Button
 
+## The Labs sheet (D024): real research, distinct from the Knowledge sheet
+## above. Opened from a chip on the Workshop screen, since Labs spends Coins.
+var lab_research_sheet: Control
+var lab_research_content: VBoxContainer
+var lab_research_slots_label: Label
+var lab_research_button: Button
+
 var screens: Dictionary = {}
 # The content root inside each slide-up screen, kept separately so it (not
 # the screen wrapper) is what tweens into place on selection.
@@ -269,6 +276,7 @@ func _build_ui() -> void:
 
 	_build_drawer()
 	_build_knowledge_sheet()
+	_build_lab_research_sheet()
 	_build_stat_info()
 	_build_died_screen()
 
@@ -628,6 +636,19 @@ func _build_workshop_screen(parent: Control) -> void:
 	var title := _make_label("WORKSHOP", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(title)
+	lab_research_button = Button.new()
+	lab_research_button.text = ""
+	lab_research_button.flat = true
+	lab_research_button.focus_mode = Control.FOCUS_NONE
+	lab_research_button.tooltip_text = "Open Labs"
+	var lab_button_row := HBoxContainer.new()
+	lab_button_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lab_button_row.add_theme_constant_override("separation", 4)
+	lab_button_row.add_child(IconGlyph.new(IconGlyph.Kind.FLASK, LABS_ACCENT, 15.0))
+	lab_button_row.add_child(_make_label("LABS", 12, HORIZONTAL_ALIGNMENT_LEFT, LABS_ACCENT))
+	lab_research_button.add_child(lab_button_row)
+	lab_research_button.pressed.connect(_open_lab_research_sheet)
+	header_row.add_child(lab_research_button)
 	var chip := PanelContainer.new()
 	chip.add_theme_stylebox_override("panel", _chip_style(SURFACE))
 	workshop_header = _make_label("", 12, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT)
@@ -975,6 +996,146 @@ func _refresh_knowledge() -> void:
 	elif not research_open:
 		labs_content.visible = true
 		labs_content.add_child(_make_locked_panel("REACH " + ScientificNumber.from_float(RESEARCH_UNLOCK).format_value() + " NUMBER", "Research Focus opens first, then Insight once a run has earned Knowledge."))
+
+## Real research (D024): permanent, paid in Coins, gated by real time rather
+## than by Coins alone. Distinct from the Knowledge sheet above, which spends
+## Knowledge and has no clock. Opened from the LABS chip on the Workshop
+## screen, since Labs spends the same currency the Workshop does.
+func _build_lab_research_sheet() -> void:
+	lab_research_sheet = Control.new()
+	lab_research_sheet.visible = false
+	lab_research_sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(lab_research_sheet)
+
+	var scrim := ColorRect.new()
+	scrim.color = Color(0, 0, 0, 0.55)
+	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scrim.mouse_filter = Control.MOUSE_FILTER_STOP
+	scrim.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.pressed:
+			lab_research_sheet.visible = false
+	)
+	lab_research_sheet.add_child(scrim)
+
+	var sheet := PanelContainer.new()
+	sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	sheet.offset_top = 150
+	var sheet_style := StyleBoxFlat.new()
+	sheet_style.bg_color = Color("111722")
+	sheet_style.corner_radius_top_left = 24
+	sheet_style.corner_radius_top_right = 24
+	sheet.add_theme_stylebox_override("panel", sheet_style)
+	lab_research_sheet.add_child(sheet)
+
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 22)
+	margin.add_theme_constant_override("margin_right", 22)
+	margin.add_theme_constant_override("margin_top", 12)
+	margin.add_theme_constant_override("margin_bottom", 24)
+	sheet.add_child(margin)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 12)
+	margin.add_child(column)
+
+	var handle := Panel.new()
+	handle.custom_minimum_size = Vector2(36, 4)
+	var handle_style := StyleBoxFlat.new()
+	handle_style.bg_color = Color(1, 1, 1, 0.16)
+	handle_style.set_corner_radius_all(2)
+	handle.add_theme_stylebox_override("panel", handle_style)
+	var handle_wrap := CenterContainer.new()
+	handle_wrap.add_child(handle)
+	column.add_child(handle_wrap)
+
+	var header_row := HBoxContainer.new()
+	column.add_child(header_row)
+	var title := _make_label("Labs", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	header_row.add_child(title)
+	var chip := PanelContainer.new()
+	chip.add_theme_stylebox_override("panel", _chip_style(SURFACE))
+	lab_research_slots_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_LEFT, LABS_ACCENT)
+	chip.add_child(lab_research_slots_label)
+	header_row.add_child(chip)
+	column.add_child(_make_label("PERMANENT · KEEPS RESEARCHING WHILE YOU'RE AWAY", 10, HORIZONTAL_ALIGNMENT_LEFT, LABS_ACCENT))
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(scroll)
+	lab_research_content = VBoxContainer.new()
+	lab_research_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lab_research_content.add_theme_constant_override("separation", 10)
+	scroll.add_child(lab_research_content)
+
+func _open_lab_research_sheet() -> void:
+	if lab_research_sheet == null:
+		return
+	if drawer != null and drawer.visible:
+		drawer.visible = false
+	if knowledge_sheet != null and knowledge_sheet.visible:
+		knowledge_sheet.visible = false
+	lab_research_sheet.visible = true
+	_refresh_lab_research()
+
+func _refresh_lab_research() -> void:
+	if lab_research_sheet == null or not lab_research_sheet.visible:
+		return
+	lab_research_slots_label.text = str(state.lab_active_count()) + " / " + str(state.lab_slots_total()) + " SLOTS"
+	_clear_children(lab_research_content)
+	for definition in state.lab_research.definitions:
+		lab_research_content.add_child(_make_lab_research_card(definition))
+
+func _make_lab_research_card(definition: LabResearch.Definition) -> Button:
+	var owned := state.get_lab_owned(definition.id)
+	var maxed := definition.is_maxed(owned)
+	var active := state.lab_is_active(definition.id)
+	var button := _make_row_button()
+	button.disabled = maxed or active or not state.can_start_lab(definition.id)
+	button.add_theme_stylebox_override("normal", _panel_style(SURFACE, 14, Color.TRANSPARENT))
+	button.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 14, LABS_ACCENT))
+	button.add_theme_stylebox_override("pressed", _panel_style(Color("0f5848"), 14, LABS_ACCENT))
+	button.add_theme_stylebox_override("disabled", _panel_style(SURFACE, 14, LABS_ACCENT if active else Color.TRANSPARENT))
+	var row := _row_layout(button, 14, 10)
+	var chip := Panel.new()
+	chip.custom_minimum_size = Vector2(36, 36)
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_theme_stylebox_override("panel", _panel_style(Color(LABS_ACCENT.r, LABS_ACCENT.g, LABS_ACCENT.b, 0.14), 10))
+	var chip_center := CenterContainer.new()
+	chip_center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	chip_center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_child(chip_center)
+	chip_center.add_child(IconGlyph.new(IconGlyph.Kind.FLASK, LABS_ACCENT, 16.0))
+	row.add_child(chip)
+	var mid := VBoxContainer.new()
+	mid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	mid.add_theme_constant_override("separation", 4)
+	row.add_child(mid)
+	mid.add_child(_make_label(definition.title, 14, HORIZONTAL_ALIGNMENT_LEFT, TEXT))
+	mid.add_child(_make_label("RANK " + str(owned) + " / " + str(definition.max_rank), 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
+	var description_label := _make_label(definition.description, 11, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	description_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	mid.add_child(description_label)
+	var right := _make_label(_lab_status_text(definition, maxed, active), 12, HORIZONTAL_ALIGNMENT_RIGHT, LABS_ACCENT if active else (TEXT if not button.disabled else MUTED_TEXT))
+	right.custom_minimum_size = Vector2(84, 0)
+	row.add_child(right)
+	button.pressed.connect(func():
+		if state.start_lab(definition.id):
+			_show_toast(definition.title + " STARTED", LABS_ACCENT)
+			state.save()
+			_refresh_all()
+			_refresh_lab_research()
+		else:
+			_show_toast("CAN'T START RESEARCH", MUTED_TEXT)
+	)
+	return button
+
+func _lab_status_text(definition: LabResearch.Definition, maxed: bool, active: bool) -> String:
+	if maxed:
+		return "MAXED"
+	if active:
+		return _format_duration(state.get_lab_time_remaining(definition.id)) + "\nLEFT"
+	return _coins(state.get_lab_cost(definition.id)) + " ©\n" + _format_duration(state.get_lab_duration(definition.id))
 
 func _build_toast() -> void:
 	var toast_wrap := Control.new()
@@ -1366,6 +1527,8 @@ func _on_dock_tab_selected(tab_id: String) -> void:
 		drawer.visible = false
 	if knowledge_sheet != null and knowledge_sheet.visible:
 		knowledge_sheet.visible = false
+	if lab_research_sheet != null and lab_research_sheet.visible:
+		lab_research_sheet.visible = false
 	_select_tab(tab_id)
 
 func _is_tab_unlocked(tab_id: String) -> bool:
@@ -1507,6 +1670,7 @@ func _refresh_all() -> void:
 		offline_message = ""
 	_refresh_dock()
 	_refresh_knowledge()
+	_refresh_lab_research()
 	if current_tab == "workshop":
 		# Do not rebuild live buttons during the player's press/release cycle.
 		# Rebuilding a Control tree every refresh can eat touch releases on Web.

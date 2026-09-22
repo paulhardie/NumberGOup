@@ -4,6 +4,7 @@ extends RefCounted
 const TaxBalanceProfileClass = preload("res://src/tax_balance_profile.gd")
 const TaxEncounterClass = preload("res://src/tax_encounter.gd")
 const RuleModifierPipelineClass = preload("res://src/rule_modifier_pipeline.gd")
+const LabResearchClass = preload("res://src/lab_research.gd")
 const SaveDataV3Class = preload("res://src/save_data_v3.gd")
 const SaveDataV4Class = preload("res://src/save_data_v4.gd")
 const SaveDataV5Class = preload("res://src/save_data_v5.gd")
@@ -89,6 +90,14 @@ var tier_records: Dictionary = {}
 var active_encounter = null
 var active_rule_modifiers: Array = []
 var balance_profile = TaxBalanceProfileClass.new()
+var lab_research = LabResearchClass.new()
+## Permanent, like `purchased`: a finished rank never resets. Keyed by
+## research id.
+var lab_ranks: Dictionary = {}
+## Research in progress, at most LAB_SLOTS entries. Each value is
+## {"started_unix": float, "duration": float}; an entry is removed the moment
+## it settles into a rank, so this dictionary's size is the slots in use.
+var lab_active: Dictionary = {}
 var last_run_summary: RunSummary = null
 var statistics := {
 	"taps": 0,
@@ -491,6 +500,102 @@ func purchase_rig(upgrade_id: String) -> bool:
 	rig_ranks[upgrade_id] = rig_owned(upgrade_id) + 1
 	return true
 
+## Labs (The Tower): permanent research paid in Coins, gated by real time
+## rather than Coins alone, and run entirely outside the run/Workshop split —
+## a line keeps researching whether a run is active or the app is closed.
+## now_unix defaults to wall-clock time; tests pass an explicit value instead
+## of waiting, the same seam `apply_offline`'s explicit seconds already uses.
+func _resolve_now(now_unix: float) -> float:
+	return now_unix if now_unix >= 0.0 else Time.get_unix_time_from_system()
+
+func _settle_labs(now_unix: float = -1.0) -> void:
+	var now := _resolve_now(now_unix)
+	for research_id in lab_active.keys().duplicate():
+		var entry: Dictionary = lab_active[research_id]
+		if now - float(entry.get("started_unix", now)) >= float(entry.get("duration", 0.0)):
+			lab_ranks[research_id] = int(lab_ranks.get(research_id, 0)) + 1
+			lab_active.erase(research_id)
+
+func get_lab_owned(research_id: String, now_unix: float = -1.0) -> int:
+	_settle_labs(now_unix)
+	return int(lab_ranks.get(research_id, 0))
+
+func lab_is_active(research_id: String, now_unix: float = -1.0) -> bool:
+	_settle_labs(now_unix)
+	return lab_active.has(research_id)
+
+func get_lab_time_remaining(research_id: String, now_unix: float = -1.0) -> float:
+	var now := _resolve_now(now_unix)
+	_settle_labs(now)
+	if not lab_active.has(research_id):
+		return 0.0
+	var entry: Dictionary = lab_active[research_id]
+	return maxf(0.0, float(entry.get("duration", 0.0)) - (now - float(entry.get("started_unix", now))))
+
+func lab_active_count(now_unix: float = -1.0) -> int:
+	_settle_labs(now_unix)
+	return lab_active.size()
+
+func lab_slots_total() -> int:
+	return LabResearchClass.LAB_SLOTS
+
+func get_lab_cost(research_id: String, now_unix: float = -1.0) -> int:
+	var definition := lab_research.get_definition(research_id)
+	if definition == null:
+		return 0
+	return lab_research.cost_at(definition, get_lab_owned(research_id, now_unix))
+
+func get_lab_duration(research_id: String, now_unix: float = -1.0) -> float:
+	var definition := lab_research.get_definition(research_id)
+	if definition == null:
+		return 0.0
+	var speed_rank := 0 if research_id == LabResearchClass.LAB_SPEED_ID else get_lab_owned(LabResearchClass.LAB_SPEED_ID, now_unix)
+	return lab_research.duration_at(definition, get_lab_owned(research_id, now_unix), speed_rank)
+
+## Coins, like the Workshop, are a between-run resource (D015's precedent):
+## starting research mid-run would need its own in-run spend UI for no gain,
+## since the timer runs in real time regardless of what the run screen shows.
+func can_start_lab(research_id: String, now_unix: float = -1.0) -> bool:
+	if in_run:
+		return false
+	var definition := lab_research.get_definition(research_id)
+	if definition == null:
+		return false
+	_settle_labs(now_unix)
+	if lab_active.has(research_id) or definition.is_maxed(get_lab_owned(research_id, now_unix)):
+		return false
+	if lab_active.size() >= lab_slots_total():
+		return false
+	return coins >= get_lab_cost(research_id, now_unix)
+
+func start_lab(research_id: String, now_unix: float = -1.0) -> bool:
+	if not can_start_lab(research_id, now_unix):
+		return false
+	var now := _resolve_now(now_unix)
+	coins -= get_lab_cost(research_id, now_unix)
+	lab_active[research_id] = {"started_unix": now, "duration": get_lab_duration(research_id, now_unix)}
+	return true
+
+## Reads a Lab line's value the same way stat_display reads a Workshop row's,
+## so the two can share a card layout. Lab Speed declares no generic effect
+## (it acts on duration, not on the STAT_DISPLAY table) and reads as a rank.
+func lab_stat_display(research_id: String, rank: int) -> Dictionary:
+	var definition := lab_research.get_definition(research_id)
+	if definition == null:
+		return {"value": float(rank), "unit": "rank"}
+	for effect_name in definition.effects:
+		if not STAT_DISPLAY.has(effect_name):
+			continue
+		var shape: Dictionary = STAT_DISPLAY[effect_name]
+		var step := float(definition.effects[effect_name])
+		var value: float = float(shape.base)
+		if str(shape.op) == "mul":
+			value *= pow(step, rank)
+		else:
+			value += step * float(rank)
+		return {"value": value, "unit": str(shape.unit)}
+	return {"value": float(rank), "unit": "rank"}
+
 func get_cost(definition: UpgradeDefinition) -> ScientificNumber:
 	return get_cost_at(definition, get_owned(definition.id))
 
@@ -791,6 +896,23 @@ func _load_common_fields(data: Dictionary) -> void:
 	purchased = data.get("purchased", {})
 	knowledge = int(data.get("knowledge", 0))
 	knowledge_purchased = data.get("knowledge_purchased", {})
+	# Added after V5 shipped, like the Rig's ranks (D015): a save without Labs
+	# resumes with none, and a malformed block reads as empty rather than
+	# crashing. Labs are permanent, so they load in the common fields rather
+	# than the active-run block.
+	var saved_lab_ranks: Variant = data.get("lab_ranks", {})
+	lab_ranks = saved_lab_ranks.duplicate(true) if saved_lab_ranks is Dictionary else {}
+	lab_active.clear()
+	var saved_lab_active: Variant = data.get("lab_active", {})
+	if saved_lab_active is Dictionary:
+		for research_id in saved_lab_active:
+			var entry: Variant = saved_lab_active[research_id]
+			if entry is Dictionary and entry.has("started_unix") and entry.has("duration"):
+				lab_active[str(research_id)] = {
+					"started_unix": float(entry.started_unix),
+					"duration": float(entry.duration),
+				}
+	_settle_labs()
 	focus_path = str(data.get("focus", ""))
 	automation_enabled = bool(data.get("automation_enabled", true))
 	workshop.from_dict(data.get("workshop", {}))
@@ -951,6 +1073,7 @@ func _effect_sum(effect_name: String) -> float:
 	for definition in definitions:
 		if definition.effects.has(effect_name):
 			total += float(definition.effects[effect_name]) * (float(get_owned(definition.id)) + rig_rank_equivalent(definition))
+	total += _lab_effect_sum(effect_name)
 	return total
 
 func _effect_product(effect_name: String, base: float) -> float:
@@ -958,6 +1081,18 @@ func _effect_product(effect_name: String, base: float) -> float:
 	for definition in definitions:
 		if definition.effects.has(effect_name):
 			total *= pow(float(definition.effects[effect_name]), float(get_owned(definition.id)) + rig_rank_equivalent(definition))
+	for lab_definition in lab_research.definitions:
+		if lab_definition.effects.has(effect_name):
+			total *= pow(float(lab_definition.effects[effect_name]), float(get_lab_owned(lab_definition.id)))
+	return total
+
+## Labs are permanent and time-gated rather than run-scoped, so they have no
+## Rig-style equivalent to add: a finished rank simply always counts.
+func _lab_effect_sum(effect_name: String) -> float:
+	var total := 0.0
+	for lab_definition in lab_research.definitions:
+		if lab_definition.effects.has(effect_name):
+			total += float(lab_definition.effects[effect_name]) * float(get_lab_owned(lab_definition.id))
 	return total
 
 ## The Workshop catalogue. Every row declares the category it sits on (D013);

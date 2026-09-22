@@ -41,6 +41,13 @@ func _init() -> void:
 	_test_rig_refuses_what_it_does_not_sell()
 	_test_rig_save_round_trip()
 	_test_rig_ranks_are_worth_more_than_workshop_ranks()
+	_test_lab_definitions_cover_the_open_categories()
+	_test_lab_research_costs_coins_and_takes_real_time()
+	_test_lab_slots_limit_concurrent_research()
+	_test_lab_research_is_a_between_run_action()
+	_test_finished_lab_research_applies_its_effect()
+	_test_lab_speed_shortens_other_lines_not_itself()
+	_test_lab_save_round_trip()
 	_test_defensive_ceilings_bound_the_combined_effects()
 	_test_wave_death_resets_run_but_keeps_meta_progress()
 	_test_run_gates_the_wave_clock()
@@ -1076,6 +1083,107 @@ func _test_rig_save_round_trip() -> void:
 	malformed.save_path = save_path
 	malformed.load()
 	_expect(malformed.in_run and malformed.rig_ranks.is_empty(), "a malformed Rig block should read as empty, not crash")
+	malformed.clear_save()
+
+## D024: Labs are permanent research paid in Coins and gated by real time,
+## distinct from both the Workshop's instant purchases and the Rig's run-scoped
+## ones. The four starting lines cover Main and the three open categories.
+func _test_lab_definitions_cover_the_open_categories() -> void:
+	var state := GameState.new()
+	var ids := []
+	for definition in state.lab_research.definitions:
+		ids.append(definition.id)
+	_expect(ids.has("lab_speed") and ids.has("lab_damage") and ids.has("lab_resilience") and ids.has("lab_coin_research"), "Labs should open with one line for Main and each of Attack, Defense and Utility")
+	_expect(state.lab_research.get_definition("lab_damage").category == ProgressionTaxonomy.ATTACK, "Damage Research should sit on the Attack shelf")
+	_expect(state.lab_research.get_definition("nope") == null, "an unknown research id should not resolve to a line")
+
+func _test_lab_research_costs_coins_and_takes_real_time() -> void:
+	var state := _funded_state()
+	_expect(state.can_start_lab("lab_damage"), "Damage Research should be startable with Coins in hand")
+	var cost := state.get_lab_cost("lab_damage")
+	var duration := state.get_lab_duration("lab_damage")
+	_expect(cost > 0 and duration > 0.0, "a research line should cost Coins and take real time")
+	var coins_before := state.coins
+	_expect(state.start_lab("lab_damage"), "starting research should succeed while a slot and the Coins are free")
+	_expect(state.coins == coins_before - cost, "starting research should spend exactly its quoted Coin cost")
+	_expect(state.lab_is_active("lab_damage") and state.get_lab_owned("lab_damage") == 0, "research in progress should not yet be a finished rank")
+	_expect(not state.can_start_lab("lab_damage"), "a line already researching should not be startable again")
+	var started: float = state.lab_active["lab_damage"].started_unix
+	_expect(state.get_lab_owned("lab_damage", started + duration - 1.0) == 0, "research should not settle a moment before its duration elapses")
+	_expect(state.get_lab_owned("lab_damage", started + duration) == 1, "research should settle into a rank once its duration has elapsed")
+	_expect(not state.lab_is_active("lab_damage", started + duration), "a settled line should leave its slot")
+
+func _test_lab_slots_limit_concurrent_research() -> void:
+	var state := _funded_state()
+	_expect(state.start_lab("lab_speed") and state.start_lab("lab_damage"), "both of the two Lab slots should be fillable")
+	_expect(state.lab_active_count() == state.lab_slots_total(), "every slot should now be in use")
+	_expect(not state.can_start_lab("lab_resilience") and not state.start_lab("lab_resilience"), "a third line should wait for a slot to free")
+	var started: float = state.lab_active["lab_speed"].started_unix
+	var duration := state.get_lab_duration("lab_speed", started)
+	_expect(state.can_start_lab("lab_resilience", started + duration), "settling one line should free its slot for another")
+
+func _test_lab_research_is_a_between_run_action() -> void:
+	var state := _funded_state()
+	state.start_run(1, 9)
+	_expect(not state.can_start_lab("lab_damage"), "starting research mid-run should be refused, like a Workshop purchase")
+	_expect(not state.start_lab("lab_damage"), "Labs should not spend Coins while a run is active")
+
+func _test_finished_lab_research_applies_its_effect() -> void:
+	var without := GameState.new()
+	without.purchased.generator = 1
+	var base_rate := without.get_rate_per_second()
+
+	var with_lab := GameState.new()
+	with_lab.purchased.generator = 1
+	with_lab.lab_active["lab_damage"] = {"started_unix": 1000.0, "duration": 100.0}
+	_expect(with_lab.get_lab_owned("lab_damage", 1101.0) == 1, "Damage Research should settle once its duration has passed")
+	_expect(with_lab.get_rate_per_second().compare_to(base_rate) > 0, "a finished Damage Research rank should lift produced damage like a Workshop or Rig rank does")
+
+func _test_lab_speed_shortens_other_lines_not_itself() -> void:
+	var state := _funded_state()
+	var plain_duration := state.get_lab_duration("lab_damage")
+	state.lab_ranks["lab_speed"] = 10
+	var discounted_duration := state.get_lab_duration("lab_damage")
+	_expect(discounted_duration < plain_duration, "Lab Speed should shorten another line's duration")
+	var expected := plain_duration * (1.0 - 10.0 * LabResearch.SPEED_DURATION_STEP)
+	_expect(is_equal_approx(discounted_duration, expected), "the discount should match its documented per-rank step")
+	var base_speed_duration: float = state.lab_research.duration_at(state.lab_research.get_definition("lab_speed"), state.get_lab_owned("lab_speed"), 0)
+	_expect(is_equal_approx(state.get_lab_duration("lab_speed"), base_speed_duration), "Lab Speed must not discount itself, at whatever rank it holds")
+
+func _test_lab_save_round_trip() -> void:
+	var save_path := "res://.number_go_up_test_save.json"
+	var original := _funded_state()
+	original.save_path = save_path
+	_expect(original.start_lab("lab_speed"), "the fixture should have Lab Speed researching")
+	original.lab_ranks["lab_damage"] = 3
+	var saved_active: Dictionary = original.lab_active["lab_speed"].duplicate(true)
+	_expect(original.save(), "the Labs save should write")
+	var restored := GameState.new()
+	restored.save_path = save_path
+	restored.load()
+	_expect(restored.get_lab_owned("lab_damage") == 3, "a finished Labs rank should round-trip")
+	_expect(restored.lab_is_active("lab_speed"), "an in-progress line should round-trip as still active")
+	var remaining_at_save := restored.get_lab_time_remaining("lab_speed", float(saved_active.started_unix))
+	_expect(is_equal_approx(remaining_at_save, float(saved_active.duration)), "the remaining time at the moment it was saved should round-trip exactly")
+	restored.clear_save()
+
+	# A save written before Labs existed resumes with none, and a malformed
+	# Labs block reads as empty rather than crashing.
+	var legacy: Dictionary = SaveDataV5.make(_funded_state())
+	legacy.erase("lab_ranks")
+	legacy.erase("lab_active")
+	_write_json(save_path, legacy)
+	var loaded := GameState.new()
+	loaded.save_path = save_path
+	loaded.load()
+	_expect(loaded.lab_ranks.is_empty() and loaded.lab_active.is_empty(), "a pre-Labs save should resume with no Labs state")
+	loaded.clear_save()
+	legacy["lab_active"] = "garbage"
+	_write_json(save_path, legacy)
+	var malformed := GameState.new()
+	malformed.save_path = save_path
+	malformed.load()
+	_expect(malformed.lab_active.is_empty(), "a malformed Labs block should read as empty, not crash")
 	malformed.clear_save()
 
 ## D023: one Rig rank is worth a multiple of a Workshop rank, because the
