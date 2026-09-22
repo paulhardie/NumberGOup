@@ -48,6 +48,13 @@ func _init() -> void:
 	_test_finished_lab_research_applies_its_effect()
 	_test_lab_speed_shortens_other_lines_not_itself()
 	_test_lab_save_round_trip()
+	_test_card_definitions_are_common_and_rare()
+	_test_card_pull_costs_gems_and_grants_a_level()
+	_test_card_pull_is_a_between_run_action()
+	_test_card_pull_never_exceeds_max_level()
+	_test_card_equip_respects_slot_cap_and_run_state()
+	_test_active_card_applies_its_effect_but_inventory_does_not()
+	_test_card_save_round_trip()
 	_test_defensive_ceilings_bound_the_combined_effects()
 	_test_wave_death_resets_run_but_keeps_meta_progress()
 	_test_run_gates_the_wave_clock()
@@ -1185,6 +1192,139 @@ func _test_lab_save_round_trip() -> void:
 	malformed.load()
 	_expect(malformed.lab_active.is_empty(), "a malformed Labs block should read as empty, not crash")
 	malformed.clear_save()
+
+## D027: Cards are a permanent, Gem-pulled collection with a capped Active
+## set. Only an Active card's effect counts; an owned-but-idle one in
+## Inventory does not, unlike a Workshop or Lab rank which always applies.
+func _test_card_definitions_are_common_and_rare() -> void:
+	var state := GameState.new()
+	var common: Array = state.card_collection.definitions_for_rarity(CardCollection.COMMON)
+	var rare: Array = state.card_collection.definitions_for_rarity(CardCollection.RARE)
+	_expect(not common.is_empty() and not rare.is_empty(), "the starting catalogue should hold both a common and a rare tier")
+	_expect(state.card_collection.get_definition("card_damage") != null, "Damage should be a real card")
+	_expect(state.card_collection.get_definition("nope") == null, "an unknown card id should not resolve")
+
+func _test_card_pull_costs_gems_and_grants_a_level() -> void:
+	var state := _funded_state()
+	state.gems = 100
+	_expect(state.can_pull_card(), "a pull should be affordable with Gems in hand")
+	var gems_before := state.gems
+	var drawn := state.pull_card()
+	_expect(drawn != "", "an affordable pull should draw a card")
+	_expect(state.card_collection.get_definition(drawn) != null, "the drawn id should be a real card")
+	_expect(state.gems == gems_before - state.get_pull_cost(), "a pull should spend exactly its quoted Gem cost")
+	_expect(state.get_card_level(drawn) == 1, "a first pull of a card should own it at level 1")
+	_expect(not state.card_collection.get_definition(drawn).is_maxed(3), "level 3 of 7 should not read as maxed")
+	_expect(state.card_collection.get_definition(drawn).is_maxed(CardCollection.MAX_LEVEL), "level 7 should read as maxed")
+
+func _test_card_pull_is_a_between_run_action() -> void:
+	var state := _funded_state()
+	state.gems = 100
+	state.start_run(1, 3)
+	_expect(not state.can_pull_card() and state.pull_card() == "", "pulling mid-run should be refused, like a Workshop purchase")
+
+func _test_card_pull_never_exceeds_max_level() -> void:
+	var state := _funded_state()
+	state.gems = 100000
+	state.card_ranks["card_damage"] = CardCollection.MAX_LEVEL
+	var gems_before := state.gems
+	# Enough pulls that a maxed card is drawn at least once with near
+	# certainty (~17.5% per pull, one of four commons); the contract is that
+	# no level can ever pass MAX_LEVEL, drawn or not.
+	for i in range(200):
+		state.pull_card()
+	_expect(state.get_card_level("card_damage") == CardCollection.MAX_LEVEL, "a maxed card should never level past its cap")
+	_expect(state.gems < gems_before, "pulls should still spend Gems even when a maxed card is drawn")
+
+func _test_card_equip_respects_slot_cap_and_run_state() -> void:
+	var state := _funded_state()
+	for id in ["card_damage", "card_attack_speed", "card_coins", "card_critical_chance"]:
+		state.card_ranks[id] = 1
+	_expect(state.card_slots_total() == CardCollection.ACTIVE_SLOTS, "the slot cap should match the catalogue's constant")
+	for id in ["card_damage", "card_attack_speed", "card_coins", "card_critical_chance"]:
+		_expect(state.equip_card(id), "an owned card should equip while a slot is free")
+	_expect(state.active_card_count() == state.card_slots_total(), "every slot should now be in use")
+	state.card_ranks["card_health"] = 1
+	_expect(not state.can_equip_card("card_health") and not state.equip_card("card_health"), "a full Active set should refuse another card")
+	_expect(state.unequip_card("card_damage"), "an equipped card should unequip, freeing its slot")
+	_expect(state.equip_card("card_health"), "unequipping should free a slot for another card")
+	_expect(state.get_card_level("card_damage") == 1, "unequipping must not touch the card's owned level")
+	state.start_run(1, 4)
+	_expect(not state.can_equip_card("card_damage"), "equipping mid-run should be refused, like a Workshop purchase")
+	_expect(not state.unequip_card("card_coins"), "unequipping mid-run should also be refused")
+
+func _test_active_card_applies_its_effect_but_inventory_does_not() -> void:
+	var without := GameState.new()
+	without.purchased.generator = 1
+	var base_rate := without.get_rate_per_second()
+
+	var owned_only := GameState.new()
+	owned_only.purchased.generator = 1
+	owned_only.card_ranks["card_damage"] = 3
+	_expect(owned_only.get_rate_per_second().compare_to(base_rate) == 0, "an owned-but-inactive card should not affect production")
+
+	var active := GameState.new()
+	active.purchased.generator = 1
+	active.card_ranks["card_damage"] = 3
+	active.card_active.append("card_damage")
+	_expect(active.get_rate_per_second().compare_to(base_rate) > 0, "an Active card should lift produced damage like a Workshop or Lab rank does")
+
+func _test_card_save_round_trip() -> void:
+	var save_path := "res://.number_go_up_test_save.json"
+	var original := _funded_state()
+	original.save_path = save_path
+	original.gems = 42
+	original.card_ranks = {"card_damage": 3, "card_coins": 1}
+	original.card_active = ["card_damage"]
+	_expect(original.save(), "the Cards save should write")
+	var restored := GameState.new()
+	restored.save_path = save_path
+	restored.load()
+	_expect(restored.gems == 42, "Gems should round-trip")
+	_expect(restored.get_card_level("card_damage") == 3 and restored.get_card_level("card_coins") == 1, "card levels should round-trip")
+	_expect(restored.is_card_active("card_damage") and not restored.is_card_active("card_coins"), "the Active set should round-trip")
+	restored.clear_save()
+
+	# A save written before Cards existed resumes with none, and a malformed
+	# block reads as empty rather than crashing.
+	var legacy: Dictionary = SaveDataV5.make(_funded_state())
+	legacy.erase("gems")
+	legacy.erase("card_ranks")
+	legacy.erase("card_active")
+	_write_json(save_path, legacy)
+	var loaded := GameState.new()
+	loaded.save_path = save_path
+	loaded.load()
+	_expect(loaded.gems == 0 and loaded.card_ranks.is_empty() and loaded.card_active.is_empty(), "a pre-Cards save should resume with no Cards state")
+	loaded.clear_save()
+	legacy["card_active"] = "garbage"
+	legacy["card_ranks"] = "garbage"
+	_write_json(save_path, legacy)
+	var malformed := GameState.new()
+	malformed.save_path = save_path
+	malformed.load()
+	_expect(malformed.card_ranks.is_empty() and malformed.card_active.is_empty(), "a malformed Cards block should read as empty, not crash")
+	malformed.clear_save()
+	# An Active list naming an id outside the catalogue, or repeating one,
+	# should be sanitised rather than trusted wholesale.
+	legacy["card_ranks"] = {"card_damage": 1}
+	legacy["card_active"] = ["card_damage", "not_a_real_card", "card_damage"]
+	_write_json(save_path, legacy)
+	var sanitised := GameState.new()
+	sanitised.save_path = save_path
+	sanitised.load()
+	_expect(sanitised.card_active == ["card_damage"], "an Active list should drop unknown ids and duplicates")
+	sanitised.clear_save()
+	# An Active list beyond the slot cap should be truncated to it, not
+	# trusted past what equip_card would ever have allowed.
+	legacy["card_ranks"] = {"card_damage": 1, "card_attack_speed": 1, "card_coins": 1, "card_critical_chance": 1, "card_health": 1}
+	legacy["card_active"] = ["card_damage", "card_attack_speed", "card_coins", "card_critical_chance", "card_health"]
+	_write_json(save_path, legacy)
+	var overfull := GameState.new()
+	overfull.save_path = save_path
+	overfull.load()
+	_expect(overfull.card_active.size() == CardCollection.ACTIVE_SLOTS, "an Active list beyond the slot cap should be truncated to it on load")
+	overfull.clear_save()
 
 ## D023: one Rig rank is worth a multiple of a Workshop rank, because the
 ## Number it spends was the buffer against the next hit. Burst is the one row

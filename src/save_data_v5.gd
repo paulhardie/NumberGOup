@@ -39,6 +39,12 @@ static func make(state) -> Dictionary:
 		# active-run block the Rig uses.
 		"lab_ranks": state.lab_ranks,
 		"lab_active": state.lab_active,
+		# Added after V5 shipped too: Cards are a permanent collection (D027),
+		# pulled with Gems rather than bought, alongside `purchased` and
+		# `lab_ranks` rather than the active-run block.
+		"gems": state.gems,
+		"card_ranks": state.card_ranks,
+		"card_active": state.card_active,
 		"in_run": state.in_run,
 		"run_coins_earned": state.run_coins_earned,
 		"run_elapsed": state.run_elapsed,

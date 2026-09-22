@@ -31,6 +31,8 @@ func _capture_size(window_size: Vector2i, label: String) -> void:
 	await _capture_state(window_size, label, "boss", false)
 	await _capture_state(window_size, label, "workshop", false)
 	await _capture_state(window_size, label, "knowledge", false)
+	await _capture_state(window_size, label, "labs", false)
+	await _capture_state(window_size, label, "cards", false)
 	await _capture_state(window_size, label, "lost", false)
 	await _capture_state(window_size, label, "drawer", true)
 
@@ -75,6 +77,16 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 		main._select_tab("workshop")
 	elif state_name == "knowledge":
 		main._open_knowledge_sheet()
+	elif state_name == "labs":
+		state.lab_ranks = {"lab_damage": 4, "lab_resilience": 1}
+		state.lab_active["lab_coin_research"] = {"started_unix": Time.get_unix_time_from_system(), "duration": 240.0}
+		main._open_lab_research_sheet()
+	elif state_name == "cards":
+		state.gems = 46
+		state.card_ranks = {"card_damage": 3, "card_coins": 5, "card_health": 1}
+		state.card_active.append("card_damage")
+		state.card_active.append("card_coins")
+		main._open_card_collection_sheet()
 	elif state_name == "lost":
 		main._show_died_screen(RunSummary.new(
 			96, 4203, 2, ScientificNumber.from_float(142580), 1, "death",

@@ -5,6 +5,7 @@ const TaxBalanceProfileClass = preload("res://src/tax_balance_profile.gd")
 const TaxEncounterClass = preload("res://src/tax_encounter.gd")
 const RuleModifierPipelineClass = preload("res://src/rule_modifier_pipeline.gd")
 const LabResearchClass = preload("res://src/lab_research.gd")
+const CardCollectionClass = preload("res://src/card_collection.gd")
 const SaveDataV3Class = preload("res://src/save_data_v3.gd")
 const SaveDataV4Class = preload("res://src/save_data_v4.gd")
 const SaveDataV5Class = preload("res://src/save_data_v5.gd")
@@ -98,6 +99,13 @@ var lab_ranks: Dictionary = {}
 ## {"started_unix": float, "duration": float}; an entry is removed the moment
 ## it settles into a rank, so this dictionary's size is the slots in use.
 var lab_active: Dictionary = {}
+var card_collection = CardCollectionClass.new()
+## Permanent, like lab_ranks: a card's level never resets on its own.
+var card_ranks: Dictionary = {}
+## Which owned cards are Active, capped at CardCollectionClass.ACTIVE_SLOTS.
+## Only Active cards' effects count; Inventory is a card owned but idle.
+var card_active: Array[String] = []
+var gems := 0
 var last_run_summary: RunSummary = null
 var statistics := {
 	"taps": 0,
@@ -316,6 +324,9 @@ func _complete_current_wave() -> SimulationEvent:
 		claimed.append(completed_wave)
 		record.milestones_claimed = claimed
 		coin_gain += balance_profile.milestone_bonus(selected_tier, completed_wave)
+		# A placeholder trickle only, so a Card pull is reachable before the
+		# owner designs the real Gem economy — sources, pity, rates (D027).
+		gems += 1
 	if completed_wave == TIER_UNLOCK_WAVE:
 		var existing_best := float(record.get("best_time", 0.0))
 		if existing_best <= 0.0 or run_elapsed < existing_best:
@@ -431,6 +442,24 @@ func get_workshop_level() -> int:
 		if definition.category == ProgressionTaxonomy.WORKSHOP:
 			level += get_owned(definition.id)
 	return level
+
+## How built out one category is, at a glance: Workshop ranks plus any Lab
+## ranks on the same shelf. A rank count rather than a fabricated single
+## multiplier, since Attack alone already spans several different effects.
+func get_category_rank_total(category: String) -> int:
+	var total := 0
+	for definition in definitions:
+		if definition.workshop_category == category:
+			total += get_owned(definition.id)
+	for lab_definition in lab_research.definitions:
+		if lab_definition.category == category:
+			total += get_lab_owned(lab_definition.id)
+	return total
+
+## The permanent multiplier every beaten wave's Coins pay through, from the
+## Workshop's Coin Bonus row and Coin Research in the Labs.
+func get_coin_bonus_multiplier() -> float:
+	return 1.0 + _effect_sum("coin_bonus")
 
 ## A category is open once it has a row to show. Ultimates have none until they
 ## are authored, so the tab reads as locked without a gate of its own.
@@ -595,6 +624,91 @@ func lab_stat_display(research_id: String, rank: int) -> Dictionary:
 			value += step * float(rank)
 		return {"value": value, "unit": str(shape.unit)}
 	return {"value": float(rank), "unit": "rank"}
+
+## Cards (The Tower): a permanently-owned collection pulled with Gems, with a
+## capped number of Active slots. Pulling, equipping and unequipping are
+## between-run actions, like the Workshop and Labs; an Active card's effect
+## applies to every run regardless, the same way a finished Lab rank does.
+func get_card_level(card_id: String) -> int:
+	return int(card_ranks.get(card_id, 0))
+
+func is_card_active(card_id: String) -> bool:
+	return card_active.has(card_id)
+
+func active_card_count() -> int:
+	return card_active.size()
+
+func card_slots_total() -> int:
+	return CardCollectionClass.ACTIVE_SLOTS
+
+func can_equip_card(card_id: String) -> bool:
+	if in_run or is_card_active(card_id) or get_card_level(card_id) <= 0:
+		return false
+	return active_card_count() < card_slots_total()
+
+func equip_card(card_id: String) -> bool:
+	if not can_equip_card(card_id):
+		return false
+	card_active.append(card_id)
+	return true
+
+func unequip_card(card_id: String) -> bool:
+	if in_run or not is_card_active(card_id):
+		return false
+	card_active.erase(card_id)
+	return true
+
+func get_pull_cost() -> int:
+	return CardCollectionClass.PULL_COST_GEMS
+
+func can_pull_card() -> bool:
+	return not in_run and gems >= get_pull_cost()
+
+## Draws one card weighted by rarity, uniform within it. Owned cards level up
+## one step per repeat pull, to MAX_LEVEL; a new card starts at level 1.
+## Returns the drawn card's id, or "" if the pull was refused.
+func pull_card() -> String:
+	if not can_pull_card():
+		return ""
+	gems -= get_pull_cost()
+	var weight_total := 0
+	for rarity in CardCollectionClass.RARITY_WEIGHT:
+		if not card_collection.definitions_for_rarity(rarity).is_empty():
+			weight_total += int(CardCollectionClass.RARITY_WEIGHT[rarity])
+	var roll := rng.randi_range(0, maxi(0, weight_total - 1))
+	var chosen_rarity := ""
+	var cursor := 0
+	for rarity in CardCollectionClass.RARITY_WEIGHT:
+		var tier: Array[CardCollection.Definition] = card_collection.definitions_for_rarity(rarity)
+		if tier.is_empty():
+			continue
+		cursor += int(CardCollectionClass.RARITY_WEIGHT[rarity])
+		if roll < cursor:
+			chosen_rarity = rarity
+			break
+	var tier_cards := card_collection.definitions_for_rarity(chosen_rarity)
+	var picked: CardCollection.Definition = tier_cards[rng.randi_range(0, tier_cards.size() - 1)]
+	if not picked.is_maxed(get_card_level(picked.id)):
+		card_ranks[picked.id] = get_card_level(picked.id) + 1
+	return picked.id
+
+## Reads a card's value the same way stat_display and lab_stat_display do.
+func card_stat_display(card_id: String, level: int) -> Dictionary:
+	var definition := card_collection.get_definition(card_id)
+	if definition == null:
+		return {"value": float(level), "unit": "rank"}
+	for effect_name in definition.effects:
+		if not STAT_DISPLAY.has(effect_name):
+			continue
+		var shape: Dictionary = STAT_DISPLAY[effect_name]
+		var step := float(definition.effects[effect_name])
+		var value: float = float(shape.base)
+		if str(shape.op) == "mul":
+			value *= pow(step, level)
+		else:
+			value += step * float(level)
+		return {"value": value, "unit": str(shape.unit)}
+	return {"value": float(level), "unit": "rank"}
 
 func get_cost(definition: UpgradeDefinition) -> ScientificNumber:
 	return get_cost_at(definition, get_owned(definition.id))
@@ -913,6 +1027,19 @@ func _load_common_fields(data: Dictionary) -> void:
 					"duration": float(entry.duration),
 				}
 	_settle_labs()
+	# Added after V5 shipped too: Cards are permanent, like Labs (D027).
+	gems = int(data.get("gems", 0))
+	var saved_card_ranks: Variant = data.get("card_ranks", {})
+	card_ranks = saved_card_ranks.duplicate(true) if saved_card_ranks is Dictionary else {}
+	card_active.clear()
+	var saved_card_active: Variant = data.get("card_active", [])
+	if saved_card_active is Array:
+		for card_id in saved_card_active:
+			var id_string := str(card_id)
+			if not card_active.has(id_string) and card_collection.get_definition(id_string) != null:
+				card_active.append(id_string)
+	if card_active.size() > CardCollectionClass.ACTIVE_SLOTS:
+		card_active = card_active.slice(0, CardCollectionClass.ACTIVE_SLOTS)
 	focus_path = str(data.get("focus", ""))
 	automation_enabled = bool(data.get("automation_enabled", true))
 	workshop.from_dict(data.get("workshop", {}))
@@ -1084,6 +1211,9 @@ func _effect_product(effect_name: String, base: float) -> float:
 	for lab_definition in lab_research.definitions:
 		if lab_definition.effects.has(effect_name):
 			total *= pow(float(lab_definition.effects[effect_name]), float(get_lab_owned(lab_definition.id)))
+	for card_definition in card_collection.definitions:
+		if is_card_active(card_definition.id) and card_definition.effects.has(effect_name):
+			total *= pow(float(card_definition.effects[effect_name]), float(get_card_level(card_definition.id)))
 	return total
 
 ## Labs are permanent and time-gated rather than run-scoped, so they have no
@@ -1093,6 +1223,17 @@ func _lab_effect_sum(effect_name: String) -> float:
 	for lab_definition in lab_research.definitions:
 		if lab_definition.effects.has(effect_name):
 			total += float(lab_definition.effects[effect_name]) * float(get_lab_owned(lab_definition.id))
+	total += _card_effect_sum(effect_name)
+	return total
+
+## Only an Active card counts: Inventory is owned but idle, matching the
+## reference's Active/Inventory split. Level, not rank-plus-Rig-equivalent,
+## since a card has no run-scoped counterpart of its own.
+func _card_effect_sum(effect_name: String) -> float:
+	var total := 0.0
+	for card_definition in card_collection.definitions:
+		if is_card_active(card_definition.id) and card_definition.effects.has(effect_name):
+			total += float(card_definition.effects[effect_name]) * float(get_card_level(card_definition.id))
 	return total
 
 ## The Workshop catalogue. Every row declares the category it sits on (D013);
