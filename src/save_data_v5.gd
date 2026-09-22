@@ -34,6 +34,11 @@ static func make(state) -> Dictionary:
 		# Added after V5 shipped, like the run peak: the Rig's run-scoped ranks
 		# are part of the active-run block, not a schema of their own (D015).
 		"rig_ranks": state.rig_ranks,
+		# Added after V5 shipped too: Labs are permanent research (D024), so
+		# they save beside `purchased` and `knowledge` rather than inside the
+		# active-run block the Rig uses.
+		"lab_ranks": state.lab_ranks,
+		"lab_active": state.lab_active,
 		"in_run": state.in_run,
 		"run_coins_earned": state.run_coins_earned,
 		"run_elapsed": state.run_elapsed,

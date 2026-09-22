@@ -424,6 +424,8 @@ Research Focus is chosen once per Prestige. Insight is one repeatable row. Prest
 
 They move into a single **Knowledge sheet**, opened by tapping the Knowledge chip already sitting on the run screen, and listed in MORE. The currency is the door to its own spend; the same rule sends the Coins chip to the Workshop. The `highest_number` gates at 10 / 1,000 / 110,000 move with them and gate rows inside the sheet rather than icons on the bar.
 
+**Correction (D024):** the "Labs" this section retired was never The Tower's Labs — `labs_content` was the surviving variable name from the original five-icon dock, repurposed to hold Research Focus once that turned out to be the only mechanic behind that icon. The Tower's actual Labs — permanent research, paid in Coins, gated by real time — did not exist before D024 added it as its own system (`src/lab_research.gd`), opened from a LABS chip on the Workshop screen rather than folded into the Knowledge sheet above. Research Focus, Insight and Prestige are unchanged by this: they stay exactly where this section put them.
+
 ### The run screen
 
 This keeps the single ring from the restage.
