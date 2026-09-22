@@ -10,7 +10,17 @@ const PROFILE_ID := "tax-foundation-v2"
 const WAVE_INTERVAL_SECONDS := 15.0
 const BOSS_WAVE_INTERVAL := 10
 const TIER_UNLOCK_WAVE := 100
-const MILESTONE_WAVES := [10, 25, 50, 100]
+## Every tier's milestone checkpoints (D030). Each pays once per tier record:
+## Gems at every checkpoint, and the Coin bonus as well at the four Coin
+## checkpoints (D002, D010).
+const MILESTONE_WAVES := [10, 20, 25, 30, 40, 50, 60, 75, 90, 100, 125, 150, 200]
+const COIN_MILESTONE_WAVES := [10, 25, 50, 100]
+## A checkpoint pays this times the square root of its wave, times the tier's
+## reward multiplier, in Gems: deeper checkpoints and harder tiers pay more,
+## without a hand-authored table to drift.
+const MILESTONE_GEM_SCALE := 2.0
+## Every boss wave beaten pays this many Gems, every run (D030).
+const BOSS_WAVE_GEMS := 1
 
 ## v2 halves both axes and trims pressured rewards to compensate for D012: with
 ## no free heal while stuck, the same build reaches the same wave in far less
@@ -92,10 +102,24 @@ func reward_for_wave(tier_id: int, wave: int) -> int:
 	var boss_multiplier := BOSS_REWARD_MULTIPLIER if is_boss_wave(wave) else 1.0
 	return maxi(1, roundi(base_reward * get_tier(tier_id).reward_multiplier * boss_multiplier))
 
+func is_milestone_wave(wave: int) -> bool:
+	return MILESTONE_WAVES.has(wave)
+
+## The Coin bonus a checkpoint pays on top of the wave's own reward.
 func milestone_bonus(tier_id: int, wave: int) -> int:
-	if not MILESTONE_WAVES.has(wave):
+	if not COIN_MILESTONE_WAVES.has(wave):
 		return 0
 	return maxi(1, roundi(float(wave) * get_tier(tier_id).reward_multiplier * 2.0))
+
+## The Gems a checkpoint pays, once per tier record.
+func milestone_gems(tier_id: int, wave: int) -> int:
+	if not MILESTONE_WAVES.has(wave):
+		return 0
+	return maxi(1, roundi(MILESTONE_GEM_SCALE * sqrt(float(wave)) * get_tier(tier_id).reward_multiplier))
+
+## The Gems a beaten wave pays whether or not it is a checkpoint.
+func wave_gems(wave: int) -> int:
+	return BOSS_WAVE_GEMS if is_boss_wave(wave) else 0
 
 ## The Rig (D015): run-scoped ranks bought with Number during a run. Prices are
 ## quoted against the wave's HP rather than in absolute Number, so one table

@@ -11,6 +11,7 @@ const SaveDataV4Class = preload("res://src/save_data_v4.gd")
 const SaveDataV5Class = preload("res://src/save_data_v5.gd")
 const SaveDataV6Class = preload("res://src/save_data_v6.gd")
 const SaveDataV7Class = preload("res://src/save_data_v7.gd")
+const SaveDataV8Class = preload("res://src/save_data_v8.gd")
 
 const SAVE_PATH := "user://number_go_up_save.json"
 ## What the last load() found, for the UI to report (D028).
@@ -24,6 +25,8 @@ const LOAD_UNREADABLE := "unreadable"
 ## The save was written by a newer build; it is left untouched and saving
 ## pauses until this build is replaced or the save is cleared.
 const LOAD_NEWER := "newer"
+## What a checkpoint paid in Gems before V8 (D027's placeholder trickle).
+const PRE_V8_MILESTONE_GEMS := 1
 ## Unreadable saves are moved aside under this infix rather than deleted.
 const QUARANTINE_INFIX := ".unreadable-"
 const READ_OK := "ok"
@@ -103,6 +106,11 @@ var rig_ranks: Dictionary = {}
 var tax_encounters_enabled := true
 var in_run := false
 var run_coins_earned := 0
+## Gems this run has paid, for the run-over screen (D030). Run-scoped.
+var run_gems_earned := 0
+## Gems the last load paid for checkpoints the save had already passed or
+## claimed at the old rate, for the UI to report once (D030).
+var milestone_gems_caught_up := 0
 var run_elapsed := 0.0
 var run_seed: int = 0
 var selected_tier := 1
@@ -231,6 +239,7 @@ func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	automation_accumulator = 0.0
 	in_run = true
 	run_coins_earned = 0
+	run_gems_earned = 0
 	run_elapsed = 0.0
 	wave = 1
 	wave_accumulator = 0.0
@@ -246,6 +255,7 @@ func end_run() -> RunSummary:
 	if not in_run:
 		return null
 	last_run_summary = RunSummary.new(wave, run_coins_earned, 0, lifetime_generated.copy(), selected_tier, "retreat")
+	last_run_summary.gems_earned = run_gems_earned
 	_reset_run_state()
 	return last_run_summary
 
@@ -345,13 +355,16 @@ func _complete_current_wave() -> SimulationEvent:
 	var previous_best := int(record.get("highest_wave", 0))
 	record.highest_wave = maxi(previous_best, completed_wave)
 	var claimed: Array = record.get("milestones_claimed", [])
-	if balance_profile.MILESTONE_WAVES.has(completed_wave) and not claimed.has(completed_wave):
+	# Gems (D030): every boss wave pays a little, every run, and each tier's
+	# checkpoints pay a lot, once per tier record.
+	var gem_gain := balance_profile.wave_gems(completed_wave)
+	if balance_profile.is_milestone_wave(completed_wave) and not claimed.has(completed_wave):
 		claimed.append(completed_wave)
 		record.milestones_claimed = claimed
 		coin_gain += balance_profile.milestone_bonus(selected_tier, completed_wave)
-		# A placeholder trickle only, so a Card pull is reachable before the
-		# owner designs the real Gem economy — sources, pity, rates (D027).
-		gems += 1
+		gem_gain += balance_profile.milestone_gems(selected_tier, completed_wave)
+	gems += gem_gain
+	run_gems_earned += gem_gain
 	if completed_wave == TIER_UNLOCK_WAVE:
 		var existing_best := float(record.get("best_time", 0.0))
 		if existing_best <= 0.0 or run_elapsed < existing_best:
@@ -406,6 +419,7 @@ func _wave_death(reached: int, hit: ScientificNumber, boss: bool, number_before_
 		wave_hp_left,
 		hit.subtract(number_before_hit)
 	)
+	last_run_summary.gems_earned = run_gems_earned
 	_reset_run_state()
 	return SimulationEvent.new("wave_death", ScientificNumber.from_float(float(reached)))
 
@@ -884,6 +898,7 @@ func _reset_run_state() -> void:
 	run_elapsed = 0.0
 	run_seed = 0
 	run_coins_earned = 0
+	run_gems_earned = 0
 	active_encounter = null
 
 func select_focus(path: String) -> bool:
@@ -922,7 +937,7 @@ func save() -> bool:
 	var file := FileAccess.open(temp, FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify(SaveDataV7Class.make(self), "", true, true))
+	file.store_string(JSON.stringify(SaveDataV8Class.make(self), "", true, true))
 	var write_error := file.get_error()
 	file.close()
 	if write_error != OK:
@@ -968,7 +983,7 @@ func _read_save(path: String) -> Dictionary:
 		return {"status": READ_UNREADABLE}
 	var data: Dictionary = json.data
 	var version := int(data.get("version", 0)) if (data.get("version") is int or data.get("version") is float) else 0
-	if version > SaveDataV7Class.VERSION:
+	if version > SaveDataV8Class.VERSION:
 		return {"status": READ_NEWER}
 	var known := (
 		SaveDataV2.is_legacy_v1(data)
@@ -978,8 +993,9 @@ func _read_save(path: String) -> Dictionary:
 		or SaveDataV5Class.is_valid(data)
 		or SaveDataV6Class.is_valid(data)
 		or SaveDataV7Class.is_valid(data)
+		or SaveDataV8Class.is_valid(data)
 	)
-	if not known or SaveDataV7Class.problem(data) != "":
+	if not known or SaveDataV8Class.problem(data) != "":
 		return {"status": READ_UNREADABLE}
 	return {"status": READ_OK, "data": data}
 
@@ -998,12 +1014,15 @@ func _load_parsed(data: Dictionary, source_path: String) -> OfflineAward:
 			return _migrate_v5(data, source_path)
 		6:
 			return _migrate_v6(data, source_path)
+		7:
+			return _migrate_v7(data, source_path)
 	return _load_current(data)
 
-## V5, V6 and V7 share every key and meaning. V6 declared the fields added to
+## V5 through V8 share every key and meaning. V6 declared the fields added to
 ## V5 after it shipped and added the run's tick phase and crit chain, which a
-## V5 save resumes without, as it always did; V7 adds the Lab slot count, which
-## an older save reads as the two slots every player then had.
+## V5 save resumes without, as it always did; V7 added the Lab slot count, which
+## an older save reads as the two slots every player then had; V8 added the
+## run's Gems and marks that milestones paid at the old rate were topped up.
 func _load_current(data: Dictionary) -> OfflineAward:
 	_load_common_fields(data)
 	_load_tier_progress(data)
@@ -1018,6 +1037,11 @@ func _migrate_v5(data: Dictionary, source_path: String) -> OfflineAward:
 func _migrate_v6(data: Dictionary, source_path: String) -> OfflineAward:
 	var award := _load_current(data)
 	_save_migrated_state(6, source_path)
+	return award
+
+func _migrate_v7(data: Dictionary, source_path: String) -> OfflineAward:
+	var award := _load_current(data)
+	_save_migrated_state(7, source_path)
 	return award
 
 ## V4 kept the Workshop in four bays, with the Armor rank in a field of its own.
@@ -1049,9 +1073,52 @@ func _load_tier_progress(data: Dictionary) -> void:
 	for key in tier_records:
 		if tier_records[key] is Dictionary:
 			_normalise_tier_record(tier_records[key])
+	var version: Variant = data.get("version", 0)
+	if (version is int or version is float) and int(version) < SaveDataV8Class.VERSION:
+		_top_up_old_milestone_gems()
+	_catch_up_passed_milestones()
 	selected_tier = int(data.get("selected_tier", 1))
 	if not balance_profile.has_tier(selected_tier):
 		selected_tier = 1
+
+## Before V8 a checkpoint paid one Gem, and only the four Coin checkpoints were
+## checkpoints. A save from then gets the difference for every one it already
+## claimed; the version bump is what marks the top-up as done (D030).
+func _top_up_old_milestone_gems() -> void:
+	for tier in balance_profile.tiers:
+		var record: Variant = tier_records.get(str(tier.id), {})
+		if not (record is Dictionary):
+			continue
+		for claimed_wave in record.get("milestones_claimed", []):
+			if balance_profile.COIN_MILESTONE_WAVES.has(claimed_wave):
+				var top_up := maxi(0, balance_profile.milestone_gems(tier.id, claimed_wave) - PRE_V8_MILESTONE_GEMS)
+				gems += top_up
+				milestone_gems_caught_up += top_up
+
+## A checkpoint a record has already passed but not claimed — one added after
+## the player cleared it, or one a migration left unclaimed — pays on load
+## exactly what claiming it would have, so no one re-clears a wave to be paid
+## for it (D030). Idempotent: a paid checkpoint is claimed.
+func _catch_up_passed_milestones() -> void:
+	for tier in balance_profile.tiers:
+		var record: Variant = tier_records.get(str(tier.id), {})
+		if not (record is Dictionary):
+			continue
+		var best := int(record.get("highest_wave", 0))
+		var claimed: Array = record.get("milestones_claimed", [])
+		var changed := false
+		for checkpoint in balance_profile.MILESTONE_WAVES:
+			if checkpoint > best or claimed.has(checkpoint):
+				continue
+			claimed.append(checkpoint)
+			changed = true
+			coins += floori(float(balance_profile.milestone_bonus(tier.id, checkpoint)) * (1.0 + _effect_sum("coin_bonus")))
+			var gem_bonus := balance_profile.milestone_gems(tier.id, checkpoint)
+			gems += gem_bonus
+			milestone_gems_caught_up += gem_bonus
+		if changed:
+			claimed.sort()
+			record.milestones_claimed = claimed
 
 ## JSON reads every number back as a float, and Array.has(10) does not match
 ## 10.0, so a milestone claimed before a reload looked unclaimed and paid its
@@ -1080,6 +1147,7 @@ func _restore_saved_run(data: Dictionary) -> void:
 	var loaded_modifiers: Variant = data.get("active_rule_modifiers", [])
 	active_rule_modifiers = loaded_modifiers if loaded_modifiers is Array else []
 	run_coins_earned = int(data.get("run_coins_earned", 0))
+	run_gems_earned = maxi(0, int(data.get("run_gems_earned", 0))) if in_run else 0
 	run_elapsed = maxf(0.0, float(data.get("run_elapsed", 0.0)))
 	run_seed = str(data.get("run_seed", "0")).to_int()
 	braced = bool(data.get("braced", false))
@@ -1225,6 +1293,7 @@ func _migrate_v2(data: Dictionary, source_path: String) -> OfflineAward:
 	var old_best := maxi(1, int(data.get("highest_wave", 1)))
 	tier_records = {"1": {"highest_wave": old_best, "best_time": 0.0, "milestones_claimed": []}}
 	_ensure_tier_records()
+	_catch_up_passed_milestones()
 	in_run = bool(data.get("in_run", false))
 	run_coins_earned = int(data.get("run_coins_earned", 0))
 	wave = maxi(1, int(data.get("wave", 1))) if in_run else 1
@@ -1291,7 +1360,7 @@ func _save_migrated_state(from_version: int, source_path: String) -> void:
 func clear_save() -> void:
 	for path in [save_path, _backup_path(), _temp_path()]:
 		_remove_if_present(path)
-	for version in range(1, SaveDataV7Class.VERSION):
+	for version in range(1, SaveDataV8Class.VERSION):
 		_remove_if_present(_migration_backup_path(version))
 	var folder := save_path.get_base_dir()
 	var quarantine_prefix := save_path.get_file().get_basename() + QUARANTINE_INFIX

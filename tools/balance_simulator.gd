@@ -147,7 +147,13 @@ func _simulate_build(label: String, tier: int, ranks: Dictionary, rig_policy: St
 		for category in state.balance_profile.RIG_EFFECT_MULTIPLIER.keys():
 			state.balance_profile.RIG_EFFECT_MULTIPLIER[category] = rig_multiplier
 	state.purchased = ranks.duplicate()
-	state.tier_records["1"] = {"highest_wave": 100, "milestones_claimed": [10, 25, 50, 100]}
+	# A build that has been here before: every Tier 1 checkpoint to wave 100 is
+	# claimed, so the Gems column shows what a repeat run pays (D030).
+	var claimed: Array = []
+	for checkpoint in state.balance_profile.MILESTONE_WAVES:
+		if checkpoint <= 100:
+			claimed.append(checkpoint)
+	state.tier_records["1"] = {"highest_wave": 100, "milestones_claimed": claimed}
 	state.start_run(tier, SEED)
 	var hits := 0
 	var seconds := 0.0
@@ -185,6 +191,7 @@ func _simulate_build(label: String, tier: int, ranks: Dictionary, rig_policy: St
 		"  coins=", state.coins,
 		"  coins_per_min=", snappedf(float(state.coins) / minutes, 0.1),
 		"  knowledge=", state.knowledge,
+		"  gems=", state.gems,
 		"  peak_number=", peak.format_value(),
 		"  rig_ranks=", rig_bought,
 		"  rig_last_10m=", rig_late
@@ -251,7 +258,8 @@ func _simulate_representative_tier_one() -> void:
 				"  seconds=", snappedf(float(step + 1) * STEP, 0.1),
 				"  wave=", state.last_run_summary.wave_reached,
 				"  coins=", state.coins,
-				"  knowledge=", state.knowledge
+				"  knowledge=", state.knowledge,
+				"  gems=", state.gems
 			)
 			# Spend down the way a player does, not one rank per row: with
 			# ladders 50-100 ranks deep (D019), a single pass through the order

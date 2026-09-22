@@ -20,6 +20,8 @@ var lost_to_boss: bool = false
 ## was lost to nothing.
 var attack_gap: ScientificNumber = ScientificNumber.new()
 var defense_gap: ScientificNumber = ScientificNumber.new()
+## Gems the run paid: boss waves and any checkpoints it claimed (D030).
+var gems_earned: int = 0
 
 func _init(
 	reached: int = 1,
