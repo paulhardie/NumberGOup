@@ -12,6 +12,7 @@ const SaveDataV5Class = preload("res://src/save_data_v5.gd")
 const SaveDataV6Class = preload("res://src/save_data_v6.gd")
 const SaveDataV7Class = preload("res://src/save_data_v7.gd")
 const SaveDataV8Class = preload("res://src/save_data_v8.gd")
+const SaveDataV9Class = preload("res://src/save_data_v9.gd")
 
 const SAVE_PATH := "user://number_go_up_save.json"
 ## What the last load() found, for the UI to report (D028).
@@ -985,7 +986,7 @@ func save() -> bool:
 	var file := FileAccess.open(temp, FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify(SaveDataV8Class.make(self), "", true, true))
+	file.store_string(JSON.stringify(SaveDataV9Class.make(self), "", true, true))
 	var write_error := file.get_error()
 	file.close()
 	if write_error != OK:
@@ -1031,7 +1032,7 @@ func _read_save(path: String) -> Dictionary:
 		return {"status": READ_UNREADABLE}
 	var data: Dictionary = json.data
 	var version := int(data.get("version", 0)) if (data.get("version") is int or data.get("version") is float) else 0
-	if version > SaveDataV8Class.VERSION:
+	if version > SaveDataV9Class.VERSION:
 		return {"status": READ_NEWER}
 	var known := (
 		SaveDataV2.is_legacy_v1(data)
@@ -1042,8 +1043,9 @@ func _read_save(path: String) -> Dictionary:
 		or SaveDataV6Class.is_valid(data)
 		or SaveDataV7Class.is_valid(data)
 		or SaveDataV8Class.is_valid(data)
+		or SaveDataV9Class.is_valid(data)
 	)
-	if not known or SaveDataV8Class.problem(data) != "":
+	if not known or SaveDataV9Class.problem(data) != "":
 		return {"status": READ_UNREADABLE}
 	return {"status": READ_OK, "data": data}
 
@@ -1064,17 +1066,22 @@ func _load_parsed(data: Dictionary, source_path: String) -> OfflineAward:
 			return _migrate_v6(data, source_path)
 		7:
 			return _migrate_v7(data, source_path)
+		8:
+			return _migrate_v8(data, source_path)
 	return _load_current(data)
 
-## V5 through V8 share every key and meaning. V6 declared the fields added to
+## V5 through V9 share every earlier key and meaning. V6 declared the fields added to
 ## V5 after it shipped and added the run's tick phase and crit chain, which a
 ## V5 save resumes without, as it always did; V7 added the Lab slot count, which
 ## an older save reads as the two slots every player then had; V8 added the
 ## run's Gems and marks that milestones paid at the old rate were topped up.
+## V9 adds the last completed run's summary, absent in older saves.
 func _load_current(data: Dictionary) -> OfflineAward:
 	_load_common_fields(data)
 	_load_tier_progress(data)
 	_restore_saved_run(data)
+	var saved_summary: Variant = data.get("last_run_summary")
+	last_run_summary = RunSummary.from_dict(saved_summary) if saved_summary is Dictionary else null
 	return apply_offline(_seconds_since(data))
 
 func _migrate_v5(data: Dictionary, source_path: String) -> OfflineAward:
@@ -1090,6 +1097,11 @@ func _migrate_v6(data: Dictionary, source_path: String) -> OfflineAward:
 func _migrate_v7(data: Dictionary, source_path: String) -> OfflineAward:
 	var award := _load_current(data)
 	_save_migrated_state(7, source_path)
+	return award
+
+func _migrate_v8(data: Dictionary, source_path: String) -> OfflineAward:
+	var award := _load_current(data)
+	_save_migrated_state(8, source_path)
 	return award
 
 ## V4 kept the Workshop in four bays, with the Armor rank in a field of its own.
@@ -1410,7 +1422,7 @@ func _save_migrated_state(from_version: int, source_path: String) -> void:
 func clear_save() -> void:
 	for path in [save_path, _backup_path(), _temp_path()]:
 		_remove_if_present(path)
-	for version in range(1, SaveDataV8Class.VERSION):
+	for version in range(1, SaveDataV9Class.VERSION):
 		_remove_if_present(_migration_backup_path(version))
 	var folder := save_path.get_base_dir()
 	var quarantine_prefix := save_path.get_file().get_basename() + QUARANTINE_INFIX

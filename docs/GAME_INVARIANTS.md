@@ -33,6 +33,7 @@
 - Every rule that changes Liability or Collection passes through the ordered modifier pipeline: flat → additive → multiplicative → cap_max → cap_min, each stage applied once.
 - Loaded ranks and levels are whole, never negative and never past their row's cap; ranks under a retired id are kept but count for nothing.
 - Save data is versioned with explicit migrations. Migration preserves every declared permanent currency and rank; pre-V4 banked Number retires because Number is run-only. A new saved field bumps the version (D028).
+- V9 keeps the last completed run's summary across save and reload, including its outcome and rewards. Older saves have no summary to recover and migrate with an empty last-run report.
 - A save the loader cannot read, or one written by a newer build, is never written over: an unreadable save is moved aside intact and the backup loads, and a newer save pauses saving (D028). A load happens whole or not at all.
 - A saved active encounter resumes with identical remaining Liability, RNG state, tick phase and crit chain, so the resumed run produces exactly what the saved one would have; matching run seeds reproduce outcomes.
 - `ScientificNumber` values stay finite and non-negative; subtraction floors at zero; balance evaluation cannot overflow ordinary floats.

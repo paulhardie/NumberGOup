@@ -45,3 +45,34 @@ func _init(
 	lost_to_boss = boss
 	attack_gap = hp_left.copy() if hp_left != null else ScientificNumber.new()
 	defense_gap = hit_shortfall.copy() if hit_shortfall != null else ScientificNumber.new()
+
+func to_dict() -> Dictionary:
+	return {
+		"wave_reached": wave_reached,
+		"coins_earned": coins_earned,
+		"knowledge_gained": knowledge_gained,
+		"peak_number": peak_number.to_dict(),
+		"tier_id": tier_id,
+		"outcome": outcome,
+		"final_hit": final_hit.to_dict(),
+		"lost_to_boss": lost_to_boss,
+		"attack_gap": attack_gap.to_dict(),
+		"defense_gap": defense_gap.to_dict(),
+		"gems_earned": gems_earned,
+	}
+
+static func from_dict(data: Dictionary) -> RunSummary:
+	var summary := RunSummary.new(
+		int(data.wave_reached),
+		int(data.coins_earned),
+		int(data.knowledge_gained),
+		ScientificNumber.from_dict(data.peak_number),
+		int(data.tier_id),
+		str(data.outcome),
+		ScientificNumber.from_dict(data.final_hit),
+		bool(data.lost_to_boss),
+		ScientificNumber.from_dict(data.attack_gap),
+		ScientificNumber.from_dict(data.defense_gap)
+	)
+	summary.gems_earned = int(data.gems_earned)
+	return summary

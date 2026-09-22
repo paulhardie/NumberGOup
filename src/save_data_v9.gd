@@ -1,13 +1,9 @@
-class_name SaveDataV8
+class_name SaveDataV9
 extends RefCounted
 
-## V8 is retained as a migration source and fixture writer; GameState writes V9.
-## V8 is V7 plus `run_gems_earned`, the Gems the active run has paid (D030).
-## The version also marks that milestones claimed at the old rate of one Gem
-## were topped up to the new table: a save from before V8 gets the difference
-## once, on load, and a V8 save never does. Every other key keeps its V7 name
-## and meaning.
-const VERSION := 8
+## V9 is V8 plus the last completed run's report. It is null before the first
+## run. Older saves have no report to recover and migrate with null.
+const VERSION := 9
 
 static func make(state) -> Dictionary:
 	return {
@@ -53,6 +49,7 @@ static func make(state) -> Dictionary:
 		"balance_profile_id": state.balance_profile.PROFILE_ID,
 		"statistics": state.statistics,
 		"settings": state.settings,
+		"last_run_summary": state.last_run_summary.to_dict() if state.last_run_summary != null else null,
 		"last_seen_unix": Time.get_unix_time_from_system(),
 	}
 
@@ -62,12 +59,11 @@ static func is_valid(data: Variant) -> bool:
 		and int(data.get("version", 0)) == VERSION
 		and data.has("number")
 		and data.has("lifetime")
+		and data.has("last_run_summary")
 	)
 
-## Why a parsed save of any version cannot be loaded, or "" if it can. The
-## loader assigns these blocks to typed fields, so a wrong type would stop the
-## load halfway and leave a partial state for the next autosave to write over
-## the player's progress. Checking first turns such a file away whole.
+## Check fields before the loader changes any state. V1-V8 lack a summary; V9
+## requires null or a complete, well-typed report so damaged saves recover.
 static func problem(data: Dictionary) -> String:
 	for key in ["number", "lifetime"]:
 		if not (data.get(key) is Dictionary):
@@ -83,4 +79,40 @@ static func problem(data: Dictionary) -> String:
 	for key in ["coins", "knowledge", "gems", "lab_slots", "run_gems_earned", "wave", "highest_wave", "selected_tier"]:
 		if data.has(key) and not (data[key] is int or data[key] is float):
 			return key + " is not a number"
+	if int(data.get("version", 0)) != VERSION:
+		return ""
+	var saved_summary: Variant = data.get("last_run_summary")
+	if saved_summary == null:
+		return ""
+	if not (saved_summary is Dictionary):
+		return "last_run_summary is not an object"
+	for key in ["wave_reached", "coins_earned", "knowledge_gained", "tier_id", "gems_earned"]:
+		var minimum := 1 if key == "wave_reached" or key == "tier_id" else 0
+		if not _is_whole_number(saved_summary.get(key), minimum):
+			return "last_run_summary." + key + " is not a valid whole number"
+	if not (saved_summary.get("outcome") is String) or not ["death", "retreat", "prestige"].has(saved_summary.outcome):
+		return "last_run_summary.outcome is invalid"
+	if not (saved_summary.get("lost_to_boss") is bool):
+		return "last_run_summary.lost_to_boss is not a boolean"
+	for key in ["peak_number", "final_hit", "attack_gap", "defense_gap"]:
+		if not _valid_scientific_number(saved_summary.get(key)):
+			return "last_run_summary." + key + " is not a finite number"
 	return ""
+
+static func _is_whole_number(value: Variant, minimum: int) -> bool:
+	if not (value is int or value is float):
+		return false
+	var number := float(value)
+	return is_finite(number) and number >= float(minimum) and number < 9.223372036854776e18 and floor(number) == number
+
+static func _valid_scientific_number(value: Variant) -> bool:
+	if not (value is Dictionary):
+		return false
+	var mantissa: Variant = value.get("mantissa")
+	var exponent: Variant = value.get("exponent")
+	if not (mantissa is int or mantissa is float) or not (exponent is int or exponent is float):
+		return false
+	var exponent_number := float(exponent)
+	return (is_finite(float(mantissa)) and float(mantissa) >= 0.0
+		and is_finite(exponent_number) and absf(exponent_number) < 9.223372036854776e18
+		and floor(exponent_number) == exponent_number)
