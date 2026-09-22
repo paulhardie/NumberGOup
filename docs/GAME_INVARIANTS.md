@@ -25,7 +25,8 @@
 - Each tier's milestone checkpoints pay once per tier record: Gems at every checkpoint, and the Coin bonus at 10/25/50/100 (D030). A checkpoint a record has already passed is paid on load, never twice.
 - Every boss wave beaten pays one Gem, every run (D030).
 - Tier 2 and Tier 3 unlock only by clearing wave 100 of the preceding tier.
-- Tier 1 waves 1–20 are grace waves: no Liability or Collection, with repeatable Coin rewards (1 per wave, 5 on boss waves).
+- Tier 1 waves 1–20 are a warm-up (D033): small Liability and Collection that grow each wave, softer bosses, and repeatable Coin rewards (1 per wave, 5 on boss waves). A warm-up wave that outlasts its timer lands its hit and then ends as if beaten; past the warm-up a stuck wave keeps its Liability. A Tier 1 run starts with 50 Number.
+- Every run produces a flat 1 a second from its first second, which upgrades do not raise (D033).
 
 ## Must — rules and persistence
 
