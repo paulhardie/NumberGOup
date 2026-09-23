@@ -1,6 +1,6 @@
 # Handover
 
-**Last updated:** 23 September 2026, after building D047 (deep Workshop ladders, 150 hours to max, save V9). D044–D046 are merged to `main`; the gate research, focused player, ladder review and D047 are on branch `claude/game-changes-review-fbili3`, not merged.
+**Last updated:** 23 September 2026, after building D047 (deep Workshop ladders, 150 hours to max, save V9) and D048 (the Tower-style battle hub and bottom bar). D044–D046 are merged to `main`; the gate research, focused player, ladder review and D047 are on branch `claude/game-changes-review-fbili3`, not merged.
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
 
 ## Where the game is
@@ -9,7 +9,7 @@ The branch plays like this (seed 7 simulator figures, Godot 4.7.2, balance profi
 
 - **The core loop (D037, D038):** everything you produce is Number and also damages the wave. A beaten wave gives way to the next after 2.5 seconds. A missed ordinary wave hits once and moves on, paying Coins for the share you cleared. Bosses, every 10th wave, stay and hit every 15 seconds until you beat them. Guard cuts the Hit by a flat amount before Armor's percentage.
 - **The Workshop (D047):** Tap Damage and Damage per Second run to 6,000 ranks and Guard to 5,000, on The Tower's Damage and Defense Absolute curves; ranks 1–100 keep their old values and prices. Tick Speed (×5.95), Crit Chance (80%), Crit Damage (×16.2 over 150), Double Tick and Armor (50% over 125), Thorns (100% over 200), Second Wind (30%), Coin Bonus (×2.5 over 300) and Cushion (150 ranks) reach Tower-like maxima. No tier bands. Each row keeps its old prices to its old cap; past it a deep-row rank costs 1.00075× the last and an extended capped row 1.02×. The whole Workshop costs 37.0 million Coins.
-- **Labs and Cards (D024, D027):** both systems work. Since `codex/labs-cards-visibility` (merged) the Workshop has full-width labelled entrances to their sheets, because the icon-only entrances were easy to miss on a small phone.
+- **Between runs (D048):** a battle hub laid out like The Tower's: Coins, Gems and Knowledge across the top, Knowledge and Stats doors beside a Milestones button, the last run, Total Coin Bonus, Difficulty (‹ TIER ›, highest wave, rewards, what opens the next tier) and BATTLE. The bottom bar is BATTLE · WORKSHOP · CARDS · ULTIMATES · LABS · MORE; Cards and Labs (D024, D027) open their sheets above the bar. Ultimates, Modules, Perks and Challenge runs are seats marked SOON. The run screen is unchanged.
 - **Run Upgrades (the Rig in code; D042, D044, D045):** during a run all 21 Workshop rows can be raised with run-only Cash; Number is never spent on them.
   - A row's Workshop ranks and run ranks together stop at its max rank. A run rank is worth two Workshop ranks (Burst's is one step); on a deep row that is two ranks further along the depth curve.
   - Cash flows at the priced income (passive rate plus one tap a second, whether or not you tap). A beaten wave adds 10 + 5 × the wave, ×3 on a boss; a missed wave adds the share it cleared. A run starts with 12.5 seconds of its opening income.
@@ -43,12 +43,13 @@ The branch plays like this (seed 7 simulator figures, Godot 4.7.2, balance profi
 
 ## Next steps, in order
 
-1. **Owner:** review and merge this branch, and decide the pacing alternative (decision 2). **Agent:** if the alternative is chosen, it is a data change in `data/workshop/upgrades.json` plus a price recalibration. Medium risk.
+1. **Owner:** review and merge this branch (D047 and the D048 hub), and decide the pacing alternative (decision 2). **Agent:** if the alternative is chosen, it is a data change in `data/workshop/upgrades.json` plus a price recalibration. Medium risk.
 2. **Owner:** decide coin gates; then **agent:** build them as the parity plan's step 1 with save V10. High risk: saves, economy.
 3. **Agent:** the ordered player-stat pipeline (parity plan step 2), which almost every new row needs. Medium–high risk: touches every stat.
 
 ## Known issues and risks
 
+- **The hub has only been checked in screenshots and a scripted press of every seat** (`tools/capture_ui.gd` at four sizes), not by touch on a phone. Armor is now two taps away between runs, since the hub dropped its shortcut.
 - **Rank counts on the Workshop read without thousands separators** ("RANK 3100 / 6000"). Values render correctly at depth (checked in `tools/capture_ui.gd` screenshots at 390×844).
 - **Lab research is unreachable past about rank 20.** Each rank takes 1.55× longer and costs 1.7× more. Needs its own pass with the Gem economy.
 - **The balance simulator's "max" builds** (`ATTACK_MAX` and friends in `tools/balance_simulator.gd`) still stop at the old caps, so "attack max" there now means rank 100; `-- --maxed-workshop` measures the real maximum.

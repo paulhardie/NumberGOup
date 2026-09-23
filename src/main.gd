@@ -52,7 +52,10 @@ const RUN_STAGE_MAX := 460.0
 const RUN_STAGE_SHARE := 0.5
 
 const TAB_IDS: Array[String] = ["number", "workshop"]
-const TAB_NAMES := {"number": "RUN", "workshop": "WORKSHOP", "settings": "SETTINGS"}
+const TAB_NAMES := {"number": "BATTLE", "workshop": "WORKSHOP", "cards": "CARDS", "labs": "LABS", "settings": "SETTINGS"}
+## The hub column's widest, so panels do not stretch across a tablet (D048).
+const HUB_MAX_WIDTH := 440.0
+const HUB_BATTLE_HEIGHT := 56.0
 ## Lifetime Number required before a row inside the Knowledge sheet can be used.
 ## These were the Labs and Cards dock gates before D016 moved them inside.
 const RESEARCH_UNLOCK := 1000.0
@@ -66,7 +69,7 @@ var state := GameState.new()
 # tab's own feature may still gate further inside itself (e.g. Labs needs
 # Workshop level 12). "settings" gates the stats/settings sheet the same way
 # the old top-right MENU button used to appear only once the player was in.
-var tab_unlock_lifetime := {"number": 0.0, "workshop": 10.0, "settings": 10.0}
+var tab_unlock_lifetime := {"number": 0.0, "workshop": 10.0, "cards": 10.0, "labs": 10.0, "settings": 10.0}
 var save_elapsed := 0.0
 var refresh_elapsed := 0.0
 ## Batches non-critical tick production into one periodic "+X" float, so
@@ -104,11 +107,27 @@ var card_sheet_signature := ""
 var lab_status_labels: Dictionary = {}
 ## Shown in the stage's place between runs, since Number exists only during a
 ## run (pillar 3) and an empty ring/number stage has nothing live to say.
-var landing_panel: Control
-var landing_last_run_label: Label
-var landing_last_run_detail: Label
-var landing_difficulty_label: Label
-var landing_category_labels: Dictionary = {}
+## The battle hub between runs (D048), in place of the D025 landing panel.
+var hub_panel: Control
+var hub_column: VBoxContainer
+var hub_coins_label: Label
+var hub_gems_label: Label
+var hub_knowledge_label: Label
+var hub_last_run_label: Label
+var hub_last_run_detail: Label
+var hub_coin_bonus_label: Label
+var hub_tier_label: Label
+var hub_best_wave_label: Label
+var hub_reward_label: Label
+var hub_tier_hint: Label
+var hub_prev_tier: Button
+var hub_next_tier: Button
+var currency_stack: VBoxContainer
+var wave_line: HBoxContainer
+var milestones_sheet: Control
+var milestones_title: Label
+var milestones_content: VBoxContainer
+var milestones_signature := ""
 var tracked_font: FontVariation
 var number_flash_tween: Tween
 # Smoothed log10 of the displayed Number (log10(mantissa) + exponent), eased
@@ -199,22 +218,20 @@ var coins_button: Button
 var knowledge_button: Button
 
 ## The Labs sheet (D024): real research, distinct from the Knowledge sheet
-## above. Opened from a chip on the Workshop screen, since Labs spends Coins.
+## above. Opened from its seat on the bottom bar (D048).
 var lab_research_sheet: Control
 var lab_research_content: VBoxContainer
 var lab_research_slots_label: Label
 var lab_slot_button: Button
-var lab_research_button: Button
 
 ## The Cards sheet (D027): a permanent, gacha-pulled collection with a capped
-## Active set. Opened from a chip on the Workshop screen, next to LABS.
+## Active set. Opened from its seat on the bottom bar and from the Gems chip (D048).
 var card_collection_sheet: Control
 var card_collection_active_content: VBoxContainer
 var card_collection_active_label: Label
 var card_collection_inventory_content: VBoxContainer
 var card_collection_gems_label: Label
 var card_collection_pull_button: Button
-var card_collection_button: Button
 
 var screens: Dictionary = {}
 # The content root inside each slide-up screen, kept separately so it (not
@@ -369,6 +386,7 @@ func _build_ui() -> void:
 	_build_knowledge_sheet()
 	_build_lab_research_sheet()
 	_build_card_collection_sheet()
+	_build_milestones_sheet()
 	_build_stat_info()
 	_build_died_screen()
 
@@ -403,7 +421,7 @@ func _build_number_screen(parent: Control) -> void:
 	_build_currency_stack(screen)
 	_build_wave_line(screen)
 	_build_stage(screen)
-	_build_landing_panel(screen)
+	_build_hub(screen)
 	_build_run_controls(screen)
 	_build_rig_panel(screen)
 
@@ -418,6 +436,7 @@ func _build_number_screen(parent: Control) -> void:
 ## Knowledge opens the Knowledge sheet, which is why neither needs a dock seat.
 func _build_currency_stack(parent: Control) -> void:
 	var stack := VBoxContainer.new()
+	currency_stack = stack
 	stack.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
 	stack.offset_left = 22
 	stack.offset_top = 26
@@ -464,10 +483,11 @@ func _make_currency_row(parent: Control, icon_kind: int, icon_colour: Color, ico
 	button.set_meta("value_label", label)
 	return button
 
-## Wave, tier and the boss warning on one line. Tier doubles as the selector:
-## between runs it cycles to the next unlocked tier.
+## Wave, tier and the boss warning on one line, shown during a run; between
+## runs the hub's Difficulty panel selects the tier (D048).
 func _build_wave_line(parent: Control) -> void:
 	var line := HBoxContainer.new()
+	wave_line = line
 	line.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
 	line.offset_top = 112
 	line.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -486,7 +506,6 @@ func _build_wave_line(parent: Control) -> void:
 	tier_button.add_theme_color_override("font_hover_color", ACCENT)
 	tier_button.add_theme_color_override("font_pressed_color", ACCENT)
 	tier_button.add_theme_color_override("font_disabled_color", MUTED_TEXT)
-	tier_button.pressed.connect(_on_tier_pressed)
 	line.add_child(tier_button)
 	boss_separator = _make_tracked_label("·", 14, Color(0.925, 0.925, 0.918, 0.25))
 	line.add_child(boss_separator)
@@ -539,60 +558,201 @@ func _build_stage(parent: Control) -> void:
 	rate_label = _make_label("", 15, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	number_col.add_child(rate_label)
 
-## Fills the stage's rect between runs, in place of the ring and the number:
-## a landing beat with what the last run did, rather than an idle stage
-## waiting for a tap that does nothing (D025).
-func _build_landing_panel(parent: Control) -> void:
-	landing_panel = Control.new()
-	landing_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	landing_panel.offset_top = 150
-	landing_panel.offset_bottom = -250
-	landing_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	parent.add_child(landing_panel)
-
-	var centre := CenterContainer.new()
-	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	landing_panel.add_child(centre)
-
+## The battle hub between runs (D048), laid out the way The Tower lays out its
+## battle screen: currencies across the top, the doors that are not a whole
+## tab down the sides, then what the next run will be (Coin bonus, tier and
+## its record) above the BATTLE button. It keeps the D025 landing beat: the
+## last run's result sits under the title. Scrolls rather than overlaps on a
+## short screen.
+func _build_hub(parent: Control) -> void:
+	hub_panel = Control.new()
+	hub_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	parent.add_child(hub_panel)
+	var scroll := ScrollContainer.new()
+	scroll.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	hub_panel.add_child(scroll)
 	var column := VBoxContainer.new()
-	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	column.add_theme_constant_override("separation", 8)
-	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	centre.add_child(column)
+	hub_column = column
+	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_theme_constant_override("separation", 12)
+	scroll.add_child(column)
 
-	column.add_child(_make_label("READY", 14, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT))
-	landing_last_run_label = _make_label("", 17, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
-	column.add_child(landing_last_run_label)
-	landing_last_run_detail = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
-	landing_last_run_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(landing_last_run_detail)
+	var bar := HBoxContainer.new()
+	bar.add_theme_constant_override("separation", 4)
+	column.add_child(bar)
+	var coins := _make_currency_row(bar, IconGlyph.Kind.COIN, ACCENT, 17.0, 16, TEXT)
+	coins.tooltip_text = "Open the Workshop"
+	coins.pressed.connect(func(): _on_dock_tab_selected("workshop"))
+	hub_coins_label = coins.get_meta("value_label")
+	var gems := _make_currency_row(bar, IconGlyph.Kind.DICE, CARDS_ACCENT, 15.0, 15, TEXT)
+	gems.tooltip_text = "Pull a Card"
+	gems.pressed.connect(func(): _on_dock_tab_selected("cards"))
+	hub_gems_label = gems.get_meta("value_label")
+	var knowledge := _make_currency_row(bar, IconGlyph.Kind.DIAMOND, MUTED_TEXT, 15.0, 15, TEXT)
+	knowledge.tooltip_text = "Spend Knowledge"
+	knowledge.pressed.connect(_open_knowledge_sheet)
+	hub_knowledge_label = knowledge.get_meta("value_label")
+	for chip in [coins, gems, knowledge]:
+		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	column.add_child(HSeparator.new())
-	landing_difficulty_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
-	landing_difficulty_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(landing_difficulty_label)
+	var title := _make_tracked_label("NUMBER GO UP", 22, TEXT)
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(title)
+	column.add_child(_make_hub_spacer())
 
-	# The build at a glance, placeholder-simple: a rank count per category
-	# rather than a fabricated single multiplier (WORKSHOP_DESIGN.md D025).
-	var category_row := HBoxContainer.new()
-	category_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	category_row.add_theme_constant_override("separation", 18)
-	category_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	column.add_child(category_row)
-	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
-		var tile := VBoxContainer.new()
-		tile.alignment = BoxContainer.ALIGNMENT_CENTER
-		tile.add_theme_constant_override("separation", 2)
-		tile.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		category_row.add_child(tile)
-		var icon_wrap := CenterContainer.new()
-		icon_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		icon_wrap.add_child(IconGlyph.new(CATEGORY_ICON[category], MUTED_TEXT, 15.0))
-		tile.add_child(icon_wrap)
-		var rank_label := _make_label("0", 12, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
-		tile.add_child(rank_label)
-		landing_category_labels[category] = rank_label
+	var middle := HBoxContainer.new()
+	middle.add_theme_constant_override("separation", 8)
+	column.add_child(middle)
+	var left := VBoxContainer.new()
+	left.add_theme_constant_override("separation", 10)
+	middle.add_child(left)
+	left.add_child(_make_side_door(IconGlyph.Kind.DIAMOND, "KNOWLEDGE", _open_knowledge_sheet))
+	left.add_child(_make_side_door(IconGlyph.Kind.CHIP, "MODULES", Callable()))
+	var centre := VBoxContainer.new()
+	centre.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	centre.alignment = BoxContainer.ALIGNMENT_CENTER
+	centre.add_theme_constant_override("separation", 8)
+	middle.add_child(centre)
+	var emblem := Control.new()
+	emblem.custom_minimum_size = Vector2(0, 96)
+	emblem.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	centre.add_child(emblem)
+	var glow := TextureRect.new()
+	glow.texture = _make_radial_glow(ACCENT, 160)
+	glow.modulate.a = 0.55
+	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_centre_in(glow, 160.0)
+	emblem.add_child(glow)
+	var emblem_icon := IconGlyph.new(IconGlyph.Kind.SPARKLE, ACCENT, 64.0)
+	_centre_in(emblem_icon, 64.0)
+	emblem.add_child(emblem_icon)
+	var milestones := _make_door("MILESTONES", ACCENT, _open_milestones_sheet)
+	milestones.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	milestones.custom_minimum_size = Vector2(150, 38)
+	centre.add_child(milestones)
+	var right := VBoxContainer.new()
+	right.add_theme_constant_override("separation", 10)
+	middle.add_child(right)
+	right.add_child(_make_side_door(IconGlyph.Kind.CHART, "STATS", func(): _on_dock_tab_selected("settings")))
+	right.add_child(_make_side_door(IconGlyph.Kind.BOLT, "PERKS", Callable()))
+	column.add_child(_make_hub_spacer())
+
+	hub_last_run_label = _make_label("", 14, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
+	hub_last_run_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(hub_last_run_label)
+	hub_last_run_detail = _make_label("", 11, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	hub_last_run_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(hub_last_run_detail)
+
+	var bonus_panel := PanelContainer.new()
+	bonus_panel.add_theme_stylebox_override("panel", _panel_style(SURFACE, 14))
+	column.add_child(bonus_panel)
+	var bonus := VBoxContainer.new()
+	bonus.add_theme_constant_override("separation", 2)
+	bonus_panel.add_child(bonus)
+	var bonus_title := _make_tracked_label("TOTAL COIN BONUS", 11, MUTED_TEXT)
+	bonus_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	bonus.add_child(bonus_title)
+	hub_coin_bonus_label = _make_label("", 20, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
+	bonus.add_child(hub_coin_bonus_label)
+
+	var tier_panel := PanelContainer.new()
+	tier_panel.add_theme_stylebox_override("panel", _panel_style(SURFACE, 14))
+	column.add_child(tier_panel)
+	var tier_column := VBoxContainer.new()
+	tier_column.add_theme_constant_override("separation", 2)
+	tier_panel.add_child(tier_column)
+	var tier_title := _make_tracked_label("DIFFICULTY", 11, MUTED_TEXT)
+	tier_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tier_column.add_child(tier_title)
+	var selector := HBoxContainer.new()
+	selector.alignment = BoxContainer.ALIGNMENT_CENTER
+	tier_column.add_child(selector)
+	hub_prev_tier = _make_tier_arrow("‹", -1)
+	selector.add_child(hub_prev_tier)
+	hub_tier_label = _make_label("", 22, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
+	hub_tier_label.custom_minimum_size = Vector2(110, 0)
+	selector.add_child(hub_tier_label)
+	hub_next_tier = _make_tier_arrow("›", 1)
+	selector.add_child(hub_next_tier)
+	hub_best_wave_label = _make_label("", 15, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
+	tier_column.add_child(hub_best_wave_label)
+	hub_reward_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	tier_column.add_child(hub_reward_label)
+	hub_tier_hint = _make_label("", 11, HORIZONTAL_ALIGNMENT_CENTER, FAINT_TEXT)
+	hub_tier_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	tier_column.add_child(hub_tier_hint)
+
+	# A seat for tier conditions and challenge runs, which will enter through
+	# the modifier pipeline (architecture law 3); nothing is built behind it.
+	var challenge := _make_door("CHALLENGE RUNS  ·  SOON", MUTED_TEXT, func(): _show_toast("CHALLENGE RUNS  ·  COMING LATER", MUTED_TEXT))
+	challenge.modulate.a = 0.6
+	column.add_child(challenge)
+
+## Soaks up a tall screen's spare height around the emblem, so the panels sit
+## on the BATTLE button as The Tower's do; on a short screen each is zero.
+func _make_hub_spacer() -> Control:
+	var spacer := Control.new()
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	return spacer
+
+## Pins a square child to its parent's centre at a fixed size, whatever size
+## the parent ends up (a preset would read the child's size before layout).
+func _centre_in(control: Control, side: float) -> void:
+	control.anchor_left = 0.5
+	control.anchor_right = 0.5
+	control.anchor_top = 0.5
+	control.anchor_bottom = 0.5
+	control.offset_left = -side * 0.5
+	control.offset_right = side * 0.5
+	control.offset_top = -side * 0.5
+	control.offset_bottom = side * 0.5
+
+## A square door beside the hub's emblem for a system that has no tab of its
+## own. With no action it is a seat held for a later system: dimmed, marked
+## SOON, and a press says so rather than doing nothing.
+func _make_side_door(icon_kind: int, caption: String, on_press: Callable) -> VBoxContainer:
+	var soon := not on_press.is_valid()
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 4)
+	var button := Button.new()
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(52, 52)
+	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	button.tooltip_text = caption.capitalize()
+	button.add_theme_stylebox_override("normal", _panel_style(SURFACE, 12, DIVIDER))
+	button.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 12, ACCENT))
+	button.add_theme_stylebox_override("pressed", _panel_style(SURFACE_HOVER, 12, ACCENT))
+	var icon_centre := CenterContainer.new()
+	icon_centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	icon_centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	icon_centre.add_child(IconGlyph.new(icon_kind, MUTED_TEXT if soon else ACCENT, 22.0))
+	button.add_child(icon_centre)
+	if soon:
+		button.pressed.connect(func(): _show_toast(caption + "  ·  COMING LATER", MUTED_TEXT))
+		column.modulate.a = 0.5
+	else:
+		button.pressed.connect(on_press)
+	column.add_child(button)
+	column.add_child(_make_label(caption + ("\nSOON" if soon else ""), 8, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT))
+	return column
+
+func _make_tier_arrow(glyph: String, direction: int) -> Button:
+	var button := Button.new()
+	button.text = glyph
+	button.flat = true
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(44, 44)
+	button.add_theme_font_size_override("font_size", 30)
+	button.add_theme_color_override("font_color", ACCENT)
+	button.add_theme_color_override("font_hover_color", TEXT)
+	button.add_theme_color_override("font_pressed_color", TEXT)
+	button.add_theme_color_override("font_disabled_color", Color(ACCENT.r, ACCENT.g, ACCENT.b, 0.2))
+	button.pressed.connect(func(): _step_tier(direction))
+	return button
 
 ## The run's own controls: what the encounter is asking for, the two answers to
 ## it, and the way out. All text, no panels, so the stage stays the loud thing.
@@ -796,17 +956,6 @@ func _build_workshop_screen(parent: Control) -> void:
 	chip.add_child(workshop_header)
 	header_row.add_child(chip)
 	content.add_child(_make_label("PERMANENT · APPLIES TO EVERY RUN", 10, HORIZONTAL_ALIGNMENT_LEFT, WORKSHOP_ACCENT))
-
-	# Give both permanent systems a named, full-size entrance. They share the
-	# Workshop's Coin/Gem preparation space, but neither is a Workshop row.
-	var progression_row := HBoxContainer.new()
-	progression_row.add_theme_constant_override("separation", 8)
-	content.add_child(progression_row)
-	lab_research_button = _make_door("LABS", LABS_ACCENT, _open_lab_research_sheet)
-	progression_row.add_child(lab_research_button)
-	card_collection_button = _make_door("CARDS", CARDS_ACCENT, _open_card_collection_sheet)
-	progression_row.add_child(card_collection_button)
-	content.add_child(_make_label("RESEARCH WITH COINS · EQUIP CARDS PULLED WITH GEMS", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
 
 	var category_row := HBoxContainer.new()
 	category_row.add_theme_constant_override("separation", 8)
@@ -1130,9 +1279,10 @@ func _build_knowledge_sheet() -> void:
 func _open_knowledge_sheet() -> void:
 	if knowledge_sheet == null:
 		return
-	if drawer != null and drawer.visible:
-		drawer.visible = false
+	_close_sheets()
+	_seat_sheet(knowledge_sheet)
 	knowledge_sheet.visible = true
+	_refresh_dock()
 	_refresh_knowledge()
 
 ## The two gates that used to decide whether a dock icon appeared now decide
@@ -1258,6 +1408,11 @@ func _open_lab_research_sheet() -> void:
 		drawer.visible = false
 	if knowledge_sheet != null and knowledge_sheet.visible:
 		knowledge_sheet.visible = false
+	if card_collection_sheet != null and card_collection_sheet.visible:
+		card_collection_sheet.visible = false
+	if milestones_sheet != null and milestones_sheet.visible:
+		milestones_sheet.visible = false
+	_seat_sheet(lab_research_sheet)
 	lab_research_sheet.visible = true
 	_refresh_lab_research()
 
@@ -1461,8 +1616,103 @@ func _open_card_collection_sheet() -> void:
 		knowledge_sheet.visible = false
 	if lab_research_sheet != null and lab_research_sheet.visible:
 		lab_research_sheet.visible = false
+	if milestones_sheet != null and milestones_sheet.visible:
+		milestones_sheet.visible = false
+	_seat_sheet(card_collection_sheet)
 	card_collection_sheet.visible = true
 	_refresh_card_collection()
+
+## Every checkpoint of the selected tier and what it pays (D048). The table and
+## the payouts come from the balance profile and the tier record, so the
+## sheet only reads them.
+func _build_milestones_sheet() -> void:
+	milestones_sheet = Control.new()
+	milestones_sheet.visible = false
+	milestones_sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(milestones_sheet)
+	var scrim := ColorRect.new()
+	scrim.color = Color(0, 0, 0, 0.55)
+	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scrim.mouse_filter = Control.MOUSE_FILTER_STOP
+	scrim.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.pressed:
+			milestones_sheet.visible = false
+	)
+	milestones_sheet.add_child(scrim)
+	var sheet := PanelContainer.new()
+	sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	sheet.offset_top = 150
+	var sheet_style := StyleBoxFlat.new()
+	sheet_style.bg_color = Color("111722")
+	sheet_style.corner_radius_top_left = 24
+	sheet_style.corner_radius_top_right = 24
+	sheet.add_theme_stylebox_override("panel", sheet_style)
+	milestones_sheet.add_child(sheet)
+	var margin := MarginContainer.new()
+	margin.add_theme_constant_override("margin_left", 22)
+	margin.add_theme_constant_override("margin_right", 22)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_bottom", 20)
+	sheet.add_child(margin)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 12)
+	margin.add_child(column)
+	milestones_title = _make_label("", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	column.add_child(milestones_title)
+	column.add_child(_make_label("EACH PAYS ONCE PER TIER, THE FIRST TIME A RUN PASSES IT", 10, HORIZONTAL_ALIGNMENT_LEFT, ACCENT))
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	column.add_child(scroll)
+	milestones_content = VBoxContainer.new()
+	milestones_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	milestones_content.add_theme_constant_override("separation", 6)
+	scroll.add_child(milestones_content)
+
+func _open_milestones_sheet() -> void:
+	_close_sheets()
+	_seat_sheet(milestones_sheet)
+	milestones_sheet.visible = true
+	_refresh_milestones()
+	_refresh_dock()
+
+func _refresh_milestones() -> void:
+	var profile: TaxBalanceProfile = state.balance_profile
+	var tier_id := state.selected_tier
+	var best := state.get_tier_best(tier_id)
+	var claimed := {}
+	for wave in state.get_tier_record(tier_id).get("milestones_claimed", []):
+		claimed[int(wave)] = true
+	var signature := str(tier_id) + "|" + str(best) + "|" + str(claimed.size())
+	if signature == milestones_signature:
+		return
+	milestones_signature = signature
+	milestones_title.text = "Milestones  ·  Tier " + str(tier_id)
+	_clear_children(milestones_content)
+	var next_marked := false
+	for wave in profile.MILESTONE_WAVES:
+		var done := claimed.has(int(wave))
+		var is_next := not done and not next_marked
+		next_marked = next_marked or is_next
+		var row := PanelContainer.new()
+		row.add_theme_stylebox_override("panel", _panel_style(SURFACE, 12, ACCENT if is_next else Color.TRANSPARENT))
+		row.modulate.a = 1.0 if done or is_next else 0.6
+		milestones_content.add_child(row)
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 10)
+		row.add_child(line)
+		var status := CenterContainer.new()
+		status.custom_minimum_size = Vector2(18, 0)
+		status.add_child(IconGlyph.new(IconGlyph.Kind.CHECK if done else IconGlyph.Kind.LOCK, ACCENT if done else MUTED_TEXT, 14.0))
+		line.add_child(status)
+		var name_label := _make_label("WAVE " + str(wave) + ("  ·  NEXT" if is_next else ""), 14, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		line.add_child(name_label)
+		var reward := "+" + str(profile.milestone_gems(tier_id, wave)) + " GEMS"
+		var coins := profile.milestone_bonus(tier_id, wave)
+		if coins > 0:
+			reward += "  ·  +" + _coins(coins) + " COINS"
+		line.add_child(_make_label(reward, 11, HORIZONTAL_ALIGNMENT_RIGHT, ACCENT if done else MUTED_TEXT))
 
 func _on_card_pull_pressed() -> void:
 	if not state.has_unmaxed_cards():
@@ -1953,24 +2203,40 @@ func _animate_tab_panel(tab_id: String) -> void:
 	tween.tween_property(target, "modulate:a", 1.0, 0.18)
 
 func _on_dock_tab_selected(tab_id: String) -> void:
-	if tab_id == "settings":
-		if not _is_tab_unlocked("settings"):
-			_show_toast("REACH " + ScientificNumber.from_float(tab_unlock_lifetime["settings"]).format_value() + " TO UNLOCK SETTINGS", MUTED_TEXT)
-			return
-		_toggle_drawer()
+	if NavDock.SOON_TABS.has(tab_id):
+		_show_toast("ULTIMATE WEAPONS  ·  COMING LATER", MUTED_TEXT)
 		return
 	if not _is_tab_unlocked(tab_id):
 		_show_toast("REACH " + ScientificNumber.from_float(tab_unlock_lifetime[tab_id]).format_value() + " TO UNLOCK " + TAB_NAMES[tab_id], MUTED_TEXT)
 		return
-	if drawer.visible:
-		drawer.visible = false
-	if knowledge_sheet != null and knowledge_sheet.visible:
-		knowledge_sheet.visible = false
-	if lab_research_sheet != null and lab_research_sheet.visible:
-		lab_research_sheet.visible = false
-	if card_collection_sheet != null and card_collection_sheet.visible:
-		card_collection_sheet.visible = false
+	# Labs, Cards and MORE are sheets over whichever screen is showing (D048):
+	# their seat opens them, and pressing it again closes them.
+	if tab_id == "settings":
+		_toggle_drawer()
+		return
+	if tab_id == "labs" or tab_id == "cards":
+		var sheet: Control = lab_research_sheet if tab_id == "labs" else card_collection_sheet
+		if sheet.visible:
+			sheet.visible = false
+		elif tab_id == "labs":
+			_open_lab_research_sheet()
+		else:
+			_open_card_collection_sheet()
+		_refresh_dock()
+		return
+	_close_sheets()
 	_select_tab(tab_id)
+
+func _close_sheets() -> void:
+	for sheet in [drawer, knowledge_sheet, lab_research_sheet, card_collection_sheet, milestones_sheet]:
+		if sheet != null:
+			sheet.visible = false
+
+## Sheets stop at the dock's top edge whenever the dock shows, so the bar
+## stays pressable and marks the open sheet (D048); a run screen has no dock,
+## so there a sheet runs to the foot of the screen.
+func _seat_sheet(sheet: Control) -> void:
+	sheet.offset_bottom = -NavDock.BAR_HEIGHT if nav_dock.visible else 0.0
 
 func _is_tab_unlocked(tab_id: String) -> bool:
 	var threshold: float = tab_unlock_lifetime.get(tab_id, 0.0)
@@ -1978,13 +2244,17 @@ func _is_tab_unlocked(tab_id: String) -> bool:
 
 func _refresh_dock() -> void:
 	var unlocked := {}
-	var active := "settings" if drawer.visible else current_tab
+	var active := current_tab
+	if drawer.visible:
+		active = "settings"
+	elif lab_research_sheet.visible:
+		active = "labs"
+	elif card_collection_sheet.visible:
+		active = "cards"
 	var signature := active
-	for tab_id in TAB_IDS:
+	for tab_id in NavDock.TAB_ORDER:
 		unlocked[tab_id] = _is_tab_unlocked(tab_id)
 		signature += "|" + ("1" if unlocked[tab_id] else "0")
-	unlocked["settings"] = _is_tab_unlocked("settings")
-	signature += "|s" + ("1" if unlocked["settings"] else "0")
 	# Dock restyling is only worth doing when the active tab or an unlock
 	# boundary actually changed; _refresh_all runs eight times a second.
 	if signature == dock_signature:
@@ -2034,26 +2304,6 @@ func _on_run_button_pressed() -> void:
 	_snap_number_display()
 	state.save()
 	_refresh_all()
-
-## The tier label doubles as its own selector: between runs it steps to the
-## next unlocked tier and wraps, which needs no panel of its own.
-func _on_tier_pressed() -> void:
-	var tiers: Array = state.balance_profile.tiers
-	if tiers.is_empty():
-		return
-	var start := 0
-	for index in range(tiers.size()):
-		if tiers[index].id == state.selected_tier:
-			start = index
-			break
-	for step in range(1, tiers.size() + 1):
-		var candidate: int = tiers[(start + step) % tiers.size()].id
-		if state.is_tier_unlocked(candidate) and state.select_tier(candidate):
-			_show_toast("TIER " + str(candidate), ACCENT)
-			state.save()
-			_refresh_all()
-			return
-	_show_toast("NO OTHER TIER UNLOCKED", MUTED_TEXT)
 
 func _on_brace_pressed() -> void:
 	var cost := state.number.multiply_scalar(state.get_brace_cost_percent())
@@ -2109,6 +2359,8 @@ func _refresh_all() -> void:
 	_refresh_knowledge()
 	_refresh_lab_research()
 	_refresh_card_collection()
+	if milestones_sheet.visible:
+		_refresh_milestones()
 	if current_tab == "workshop":
 		# Do not rebuild live buttons during the player's press/release cycle.
 		# Rebuilding a Control tree every refresh can eat touch releases on Web.
@@ -2120,17 +2372,24 @@ func _refresh_all() -> void:
 ## dock (D016) and Retreat tucked top right, away from the thumb. Between runs
 ## the landing panel, the Armor shortcut, the RUN button and the dock keep the
 ## layout they had. The dock still shows on other tabs mid-run, so the
-## Workshop always has a way back.
+## Workshop always has a way back. Between runs the hub (D048) takes the
+## screen: a width-capped column, with BATTLE pinned above the dock.
 func _apply_screen_layout() -> void:
 	var screen: Control = screens.get("number")
 	if screen == null or stage_root == null:
 		return
 	var height := screen.size.y
-	var key := ("run" if state.in_run else "between") + "|" + current_tab + "|" + str(int(height))
+	var width := screen.size.x
+	var key := ("run" if state.in_run else "between") + "|" + current_tab + "|" + str(int(height)) + "x" + str(int(width))
 	if key == screen_layout_key or height <= 0.0:
 		return
 	screen_layout_key = key
 	nav_dock.visible = not (state.in_run and current_tab == "number")
+	currency_stack.visible = state.in_run
+	wave_line.visible = state.in_run
+	encounter_label.visible = state.in_run
+	run_actions.visible = state.in_run
+	number_button.visible = state.in_run
 	if state.in_run:
 		var free := height - RUN_STAGE_TOP - CATEGORY_STRIP_HEIGHT - RUN_ENCOUNTER_ROW - RUN_ACTION_ROW
 		var stage_height := clampf(free * RUN_STAGE_SHARE, minf(RUN_STAGE_MIN, free), RUN_STAGE_MAX)
@@ -2146,12 +2405,26 @@ func _apply_screen_layout() -> void:
 		run_button.offset_bottom = 54
 		run_button.alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	else:
-		_place(stage_root, 0.0, 150.0, 1.0, -250.0)
-		_place(encounter_label, 1.0, -295.0, 1.0, -270.0)
-		_place(run_actions, 1.0, -258.0, 1.0, -200.0)
-		run_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-		run_button.offset_top = -188
-		run_button.offset_bottom = -154
+		var half := minf(width - 32.0, HUB_MAX_WIDTH) * 0.5
+		var battle_bottom := -NavDock.BAR_HEIGHT - 14.0
+		var battle_top := battle_bottom - HUB_BATTLE_HEIGHT
+		hub_panel.anchor_left = 0.5
+		hub_panel.anchor_right = 0.5
+		hub_panel.anchor_top = 0.0
+		hub_panel.anchor_bottom = 1.0
+		hub_panel.offset_left = -half
+		hub_panel.offset_right = half
+		hub_panel.offset_top = 18.0
+		hub_panel.offset_bottom = battle_top - 12.0
+		hub_column.custom_minimum_size.y = height + battle_top - 12.0 - 18.0
+		run_button.anchor_left = 0.5
+		run_button.anchor_right = 0.5
+		run_button.anchor_top = 1.0
+		run_button.anchor_bottom = 1.0
+		run_button.offset_left = -half
+		run_button.offset_right = half
+		run_button.offset_top = battle_top
+		run_button.offset_bottom = battle_bottom
 		run_button.alignment = HORIZONTAL_ALIGNMENT_CENTER
 
 ## Stretches a control across the screen's width between two edges, each an
@@ -2185,7 +2458,7 @@ func _refresh_run_bar() -> void:
 		rig_panel.visible = state.in_run
 	if stage_root != null:
 		stage_root.visible = state.in_run
-	_refresh_landing()
+	_refresh_hub()
 	tap_hint.visible = state.in_run
 	brace_button.visible = state.in_run
 	# Armor is a Workshop rank, locked during a run, so its shortcut only
@@ -2201,7 +2474,8 @@ func _refresh_run_bar() -> void:
 		armor_cost_label.text = "MAXED"
 	else:
 		armor_cost_label.text = _coins(state.get_workshop_coin_cost(armor)) + " COINS"
-	run_button.text = "RETREAT & RESET" if state.in_run else "START RUN  ·  WORKSHOP LV " + str(state.get_workshop_level())
+	run_button.text = "RETREAT & RESET" if state.in_run else "BATTLE"
+	run_button.add_theme_font_size_override("font_size", 11 if state.in_run else 18)
 	# Retreat is destructive and rare, so it stays the quietest control on the
 	# screen (flat text). Starting is the whole point of being here, so it
 	# gets the same filled pill the run-over screen's CONTINUE door uses (D025).
@@ -2217,20 +2491,23 @@ func _refresh_run_bar() -> void:
 		run_button.add_theme_stylebox_override("normal", _panel_style(ACCENT, 999))
 		run_button.add_theme_stylebox_override("hover", _panel_style(ACCENT.lightened(0.1), 999))
 
-## The landing beat (D025): what the stage shows in place of the ring and the
-## number between runs, since Number exists only during a run (pillar 3).
-func _refresh_landing() -> void:
-	if landing_panel == null:
+## The hub's facts (D048), including the D025 landing beat: what the last run
+## did, and what the next one will be.
+func _refresh_hub() -> void:
+	if hub_panel == null:
 		return
-	landing_panel.visible = not state.in_run
+	hub_panel.visible = not state.in_run
 	if state.in_run:
 		return
+	hub_coins_label.text = _coins(state.coins)
+	hub_gems_label.text = str(state.gems)
+	hub_knowledge_label.text = str(state.knowledge)
 	var summary := state.last_run_summary
 	if summary == null:
-		landing_last_run_label.text = "NO RUNS YET"
-		landing_last_run_detail.text = "Start your first run when you're ready."
+		hub_last_run_label.text = "NO RUNS YET"
+		hub_last_run_detail.text = "Press BATTLE when you're ready."
 	else:
-		landing_last_run_label.text = "LAST RUN  ·  TIER " + str(summary.tier_id) + "  ·  WAVE " + str(summary.wave_reached)
+		hub_last_run_label.text = "LAST RUN  ·  TIER " + str(summary.tier_id) + "  ·  WAVE " + str(summary.wave_reached)
 		var cause := ""
 		match summary.outcome:
 			"retreat": cause = "RETREATED"
@@ -2241,12 +2518,43 @@ func _refresh_landing() -> void:
 			reward += "  ·  +" + str(summary.knowledge_gained) + " KNOWLEDGE"
 		if summary.gems_earned > 0:
 			reward += "  ·  +" + str(summary.gems_earned) + " GEMS"
-		landing_last_run_detail.text = cause + "  ·  " + reward
+		hub_last_run_detail.text = cause + "  ·  " + reward
+	hub_coin_bonus_label.text = "×" + ("%.2f" % state.get_coin_bonus_multiplier())
 	var tier: Variant = state.balance_profile.get_tier(state.selected_tier)
-	landing_difficulty_label.text = "TIER " + str(state.selected_tier) + "  ·  BEST WAVE " + str(state.get_tier_best()) + "  ·  REWARD ×" + ("%.1f" % tier.reward_multiplier) + "  ·  COIN BONUS ×" + ("%.2f" % state.get_coin_bonus_multiplier())
-	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
-		var rank_label: Label = landing_category_labels[category]
-		rank_label.text = str(state.get_category_rank_total(category))
+	hub_tier_label.text = "TIER " + str(state.selected_tier)
+	hub_best_wave_label.text = "HIGHEST WAVE  " + str(state.get_tier_best())
+	hub_reward_label.text = "REWARDS ×" + ("%.1f" % tier.reward_multiplier)
+	var index := _selected_tier_index()
+	var tiers: Array = state.balance_profile.tiers
+	hub_prev_tier.disabled = index <= 0
+	hub_next_tier.disabled = index >= tiers.size() - 1
+	hub_tier_hint.text = ""
+	if index + 1 < tiers.size() and not state.is_tier_unlocked(tiers[index + 1].id):
+		var next_tier = tiers[index + 1]
+		hub_tier_hint.text = "TIER " + str(next_tier.id) + " OPENS AT WAVE " + str(next_tier.unlock_previous_tier_wave) + " HERE"
+
+func _selected_tier_index() -> int:
+	var tiers: Array = state.balance_profile.tiers
+	for index in range(tiers.size()):
+		if tiers[index].id == state.selected_tier:
+			return index
+	return 0
+
+## The hub's arrows step one tier either way; a locked tier says what opens it
+## rather than skipping past it, so the next goal is always on screen.
+func _step_tier(direction: int) -> void:
+	var tiers: Array = state.balance_profile.tiers
+	var target := _selected_tier_index() + direction
+	if target < 0 or target >= tiers.size():
+		return
+	var candidate: int = tiers[target].id
+	if state.select_tier(candidate):
+		state.save()
+		_refresh_all()
+		if milestones_sheet != null and milestones_sheet.visible:
+			_refresh_milestones()
+	else:
+		_show_toast("TIER " + str(candidate) + " OPENS AT WAVE " + str(tiers[target].unlock_previous_tier_wave) + " IN TIER " + str(tiers[target - 1].id), MUTED_TEXT)
 
 ## The boss warning is the only thing besides a landing hit allowed to use the
 ## warning colour, so it keeps its weight.
@@ -2797,7 +3105,10 @@ func _populate_stats_grid() -> void:
 		stats_grid.add_child(cell)
 
 func _toggle_drawer() -> void:
-	drawer.visible = not drawer.visible
+	var opening := not drawer.visible
+	_close_sheets()
+	_seat_sheet(drawer)
+	drawer.visible = opening
 	if drawer.visible:
 		_refresh_drawer()
 	_refresh_dock()

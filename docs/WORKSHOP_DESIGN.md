@@ -422,6 +422,8 @@ The owner's reference layout (The Tower, 21 September 2026) settles the shape in
   [ RUN      WORKSHOP      MORE ]                      ← nav dock, three seats
 ```
 
+**Since D048** the dock between runs is BATTLE · WORKSHOP · CARDS · ULTIMATES (SOON) · LABS · MORE, and the Number screen between runs is a battle hub.
+
 **In a run** — step 7, when the Rig arrives. The dock is not shown, so the strip sits flush:
 
 ```

@@ -62,4 +62,4 @@
 - **Dormant momentum.** No upgrade definition grants `momentum_per_tick`, so momentum stacks never rise. The mechanic is either awaiting a card or dead code.
 - **Migration automation remnants.** `automation_enabled`, `workshop.automation_targets`, `has_automation()` and `get_auto_slot_count()` exist only to migrate V1/V2 saves. Automation is not an active system.
 - **Unused offline cap.** `OFFLINE_CAP_SECONDS` is unused while `apply_offline()` always returns an empty award.
-- **Unlock thresholds** are keyed to `highest_number` at 10 / 1,000 / 110,000. Since D016 they gate the Workshop tab and the rows inside the Knowledge sheet rather than dock icons. The values are presentation, not balance.
+- **Unlock thresholds** are keyed to `highest_number` at 10 / 1,000 / 110,000. Since D016 they gate the Workshop tab (and since D048 the Cards and Labs seats, at the same 10) and the rows inside the Knowledge sheet rather than dock icons. The values are presentation, not balance.
