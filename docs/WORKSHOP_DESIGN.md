@@ -502,7 +502,7 @@ Targets 1–4 gate D012's retune; 5 and 6 gate step 4's new stats. `tools/balanc
 2. Coins per minute at equal builds are within ±10% of the pre-D012 baseline. *This measures the D012 retune, not the Workshop: Coin Bonus (step 4b) is meant to lift Coins per minute, and does, by 49% at its cap. Compare like builds, not maxed ones.* *Met for the main progression builds: mid −2%, Max Attack −7%, Max Attack + Armor +6%. Two small runs sit above: early is +20% (2.4 Coins a minute) and Tier 2 is +19%, because both go relatively deeper now. Recheck when step 4 adds new Coin sinks.* ***Fails after D037, by design:*** *beaten waves no longer wait out their timers, so Coins per minute rise about 1.5–1.8× at equal builds (mid 45.8 → 69.5, max Attack 102 → 181). Either Coin rewards come down with the Hit retune, or this target is restated for D037; that is a decision.*
 3. Tier 1 wave 100 is reachable for a Workshop investment comparable to before. *Met: Max Attack + Armor 40% reaches wave 100, as it did before.*
 4. A player who has just unlocked Tier 2 survives its opening waves. *Met: that build reaches Tier 2 wave 26 (was 28).*
-5. **The cheapest build that reaches Tier 1 wave 100 includes both Attack and Defense.** This is pillar 2 written as a test. ***Met, and worth watching:*** *maxed Attack alone reaches wave 97 after D036, while maxed Attack plus Armor reaches 100. Boss Damage moved Attack's solo reach close to 100 in step 4b; another Attack row of that size would break this target.* ***Fails after D037:*** *max Attack alone reaches wave 105, because its output is also the Number that absorbs Hits. The Hit retune and Guard are the planned fix (D037).*
+5. **The cheapest build that reaches Tier 1 wave 100 includes both Attack and Defense.** This is pillar 2 written as a test. ***Met, and worth watching:*** *maxed Attack alone reaches wave 97 after D036, while maxed Attack plus Armor reaches 100. Boss Damage moved Attack's solo reach close to 100 in step 4b; another Attack row of that size would break this target.* ***Fails after D037:*** *max Attack alone reaches wave 105, because its output is also the Number that absorbs Hits. The Hit retune and Guard are the planned fix (D037).* ***Holds again after D040:*** *max Attack alone dies at the wave 100 boss; adding Armor reaches 110.*
 6. Every stat's first rank visibly moves a simulator outcome. ***Met at the cap for every new stat, with two qualifications:*** *Cushion moves Tier 2's final wave but not Tier 1's at the measured max-Attack build, and Brace Cost cannot be measured by a simulator that never Braces — it is covered by test rather than by simulation. Utility's two bonuses move Coins and Knowledge rather than the wave reached, which is the category's whole point. Sizes were chosen from the older measurements that showed Siphon at 10% adding nothing: Siphon caps at 25% and Recoil at 50%.*
 
 Targets 7–9 gate the Rig (step 7). All three need the simulator to model in-run spending, which is itself part of that step.
@@ -552,6 +552,28 @@ The wider matrix also exposes an independent Rig problem. At two taps a second u
 **Recommendation before changing the live rule:** retune the opening's duration, clear-versus-timeout rewards, and first few Rig prices together with either D012 or the 10%-tap split as explicit alternatives. Require the same player-policy matrix to pass on the second run and early/mid builds; do not choose a split only because its Number animates. Keep the all-output splits as negative controls for idle farming. A phone playtest decides whether the tap-only split's visible gain is worth the extra tapping it encourages in an idle game.
 
 **Longer horizon:** [`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md) (proposed, 23 September 2026) sets out a balance pass for Tiers 1–10 that bears on this review: Rush (a broken wave ends early and pays the rest of its timer at once) and a scale-free Rig both address the flat opening while keeping D012.
+
+### After D040: one Tier 1 curve from wave 1 (23 September 2026)
+
+Wave 21 used to be a splice: waves 1–20 ran a separate warm-up formula, then HP nearly tripled and Hits doubled every wave for five waves. [D040](DECISIONS.md) runs one set of rules from wave 1:
+- Wave HP follows the existing curve from 9 HP at wave 1.
+- A Hit is 20% of its wave's HP at wave 1, rising to 60% by wave 30.
+- Bosses are ×3 HP and ×1.5 Hit.
+- Coins are 0.65 × the wave.
+
+Seed 7, two taps a second unless noted, `tax-foundation-v7`:
+
+| Build | Before (D039) | After (D040) |
+| --- | --- | --- |
+| Representative first run | wave 29, 6.9 min, 56 Coins | wave 20, 5.6 min, 106 Coins |
+| One tap a second, buying Rig ranks whenever affordable | wave 25, 5.5 min, 58 Coins | wave 16, 3.9 min, 104 Coins |
+| Doing nothing | wave 26, 9.0 min, 30 Coins | wave 10, 3.7 min, 9 Coins |
+| Early / mid | 30 / 50 | 30 / 50 |
+| Max Attack | 105 | **100 (dies at the wave 100 boss)** |
+| Max Attack + Armor / + all Defense | 120 / 130 | 110 / 120 |
+| Tier 2, Attack + all Defense | 50 | 50 |
+
+Balance target 5 holds again. Targets 1 and 10 hold: the first run funds real Workshop ranks, an idle player is hit within the first minute, a steady tapper's first Hit is survivable, and doing nothing earns far less than tapping.
 
 ### After D037: the Number always rises (23 September 2026)
 

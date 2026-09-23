@@ -6,7 +6,7 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v6"
+const PROFILE_ID := "tax-foundation-v7"
 const WAVE_INTERVAL_SECONDS := 15.0
 const BOSS_WAVE_INTERVAL := 10
 ## A beaten wave stays on screen at least this long before the next arrives
@@ -25,40 +25,41 @@ const MILESTONE_GEM_SCALE := 2.0
 ## Every boss wave beaten pays this many Gems, every run (D030).
 const BOSS_WAVE_GEMS := 1
 
-## v2 halves both axes and trims pressured rewards to compensate for D012: with
-## no free heal while stuck, the same build reaches the same wave in far less
-## time, so per-wave Coins come down to hold Coins per minute level.
+## Tier 1's difficulty curve (D040): one set of rules from wave 1, with no
+## warm-up splice. Wave HP rises a little faster than wave squared, which
+## matches how Workshop damage grows with Coins spent: each investment level
+## (early, mid, maxed) has a natural wave it stops at. Every tenth wave steps
+## up by the milestone factors. Higher tiers multiply the same curve (D002).
 const LIABILITY_SCALE := 4.0
-const COLLECTION_SCALE := 10.0
-const PRESSURED_REWARD_SCALE := 0.65
+## A Hit is a share of its own wave's HP (D040): missing a wave costs part of
+## what clearing it would have taken, so the Hit can neither spike nor lag
+## behind the wave, and doubling damage or shrinking Hits move the same scale.
+## The share starts at 20% on wave 1 and grows evenly to 60% by wave 30, so a
+## new player's early mistakes cost a little; from wave 30 it is 60%, where
+## maxed Attack alone dies at the wave 100 boss and Defense gets it past.
+const HIT_SHARE_OF_HP := 0.6
+const HIT_SHARE_AT_WAVE_1 := 0.2
+const HIT_SHARE_FULL_BY_WAVE := 30
+## Every wave pays this times its number in Coins, times the tier's reward
+## multiplier, from wave 1 (D040).
+const WAVE_REWARD_SCALE := 0.65
 const BOSS_LIABILITY_MULTIPLIER := 3.0
 const BOSS_COLLECTION_MULTIPLIER := 1.5
 const BOSS_REWARD_MULTIPLIER := 5.0
-
-## The Tier 1 opening (D033, D036): warm-up wave HP and hit at wave 1 and how much
-## each grows per wave, what a warm-up boss multiplies them by, the Number a run with
-## a warm-up starts with, and output every run has before any Workshop rank.
-## (The warm-up's discounted Rig prices were retired by D039.)
-const WARM_UP_START_HP := 20.0
-const WARM_UP_HP_GROWTH := 1.08
-const WARM_UP_START_HIT := 1.0
-const WARM_UP_HIT_GROWTH := 1.085
-const WARM_UP_BOSS_HP := 1.4
-const WARM_UP_BOSS_HIT := 1.4
-const WARM_UP_STARTING_NUMBER := 50.0
+## Output every run has from its first second, before any Workshop rank, which
+## upgrades do not raise (D033).
 const BASE_DAMAGE_PER_SECOND := 1.0
-const TIER_ONE_TRANSITION_LAST_WAVE := 25
-const TIER_ONE_TRANSITION_HIT_GROWTH := 2.0
 
 var tiers: Array = []
 
 func _init() -> void:
-	# T1 retains the prototype's onboarding grace. Higher tiers start applying
-	# pressure immediately so their difficulty choice is honest from wave one.
+	# Tier 1 starts a run with 50 Number so its first Hit costs Number, not the
+	# run. Higher tiers start with none, so their difficulty is honest from
+	# wave one (Cushion buys a start there).
 	tiers = [
-		TierDefinitionClass.new(1, 1.0, 1.0, 1.0, 20, 0),
-		TierDefinitionClass.new(2, 20.0, 20.0, 1.8, 0, TIER_UNLOCK_WAVE),
-		TierDefinitionClass.new(3, 60.0, 60.0, 2.6, 0, TIER_UNLOCK_WAVE),
+		TierDefinitionClass.new(1, 1.0, 1.0, 1.0, 50.0, 0),
+		TierDefinitionClass.new(2, 20.0, 20.0, 1.8, 0.0, TIER_UNLOCK_WAVE),
+		TierDefinitionClass.new(3, 60.0, 60.0, 2.6, 0.0, TIER_UNLOCK_WAVE),
 	]
 
 func get_tier(tier_id: int):
@@ -76,79 +77,44 @@ func has_tier(tier_id: int) -> bool:
 func is_boss_wave(wave: int) -> bool:
 	return wave > 0 and wave % BOSS_WAVE_INTERVAL == 0
 
-## Past the tier's warm-up: the full curves apply and waves pay by depth. A
-## warm-up wave is not free (D033); it ramps into the first full wave.
-func is_pressured_wave(tier_id: int, wave: int) -> bool:
-	return wave > get_tier(tier_id).free_waves
-
-## Tier 1's opening (D033). Its warm-up waves are small but real: wave HP and
-## the hit start low and grow a fixed share each wave, so a new player is under
-## attack from the first wave without a hit that can end the run, and a warm-up
-## boss is softened rather than tripled. The first full wave after the warm-up
-## is where the curves take over. Tiers without a warm-up are pressured from
-## wave 1 already.
-func _warm_up_value(wave: int, start: float, growth: float, boss_factor: float) -> ScientificNumber:
-	var value := start * pow(growth, float(maxi(1, wave) - 1))
-	if is_boss_wave(wave):
-		value *= boss_factor
-	return ScientificNumber.from_float(value)
-
-## What every run of a tier starts with, before any Workshop rank: a tier with
-## a warm-up gives a little, so the first hit costs Number instead of the run.
+## What every run of a tier starts with, before any Workshop rank.
 func starting_number(tier_id: int) -> float:
-	return WARM_UP_STARTING_NUMBER if get_tier(tier_id).free_waves > 0 else 0.0
+	return get_tier(tier_id).starting_number
 
-func liability_for_wave(tier_id: int, wave: int) -> ScientificNumber:
-	if not is_pressured_wave(tier_id, wave):
-		return _warm_up_value(wave, WARM_UP_START_HP, WARM_UP_HP_GROWTH, WARM_UP_BOSS_HP)
+## An ordinary wave's HP on the Tier 1 scale, in log10 so deep waves stay
+## finite: 4 x (0.05 w^2.13 + 0.8 w + 1.5), x1.08 every 10 waves, x1.2 every
+## 50 and x1.5 every 100.
+func _wave_hp_log10(wave: int) -> float:
 	var w := float(maxi(1, wave))
 	var body := 0.05 * pow(w, 2.13) + 0.8 * w + 1.5
 	var milestone_log := (
-		float(wave / 10) * log(1.08) / log(10.0)
-		+ float(wave / 50) * log(1.20) / log(10.0)
-		+ float(wave / 100) * log(1.50) / log(10.0)
-	)
+		float(wave / 10) * log(1.08)
+		+ float(wave / 50) * log(1.20)
+		+ float(wave / 100) * log(1.50)
+	) / log(10.0)
+	return log(LIABILITY_SCALE * body) / log(10.0) + milestone_log
+
+func liability_for_wave(tier_id: int, wave: int) -> ScientificNumber:
 	var tier: Variant = get_tier(tier_id)
 	var boss_multiplier := BOSS_LIABILITY_MULTIPLIER if is_boss_wave(wave) else 1.0
-	var value_log := log(LIABILITY_SCALE * body * tier.liability_multiplier * boss_multiplier) / log(10.0) + milestone_log
-	return _from_log10(value_log)
+	return _from_log10(_wave_hp_log10(wave) + log(tier.liability_multiplier * boss_multiplier) / log(10.0))
 
+## The share of an ordinary wave's HP its Hit takes (D040).
+func hit_share(wave: int) -> float:
+	var progress := clampf(float(maxi(1, wave) - 1) / float(HIT_SHARE_FULL_BY_WAVE - 1), 0.0, 1.0)
+	return HIT_SHARE_AT_WAVE_1 + (HIT_SHARE_OF_HP - HIT_SHARE_AT_WAVE_1) * progress
+
+## A boss's Hit is 1.5 times an ordinary Hit at its wave, not a share of its
+## tripled HP, so a boss fight is long rather than instantly lethal.
 func collection_for_wave(tier_id: int, wave: int) -> ScientificNumber:
-	if not is_pressured_wave(tier_id, wave):
-		return _warm_up_value(wave, WARM_UP_START_HIT, WARM_UP_HIT_GROWTH, WARM_UP_BOSS_HIT)
-	var w := float(maxi(1, wave))
-	var body := 0.021 * pow(w, 2.007) + 0.16 * w + 1.07
-	var milestone_log := (
-		float(wave / 10) * log(1.06) / log(10.0)
-		+ float(wave / 50) * log(1.18) / log(10.0)
-		+ float(wave / 100) * log(1.40) / log(10.0)
-	)
 	var tier: Variant = get_tier(tier_id)
 	var boss_multiplier := BOSS_COLLECTION_MULTIPLIER if is_boss_wave(wave) else 1.0
-	var value_log := log(COLLECTION_SCALE * body * tier.collection_multiplier * boss_multiplier) / log(10.0) + milestone_log
-	return _from_log10(value_log)
+	return _from_log10(_wave_hp_log10(wave) + log(hit_share(wave) * tier.collection_multiplier * boss_multiplier) / log(10.0))
 
-## Tier 1's first pressured hits grow from its final warm-up boss rather than
-## jumping straight to the full curve. The full curve remains the encounter's
-## base Collection, so higher tiers keep their exact pressure ratios and Armor
-## still reduces the effective hit through the shared modifier pipeline.
-func tier_one_transition_hit_multiplier(tier_id: int, wave: int, base_hit: ScientificNumber) -> float:
-	if tier_id != 1 or wave <= get_tier(1).free_waves or wave > TIER_ONE_TRANSITION_LAST_WAVE or base_hit.is_zero():
-		return 1.0
-	var last_warm_up_hit := WARM_UP_START_HIT * pow(WARM_UP_HIT_GROWTH, float(get_tier(1).free_waves - 1)) * WARM_UP_BOSS_HIT
-	var ramped_hit := ScientificNumber.from_float(last_warm_up_hit * pow(TIER_ONE_TRANSITION_HIT_GROWTH, float(wave - get_tier(1).free_waves)))
-	if ramped_hit.compare_to(base_hit) >= 0:
-		return 1.0
-	return pow(10.0, ramped_hit.log10() - base_hit.log10())
-
+## Every tier shares the same wave base, which keeps the 1.8x/2.6x reward
+## ratios honest at equal waves.
 func reward_for_wave(tier_id: int, wave: int) -> int:
-	if not is_pressured_wave(tier_id, wave):
-		# The warm-up pays a small repeatable amount, so the first failed attempt
-		# funds permanent Workshop progress (D010).
-		return 5 if is_boss_wave(wave) else 1
-	# Once a wave is pressured every tier shares the same wave base. This keeps
-	# 1.8x/2.6x reward ratios honest at equal waves.
-	var base_reward := float(maxi(1, wave)) * PRESSURED_REWARD_SCALE
+	var base_reward := float(maxi(1, wave)) * WAVE_REWARD_SCALE
 	var boss_multiplier := BOSS_REWARD_MULTIPLIER if is_boss_wave(wave) else 1.0
 	return maxi(1, roundi(base_reward * get_tier(tier_id).reward_multiplier * boss_multiplier))
 

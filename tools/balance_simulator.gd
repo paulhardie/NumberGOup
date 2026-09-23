@@ -18,8 +18,8 @@ const UTILITY_MAX := {"smarter_efficiency": 60, "coin_bonus": 100, "knowledge_bo
 ## of the two opening rows.
 const MID := {"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 60}
 const EARLY := {"stronger_tap": 40, "generator": 40}
-## Forty-eight Coins is the first Tier 1 warm-up payout with checkpoints. D035's pricing
-## lets that budget buy a mixed opening instead of Tap Damage alone.
+## Forty-eight Coins was the first Tier 1 payout when D035 priced the opening
+## Workshop; the rows stay as a pricing comparison.
 const OLD_FIRST_RUN_SPEND := {"stronger_tap": 12}
 const FIRST_RUN_SPEND := {"stronger_tap": 12, "generator": 6, "tax_resistance": 1}
 ## Defense rows at their caps, and the pieces of that build worth measuring on
@@ -355,7 +355,7 @@ func _play_rig(state: GameState) -> int:
 	return bought
 
 ## The Reinvestor spends "the moment a wave starts resisting": while a wave is
-## cleared or still in warm-up it leaves the Number alone, so the buffer grows
+## cleared it leaves the Number alone, so the buffer grows
 ## before the spend. Buying on easy waves is what made the first policy drain
 ## the buffer and die early.
 func _rig_can_spend(state: GameState) -> bool:
@@ -426,11 +426,11 @@ const OPENING_STEP := 1.0 / 30.0
 func _simulate_opening() -> void:
 	var preview := GameState.new()
 	preview.start_run(1, SEED)
-	print("TIER 1 OPENING HITS  base Collection and hit after the intro rule")
-	for preview_wave in range(20, 27):
+	print("TIER 1 CURVE  one set of rules from wave 1 (D040): Wave HP, Hit and Coins")
+	for preview_wave in [1, 2, 5, 9, 10, 15, 19, 20, 21, 25, 30, 50, 100]:
 		preview.wave = preview_wave
 		preview.active_encounter = preview._make_encounter(preview_wave)
-		print("  W", preview_wave, "  base=", preview.active_encounter.collection.format_value(), "  effective=", preview.get_effective_collection().format_value())
+		print("  W", preview_wave, "  hp=", preview.active_encounter.max_liability.format_value(), "  hit=", preview.get_effective_collection().format_value(), "  coins=", preview.active_encounter.reward)
 	var no_action := GameState.new()
 	no_action.start_run(1, SEED)
 	var idle_seconds := 0.0

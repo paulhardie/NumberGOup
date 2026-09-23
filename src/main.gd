@@ -2269,7 +2269,7 @@ func _refresh_encounter_line() -> void:
 		return
 	var encounter: Variant = state.active_encounter
 	if encounter == null or encounter.max_liability.is_zero():
-		encounter_label.text = "WARM-UP  ·  EVERYTHING BANKS"
+		encounter_label.text = ""
 		return
 	if encounter.is_cleared():
 		encounter_label.text = "BEATEN"

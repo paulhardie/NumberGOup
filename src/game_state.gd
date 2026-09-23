@@ -357,7 +357,7 @@ func _resolve_wave_boundary() -> SimulationEvent:
 
 ## An ordinary wave that outlasts its timer moves on (D037). It pays Coins for
 ## the share of it that was cleared, floored like Coin Bonus so a one-Coin
-## warm-up wave pays only when beaten. It was not beaten, so it sets no record
+## wave pays only when beaten. It was not beaten, so it sets no record
 ## and pays no Gems; its checkpoint pays when a later wave is beaten.
 func _pass_missed_wave() -> void:
 	var share := get_wave_cleared_share()
@@ -482,14 +482,6 @@ func get_effective_collection() -> ScientificNumber:
 	if active_encounter == null:
 		return ScientificNumber.new()
 	var modifiers := active_rule_modifiers.duplicate(true)
-	var opening_multiplier := balance_profile.tier_one_transition_hit_multiplier(selected_tier, wave, active_encounter.collection)
-	if opening_multiplier < 1.0:
-		modifiers.append({
-			"source": "tier_one_transition",
-			"target": "collection",
-			"stage": "multiplicative",
-			"value": opening_multiplier,
-		})
 	# The combined ceiling (D023): Workshop, Rig, Lab and Card Armor stack, and
 	# without a limit a run could stop taking hits entirely. The ceiling bounds
 	# Armor's own share rather than the final hit, so a later rule that shrinks

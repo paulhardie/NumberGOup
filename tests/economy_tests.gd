@@ -313,7 +313,7 @@ func _test_permanent_baseline_and_starting_reserve() -> void:
 	_expect(state.start_run(1, 44), "a fresh run should start from the permanent Workshop")
 	# Tier 1 adds its warm-up's starting Number, and every run its flat base
 	# output (D033), to what the Workshop provides.
-	_expect(state.number.compare_to(ScientificNumber.from_float(500 + state.balance_profile.WARM_UP_STARTING_NUMBER)) == 0, "Cushion should define the fresh-run Number baseline")
+	_expect(state.number.compare_to(ScientificNumber.from_float(500 + state.balance_profile.starting_number(1))) == 0, "Cushion should define the fresh-run Number baseline")
 	_expect(state.get_rate_per_second().compare_to(ScientificNumber.from_float(9.5 + state.balance_profile.BASE_DAMAGE_PER_SECOND)) == 0, "Auto Crank should permanently raise run production")
 	_expect(not state.purchase("faster_cadence"), "permanent Workshop purchases must be locked during a run")
 	state.end_run()
@@ -678,31 +678,39 @@ func _test_prestige_reset_and_gain() -> void:
 func _test_first_run_funds_permanent_workshop() -> void:
 	var state := GameState.new()
 	_expect(state.start_run(1, 7), "the first run should start without prior Workshop ranks")
+	var profile = state.balance_profile
+	var expected := profile.milestone_bonus(1, 10)
 	for completed_wave in range(1, 21):
+		expected += profile.reward_for_wave(1, completed_wave)
 		state.active_encounter.remaining_liability = ScientificNumber.new()
 		state._resolve_wave_boundary()
-	_expect(state.coins == 48, "Tier 1 grace should award 48 repeatable Coins through wave 20")
+	# D040: every wave pays 0.65 x its number from wave 1 (bosses x5), plus the
+	# wave 10 checkpoint bonus, so a first run to wave 20 funds real ranks.
+	_expect(state.coins == expected and state.coins > 100, "clearing Tier 1 to wave 20 should pay every wave's Coins and the wave 10 bonus")
 	state.end_run()
+	var before := state.coins
+	var tap_price := state.get_workshop_coin_cost(state.get_definition("stronger_tap"))
+	var dps_price := state.get_workshop_coin_cost(state.get_definition("generator"))
 	_expect(state.purchase("stronger_tap"), "first-run Coins should buy a permanent Tap Damage rank")
 	_expect(state.purchase("generator"), "first-run Coins should also buy the first Damage Per Second rank")
-	_expect(state.coins == 44, "first Workshop purchases should spend Coins, not Number")
+	_expect(state.coins == before - tap_price - dps_price, "first Workshop purchases should spend Coins, not Number")
 	# A deepened ladder (D019) should turn the first run into a visible stack of
 	# ranks rather than the two the five-rank ladders allowed.
 	_expect(state.purchase_ranks("stronger_tap", GameState.MAX_BUY) >= 8, "the first failed run should fund a stack of ranks")
 	state.start_run(1, 8)
 	_expect(state._tap_base() > 1.0 and state._passive_base() > 0.0, "the next run should start from the upgraded permanent baseline")
 
-## D033: Tier 1 opens under attack without a hit that can end the run. Every
-## run has a flat base output that upgrades do not raise; a Tier 1 run starts
-## with some Number; warm-up waves carry small HP and hits, softer bosses, and
-## end on their timer, landing their hit and paying as if beaten; and a run's
-## first Rig purchases are cheap during the warm-up.
+## D040: Tier 1 runs one set of rules from wave 1. Every run has a flat base
+## output that upgrades do not raise; a Tier 1 run starts with 50 Number; Wave
+## HP follows one smooth curve, a Hit is 20% of its wave's HP at wave 1 rising
+## evenly to 60% by wave 30, a boss is x3 HP
+## and x1.5 Hit, and Coins are 0.65 x the wave (x5 on a boss).
 func _test_tier_one_opening() -> void:
 	var fresh := GameState.new()
 	fresh.start_run(1, 3)
 	var profile = fresh.balance_profile
 	_expect(fresh.get_rate_per_second().compare_to(ScientificNumber.from_float(profile.BASE_DAMAGE_PER_SECOND)) == 0, "a fresh run should produce from its first second")
-	_expect(fresh.number.compare_to(ScientificNumber.from_float(profile.WARM_UP_STARTING_NUMBER)) == 0, "a Tier 1 run should start with the warm-up's Number")
+	_expect(fresh.number.compare_to(ScientificNumber.from_float(50.0)) == 0 and is_equal_approx(profile.starting_number(1), 50.0), "a Tier 1 run should start with 50 Number")
 	var multiplied := GameState.new()
 	multiplied.purchased = {"generator_two": 60}
 	multiplied.start_run(1, 3)
@@ -710,18 +718,31 @@ func _test_tier_one_opening() -> void:
 	var tier_two := GameState.new()
 	tier_two.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	tier_two.start_run(2, 3)
-	_expect(tier_two.number.is_zero(), "a tier with no warm-up should start with no extra Number")
+	_expect(tier_two.number.is_zero(), "Tier 2 should start with no extra Number")
 
-	_expect(profile.liability_for_wave(1, 2).compare_to(ScientificNumber.from_float(profile.WARM_UP_START_HP * profile.WARM_UP_HP_GROWTH)) == 0, "warm-up HP should grow its share each wave")
-	_expect(profile.liability_for_wave(1, 1).compare_to(ScientificNumber.from_float(20.0)) == 0 and profile.liability_for_wave(1, 6).compare_to(ScientificNumber.from_float(30.0)) < 0, "a one-tap-per-second player should clear the first warm-up waves and bank Number")
-	_expect(profile.liability_for_wave(1, 20).compare_to(profile.liability_for_wave(1, 21)) < 0, "the final warm-up boss should lead into the full Wave HP curve")
-	var boss_hp: float = profile.WARM_UP_START_HP * pow(profile.WARM_UP_HP_GROWTH, 9) * profile.WARM_UP_BOSS_HP
-	_expect(profile.liability_for_wave(1, 10).compare_to(ScientificNumber.from_float(boss_hp)) == 0, "a warm-up boss should be softened, not tripled")
-	var boss_hit: float = profile.WARM_UP_START_HIT * pow(profile.WARM_UP_HIT_GROWTH, 19) * profile.WARM_UP_BOSS_HIT
-	_expect(profile.collection_for_wave(1, 20).compare_to(ScientificNumber.from_float(boss_hit)) == 0, "the final warm-up hit should use the gentler growth")
-	_expect(boss_hit < 7.0, "the last warm-up boss should leave a reasonable opening buffer")
-	# D037: doing nothing still ends, and earns clearly less than a player
-	# tapping once a second. Missed warm-up waves pay nothing.
+	# One curve from wave 1: no ordinary wave is ever more than half again as
+	# tough as the one before, for HP or for Hit, which is the wave-21 spike
+	# D040 removed. Milestone steps land on boss waves, so compare ordinary
+	# neighbours across them.
+	var previous := 0
+	for check_wave in range(1, 101):
+		if profile.is_boss_wave(check_wave):
+			continue
+		var hp := profile.liability_for_wave(1, check_wave)
+		var hit := profile.collection_for_wave(1, check_wave)
+		_expect(absf(pow(10.0, hit.log10() - hp.log10()) - profile.hit_share(check_wave)) < 0.000001, "an ordinary Hit should be its wave's share of HP (wave " + str(check_wave) + ")")
+		if previous > 0:
+			var growth := pow(10.0, hp.log10() - profile.liability_for_wave(1, previous).log10())
+			_expect(growth > 1.0 and growth < 1.5, "Wave HP should rise smoothly from wave " + str(previous) + " to " + str(check_wave))
+		previous = check_wave
+	_expect(profile.liability_for_wave(1, 21).compare_to(profile.liability_for_wave(1, 19)) > 0 and pow(10.0, profile.liability_for_wave(1, 21).log10() - profile.liability_for_wave(1, 19).log10()) < 1.4, "wave 21 should no longer jump")
+	_expect(is_equal_approx(profile.hit_share(1), 0.2) and is_equal_approx(profile.hit_share(30), 0.6) and is_equal_approx(profile.hit_share(100), 0.6) and profile.hit_share(15) > 0.2 and profile.hit_share(15) < 0.6, "the Hit share should grow from 20% at wave 1 to 60% by wave 30 and stay there")
+	var boss_hp := profile.liability_for_wave(1, 10)
+	var ordinary_scale := profile.liability_for_wave(1, 10).multiply_scalar(1.0 / profile.BOSS_LIABILITY_MULTIPLIER)
+	_expect(profile.collection_for_wave(1, 10).compare_to(ordinary_scale.multiply_scalar(profile.hit_share(10) * profile.BOSS_COLLECTION_MULTIPLIER)) == 0 and not boss_hp.is_zero(), "a boss's Hit should be 1.5 times an ordinary Hit at its wave")
+	_expect(profile.reward_for_wave(1, 1) == 1 and profile.reward_for_wave(1, 21) == 14 and profile.reward_for_wave(1, 10) == roundi(10 * profile.WAVE_REWARD_SCALE * profile.BOSS_REWARD_MULTIPLIER), "Coins should follow 0.65 x the wave from wave 1, x5 on a boss")
+	# Doing nothing still ends, and earns clearly less than a player tapping
+	# once a second.
 	var no_action := GameState.new()
 	no_action.start_run(1, 7)
 	for step in range(4 * 900):
@@ -738,42 +759,30 @@ func _test_tier_one_opening() -> void:
 		one_tap.advance(0.25)
 	_expect(not no_action.in_run and not one_tap.in_run, "both openings should end within fifteen minutes")
 	_expect(no_action.coins < 48 and no_action.coins * 4 < one_tap.coins * 3, "a no-action opening must earn clearly less than tapping once a second")
-	# The first pressured hits climb from the warm-up, then return to the full
-	# curve. The reduction belongs only to Tier 1; other tiers keep their base.
-	for opening_wave in range(21, 27):
-		fresh.wave = opening_wave
-		fresh.active_encounter = fresh._make_encounter(opening_wave)
-		var full_hit: ScientificNumber = profile.collection_for_wave(1, opening_wave)
-		var ramped_hit := ScientificNumber.from_float(boss_hit * pow(profile.TIER_ONE_TRANSITION_HIT_GROWTH, float(opening_wave - 20)))
-		var expected_hit: ScientificNumber = ramped_hit if opening_wave <= profile.TIER_ONE_TRANSITION_LAST_WAVE and ramped_hit.compare_to(full_hit) < 0 else full_hit
-		_expect(fresh.get_effective_collection().compare_to(expected_hit) == 0, "Tier 1's effective hit should climb to the full curve at wave " + str(opening_wave))
-		_expect(fresh.active_encounter.collection.compare_to(full_hit) == 0, "the encounter should retain the base hit for wave " + str(opening_wave))
 	var armored := GameState.new()
 	armored.purchased = {"tax_resistance": 1}
 	armored.start_run(1, 3)
 	armored.wave = 21
 	armored.active_encounter = armored._make_encounter(21)
-	var opening_hit: ScientificNumber = fresh.balance_profile.collection_for_wave(1, 21).multiply_scalar(profile.tier_one_transition_hit_multiplier(1, 21, profile.collection_for_wave(1, 21)))
-	_expect(armored.get_effective_collection().compare_to(opening_hit.multiply_scalar(0.996)) == 0, "Armor should still reduce Tier 1's transition hit")
-	_expect(tier_two.get_effective_collection().compare_to(tier_two.active_encounter.collection) == 0, "Tier 2's opening hit should be unchanged")
+	_expect(armored.get_effective_collection().compare_to(profile.collection_for_wave(1, 21).multiply_scalar(0.996)) == 0, "Armor should reduce Tier 1's Hit")
+	_expect(tier_two.get_effective_collection().compare_to(tier_two.active_encounter.collection) == 0, "Tier 2's opening hit should be its base")
 
-	# An unbeaten warm-up wave lands its hit and moves on like any ordinary
-	# wave (D037). Nothing was cleared, so its one Coin is not paid and it sets
-	# no record.
+	# An unbeaten wave lands its hit and moves on (D037). Nothing was cleared,
+	# so its one Coin is not paid and it sets no record.
 	var stuck := GameState.new()
 	stuck.start_run(1, 3)
 	var before: ScientificNumber = stuck.number.copy()
 	var hit := stuck.get_effective_collection()
 	var event := stuck._resolve_wave_boundary()
-	_expect(event.type == "tax_collection" and event.amount.compare_to(hit) == 0, "an unbeaten warm-up wave should land its hit")
+	_expect(event.type == "tax_collection" and event.amount.compare_to(hit) == 0, "an unbeaten wave should land its hit")
 	_expect(stuck.number.compare_to(before.subtract(hit)) == 0, "the hit should cost Number, not the run")
-	_expect(stuck.wave == 2 and stuck.coins == 0 and stuck.get_tier_best(1) == 0, "the missed warm-up wave should move on unpaid and unrecorded")
-	# A warm-up boss stands and fights like every boss.
+	_expect(stuck.wave == 2 and stuck.coins == 0 and stuck.get_tier_best(1) == 0, "the missed wave should move on unpaid and unrecorded")
+	# The first boss stands and fights like every boss.
 	stuck.wave = 10
 	stuck.active_encounter = stuck._make_encounter(10)
 	stuck.number = ScientificNumber.new(1.0, 9)
 	stuck._resolve_wave_boundary()
-	_expect(stuck.wave == 10, "a warm-up boss should stay until beaten")
+	_expect(stuck.wave == 10, "the wave 10 boss should stay until beaten")
 
 	# D039: a fresh run's first Rig ranks cost a few seconds of its income, and
 	# repeated purchases climb gently rather than jumping to a wave's HP.
@@ -803,12 +812,9 @@ func _test_tier_one_opening() -> void:
 func _test_tier_pressure_and_curve_gates() -> void:
 	var state := GameState.new()
 	var profile = state.balance_profile
-	# Tier 1's 20-wave warm-up ramps from a small wave HP and hit (D033); the
-	# full curves begin at wave 21.
-	_expect(profile.liability_for_wave(1, 1).compare_to(ScientificNumber.from_float(profile.WARM_UP_START_HP)) == 0, "Tier 1 wave 1 should carry the warm-up's opening HP")
-	_expect(profile.collection_for_wave(1, 1).compare_to(ScientificNumber.from_float(profile.WARM_UP_START_HIT)) == 0, "Tier 1 wave 1 should carry the warm-up's opening hit")
-	_expect(profile.liability_for_wave(1, 19).compare_to(profile.liability_for_wave(1, 21)) < 0 and profile.collection_for_wave(1, 19).compare_to(profile.collection_for_wave(1, 21)) < 0, "the warm-up should stay below the first full wave")
-	_expect(not profile.liability_for_wave(1, 21).is_zero(), "Tier 1 pressure should begin at wave 21")
+	# D040: Tier 1's one curve starts small at wave 1 and keeps rising.
+	_expect(profile.liability_for_wave(1, 1).compare_to(ScientificNumber.from_float(10.0)) < 0 and not profile.liability_for_wave(1, 1).is_zero(), "Tier 1 wave 1 should be a small wave")
+	_expect(profile.liability_for_wave(1, 19).compare_to(profile.liability_for_wave(1, 21)) < 0 and profile.collection_for_wave(1, 19).compare_to(profile.collection_for_wave(1, 21)) < 0, "Tier 1 should keep rising through wave 21")
 	var tier1_liability := profile.liability_for_wave(1, 21)
 	var tier2_liability := profile.liability_for_wave(2, 21)
 	var tier1_collection := profile.collection_for_wave(1, 21)
@@ -876,7 +882,7 @@ func _test_output_is_number_and_strikes_the_wave() -> void:
 	warm_up.start_run(1, 22)
 	var warm_up_hp: ScientificNumber = warm_up.active_encounter.remaining_liability.copy()
 	var starting: ScientificNumber = warm_up.number.copy()
-	_expect(warm_up_hp.compare_to(ScientificNumber.from_float(warm_up.balance_profile.WARM_UP_START_HP)) == 0, "warm-up wave 1 should carry a small Wave HP")
+	_expect(warm_up_hp.compare_to(warm_up.balance_profile.liability_for_wave(1, 1)) == 0, "wave 1 should carry a small Wave HP")
 	warm_up._add_number(ScientificNumber.from_float(5))
 	_expect(warm_up.number.compare_to(starting.add(ScientificNumber.from_float(5))) == 0, "the first tap's worth of output should raise Number at once")
 
@@ -1020,23 +1026,22 @@ func _test_mid_wave_save_resumes_identically() -> void:
 	_expect(restored.lifetime_generated.compare_to(original.lifetime_generated) == 0 and restored.rng.state == original.rng.state, "a restored run should stay deterministic")
 	restored.clear_save()
 
-	# The Tier 1 transition is applied when a hit is read, not stored in the
-	# encounter. A saved older encounter may have a larger base hit; reloading
-	# at wave 21 must still cap that hit, without applying the cap twice.
+	# A saved encounter keeps its stored Hit: a run saved under an older curve
+	# resumes with the Hit it had, and resolves identically after a reload.
 	var opening := GameState.new()
 	opening.save_path = save_path
 	opening.start_run(1, 31)
 	opening.wave = 21
 	opening.active_encounter = opening._make_encounter(21)
 	opening.active_encounter.collection = opening.active_encounter.collection.multiply_scalar(2.0)
-	opening.number = ScientificNumber.from_float(100.0)
+	opening.number = ScientificNumber.from_float(1000.0)
 	var opening_hit: ScientificNumber = opening.get_effective_collection()
-	_expect(opening_hit.compare_to(opening.balance_profile.collection_for_wave(1, 21)) < 0, "a saved larger base hit should still use the Tier 1 transition cap")
-	_expect(opening.save(), "a Tier 1 transition wave should save")
+	_expect(opening_hit.compare_to(opening.balance_profile.collection_for_wave(1, 21).multiply_scalar(2.0)) == 0, "a saved larger base hit should be the Hit that lands")
+	_expect(opening.save(), "a mid-run Tier 1 wave should save")
 	var opening_restored := GameState.new()
 	opening_restored.save_path = save_path
 	opening_restored.load()
-	_expect(opening_restored.wave == 21 and opening_restored.get_effective_collection().compare_to(opening_hit) == 0, "a reloaded Tier 1 transition should keep the same effective hit")
+	_expect(opening_restored.wave == 21 and opening_restored.get_effective_collection().compare_to(opening_hit) == 0, "a reloaded wave should keep the same effective hit")
 	opening._resolve_wave_boundary()
 	opening_restored._resolve_wave_boundary()
 	_expect(opening_restored.number.compare_to(opening.number) == 0 and opening_restored.wave == opening.wave, "the reloaded Tier 1 hit should resolve identically")
@@ -1205,7 +1210,7 @@ func _test_cushion_scales_with_the_tier() -> void:
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	state.purchased = {"priority_buffer": 50}
 	state.start_run(1, 47)
-	_expect(state.number.compare_to(ScientificNumber.from_float(500 + state.balance_profile.WARM_UP_STARTING_NUMBER)) == 0, "Cushion should be worth its face value on Tier 1, on top of the warm-up's start")
+	_expect(state.number.compare_to(ScientificNumber.from_float(500 + state.balance_profile.starting_number(1))) == 0, "Cushion should be worth its face value on Tier 1, on top of the warm-up's start")
 	state.end_run()
 	state.start_run(2, 47)
 	var scale := state.get_cushion_scale(2)
@@ -1487,7 +1492,11 @@ func _test_claimed_milestones_survive_a_reload() -> void:
 	_clear_waves_through(first, 10)
 	first.end_run()
 	var first_gems: int = first.balance_profile.milestone_gems(1, 10) + first.balance_profile.BOSS_WAVE_GEMS
-	_expect(first.coins == 34 and first.gems == first_gems, "the first wave-10 clear should pay 14 wave Coins, the 20-Coin milestone bonus, and the checkpoint's and the boss wave's Gems")
+	var wave_coins := 0
+	for paid_wave in range(1, 11):
+		wave_coins += first.balance_profile.reward_for_wave(1, paid_wave)
+	var bonus: int = first.balance_profile.milestone_bonus(1, 10)
+	_expect(first.coins == wave_coins + bonus and first.gems == first_gems, "the first wave-10 clear should pay its waves' Coins, the milestone bonus, and the checkpoint's and the boss wave's Gems")
 	_expect(first.save(), "the milestone save should write")
 	var reloaded := GameState.new()
 	reloaded.save_path = save_path
@@ -1497,7 +1506,7 @@ func _test_claimed_milestones_survive_a_reload() -> void:
 	reloaded.start_run(1, 5)
 	_clear_waves_through(reloaded, 10)
 	reloaded.end_run()
-	_expect(reloaded.coins == 34 + 14, "a reloaded milestone should pay only its wave Coins, not its bonus again")
+	_expect(reloaded.coins == wave_coins + bonus + wave_coins, "a reloaded milestone should pay only its wave Coins, not its bonus again")
 	_expect(reloaded.gems == first_gems + reloaded.balance_profile.BOSS_WAVE_GEMS, "a reloaded milestone should not grant its Gems again; only the boss wave pays")
 	_expect(reloaded.get_tier_record(1).milestones_claimed == [10], "a reclaimed pass should not list the milestone twice")
 	reloaded.clear_save()
