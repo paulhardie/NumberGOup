@@ -18,14 +18,15 @@
 
 ## Must — encounter contracts
 
-- During a run, every unit produced damages the active wave's remaining Liability first; only output beyond it is added to Number (D012). Liability floors at zero, and lifetime production counts all output.
-- Collection is an absolute value deducted from Number at each wave boundary while Liability remains. Number reaching zero ends and resets the run, unless an unspent Second Wind restores a share of the run's peak Number, which it may do at most once per run (D020).
+- During a run, every unit produced is added to Number and also damages the active wave's remaining Liability (D037). Liability floors at zero, and lifetime production counts each unit once.
+- A beaten wave gives way to the next once it has been on screen for the profile's minimum beat (2.5 seconds), never before (D037).
+- Collection is an absolute value deducted from Number at each wave boundary while Liability remains. An ordinary wave then moves on, paying its Coins times the share of its HP cleared (floored) and setting no record or Gem (a checkpoint it carried pays once a later wave is beaten); a boss wave stays until beaten and hits at every boundary (D037). Number reaching zero ends and resets the run, unless an unspent Second Wind restores a share of the run's peak Number, which it may do at most once per run (D020).
 - Tier 2 and Tier 3 apply exactly 20× and 60× Tier 1 Liability and Collection at equal pressured waves; reward multipliers are 1.8× and 2.6×. These are the profile's ratios; what a player is paid may differ, because Coin Bonus lifts it.
 - Boss waves multiply Liability (3×), Collection (1.5×) and reward (5×) independently.
 - Each tier's milestone checkpoints pay once per tier record: Gems at every checkpoint, and the Coin bonus at 10/25/50/100 (D030). A checkpoint a record has already passed is paid on load, never twice.
 - Every boss wave beaten pays one Gem, every run (D030).
 - Tier 2 and Tier 3 unlock only by clearing wave 100 of the preceding tier.
-- Tier 1 waves 1–20 are a warm-up (D033, D034, D036): Wave HP starts at 20 and grows 8% per wave, Hit starts at 1 and grows 8.5%, bosses are softer, and Coins repeat (1 per wave, 5 on boss waves). A warm-up wave that outlasts its timer lands its hit and then ends as if beaten; past the warm-up a stuck wave keeps its HP. A Tier 1 run starts with 50 Number; its first two warm-up Rig purchases cost about 12 Number each, and its effective hits climb from the last warm-up boss to the full curve by wave 26. The base pressured-wave curve retains the tier pressure ratios. Doing nothing, including no Rig purchases, must end before all 20 warm-up rewards are paid.
+- Tier 1 waves 1–20 are a warm-up (D033, D034, D036): Wave HP starts at 20 and grows 8% per wave, Hit starts at 1 and grows 8.5%, bosses are softer, and Coins repeat (1 per wave, 5 on boss waves). Warm-up waves follow the same rules as every wave (D037): a missed one moves on, and a warm-up boss stays until beaten. A Tier 1 run starts with 50 Number; its first two warm-up Rig purchases cost about 12 Number each, and its effective hits climb from the last warm-up boss to the full curve by wave 26. The base pressured-wave curve retains the tier pressure ratios. Doing nothing, including no Rig purchases, must end, and must earn clearly less than tapping once a second (under three quarters of its Coins, and under the 48-Coin warm-up payout).
 - Every run produces a flat 1 a second from its first second, which upgrades do not raise (D033).
 
 ## Must — rules and persistence
@@ -45,7 +46,7 @@
 - The first failed Tier 1 run funds permanent Workshop progress. The opening's Coin payout depends on how far the player gets and which one-time checkpoints they first claim; later runs retain every Workshop rank bought with it.
 - UI presents and reports; it mutates domain state only by calling `GameState` methods.
 - Every Workshop row belongs to exactly one of the four categories (Attack, Defense, Utility, Ultimates) and opens at its own Workshop level: 0, 12, 30 or 60. Retired bays gated each row at the same level the row itself required, so their removal moved nothing; D019 then moved the levels to hold the same Coin pacing across deeper ladders.
-- Brace spends 30% of current Number, less whatever Brace Cost has bought, never below a 15% floor, and blocks exactly the next Collection hit. A blocked boundary deals no Recoil, because no hit landed.
+- Brace spends 30% of current Number, less whatever Brace Cost has bought, never below a 15% floor, and blocks exactly the next Collection hit. A blocked boundary deals no Thorns, because no hit landed (D038).
 - A run ending explains itself: the summary states the tier, wave, Coins and Knowledge earned. A run lost to a hit also names the hit and the two gaps — the wave HP Attack left and the Number shortfall against the hit — while a retreat or Prestige records no hit and no gaps. Prestige replaces the previous run's summary and names its Knowledge gain.
 - Highest Number and tier records persist across runs for stats and dock unlocks.
 

@@ -203,7 +203,7 @@ A Toll is a tier condition: it enters the modifier pipeline as a rule on Collect
 
 With Rush and the new Rig, the model's first run shortens from 8.2 to 6.2 minutes at the same wave 23. The first Rig rank (×1.2 damage for about 45 Number at two taps a second) is affordable from the 50 starting Number, and every early clear bursts into the Number. That meets "Number rises in the first 30 seconds" and "a consequential Rig choice at once". **It does not yet meet the 3–4-minute target.** The warm-up's length and HP growth need retuning in the real per-second simulator once Rush and the new Rig exist, measured against the core-loop review's targets.
 
-This proposal **keeps D012**. Rush and the scale-free Rig attack the flat-Number problem without diverting damage. The 10%-tap split stays the documented alternative if a phone playtest still finds the opening flat.
+*Superseded on 23 September 2026: D037 replaced D012, and Rush is part of it.* This proposal **keeps D012**. Rush and the scale-free Rig attack the flat-Number problem without diverting damage. The 10%-tap split stays the documented alternative if a phone playtest still finds the opening flat.
 
 ### Labs, Cards, Ultimates and Gems
 

@@ -211,8 +211,10 @@ func _produce_tick() -> SimulationEvent:
 	_add_number(amount)
 	return SimulationEvent.new("tick", amount, is_critical)
 
-func is_output_banking() -> bool:
-	return in_run and (active_encounter == null or active_encounter.is_cleared())
+## True while the active wave still has HP to clear. Output is Number either
+## way (D037); this only says whether it is also striking a wave.
+func is_wave_standing() -> bool:
+	return in_run and active_encounter != null and not active_encounter.is_cleared()
 
 func get_rate_per_second() -> ScientificNumber:
 	return ScientificNumber.from_float(_passive_base() * _damage_multiplier() * _momentum_multiplier() * _tick_rate() + balance_profile.BASE_DAMAGE_PER_SECOND)
@@ -294,11 +296,20 @@ func _advance_waves(delta: float) -> Array[SimulationEvent]:
 	run_elapsed += safe_delta
 	wave_accumulator += safe_delta
 	var safety := 0
-	while wave_accumulator >= WAVE_INTERVAL_SECONDS and safety < 10 and in_run:
-		wave_accumulator -= WAVE_INTERVAL_SECONDS
-		var wave_event := _resolve_wave_boundary()
-		if wave_event != null:
-			events.append(wave_event)
+	while safety < 10 and in_run:
+		# A beaten wave gives way to the next as soon as it has been on screen
+		# for the minimum beat (D037), so mastered waves cost seconds, not the
+		# whole timer. Output is already Number, so nothing is lost by moving on.
+		if active_encounter != null and active_encounter.is_cleared() and wave_accumulator >= balance_profile.MIN_WAVE_SECONDS:
+			wave_accumulator = 0.0
+			events.append(_complete_current_wave())
+		elif wave_accumulator >= WAVE_INTERVAL_SECONDS:
+			wave_accumulator -= WAVE_INTERVAL_SECONDS
+			var wave_event := _resolve_wave_boundary()
+			if wave_event != null:
+				events.append(wave_event)
+		else:
+			break
 		safety += 1
 	return events
 
@@ -316,16 +327,17 @@ func _resolve_wave_boundary() -> SimulationEvent:
 	# by the time _wave_death builds the summary.
 	var number_before_hit := number.copy()
 	# Attack's gap is what the wave had left when the timer ran out. Read it
-	# before Recoil returns part of the hit, so the screen credits Attack only
+	# before Thorns returns part of the hit, so the screen credits Attack only
 	# with Attack's own damage.
 	var wave_hp_left: ScientificNumber = active_encounter.remaining_liability.copy()
 	number = number.subtract(collection)
-	# Recoil turns the hit into progress on the wave that landed it. A braced
-	# boundary deals none, because no hit landed. The combined share is capped
-	# (D023) so a hit can never be returned more than once over.
-	var recoil := minf(_effect_sum("recoil_share"), balance_profile.RECOIL_CEILING)
-	if recoil > 0.0 and not collection.is_zero():
-		active_encounter.apply_compliance(collection.multiply_scalar(recoil))
+	# Thorns (D038) deals a share of every hit to the wave in front of you. A
+	# braced boundary deals none, because no hit landed. The combined share is
+	# capped (D023) so a hit can never be returned more than once over.
+	var thorns_share := minf(_effect_sum("recoil_share"), balance_profile.RECOIL_CEILING)
+	var thorns := collection.multiply_scalar(thorns_share) if thorns_share > 0.0 else ScientificNumber.new()
+	if active_encounter.is_boss and not thorns.is_zero():
+		active_encounter.apply_compliance(thorns)
 	var hit_event: SimulationEvent
 	if number.is_zero():
 		var rescued := _try_second_wind()
@@ -334,13 +346,39 @@ func _resolve_wave_boundary() -> SimulationEvent:
 		hit_event = SimulationEvent.new("second_wind", number.copy())
 	else:
 		hit_event = SimulationEvent.new("boss_collection" if active_encounter.is_boss else "tax_collection", collection)
-	# The warm-up is survival training (D033): a wave that outlasts its timer
-	# lands its hit and then ends, paying as if beaten, so the opening keeps its
-	# five-minute pace instead of stalling on a wave a new player cannot beat
-	# yet. Past the warm-up a stuck wave keeps its HP and hits again (D012).
-	if not balance_profile.is_pressured_wave(selected_tier, wave):
-		_complete_current_wave()
+	# Bosses stay until beaten and hit again every timer: they are the fights
+	# (D037). Every other wave lands its hit once and gives way to the next,
+	# and Thorns lands on the wave that replaces it.
+	if not active_encounter.is_boss:
+		_pass_missed_wave()
+		if not thorns.is_zero():
+			active_encounter.apply_compliance(thorns)
 	return hit_event
+
+## An ordinary wave that outlasts its timer moves on (D037). It pays Coins for
+## the share of it that was cleared, floored like Coin Bonus so a one-Coin
+## warm-up wave pays only when beaten. It was not beaten, so it sets no record
+## and pays no Gems; its checkpoint pays when a later wave is beaten.
+func _pass_missed_wave() -> void:
+	var share := get_wave_cleared_share()
+	var coin_gain := floori(float(active_encounter.reward) * share * (1.0 + _effect_sum("coin_bonus")) + 0.000001)
+	coins += coin_gain
+	run_coins_earned += coin_gain
+	wave += 1
+	active_encounter = _make_encounter(wave)
+
+## How much of the active wave's HP has been cleared, from 0 to 1.
+func get_wave_cleared_share() -> float:
+	if active_encounter == null or active_encounter.max_liability.is_zero() or active_encounter.is_cleared():
+		return 1.0
+	if active_encounter.remaining_liability.compare_to(active_encounter.max_liability) >= 0:
+		return 0.0
+	# A plain ratio of mantissas, not logarithms, so 20 left of 100 is exactly
+	# 0.8 and a floored Coin count never comes out one short.
+	var remaining: ScientificNumber = active_encounter.remaining_liability
+	var full: ScientificNumber = active_encounter.max_liability
+	var left := remaining.mantissa / full.mantissa * pow(10.0, remaining.exponent - full.exponent)
+	return clampf(1.0 - left, 0.0, 1.0)
 
 ## Once per run, a hit that would end the run leaves a share of the run's peak
 ## Number instead. The share is the rank's own value, so an early rank buys a
@@ -369,11 +407,17 @@ func _complete_current_wave() -> SimulationEvent:
 	# Gems (D030): every boss wave pays a little, every run, and each tier's
 	# checkpoints pay a lot, once per tier record.
 	var gem_gain := balance_profile.wave_gems(completed_wave)
-	if balance_profile.is_milestone_wave(completed_wave) and not claimed.has(completed_wave):
-		claimed.append(completed_wave)
-		record.milestones_claimed = claimed
-		coin_gain += balance_profile.milestone_bonus(selected_tier, completed_wave)
-		gem_gain += balance_profile.milestone_gems(selected_tier, completed_wave)
+	# Every checkpoint the record has now passed pays, not only this wave's:
+	# a missed ordinary checkpoint (D037) pays once a later wave is beaten, the
+	# same rule the load-time catch-up applies, so a run and a reload agree.
+	for checkpoint in balance_profile.MILESTONE_WAVES:
+		if checkpoint > completed_wave or claimed.has(checkpoint):
+			continue
+		claimed.append(checkpoint)
+		coin_gain += balance_profile.milestone_bonus(selected_tier, checkpoint)
+		gem_gain += balance_profile.milestone_gems(selected_tier, checkpoint)
+	claimed.sort()
+	record.milestones_claimed = claimed
 	gems += gem_gain
 	run_gems_earned += gem_gain
 	if completed_wave == TIER_UNLOCK_WAVE:
@@ -1488,21 +1532,20 @@ func _remove_if_present(path: String) -> void:
 func has_persistent_storage() -> bool:
 	return OS.is_userfs_persistent()
 
-## Output damages the active wave first and only the overflow becomes Number
-## (D012); lifetime production still counts all of it, so Knowledge is unchanged.
+## Everything produced is Number, and the same output also counts against the
+## active wave (D037): the Number never stops rising while the player produces.
+## Lifetime production counts it once, so Knowledge is unchanged.
 func _add_number(amount: ScientificNumber) -> void:
 	lifetime_generated = lifetime_generated.add(amount)
-	var into_wave := ScientificNumber.new()
+	var banked := amount
 	if in_run and active_encounter != null:
-		into_wave = active_encounter.apply_compliance(amount)
-	var banked := amount.subtract(into_wave)
-	# Siphon is the one way damage dealt to a wave still reaches Number, which
-	# is what stops a wave you cannot beat from being a slow death sentence.
-	# The combined share is capped (D023): with Rig ranks stacking on the
-	# Workshop's 25%, an uncapped Siphon would bank every point of damage dealt.
-	var siphon := minf(_effect_sum("siphon_share"), balance_profile.SIPHON_CEILING)
-	if siphon > 0.0 and not into_wave.is_zero():
-		banked = banked.add(into_wave.multiply_scalar(siphon))
+		var into_wave: ScientificNumber = active_encounter.apply_compliance(amount)
+		# Leech (D038) feeds on a boss that stands and fights: a share of the
+		# damage it takes is added to the Number a second time. The combined
+		# share is capped (D023) so Rig ranks cannot stack it without limit.
+		var leech := minf(_effect_sum("siphon_share"), balance_profile.SIPHON_CEILING)
+		if leech > 0.0 and active_encounter.is_boss and not into_wave.is_zero():
+			banked = banked.add(into_wave.multiply_scalar(leech))
 	number = number.add(banked)
 	if number.compare_to(highest_number) > 0:
 		highest_number = number.copy()
@@ -1639,8 +1682,8 @@ func _make_definitions() -> Array[UpgradeDefinition]:
 		UpgradeDefinition.new("automation_core", "AUTO CRANK", "+0.1 base damage every second per rank.", ScientificNumber.from_float(4.615), ScientificNumber.new(), "workshop", {"passive_flat": 0.1}, false, 1.087149, ProgressionTaxonomy.ROUTINE, ATTACK, 50, 60),
 		UpgradeDefinition.new("boss_damage", "BOSS DAMAGE", "+1% damage against boss waves per rank.", ScientificNumber.from_float(3.725), ScientificNumber.new(), "workshop", {"boss_damage": 0.01}, false, 1.042220, ProgressionTaxonomy.PROTOCOL, ATTACK, 100, 30),
 		UpgradeDefinition.new(ARMOR_ID, "ARMOR", "Every hit is 0.4% smaller per rank.", ScientificNumber.from_float(3.725), ScientificNumber.new(), "workshop", {"collection_resistance": 0.004}, false, 1.042220, ProgressionTaxonomy.MODULE, DEFENSE, 100, 0),
-		UpgradeDefinition.new("siphon", "SIPHON", "+0.25% of the damage you deal still reaches your Number, per rank.", ScientificNumber.from_float(6.540), ScientificNumber.new(), "workshop", {"siphon_share": 0.0025}, false, 1.042220, ProgressionTaxonomy.MODULE, DEFENSE, 100, 30),
-		UpgradeDefinition.new("recoil", "RECOIL", "+0.5% of every hit you take is dealt back to the wave, per rank.", ScientificNumber.from_float(6.540), ScientificNumber.new(), "workshop", {"recoil_share": 0.005}, false, 1.042220, ProgressionTaxonomy.MODULE, DEFENSE, 100, 30),
+		UpgradeDefinition.new("siphon", "LEECH", "While a boss stands, +0.25% of the damage you deal it is added to your Number again, per rank.", ScientificNumber.from_float(6.540), ScientificNumber.new(), "workshop", {"siphon_share": 0.0025}, false, 1.042220, ProgressionTaxonomy.MODULE, DEFENSE, 100, 30),
+		UpgradeDefinition.new("recoil", "THORNS", "+0.5% of every hit you take is dealt to the wave in front of you, per rank.", ScientificNumber.from_float(6.540), ScientificNumber.new(), "workshop", {"recoil_share": 0.005}, false, 1.042220, ProgressionTaxonomy.MODULE, DEFENSE, 100, 30),
 		UpgradeDefinition.new("priority_buffer", "CUSHION", "Starting Reserve. Begin every run with 10 Number per rank.", ScientificNumber.from_float(9.255), ScientificNumber.new(), "workshop", {"starting_number_flat": 10.0}, false, 1.087149, ProgressionTaxonomy.ROUTINE, DEFENSE, 50, 60),
 		UpgradeDefinition.new("brace_discount", "BRACE COST", "Brace costs 0.25 points less of your Number per rank, down to 15%.", ScientificNumber.from_float(5.410), ScientificNumber.new(), "workshop", {"brace_discount": -0.0025}, false, 1.071861, ProgressionTaxonomy.PROTOCOL, DEFENSE, 60, 12),
 		UpgradeDefinition.new("second_wind", "SECOND WIND", "Once per run, a hit that would end it leaves you 0.5% of your peak Number per rank.", ScientificNumber.from_float(6.475), ScientificNumber.new(), "workshop", {"second_wind_share": 0.005}, false, 1.087149, ProgressionTaxonomy.PROTOCOL, DEFENSE, 50, 60),

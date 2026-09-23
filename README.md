@@ -26,8 +26,8 @@ The playable slice includes tapping, passive production, a four-category permane
 
 Tax runs use two independent absolute stats:
 
-- **Liability** is depleted by production first. Output that damages the wave does not become Number; only output beyond the wave's remaining Liability does.
-- **Collection** is deducted from Number every 15 seconds while Liability remains. Number reaching zero ends and resets the run.
+- **Liability** is depleted by production, and the same output is also Number (D037): the Number never stops rising while you produce. A beaten wave gives way to the next after a 2.5-second beat; a missed ordinary wave hits once and moves on, paying Coins for the share cleared; a boss stays until beaten.
+- **Collection** is deducted from Number when a wave's 15-second timer runs out with Liability left: once for an ordinary wave, and at every boundary for a boss that stands. Number reaching zero ends and resets the run.
 
 Tier 1 opens with a 20-wave warm-up: small waves and hits from wave 1 that grow into the full curves, with a starting Number and cheap first Rig ranks (D033); every run also produces a flat 1 a second. Tier 2 and Tier 3 unlock by clearing wave 100 in the preceding tier and apply 20× and 60× Liability/Collection pressure from wave 1. Rewards rise by smaller 1.8× and 2.6× multipliers. Every tenth wave is a boss and pays a Gem; each tier has thirteen milestone checkpoints from wave 10 to 200 that pay Gems once, and those at 10, 25, 50 and 100 also pay a Coin bonus (D030).
 

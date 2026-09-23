@@ -29,7 +29,7 @@ The finished game should be:
 
 ## Core fantasy
 
-Making Number go up is the whole game. Output beats the wave first and only the overflow becomes Number (D012), so Number is score, health and ammunition at once, and every spend is a real decision rather than busywork.
+Making Number go up is the whole game. Everything you produce is Number, and the same output also counts against the wave in front of you (D037): clear its amount within 15 seconds or take its Hit. Number is score, health and ammunition at once, and every spend is a real decision rather than busywork.
 
 ## Design pillars
 
@@ -46,7 +46,7 @@ Making Number go up is the whole game. Output beats the wave first and only the 
 
 | Loop | Duration | Player action | Feedback |
 | --- | --- | --- | --- |
-| Moment | seconds | Tap, or let production tick | Liability falls; once the wave is beaten, Number rises |
+| Moment | seconds | Tap, or let production tick | Number rises and the wave's HP falls, together |
 | Wave | 15 seconds | Clear Liability before the Collection hit, and choose whether to spend banked Number in the Rig | Clear, collect or die; boss every tenth wave |
 | Run | minutes | Start from the permanent baseline, push waves, retreat or die | Coins, Knowledge, run summary, tier record |
 | Meta | between runs | Spend Coins in the Workshop, Knowledge on Insight, pick a Research Focus | Every later run starts stronger |

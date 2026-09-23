@@ -6,9 +6,12 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v4"
+const PROFILE_ID := "tax-foundation-v5"
 const WAVE_INTERVAL_SECONDS := 15.0
 const BOSS_WAVE_INTERVAL := 10
+## A beaten wave stays on screen at least this long before the next arrives
+## (D037), so a clear still registers when the build outclasses the wave.
+const MIN_WAVE_SECONDS := 2.5
 const TIER_UNLOCK_WAVE := 100
 ## Every tier's milestone checkpoints (D030). Each pays once per tier record:
 ## Gems at every checkpoint, and the Coin bonus as well at the four Coin

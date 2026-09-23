@@ -25,16 +25,18 @@ func _init() -> void:
 	_test_tier_pressure_and_curve_gates()
 	_test_tier_one_opening()
 	_test_production_clears_liability()
-	_test_output_beats_the_wave_before_it_becomes_number()
+	_test_output_is_number_and_strikes_the_wave()
 	_test_repeated_taps_count_once()
-	_test_stuck_wave_keeps_its_damage_and_hits_again()
+	_test_missed_waves_move_on_and_bosses_stay()
+	_test_beaten_wave_gives_way_after_the_minimum_beat()
+	_test_missed_checkpoint_pays_when_passed()
 	_test_mid_wave_save_resumes_identically()
 	_test_collection_is_absolute()
 	_test_boss_axes_and_rewards()
 	_test_brace_blocks_next_collection()
 	_test_armor_reduces_the_hit_and_survives_reset()
-	_test_siphon_banks_a_share_of_damage_dealt()
-	_test_recoil_deals_the_hit_back_to_the_wave()
+	_test_leech_feeds_on_a_standing_boss()
+	_test_thorns_deal_the_hit_to_the_wave_in_front()
 	_test_brace_cost_falls_to_its_floor()
 	_test_second_wind_forgives_one_ending_hit()
 	_test_cushion_scales_with_the_tier()
@@ -718,13 +720,24 @@ func _test_tier_one_opening() -> void:
 	var boss_hit: float = profile.WARM_UP_START_HIT * pow(profile.WARM_UP_HIT_GROWTH, 19) * profile.WARM_UP_BOSS_HIT
 	_expect(profile.collection_for_wave(1, 20).compare_to(ScientificNumber.from_float(boss_hit)) == 0, "the final warm-up hit should use the gentler growth")
 	_expect(boss_hit < 7.0, "the last warm-up boss should leave a reasonable opening buffer")
+	# D037: doing nothing still ends, and earns clearly less than a player
+	# tapping once a second. Missed warm-up waves pay nothing.
 	var no_action := GameState.new()
 	no_action.start_run(1, 7)
-	for step in range(4 * 330):
+	for step in range(4 * 900):
 		if not no_action.in_run:
 			break
 		no_action.advance(0.25)
-	_expect(not no_action.in_run and no_action.get_tier_best(1) < 20 and no_action.coins < 48, "a true no-action opening must end before collecting the full warm-up payout")
+	var one_tap := GameState.new()
+	one_tap.start_run(1, 7)
+	for step in range(4 * 900):
+		if not one_tap.in_run:
+			break
+		if step % 4 == 0:
+			one_tap.tap()
+		one_tap.advance(0.25)
+	_expect(not no_action.in_run and not one_tap.in_run, "both openings should end within fifteen minutes")
+	_expect(no_action.coins < 48 and no_action.coins * 4 < one_tap.coins * 3, "a no-action opening must earn clearly less than tapping once a second")
 	# The first pressured hits climb from the warm-up, then return to the full
 	# curve. The reduction belongs only to Tier 1; other tiers keep their base.
 	for opening_wave in range(21, 27):
@@ -744,7 +757,9 @@ func _test_tier_one_opening() -> void:
 	_expect(armored.get_effective_collection().compare_to(opening_hit.multiply_scalar(0.996)) == 0, "Armor should still reduce Tier 1's transition hit")
 	_expect(tier_two.get_effective_collection().compare_to(tier_two.active_encounter.collection) == 0, "Tier 2's opening hit should be unchanged")
 
-	# An unbeaten warm-up wave lands its hit, then ends and pays as if beaten.
+	# An unbeaten warm-up wave lands its hit and moves on like any ordinary
+	# wave (D037). Nothing was cleared, so its one Coin is not paid and it sets
+	# no record.
 	var stuck := GameState.new()
 	stuck.start_run(1, 3)
 	var before: ScientificNumber = stuck.number.copy()
@@ -752,13 +767,13 @@ func _test_tier_one_opening() -> void:
 	var event := stuck._resolve_wave_boundary()
 	_expect(event.type == "tax_collection" and event.amount.compare_to(hit) == 0, "an unbeaten warm-up wave should land its hit")
 	_expect(stuck.number.compare_to(before.subtract(hit)) == 0, "the hit should cost Number, not the run")
-	_expect(stuck.wave == 2 and stuck.coins == 1 and stuck.get_tier_best(1) == 1, "the warm-up wave should then end, pay its Coin and count")
-	# Past the warm-up an unbeaten wave keeps its HP and hits again (D012).
-	stuck.wave = 21
-	stuck.active_encounter = stuck._make_encounter(21)
+	_expect(stuck.wave == 2 and stuck.coins == 0 and stuck.get_tier_best(1) == 0, "the missed warm-up wave should move on unpaid and unrecorded")
+	# A warm-up boss stands and fights like every boss.
+	stuck.wave = 10
+	stuck.active_encounter = stuck._make_encounter(10)
 	stuck.number = ScientificNumber.new(1.0, 9)
 	stuck._resolve_wave_boundary()
-	_expect(stuck.wave == 21, "past the warm-up an unbeaten wave should stay")
+	_expect(stuck.wave == 10, "a warm-up boss should stay until beaten")
 
 	# The run's first Rig purchases are cheap during the warm-up; later ones,
 	# and any after the warm-up, pay the full price.
@@ -826,7 +841,7 @@ func _test_production_clears_liability() -> void:
 	var event := state._resolve_wave_boundary()
 	_expect(event.type == "wave_clear" and state.wave == 2, "a cleared Liability should advance at the boundary")
 
-func _test_output_beats_the_wave_before_it_becomes_number() -> void:
+func _test_output_is_number_and_strikes_the_wave() -> void:
 	var state := GameState.new()
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	_expect(state.start_run(2, 21), "Tier 2 run should start after unlock")
@@ -834,42 +849,41 @@ func _test_output_beats_the_wave_before_it_becomes_number() -> void:
 	state.active_encounter.remaining_liability = ScientificNumber.from_float(50)
 	var lifetime_before: ScientificNumber = state.lifetime_generated.copy()
 
+	# D037: every unit is Number and also counts against the wave.
 	state._add_number(ScientificNumber.from_float(30))
-	_expect(state.number.compare_to(ScientificNumber.from_float(1000)) == 0, "output below remaining Liability should not raise Number")
+	_expect(state.number.compare_to(ScientificNumber.from_float(1030)) == 0, "output below remaining Liability should still raise Number")
 	_expect(state.active_encounter.remaining_liability.compare_to(ScientificNumber.from_float(20)) == 0, "output should damage the wave one-for-one")
 
 	state._add_number(ScientificNumber.from_float(20))
 	_expect(state.active_encounter.is_cleared(), "output exactly equal to remaining Liability should beat the wave")
-	_expect(state.number.compare_to(ScientificNumber.from_float(1000)) == 0, "an exact clear should bank nothing")
+	_expect(state.number.compare_to(ScientificNumber.from_float(1050)) == 0, "the clearing output should be Number too")
 
 	state._add_number(ScientificNumber.from_float(45))
-	_expect(state.number.compare_to(ScientificNumber.from_float(1045)) == 0, "output after the wave is beaten should all become Number")
-	_expect(state.lifetime_generated.compare_to(lifetime_before.add(ScientificNumber.from_float(95))) == 0, "lifetime production should count all output, including damage dealt")
+	_expect(state.number.compare_to(ScientificNumber.from_float(1095)) == 0, "output after the wave is beaten should all become Number")
+	_expect(state.lifetime_generated.compare_to(lifetime_before.add(ScientificNumber.from_float(95))) == 0, "lifetime production should count each unit once")
 
 	state.active_encounter.remaining_liability = ScientificNumber.from_float(50)
 	state._add_number(ScientificNumber.from_float(80))
-	_expect(state.active_encounter.is_cleared() and state.number.compare_to(ScientificNumber.from_float(1075)) == 0, "one output past remaining Liability should bank only the overflow")
+	_expect(state.active_encounter.is_cleared() and state.number.compare_to(ScientificNumber.from_float(1175)) == 0, "an output past remaining Liability should bank in full")
 
 	state.active_encounter.remaining_liability = ScientificNumber.from_float(50)
 	var zero_lifetime: ScientificNumber = state.lifetime_generated.copy()
 	state._add_number(ScientificNumber.new())
-	_expect(state.number.compare_to(ScientificNumber.from_float(1075)) == 0 and state.active_encounter.remaining_liability.compare_to(ScientificNumber.from_float(50)) == 0, "zero output should change nothing")
+	_expect(state.number.compare_to(ScientificNumber.from_float(1175)) == 0 and state.active_encounter.remaining_liability.compare_to(ScientificNumber.from_float(50)) == 0, "zero output should change nothing")
 	_expect(state.lifetime_generated.compare_to(zero_lifetime) == 0, "zero output should not count as production")
 
 	state.number = ScientificNumber.new()
 	state.active_encounter.remaining_liability = ScientificNumber.new(5.0, 300)
 	state._add_number(ScientificNumber.new(7.0, 300))
-	_expect(state.active_encounter.is_cleared() and state.number.compare_to(ScientificNumber.new(2.0, 300)) == 0, "overflow should stay exact at very large values")
+	_expect(state.active_encounter.is_cleared() and state.number.compare_to(ScientificNumber.new(7.0, 300)) == 0, "Number should stay exact at very large values")
 
-	# The warm-up is small but real (D033): its first wave has a little HP, and
-	# only output past it banks.
 	var warm_up := GameState.new()
 	warm_up.start_run(1, 22)
 	var warm_up_hp: ScientificNumber = warm_up.active_encounter.remaining_liability.copy()
 	var starting: ScientificNumber = warm_up.number.copy()
 	_expect(warm_up_hp.compare_to(ScientificNumber.from_float(warm_up.balance_profile.WARM_UP_START_HP)) == 0, "warm-up wave 1 should carry a small Wave HP")
-	warm_up._add_number(warm_up_hp.add(ScientificNumber.from_float(5)))
-	_expect(warm_up.number.compare_to(starting.add(ScientificNumber.from_float(5))) == 0, "output past a warm-up wave's HP should bank")
+	warm_up._add_number(ScientificNumber.from_float(5))
+	_expect(warm_up.number.compare_to(starting.add(ScientificNumber.from_float(5))) == 0, "the first tap's worth of output should raise Number at once")
 
 	var outside := GameState.new()
 	outside.tap()
@@ -884,24 +898,109 @@ func _test_repeated_taps_count_once() -> void:
 	for tap_index in range(50):
 		state.tap()
 	_expect(state.active_encounter.is_cleared(), "fifty one-unit taps should beat a 30-HP wave")
-	_expect(state.number.compare_to(ScientificNumber.from_float(20)) == 0, "only the 20 units past the wave's HP should bank")
+	_expect(state.number.compare_to(ScientificNumber.from_float(50)) == 0, "every tap should bank once, before and after the clear")
 	_expect(state.lifetime_generated.compare_to(lifetime_before.add(ScientificNumber.from_float(50))) == 0, "every tap should count once toward lifetime production")
 
-func _test_stuck_wave_keeps_its_damage_and_hits_again() -> void:
+func _test_missed_waves_move_on_and_bosses_stay() -> void:
+	# D037: an ordinary wave that outlasts its timer hits once and moves on,
+	# paying Coins for the share cleared; it is not beaten, so it sets no record.
 	var state := GameState.new()
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	state.start_run(2, 24)
-	state.number = ScientificNumber.from_float(10000)
-	state.active_encounter.remaining_liability = ScientificNumber.from_float(100)
-	state._add_number(ScientificNumber.from_float(40))
+	state.wave = 31
+	state.active_encounter = state._make_encounter(31)
+	state.number = ScientificNumber.from_float(1e9)
+	state.active_encounter.remaining_liability = state.active_encounter.max_liability.multiply_scalar(0.4)
+	var reward: int = state.active_encounter.reward
 	var hit := state.get_effective_collection()
 	var event := state._resolve_wave_boundary()
-	_expect(event.type == "tax_collection" and state.wave == 1, "a wave still standing at its boundary should hit and stay")
-	_expect(state.number.compare_to(ScientificNumber.from_float(10000).subtract(hit)) == 0, "the hit should come out of Number")
-	_expect(state.active_encounter.remaining_liability.compare_to(ScientificNumber.from_float(60)) == 0, "a surviving wave should keep the damage already dealt")
-	state._add_number(ScientificNumber.from_float(60))
-	event = state._resolve_wave_boundary()
-	_expect(event.type == "wave_clear" and state.wave == 2, "finishing a stuck wave should advance at the next boundary")
+	_expect(event.type == "tax_collection" and state.wave == 32, "a missed ordinary wave should hit and move on")
+	_expect(state.number.compare_to(ScientificNumber.from_float(1e9).subtract(hit)) == 0, "the hit should come out of Number")
+	_expect(reward > 10 and state.coins == floori(float(reward) * 0.6), "a missed wave should pay Coins for the share cleared")
+	_expect(state.get_tier_best(2) == 0, "a missed wave should set no record")
+	_expect(state.active_encounter.remaining_liability.compare_to(state.active_encounter.max_liability) == 0, "the next wave should arrive whole")
+
+	# A boss stays until beaten, keeps the damage dealt and hits again.
+	var boss := GameState.new()
+	boss.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	boss.start_run(2, 25)
+	boss.wave = 30
+	boss.active_encounter = boss._make_encounter(30)
+	boss.number = ScientificNumber.from_float(1e12)
+	var boss_hp: ScientificNumber = boss.active_encounter.max_liability.copy()
+	boss._add_number(ScientificNumber.from_float(40))
+	event = boss._resolve_wave_boundary()
+	_expect(event.type == "boss_collection" and boss.wave == 30, "a boss still standing at its boundary should hit and stay")
+	_expect(boss.active_encounter.remaining_liability.compare_to(boss_hp.subtract(ScientificNumber.from_float(40.0 * boss._boss_damage_multiplier()))) <= 0, "a standing boss should keep the damage already dealt")
+	event = boss._resolve_wave_boundary()
+	_expect(event.type == "boss_collection" and boss.wave == 30, "a standing boss should hit again at the next boundary")
+	boss._add_number(boss.active_encounter.remaining_liability)
+	_advance_seconds(boss, boss.balance_profile.MIN_WAVE_SECONDS)
+	_expect(boss.wave == 31 and boss.get_tier_best(2) == 30, "beating the boss should advance and count")
+
+func _test_missed_checkpoint_pays_when_passed() -> void:
+	# D037 with D030: wave 25 is an ordinary checkpoint. Missing it claims
+	# nothing; beating a later wave pays it in the run, as a reload would.
+	var state := GameState.new()
+	state.tier_records["1"] = {"highest_wave": 24, "best_time": 0.0, "milestones_claimed": [10, 20]}
+	state.start_run(1, 29)
+	state.wave = 25
+	state.active_encounter = state._make_encounter(25)
+	state.number = ScientificNumber.from_float(1e9)
+	var coins_before := state.coins
+	var gems_before := state.gems
+	state._resolve_wave_boundary()
+	_expect(state.wave == 26 and not state.get_tier_record(1).milestones_claimed.has(25), "a missed checkpoint wave should claim nothing")
+	state._add_number(state.active_encounter.remaining_liability)
+	_advance_seconds(state, state.balance_profile.MIN_WAVE_SECONDS)
+	var bonus: int = state.balance_profile.milestone_bonus(1, 25)
+	_expect(state.get_tier_record(1).milestones_claimed.has(25), "beating a later wave should claim the passed checkpoint")
+	_expect(state.coins - coins_before >= bonus and state.gems - gems_before == state.balance_profile.milestone_gems(1, 25), "the passed checkpoint should pay its Coin bonus and Gems once")
+	var paid_coins := state.coins
+	var paid_gems := state.gems
+	state._catch_up_passed_milestones()
+	_expect(state.coins == paid_coins and state.gems == paid_gems, "a reload catch-up should find nothing left to pay")
+
+func _test_beaten_wave_gives_way_after_the_minimum_beat() -> void:
+	# D037: a beaten wave no longer waits out its timer. It stays on screen for
+	# the minimum beat so the clear registers, then the next wave arrives.
+	var state := GameState.new()
+	state.start_run(1, 26)
+	state._add_number(state.active_encounter.remaining_liability)
+	_expect(state.active_encounter.is_cleared() and state.wave == 1, "a cleared wave should hold until the minimum beat")
+	var events := state.advance(0.25)
+	_expect(state.wave == 1, "the next wave should not arrive before the minimum beat")
+	_advance_seconds(state, state.balance_profile.MIN_WAVE_SECONDS)
+	_expect(state.wave == 2 and state.coins == 1, "the next wave should arrive once the beat has passed, paying the cleared wave")
+	_expect(state.wave_accumulator < state.balance_profile.MIN_WAVE_SECONDS, "the new wave's timer should start fresh")
+	_expect(state.balance_profile.MIN_WAVE_SECONDS < GameState.WAVE_INTERVAL_SECONDS, "the minimum beat should be shorter than the timer")
+	var cleared_event := false
+	for event in events:
+		cleared_event = cleared_event or event.type == "wave_clear"
+	_expect(not cleared_event, "no clear should be reported before the beat")
+
+	# Driven through the clock: an ordinary wave left standing hits once at 15
+	# seconds and moves on, with its partial Coins, exactly like the boundary.
+	var clocked := GameState.new()
+	clocked.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	clocked.start_run(2, 27)
+	clocked.wave = 31
+	clocked.active_encounter = clocked._make_encounter(31)
+	clocked.number = ScientificNumber.from_float(1e9)
+	var hp: ScientificNumber = clocked.active_encounter.max_liability.copy()
+	clocked.active_encounter.remaining_liability = hp.multiply_scalar(0.2)
+	var reward: int = clocked.active_encounter.reward
+	_advance_seconds(clocked, GameState.WAVE_INTERVAL_SECONDS - 0.5)
+	_expect(clocked.wave == 31, "a standing wave should not move on before its timer")
+	_advance_seconds(clocked, 0.5)
+	_expect(clocked.wave == 32 and clocked.coins == floori(float(reward) * 0.8 + 0.000001), "at 15 seconds a standing ordinary wave should hit, pay its share and move on")
+
+	# 20 left of 100 is exactly 0.8 cleared: the share must not round down a Coin.
+	var exact := GameState.new()
+	exact.start_run(1, 28)
+	exact.active_encounter.max_liability = ScientificNumber.from_float(100)
+	exact.active_encounter.remaining_liability = ScientificNumber.from_float(20)
+	_expect(floori(10.0 * exact.get_wave_cleared_share() + 0.000001) == 8, "a cleared share of exactly 0.8 should pay 8 of 10 Coins")
 
 func _test_mid_wave_save_resumes_identically() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
@@ -1009,15 +1108,9 @@ func _test_armor_reduces_the_hit_and_survives_reset() -> void:
 
 ## Siphon is the only route by which damage dealt to a wave also reaches Number.
 ## It must not reduce what the wave takes.
-func _test_siphon_banks_a_share_of_damage_dealt() -> void:
-	var plain := GameState.new()
-	plain.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
-	plain.start_run(2, 40)
-	plain.number = ScientificNumber.from_float(1000)
-	plain.active_encounter.remaining_liability = ScientificNumber.from_float(100)
-	plain._add_number(ScientificNumber.from_float(40))
-	_expect(plain.number.compare_to(ScientificNumber.from_float(1000)) == 0, "without Siphon, damage into a wave banks nothing")
-
+func _test_leech_feeds_on_a_standing_boss() -> void:
+	# D038: Leech (the `siphon` row) adds a share of the damage a boss takes to
+	# Number a second time. Ordinary waves are unaffected.
 	var state := GameState.new()
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	state.purchased = {"siphon": 100}
@@ -1025,29 +1118,48 @@ func _test_siphon_banks_a_share_of_damage_dealt() -> void:
 	state.number = ScientificNumber.from_float(1000)
 	state.active_encounter.remaining_liability = ScientificNumber.from_float(100)
 	state._add_number(ScientificNumber.from_float(40))
-	_expect(state.active_encounter.remaining_liability.compare_to(ScientificNumber.from_float(60)) == 0, "Siphon must not reduce the damage the wave takes")
-	_expect(state.number.compare_to(ScientificNumber.from_float(1010)) == 0, "a quarter of the 40 damage dealt should still reach Number")
-	state._add_number(ScientificNumber.from_float(100))
-	_expect(state.active_encounter.is_cleared(), "output past the remaining HP should beat the wave")
-	_expect(state.number.compare_to(ScientificNumber.from_float(1065)) == 0, "40 of overflow plus a quarter of the 60 absorbed should bank")
+	_expect(state.number.compare_to(ScientificNumber.from_float(1040)) == 0, "Leech should not feed on an ordinary wave")
 
-func _test_recoil_deals_the_hit_back_to_the_wave() -> void:
+	state.wave = 20
+	state.active_encounter = state._make_encounter(20)
+	state.active_encounter.remaining_liability = ScientificNumber.from_float(100)
+	state._add_number(ScientificNumber.from_float(40))
+	_expect(state.active_encounter.remaining_liability.compare_to(ScientificNumber.from_float(60)) == 0, "Leech must not change the damage the boss takes")
+	_expect(state.number.compare_to(ScientificNumber.from_float(1090)) == 0, "a quarter of the 40 dealt to the boss should be added again")
+	state._add_number(ScientificNumber.from_float(100))
+	_expect(state.active_encounter.is_cleared(), "output past the remaining HP should beat the boss")
+	_expect(state.number.compare_to(ScientificNumber.from_float(1205)) == 0, "only the 60 the boss absorbed should be leeched")
+
+func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
+	# D038: Thorns (the `recoil` row) deals a share of every hit to the boss
+	# that landed it, or to the wave that replaces a missed ordinary wave.
 	var state := GameState.new()
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	state.purchased = {"recoil": 100}
 	state.start_run(2, 42)
-	state.number = ScientificNumber.from_float(100000)
-	state.active_encounter.remaining_liability = ScientificNumber.from_float(100000)
+	state.number = ScientificNumber.from_float(1e9)
+	state.wave = 20
+	state.active_encounter = state._make_encounter(20)
+	state.active_encounter.remaining_liability = ScientificNumber.from_float(1e8)
 	var hit := state.get_effective_collection()
 	var before: ScientificNumber = state.active_encounter.remaining_liability.copy()
 	var event := state._resolve_wave_boundary()
-	_expect(event.type == "tax_collection", "an uncleared wave should still hit")
-	_expect(state.active_encounter.remaining_liability.compare_to(before.subtract(hit.multiply_scalar(0.5))) == 0, "half the hit should be dealt back to the wave")
-	state.active_encounter.remaining_liability = ScientificNumber.from_float(100000)
+	_expect(event.type == "boss_collection" and state.wave == 20, "an unbeaten boss should hit and stay")
+	_expect(state.active_encounter.remaining_liability.compare_to(before.subtract(hit.multiply_scalar(0.5))) == 0, "half the hit should be dealt back to the boss")
+
+	state.wave = 21
+	state.active_encounter = state._make_encounter(21)
+	var ordinary_hit := state.get_effective_collection()
+	state._resolve_wave_boundary()
+	_expect(state.wave == 22, "a missed ordinary wave should move on")
+	var next_full: ScientificNumber = state.active_encounter.max_liability.copy()
+	_expect(state.active_encounter.remaining_liability.compare_to(next_full.subtract(ordinary_hit.multiply_scalar(0.5))) == 0, "Thorns should land on the wave that replaces a missed one")
+
 	var braced_before: ScientificNumber = state.active_encounter.remaining_liability.copy()
 	_expect(state.brace(), "Brace should be available against an active wave")
 	state._resolve_wave_boundary()
-	_expect(state.active_encounter.remaining_liability.compare_to(braced_before) == 0, "a braced boundary should deal no recoil, because no hit landed")
+	_expect(state.wave == 23 and state.active_encounter.remaining_liability.compare_to(state.active_encounter.max_liability) == 0, "a braced boundary should deal no Thorns, because no hit landed")
+	_expect(braced_before.compare_to(next_full) < 0, "the fixture should have dealt Thorns before the brace")
 
 func _test_brace_cost_falls_to_its_floor() -> void:
 	var state := GameState.new()
@@ -2073,20 +2185,21 @@ func _test_defensive_ceilings_bound_the_combined_effects() -> void:
 	_expect(effective.compare_to(base.multiply_scalar(1.0 - state.balance_profile.COLLECTION_RESISTANCE_CEILING)) == 0, "a hit should never fall below the combined Armor ceiling")
 	_expect(not effective.is_zero(), "the ceiling keeps hits real, not free")
 
-	# Siphon: the applied share is capped even when the ranks stack past it.
-	_expect(state._effect_sum("siphon_share") > state.balance_profile.SIPHON_CEILING, "the fixture should stack Siphon past its ceiling")
+	# Leech: the applied share is capped even when the ranks stack past it.
+	# Wave 30 is a boss, which is the only wave Leech feeds on.
+	_expect(state._effect_sum("siphon_share") > state.balance_profile.SIPHON_CEILING, "the fixture should stack Leech past its ceiling")
 	state.number = ScientificNumber.new()
 	state._add_number(ScientificNumber.from_float(100))
-	_expect(state.number.compare_to(ScientificNumber.from_float(100.0 * state.balance_profile.SIPHON_CEILING)) == 0, "Siphon should bank exactly the capped share")
+	_expect(state.number.compare_to(ScientificNumber.from_float(100.0 * (1.0 + state.balance_profile.SIPHON_CEILING))) == 0, "Leech should add exactly the capped share")
 
-	# Recoil: a hit can never be returned more than once over.
-	_expect(state._effect_sum("recoil_share") > state.balance_profile.RECOIL_CEILING, "the fixture should stack Recoil past its ceiling")
+	# Thorns: a hit can never be returned more than once over.
+	_expect(state._effect_sum("recoil_share") > state.balance_profile.RECOIL_CEILING, "the fixture should stack Thorns past its ceiling")
 	var liability_before: ScientificNumber = state.active_encounter.remaining_liability.copy()
 	var hit := state.get_effective_collection()
 	state.number = ScientificNumber.new(1.0, 40)
 	state._resolve_wave_boundary()
 	var dealt := liability_before.subtract(state.active_encounter.remaining_liability)
-	_expect(dealt.compare_to(hit) == 0, "Recoil should deal back exactly the hit, never more")
+	_expect(dealt.compare_to(hit) == 0, "Thorns should deal back exactly the hit, never more")
 
 func _advance_seconds(state: GameState, seconds: float) -> void:
 	var elapsed := 0.0

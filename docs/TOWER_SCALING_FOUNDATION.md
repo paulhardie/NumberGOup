@@ -1,6 +1,6 @@
 # Tower scaling research and Number Go Up foundation
 
-Status: researched and implemented as foundation profile `tax-foundation-v1`, retuned to `tax-foundation-v2` for D012, `tax-foundation-v3` for Tier 1's opening (D034), and `tax-foundation-v4` for lower warm-up Wave HP and idle-safe Hit growth (D036), 22 September 2026.
+Status: researched and implemented as foundation profile `tax-foundation-v1`, retuned to `tax-foundation-v2` for D012, `tax-foundation-v3` for Tier 1's opening (D034), and `tax-foundation-v4` for lower warm-up Wave HP and idle-safe Hit growth (D036), 22 September 2026. The encounter rules changed with D037 (the Number always rises; missed waves move on; bosses stay) under `tax-foundation-v5`, with the curves unchanged.
 
 ## Implemented foundation
 
@@ -180,10 +180,10 @@ These are starting calibration values, not a promise that the final curve will f
 ### Player-facing loop
 
 1. A wave starts with an amount of Tax Liability and a Collection value.
-2. Every unit produced still increases Number and also deals one unit of compliance damage to Liability. A later stat may change this ratio. *Superseded by [D012](DECISIONS.md): output applies to Liability first and only the overflow becomes Number; see [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md).*
-3. A wave has a minimum 15-second window, preserving the existing pacing.
+2. Every unit produced still increases Number and also deals one unit of compliance damage to Liability. A later stat may change this ratio. *Superseded by [D012](DECISIONS.md) (output applied to Liability first), then restored by [D037](DECISIONS.md) (23 September 2026); see [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md).*
+3. A wave has a minimum 15-second window, preserving the existing pacing. *Since D037 a beaten wave gives way after a 2.5-second beat; 15 seconds is the time allowed to clear it.*
 4. If Liability reaches zero within the window, the wave clears at the boundary without a collection hit.
-5. If Liability remains at the boundary, Tax collects its absolute Collection value from Number. The wave stays active for another collection interval.
+5. If Liability remains at the boundary, Tax collects its absolute Collection value from Number. The wave stays active for another collection interval. *Since D037 only bosses stay; an ordinary wave hits once and moves on, paying Coins for the share cleared.*
 6. Number at zero is death. Cleared Liability advances to the next wave and grants the wave reward.
 7. Boss waves multiply liability, collection and reward independently.
 

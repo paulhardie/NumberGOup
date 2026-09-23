@@ -1,6 +1,5 @@
 extends SceneTree
 
-const CoreLoopVariantStateClass = preload("res://tools/core_loop_variant_state.gd")
 const DEFAULT_SECONDS := 3600.0
 const STEP := 0.5
 const SEED := 7
@@ -94,13 +93,6 @@ const RIG_RESERVE_HITS := 2.0
 ## build substituting for Workshop investment. The smallest M that passes both
 ## is the value the profile should keep.
 const RIG_MULTIPLIER_SWEEP := [2.0, 3.0, 5.0, 8.0]
-## Simulator-only conserved-output experiments. Zero is the shipped D012 rule.
-## The final two divert only tap damage, keeping the idle production unchanged.
-const CORE_OUTPUT_VARIANTS := [
-	["current", 0.0, false],
-	["all10", 0.10, false], ["all25", 0.25, false],
-	["tap10", 0.10, true], ["tap25", 0.25, true],
-]
 const CORE_SECONDS := 3600.0
 const SWEEP_BUILDS := [
 	["fresh", 1, {}],
@@ -155,41 +147,12 @@ func _init() -> void:
 			_simulate_build("M" + str(multiplier) + " " + str(build[0]), build[1], _ranks(build[2]), "reinvest", multiplier)
 	quit(0)
 
-## Compare D012 with two conserved-output alternatives. Injected ranks test
-## scaling interactions; they do not assert that a player can afford the build.
-## The existing full matrix remains the authority for current balance gates.
+## How the core loop feels on the shipped rules (D037): when the Number first
+## visibly rises, the first Hit, and the longest stretch without a visible gain.
+## Injected ranks test scaling interactions; they do not assert that a player
+## can afford the build. The full matrix remains the authority for balance gates.
 func _simulate_core_loop() -> void:
-	var check = CoreLoopVariantStateClass.new()
-	check.bank_while_uncleared_share = 0.25
-	check.start_run(1, SEED)
-	var before_number: ScientificNumber = check.number.copy()
-	var before_hp: ScientificNumber = check.active_encounter.remaining_liability.copy()
-	var sample := ScientificNumber.from_float(10.0)
-	check._add_number(sample)
-	var accounted: ScientificNumber = check.number.subtract(before_number).add(before_hp.subtract(check.active_encounter.remaining_liability))
-	if not is_equal_approx(accounted.mantissa * pow(10.0, accounted.exponent), sample.mantissa * pow(10.0, sample.exponent)):
-		push_error("Core-loop split counted output more than once")
-		quit(1)
-		return
-	var tap_check = CoreLoopVariantStateClass.new()
-	tap_check.bank_while_uncleared_share = 0.10
-	tap_check.bank_taps_only = true
-	tap_check.start_run(1, SEED)
-	for step in range(4):
-		tap_check.advance(0.25)
-	if tap_check.number.compare_to(before_number) != 0 or tap_check.active_encounter.remaining_liability.compare_to(ScientificNumber.from_float(19.0)) != 0:
-		push_error("Tap-only split changed idle Number income")
-		quit(1)
-		return
-	var before_tap_bank: ScientificNumber = tap_check.number.copy()
-	var before_tap_hp: ScientificNumber = tap_check.active_encounter.remaining_liability.copy()
-	var tap_event: SimulationEvent = tap_check.tap()
-	var tap_accounted: ScientificNumber = tap_check.number.subtract(before_tap_bank).add(before_tap_hp.subtract(tap_check.active_encounter.remaining_liability))
-	if not is_equal_approx(tap_accounted.mantissa * pow(10.0, tap_accounted.exponent), tap_event.amount.mantissa * pow(10.0, tap_event.amount.exponent)):
-		push_error("Tap-only split counted tap output more than once")
-		quit(1)
-		return
-	print("CORE LOOP  seed=", SEED, "  15s waves  banked share is diverted from Wave HP, never counted twice")
+	print("CORE LOOP  seed=", SEED, "  every unit of output is Number and also strikes the wave")
 	print("CORE LOOP  metrics: first_visible/first_hit and dry3m/dry_run are seconds; cap=", CORE_SECONDS, "s")
 	_core_group("fresh", 1, {}, {}, {}, [], [0.0, 1.0, 2.0])
 	_core_group("first spend", 1, FIRST_RUN_SPEND, {}, {}, [], [1.0, 2.0])
@@ -208,15 +171,12 @@ func _core_group(label: String, tier: int, ranks: Dictionary, labs: Dictionary, 
 	var rig_policies := ["hoard", "reinvest"]
 	if label == "fresh" or label == "first spend":
 		rig_policies = ["hoard", "first_two", "reinvest"]
-	for variant in CORE_OUTPUT_VARIANTS:
-		for tap_rate in tap_rates:
-			for rig_policy in rig_policies:
-				_core_case(label, tier, ranks, labs, cards, active_cards, float(tap_rate), str(rig_policy), str(variant[0]), float(variant[1]), bool(variant[2]))
+	for tap_rate in tap_rates:
+		for rig_policy in rig_policies:
+			_core_case(label, tier, ranks, labs, cards, active_cards, float(tap_rate), str(rig_policy))
 
-func _core_case(label: String, tier: int, ranks: Dictionary, labs: Dictionary, cards: Dictionary, active_cards: Array, tap_rate: float, rig_policy: String, variant_name: String, bank_share: float, taps_only: bool) -> void:
-	var state = CoreLoopVariantStateClass.new()
-	state.bank_while_uncleared_share = bank_share
-	state.bank_taps_only = taps_only
+func _core_case(label: String, tier: int, ranks: Dictionary, labs: Dictionary, cards: Dictionary, active_cards: Array, tap_rate: float, rig_policy: String) -> void:
+	var state := GameState.new()
 	state.purchased = ranks.duplicate()
 	state.lab_ranks = labs.duplicate()
 	state.card_ranks = cards.duplicate()
@@ -278,7 +238,6 @@ func _core_case(label: String, tier: int, ranks: Dictionary, labs: Dictionary, c
 	var final_wave: int = state.wave if state.in_run else state.last_run_summary.wave_reached
 	print(
 		"  ", label.rpad(17), " T", tier,
-		" model=", variant_name,
 		" taps=", tap_rate, " rig=", rig_policy,
 		" wave=", final_wave, " time=", snappedf(seconds, 0.1),
 		" coins=", state.coins,
@@ -385,9 +344,9 @@ func _play_rig(state: GameState) -> int:
 	return bought
 
 ## The Reinvestor spends "the moment a wave starts resisting": while a wave is
-## cleared or still in warm-up the Number is left to bank, so the buffer grows
-## before the spend. Buying during banking time is what made the first policy
-## drain the buffer and die early.
+## cleared or still in warm-up it leaves the Number alone, so the buffer grows
+## before the spend. Buying on easy waves is what made the first policy drain
+## the buffer and die early.
 func _rig_can_spend(state: GameState) -> bool:
 	if state.active_encounter == null:
 		return false
@@ -395,7 +354,7 @@ func _rig_can_spend(state: GameState) -> bool:
 
 ## The Number the policy will not spend: the hits that are actually coming, with
 ## a one-hit margin. While a wave is cleared, that is the next wave's hit, so
-## banking time is spent down to a real reserve rather than to zero.
+## the Number is spent down to a real reserve rather than to zero.
 func _rig_reserve(state: GameState) -> ScientificNumber:
 	var hit := ScientificNumber.new()
 	if state.active_encounter != null and not state.active_encounter.is_cleared() and not state.active_encounter.max_liability.is_zero():

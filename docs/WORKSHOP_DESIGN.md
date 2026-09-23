@@ -1,21 +1,21 @@
 # Workshop design
 
 **Status:** Accepted direction. Steps 1 (the wave rule and its retune), 2 (the player vocabulary), 3 (the four categories), 3b (the deepened ladders), 4a and 4b (the Defense, Attack and Utility stats), 5 (the bar reshape), 6 (the two gaps under "Lost to") and step 7's Rig domain and panel are implemented. D035 reprices the permanent Workshop and D036 lowers opening Wave HP after Tier 1 playtests. Early and mid builds remain an open playtest question; step 8 remains open.
-**Decisions:** [D012](DECISIONS.md) (output beats the wave before it becomes Number), [D013](DECISIONS.md) (four categories), [D014](DECISIONS.md) (player vocabulary), [D015](DECISIONS.md) (the Rig: the same four categories inside a run), [D016](DECISIONS.md) (the bottom bar carries what is actionable now), [D018](DECISIONS.md) (multi-buy and the reference layout), [D019](DECISIONS.md) (deep rank ladders), [D020](DECISIONS.md) (Defense becomes a build), [D021](DECISIONS.md) (Boss Damage and the Utility bonuses), [D022](DECISIONS.md) (the run-over screen names what the run was lost to) and [D035](DECISIONS.md) (the cheaper Workshop onramp).
+**Decisions:** [D037](DECISIONS.md) (the Number always rises; missed waves move on; bosses stay), [D038](DECISIONS.md) (Leech and Thorns), [D012](DECISIONS.md) (superseded: output beat the wave before it became Number), [D013](DECISIONS.md) (four categories), [D014](DECISIONS.md) (player vocabulary), [D015](DECISIONS.md) (the Rig: the same four categories inside a run), [D016](DECISIONS.md) (the bottom bar carries what is actionable now), [D018](DECISIONS.md) (multi-buy and the reference layout), [D019](DECISIONS.md) (deep rank ladders), [D020](DECISIONS.md) (Defense becomes a build), [D021](DECISIONS.md) (Boss Damage and the Utility bonuses), [D022](DECISIONS.md) (the run-over screen names what the run was lost to) and [D035](DECISIONS.md) (the cheaper Workshop onramp).
 **Owns:** the wave rule as the player should understand it, the four categories in both lenses — permanent in the Workshop, run-only in the Rig — and every stat's reason to exist, what the player sees, the build strategies this supports, the balance targets the retune must hit, and the implementation order.
 
 This document uses the accepted player vocabulary (Wave HP, Hit, Armor). [Vocabulary](#vocabulary-d014) maps every term to its code name.
 
 ## The wave, in one paragraph
 
-Each wave has **HP** (the ring) and a **Hit**. Everything you produce, taps and ticks alike, is **damage**, and it goes into the wave first. Beat the wave before its 15-second timer runs out and it never hits you; for the rest of that timer your output overflows into your Number. If the timer runs out with the wave still standing, it **hits** your Number, keeps the HP it has left, and the timer starts again. It hits every 15 seconds until you beat it. If a hit takes your Number to zero, the run ends.
+*Rewritten for [D037](DECISIONS.md) (23 September 2026); the D012 version is kept below as history.*
+
+Each wave has **HP** (the ring) and a **Hit**. Everything you produce, taps and ticks alike, is **Number**, and the same output also counts against the wave's HP, so the Number never stops rising while you produce. Beat the wave before its 15-second timer runs out and it never hits you; after a short beat (2.5 seconds on screen at least) the next wave comes straight in. If the timer runs out with an ordinary wave still standing, it **hits** your Number once and moves on, paying Coins for the share of it you cleared. A **boss** (every tenth wave) stays until you beat it and hits every 15 seconds. If a hit takes your Number to zero, the run ends.
 
 That gives each half of the stat catalogue one plain job:
 
-- **Attack** decides whether you beat a wave inside one timer.
-- **Defense** decides how many hits you can take while you grind down a wave you couldn't.
-
-The Number only rises while you are ahead, so a player can read their situation from the centre of the ring without opening a menu.
+- **Attack** decides whether you beat a wave inside one timer, and how fast the Number climbs.
+- **Defense** decides how many missed waves you survive and whether you win the boss fights.
 
 ## Why the rule changed (D012)
 
@@ -123,8 +123,8 @@ Attack is today's Output, Speed and Chance bays, nearly unchanged. Boss Damage i
 | Stat | Does | Ranks | At its cap |
 | --- | --- | --- | --- |
 | Armor | Every hit is X% smaller | 100 | hits 40% smaller |
-| Siphon | X% of the damage you deal still reaches your Number | 100 | 25% of damage dealt |
-| Recoil | X% of every hit you take is dealt back to the wave | 100 | half of every hit |
+| Leech (`siphon`, D038) | While a boss stands, X% of the damage you deal it is added to your Number again | 100 | 25% of damage dealt to bosses |
+| Thorns (`recoil`, D038) | X% of every hit you take is dealt to the wave in front of you | 100 | half of every hit |
 | Cushion | Start every run with X Number, scaled by the tier | 50 | 500 × the tier's pressure |
 | Brace Cost | Brace costs less than 30% of your Number | 60 | 15%, its floor |
 | Second Wind | Once per run, a hit that would end the run leaves you X% of your peak Number this run instead | 50 | a quarter of the peak |
@@ -132,8 +132,8 @@ Attack is today's Output, Speed and Chance bays, nearly unchanged. Boss Damage i
 Each works on a different part of being stuck:
 
 - Armor shrinks each hit.
-- Siphon refills you between hits.
-- Recoil turns being hit into progress on the wave.
+- Leech refills you during a boss fight.
+- Thorns turns being hit into progress on the boss, or the next wave.
 - Cushion gives you an opening buffer.
 - Brace Cost improves the manual block.
 - Second Wind forgives one mistake.
@@ -494,11 +494,11 @@ Higher tiers can ask for different builds by changing the *shape* of waves as we
 
 Targets 1–4 gate D012's retune; 5 and 6 gate step 4's new stats. `tools/balance_simulator.gd` measures them with its build matrix.
 
-1. A fresh first run reaches the first pressured waves and banks enough Coins for permanent progress (D010). *Measured after D036: the seed-7 representative run ends at wave 23 with 76 Coins; one tap per second with cautious Rig spending reaches wave 21 with 48.*
-2. Coins per minute at equal builds are within ±10% of the pre-D012 baseline. *This measures the D012 retune, not the Workshop: Coin Bonus (step 4b) is meant to lift Coins per minute, and does, by 49% at its cap. Compare like builds, not maxed ones.* *Met for the main progression builds: mid −2%, Max Attack −7%, Max Attack + Armor +6%. Two small runs sit above: early is +20% (2.4 Coins a minute) and Tier 2 is +19%, because both go relatively deeper now. Recheck when step 4 adds new Coin sinks.*
+1. A fresh first run reaches the first pressured waves and banks enough Coins for permanent progress (D010). *Measured after D036: the seed-7 representative run ends at wave 23 with 76 Coins; one tap per second with cautious Rig spending reaches wave 21 with 48.* *After D037 (seed 7): the representative run reaches wave 29 with 56 Coins; one tap a second reaches wave 26 with 48. Met.*
+2. Coins per minute at equal builds are within ±10% of the pre-D012 baseline. *This measures the D012 retune, not the Workshop: Coin Bonus (step 4b) is meant to lift Coins per minute, and does, by 49% at its cap. Compare like builds, not maxed ones.* *Met for the main progression builds: mid −2%, Max Attack −7%, Max Attack + Armor +6%. Two small runs sit above: early is +20% (2.4 Coins a minute) and Tier 2 is +19%, because both go relatively deeper now. Recheck when step 4 adds new Coin sinks.* ***Fails after D037, by design:*** *beaten waves no longer wait out their timers, so Coins per minute rise about 1.5–1.8× at equal builds (mid 45.8 → 69.5, max Attack 102 → 181). Either Coin rewards come down with the Hit retune, or this target is restated for D037; that is a decision.*
 3. Tier 1 wave 100 is reachable for a Workshop investment comparable to before. *Met: Max Attack + Armor 40% reaches wave 100, as it did before.*
 4. A player who has just unlocked Tier 2 survives its opening waves. *Met: that build reaches Tier 2 wave 26 (was 28).*
-5. **The cheapest build that reaches Tier 1 wave 100 includes both Attack and Defense.** This is pillar 2 written as a test. ***Met, and worth watching:*** *maxed Attack alone reaches wave 97 after D036, while maxed Attack plus Armor reaches 100. Boss Damage moved Attack's solo reach close to 100 in step 4b; another Attack row of that size would break this target.*
+5. **The cheapest build that reaches Tier 1 wave 100 includes both Attack and Defense.** This is pillar 2 written as a test. ***Met, and worth watching:*** *maxed Attack alone reaches wave 97 after D036, while maxed Attack plus Armor reaches 100. Boss Damage moved Attack's solo reach close to 100 in step 4b; another Attack row of that size would break this target.* ***Fails after D037:*** *max Attack alone reaches wave 105, because its output is also the Number that absorbs Hits. The Hit retune and Guard are the planned fix (D037).*
 6. Every stat's first rank visibly moves a simulator outcome. ***Met at the cap for every new stat, with two qualifications:*** *Cushion moves Tier 2's final wave but not Tier 1's at the measured max-Attack build, and Brace Cost cannot be measured by a simulator that never Braces — it is covered by test rather than by simulation. Utility's two bonuses move Coins and Knowledge rather than the wave reached, which is the category's whole point. Sizes were chosen from the older measurements that showed Siphon at 10% adding nothing: Siphon caps at 25% and Recoil at 50%.*
 
 Targets 7–9 gate the Rig (step 7). All three need the simulator to model in-run spending, which is itself part of that step.
@@ -509,9 +509,11 @@ Targets 7–9 gate the Rig (step 7). All three need the simulator to model in-ru
 
 Target 10 gates the Tier 1 opening (D033, retuned by D034 and D036), measured by the OPENING table in `run_balance.sh`.
 
-10. **A new player is in the action at once, with room to learn.** From a fresh save the first two Rig purchases together leave over half the starting Number, waves carry HP and Hit from the start, an idle player is hit within the first minute, and a steady tapper's first hit is survivable. The first run should fund permanent ranks while one-tap play makes visible progress and idle play does not earn the whole warm-up reward. *Measured at seed 7 after D036: the cautious opening policy buys from the first second; idle ends at wave 16 with 39 Coins, one tap per second at wave 21 with 48, and two taps at wave 23 with 76. The representative two-tap run without Rig spending also ends at wave 23 with 76.*
+10. **A new player is in the action at once, with room to learn.** From a fresh save the first two Rig purchases together leave over half the starting Number, waves carry HP and Hit from the start, an idle player is hit within the first minute, and a steady tapper's first hit is survivable. The first run should fund permanent ranks while one-tap play makes visible progress and idle play does not earn the whole warm-up reward. *Measured at seed 7 after D036: the cautious opening policy buys from the first second; idle ends at wave 16 with 39 Coins, one tap per second at wave 21 with 48, and two taps at wave 23 with 76. The representative two-tap run without Rig spending also ends at wave 23 with 76.* *After D037: an idle player is first hit at 15 seconds (44 with the two opening Rig buys) and a steady tapper's first Hit is survivable; doing nothing earns 30 Coins against one tap a second's 48. Met, with the idle clause restated in GAME_INVARIANTS.*
 
 ### Core-loop balance review — proposed, 23 September 2026
+
+**Resolved by [D037](DECISIONS.md) (23 September 2026):** the owner chose "the Number always rises" rather than D012 or either output split. The split experiments and `CoreLoopVariantState` were removed; `--core-loop` now measures the shipped rule. The review below is kept as the record of how that choice was reached.
 
 The owner reports that the first five minutes still feel brutal and that producing damage while the ring has HP does not feel like earning Number. This reopens D012's stated playtest condition; it does not yet change the accepted rule. Lower Workshop prices cannot affect a first run because Workshop purchases happen between runs. A Tier 1 warm-up that times out currently pays its full Coin and checkpoint rewards even if its HP was not cleared (D033).
 
@@ -547,6 +549,26 @@ The wider matrix also exposes an independent Rig problem. At two taps a second u
 
 **Longer horizon:** [`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md) (proposed, 23 September 2026) sets out a balance pass for Tiers 1–10 that bears on this review: Rush (a broken wave ends early and pays the rest of its timer at once) and a scale-free Rig both address the flat opening while keeping D012.
 
+### After D037: the Number always rises (23 September 2026)
+
+Measured with `run_balance.sh` at seed 7 and two taps a second, `tax-foundation-v5`; no curve, price or reward changed.
+
+| Build | Before (D012) | After (D037) |
+| --- | --- | --- |
+| Representative first run | wave 23, 8.3 min, 76 Coins | wave 29, 6.9 min, 56 Coins |
+| Longest flat Number stretch, first 3 min (1 tap/s) | up to 105 s | 0.5 s |
+| Doing nothing | wave 20, 43 Coins | wave 26, 9.0 min, 30 Coins |
+| Early | wave 30, 11.0 min, 175 Coins | wave 30, 4.9 min, 93 Coins |
+| Mid | wave 50, 19.0 min, 45.8 Coins/min | wave 50, 10.3 min, 69.5 Coins/min |
+| Max Attack | wave 97, 39.3 min | wave 105, 20.2 min |
+| Max Attack + Armor | wave 100, 44.3 min | wave 120, 27.7 min |
+| Everything maxed | wave 110, 53.0 min | wave 130, 29.0 min |
+| Tier 2, Attack + all Defense | wave 38 | wave 50 |
+
+- **Target 5 fails**: max Attack alone reaches wave 105. Attack's output is the Number that absorbs Hits again, so Defense's margin at wave 100 has gone. The Hit retune and Guard (see [`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md)) are the planned fix.
+- **Target 8 still holds at the top** (max Attack 105 to 109 with the Rig) and the mid build now breaks even with the Rig rather than losing ten waves (50 against 50, and faster). Early builds still don't profit from it, which the percentage Boosts address.
+- Coins per minute rise about 1.5–1.8× because beaten waves no longer wait out their timers.
+
 ## Implementation order
 
 Each step lands on its own and clears the gate for its risk level in [`QUALITY_GATES.md`](QUALITY_GATES.md).
@@ -576,6 +598,8 @@ Held true by step 1:
 - Save shape is unchanged. A save taken mid-wave before step 1 resumes that wave with its saved HP and hit, then continues on v2 curves.
 
 ## Open questions
+
+[`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md) (proposed, 23 September 2026) sets out eight new rows, new jobs for Auto Crank, Siphon and Recoil under the proposed core rules, and how the Workshop keeps scaling across tiers.
 
 1. **What Ultimates cost to upgrade permanently.** Recommendation: Knowledge. It gives Knowledge a second sink beside Insight and adds no currency (pillar 4). The alternative, Coins, competes directly with the Workshop. Their in-run levels cost Number like every other Rig row.
 2. **The Tier 2+ opening.** Should Cushion scale with the tier, or should every tier get a few warm-up waves? Recommendation: scaled Cushion, because it makes the opening a Defense decision rather than a free pass. The Rig sharpens this: on Tier 2 the first hit lands before there is any Number to spend, so the opening is the one stretch of a run the Rig cannot help with.
