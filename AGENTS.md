@@ -166,7 +166,7 @@ If a change makes any of these stale, update the owning document in the same cha
 1. **One clear authority per concept.** Balance curves and tier tables live in `src/tax_balance_profile.gd`; encounter state in `src/tax_encounter.gd`; stacking order in `src/rule_modifier_pipeline.gd`; save shape in `src/save_data_v*.gd`. `GameState` coordinates these; it does not re-own them.
 2. **UI never owns domain logic.** `src/main.gd` presents and reports; decisions belong to `GameState`. A rule implemented twice is a bug report waiting to happen.
 3. **All future rules enter through the modifier pipeline.** Laws, Violations, perks, challenges and tier conditions stack in the documented order rather than as special cases in `GameState`.
-4. **Number exists only during an active run.** Permanent power (Workshop ranks, Coins, Knowledge, Insight, records) is separate. The temporary layer is the Rig, and it spends Number (D015); do not invent a second one and do not blur the boundary.
+4. **Number exists only during an active run.** Permanent power (Workshop ranks, Coins, Knowledge, Insight, records) is separate. The temporary layer is run Upgrades (the Rig in code and older notes), and it spends Cash (D015, D042, D045); do not invent a second one and do not blur the boundary.
 5. **Save compatibility is a contract.** Stable keys, versioned schemas, explicit migrations, and no silent loss of declared permanent progress.
 6. **Determinism stays deterministic.** Persist the run seed and RNG state; a saved active encounter must resume identically.
 7. **Factor before you add.** A new domain growing inside `GameState` should become its own class with focused tests, like `TaxBalanceProfile` and `TaxEncounter` did.
@@ -234,7 +234,7 @@ bash run_godot.sh --path . -s res://tools/capture_ui.gd
 - All of these use the Godot in `/Users/paulhardie/Downloads/Godot.app`; set `GODOT` to point them at another binary.
 - `run_tests.sh` is the economy suite; a green count with errors printed is not a pass, and the script fails the run on any error line. If it fails on classes it cannot find, the `.godot` cache is stale: run `bash run_godot.sh --headless --path . --import`.
 - `run_balance.sh` prints the curve and the representative first run; it is a measurement tool, not a gate.
-- `tools/career_simulator.gd` plays a fresh save run after run, spending Coins between runs, and compares today's rules with the proposed coin gates and Rig variants; `-- --runs N` and `-- --careers a,b` narrow it. It is a measurement tool, not a gate.
+- `tools/career_simulator.gd` plays a fresh save run after run, spending Coins between runs, and compares today's rules with the proposed coin gates and other run rank worths; `-- --runs N`, `-- --ladder NAME` and `-- --careers a,b` narrow it. It is a measurement tool, not a gate.
 - The headless project run catches parse and scene-build errors in `main.gd` and the UI classes.
 - CI runs the same baseline on every pull request and push to `main` (`.github/workflows/verify.yml`), with its Godot version pinned to match the development build — update the pin when upgrading Godot. `main` requires a pull request with a passing "Economy tests and headless boot" check.
 - The capture tool opens briefly and writes hub/run/run_standing/boss/workshop/knowledge/lost/drawer PNGs at four window sizes to `user://ui_capture` for visual review, and prints the folder it wrote to; inspect them, never assert pixel equality. It saves to a throwaway file, never the real save.

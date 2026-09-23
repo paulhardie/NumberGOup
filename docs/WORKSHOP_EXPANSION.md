@@ -7,7 +7,7 @@
 
 ## Tower parity plan and coin gates — proposed, 23 September 2026
 
-**Status:** proposed on owner direction, 23 September 2026: carry The Tower's Workshop over as far as it makes sense, and "hide some behind coin gates similar to the tower … so players don't get everything immediately at the start." Nothing here is accepted or built. Each gate, row and foundation piece needs its decision in [`DECISIONS.md`](DECISIONS.md) first. Where this plan overlaps the earlier 28-row plan below, this plan is the newer proposal; the [reconciliation](#how-this-meets-the-earlier-proposals) says which earlier rows survive.
+**Status:** proposed on owner direction, 23 September 2026: carry The Tower's Workshop over as far as it makes sense, and "hide some behind coin gates similar to the tower … so players don't get everything immediately at the start." Nothing here is accepted or built. "The Rig" below means run Upgrades (D045), whose ranks now stop at a row's max rank and are worth two Workshop ranks (D044). Each gate, row and foundation piece needs its decision in [`DECISIONS.md`](DECISIONS.md) first. Where this plan overlaps the earlier 28-row plan below, this plan is the newer proposal; the [reconciliation](#how-this-meets-the-earlier-proposals) says which earlier rows survive.
 
 **Sources:** The Tower's 48 Workshop rows (17 Attack, 18 Defense, 13 Utility) and their ranges come from the unofficial community [TheTowerSDK](https://github.com/TmRxJD/TheTowerSDK) workshop table (release 0.11.0, 13 September 2026). Death Defy's place in Defense and the unlock prices quoted below come from the community wikis ([Fandom](https://the-tower-idle-tower-defense.fandom.com/wiki/Workshop_Upgrades), [Game Vault](https://the-tower-idle-tower-defense.game-vault.net/wiki/Workshop)). These are community reconstructions, not developer data. Every number in this plan is ours (D009), not copied.
 
@@ -22,16 +22,30 @@ A wave has no enemies on screen, so every "spatial" Tower row is translated thro
 - **A gate is a choice, not a toll.** After the first run a player can afford one first gate in one tab, or a handful of ranks. Opening a mechanic and deepening one compete for the same Coins.
 - **Fixed prices.** Gates ignore Discount and Research Focus, so the ladder reads the same for everyone and a discount never reorders it.
 - **Replaces the Workshop-level row gates.** `workshop_level_required` stops gating rows, so there is one rule for "why can't I buy this". The Workshop level stays: Labs and Research Focus still open by it.
-- **The Rig sells only unlocked rows,** as The Tower's in-run upgrades do. This narrows D042's "all 21 rows in the Rig" to "every unlocked row", so it needs recording against D042. It also answers part of the Rig strength problem: a fresh run's Rig offers 7 rows, where today it offers all 21 and a fresh build buys 74 Rig ranks and reaches wave 30.
+- **The Rig sells only unlocked rows,** as The Tower's in-run upgrades do. This narrows D042's "all 21 rows in the Rig" to "every unlocked row", so it needs recording against D042. It also narrows what a fresh run can buy: 7 rows instead of 21. Measured with the career simulator (40 runs from a fresh save), the first ladder below made early progress without run ranks about twice as slow as today; see [the gate prices](#the-gate-ladder-measured).
 - **Saves.** Unlocks are permanent and saved as `workshop_unlocks`, a new field, so under D028 it is save schema V9. That is the same bump the Cash fields owe. Migration unlocks every row an old save holds ranks in or whose old Workshop-level gate it already meets, so no player loses a row they had.
 
-**The gate ladder**, the same in every tab (starting proposal):
+**The gate ladder**, the same in every tab (starting proposal; the first three gates raised from 60, 150 and 400 after the [measurement below](#the-gate-ladder-measured)):
 
 | Gate | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Coins | 60 | 150 | 400 | 1,000 | 2,500 | 6,000 | 15,000 | 35,000 | 80,000 | 180,000 | 400,000 |
+| Coins | 100 | 250 | 500 | 1,000 | 2,500 | 6,000 | 15,000 | 35,000 | 80,000 | 180,000 | 400,000 |
 
-Sized against measured Coins per run (profile `tax-foundation-v8`, seed 7, two taps a second, hoarding / playing the Rig): fresh 86 / 232, early 382 / 683, mid 1,154 / 1,659, max Attack 3,808 / 5,875, everything maxed 7,760 / 13,675. So the first gate is one first run; gate 3 is an early run; gate 5 is about one strong run; gates 8 and later exceed today's whole Workshop (about 140,000 Coins to max) and are sized for the deeper economy the [ladders](WORKSHOP_LADDERS.md) and higher tiers bring. Tune with the simulator; revisit the top of the ladder when the ladders land.
+Sized against measured Coins per run (profile `tax-foundation-v8`, seed 7, two taps a second, hoarding / playing the Rig): fresh 86 / 232, early 382 / 683, mid 1,154 / 1,659, max Attack 3,808 / 5,875, everything maxed 7,760 / 13,675. So the first gate is about one first run; gate 3 is an early run; gate 5 is about one strong run; gates 8 and later exceed today's whole Workshop (about 140,000 Coins to max) and are sized for the deeper economy the [ladders](WORKSHOP_LADDERS.md) and higher tiers bring. Tune with the simulator; revisit the top of the ladder when the ladders land.
+
+#### The gate ladder, measured
+
+Measured on 23 September 2026 with `tools/career_simulator.gd`: 40 runs from a fresh save, Tier 1, two taps a second, seed 7 + run, on balance profile `tax-foundation-v9` (run ranks capped and worth 2, D044). The simulated player buys every affordable next gate, cheapest first, keeps back the next gate when one run pays for it, and spends the rest on ranks in turn. Gates for rows that don't exist yet are skipped, which flatters the gated careers slightly.
+
+| Ladder (first gates) | Wave 30, no run Upgrades | Wave 100, no run Upgrades | Wave 100, buying run Upgrades |
+| --- | --- | --- | --- |
+| Today, no gates | run 4 (0.5 h) | run 33 (7.6 h) | run 20 (5.0 h) |
+| First proposal: 60, 150, 400, … | run 9 (1.0 h) | run 40 (8.7 h) | run 26 (6.3 h) |
+| Gentle: 25, 75, 200, … | run 9 (1.0 h) | not in 40 runs | run 25 (6.0 h) |
+| **Now proposed: 100, 250, 500, then as before** | **run 6 (0.7 h)** | **run 37 (8.2 h)** | **run 26 (6.1 h)** |
+
+**The lever is how many gates a player buys early, not what each costs.** The first real wall is the wave 20 boss, and passing it takes Damage ranks: today's player has about 70 Workshop ranks by run 3 and clears it. Cheap gates let the gated player spend its first 250 Coins opening six rows that do not help at wave 20 (Crit at rank 0, Thorns, Coin Bonus), so its ranks lag two or three runs behind. A dearer first gate opens fewer rows early and leaves those Coins in ranks. The new ladder is the starting proposal (`--ladder plan` in the simulator): gates cost about half an hour at the start and 8% of the time to wave 100 without run Upgrades, or 22% with them, because locked rows are locked for run Upgrades too. Players who unlock less greedily than the simulated one will lose less.
+
 
 ### Attack
 
@@ -121,7 +135,7 @@ Not taken: **Coins / Wave**. Waves already pay Coins by wave number, Coin Bonus 
 
 ### Risks
 
-- **The Rig is already too strong** ([`HANDOVER.md`](HANDOVER.md)). Coin gates help early (fewer rows to buy in a fresh run), but Cash per Wave, Cash Bonus and Free Upgrade make the Rig cheaper. Settle Rig strength before any Cash row ships.
+- **Cash rows strengthen run Upgrades.** D044 capped run ranks and set their worth at 2 after they had outgrown the Workshop; Cash per Wave, Cash Bonus and Free Upgrade make them cheaper again, so each needs the career simulator run before and after.
 - **Attack-side damage rows push balance target 5** (wave 100 needs Defense). Early Strike, Frenzy, Super Crit and Rend all strengthen Attack-only builds; Orbs and Mines put damage in the Defense tab. Each needs the target re-measured.
 - **Gating existing rows changes existing progression.** Damage Multiplier is free today and becomes gate 2; Crit opens at Workshop level 30 today and becomes gate 1. Migration keeps every row a save already uses, but the measured early and mid builds need re-running under the gates.
 - **Replacing Burst and Double Tick** touches owned ranks. Each replacement needs a decision: carry ranks across to the new row, or refund their Coins.

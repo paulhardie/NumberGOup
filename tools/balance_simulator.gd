@@ -149,7 +149,7 @@ func _init() -> void:
 	for multiplier in RIG_MULTIPLIER_SWEEP:
 		for build in SWEEP_BUILDS:
 			_simulate_build("M" + str(multiplier) + " " + str(build[0]), build[1], _ranks(build[2]), "reinvest", multiplier)
-	print("RIG PRICE GROWTH SWEEP  (reinvest policy, M=3, each rank costs G times the last)")
+	print("RIG PRICE GROWTH SWEEP  (reinvest policy, the profile's run rank worth, each rank costs G times the last)")
 	for growth in RIG_GROWTH_SWEEP:
 		for build in SWEEP_BUILDS:
 			_simulate_build("G" + str(growth) + " " + str(build[0]), build[1], _ranks(build[2]), "reinvest", -1.0, growth)

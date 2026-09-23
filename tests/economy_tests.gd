@@ -46,6 +46,7 @@ func _init() -> void:
 	_test_rig_cost_is_quoted_in_seconds_of_income()
 	_test_rig_purchase_spends_cash_and_stacks()
 	_test_rig_multi_buy_quotes_and_spends()
+	_test_rig_stops_at_the_rows_max_rank()
 	_test_rig_is_run_scoped()
 	_test_rig_refuses_what_it_does_not_sell()
 	_test_rig_save_round_trip()
@@ -1809,12 +1810,29 @@ func _test_rig_purchase_spends_cash_and_stacks() -> void:
 	var multiplier: float = state.balance_profile.rig_effect_multiplier(ProgressionTaxonomy.ATTACK, "stronger_tap")
 	_expect(is_equal_approx(state._tap_base(), base_tap + 0.05 * multiplier), "a Rig rank should grant its multiplier of one Workshop rank's effect")
 	_expect(state.get_workshop_level() == 0, "Rig ranks must not raise the Workshop level")
-	# Uncapped: the Rig keeps selling past the Workshop's rank cap.
+	# D044: Workshop and run ranks together stop at the row's max rank.
 	state.cash = ScientificNumber.new(1.0, 40)
 	var cap: int = state.get_definition("stronger_tap").max_rank
-	for rank in range(cap):
-		_expect(state.purchase_rig("stronger_tap"), "Rig ranks are uncapped while Cash lasts")
-	_expect(state.rig_owned("stronger_tap") == cap + 1, "the Rig should hold ranks past the Workshop cap")
+	for rank in range(cap - 1):
+		_expect(state.purchase_rig("stronger_tap"), "run ranks should sell up to the row's max rank")
+	_expect(state.rig_owned("stronger_tap") == cap and state.rig_room("stronger_tap") == 0, "run ranks should fill the row exactly to its max rank")
+	var cash_at_cap: ScientificNumber = state.cash.copy()
+	_expect(not state.can_purchase_rig("stronger_tap") and not state.purchase_rig("stronger_tap"), "a full row should sell no more run ranks")
+	_expect(state.cash.compare_to(cash_at_cap) == 0 and int(state.plan_rig_purchase("stronger_tap", GameState.MAX_BUY).ranks) == 0, "a full row should quote nothing and spend nothing")
+
+## D044: a row maxed in the Workshop sells nothing in a run, and a part-built
+## row sells only the ranks it has left, whatever the press asks for.
+func _test_rig_stops_at_the_rows_max_rank() -> void:
+	var state := _funded_state()
+	var definition := state.get_definition("generator_two")
+	state.purchased = {"generator_two": definition.max_rank, "stronger_tap": 97}
+	state.start_run(1, 19)
+	state.cash = ScientificNumber.new(1.0, 40)
+	_expect(state.rig_room("generator_two") == 0 and not state.can_purchase_rig("generator_two"), "a Workshop-maxed row should sell nothing in a run")
+	_expect(state.purchase_rig_ranks("generator_two", GameState.MAX_BUY) == 0, "MAX on a Workshop-maxed row should buy nothing")
+	_expect(state.rig_room("stronger_tap") == 3, "a row should have room for its unbought ranks only")
+	_expect(int(state.plan_rig_purchase("stronger_tap", 5).ranks) == 3, "an x5 press should quote only the room left")
+	_expect(state.purchase_rig_ranks("stronger_tap", GameState.MAX_BUY) == 3 and state.rig_room("stronger_tap") == 0, "MAX should fill the row to its max rank and stop")
 
 func _test_rig_multi_buy_quotes_and_spends() -> void:
 	# An opening x5 press buys what it can afford, and exactly what buying the
@@ -2393,17 +2411,13 @@ func _test_rig_ranks_are_worth_more_than_workshop_ranks() -> void:
 	_expect(state.purchase_rig("burst_relay"), "a Rig Burst rank should buy")
 	_expect(state._burst_interval() == 11, "a Rig Burst rank should shorten the interval by one step, not by its multiplier")
 
-## D023: the combined defensive effects are bounded, so an uncapped Rig cannot
-## turn a run immortal.
+## D023: the combined defensive effects are bounded. Run ranks worth more than
+## Workshop ranks, Labs and Cards can all stack past a row's own cap, so the
+## fixture stands in for them with ranks past the Workshop maximum.
 func _test_defensive_ceilings_bound_the_combined_effects() -> void:
 	var state := _funded_state()
 	state.start_run(1, 13)
-	state.purchased = {GameState.ARMOR_ID: 100, "siphon": 100, "recoil": 100}
-	state.cash = ScientificNumber.new(1.0, 40)
-	for rank in range(200):
-		state.purchase_rig(GameState.ARMOR_ID)
-		state.purchase_rig("siphon")
-		state.purchase_rig("recoil")
+	state.purchased = {GameState.ARMOR_ID: 250, "siphon": 300, "recoil": 300}
 	_expect(state._effect_sum("collection_resistance") > state.balance_profile.COLLECTION_RESISTANCE_CEILING, "the fixture should stack Armor past its ceiling")
 	state.wave = 30
 	state.active_encounter = state._make_encounter(30)

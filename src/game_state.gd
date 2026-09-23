@@ -661,12 +661,22 @@ func _add_cash(amount: ScientificNumber) -> void:
 	run_cash_earned = run_cash_earned.add(amount)
 
 func can_purchase_rig(upgrade_id: String) -> bool:
-	if not in_run:
+	if not in_run or rig_room(upgrade_id) <= 0:
 		return false
 	var definition := get_definition(upgrade_id)
 	if definition == null or not balance_profile.rig_has_row(definition.workshop_category, upgrade_id):
 		return false
 	return cash.compare_to(get_rig_cost(upgrade_id)) >= 0
+
+## How many more run ranks a row can take this run (D044). A row's Workshop
+## ranks and run ranks together stop at its max rank, as The Tower's in-run
+## levels do, so a row maxed in the Workshop sells nothing in a run and run
+## ranks patch what the permanent build lacks rather than stacking past it.
+func rig_room(upgrade_id: String) -> int:
+	var definition := get_definition(upgrade_id)
+	if definition == null:
+		return 0
+	return maxi(0, definition.max_rank - get_owned(upgrade_id) - rig_owned(upgrade_id))
 
 ## Quote the ranks a single Rig press can afford, priced one rank at a time.
 ## Each rank can raise income and so the next price (D039), so the quote
@@ -682,6 +692,7 @@ func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
 	if definition == null or not balance_profile.rig_has_row(definition.workshop_category, upgrade_id):
 		return refused
 	var owned := rig_owned(upgrade_id)
+	var room := rig_room(upgrade_id)
 	var worth := balance_profile.rig_effect_multiplier(definition.workshop_category, upgrade_id)
 	var passive := _passive_base()
 	var tap_value := _tap_base()
@@ -691,7 +702,7 @@ func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
 	var discount := _effect_sum("cost_discount")
 	var spent := ScientificNumber.new()
 	var ranks := 0
-	while count == MAX_BUY or ranks < count:
+	while ranks < room and (count == MAX_BUY or ranks < count):
 		var extra := float(ranks) * worth
 		var p := passive
 		var t := tap_value
@@ -739,7 +750,8 @@ func purchase_rig_ranks(upgrade_id: String, count: int = 1) -> int:
 			run_peak_number = number.copy()
 	return ranks
 
-## Buys one uncapped run-scoped rank with Cash (D042). Number is never spent.
+## Buys one run rank with Cash (D042), within the row's max rank (D044).
+## Number is never spent.
 func purchase_rig(upgrade_id: String) -> bool:
 	return purchase_rig_ranks(upgrade_id, 1) > 0
 

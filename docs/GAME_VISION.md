@@ -1,6 +1,6 @@
 # Number Go Up — Game vision
 
-Status: living document, last revised 23 September 2026 for D042.
+Status: living document, last revised 23 September 2026 for D044 and D045.
 Companion documents: [`README.md`](../README.md) for the current build, [`TOWER_SYSTEMS_REFERENCE.md`](TOWER_SYSTEMS_REFERENCE.md) for The Tower's system roles and our originality boundary, [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md) for the researched encounter foundation, [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md) for the Workshop categories and the wave rule they rest on.
 
 ## Guiding principle
@@ -35,19 +35,19 @@ Making Number go up is the whole game. Everything you produce is Number, and the
 
 1. **Simple surface, deep systems.** The main screen never grows into a spreadsheet. Depth lives in menus, trees and numbers the player chooses to inspect.
 2. **Two honest axes.** Every encounter has a production check (Liability) and a survival check (Collection). One build cannot trivially solve both.
-3. **Run power and permanent power are separate.** Number exists only during a run. Workshop ranks, Coins, Knowledge, Insights and records survive every run ending. A temporary layer gets a distinct name and resource instead of blurring this line: the Rig is that layer, and run-only Cash is what it spends (D015, D042).
-4. **Few currencies, each with one job.** In a run, Number is score and health and Cash buys the Rig; between runs, Coins and Knowledge. Cash earned its place by letting the Rig sell every Workshop row without spending the Hit buffer (D042). A new currency has to earn its place by enabling a system the others cannot.
+3. **Run power and permanent power are separate.** Number exists only during a run. Workshop ranks, Coins, Knowledge, Insights and records survive every run ending. A temporary layer gets a distinct name and resource instead of blurring this line: run Upgrades are that layer, and run-only Cash is what they spend (D015, D042, D045).
+4. **Few currencies, each with one job.** In a run, Number is score and health and Cash buys run Upgrades; between runs, Coins and Knowledge. Cash earned its place by letting run Upgrades sell every Workshop row without spending the Hit buffer (D042). A new currency has to earn its place by enabling a system the others cannot.
 5. **One modifier pipeline.** Laws, Violations, challenges, perks and battle conditions all enter through the shared ordered pipeline. No system gets a special case inside the state machine.
 6. **Visible causality.** Wave HP and time until a Hit are two legible races around the central Number; the exact incoming Hit is visible before it lands. If a number changed, the player can find out why through inspectable costs, damage, records and summaries (D041).
 7. **No risk-free growth.** Retreat ends and resets a run. Active runs freeze exactly while away. Waiting, closing the app or banking a run cannot farm a head start.
-8. **Legibility over feature count.** Four categories (Attack, Defense, Utility, Ultimates) seen through two lenses — permanent in the Workshop, run-only in the Rig — one research choice, three tiers. New systems must fit the vocabulary before they fit the code.
+8. **Legibility over feature count.** Four categories (Attack, Defense, Utility, Ultimates) seen through two lenses — permanent in the Workshop, run-only in run Upgrades — one research choice, three tiers. New systems must fit the vocabulary before they fit the code.
 
 ## The loops
 
 | Loop | Duration | Player action | Feedback |
 | --- | --- | --- | --- |
 | Moment | seconds | Tap, or let production tick | Number rises and the wave's HP falls, together |
-| Wave | 15 seconds | Clear Liability before the Collection hit, and choose which Rig row the run's Cash buys | Clear, collect or die; boss every tenth wave |
+| Wave | 15 seconds | Clear Liability before the Collection hit, and choose which row the run's Cash upgrades | Clear, collect or die; boss every tenth wave |
 | Run | minutes | Start from the permanent baseline, push waves, retreat or die | Coins, Knowledge, run summary, tier record |
 | Meta | between runs | Spend Coins in the Workshop, Knowledge on Insight, pick a Research Focus | Every later run starts stronger |
 | Spine | long term | Climb waves, claim milestones, unlock tiers, extend the tree | Tier unlocks and new systems |
@@ -57,7 +57,7 @@ The run loop is the game. The meta loop exists to make the next run different, n
 ## Where the depth comes from
 
 - **Four categories.** Attack beats waves inside the timer, Defense survives the ones it can't, Utility compounds the meta and Ultimates spike at milestones; the interesting builds combine them ([`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md)).
-- **Two lenses on them.** The Workshop raises the value every run starts from, with Coins. The Rig raises it inside one run, with Cash, and loses it at the end. Since D042 a Rig purchase no longer costs the Hit buffer, so the in-run choice is which row to raise, not whether to spend.
+- **Two lenses on them.** The Workshop raises the value every run starts from, with Coins. Run Upgrades raise it inside one run, with Cash, and lose it at the end. They no longer cost the Hit buffer (D042), and a row stops at its max rank across both lenses (D044), so the in-run choice is which unfinished row to raise.
 - **Research Focus.** A one-time discount that nudges a build direction without locking alternatives.
 - **Tier choice.** Higher tiers multiply pressure faster than rewards, so farming and pushing are different decisions.
 - **Milestones and records.** Checkpoints from wave 10 to 200 on every tier give the run a visible spine and pay Gems once; per-tier bests make progress comparable run to run.
@@ -79,7 +79,7 @@ The run loop is the game. The meta loop exists to make the next run different, n
 | --- | --- | --- |
 | Two honest axes | Absolute Liability and Collection per encounter | More encounter patterns, boss modifiers, conditions |
 | Permanent progression | Coin-funded Workshop in four categories, Knowledge/Insight | Research tree, Breakthroughs |
-| Run lifecycle | Start from baseline, retreat-as-reset, frozen offline, Cash-funded Rig | More choices whose costs visibly compete with the Hit buffer |
+| Run lifecycle | Start from baseline, retreat-as-reset, frozen offline, Cash-funded run Upgrades | More choices whose costs visibly compete with the Hit buffer |
 | Tiered difficulty | Tiers 1–3 with records and wave-100 unlocks | More tiers behind the same unlock spine |
 | Shared rules | Ordered modifier pipeline | Laws, Violations, challenges, battle conditions |
 | Vocabulary | `ProgressionTaxonomy` and reserved layer names | Card loadouts, Perks, Modules |
