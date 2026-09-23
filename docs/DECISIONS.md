@@ -385,7 +385,7 @@ Rules:
 
 ## D043 — Decouple Wave Attack from Wave HP with independent polynomial scaling and 5,000-wave milestones
 
-- **Status:** Accepted (2026-09-23) on owner direction: "I'd go with option A for scaling... Waves can technically go on forever, until the player can't keep up with the demands anymore. Our final milestone should be 5000, with intervals at 2500, 1000, 750, 500, 250, 100 etc etc... In order to unlock the next tier the player needs to get to wave ???? not known yet". Implemented (2026-09-23) as balance profile `tax-foundation-v8`.
+- **Status:** Its Hit scale of 1.5 is raised to 1.7 by [D046](#d046--the-hits-scale-is-17-so-wave-100-needs-defense-again) (2026-09-23). Accepted (2026-09-23) on owner direction: "I'd go with option A for scaling... Waves can technically go on forever, until the player can't keep up with the demands anymore. Our final milestone should be 5000, with intervals at 2500, 1000, 750, 500, 250, 100 etc etc... In order to unlock the next tier the player needs to get to wave ???? not known yet". Implemented (2026-09-23) as balance profile `tax-foundation-v8`.
 - **Context:** D040 tied Collection Hit directly to a share of Wave HP (20% to 60%). This coupled damage output checks and survival checks together: tuning Wave HP shifted Hit automatically, preventing independent balancing of DPS vs EHP. In addition, milestones stopped at wave 200, creating an artificial cap incompatible with *The Tower*'s thousands-of-waves depth and our planned 5,000-rank Workshop ladders.
 - **Decision:**
   1. **Dual Independent Polynomials:** Wave HP and Wave Hit scale on completely separate polynomial curves:
@@ -425,3 +425,15 @@ Rules:
 - **Context:** "Rig" never explained itself. The run panel already read `ATTACK UPGRADES · … CASH` and `THIS RUN ONLY`; the word appeared on screen only in a card's detail (`RIG RANK`). The Tower calls the same layer its in-round upgrades.
 - **Decision:** Player-facing text calls the layer **Upgrades** (the panel) and its ranks **run ranks**; design documents call it **run Upgrades** where it must be told apart from the Workshop. Code identifiers (`rig_ranks`, `purchase_rig`, `RIG_*`) and save keys keep their names, so saves are untouched (law 5). Older decisions and history passages keep "the Rig"; it means run Upgrades.
 - **Consequences:** No save or behaviour change. A future code rename, if wanted, is a separate change with its own save-compatibility check.
+
+## D046 — The Hit's scale is 1.7, so wave 100 needs Defense again
+
+- **Status:** Accepted (2026-09-23) on owner direction ("go ahead with the target 5 sweep"). Refines D043's Hit scale (1.5). Implemented (2026-09-23) as balance profile `tax-foundation-v10`.
+- **Context:** Balance target 5 says the cheapest build that reaches Tier 1 wave 100 includes both Attack and Defense. D043's smaller Hits broke it: maxed Attack with no Defense cleared the wave 100 boss and died at wave 103. A sweep of the Hit's scale (`run_balance.sh` with `-- --hit-sweep`) found 1.6 stops it at the boss on seed 7, but across ten seeds it still passed wave 100 on three. At 1.7, maxed Attack stops at wave 100 on all ten seeds and adding Armor reaches 110 on all ten.
+- **Decision:** The Hit is 1.7 × (0.08 w^2.10 + 0.4 w + 1) × the milestone steps (`TaxBalanceProfile.COLLECTION_SCALE`). Nothing else changes.
+- **Consequences:**
+  - Measured (seed 7, two taps a second), 1.5 → 1.7: max Attack 103 → 100, max Attack + Armor 116 → 110, max Attack + all Defense 128 → 120, max Attack buying run ranks 110 → 105 (it buys Defense), early 33 → 30, mid 60 → 55, fresh 20 → 20, fresh buying run ranks 28 → 24, Tier 2 max Attack + Armor 50 → 45. The representative first run is unchanged (wave 20 boss, 106 Coins).
+  - Targets 1, 3, 4, 5, 7, 9 and 10 hold. Target 8 (as D044 restated it) passes more comfortably: mid builds now pass one more boss with run ranks (55 → 60).
+  - A fresh career (`tools/career_simulator.gd`) reaches wave 100 in 7.3 hours without run ranks and 5.2 with them. Runs are shorter, so the hours barely move, but it takes a run or two more to reach each wave. With the proposed coin gates and no run ranks it no longer reaches wave 100 within 40 runs.
+  - Against D040, the Hit is now about 34% larger at wave 1, about 15% smaller at wave 30 and about 7% smaller near wave 100.
+- **Revisit when:** a new Attack row or Lab lifts maxed Attack past wave 100 again, or the Workshop ladders change what "maxed" means.

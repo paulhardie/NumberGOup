@@ -46,6 +46,8 @@ Measured on 23 September 2026 with `tools/career_simulator.gd`: 40 runs from a f
 
 **The lever is how many gates a player buys early, not what each costs.** The first real wall is the wave 20 boss, and passing it takes Damage ranks: today's player has about 70 Workshop ranks by run 3 and clears it. Cheap gates let the gated player spend its first 250 Coins opening six rows that do not help at wave 20 (Crit at rank 0, Thorns, Coin Bonus), so its ranks lag two or three runs behind. A dearer first gate opens fewer rows early and leaves those Coins in ranks. The new ladder is the starting proposal (`--ladder plan` in the simulator): gates cost about half an hour at the start and 8% of the time to wave 100 without run Upgrades, or 22% with them, because locked rows are locked for run Upgrades too. Players who unlock less greedily than the simulated one will lose less.
 
+*Re-measured after D046 (Hit scale 1.7), new ladder:* without run Upgrades, wave 30 on run 8 against today's run 5, and wave 100 not reached within 40 runs against today's run 34 (7.3 h); buying run Upgrades, wave 100 on run 28 (6.2 h) against today's run 22 (5.2 h). The harder Hit widens what gates cost a player who never buys run Upgrades.
+
 
 ### Attack
 

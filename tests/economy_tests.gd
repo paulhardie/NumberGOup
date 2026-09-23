@@ -750,12 +750,13 @@ func _test_tier_one_opening() -> void:
 			_expect(hit_growth > 1.0 and hit_growth < 1.6, "the Hit should rise smoothly from wave " + str(previous) + " to " + str(check_wave))
 		previous = check_wave
 	_expect(profile.liability_for_wave(1, 21).compare_to(profile.liability_for_wave(1, 19)) > 0 and pow(10.0, profile.liability_for_wave(1, 21).log10() - profile.liability_for_wave(1, 19).log10()) < 1.4, "wave 21 should no longer jump")
-	# D043: the Hit has its own curve, 1.5 x (0.08 w^2.10 + 0.4 w + 1), with the
-	# same milestone steps as Wave HP, rather than a share of the wave's HP.
+	# D043: the Hit has its own curve, scale x (0.08 w^2.10 + 0.4 w + 1), with
+	# the same milestone steps as Wave HP, rather than a share of the wave's HP.
+	# D046 sets the scale to 1.7.
 	for check_wave in [1, 21, 49, 101, 999, 5001]:
 		var w := float(check_wave)
 		var steps := pow(1.08, check_wave / 10) * pow(1.2, check_wave / 50) * pow(1.5, check_wave / 100)
-		var expected := 1.5 * (0.08 * pow(w, 2.10) + 0.4 * w + 1.0) * steps
+		var expected := 1.7 * (0.08 * pow(w, 2.10) + 0.4 * w + 1.0) * steps
 		_expect(absf(profile.collection_for_wave(1, check_wave).log10() - log(expected) / log(10.0)) < 0.000001, "an ordinary Hit should follow the D043 curve (wave " + str(check_wave) + ")")
 	_expect(profile.collection_for_wave(2, 21).compare_to(profile.collection_for_wave(1, 21).multiply_scalar(20.0)) == 0, "Tier 2 should multiply the same Hit curve by 20")
 	var boss_hp := profile.liability_for_wave(1, 10)
