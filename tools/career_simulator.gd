@@ -9,7 +9,9 @@ extends SceneTree
 ## unlocked rows), and run ranks at other worths than the game's.
 ##
 ## Run: bash run_godot.sh --headless --path . -s res://tools/career_simulator.gd
-## Options after `--`: `--runs N` (default 40); `--ladder plan|first|gentle`
+## Options after `--`: `--runs N` (default 40); `--spend even|focused` picks how
+## the player spends between runs (default even); `--layout plan|tower` picks the
+## starter rows and gates (default plan); `--ladder plan|first|gentle`
 ## picks the gate prices (default plan); `--careers a,b` runs only the
 ## named careers (today_hoard, today_rig, gates_hoard, gates_rig, gates_worth1,
 ## gates_worth3).
@@ -28,16 +30,17 @@ const WAVE_MARKS := [20, 30, 50, 75, 100]
 ## position on the tab's price ladder (1 is the first gate), so a row keeps its
 ## planned place when rows that do not exist yet are skipped. Burst stands in
 ## for Frenzy, which replaces it.
-const STARTER_ROWS := ["stronger_tap", "generator", "faster_cadence", "tax_resistance", "guard"]
-const GATES := {
+## Crit Chance and Crit Damage are free from the start, as in The Tower (owner
+## direction, 23 September 2026).
+const STARTER_ROWS := ["stronger_tap", "generator", "faster_cadence", "more_critical", "magnitude_coil", "tax_resistance", "guard"]
+const PLAN_GATES := {
 	"attack": [
-		[1, ["more_critical", "magnitude_coil"]],
-		[2, ["generator_two"]],
-		[3, ["boss_damage"]],
-		[4, ["automation_core"]],
-		[6, ["burst_relay"]],
-		[7, ["faster_echo"]],
-		[8, ["chain_reaction"]],
+		[1, ["generator_two"]],
+		[2, ["boss_damage"]],
+		[3, ["automation_core"]],
+		[5, ["burst_relay"]],
+		[6, ["faster_echo"]],
+		[7, ["chain_reaction"]],
 	],
 	"defense": [
 		[1, ["recoil"]],
@@ -61,6 +64,41 @@ const LADDERS := {
 	"gentle": [25, 75, 200, 500, 1250, 3000, 7500, 17500, 40000, 90000, 200000],
 }
 var ladder: Array = LADDERS["plan"]
+
+## The Tower's shape (`--layout tower`): every core stat is free, and a gate only
+## ever opens a new mechanic. Prices are The Tower's Tier 1 unlock prices divided
+## by 4, which puts its first Attack gate (Multishot, 400) at one of our first
+## runs; tabs open at different prices (Attack 400, Defense 500, Utility 800 in
+## The Tower); and The Tower's end-game unlocks (Super Crit 100M, Death Defy
+## 1.5M, Enemy Level Skip 1B) sit past Tier 1's whole economy. Our own rows take
+## the slot of the Tower row closest to their job. Prices here are absolute.
+const TOWER_STARTER_ROWS := [
+	"stronger_tap", "generator", "generator_two", "faster_cadence", "more_critical", "magnitude_coil",
+	"tax_resistance", "guard", "priority_buffer",
+	"coin_bonus",
+]
+const TOWER_GATES := {
+	"attack": [
+		[100, ["faster_echo"]],
+		[375, ["burst_relay"]],
+		[2500, ["boss_damage", "automation_core"]],
+		[250000, ["chain_reaction"]],
+	],
+	"defense": [
+		[125, ["recoil"]],
+		[500, ["siphon"]],
+		[1250, ["brace_discount"]],
+		[375000, ["second_wind"]],
+	],
+	"utility": [
+		[200, ["smarter_efficiency"]],
+		[1250, ["knowledge_bonus"]],
+	],
+}
+var starter_rows: Array = STARTER_ROWS
+var spend_policy := "even"
+var gates_by_tab: Dictionary = PLAN_GATES
+var absolute_prices := false
 ## Between runs the player buys one rank of each row in turn while Coins last,
 ## so no row is starved and the spend is deterministic.
 const RANK_ORDER := [
@@ -114,8 +152,22 @@ func _init() -> void:
 	if ladder_at >= 0 and ladder_at + 1 < args.size() and LADDERS.has(args[ladder_at + 1]):
 		ladder = LADDERS[args[ladder_at + 1]]
 	print("CAREER  fresh save, Tier 1, 2 taps/sec, seed ", SEED, " + run, ", runs, " runs, each capped at ", int(RUN_CAP_SECONDS / 60.0), " min")
-	print("CAREER  gate ladder: ", ladder)
-	print("CAREER  gate policy: buy every affordable next gate, cheapest first; keep back the cheapest next gate if it costs no more than the last run's Coins; spend the rest on ranks in turn")
+	var spend_at := args.find("--spend")
+	if spend_at >= 0 and spend_at + 1 < args.size() and args[spend_at + 1] == "focused":
+		spend_policy = "focused"
+	print("CAREER  spending: ", "focused (the cheapest rank in its focus tab first: Attack, or Defense after a run that did not beat its best wave)" if spend_policy == "focused" else "even (one rank of each row in turn)")
+	var layout_at := args.find("--layout")
+	if layout_at >= 0 and layout_at + 1 < args.size() and args[layout_at + 1] == "tower":
+		starter_rows = TOWER_STARTER_ROWS
+		gates_by_tab = TOWER_GATES
+		absolute_prices = true
+		print("CAREER  gate layout: The Tower's shape (core stats free, prices absolute)")
+	else:
+		print("CAREER  gate ladder: ", ladder)
+	if spend_policy == "even":
+		print("CAREER  gate policy: buy every affordable next gate, cheapest first; keep back the cheapest next gate if it costs no more than the last run's Coins; spend the rest on ranks in turn")
+	else:
+		print("CAREER  gate policy: open the focus tab's next gate when affordable, another tab's at twice its price; keep back the focus tab's next gate if one run pays for it")
 	var only: Array = []
 	var careers_at := args.find("--careers")
 	if careers_at >= 0 and careers_at + 1 < args.size():
@@ -141,11 +193,12 @@ func _career(label: String, gated: bool, play_rig: bool, runs: int, worth: float
 	state.gated = gated
 	if worth > 0.0:
 		state.set_run_rank_worth(worth)
-	for row_id in STARTER_ROWS:
+	for row_id in starter_rows:
 		state.unlocked[row_id] = true
 	var next_gate := {"attack": 0, "defense": 0, "utility": 0}
 	var hours := 0.0
 	var marks := {}
+	var best_wave := 0
 	for run in range(runs):
 		var coins_before := state.coins
 		state.start_run(1, SEED + run)
@@ -167,11 +220,20 @@ func _career(label: String, gated: bool, play_rig: bool, runs: int, worth: float
 		for mark in WAVE_MARKS:
 			if reached >= mark and not marks.has(mark):
 				marks[mark] = [run + 1, hours]
+		var stalled := run > 0 and reached <= best_wave
+		best_wave = maxi(best_wave, reached)
 		var opened: Array[String] = []
-		if gated:
-			opened = _buy_gates(state, next_gate)
-		var reserve := _gate_reserve(next_gate, earned) if gated else 0
-		_buy_ranks(state, reserve)
+		if spend_policy == "focused":
+			var focus := "defense" if stalled else "attack"
+			if gated:
+				opened = _buy_gates_focused(state, next_gate, focus)
+			var focus_reserve := _tab_gate_reserve(next_gate, focus, earned) if gated else 0
+			_buy_ranks_focused(state, focus_reserve, focus)
+		else:
+			if gated:
+				opened = _buy_gates(state, next_gate)
+			var reserve := _gate_reserve(next_gate, earned) if gated else 0
+			_buy_ranks(state, reserve)
 		print(
 			"  run ", str(run + 1).lpad(2),
 			"  wave=", str(reached).lpad(3),
@@ -197,8 +259,8 @@ func _buy_gates(state: CareerState, next_gate: Dictionary) -> Array[String]:
 	while true:
 		var best_tab := ""
 		var best_price := -1
-		for tab in GATES:
-			var gates: Array = GATES[tab]
+		for tab in gates_by_tab:
+			var gates: Array = gates_by_tab[tab]
 			if int(next_gate[tab]) >= gates.size():
 				continue
 			var price := _gate_price(gates[int(next_gate[tab])])
@@ -207,7 +269,7 @@ func _buy_gates(state: CareerState, next_gate: Dictionary) -> Array[String]:
 				best_price = price
 		if best_tab == "":
 			return opened
-		var gate: Array = GATES[best_tab][int(next_gate[best_tab])]
+		var gate: Array = gates_by_tab[best_tab][int(next_gate[best_tab])]
 		state.coins -= best_price
 		for row_id in gate[1]:
 			state.unlocked[row_id] = true
@@ -216,13 +278,15 @@ func _buy_gates(state: CareerState, next_gate: Dictionary) -> Array[String]:
 	return opened
 
 func _gate_price(gate: Array) -> int:
+	if absolute_prices:
+		return int(gate[0])
 	return int(ladder[int(gate[0]) - 1])
 
 ## A player saves for the next gate only when one run pays for it.
 func _gate_reserve(next_gate: Dictionary, last_run_coins: int) -> int:
 	var cheapest := -1
-	for tab in GATES:
-		var gates: Array = GATES[tab]
+	for tab in gates_by_tab:
+		var gates: Array = gates_by_tab[tab]
 		if int(next_gate[tab]) < gates.size():
 			var price := _gate_price(gates[int(next_gate[tab])])
 			if cheapest < 0 or price < cheapest:
@@ -241,6 +305,62 @@ func _buy_ranks(state: CareerState, reserve: int) -> void:
 				continue
 			if state.purchase(row_id):
 				buying = true
+
+## The focused player opens its focus tab's next gate as soon as it can, and
+## another tab's only once it holds twice the price.
+func _buy_gates_focused(state: CareerState, next_gate: Dictionary, focus: String) -> Array[String]:
+	var opened: Array[String] = []
+	var bought := true
+	while bought:
+		bought = false
+		for tab in _tab_order(focus):
+			var gates: Array = gates_by_tab.get(tab, [])
+			if int(next_gate[tab]) >= gates.size():
+				continue
+			var gate: Array = gates[int(next_gate[tab])]
+			var price := _gate_price(gate)
+			var needed := price if tab == focus else price * 2
+			if state.coins < needed:
+				continue
+			state.coins -= price
+			for row_id in gate[1]:
+				state.unlocked[row_id] = true
+			next_gate[tab] = int(next_gate[tab]) + 1
+			opened.append(tab + " " + "+".join(gate[1]) + " (" + str(price) + ")")
+			bought = true
+			break
+	return opened
+
+## The focus tab's next gate is kept back when one run pays for it.
+func _tab_gate_reserve(next_gate: Dictionary, focus: String, last_run_coins: int) -> int:
+	var gates: Array = gates_by_tab.get(focus, [])
+	if int(next_gate[focus]) >= gates.size():
+		return 0
+	var price := _gate_price(gates[int(next_gate[focus])])
+	return price if price <= last_run_coins else 0
+
+## Cheapest rank first in the focus tab, then the other combat tab, then Utility.
+func _buy_ranks_focused(state: CareerState, reserve: int, focus: String) -> void:
+	for tab in _tab_order(focus):
+		while true:
+			var cheapest_id := ""
+			var cheapest_cost := -1
+			for definition in state.definitions:
+				if definition.category != ProgressionTaxonomy.WORKSHOP or definition.workshop_category != tab:
+					continue
+				if not state.can_purchase(definition.id):
+					continue
+				var cost := state.get_workshop_coin_cost(definition)
+				if state.coins - cost < reserve:
+					continue
+				if cheapest_cost < 0 or cost < cheapest_cost:
+					cheapest_id = definition.id
+					cheapest_cost = cost
+			if cheapest_id == "" or not state.purchase(cheapest_id):
+				break
+
+func _tab_order(focus: String) -> Array:
+	return ["defense", "attack", "utility"] if focus == "defense" else ["attack", "defense", "utility"]
 
 func _rows_open(state: CareerState) -> int:
 	var count := 0
