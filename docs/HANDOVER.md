@@ -40,8 +40,8 @@
 ## Next steps, in order
 
 1. **Owner:** play a first run on the merged build, watching the wave 10 and 20 bosses. Boss HP is 3.5–3.7× the wave before, and every early build in the simulator ends on a boss. If they feel like walls, the smallest dial is the boss HP multiplier: grow it from ×2 to ×3 over the first few bosses.
-2. **Guard**, the flat Hit reduction (Defense Absolute), priced in the tier's Hits, applied before Armor, never below 10% of a Hit. It's step 2 of [`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md): the first early Defense tool and the biggest forgiveness gain for the least code. High risk (economy).
-3. **A GDScript career simulator** on the real game: runs back to back, Workshop buying and tier unlocks, reporting hours per tier. `tools/career_model.py` still models the pre-D037 rules, so its hour figures are shapes only. Low risk (a tool).
+2. **A GDScript career simulator** on the real game: runs back to back, Workshop buying and tier unlocks, reporting hours per tier. `tools/career_model.py` still models the pre-D037 rules, so its hour figures are shapes only. Low risk (a tool).
+3. **Payback**, the next Defense row ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md)): refund a share of damage taken during a boss fight upon victory. Medium risk (economy/run state).
 
 ## Known issues and risks
 

@@ -32,7 +32,8 @@
 
 ## Must — rules and persistence
 
-- Every rule that changes Liability or Collection passes through the ordered modifier pipeline: flat → additive → multiplicative → cap_max → cap_min, each stage applied once.
+- Every rule that changes Liability or Collection passes through the ordered modifier pipeline: flat → flat_reduce → additive → multiplicative → cap_max → cap_min, each stage applied once.
+- A Hit never drops below 10% of its base size after Guard and Armor together (WORKSHOP_EXPANSION); Guard takes a flat amount off every Hit, priced in the tier's Hit pressure, applied before Armor.
 - Loaded ranks and levels are whole, never negative and never past their row's cap; ranks under a retired id are kept but count for nothing.
 - Save data is versioned with explicit migrations. Migration preserves every declared permanent currency and rank; pre-V4 banked Number retires because Number is run-only. A new saved field bumps the version (D028).
 - A save the loader cannot read, or one written by a newer build, is never written over: an unreadable save is moved aside intact and the backup loads, and a newer save pauses saving (D028). A load happens whole or not at all.

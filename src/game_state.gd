@@ -70,6 +70,7 @@ const STAT_DISPLAY := {
 	"critical_multiplier_add": {"unit": "multiplier", "base": 2.0, "op": "add"},
 	"cost_discount": {"unit": "percent", "base": 0.0, "op": "add"},
 	"starting_number_flat": {"unit": "flat", "base": 0.0, "op": "add"},
+	"guard_flat": {"unit": "flat", "base": 0.0, "op": "add"},
 	"collection_resistance": {"unit": "percent", "base": 0.0, "op": "add"},
 	"siphon_share": {"unit": "percent", "base": 0.0, "op": "add"},
 	"recoil_share": {"unit": "percent", "base": 0.0, "op": "add"},
@@ -483,11 +484,32 @@ func get_effective_collection() -> ScientificNumber:
 	if active_encounter == null:
 		return ScientificNumber.new()
 	var modifiers := active_rule_modifiers.duplicate(true)
+	var base_hit: ScientificNumber = active_encounter.collection
+	var resistance := clampf(_effect_sum("collection_resistance"), 0.0, balance_profile.COLLECTION_RESISTANCE_CEILING)
+	var guard_stat := _effect_sum("guard_flat")
+
+	# Guard (Defense Absolute): flat reduction on every Hit, priced in the tier's
+	# Hit pressure. A Hit never drops below 10% of its size after Guard and Armor
+	# together (WORKSHOP_EXPANSION). Following D023, the 10% floor bounds the defensive
+	# reduction itself so external rules can still shrink hits beyond it.
+	if guard_stat > 0.0 and not base_hit.is_zero():
+		var tier_multiplier: float = balance_profile.get_tier(selected_tier).collection_multiplier
+		var raw_guard := ScientificNumber.from_float(guard_stat * tier_multiplier)
+		var max_guard_factor := maxf(0.0, 1.0 - (balance_profile.HIT_FLOOR_PERCENT / (1.0 - resistance)))
+		var max_guard := base_hit.multiply_scalar(max_guard_factor)
+		var effective_guard := raw_guard if raw_guard.compare_to(max_guard) < 0 else max_guard
+		if not effective_guard.is_zero():
+			modifiers.append({
+				"source": "guard",
+				"target": "collection",
+				"stage": "flat_reduce",
+				"amount": effective_guard.to_dict(),
+			})
+
 	# The combined ceiling (D023): Workshop, Rig, Lab and Card Armor stack, and
 	# without a limit a run could stop taking hits entirely. The ceiling bounds
 	# Armor's own share rather than the final hit, so a later rule that shrinks
 	# hits for its own reason keeps its effect instead of being clawed back.
-	var resistance := clampf(_effect_sum("collection_resistance"), 0.0, balance_profile.COLLECTION_RESISTANCE_CEILING)
 	modifiers.append({
 		"source": "armor",
 		"target": "collection",

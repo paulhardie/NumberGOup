@@ -8,6 +8,9 @@ static func apply(base: ScientificNumber, target: String, modifiers: Array) -> S
 	for modifier in modifiers:
 		if _matches(modifier, target, "flat"):
 			result = result.add(ScientificNumber.from_dict(modifier.get("amount", {})))
+	for modifier in modifiers:
+		if _matches(modifier, target, "flat_reduce"):
+			result = result.subtract(ScientificNumber.from_dict(modifier.get("amount", {})))
 	var additive := 0.0
 	for modifier in modifiers:
 		if _matches(modifier, target, "additive"):
