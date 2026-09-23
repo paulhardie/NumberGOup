@@ -1,13 +1,13 @@
 # Handover
 
-**Last updated:** 23 September 2026, after D043 decoupled Wave Attack into an independent polynomial curve, extended milestones to wave 5,000, and verified with balance profile `tax-foundation-v8`.
+**Last updated:** 23 September 2026, after D042 (Cash economy & 21-row Workshop parity) and D043 (decoupled Wave Attack curve & 5,000-wave milestones) committed and pushed to `main` (commit `dfbac69`).
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
 
 ## Where the game is
 
 `main` plays like this (seed 7 simulator figures; verified with Godot 4.7.2):
 
-- **The core loop (D037, D038):** everything you produce is Number and also damages the wave. A beaten wave gives way to the next after 2.5 seconds. A missed ordinary wave hits once and moves on, paying Coins for the share you cleared. Bosses, every 10th wave, stay and hit every 15 seconds until you beat them. Siphon became Leech and Recoil became Thorns: both are boss-fight stats. Guard now cuts the Hit by a flat amount before Armor's percentage.
+- **The core loop (D037, D038):** everything you produce is Number and also damages the wave. A beaten wave gives way to the next after 2.5 seconds. A missed ordinary wave hits once and moves on, paying Coins for the share you cleared. Bosses, every 10th wave, stay and hit every 15 seconds until you beat them. Siphon became Leech and Recoil became Thorns: both are boss-fight stats. Guard cuts the Hit by a flat amount before Armor's percentage.
 - **In-run Cash & Rig parity (D042):**
   - Upgrades during a run spend **Cash**, completely separating in-run upgrades from the **Number** health pool. Purchasing upgrades never endangers player survival.
   - **100% Workshop parity:** all 21 Workshop rows (11 Attack, 7 Defense, 3 Utility) can be purchased in the Rig during an active run, matching *The Tower*.
@@ -42,9 +42,12 @@
 3. **Coins per minute (balance target 2):** rewards came up about 1.5–1.8× when beaten waves stopped waiting out their timers (D037). Accept and restate the target, or bring Coins down.
 4. **The Workshop ladders** ([`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md), with data in [`data/workshop/`](../data/workshop/)): 5,000-rank core rows, a band of ranks per tier, dropping Breakthroughs from pacing, and making `data/workshop/` the Workshop's single source.
 
-## Next steps, in order
+## Immediate next steps for incoming agent
 
-1. **Agent:** implement the combat HUD pass in [`src/ring_arc.gd`](../src/ring_arc.gd) and [`src/main.gd`](../src/main.gd) — concentric dual ring (Wave HP inner arc + 15s Hit countdown outer arc) and dynamic damage reduction readout pill (D041; [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md)).
+1. **Implement the combat HUD pass (Item 2):**
+   - In [`src/ring_arc.gd`](../src/ring_arc.gd): Add a concentric outer arc (radius ~0.37, thickness ~3.0px) representing the 15-second Hit timer ticking clockwise towards 12 o'clock, while the inner ring (radius ~0.31, thickness ~7.0px) tracks Wave HP cleared. When a wave is cleared, the timer ring snaps away cleanly (`BEATEN · NO HIT`).
+   - In [`src/main.gd`](../src/main.gd): Update `encounter_label` to show dynamic mitigation readout: `[ HIT: X (-Y% ARMOR) IN Zs · W HP LEFT ]` when active, and `BEATEN · NO HIT` when cleared.
+   - Reference: [`docs/COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md) and D041.
 2. **Owner with new players:** watch a fresh 10–20-minute run. Check whether players can read the inner vs outer ring and explain why a clean clear avoided a Hit.
 3. **Agent:** build a GDScript career simulator on the real rules before tuning new combat or progression systems.
 
