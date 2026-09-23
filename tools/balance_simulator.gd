@@ -125,6 +125,11 @@ func _init() -> void:
 		_simulate_opening()
 		quit(0)
 		return
+	# `-- --maxed-workshop` measures a fully maxed Workshop against one stopped at rank 100.
+	if OS.get_cmdline_user_args().has("--maxed-workshop"):
+		_simulate_maxed_workshop()
+		quit(0)
+		return
 	# `-- --hit-sweep` measures balance target 5 across Hit scales (D043).
 	if OS.get_cmdline_user_args().has("--hit-sweep"):
 		_simulate_hit_sweep()
@@ -332,6 +337,42 @@ func _simulate_build(label: String, tier: int, ranks: Dictionary, rig_policy: St
 		"  rig_ranks=", rig_bought,
 		"  rig_last_10m=", rig_late
 	)
+
+## How far a player who has maxed the whole Workshop gets, with no Labs, Cards
+## or run ranks. `rank 100` stops every row at 100 ranks or its cap if lower,
+## where the ladders ended before D047; `maxed` is every row at its max rank.
+## WORKSHOP_LADDERS.md holds the figures for the ladders that were proposed.
+func _maxed_ladder(name: String) -> Dictionary:
+	var ranks := {}
+	for definition in GameState.new().definitions:
+		if definition.category == ProgressionTaxonomy.WORKSHOP:
+			ranks[definition.id] = definition.max_rank if name == "maxed" else mini(definition.max_rank, 100)
+	return ranks
+
+func _simulate_maxed_workshop() -> void:
+	print("MAXED WORKSHOP  every row at its ladder's maximum, no Labs, Cards or run ranks, 2 taps/sec, seed ", SEED)
+	for name in ["rank 100", "maxed"]:
+		for tier in [1, 2, 3]:
+			var state := GameState.new()
+			state.purchased = _maxed_ladder(name)
+			state.tier_records["1"] = {"highest_wave": 100, "milestones_claimed": [10, 20, 25, 30, 40, 50, 60, 75, 90, 100]}
+			state.tier_records["2"] = {"highest_wave": 100, "milestones_claimed": []}
+			state.start_run(tier, SEED)
+			var seconds := 0.0
+			var reached := 1
+			while seconds < 10800.0 and state.in_run:
+				reached = state.wave
+				state.tap()
+				state.advance(STEP * 0.5)
+				state.advance(STEP * 0.5)
+				seconds += STEP
+			print(
+				"  ", name.rpad(12), "T", tier, "  ", ("alive" if state.in_run else "death"), " at wave ", reached,
+				"  minutes=", snappedf(seconds / 60.0, 0.1),
+				"  coins=", state.coins,
+				"  damage/s=", state.get_rate_per_second().format_value(),
+				"  wave HP=", state.balance_profile.liability_for_wave(tier, reached).format_value()
+			)
 
 ## Balance target 5: the cheapest build that reaches wave 100 includes both
 ## Attack and Defense. Each Hit scale runs the builds that decide it (max Attack

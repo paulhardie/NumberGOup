@@ -13,6 +13,7 @@ func _init() -> void:
 	_test_workshop_price_onramp()
 	_test_stat_values_read_the_row_effect()
 	_test_deepened_ladders_keep_their_old_maxima()
+	_test_every_ladder_reaches_its_d047_maximum()
 	_test_workshop_effects()
 	_test_burst_and_positive_chance()
 	_test_permanent_baseline_and_starting_reserve()
@@ -77,6 +78,7 @@ func _init() -> void:
 	_test_game_data_loads_cleanly()
 	_test_catalogues_are_internally_consistent()
 	_test_loaded_ranks_stay_within_their_caps()
+	_test_v8_save_migrates_to_v9()
 	_test_wave_death_resets_run_but_keeps_meta_progress()
 	_test_run_gates_the_wave_clock()
 	_test_retreat_ends_and_resets_run()
@@ -126,8 +128,8 @@ func _test_category_gates_and_rank_caps() -> void:
 	_expect(state.is_unlocked(state.get_definition("more_critical")), "Crit Chance should open at Workshop level 30")
 	state.purchased.stronger_tap = 60
 	_expect(state.is_unlocked(state.get_definition("smarter_efficiency")), "Discount should open at Workshop level 60")
-	state.purchased.stronger_tap = 100
-	_expect(not state.can_purchase("stronger_tap"), "the rank cap should prevent a 101st Tap Damage")
+	state.purchased.stronger_tap = state.get_definition("stronger_tap").max_rank
+	_expect(not state.can_purchase("stronger_tap"), "the rank cap should stop Tap Damage at its last rank")
 	var level_before := state.get_workshop_level()
 	state.purchased[GameState.ARMOR_ID] = 2
 	_expect(state.get_workshop_level() == level_before + 2, "Armor is a Workshop rank now, so it should count toward the Workshop level")
@@ -165,9 +167,9 @@ func _test_multi_buy_matches_buying_one_at_a_time() -> void:
 	_expect(bulk.coins == one.coins and bulk.get_owned("stronger_tap") == 5, "bulk and single buying should end in the same place")
 	var capped := _funded_state()
 	capped.coins = 1000000
-	var cap: int = capped.get_definition("stronger_tap").max_rank
-	_expect(capped.purchase_ranks("stronger_tap", cap * 2) == cap, "a press larger than the rank cap should stop at the cap")
-	_expect(capped.purchase_ranks("stronger_tap", GameState.MAX_BUY) == 0, "a maxed row should refuse a further press")
+	var cap: int = capped.get_definition("generator_two").max_rank
+	_expect(capped.purchase_ranks("generator_two", cap * 2) == cap, "a press larger than the rank cap should stop at the cap")
+	_expect(capped.purchase_ranks("generator_two", GameState.MAX_BUY) == 0, "a maxed row should refuse a further press")
 
 	# Derived rather than hardcoded, so the rule survives retuning: MAX takes
 	# ranks while the next one still fits inside the balance.
@@ -183,6 +185,37 @@ func _test_multi_buy_matches_buying_one_at_a_time() -> void:
 	var partial := short.plan_purchase("stronger_tap", GameState.MAX_BUY)
 	_expect(int(partial.ranks) == affordable and int(partial.cost) == tally, "MAX should buy exactly the ranks the player can afford")
 	_expect(short.purchase_ranks("stronger_tap", GameState.MAX_BUY) == affordable and short.coins == 50 - tally, "a partial press should spend only what it quoted")
+
+	# Quotes come from cached running totals (D047); a Discount rank changes
+	# every price, so the next quote must use the new ones.
+	var discounted := _funded_state()
+	discounted.coins = 100000
+	var before_discount := int(discounted.plan_purchase("generator", 5).cost)
+	discounted.purchased["smarter_efficiency"] = 20
+	var singles := 0
+	for rank in range(5):
+		singles += discounted.get_workshop_coin_cost_at(discounted.get_definition("generator"), rank)
+	var after_discount := int(discounted.plan_purchase("generator", 5).cost)
+	_expect(after_discount < before_discount and after_discount == singles, "a quote should follow a new Discount rank at once")
+	var focused := _funded_state()
+	focused.coins = 100000
+	var before_focus := int(focused.plan_purchase("generator", 5).cost)
+	focused.focus_path = ProgressionTaxonomy.ATTACK
+	var focus_singles := 0
+	for rank in range(5):
+		focus_singles += focused.get_workshop_coin_cost_at(focused.get_definition("generator"), rank)
+	var after_focus := int(focused.plan_purchase("generator", 5).cost)
+	_expect(after_focus < before_focus and after_focus == focus_singles, "a quote should follow a Research Focus choice at once")
+
+	var deep := _funded_state()
+	deep.purchased = {"stronger_tap": 2000}
+	deep.coins = 10000000
+	var deep_singles := 0
+	var deep_tap := deep.get_definition("stronger_tap")
+	for rank in range(2000, 2040):
+		deep_singles += deep.get_workshop_coin_cost_at(deep_tap, rank)
+	var deep_plan := deep.plan_purchase("stronger_tap", 40)
+	_expect(int(deep_plan.ranks) == 40 and int(deep_plan.cost) == deep_singles, "a deep-row press should quote exactly what single presses cost")
 
 	var locked := _funded_state()
 	_expect(int(locked.plan_purchase("faster_cadence", 5).ranks) == 0, "a row below its Workshop level should quote nothing")
@@ -204,7 +237,7 @@ func _test_workshop_price_onramp() -> void:
 			continue
 		for rank in range(definition.max_rank):
 			category_totals[definition.workshop_category] += state.get_workshop_coin_cost_at(definition, rank)
-	_expect(category_totals[ProgressionTaxonomy.ATTACK] == 46590 and category_totals[ProgressionTaxonomy.DEFENSE] == 46545 and category_totals[ProgressionTaxonomy.UTILITY] == 46503, "the full Workshop should keep the authored category prices")
+	_expect(category_totals[ProgressionTaxonomy.ATTACK] == 22415267 and category_totals[ProgressionTaxonomy.DEFENSE] == 12297232 and category_totals[ProgressionTaxonomy.UTILITY] == 2305008, "the full Workshop should keep the authored category prices")
 	state.coins = 48
 	_expect(state.purchase_ranks("stronger_tap", 12) == 12, "a first run should fund twelve Tap Damage ranks")
 	_expect(state.purchase_ranks("generator", 6) == 6, "a first run should also fund six Damage Per Second ranks")
@@ -217,10 +250,11 @@ func _test_stat_values_read_the_row_effect() -> void:
 	var state := _funded_state()
 	var tap := state.get_definition("stronger_tap")
 	_expect(is_equal_approx(float(state.stat_display(tap, 0).value), 1.0), "Tap Damage at rank zero should read as the base tap")
-	var tap_at_cap: Dictionary = state.stat_display(tap, tap.max_rank)
-	_expect(is_equal_approx(float(tap_at_cap.value), 6.0) and str(tap_at_cap.unit) == "flat", "Tap Damage should still reach six at its cap, one rank at a time")
+	var tap_at_100: Dictionary = state.stat_display(tap, 100)
+	_expect(is_equal_approx(float(tap_at_100.value), 6.0) and str(tap_at_100.unit) == "flat", "Tap Damage should still reach six at rank 100, one rank at a time (D047)")
+	_expect(float(state.stat_display(tap, 101).value) > 6.05, "past rank 100 a Tap Damage rank should add more than one step (D047)")
 	state.purchased = {"stronger_tap": tap.max_rank}
-	_expect(is_equal_approx(float(state.stat_display(tap, tap.max_rank).value), state._tap_base()), "the card value should equal what the rank actually grants")
+	_expect(is_equal_approx(float(state.stat_display(tap, tap.max_rank).value), state._tap_base()), "the card value should equal what the rank actually grants, deep ranks included")
 
 	var multiplier := state.get_definition("generator_two")
 	var at_cap: Dictionary = state.stat_display(multiplier, multiplier.max_rank)
@@ -230,47 +264,69 @@ func _test_stat_values_read_the_row_effect() -> void:
 
 	var armor_def := state.get_definition(GameState.ARMOR_ID)
 	var armor: Dictionary = state.stat_display(armor_def, armor_def.max_rank)
-	_expect(str(armor.unit) == "percent" and is_equal_approx(float(armor.value), 0.4), "Armor should read as 40% at its rank cap")
+	_expect(str(armor.unit) == "percent" and is_equal_approx(float(armor.value), 0.5), "Armor should read as 50% at its rank cap (D047)")
 	_expect(is_equal_approx(float(state.stat_display(tap, 1).value), 1.05), "one rank should move the card face, not round away")
 	var burst: Dictionary = state.stat_display(state.get_definition("burst_relay"), 2)
 	_expect(str(burst.unit) == "rank" and is_equal_approx(float(burst.value), 2.0), "a row with no declared effect should fall back to its rank")
 
-## D019 deepened every ladder without moving where it ends. These are the
-## values the three-to-ten-rank ladders reached; a rank count that no longer
-## lands on them is a retune, not a deepening.
+## D047: the deep rows keep today's value for ranks 1-100, so every rank a
+## player owns keeps its worth, and past 100 follow their depth curves.
 func _test_deepened_ladders_keep_their_old_maxima() -> void:
 	var state := _funded_state()
-	state.purchased = {
-		"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 100,
-		"faster_echo": 60, "burst_relay": 6, "more_critical": 100, "magnitude_coil": 60,
-		"chain_reaction": 60, "automation_core": 50, "boss_damage": 100,
-		"tax_resistance": 100, "guard": 100, "siphon": 100, "recoil": 100, "priority_buffer": 50,
-		"brace_discount": 60, "second_wind": 50,
-		"smarter_efficiency": 60, "coin_bonus": 100, "knowledge_bonus": 50,
-	}
+	state.purchased = {"stronger_tap": 100, "generator": 100, "guard": 100, "automation_core": 50}
+	_expect(is_equal_approx(state._tap_base(), 6.0), "Tap Damage at rank 100 should still be six")
+	_expect(is_equal_approx(state._passive_base(), 12.5), "Damage per Second at 100 plus Auto Crank should still be 12.5")
+	_expect(is_equal_approx(state._effect_sum("guard_flat"), 100.0), "Guard at rank 100 should still take 100 off")
+
+## D047: every row's value at its cap. The deep rows follow their depth curves
+## to The Tower's shape; the capped rows reach The Tower's maxima where a twin
+## exists and keep today's where it does not.
+func _test_every_ladder_reaches_its_d047_maximum() -> void:
+	var state := _funded_state()
 	for definition in state.definitions:
 		if definition.category == ProgressionTaxonomy.WORKSHOP:
-			_expect(state.get_owned(definition.id) == definition.max_rank, "this build should sit at every cap: " + definition.id)
-	_expect(is_equal_approx(state._tap_base(), 6.0), "Tap Damage should still cap at six")
-	_expect(is_equal_approx(state._passive_base(), 12.5), "Damage per Second plus Auto Crank should still cap at 12.5")
-	_expect(is_equal_approx(state._base_output_multiplier(), pow(1.15, 3)), "Damage Multiplier should still cap where three ranks of 1.15 did")
-	_expect(is_equal_approx(state._tick_rate(), pow(1.20, 5)), "Tick Speed should still cap where five ranks of 1.20 did")
-	_expect(is_equal_approx(state._critical_chance(), 0.25), "Crit Chance should still cap at 25%")
-	_expect(is_equal_approx(state._critical_multiplier(), 5.0), "Crit Damage should still cap at 5x")
-	_expect(is_equal_approx(state._chain_reaction_step(), 0.3), "Crit Chain should still cap at 30% per link")
-	_expect(is_equal_approx(state._effect_sum("double_tick_chance"), 0.24), "Double Tick should still cap at 24%")
-	_expect(is_equal_approx(state._effect_sum("cost_discount"), 0.15), "Discount should still cap at 15%")
-	_expect(is_equal_approx(state._effect_sum("collection_resistance"), 0.4), "Armor should still cap at 40%")
-	_expect(is_equal_approx(state._effect_sum("guard_flat"), 100.0), "Guard should still cap at 100 flat reduction")
-	_expect(is_equal_approx(state._effect_sum("starting_number_flat"), 500.0), "Cushion should still cap at 500 Number")
+			state.purchased[definition.id] = definition.max_rank
+	_expect(state.get_definition("stronger_tap").max_rank == 6000 and state.get_definition("generator").max_rank == 6000 and state.get_definition("guard").max_rank == 5000, "Tap Damage and Damage per Second should run to 6,000 ranks and Guard to 5,000")
+	_expect(is_equal_approx(state._tap_base(), 1.0 + 0.05 * 100.0 * 67500.0), "Tap Damage should cap at 67,500 times its rank-100 bonus")
+	_expect(is_equal_approx(state._passive_base(), 0.075 * 100.0 * 67500.0 + 5.0), "Damage per Second should cap at 67,500 times its rank-100 bonus, plus Auto Crank")
+	_expect(is_equal_approx(state._effect_sum("guard_flat"), 100.0 * 79000.0), "Guard should cap at 79,000 times its rank-100 reduction")
+	_expect(is_equal_approx(state._base_output_multiplier(), pow(1.15, 3)), "Damage Multiplier should keep its cap")
+	_expect(absf(state._tick_rate() - 5.95) < 0.01, "Tick Speed should cap at about x5.95")
+	_expect(is_equal_approx(state._critical_chance(), 0.8), "Crit Chance should cap at 80%")
+	_expect(absf(state._critical_multiplier() - 16.2) < 0.01, "Crit Damage should cap at about x16.2")
+	_expect(is_equal_approx(state._chain_reaction_step(), 0.3), "Crit Chain should keep its 30% per link")
+	_expect(is_equal_approx(state._effect_sum("double_tick_chance"), 0.5), "Double Tick should cap at 50%")
+	_expect(is_equal_approx(state._effect_sum("cost_discount"), 0.15), "Discount should keep its 15%")
+	_expect(is_equal_approx(state._effect_sum("collection_resistance"), 0.5), "Armor should cap at 50%")
+	_expect(is_equal_approx(state._effect_sum("starting_number_flat"), 1500.0), "Cushion should cap at 1,500 Number")
 	_expect(state._burst_interval() == 6, "Burst should still bottom out at every sixth tick")
-	_expect(is_equal_approx(state._effect_sum("siphon_share"), 0.25), "Siphon should cap at a quarter of the damage dealt")
-	_expect(is_equal_approx(state._effect_sum("recoil_share"), 0.5), "Recoil should cap at half of every hit")
+	_expect(is_equal_approx(state._effect_sum("siphon_share"), 0.25), "Leech should keep a quarter of the damage dealt")
+	_expect(is_equal_approx(state._effect_sum("recoil_share"), 1.0), "Thorns should cap at the whole hit")
 	_expect(is_equal_approx(state.get_brace_cost_percent(), GameState.BRACE_COST_FLOOR), "Brace Cost should cap at its floor")
-	_expect(is_equal_approx(state._effect_sum("second_wind_share"), 0.25), "Second Wind should cap at a quarter of the run's peak")
-	_expect(is_equal_approx(state._effect_sum("boss_damage"), 1.0), "Boss Damage should cap at double damage against bosses")
-	_expect(is_equal_approx(state._effect_sum("coin_bonus"), 0.5), "Coin Bonus should cap at half again")
-	_expect(is_equal_approx(state._effect_sum("knowledge_bonus"), 0.5), "Knowledge Bonus should cap at half again")
+	_expect(is_equal_approx(state._effect_sum("second_wind_share"), 0.3), "Second Wind should cap at 30% of the run's peak")
+	_expect(is_equal_approx(state._effect_sum("boss_damage"), 1.0), "Boss Damage should keep double damage against bosses")
+	_expect(is_equal_approx(state._effect_sum("coin_bonus"), 1.5), "Coin Bonus should cap at x2.5")
+	_expect(is_equal_approx(state._effect_sum("knowledge_bonus"), 0.5), "Knowledge Bonus should keep half again")
+	var tap := state.get_definition("stronger_tap")
+	_expect(is_equal_approx(tap.units_at(100.0), 100.0) and is_equal_approx(tap.units_at(250.0), 500.0) and is_equal_approx(tap.units_at(175.0), 300.0), "a depth curve should run in straight lines between its anchors")
+	for definition in state.definitions:
+		if definition.depth_curve.is_empty():
+			continue
+		var worst := INF
+		var last_gain := 0.0
+		for rank in range(1, definition.max_rank + 1):
+			var gain := definition.units_at(float(rank)) - definition.units_at(float(rank - 1))
+			worst = minf(worst, gain - last_gain)
+			last_gain = gain
+		_expect(worst > -1.0e-6, "every %s rank should be worth at least the one before it" % definition.id)
+	for definition in state.definitions:
+		if definition.deep_cost_growth <= 0.0:
+			continue
+		var from := definition.deep_price_from
+		var kept := definition.cost.multiply_scalar(pow(definition.cost_growth, from))
+		_expect(definition.cost_at(from).compare_to(kept) == 0, "%s should keep its old price up to rank %d" % [definition.id, from])
+		var ratio := pow(10.0, definition.cost_at(from + 1).log10() - definition.cost_at(from).log10())
+		_expect(is_equal_approx(ratio, definition.deep_cost_growth), "%s should switch to its deep growth after rank %d" % [definition.id, from])
 
 func _test_workshop_effects() -> void:
 	var state := _funded_state()
@@ -280,12 +336,14 @@ func _test_workshop_effects() -> void:
 	state.start_run(1, 11)
 	var event := state.tap()
 	_expect(event.amount.compare_to(ScientificNumber.from_float(3.45)) == 0, "Tap Damage and Damage Multiplier should affect taps")
-	# 4.14 from the Workshop, plus the flat output every run has (D033).
-	_expect(state.get_rate_per_second().compare_to(ScientificNumber.from_float(4.14 + state.balance_profile.BASE_DAMAGE_PER_SECOND)) == 0, "Workshop output and speed should affect rate")
+	# Damage per Second x Multiplier x Tick Speed, plus the flat output every run has (D033).
+	var rate := state.get_rate_per_second()
+	var expected_rate: float = 3.0 * pow(1.00701257, 20) * pow(1.01799, 20) + state.balance_profile.BASE_DAMAGE_PER_SECOND
+	_expect(absf(rate.mantissa * pow(10.0, rate.exponent) - expected_rate) < 0.0001, "Workshop output and speed should affect rate")
 	_expect(is_equal_approx(state._effect_sum("cost_discount"), 0.05), "twenty Discount ranks should still be a 5% discount")
 	_expect(state.get_workshop_coin_cost(state.get_definition("generator")) == 10, "Discount should reduce permanent Coin costs")
-	_expect(is_equal_approx(state._critical_chance(), 0.05), "Crit Chance should add positive critical chance")
-	_expect(is_equal_approx(state._critical_multiplier(), 3.0), "Crit Damage should add critical size")
+	_expect(is_equal_approx(state._critical_chance(), 0.16), "Crit Chance should add positive critical chance")
+	_expect(is_equal_approx(state._critical_multiplier(), 2.0 + 20.0 * 0.0947), "Crit Damage should add critical size")
 
 func _test_burst_and_positive_chance() -> void:
 	var state := _funded_state()
@@ -362,7 +420,7 @@ func _test_save_round_trip_and_legacy_migration() -> void:
 	v4_source.tap()
 	var v4_remaining: ScientificNumber = v4_source.active_encounter.remaining_liability.copy()
 	var v4_rng_state := v4_source.rng.state
-	var v4: Dictionary = SaveDataV8.make(v4_source)
+	var v4: Dictionary = SaveDataV9.make(v4_source)
 	v4.version = 4
 	v4.purchased = {"stronger_tap": 2, "generator": 1}
 	v4.tax_resistance_rank = 3
@@ -392,7 +450,7 @@ func _test_save_round_trip_and_legacy_migration() -> void:
 	rewritten.save_path = save_path
 	rewritten.load()
 	_expect(rewritten.get_owned(GameState.ARMOR_ID) == 3 and rewritten.focus_path == ProgressionTaxonomy.ATTACK, "migration should rewrite the save in the current shape immediately")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV8.VERSION, "the rewritten save should carry the current version")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV9.VERSION, "the rewritten save should carry the current version")
 	var kept_v4 := "res://.number_go_up_test_save.v4-backup.json"
 	_expect(int(_read_json(kept_v4).get("version", 0)) == 4, "migration should keep the V4 file it read, unchanged, beside the new save")
 	rewritten.clear_save()
@@ -498,8 +556,8 @@ func _test_bad_saves_are_never_written_over() -> void:
 	writer.clear_save()
 
 	# A save from a newer build is left byte for byte, and saving pauses.
-	var future: Dictionary = SaveDataV8.make(_funded_state())
-	future.version = SaveDataV8.VERSION + 1
+	var future: Dictionary = SaveDataV9.make(_funded_state())
+	future.version = SaveDataV9.VERSION + 1
 	_write_json(save_path, future)
 	var future_text := FileAccess.get_file_as_string(save_path)
 	var older_build := GameState.new()
@@ -514,8 +572,8 @@ func _test_bad_saves_are_never_written_over() -> void:
 	# A live save that cannot be read is moved aside, and the backup loads.
 	var good := _funded_state()
 	good.coins = 999
-	_write_json(backup_path, SaveDataV8.make(good))
-	var torn := JSON.stringify(SaveDataV8.make(_funded_state()))
+	_write_json(backup_path, SaveDataV9.make(good))
+	var torn := JSON.stringify(SaveDataV9.make(_funded_state()))
 	_write_text(save_path, torn.substr(0, torn.length() / 2))
 	var recovered := GameState.new()
 	recovered.save_path = save_path
@@ -529,10 +587,17 @@ func _test_bad_saves_are_never_written_over() -> void:
 
 	# With no backup to fall back to, the game starts fresh and says so, and
 	# the unreadable save is still kept.
-	var typed_wrong: Dictionary = SaveDataV8.make(_funded_state())
+	var typed_wrong: Dictionary = SaveDataV9.make(_funded_state())
 	typed_wrong.purchased = "not a dictionary"
-	var not_finite := JSON.stringify(SaveDataV8.make(_funded_state())).replace('"highest":{"exponent":0,"mantissa":0.0}', '"highest":{"exponent":0,"mantissa":1e999}')
-	for unreadable in [JSON.stringify(typed_wrong), not_finite, "{", ""]:
+	# Cash is read only while a run is saved, so the bad value sits in one.
+	var cash_wrong: Dictionary = SaveDataV9.make(_funded_state())
+	cash_wrong.in_run = true
+	cash_wrong.cash = "not a number"
+	var earned_wrong: Dictionary = SaveDataV9.make(_funded_state())
+	earned_wrong.in_run = true
+	earned_wrong.run_cash_earned = {"exponent": 0, "mantissa": "lots"}
+	var not_finite := JSON.stringify(SaveDataV9.make(_funded_state())).replace('"highest":{"exponent":0,"mantissa":0.0}', '"highest":{"exponent":0,"mantissa":1e999}')
+	for unreadable in [JSON.stringify(typed_wrong), JSON.stringify(cash_wrong), JSON.stringify(earned_wrong), not_finite, "{", ""]:
 		_write_text(save_path, unreadable)
 		var fresh := GameState.new()
 		fresh.save_path = save_path
@@ -543,7 +608,7 @@ func _test_bad_saves_are_never_written_over() -> void:
 
 	# A live save that vanished between the two renames of a save still has its
 	# backup.
-	_write_json(backup_path, SaveDataV8.make(good))
+	_write_json(backup_path, SaveDataV9.make(good))
 	var interrupted := GameState.new()
 	interrupted.save_path = save_path
 	interrupted.load()
@@ -574,7 +639,7 @@ func _test_v5_saves_migrate_without_loss() -> void:
 	source.rig_ranks = {"stronger_tap": 2}
 	for tap_index in range(4):
 		source.tap()
-	var v5: Dictionary = SaveDataV8.make(source)
+	var v5: Dictionary = SaveDataV9.make(source)
 	v5.version = 5
 	v5.erase("tick_accumulator")
 	v5.erase("critical_chain")
@@ -605,7 +670,7 @@ func _test_v5_saves_migrate_without_loss() -> void:
 	_expect(migrated.get_tier_record(1).milestones_claimed == [10, 20, 25, 30, 40, 50, 60, 75, 90, 100], "V5 records should survive migration, with every passed checkpoint claimed")
 	_expect(migrated.in_run and migrated.rig_owned("stronger_tap") == 2 and migrated.rng.state == source.rng.state, "a V5 live run should survive migration")
 	_expect(migrated.lab_slots_total() == LabResearch.LEGACY_SLOTS, "a V5 save should keep the two Lab slots every player then had")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV8.VERSION, "a V5 save should be rewritten in the current shape at once")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV9.VERSION, "a V5 save should be rewritten in the current shape at once")
 	_expect(int(_read_json("res://.number_go_up_test_save.v5-backup.json").get("version", 0)) == 5, "the V5 file should be kept beside the new save")
 	migrated.clear_save()
 	_expect(_leftover_save_files().is_empty(), "the V5 migration check should leave no file behind")
@@ -1152,7 +1217,7 @@ func _test_armor_reduces_the_hit_and_survives_reset() -> void:
 	state.start_run(2, 6)
 	var maxed_base: ScientificNumber = state.active_encounter.collection.copy()
 	var maxed_hit := state.get_effective_collection()
-	_expect(maxed_hit.compare_to(maxed_base.multiply_scalar(0.61)) < 0 and maxed_hit.compare_to(maxed_base.multiply_scalar(0.59)) > 0, "a maxed Armor should still take about 40% off the hit")
+	_expect(maxed_hit.compare_to(maxed_base.multiply_scalar(0.51)) < 0 and maxed_hit.compare_to(maxed_base.multiply_scalar(0.49)) > 0, "a maxed Armor should take about 50% off the hit (D047)")
 	_expect(not maxed_hit.is_zero(), "Armor must never remove the hit entirely")
 
 ## Siphon is the only route by which damage dealt to a wave also reaches Number.
@@ -1430,6 +1495,14 @@ func _test_catalogues_are_internally_consistent() -> void:
 		if definition.category == ProgressionTaxonomy.WORKSHOP:
 			_expect(ProgressionTaxonomy.WORKSHOP_CATEGORIES.has(definition.workshop_category), "%s should sit on one of the four Workshop categories" % definition.id)
 			_expect(not definition.cost.is_zero(), "%s should cost something" % definition.id)
+			if definition.deep_cost_growth > 0.0:
+				_expect(definition.deep_price_from > 0 and definition.deep_price_from < definition.max_rank, "%s should switch price growth inside its ladder" % definition.id)
+		if not definition.depth_curve.is_empty():
+			var curve := definition.depth_curve
+			var sound: bool = curve.size() >= 2 and is_equal_approx(float(curve[0][1]), 1.0)
+			for index in range(1, curve.size()):
+				sound = sound and float(curve[index][0]) > float(curve[index - 1][0]) and float(curve[index][1]) > float(curve[index - 1][1])
+			_expect(sound, "%s's depth curve should start at x1 and rise through ascending anchors" % definition.id)
 	for lab_definition in state.lab_research.definitions:
 		_expect(not ids.has(lab_definition.id), "catalogue id %s should be unique" % lab_definition.id)
 		ids[lab_definition.id] = true
@@ -1458,12 +1531,43 @@ func _test_catalogues_are_internally_consistent() -> void:
 				reachable += other.max_rank
 		_expect(reachable >= definition.workshop_level_required, "%s should open at a Workshop level the rows below it can reach" % definition.id)
 
+## D028/D047: a V8 save loads with every rank and its run's Cash intact, keeps
+## a copy of the file it read, and is rewritten as V9 at once; a V9 save keeps
+## deep ranks past 100, which a V8 build would have clamped.
+func _test_v8_save_migrates_to_v9() -> void:
+	var save_path := "res://.number_go_up_test_save.json"
+	var source := _funded_state()
+	source.purchased = {"stronger_tap": 100, "generator": 40}
+	source.start_run(1, 31)
+	source.cash = ScientificNumber.from_float(1234.0)
+	var v8: Dictionary = SaveDataV9.make(source)
+	v8.version = 8
+	_write_json(save_path, v8)
+	var loaded := GameState.new()
+	loaded.save_path = save_path
+	loaded.load()
+	_expect(loaded.get_owned("stronger_tap") == 100 and loaded.get_owned("generator") == 40, "a V8 save should keep every Workshop rank")
+	_expect(loaded.in_run and loaded.cash.compare_to(ScientificNumber.from_float(1234.0)) == 0, "a V8 save should keep its run's Cash")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV9.VERSION, "a V8 save should be rewritten as V9 at once")
+	_expect(int(_read_json("res://.number_go_up_test_save.v8-backup.json").get("version", 0)) == 8, "the V8 file should be kept beside the new save")
+	loaded.clear_save()
+
+	var deep := _funded_state()
+	deep.save_path = save_path
+	deep.purchased = {"stronger_tap": 4321, "guard": 2500}
+	_expect(deep.save(), "a save with deep ranks should write")
+	var reloaded := GameState.new()
+	reloaded.save_path = save_path
+	reloaded.load()
+	_expect(reloaded.get_owned("stronger_tap") == 4321 and reloaded.get_owned("guard") == 2500, "deep ranks past 100 should round-trip in V9")
+	reloaded.clear_save()
+
 ## A save holding more ranks than a row allows loads at the cap, so a lowered
 ## cap takes effect; a rank under a retired id is kept but counts for nothing.
 func _test_loaded_ranks_stay_within_their_caps() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
-	var data: Dictionary = SaveDataV8.make(GameState.new())
-	data.purchased = {"stronger_tap": 5000, "generator": -4, "retired_row": 30}
+	var data: Dictionary = SaveDataV9.make(GameState.new())
+	data.purchased = {"stronger_tap": 90000, "generator": -4, "retired_row": 30}
 	data.knowledge_purchased = {"insight": 3}
 	data.lab_ranks = {"lab_damage": 900, "retired_line": 2}
 	data.card_ranks = {"card_damage": 500, "card_coins": -1}
@@ -1628,7 +1732,7 @@ func _test_claimed_milestones_survive_a_reload() -> void:
 
 	# A save written before the fix can hold the same wave twice, plus junk;
 	# it collapses to each real wave once.
-	var damaged: Dictionary = SaveDataV8.make(GameState.new())
+	var damaged: Dictionary = SaveDataV9.make(GameState.new())
 	damaged.tier_records["1"] = {"highest_wave": 30, "best_time": 0.0, "milestones_claimed": [10, 10.0, "junk", -3, 25]}
 	damaged.tier_records["9"] = "a tier this build does not know"
 	_write_json(save_path, damaged)
@@ -1684,7 +1788,7 @@ func _test_boss_waves_and_checkpoints_pay_gems() -> void:
 func _test_passed_checkpoints_are_paid_on_load() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
 	var profile = GameState.new().balance_profile
-	var passed: Dictionary = SaveDataV8.make(GameState.new())
+	var passed: Dictionary = SaveDataV9.make(GameState.new())
 	passed.tier_records["1"] = {"highest_wave": 60, "best_time": 0.0, "milestones_claimed": [10, 25, 50]}
 	_write_json(save_path, passed)
 	var loaded := GameState.new()
@@ -1701,7 +1805,7 @@ func _test_passed_checkpoints_are_paid_on_load() -> void:
 	_expect(again.gems == owed and again.milestone_gems_caught_up == 0, "a second load should pay nothing more")
 	again.clear_save()
 
-	var old: Dictionary = SaveDataV8.make(GameState.new())
+	var old: Dictionary = SaveDataV9.make(GameState.new())
 	old.version = 7
 	old.erase("run_gems_earned")
 	old.gems = 2
@@ -1712,7 +1816,7 @@ func _test_passed_checkpoints_are_paid_on_load() -> void:
 	topped.load()
 	var top_up: int = (profile.milestone_gems(1, 10) - GameState.PRE_V8_MILESTONE_GEMS) + (profile.milestone_gems(1, 25) - GameState.PRE_V8_MILESTONE_GEMS)
 	_expect(topped.gems == 2 + top_up, "a pre-V8 save should have its old one-Gem Coin checkpoints topped up")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV8.VERSION, "the topped-up save should be rewritten as V8 at once")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV9.VERSION, "the topped-up save should be rewritten in the current version at once")
 	var reread := GameState.new()
 	reread.save_path = save_path
 	reread.load()
@@ -1813,27 +1917,28 @@ func _test_rig_purchase_spends_cash_and_stacks() -> void:
 	_expect(state.get_workshop_level() == 0, "Rig ranks must not raise the Workshop level")
 	# D044: Workshop and run ranks together stop at the row's max rank.
 	state.cash = ScientificNumber.new(1.0, 40)
-	var cap: int = state.get_definition("stronger_tap").max_rank
-	for rank in range(cap - 1):
-		_expect(state.purchase_rig("stronger_tap"), "run ranks should sell up to the row's max rank")
-	_expect(state.rig_owned("stronger_tap") == cap and state.rig_room("stronger_tap") == 0, "run ranks should fill the row exactly to its max rank")
+	var cap: int = state.get_definition("generator_two").max_rank
+	for rank in range(cap):
+		_expect(state.purchase_rig("generator_two"), "run ranks should sell up to the row's max rank")
+	_expect(state.rig_owned("generator_two") == cap and state.rig_room("generator_two") == 0, "run ranks should fill the row exactly to its max rank")
 	var cash_at_cap: ScientificNumber = state.cash.copy()
-	_expect(not state.can_purchase_rig("stronger_tap") and not state.purchase_rig("stronger_tap"), "a full row should sell no more run ranks")
-	_expect(state.cash.compare_to(cash_at_cap) == 0 and int(state.plan_rig_purchase("stronger_tap", GameState.MAX_BUY).ranks) == 0, "a full row should quote nothing and spend nothing")
+	_expect(not state.can_purchase_rig("generator_two") and not state.purchase_rig("generator_two"), "a full row should sell no more run ranks")
+	_expect(state.cash.compare_to(cash_at_cap) == 0 and int(state.plan_rig_purchase("generator_two", GameState.MAX_BUY).ranks) == 0, "a full row should quote nothing and spend nothing")
 
 ## D044: a row maxed in the Workshop sells nothing in a run, and a part-built
 ## row sells only the ranks it has left, whatever the press asks for.
 func _test_rig_stops_at_the_rows_max_rank() -> void:
 	var state := _funded_state()
 	var definition := state.get_definition("generator_two")
-	state.purchased = {"generator_two": definition.max_rank, "stronger_tap": 97}
+	var crit := state.get_definition("more_critical")
+	state.purchased = {"generator_two": definition.max_rank, "more_critical": crit.max_rank - 3}
 	state.start_run(1, 19)
 	state.cash = ScientificNumber.new(1.0, 40)
 	_expect(state.rig_room("generator_two") == 0 and not state.can_purchase_rig("generator_two"), "a Workshop-maxed row should sell nothing in a run")
 	_expect(state.purchase_rig_ranks("generator_two", GameState.MAX_BUY) == 0, "MAX on a Workshop-maxed row should buy nothing")
-	_expect(state.rig_room("stronger_tap") == 3, "a row should have room for its unbought ranks only")
-	_expect(int(state.plan_rig_purchase("stronger_tap", 5).ranks) == 3, "an x5 press should quote only the room left")
-	_expect(state.purchase_rig_ranks("stronger_tap", GameState.MAX_BUY) == 3 and state.rig_room("stronger_tap") == 0, "MAX should fill the row to its max rank and stop")
+	_expect(state.rig_room("more_critical") == 3, "a row should have room for its unbought ranks only")
+	_expect(int(state.plan_rig_purchase("more_critical", 5).ranks) == 3, "an x5 press should quote only the room left")
+	_expect(state.purchase_rig_ranks("more_critical", GameState.MAX_BUY) == 3 and state.rig_room("more_critical") == 0, "MAX should fill the row to its max rank and stop")
 
 func _test_rig_multi_buy_quotes_and_spends() -> void:
 	# An opening x5 press buys what it can afford, and exactly what buying the
@@ -1866,6 +1971,19 @@ func _test_rig_multi_buy_quotes_and_spends() -> void:
 		_expect(singles.purchase_rig("stronger_tap"), "the comparison run should buy each Rig rank singly")
 	_expect(bulk.purchase_rig_ranks("stronger_tap", 5) == 5, "a funded x5 press should grant five ranks")
 	_expect(bulk.cash.compare_to(singles.cash) == 0 and bulk.rig_owned("stronger_tap") == singles.rig_owned("stronger_tap"), "bulk and single Rig buys should spend the same Cash and grant the same ranks")
+
+	# Past rank 100 each run rank moves further along the depth curve (D047).
+	var deep_bulk := _funded_state()
+	var deep_singles := _funded_state()
+	for deep_state in [deep_bulk, deep_singles]:
+		deep_state.purchased["stronger_tap"] = 2000
+		deep_state.start_run(1, 19)
+		deep_state.cash = ScientificNumber.from_float(1.0e9)
+	_expect(int(deep_bulk.plan_rig_purchase("stronger_tap", 5).ranks) == 5, "a funded deep-row x5 press should quote five run ranks")
+	for rank in range(5):
+		deep_singles.purchase_rig("stronger_tap")
+	deep_bulk.purchase_rig_ranks("stronger_tap", 5)
+	_expect(deep_bulk.cash.compare_to(deep_singles.cash) == 0 and is_equal_approx(deep_bulk._tap_base(), deep_singles._tap_base()), "a deep-row run press should cost and add what single presses do")
 
 	var maxed := _funded_state()
 	maxed.start_run(1, 18)
@@ -2018,7 +2136,7 @@ func _test_rig_save_round_trip() -> void:
 	var pre_rig := GameState.new()
 	pre_rig.save_path = save_path
 	pre_rig.start_run(1, 5)
-	var legacy: Dictionary = SaveDataV8.make(pre_rig)
+	var legacy: Dictionary = SaveDataV9.make(pre_rig)
 	legacy.erase("rig_ranks")
 	legacy.erase("cash")
 	_write_json(save_path, legacy)
@@ -2112,7 +2230,7 @@ func _test_lab_slots_open_with_gems() -> void:
 	restored.clear_save()
 
 	# A V6 save predates bought slots: it keeps two, and becomes V7 at once.
-	var v6: Dictionary = SaveDataV8.make(_funded_state())
+	var v6: Dictionary = SaveDataV9.make(_funded_state())
 	v6.version = 6
 	v6.erase("lab_slots")
 	_write_json(save_path, v6)
@@ -2120,10 +2238,10 @@ func _test_lab_slots_open_with_gems() -> void:
 	migrated.save_path = save_path
 	migrated.load()
 	_expect(migrated.lab_slots_total() == LabResearch.LEGACY_SLOTS, "a V6 save should keep its two Lab slots")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV8.VERSION and int(_read_json("res://.number_go_up_test_save.v6-backup.json").get("version", 0)) == 6, "a V6 save should be rewritten as V7, with the V6 file kept")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV9.VERSION and int(_read_json("res://.number_go_up_test_save.v6-backup.json").get("version", 0)) == 6, "a V6 save should be rewritten as V7, with the V6 file kept")
 	migrated.clear_save()
 	for stored in [99, -3, 0]:
-		var odd: Dictionary = SaveDataV8.make(_funded_state())
+		var odd: Dictionary = SaveDataV9.make(_funded_state())
 		odd.lab_slots = stored
 		_write_json(save_path, odd)
 		var clamped := GameState.new()
@@ -2233,7 +2351,7 @@ func _test_lab_save_round_trip() -> void:
 
 	# A save written before Labs existed resumes with none, and a malformed
 	# Labs block reads as empty rather than crashing.
-	var legacy: Dictionary = SaveDataV8.make(_funded_state())
+	var legacy: Dictionary = SaveDataV9.make(_funded_state())
 	legacy.erase("lab_ranks")
 	legacy.erase("lab_active")
 	_write_json(save_path, legacy)
@@ -2357,7 +2475,7 @@ func _test_card_save_round_trip() -> void:
 
 	# A save written before Cards existed resumes with none, and a malformed
 	# block reads as empty rather than crashing.
-	var legacy: Dictionary = SaveDataV8.make(_funded_state())
+	var legacy: Dictionary = SaveDataV9.make(_funded_state())
 	legacy.erase("gems")
 	legacy.erase("card_ranks")
 	legacy.erase("card_active")

@@ -233,11 +233,11 @@ bash run_godot.sh --path . -s res://tools/capture_ui.gd
 
 - All of these use the Godot in `/Users/paulhardie/Downloads/Godot.app`; set `GODOT` to point them at another binary.
 - `run_tests.sh` is the economy suite; a green count with errors printed is not a pass, and the script fails the run on any error line. If it fails on classes it cannot find, the `.godot` cache is stale: run `bash run_godot.sh --headless --path . --import`.
-- `run_balance.sh` prints the curve and the representative first run; it is a measurement tool, not a gate.
-- `tools/career_simulator.gd` plays a fresh save run after run, spending Coins between runs, and compares today's rules with the proposed coin gates and other run rank worths; `-- --runs N`, `-- --ladder NAME` and `-- --careers a,b` narrow it. It is a measurement tool, not a gate.
+- `run_balance.sh` prints the curve and the representative first run; it is a measurement tool, not a gate. After `--`, `--hit-sweep` measures balance target 5 across Hit scales and `--maxed-workshop` measures a fully maxed Workshop against one stopped at rank 100.
+- `tools/career_simulator.gd` plays a fresh save run after run, spending Coins between runs, and compares today's rules with the proposed coin gates and other run rank worths; `-- --runs N`, `-- --spend even|focused`, `-- --layout plan|tower`, `-- --ladder NAME` and `-- --careers a,b` narrow it. It is a measurement tool, not a gate.
 - The headless project run catches parse and scene-build errors in `main.gd` and the UI classes.
 - CI runs the same baseline on every pull request and push to `main` (`.github/workflows/verify.yml`), with its Godot version pinned to match the development build — update the pin when upgrading Godot. `main` requires a pull request with a passing "Economy tests and headless boot" check.
-- The capture tool opens briefly and writes hub/run/run_standing/boss/workshop/knowledge/lost/drawer PNGs at four window sizes to `user://ui_capture` for visual review, and prints the folder it wrote to; inspect them, never assert pixel equality. It saves to a throwaway file, never the real save.
+- The capture tool opens briefly and writes hub/hub_played/milestones/run/run_standing/boss/workshop/knowledge/labs/cards/lost/drawer PNGs at four window sizes to `user://ui_capture` for visual review, and prints the folder it wrote to; inspect them, never assert pixel equality. It saves to a throwaway file, never the real save.
 - Tests write `res://.number_go_up_test_save.json` (and, since D028, its `.bak`, migration and moved-aside copies) and clear them; a leftover file is a bug in the test, not content.
 - `opencode.json` disables the GDScript language server for agents that read it. Godot's LSP is TCP and only runs while the editor is open, which hangs clients that expect stdio; the [`opencode-godot-lsp`](https://github.com/MasuRii/opencode-godot-lsp) bridge is the way to turn it back on.
 

@@ -8,7 +8,7 @@ extends SceneTree
 ## Run: bash run_godot.sh --headless --path . -s res://tools/export_workshop.gd
 const JSON_PATH := "res://data/workshop/current.json"
 const MD_PATH := "res://data/workshop/current.md"
-const SAMPLE_RANKS := [1, 10, 25, 50, 100]
+const SAMPLE_RANKS := [1, 10, 25, 50, 100, 1000, 5000]
 
 func _init() -> void:
 	var state := GameState.new()
@@ -57,8 +57,11 @@ func _workshop_row(state: GameState, definition: UpgradeDefinition) -> Dictionar
 	for rank in range(1, definition.max_rank + 1):
 		var cost := state.get_workshop_coin_cost_at(definition, rank - 1)
 		cumulative += cost
-		var shown := state.stat_display(definition, rank)
-		ranks.append({"rank": rank, "cost": cost, "coins_to_here": cumulative, "value": snappedf(float(shown.value), 0.000001)})
+		# Deep rows (D047) keep every rank to 300, then every 50th and the last,
+		# so the export stays readable at 6,000 ranks.
+		if rank <= 300 or rank % 50 == 0 or rank == definition.max_rank:
+			var shown := state.stat_display(definition, rank)
+			ranks.append({"rank": rank, "cost": cost, "coins_to_here": cumulative, "value": snappedf(float(shown.value), 0.000001)})
 	var at_zero := state.stat_display(definition, 0)
 	var at_max := state.stat_display(definition, definition.max_rank)
 	var rig_sold: bool = state.balance_profile.rig_has_row(definition.workshop_category, definition.id)
@@ -141,15 +144,19 @@ func _markdown(data: Dictionary) -> String:
 	lines.append("")
 	lines.append("### Value and Coins to reach sample ranks")
 	lines.append("")
-	lines.append("| Row | Rank 1 | Rank 10 | Rank 25 | Rank 50 | Rank 100 |")
-	lines.append("| --- | --- | --- | --- | --- | --- |")
+	lines.append("| Row | Rank 1 | Rank 10 | Rank 25 | Rank 50 | Rank 100 | Rank 1,000 | Rank 5,000 |")
+	lines.append("| --- | --- | --- | --- | --- | --- | --- | --- |")
 	for row in data.workshop:
 		var cells: Array[String] = []
 		for sample in SAMPLE_RANKS:
 			if sample > int(row.max_rank):
 				cells.append("—")
 			else:
-				var entry: Dictionary = row.ranks[sample - 1]
+				var entry: Dictionary = {}
+				for candidate in row.ranks:
+					if int(candidate.rank) == sample:
+						entry = candidate
+						break
 				cells.append(_shown(entry.value, row.unit) + " · " + str(entry.coins_to_here) + " C")
 		lines.append("| " + str(row.name) + " | " + " | ".join(cells) + " |")
 	lines.append("")

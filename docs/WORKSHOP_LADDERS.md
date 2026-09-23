@@ -1,12 +1,91 @@
 # Workshop ladders: ranks, cost curves and stat curves
 
-**Status:** Proposed, 23 September 2026. Nothing here is accepted or built; the game still uses its current ladders. It answers the owner's request to look at every Workshop row, put them in JSON and tables, and decide how deep the ladders go (The Tower runs its core rows to about 5,000 levels) and how cost and stats climb.
+**Status:** The [Tower-matched review](#tower-matched-review--23-september-2026) is accepted and built as [D047](DECISIONS.md#d047--deep-workshop-ladders-on-the-towers-shape-and-150-hours-to-max); see [As built](#as-built--d047). The original proposal from [The short version](#the-short-version) on (5,000 / 1,000-rank classes, tier bands, rank conversion) is superseded and kept as the record. It answers the owner's request to look at every Workshop row, put them in JSON and tables, and decide how deep the ladders go (The Tower runs its core rows to about 5,000 levels) and how cost and stats climb.
 **Data:**
 - [`data/workshop/current.json`](../data/workshop/current.json) and [`current.md`](../data/workshop/current.md): every current Workshop row, Lab line and Card, generated from the live game by [`tools/export_workshop.gd`](../tools/export_workshop.gd).
 - [`data/workshop/proposed_spec.json`](../data/workshop/proposed_spec.json): the proposal as an editable spec.
 - [`data/workshop/proposed.json`](../data/workshop/proposed.json) and [`proposed.md`](../data/workshop/proposed.md): every rank of every proposed row, generated from that spec by [`tools/workshop_ladders.py`](../tools/workshop_ladders.py).
 
 **Depends on:** [`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md) for the 28 rows and [`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md) for the ten-tier ladder that sets the income these prices are matched to.
+
+## Tower-matched review — 23 September 2026
+
+**Status:** review on owner direction ("roughly match the Tower's equivalent levels for each stat and check their individual scales and gates so we can establish how powerful a player who maxes the workbench out is"). It revises the proposal below. Accepted with every recommendation and a 150-hour target (D047), and built.
+
+**Sources:** The Tower's level counts, values and prices come from the unofficial community [TheTowerSDK](https://github.com/TmRxJD/TheTowerSDK) workshop table (release 0.11.0, 13 September 2026); community data, not developer data. Our side comes from `data/workshop/upgrades.json` and the balance simulator.
+
+### How The Tower builds its Workshop
+
+- **Four rows go deep and carry all the scaling:** Damage (6,000 levels), Health (6,000), Health Regen (6,000) and Defense Absolute (5,000). Their values grow steeply, faster than the level: Damage is ×67,480 from level 100 to level 6,000, Defense Absolute ×78,930, Health ×310,500.
+- **Every other row is capped at 75–300 levels** and costs 1–20 million Coins to max, against about 800 trillion for Damage. The capped rows are finished early; the deep rows are the whole long game.
+- **Price rises faster than power.** Damage's per-level price rises from 30 Coins to 5.1 trillion (×1.7 × 10^11) while its value rises ×2.4 × 10^7.
+- **Every level is on sale from the start.** No row's levels are opened by tier; the price is the only gate on depth, and the one-time unlock gates ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md#how-the-tower-prices-its-gates)) are the only gate on breadth.
+
+### Every row against its Tower twin
+
+| Our row | Tower twin | Tower: levels, value at max | Ours today | This proposal (below) | Recommended |
+| --- | --- | --- | --- | --- | --- |
+| Tap Damage | Damage | 6,000, 3 → 71 million | 100, +6 | 5,000, +916 | **6,000**, Tower-shaped: +405,000 |
+| Damage per Second | Damage | 6,000 | 100, +7.5 | 5,000, +1,367 | **6,000**, Tower-shaped: +506,000 |
+| Damage Multiplier | — (Tower's Damage curve compounds itself) | — | 60, ×1.52 | 5,000, ×80 | **60, ×1.52** (one deep damage source, as The Tower) |
+| Tick Speed | Attack Speed | 99, ×5.95 | 100, ×2.49 | 100, ×2.49 | **100, ×5.95** (the tick loop allows 80 a second) |
+| Double Tick | Multishot Chance | 99, 49.5% | 60, 24% | 60, 24% | **125, 50%** |
+| Burst | Rapid Fire | 85, 34% | 6 | 6 | 6 (Frenzy replaces it later) |
+| Crit Chance | Critical Chance | 79, 80% | 100, 25% | 100, 25% | **80, 80%** (1% a rank; the engine clamps at 80%) |
+| Crit Damage | Critical Factor | 150, ×16.2 | 60, ×5 | 1,000, ×52 | **150, ×16.2** |
+| Crit Chain | Super Crit (nearest) | 100–120 | 60 | 60 | 60 |
+| Auto Crank | — | — | 50, +5 | 50 | 50 |
+| Boss Damage | — | — | 100, ×2 | 1,000, ×11 | **100, ×2** (every Tier 1 wall is a boss; a deep row would outgrow Defense) |
+| Armor | Defense % | 99, 49.5% | 100, 40% | 100, 40% | **125, 50%** |
+| Guard | Defense Absolute | 5,000, 0 → 80 million | 100, +100 × tier | 5,000, 494 × tier | **5,000**, Tower-shaped: +7.9 million × tier |
+| Leech | Lifesteal | 80, 4.46% | 100, 25% (bosses only) | 100 | 100, 25% (a different job) |
+| Thorns | Thorn Damage | 99, 99% | 100, 50% | 100 | **200, 100%** |
+| Cushion | Health | 6,000, ×310,500 | 50, +500 × tier | 1,000, +10,000 × tier | **150, +1,500 × tier** (Number is health and refills from output; a deep Cushion only pads the first waves, measured: no change in waves reached) |
+| Brace Cost | — | — | 60, 15% | 60 | 60 |
+| Second Wind | Death Defy | 75, 30% | 50, 25% | 50 | **60, 30%** |
+| Discount | — (Labs) | — | 60, 15% | 60 | 60 |
+| Coin Bonus | Coins / Kill Bonus | 149, ×2.49 | 100, ×1.5 | 100 | **300, ×2.5** |
+| Knowledge Bonus | — | — | 50, +50% | 50 | 50 |
+
+Where we part from The Tower, and why: the Multiplier stays shallow so one row (Tap and Damage per Second) carries damage, as Damage does there; Cushion stays shallow because The Tower's Health is its survival and ours is the Number; Boss Damage has no twin and stays at ×2.
+
+**Tower-shaped** means ranks 1–100 stay exactly as today (so every owned rank keeps its value and no rank conversion is needed), and ranks 101–6,000 follow The Tower's curve from its level 100: ×5 by 250, ×20 by 500, ×76 by 1,000, ×2,223 by 3,000, ×67,480 by 6,000.
+
+### How powerful a maxed Workshop is
+
+Every row at its ladder's maximum, with no Labs, Cards or run ranks, two taps a second (`run_balance.sh` with `-- --maxed-workshop`, profile `tax-foundation-v10`, seed 7):
+
+| Ladder | Damage a second | Tier 1 | Tier 2 | Tier 3 | Coins from that Tier 1 run |
+| --- | ---: | --- | --- | --- | ---: |
+| Today | 48 | wave 120 | wave 54 | wave 40 | 7,083 |
+| This proposal (5,000 / 1,000) | 274,890 | wave 677 | wave 511 | wave 455 | 250,438 |
+| Tower-matched | 4.6 million | wave 830 | wave 660 | wave 608 | 695,302 |
+| **Recommended** | 4.6 million | **wave 830** | **wave 660** | **wave 608** | 695,062 |
+
+- **Damage buys depth slowly.** The Tower-matched build has 17× the proposal's damage and reaches 150 waves further, because Tier 1's Wave HP multiplies by roughly 6–8 every 100 waves from wave 500.
+- **Wave 5,000 is out of reach of any Workshop.** Its Wave HP is about 10^40; the recommended maxed Workshop handles about 10^11. Labs, Cards and run ranks would have to supply the other 10^29. With the 5,000-wave milestones (D043), either the curve eases past some depth or wave 5,000 stays a milestone no one reaches; that is its own decision.
+- **Higher tiers cost a maxed build about 170 waves (Tier 2, ×20 pressure) and 220 (Tier 3, ×60).**
+
+### The decisions, revised
+
+1. **Depth: which rows go deep.** Recommended: Tap Damage and Damage per Second to 6,000 and Guard to 5,000, as The Tower's Damage and Defense Absolute; everything else capped at the counts in the table. (The proposal below also deepened the Multiplier, Crit Damage, Boss Damage and Cushion.)
+2. **How depth is opened.** Recommended: **drop tier bands**; every rank is on sale from the start and its price is the gate, as in The Tower. The bands assumed ten tiers; with three, a Tier 1 player would stop at 500 ranks. Coin gates already stop a new player getting everything at once.
+3. **Price, and how long maxing takes.** Recommended: price rises faster than power, as The Tower's does, anchored to what a run at that depth pays (a maxed Tier 1 run pays about 700,000 Coins). The number to choose is how many hours of play it takes to max the Workshop; the career simulator then sets the curve to hit it.
+4. **Stat shapes.** Recommended: ranks 1–100 unchanged, then The Tower's growth for the deep rows (Guard grows too, rather than the proposal's shrinking steps; the 10% Hit floor keeps Hits real); straight steps to the new caps for the rest.
+5. **Rank conversion.** Recommended: **none needed.** The deep rows keep today's values for ranks 1–100; Armor, Double Tick, Thorns, Second Wind and Coin Bonus keep their step and simply gain ranks. Tick Speed, Crit Chance and Crit Damage need a bigger step per rank to reach The Tower's maximums, so ranks already owned there get stronger, never weaker. Raising `max_rank` changes no saved key, so it is not a schema bump by itself.
+6. **Breakthroughs.** The proposal's finding assumed its ten-tier climb; recommended to leave it with the tier proposal rather than decide it here.
+7. **`data/workshop/` as the single source.** Done: the Workshop loads from `data/workshop/upgrades.json` (PR #40).
+8. **New: the depth a maxed Workshop should reach**, and what happens past it (above).
+
+### As built — D047
+
+- **Ladders:** as recommended in the table above. Tap Damage and Damage per Second run to 6,000 ranks on the Damage depth curve, Guard to 5,000 on Defense Absolute's; ranks 1–100 keep their old values. The curves live in `data/workshop/upgrades.json` as `depth_curve` anchors (rank: multiple of the rank-100 value), joined by straight lines. The anchors' slopes rise, so every rank is worth at least the one before it; a log-space read was tried first and made the rank after each anchor worth about half the one before.
+- **Price:** every row keeps its old prices up to its old cap (`deep_price_from`: 100, or 60 for Double Tick and Crit Damage, 50 for Cushion and Second Wind). Past it each deep-row rank costs 1.00075× the last and each extended capped row 1.02× the last (`deep_cost_growth`). Carrying the old 7–9% growth on to rank 100 was tried first and made Cushion 27% of Defense's price, the distortion D019 retired. The whole Workshop costs 37.0 million Coins: Attack 22.4 million, Defense 12.3 million, Utility 2.3 million. Tap Damage's last rank costs 7,213 Coins, Damage per Second's 9,661 and Guard's 9,166; Coin Bonus's is the dearest at 45,143, and Coin Bonus alone is 2.28 million of Utility's 2.31.
+- **Hours to max:** the career simulator's focused player (`--spend focused --careers today_rig --runs 600 --run-cap-minutes 180`, buying run Upgrades, seed 7) maxes the Workshop on run 120, **149.9 hours**. The other growths measured: 1.0007 took 133.8 h and 1.0008 178.2 h; 1.00085 and 1.0009 had not maxed by 176 h.
+- **Maxed reach:** Tier 1 wave 830, Tier 2 660, Tier 3 608 (`-- --maxed-workshop`), as the review predicted.
+- **Early pacing moved.** Tick Speed, Crit Chance and Crit Damage now take bigger steps per rank, and Tap Damage and Damage per Second keep selling past 100, so the same Coins buy more: the focused player reaches wave 100 in 1.4 hours instead of 2.8, and a rank-100 Attack build reaches wave 200 instead of 100 (balance target 5 no longer holds). The first run is unchanged.
+- **Research Focus is lopsided.** Its 25% off a category was balanced on equal category totals (WORKSHOP_DESIGN step 4a); Attack now costs ten times Utility, so focusing Utility saves little. Open.
+- **Save V9:** raising a max rank changes no key, but a V8 build would clamp ranks past a row's old cap, so saves move to V9 and older builds refuse them (D028).
 
 ## The short version
 

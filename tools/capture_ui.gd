@@ -26,6 +26,8 @@ func _capture_size(window_size: Vector2i, label: String) -> void:
 	await process_frame
 	await process_frame
 	await _capture_state(window_size, label, "hub", false)
+	await _capture_state(window_size, label, "hub_played", false)
+	await _capture_state(window_size, label, "milestones", false)
 	await _capture_state(window_size, label, "run", false)
 	await _capture_state(window_size, label, "run_standing", false)
 	await _capture_state(window_size, label, "boss", false)
@@ -73,6 +75,17 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 			state.active_encounter.apply_compliance(state.active_encounter.max_liability.multiply_scalar(0.55))
 		else:
 			state.active_encounter.apply_compliance(ScientificNumber.from_float(55900))
+	elif state_name == "hub_played" or state_name == "milestones":
+		state.gems = 46
+		state.tier_records["1"].highest_wave = 47
+		state.tier_records["1"].milestones_claimed = [10, 20, 25, 30, 40]
+		state.last_run_summary = RunSummary.new(
+			47, 612, 0, ScientificNumber.from_float(48210), 1, "death",
+			ScientificNumber.from_float(5230), false,
+			ScientificNumber.from_float(3100), ScientificNumber.from_float(900)
+		)
+		if state_name == "milestones":
+			main._open_milestones_sheet()
 	elif state_name == "workshop":
 		main._select_tab("workshop")
 	elif state_name == "knowledge":
