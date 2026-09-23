@@ -1,13 +1,13 @@
 # Handover
 
-**Last updated:** 23 September 2026, after adding Card duplicate protection and moving Workshop data to JSON.
+**Last updated:** 23 September 2026, after D041 accepted the visible wave contest as the next player-experience proof. No combat rule or UI changed in this documentation pass.
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
 
 ## Where the game is
 
 `main` plays like this (seed 7 simulator figures; nothing below has been checked on a phone yet):
 
-- **The core loop (D037, D038):** everything you produce is Number and also damages the wave. A beaten wave gives way to the next after 2.5 seconds. A missed ordinary wave hits once and moves on, paying Coins for the share you cleared. Bosses, every 10th wave, stay and hit every 15 seconds until you beat them. Siphon became Leech and Recoil became Thorns: both are boss-fight stats.
+- **The core loop (D037, D038):** everything you produce is Number and also damages the wave. A beaten wave gives way to the next after 2.5 seconds. A missed ordinary wave hits once and moves on, paying Coins for the share you cleared. Bosses, every 10th wave, stay and hit every 15 seconds until you beat them. Siphon became Leech and Recoil became Thorns: both are boss-fight stats. Guard now cuts the Hit by a flat amount before Armor's percentage.
 - **Rig prices (D039):** a rank costs about 5 seconds of your steady income, ×1.4 for each rank of that row you already own. A fresh run's first ranks cost about 10 Number, and harder waves never raise prices by themselves.
 - **Tier 1 difficulty (D040):** one curve from wave 1, no warm-up.
   - Wave HP = 4 × (0.05 w^2.13 + 0.8 w + 1.5), with milestone steps every 10, 50 and 100 waves.
@@ -17,6 +17,7 @@
   - Tiers 2 and 3 multiply the same curve by 20 and 60.
 - **Card duplicate protection:** maxed cards are excluded from the pull pool, and pulls are disabled once the catalogue is complete, preventing wasted Gems.
 - **Data layer:** Workshop and Knowledge catalogues load from canonical JSON in `res://data/` via `GameData`.
+- **Combat read (D041):** clearing a wave before its boundary already prevents its Hit. The HP ring, warming colour and exact-Hit line exist, but a distinct time-to-Hit progress measure and fresh-player comprehension check are planned in [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md).
 - **Where builds land:**
 
   | Build | Result |
@@ -33,15 +34,17 @@
 
 1. **Coins per minute (balance target 2):** rewards came up about 1.5–1.8× when beaten waves stopped waiting out their timers (D037). Accept and restate the target, or bring Coins down.
 2. **The Workshop ladders** ([`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md), with data in [`data/workshop/`](../data/workshop/)): seven decisions, including 5,000-rank core rows, a band of ranks per tier, dropping Breakthroughs from pacing, and making `data/workshop/` the Workshop's single source.
-3. **The Workshop expansion** ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md)): each new row (Guard, Payback, Finisher, Streak, Bounty, Interest, Boost Discount, Free Boost) and the Auto Crank → Auto Tap job.
+3. **The Workshop expansion** ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md)): Guard is built; Payback, Finisher, Streak, Bounty, Interest, Boost Discount, Free Boost and the Auto Crank → Auto Tap job still need decisions.
 4. **The Tiers 1–10 proposal** ([`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md)): parts are superseded (D037 took Rush; D039 took income pricing). The ×10 ladder, square-root Knowledge and Toll tiers still need decisions, judged against "keep it simple".
 5. **The play-folder sync rule** for `AGENTS.md` is on branch `claude/sync-play-checkout`, not merged. The Mac's auto-updater already behaves that way.
+6. **Enemy-growth suppression:** the Tower-inspired idea could hold a future Wave HP or Hit increase, but its role, trigger, caps and balance are undecided. Compare it only after the visible contest has been tested; see [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md).
 
 ## Next steps, in order
 
-1. **Owner:** play a first run on the merged build, watching the wave 10 and 20 bosses. Boss HP is 3.5–3.7× the wave before, and every early build in the simulator ends on a boss. If they feel like walls, the smallest dial is the boss HP multiplier: grow it from ×2 to ×3 over the first few bosses.
-2. **A GDScript career simulator** on the real game: runs back to back, Workshop buying and tier unlocks, reporting hours per tier. `tools/career_model.py` still models the pre-D037 rules, so its hour figures are shapes only. Low risk (a tool).
-3. **Payback**, the next Defense row ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md)): refund a share of damage taken during a boss fight upon victory. Medium risk (economy/run state).
+1. **Agent:** inspect the current run at phone sizes, then make a focused HUD and feedback pass that distinguishes Wave HP from time to Hit and shows the effective Hit clearly. Preserve the existing clear-before-Hit rule and exact Number-loss feedback (D041; [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md)). Medium risk: presentation and touch interaction.
+2. **Owner with new players:** watch a fresh 10–20-minute run, including the wave 10 and 20 bosses. Check whether players can predict the Hit, explain why a clear prevented it, and name a Rig spend they would change. Boss HP is 3.5–3.7× the preceding wave; the test should establish whether those bosses feel like fights or walls. Low implementation risk, decisive product evidence.
+3. **Agent:** build a GDScript career simulator on the real rules before tuning new combat or progression systems. `tools/career_model.py` models pre-D037 rules, so its hour figures are shapes only. Low risk: a tool.
+4. **After the loop proof:** return to Payback and the enemy-growth candidate only if the observed player choices call for them. Both alter economy/run state and need a separate decision and high-risk verification.
 
 ## Known issues and risks
 

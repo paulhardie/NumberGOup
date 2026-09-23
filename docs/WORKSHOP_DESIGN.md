@@ -465,12 +465,14 @@ This keeps the single ring from the restage.
 
 - The ring is the wave's HP, closing as you deal damage, and its colour heats as the hit approaches. Both are unchanged.
 - One line under the ring reads `HITS FOR 900 IN 6s`, replacing `LIABILITY … LEFT · COLLECTION …`.
-- When the ring closes, a short `BEATEN` beat plays, then the Number climbs for the rest of the timer. The climb is the reward.
-- A hit shows `−900` in the warning colour on the Number, then `STILL STANDING · HITS AGAIN IN 15s` if the wave survives.
+- Since D037, output raises Number even while the ring is closing. A beaten wave cannot Hit and the next arrives after the 2.5-second minimum beat.
+- A missed ordinary wave Hits once and moves on; a boss stays and can Hit again after 15 seconds.
 - *(Retired by D040: Tier 1 has no warm-up, so no wave reads `WARM-UP · EVERYTHING BANKS`.)*
 - A ready or firing Ultimate announces itself on the wave line — `SURGE · ALL DAMAGE ×3 FOR 8s` — so it needs no button and no open panel. Ultimates fire on their own (D013, pillar 1); the Rig's Ultimate tab levels them, it does not trigger them.
 
-**Implemented in step 2 (2026-09-22):** the `HITS FOR …` / `BEATEN` / `WARM-UP · EVERYTHING BANKS` encounter line (the warm-up text retired with D040; the line now reads `HITS ONCE FOR …` or `BOSS HITS FOR …` since D037), the `−X` hit float on the Number with the `STILL STANDING · HITS AGAIN IN 15s` beat, a blocked boundary reading `HIT BLOCKED` with no hit float, and tap and critical floats that read `X DAMAGE` while a wave stands and `+X` as Number once it is beaten (D012).
+**Next presentation pass (D041):** the ring's colour alone does not give time an independent progress measure. Keep the HP ring and add a distinct time-to-Hit track, with the effective Hit readable alongside it. The playable proof, constraints and unaccepted enemy-growth candidate are in [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md).
+
+**Implemented in step 2 (2026-09-22), then revised by D037 and D040:** the encounter line now reads `HITS ONCE FOR …` or `BOSS HITS FOR …` until the wave is beaten; the warm-up line was retired. A Hit shows the exact Number lost and remaining, a blocked boundary reads `HIT BLOCKED`, and tap/critical floats show Number gained even while they also damage the wave.
 
 ### The run-over screen says what the run was lost to (D022)
 

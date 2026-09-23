@@ -22,7 +22,7 @@ Exported files must be served over HTTPS for browser persistence and PWA behavio
 
 ## Current game
 
-The playable slice includes tapping, passive production, a four-category permanent Workshop of 20 rows and 1,466 ranks with multi-buy, Research Focus, upgrade synergies, Prestige, Knowledge/Insight, local saves, a stats/settings drawer, and tiered Tax runs.
+The playable slice includes tapping, passive production, a permanent Workshop with 21 loaded rows across Attack, Defense and Utility (and an Ultimates category reserved for later) with multi-buy, Research Focus, upgrade synergies, Prestige, Knowledge/Insight, local saves, a stats/settings drawer, and tiered Tax runs.
 
 Tax runs use two independent absolute stats:
 
@@ -35,7 +35,7 @@ Workshop upgrades are bought with Coins between runs and permanently raise the b
 
 Retreat ends and resets a run—it cannot pause Tax while Number keeps growing. Active runs freeze exactly while the app is away. Save schema V8 preserves the permanent Workshop, Labs (with their slots), Cards, Gems, the active encounter and deterministic RNG state, with V1–V7 migration. A save the game cannot read, or one from a newer version, is never written over (D028).
 
-The researched scaling rationale, source links, data contracts, and later-system boundaries are in [`docs/TOWER_SCALING_FOUNDATION.md`](docs/TOWER_SCALING_FOUNDATION.md).
+The broader inspiration and system roles are mapped in [`docs/TOWER_SYSTEMS_REFERENCE.md`](docs/TOWER_SYSTEMS_REFERENCE.md). The researched scaling rationale, source links, data contracts, and later-system boundaries are in [`docs/TOWER_SCALING_FOUNDATION.md`](docs/TOWER_SCALING_FOUNDATION.md).
 
 ## Progression vocabulary
 
