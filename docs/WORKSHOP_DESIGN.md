@@ -577,6 +577,8 @@ Held true by step 1:
 
 ## Open questions
 
+[`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md) (proposed, 23 September 2026) sets out eight new rows, new jobs for Auto Crank, Siphon and Recoil under the proposed core rules, and how the Workshop keeps scaling across tiers.
+
 1. **What Ultimates cost to upgrade permanently.** Recommendation: Knowledge. It gives Knowledge a second sink beside Insight and adds no currency (pillar 4). The alternative, Coins, competes directly with the Workshop. Their in-run levels cost Number like every other Rig row.
 2. **The Tier 2+ opening.** Should Cushion scale with the tier, or should every tier get a few warm-up waves? Recommendation: scaled Cushion, because it makes the opening a Defense decision rather than a free pass. The Rig sharpens this: on Tier 2 the first hit lands before there is any Number to spend, so the opening is the one stretch of a run the Rig cannot help with.
 3. **Tier shapes.** Whether and when to skew Tiers 2 and 3 away from uniform multipliers. That would supersede part of D002. [`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md) proposes skewing Hits, not Wave HP, by tier, with Toll tiers at 2, 5 and 8.
