@@ -790,22 +790,23 @@ func _build_workshop_screen(parent: Control) -> void:
 	var title := _make_label("WORKSHOP", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
 	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_row.add_child(title)
-	# Icon-only: at 320px wide, WORKSHOP's title plus icon-and-label buttons for
-	# both LABS and CARDS plus the Coins chip do not all fit legibly (found by
-	# capturing this screen at the small-phone size). The tooltip carries the
-	# name; the sheet's own title confirms it once opened.
-	lab_research_button = _make_icon_only_button(IconGlyph.Kind.FLASK, LABS_ACCENT, "Open Labs")
-	lab_research_button.pressed.connect(_open_lab_research_sheet)
-	header_row.add_child(lab_research_button)
-	card_collection_button = _make_icon_only_button(IconGlyph.Kind.DICE, CARDS_ACCENT, "Open Cards")
-	card_collection_button.pressed.connect(_open_card_collection_sheet)
-	header_row.add_child(card_collection_button)
 	var chip := PanelContainer.new()
 	chip.add_theme_stylebox_override("panel", _chip_style(SURFACE))
 	workshop_header = _make_label("", 12, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT)
 	chip.add_child(workshop_header)
 	header_row.add_child(chip)
-	content.add_child(_make_label("PERMANENT · APPLIES TO EVERY RUN · HOLD A CARD FOR DETAILS", 10, HORIZONTAL_ALIGNMENT_LEFT, WORKSHOP_ACCENT))
+	content.add_child(_make_label("PERMANENT · APPLIES TO EVERY RUN", 10, HORIZONTAL_ALIGNMENT_LEFT, WORKSHOP_ACCENT))
+
+	# Give both permanent systems a named, full-size entrance. They share the
+	# Workshop's Coin/Gem preparation space, but neither is a Workshop row.
+	var progression_row := HBoxContainer.new()
+	progression_row.add_theme_constant_override("separation", 8)
+	content.add_child(progression_row)
+	lab_research_button = _make_door("LABS", LABS_ACCENT, _open_lab_research_sheet)
+	progression_row.add_child(lab_research_button)
+	card_collection_button = _make_door("CARDS", CARDS_ACCENT, _open_card_collection_sheet)
+	progression_row.add_child(card_collection_button)
+	content.add_child(_make_label("RESEARCH WITH COINS · EQUIP CARDS PULLED WITH GEMS", 10, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
 
 	var category_row := HBoxContainer.new()
 	category_row.add_theme_constant_override("separation", 8)
@@ -3017,22 +3018,6 @@ func _make_label(content: String, font_size: int, alignment: HorizontalAlignment
 ## label layout — used by compact stat-tile cards (Labs' focus tiles, locked
 ## panels) so each can show a small title line and a large value line, which
 ## a plain Button (one font size for its whole text) cannot do on its own.
-## A compact header button: an icon and nothing else, sized to stay legible
-## next to a title on the narrowest supported phone width.
-func _make_icon_only_button(icon_kind: int, colour: Color, tooltip: String) -> Button:
-	var button := Button.new()
-	button.text = ""
-	button.flat = true
-	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(30, 30)
-	button.tooltip_text = tooltip
-	var centre := CenterContainer.new()
-	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	button.add_child(centre)
-	centre.add_child(IconGlyph.new(icon_kind, colour, 17.0))
-	return button
-
 func _make_tile_button() -> Button:
 	var button := Button.new()
 	button.text = ""
