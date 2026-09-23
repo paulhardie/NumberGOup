@@ -48,6 +48,26 @@ Measured on 23 September 2026 with `tools/career_simulator.gd`: 40 runs from a f
 
 *Re-measured after D046 (Hit scale 1.7), new ladder:* without run Upgrades, wave 30 on run 8 against today's run 5, and wave 100 not reached within 40 runs against today's run 34 (7.3 h); buying run Upgrades, wave 100 on run 28 (6.2 h) against today's run 22 (5.2 h). The harder Hit widens what gates cost a player who never buys run Upgrades.
 
+#### How The Tower prices its gates
+
+From the community wikis ([Fandom](https://the-tower-idle-tower-defense.fandom.com/wiki/Workshop_Upgrades), [Game Vault](https://the-tower-idle-tower-defense.game-vault.net/wiki/Workshop)); community data, not developer data, and prices can change between versions:
+
+| Tab | Free from the start | Gates, in order (Coins) |
+| --- | --- | --- |
+| Attack | Damage, Attack Speed, Crit Chance, Crit Factor, Range, Damage / Meter | Multishot 400 · Rapid Fire 1,500 · Bounce Shot 10,000 · Super Crit 100 million · Rend Armor 500 billion |
+| Defense | Health, Health Regen, Defense %, Defense Absolute | Thorns 500 · Lifesteal 2,000 · Knockback 5,000 · Orbs 15,000 · Shockwave 100,000 · Land Mines 400,000 · Death Defy 1.5 million · Wall 500 million |
+| Utility | Cash Bonus, Cash / Wave, Coins / Kill Bonus, Coins / Wave | Free Upgrades 800 · Interest 5,000 · Recovery Packages 1.5 million · Enemy Level Skip 1 billion |
+
+Its rules, read from that table:
+
+1. **Core stats are never gated.** 14 of 48 rows are free, and every gate opens a new mechanic.
+2. **The tabs open at different prices** (Attack 400, Defense 500, Utility 800), so there is never a three-way tie for the first unlock.
+3. **A cheap band, then a cliff.** Inside each tab's early band each gate costs 2.5–7× the last; then the price jumps 300–10,000× to a gate that belongs to a much later economy. Defense has the longest cheap band (seven gates to 1.5 million), Utility the shortest (two).
+4. **Chance-and-strength pairs open together** (Multishot Chance and Targets, Land Mine Chance, Damage and Radius).
+
+*Measured with the career simulator (`--layout tower`):* The Tower's shape for our existing rows, its prices divided by 4 so its first Attack gate is one of our first runs, our own rows in the slot nearest their job, and its end-game gates past Tier 1's economy. Without run Upgrades: wave 30 on run 8 and wave 100 not reached within 40 runs, the same as the current plan. Buying run Upgrades: wave 100 on run 30 (6.9 h), against 6.2 for the current plan and 5.2 with no gates. Two things cost it time. Every Tier 1 wall is a boss wave, so Boss Damage, which The Tower has no row for, matters from the first run, and the Tower slot puts it at 2,500. And with ten rows free, the simulated player's even spread puts its first runs' Coins into Cushion and Crit rather than damage; a player who focuses would lose less, so this part is the simulator's assumption rather than a finding.
+
+
 
 ### Attack
 
