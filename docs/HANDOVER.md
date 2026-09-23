@@ -1,11 +1,11 @@
 # Handover
 
-**Last updated:** 23 September 2026, after D046 raised the Hit's scale to 1.7 so balance target 5 (wave 100 needs Defense) holds again. D044 (run ranks capped, worth 2) and D045 (the Rig is called Upgrades) are merged to `main`.
+**Last updated:** 23 September 2026, after the Tower-matched review of the Workshop ladders. D044–D046 are merged to `main`; the gate research, focused player and ladder review are on branch `claude/game-changes-review-fbili3`.
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
 
 ## Where the game is
 
-`main` plus branch `claude/game-changes-review-fbili3` (D046, not yet merged) plays like this (seed 7 simulator figures, Godot 4.7.2, balance profile `tax-foundation-v10`; nothing below has been checked on a phone):
+`main` plays like this (seed 7 simulator figures, Godot 4.7.2, balance profile `tax-foundation-v10`; nothing below has been checked on a phone):
 
 - **The core loop (D037, D038):** everything you produce is Number and also damages the wave. A beaten wave gives way to the next after 2.5 seconds. A missed ordinary wave hits once and moves on, paying Coins for the share you cleared. Bosses, every 10th wave, stay and hit every 15 seconds until you beat them. Guard cuts the Hit by a flat amount before Armor's percentage.
 - **Run Upgrades (the Rig in code; D042, D044, D045):** during a run all 21 Workshop rows can be raised with run-only Cash; Number is never spent on them.
@@ -29,12 +29,12 @@
 
 ## Open decisions for the owner
 
-1. **Merge D046** (branch `claude/game-changes-review-fbili3`).
+1. **The ladder decisions** in the [Tower-matched review](WORKSHOP_LADDERS.md#tower-matched-review--23-september-2026), and merging branch `claude/game-changes-review-fbili3` (tools and docs only).
 2. **Save schema V9.** `cash` and `run_cash_earned` widened V8 instead of bumping it, which D028 rules out. Recommended: bump to V9 with a V8 migration, together with coin gates' `workshop_unlocks` if those are accepted. **Clash:** unmerged branch `codex/prestige-run-summary` already calls its own save change "V9" (persisted run summaries); whichever lands second must become V10.
 3. **The Tower parity plan and coin gates** ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md#tower-parity-plan-and-coin-gates--proposed-23-september-2026)): the gate model, the measured ladder (first gates 100, 250, 500), Crit free from the start (owner direction), gates costing a focused player about 40% more time to wave 100, the starter rows, run Upgrades selling only unlocked rows, each new mechanic, and three primitives (movable Hit timer, wave queue, difficulty counter).
 4. **Tier unlock wave:** still 100 (`TIER_UNLOCK_WAVE`).
 5. **Coins per minute (balance target 2):** above target since D037. Accept and restate, or bring Coins down.
-6. **The Workshop ladders** ([`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md)): **proposed, not built** — every row still stops at 50–100 ranks. The proposal: 5,000-rank core rows, 1,000-rank long rows, a band per tier, `data/workshop/` as the single source. A focused player reaches Tier 2 in three to seven hours on today's ladders.
+6. **The Workshop ladders** ([`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md#tower-matched-review--23-september-2026)): **proposed, not built** — every row still stops at 50–100 ranks, and a focused player reaches Tier 2 in three to seven hours. The Tower-matched review recommends Tap Damage and Damage per Second to 6,000 ranks and Guard to 5,000 on The Tower's curve, everything else capped at Tower-like counts, and no tier bands; a maxed Workshop then reaches wave 830 in Tier 1 (today's maxed: 120). Open: how many hours maxing should take, and what happens between there and the wave 5,000 milestone (Wave HP about 10^40).
 7. **Still open from before:** Bounty, Finisher, Streak, Payback and Auto Tap; the Tiers 1–10 proposal ([`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md)); the play-folder sync rule on branch `claude/sync-play-checkout`; enemy-growth suppression ([`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md)).
 
 ## Next steps, in order
