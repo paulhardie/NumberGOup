@@ -295,6 +295,8 @@ The cost of that is real: a player can spend themselves to death. The panel ther
 
 ### What it costs
 
+**Superseded by [D039](DECISIONS.md) (23 September 2026):** a rank now costs `k` × 5 seconds of the player's steady income × 1.4 per rank already owned, with no warm-up discount, because wave-priced ranks jumped from about 12 to 400–700 Number after the second purchase. The wave-priced design below is kept as history.
+
 A flat Number price cannot work across tiers, because Tier 2 Number is twenty times Tier 1's from wave 1. Rig prices are quoted against the wave instead of in absolutes:
 
 ```
@@ -318,6 +320,8 @@ Rig ranks are uncapped; cost growth is the only limit. *Rejected: capping Rig ra
 **The rank's worth is the tuned value (D023), not the price.** One Rig rank grants three Workshop ranks' worth of its effect, because the Number it spends was the hit buffer it has to beat. The alternative — cheaper ranks at one-to-one effect — was measured and rejected: k=0.2 with 1.15 growth turned the game into a runaway (mid reached wave 204, top builds never died). The combined defensive effects also gained ceilings: Armor never takes more than 75% off a hit, Siphon never banks more than half the damage dealt, Recoil never returns more than the hit itself.
 
 ### The Rig's measured targets (step 7 core)
+
+**Superseded measurements (D039, 23 September 2026):** the table below was measured with wave-priced ranks. With income-priced ranks, seed 7 at two taps a second: fresh 29 hoarding against 25 spending, early 30 against 29, mid 50 against 50 (in 8.1 rather than 10.3 minutes, with more Coins), max Attack 105 against 125, everything maxed 130 against 164. Targets 7 and 9 hold; purchases thin to 1–11 in a top run's last ten minutes rather than stopping. `run_balance.sh` prints a price-growth sweep beside the multiplier sweep.
 
 **Implemented (2026-09-22):** run-scoped ranks in `GameState` with prices from `TaxBalanceProfile` and the D023 multiplier, stacking with Workshop ranks, saved in the active-run block and cleared by every ending. The panel shipped the same day and sits below the Number (D032). `tools/balance_simulator.gd` plays a reinvest policy — bank on cleared waves, never spend the Number that covers the next two hits, compounding rows first, Boss Damage ahead of a boss — and reports targets 7–9. At the swept value M=3:
 

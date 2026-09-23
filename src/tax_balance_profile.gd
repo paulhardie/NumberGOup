@@ -6,7 +6,7 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v5"
+const PROFILE_ID := "tax-foundation-v6"
 const WAVE_INTERVAL_SECONDS := 15.0
 const BOSS_WAVE_INTERVAL := 10
 ## A beaten wave stays on screen at least this long before the next arrives
@@ -37,9 +37,8 @@ const BOSS_REWARD_MULTIPLIER := 5.0
 
 ## The Tier 1 opening (D033, D036): warm-up wave HP and hit at wave 1 and how much
 ## each grows per wave, what a warm-up boss multiplies them by, the Number a run with
-## a warm-up starts with, output every run has before any Workshop rank, and
-## the share of the first full wave's HP the Rig quotes for a run's first few
-## purchases during the warm-up.
+## a warm-up starts with, and output every run has before any Workshop rank.
+## (The warm-up's discounted Rig prices were retired by D039.)
 const WARM_UP_START_HP := 20.0
 const WARM_UP_HP_GROWTH := 1.08
 const WARM_UP_START_HIT := 1.0
@@ -48,8 +47,6 @@ const WARM_UP_BOSS_HP := 1.4
 const WARM_UP_BOSS_HIT := 1.4
 const WARM_UP_STARTING_NUMBER := 50.0
 const BASE_DAMAGE_PER_SECOND := 1.0
-const RIG_WARM_UP_PRICE_SCALE := 0.05
-const RIG_WARM_UP_DISCOUNTED_PURCHASES := 2
 const TIER_ONE_TRANSITION_LAST_WAVE := 25
 const TIER_ONE_TRANSITION_HIT_GROWTH := 2.0
 
@@ -174,19 +171,28 @@ func milestone_gems(tier_id: int, wave: int) -> int:
 func wave_gems(wave: int) -> int:
 	return BOSS_WAVE_GEMS if is_boss_wave(wave) else 0
 
-## The Rig (D015): run-scoped ranks bought with Number during a run. Prices are
-## quoted against the wave's HP rather than in absolute Number, so one table
-## scales across tiers and depth with no per-tier data. These coefficients are
-## the design's starting proposals until the balance simulator tunes them.
+## The Rig (D015): run-scoped ranks bought with Number during a run. Since
+## D039 a rank is priced in seconds of the player's own steady income, not in
+## Wave HP: `k` times RIG_PRICE_SECONDS of income, times the row's growth per
+## rank already owned. The price follows what the player makes, so it stays in
+## proportion at every tier and depth with no per-tier data, and a purchase
+## that raises income raises the next price with it.
+const RIG_PRICE_SECONDS := 5.0
 const RIG_COST_K := {
 	"attack": 1.0,
 	"defense": 1.0,
 	"utility": 2.0,
 }
-const RIG_COST_GROWTH := {
-	"attack": 1.7,
-	"defense": 1.6,
-	"utility": 1.5,
+## Each rank of a row costs this many times the last, at the same income.
+## Swept at 1.3-1.6 (D039): 1.4 keeps the climb gentle while top builds still
+## stop buying before a run turns endless. At a fresh start six ranks of a row
+## that does not raise income cost 10, 14, 20, 27, 38, 54; a row that does,
+## such as Damage per Second, climbs a little faster (10, 16, 24, 37, 56).
+## Mutable so the balance simulator can sweep it.
+var RIG_COST_GROWTH := {
+	"attack": 1.4,
+	"defense": 1.4,
+	"utility": 1.4,
 }
 ## Which rows the Rig sells: the shared catalogue minus the rows whose value is
 ## decided before a run starts. Brace is the Defense tab's first row as a free
@@ -230,23 +236,13 @@ const COLLECTION_RESISTANCE_CEILING := 0.75
 const SIPHON_CEILING := 0.5
 const RECOIL_CEILING := 1.0
 
-## One rank costs `k` waves' worth of HP at the first rank and grows from there.
-## Ranks are uncapped; cost growth is the only limit (D015).
-func rig_cost(category: String, rank: int, reference_hp: ScientificNumber) -> ScientificNumber:
+## One rank costs `k` times RIG_PRICE_SECONDS of the given income at the first
+## rank and grows from there (D039). Ranks are uncapped; cost growth against
+## the income each rank adds is the only limit (D015).
+func rig_cost(category: String, rank: int, income_per_second: float) -> ScientificNumber:
 	var scale := float(RIG_COST_K.get(category, 1.0))
-	var growth := float(RIG_COST_GROWTH.get(category, 1.7))
-	return reference_hp.multiply_scalar(scale * pow(growth, float(maxi(0, rank))))
-
-## The price floor: the tier's first pressured wave, so Tier 1's warm-up waves
-## cannot make the whole panel free.
-func rig_reference_hp(tier_id: int, wave: int) -> ScientificNumber:
-	var first_pressured: int = get_tier(tier_id).free_waves + 1
-	return liability_for_wave(tier_id, maxi(wave, first_pressured))
-
-## What the warm-up's discounted Rig ranks are quoted against (D033): a share
-## of the first full wave's HP.
-func rig_warm_up_reference_hp(tier_id: int) -> ScientificNumber:
-	return liability_for_wave(tier_id, get_tier(tier_id).free_waves + 1).multiply_scalar(RIG_WARM_UP_PRICE_SCALE)
+	var growth := float(RIG_COST_GROWTH.get(category, 1.4))
+	return ScientificNumber.from_float(RIG_PRICE_SECONDS * maxf(income_per_second, BASE_DAMAGE_PER_SECOND) * scale * pow(growth, float(maxi(0, rank))))
 
 func _from_log10(value_log: float) -> ScientificNumber:
 	if not is_finite(value_log):
