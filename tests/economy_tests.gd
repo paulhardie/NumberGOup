@@ -1633,9 +1633,8 @@ func _test_high_wave_values_remain_valid() -> void:
 		_expect(not liability.is_zero() and liability.exponent > 0, "high-wave Liability should remain a valid ScientificNumber")
 		_expect(not collection.is_zero() and collection.exponent > 0, "high-wave Collection should remain a valid ScientificNumber")
 
-## The Rig (D015) is priced against the wave, not in absolute Number, so one
-## table scales across tiers and depth. Attack and Defense start at one wave of
-## HP with 1.7 and 1.6 growth; Utility starts at two waves with 1.5.
+## Rig prices follow the player's income (D039), not the wave, so one table
+## scales across tiers and depth without jumping when a harder wave arrives.
 func _test_rig_cost_is_quoted_in_seconds_of_income() -> void:
 	# D039: a rank costs k x RIG_PRICE_SECONDS of the steady income, x the
 	# row's growth per rank owned. A fresh run makes 1 a second plus one tap.
@@ -1645,7 +1644,7 @@ func _test_rig_cost_is_quoted_in_seconds_of_income() -> void:
 	_expect(is_equal_approx(state.get_rig_income_rate(), 2.0), "a fresh run's steady income should be the base 1 a second plus one tap")
 	var first := state.get_rig_cost("stronger_tap", 0)
 	_expect(first.compare_to(ScientificNumber.from_float(profile.RIG_PRICE_SECONDS * 2.0)) == 0, "the first Attack rank should cost five seconds of income at k=1")
-	_expect(state.get_rig_cost("stronger_tap", 1).compare_to(first.multiply_scalar(profile.RIG_COST_GROWTH.attack)) == 0, "each rank should cost the row's growth times the last")
+	_expect(state.get_rig_cost("stronger_tap", 1).compare_to(first.multiply_scalar(profile.RIG_COST_GROWTH.attack)) == 0, "a named rank should be quoted at today's income times the row's growth")
 	_expect(state.get_rig_cost(GameState.ARMOR_ID, 0).compare_to(first) == 0, "the first Defense rank should cost the same at k=1")
 	_expect(state.get_rig_cost("coin_bonus", 0).compare_to(first.multiply_scalar(2.0)) == 0, "the first Utility rank should cost twice as much at k=2")
 	# Income, not the wave, moves the price: a boss does not raise it, and a
@@ -1659,6 +1658,16 @@ func _test_rig_cost_is_quoted_in_seconds_of_income() -> void:
 	var before := state.get_rig_cost(GameState.ARMOR_ID)
 	state.purchase_rig("generator")
 	_expect(state.get_rig_cost(GameState.ARMOR_ID).compare_to(before) > 0, "a rank that raises income should raise every next price")
+	# A row that raises income climbs a little faster than its growth, and a
+	# single-rank quote always matches what that rank then costs.
+	var ladder := GameState.new()
+	ladder.start_run(1, 5)
+	ladder.number = ScientificNumber.new(1.0, 9)
+	for rank in range(8):
+		var quoted: ScientificNumber = ladder.plan_rig_purchase("generator", 1).cost
+		var price := ladder.get_rig_cost("generator")
+		_expect(quoted.compare_to(price) == 0, "a one-rank quote should equal the live price (rank " + str(rank + 1) + ")")
+		ladder.purchase_rig("generator")
 	var poor := GameState.new()
 	poor.purchased = {}
 	_expect(poor.balance_profile.rig_cost(ProgressionTaxonomy.ATTACK, 0, 0.0).compare_to(ScientificNumber.from_float(profile.RIG_PRICE_SECONDS)) == 0, "a price should never fall below the base income's worth")

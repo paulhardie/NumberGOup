@@ -63,7 +63,7 @@ Without Knowledge, the same player is still stuck in Tier 2 at 150 hours.
 
 ### Runs are long, and the Rig loses to hoarding
 
-Every wave lasts its full 15 seconds even when it breaks in one. The model's push runs to wave 100 take 44–51 minutes; the simulator's maxed Attack build takes 39. The Rig, meanwhile, still loses to simply keeping the Number at early and mid builds (wave 25 against 30, wave 40 against 50). That is because a Rig rank is worth three *deep-ladder* Workshop ranks (D019 divided each rank's effect by about 20), and it is priced against the wave's HP, not against what the player can do. At a fresh build a rank is worth about +2%.
+Every wave lasts its full 15 seconds even when it breaks in one. The model's push runs to wave 100 take 44–51 minutes; the simulator's maxed Attack build takes 39. The Rig, meanwhile, still loses to simply keeping the Number at early and mid builds (wave 25 against 30, wave 40 against 50). That is because a Rig rank is worth three *deep-ladder* Workshop ranks (D019 divided each rank's effect by about 20), and it is priced against the wave's HP, not against what the player can do. *(Since D039, 23 September 2026, ranks are priced in seconds of the player's income; their effects are unchanged.)* At a fresh build a rank is worth about +2%.
 
 ### Attack is also Defense
 

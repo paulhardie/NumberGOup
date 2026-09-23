@@ -606,7 +606,10 @@ func rig_rank_equivalent(definition: UpgradeDefinition) -> float:
 ## out the boss-only bonus, so prices do not jump while a boss stands, and it
 ## rises with every Rig rank that adds damage, so the next price rises too.
 func get_rig_income_rate() -> float:
-	return (_passive_base() * _tick_rate() + _tap_base()) * _base_output_multiplier() * _momentum_multiplier() + balance_profile.BASE_DAMAGE_PER_SECOND
+	return _rig_income(_passive_base(), _tap_base(), _tick_rate(), _base_output_multiplier() * _momentum_multiplier())
+
+func _rig_income(passive: float, tap_value: float, ticks: float, multiplier: float) -> float:
+	return (passive * ticks + tap_value) * multiplier + balance_profile.BASE_DAMAGE_PER_SECOND
 
 ## The Number price of the row's next rank, or of a named rank for a quote.
 func get_rig_cost(upgrade_id: String, rank: int = -1) -> ScientificNumber:
@@ -627,7 +630,9 @@ func can_purchase_rig(upgrade_id: String) -> bool:
 ## Quote the ranks a single Rig press can afford, priced one rank at a time.
 ## Each rank can raise income and so the next price (D039), so the quote
 ## prices every rank at the income it would have by then, exactly as buying
-## the same ranks singly would.
+## the same ranks singly would. Only the quoted row's own effect changes as
+## its ranks rise, so the income parts are read once and that effect applied
+## per rank: the Rig panel re-quotes every card several times a second.
 func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
 	var refused := {"ranks": 0, "cost": ScientificNumber.new()}
 	if not in_run or (count != MAX_BUY and count <= 0):
@@ -636,11 +641,32 @@ func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
 	if definition == null or not balance_profile.rig_has_row(definition.workshop_category, upgrade_id):
 		return refused
 	var owned := rig_owned(upgrade_id)
+	var worth := balance_profile.rig_effect_multiplier(definition.workshop_category, upgrade_id)
+	var passive := _passive_base()
+	var tap_value := _tap_base()
+	var ticks := _tick_rate()
+	var multiplier := _base_output_multiplier()
+	var momentum := _momentum_multiplier()
 	var spent := ScientificNumber.new()
 	var ranks := 0
 	while count == MAX_BUY or ranks < count:
-		rig_ranks[upgrade_id] = owned + ranks
-		var step := get_rig_cost(upgrade_id)
+		var extra := float(ranks) * worth
+		var p := passive
+		var t := tap_value
+		var r := ticks
+		var m := multiplier
+		for effect in definition.effects:
+			var per_rank := float(definition.effects[effect])
+			match effect:
+				"passive_flat":
+					p += per_rank * extra
+				"tap_flat":
+					t += per_rank * extra
+				"tick_rate":
+					r *= pow(per_rank, extra)
+				"base_output_multiplier":
+					m *= pow(per_rank, extra)
+		var step := balance_profile.rig_cost(definition.workshop_category, owned + ranks, _rig_income(p, t, r, m * momentum))
 		if step.is_zero():
 			break
 		var next_spent := spent.add(step)
@@ -648,10 +674,6 @@ func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
 			break
 		spent = next_spent
 		ranks += 1
-	if owned > 0:
-		rig_ranks[upgrade_id] = owned
-	else:
-		rig_ranks.erase(upgrade_id)
 	return {"ranks": ranks, "cost": spent}
 
 func purchase_rig_ranks(upgrade_id: String, count: int = 1) -> int:

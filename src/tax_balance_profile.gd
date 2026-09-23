@@ -6,7 +6,7 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v5"
+const PROFILE_ID := "tax-foundation-v6"
 const WAVE_INTERVAL_SECONDS := 15.0
 const BOSS_WAVE_INTERVAL := 10
 ## A beaten wave stays on screen at least this long before the next arrives
@@ -37,9 +37,8 @@ const BOSS_REWARD_MULTIPLIER := 5.0
 
 ## The Tier 1 opening (D033, D036): warm-up wave HP and hit at wave 1 and how much
 ## each grows per wave, what a warm-up boss multiplies them by, the Number a run with
-## a warm-up starts with, output every run has before any Workshop rank, and
-## the share of the first full wave's HP the Rig quotes for a run's first few
-## purchases during the warm-up.
+## a warm-up starts with, and output every run has before any Workshop rank.
+## (The warm-up's discounted Rig prices were retired by D039.)
 const WARM_UP_START_HP := 20.0
 const WARM_UP_HP_GROWTH := 1.08
 const WARM_UP_START_HIT := 1.0
@@ -184,9 +183,11 @@ const RIG_COST_K := {
 	"defense": 1.0,
 	"utility": 2.0,
 }
-## Each rank of a row costs this many times the last. Swept at 1.3-1.6 (D039):
-## 1.4 keeps the climb gentle (six ranks of one row: 10, 14, 20, 27, 38, 54 at
-## a fresh start) while top builds still stop buying before a run turns endless.
+## Each rank of a row costs this many times the last, at the same income.
+## Swept at 1.3-1.6 (D039): 1.4 keeps the climb gentle while top builds still
+## stop buying before a run turns endless. At a fresh start six ranks of a row
+## that does not raise income cost 10, 14, 20, 27, 38, 54; a row that does,
+## such as Damage per Second, climbs a little faster (10, 16, 24, 37, 56).
 ## Mutable so the balance simulator can sweep it.
 var RIG_COST_GROWTH := {
 	"attack": 1.4,
@@ -240,7 +241,7 @@ const RECOIL_CEILING := 1.0
 ## the income each rank adds is the only limit (D015).
 func rig_cost(category: String, rank: int, income_per_second: float) -> ScientificNumber:
 	var scale := float(RIG_COST_K.get(category, 1.0))
-	var growth := float(RIG_COST_GROWTH.get(category, 1.3))
+	var growth := float(RIG_COST_GROWTH.get(category, 1.4))
 	return ScientificNumber.from_float(RIG_PRICE_SECONDS * maxf(income_per_second, BASE_DAMAGE_PER_SECOND) * scale * pow(growth, float(maxi(0, rank))))
 
 func _from_log10(value_log: float) -> ScientificNumber:

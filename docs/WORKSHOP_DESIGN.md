@@ -321,6 +321,8 @@ Rig ranks are uncapped; cost growth is the only limit. *Rejected: capping Rig ra
 
 ### The Rig's measured targets (step 7 core)
 
+**Superseded measurements (D039, 23 September 2026):** the table below was measured with wave-priced ranks. With income-priced ranks, seed 7 at two taps a second: fresh 29 hoarding against 25 spending, early 30 against 29, mid 50 against 50 (in 8.1 rather than 10.3 minutes, with more Coins), max Attack 105 against 125, everything maxed 130 against 164. Targets 7 and 9 hold; purchases thin to 1–11 in a top run's last ten minutes rather than stopping. `run_balance.sh` prints a price-growth sweep beside the multiplier sweep.
+
 **Implemented (2026-09-22):** run-scoped ranks in `GameState` with prices from `TaxBalanceProfile` and the D023 multiplier, stacking with Workshop ranks, saved in the active-run block and cleared by every ending. The panel shipped the same day and sits below the Number (D032). `tools/balance_simulator.gd` plays a reinvest policy — bank on cleared waves, never spend the Number that covers the next two hits, compounding rows first, Boss Damage ahead of a boss — and reports targets 7–9. At the swept value M=3:
 
 | Build | Wave (hoarding) | Wave (Rig) | Rig ranks | Purchases in last 10 min |
