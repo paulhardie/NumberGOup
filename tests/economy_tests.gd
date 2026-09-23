@@ -42,7 +42,7 @@ func _init() -> void:
 	_test_cushion_scales_with_the_tier()
 	_test_boss_damage_applies_only_to_bosses()
 	_test_coin_and_knowledge_bonuses_lift_what_a_run_pays()
-	_test_rig_cost_is_quoted_against_wave_hp()
+	_test_rig_cost_is_quoted_in_seconds_of_income()
 	_test_rig_purchase_spends_number_and_stacks()
 	_test_rig_multi_buy_quotes_and_spends()
 	_test_rig_is_run_scoped()
@@ -775,35 +775,30 @@ func _test_tier_one_opening() -> void:
 	stuck._resolve_wave_boundary()
 	_expect(stuck.wave == 10, "a warm-up boss should stay until beaten")
 
-	# The run's first Rig purchases are cheap during the warm-up; later ones,
-	# and any after the warm-up, pay the full price.
+	# D039: a fresh run's first Rig ranks cost a few seconds of its income, and
+	# repeated purchases climb gently rather than jumping to a wave's HP.
 	var rig := GameState.new()
 	rig.start_run(1, 3)
 	var opening_cost: ScientificNumber = rig.get_rig_cost("generator")
-	_expect(opening_cost.compare_to(ScientificNumber.from_float(12.0)) < 0, "the first Rig rank should cost about 12 Number")
+	_expect(opening_cost.compare_to(ScientificNumber.from_float(12.0)) <= 0, "the first Rig rank should cost about 10 Number")
 	_expect(rig.purchase_rig("generator") and rig.purchase_rig("stronger_tap"), "both opening Rig ranks should be affordable immediately")
 	_expect(rig.number.compare_to(ScientificNumber.from_float(25.0)) > 0, "two opening purchases should leave over half the starting Number")
-	var repeat := GameState.new()
-	repeat.start_run(1, 3)
-	_expect(repeat.purchase_rig("generator") and repeat.get_rig_cost("generator").compare_to(opening_cost) == 0, "a repeated second rank should keep the same opening price")
-	var mixed := GameState.new()
-	mixed.start_run(1, 3)
-	_expect(mixed.get_rig_cost("coin_bonus").compare_to(opening_cost) == 0, "the Utility category should keep the same opening price")
-	_expect(mixed.purchase_rig("coin_bonus") and mixed.get_rig_cost("generator").compare_to(opening_cost) == 0, "a mixed-category pair should keep the same opening price")
-	rig = GameState.new()
-	rig.start_run(1, 3)
-	rig.number = ScientificNumber.new(1.0, 9)
-	var discounted: ScientificNumber = profile.rig_warm_up_reference_hp(1)
-	_expect(rig.get_rig_cost("generator").compare_to(discounted) == 0, "the first warm-up purchase should be discounted")
-	rig.purchase_rig("generator")
-	_expect(rig.get_rig_cost("stronger_tap").compare_to(discounted) == 0, "the second warm-up purchase should be discounted too, whatever the row")
-	rig.purchase_rig("stronger_tap")
-	_expect(rig.get_rig_cost("generator_two").compare_to(profile.liability_for_wave(1, 21)) == 0, "the third should pay the full warm-up price")
+	var climb := GameState.new()
+	climb.start_run(1, 3)
+	climb.number = ScientificNumber.new(1.0, 9)
+	var last := climb.get_rig_cost("stronger_tap")
+	for rank in range(12):
+		climb.purchase_rig("stronger_tap")
+		var next := climb.get_rig_cost("stronger_tap")
+		var ratio := pow(10.0, next.log10() - last.log10())
+		_expect(ratio > 1.0 and ratio < 1.6, "each Rig rank should cost a little more than the last, never a cliff (rank " + str(rank + 2) + ")")
+		last = next
 	var late := GameState.new()
 	late.start_run(1, 3)
-	late.wave = 21
-	late.active_encounter = late._make_encounter(21)
-	_expect(late.get_rig_cost("generator").compare_to(profile.liability_for_wave(1, 21)) == 0, "past the warm-up no purchase should be discounted")
+	var early_price := late.get_rig_cost("generator")
+	late.wave = 29
+	late.active_encounter = late._make_encounter(29)
+	_expect(late.get_rig_cost("generator").compare_to(early_price) == 0, "a harder wave should not raise the price by itself")
 
 func _test_tier_pressure_and_curve_gates() -> void:
 	var state := GameState.new()
@@ -1641,23 +1636,32 @@ func _test_high_wave_values_remain_valid() -> void:
 ## The Rig (D015) is priced against the wave, not in absolute Number, so one
 ## table scales across tiers and depth. Attack and Defense start at one wave of
 ## HP with 1.7 and 1.6 growth; Utility starts at two waves with 1.5.
-func _test_rig_cost_is_quoted_against_wave_hp() -> void:
-	var state := _funded_state()
+func _test_rig_cost_is_quoted_in_seconds_of_income() -> void:
+	# D039: a rank costs k x RIG_PRICE_SECONDS of the steady income, x the
+	# row's growth per rank owned. A fresh run makes 1 a second plus one tap.
+	var state := GameState.new()
 	state.start_run(1, 5)
-	var floor_hp: ScientificNumber = state.balance_profile.liability_for_wave(1, 21)
-	_expect(state.get_rig_reference_hp().compare_to(floor_hp) == 0, "Tier 1 warm-up should quote Rig prices against the first pressured wave")
-	# Quoting a named rank reads the ladder itself; the warm-up discount (D033)
-	# applies only to the run's next purchase.
+	var profile = state.balance_profile
+	_expect(is_equal_approx(state.get_rig_income_rate(), 2.0), "a fresh run's steady income should be the base 1 a second plus one tap")
 	var first := state.get_rig_cost("stronger_tap", 0)
-	_expect(first.compare_to(floor_hp) == 0, "the first Attack rank should cost one wave of HP at k=1")
-	_expect(state.get_rig_cost("stronger_tap", 1).compare_to(first.multiply_scalar(1.7)) == 0, "each Attack rank should cost 1.7x the last")
-	_expect(state.get_rig_cost(GameState.ARMOR_ID, 0).compare_to(floor_hp) == 0, "the first Defense rank should cost one wave of HP at k=1")
-	_expect(state.get_rig_cost("coin_bonus", 0).compare_to(floor_hp.multiply_scalar(2.0)) == 0, "the first Utility rank should cost two waves of HP at k=2")
-	# A pressured wave moves the quote with its own HP.
+	_expect(first.compare_to(ScientificNumber.from_float(profile.RIG_PRICE_SECONDS * 2.0)) == 0, "the first Attack rank should cost five seconds of income at k=1")
+	_expect(state.get_rig_cost("stronger_tap", 1).compare_to(first.multiply_scalar(profile.RIG_COST_GROWTH.attack)) == 0, "each rank should cost the row's growth times the last")
+	_expect(state.get_rig_cost(GameState.ARMOR_ID, 0).compare_to(first) == 0, "the first Defense rank should cost the same at k=1")
+	_expect(state.get_rig_cost("coin_bonus", 0).compare_to(first.multiply_scalar(2.0)) == 0, "the first Utility rank should cost twice as much at k=2")
+	# Income, not the wave, moves the price: a boss does not raise it, and a
+	# rank that adds damage does.
+	state.purchased = {"boss_damage": 100}
+	var ordinary := state.get_rig_cost("stronger_tap")
 	state.wave = 30
 	state.active_encounter = state._make_encounter(30)
-	_expect(state.get_rig_reference_hp().compare_to(state.active_encounter.max_liability) == 0, "a pressured wave should quote against its own HP")
-	_expect(state.get_rig_cost("stronger_tap").compare_to(state.active_encounter.max_liability) == 0, "the quote should follow the current wave")
+	_expect(state.get_rig_cost("stronger_tap").compare_to(ordinary) == 0, "a boss's damage bonus should not raise Rig prices")
+	state.number = ScientificNumber.new(1.0, 9)
+	var before := state.get_rig_cost(GameState.ARMOR_ID)
+	state.purchase_rig("generator")
+	_expect(state.get_rig_cost(GameState.ARMOR_ID).compare_to(before) > 0, "a rank that raises income should raise every next price")
+	var poor := GameState.new()
+	poor.purchased = {}
+	_expect(poor.balance_profile.rig_cost(ProgressionTaxonomy.ATTACK, 0, 0.0).compare_to(ScientificNumber.from_float(profile.RIG_PRICE_SECONDS)) == 0, "a price should never fall below the base income's worth")
 
 func _test_rig_purchase_spends_number_and_stacks() -> void:
 	var state := _funded_state()
@@ -1680,13 +1684,21 @@ func _test_rig_purchase_spends_number_and_stacks() -> void:
 	_expect(state.rig_owned("stronger_tap") == cap + 1, "the Rig should hold ranks past the Workshop cap")
 
 func _test_rig_multi_buy_quotes_and_spends() -> void:
+	# An opening x5 press buys what it can afford, and exactly what buying the
+	# same ranks one at a time would: each rank raises income and the next price.
 	var fresh := GameState.new()
 	fresh.start_run(1, 7)
+	var one_by_one := GameState.new()
+	one_by_one.start_run(1, 7)
 	var partial := fresh.plan_rig_purchase("generator", 5)
-	_expect(int(partial.ranks) == 2, "an opening x5 press should quote only its two affordable discounted ranks")
+	_expect(int(partial.ranks) > 0 and int(partial.ranks) < 5, "an opening x5 press should quote only the ranks the starting Number affords")
+	_expect(fresh.rig_owned("generator") == 0 and not fresh.rig_ranks.has("generator"), "quoting should leave the run's Rig ranks untouched")
 	var before: ScientificNumber = fresh.number.copy()
-	_expect(fresh.purchase_rig_ranks("generator", 5) == 2, "an opening x5 press should buy both affordable ranks")
-	_expect(fresh.number.compare_to(before.subtract(partial.cost)) == 0 and fresh.rig_owned("generator") == 2, "the opening bulk press should spend exactly its quote and grant two ranks")
+	_expect(fresh.purchase_rig_ranks("generator", 5) == int(partial.ranks), "an opening x5 press should buy exactly the quoted ranks")
+	_expect(fresh.number.compare_to(before.subtract(partial.cost)) == 0, "the opening bulk press should spend exactly its quote")
+	for rank in range(int(partial.ranks)):
+		one_by_one.purchase_rig("generator")
+	_expect(one_by_one.number.compare_to(fresh.number) == 0 and one_by_one.rig_owned("generator") == fresh.rig_owned("generator"), "a bulk press should cost exactly what the same ranks cost singly")
 
 	var bulk := _funded_state()
 	var singles := _funded_state()

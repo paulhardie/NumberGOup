@@ -295,6 +295,8 @@ The cost of that is real: a player can spend themselves to death. The panel ther
 
 ### What it costs
 
+**Superseded by [D039](DECISIONS.md) (23 September 2026):** a rank now costs `k` × 5 seconds of the player's steady income × 1.4 per rank already owned, with no warm-up discount, because wave-priced ranks jumped from about 12 to 400–700 Number after the second purchase. The wave-priced design below is kept as history.
+
 A flat Number price cannot work across tiers, because Tier 2 Number is twenty times Tier 1's from wave 1. Rig prices are quoted against the wave instead of in absolutes:
 
 ```

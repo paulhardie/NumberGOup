@@ -601,13 +601,12 @@ func rig_rank_equivalent(definition: UpgradeDefinition) -> float:
 		return 0.0
 	return ranks * balance_profile.rig_effect_multiplier(definition.workshop_category, definition.id)
 
-## The Rig's price reference: the current wave's full HP, floored at the tier's
-## first pressured wave so warm-up cannot make the panel free (D015).
-func get_rig_reference_hp() -> ScientificNumber:
-	var floor_hp := balance_profile.rig_reference_hp(selected_tier, wave)
-	if active_encounter != null and active_encounter.max_liability.compare_to(floor_hp) > 0:
-		return active_encounter.max_liability.copy()
-	return floor_hp
+## What the Rig's prices are quoted against (D039): the Number a steady player
+## makes each second, which is the passive rate plus one tap a second. It leaves
+## out the boss-only bonus, so prices do not jump while a boss stands, and it
+## rises with every Rig rank that adds damage, so the next price rises too.
+func get_rig_income_rate() -> float:
+	return (_passive_base() * _tick_rate() + _tap_base()) * _base_output_multiplier() * _momentum_multiplier() + balance_profile.BASE_DAMAGE_PER_SECOND
 
 ## The Number price of the row's next rank, or of a named rank for a quote.
 func get_rig_cost(upgrade_id: String, rank: int = -1) -> ScientificNumber:
@@ -615,15 +614,7 @@ func get_rig_cost(upgrade_id: String, rank: int = -1) -> ScientificNumber:
 	if definition == null or not balance_profile.rig_has_row(definition.workshop_category, upgrade_id):
 		return ScientificNumber.new()
 	var at_rank := rig_owned(upgrade_id) if rank < 0 else rank
-	# A run's first Rig purchases are cheap during the warm-up (D033, D034), so
-	# a new player buys within seconds; only the first few of the run, whatever
-	# the row, so a strong build cannot stock a run with cut-price ranks.
-	var reference := get_rig_reference_hp()
-	if rank < 0 and rig_ranks_bought() < balance_profile.RIG_WARM_UP_DISCOUNTED_PURCHASES and not balance_profile.is_pressured_wave(selected_tier, wave):
-		# The first two buys are the same opening price even across categories or
-		# repeat ranks. Their job is to teach the Rig without emptying the buffer.
-		return balance_profile.rig_warm_up_reference_hp(selected_tier)
-	return balance_profile.rig_cost(definition.workshop_category, at_rank, reference)
+	return balance_profile.rig_cost(definition.workshop_category, at_rank, get_rig_income_rate())
 
 func can_purchase_rig(upgrade_id: String) -> bool:
 	if not in_run:
@@ -633,8 +624,10 @@ func can_purchase_rig(upgrade_id: String) -> bool:
 		return false
 	return number.compare_to(get_rig_cost(upgrade_id)) >= 0
 
-## Quote the ranks a single Rig press can afford. The two opening discounts
-## count purchases across all rows, so a bulk quote must consume them in order.
+## Quote the ranks a single Rig press can afford, priced one rank at a time.
+## Each rank can raise income and so the next price (D039), so the quote
+## prices every rank at the income it would have by then, exactly as buying
+## the same ranks singly would.
 func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
 	var refused := {"ranks": 0, "cost": ScientificNumber.new()}
 	if not in_run or (count != MAX_BUY and count <= 0):
@@ -642,17 +635,12 @@ func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
 	var definition := get_definition(upgrade_id)
 	if definition == null or not balance_profile.rig_has_row(definition.workshop_category, upgrade_id):
 		return refused
-	var bought_before := rig_ranks_bought()
 	var owned := rig_owned(upgrade_id)
-	var warm_up := not balance_profile.is_pressured_wave(selected_tier, wave)
 	var spent := ScientificNumber.new()
 	var ranks := 0
 	while count == MAX_BUY or ranks < count:
-		var step: ScientificNumber
-		if warm_up and bought_before + ranks < balance_profile.RIG_WARM_UP_DISCOUNTED_PURCHASES:
-			step = balance_profile.rig_warm_up_reference_hp(selected_tier)
-		else:
-			step = get_rig_cost(upgrade_id, owned + ranks)
+		rig_ranks[upgrade_id] = owned + ranks
+		var step := get_rig_cost(upgrade_id)
 		if step.is_zero():
 			break
 		var next_spent := spent.add(step)
@@ -660,6 +648,10 @@ func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
 			break
 		spent = next_spent
 		ranks += 1
+	if owned > 0:
+		rig_ranks[upgrade_id] = owned
+	else:
+		rig_ranks.erase(upgrade_id)
 	return {"ranks": ranks, "cost": spent}
 
 func purchase_rig_ranks(upgrade_id: String, count: int = 1) -> int:

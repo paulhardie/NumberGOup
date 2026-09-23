@@ -93,6 +93,10 @@ const RIG_RESERVE_HITS := 2.0
 ## build substituting for Workshop investment. The smallest M that passes both
 ## is the value the profile should keep.
 const RIG_MULTIPLIER_SWEEP := [2.0, 3.0, 5.0, 8.0]
+## The Rig price growth sweep (D039): each rank of a row costs this many times
+## the last, in seconds of income. Gentle enough that prices never cliff, steep
+## enough that top builds stop buying before the run becomes endless.
+const RIG_GROWTH_SWEEP := [1.3, 1.4, 1.5, 1.6]
 const CORE_SECONDS := 3600.0
 const SWEEP_BUILDS := [
 	["fresh", 1, {}],
@@ -145,6 +149,10 @@ func _init() -> void:
 	for multiplier in RIG_MULTIPLIER_SWEEP:
 		for build in SWEEP_BUILDS:
 			_simulate_build("M" + str(multiplier) + " " + str(build[0]), build[1], _ranks(build[2]), "reinvest", multiplier)
+	print("RIG PRICE GROWTH SWEEP  (reinvest policy, M=3, each rank costs G times the last)")
+	for growth in RIG_GROWTH_SWEEP:
+		for build in SWEEP_BUILDS:
+			_simulate_build("G" + str(growth) + " " + str(build[0]), build[1], _ranks(build[2]), "reinvest", -1.0, growth)
 	quit(0)
 
 ## How the core loop feels on the shipped rules (D037): when the Number first
@@ -260,11 +268,14 @@ func _ranks(spec: Variant) -> Dictionary:
 			merged[key] = (part as Dictionary)[key]
 	return merged
 
-func _simulate_build(label: String, tier: int, ranks: Dictionary, rig_policy: String = "none", rig_multiplier: float = -1.0) -> void:
+func _simulate_build(label: String, tier: int, ranks: Dictionary, rig_policy: String = "none", rig_multiplier: float = -1.0, rig_growth: float = -1.0) -> void:
 	var state := GameState.new()
 	if rig_multiplier > 0.0:
 		for category in state.balance_profile.RIG_EFFECT_MULTIPLIER.keys():
 			state.balance_profile.RIG_EFFECT_MULTIPLIER[category] = rig_multiplier
+	if rig_growth > 0.0:
+		for category in state.balance_profile.RIG_COST_GROWTH.keys():
+			state.balance_profile.RIG_COST_GROWTH[category] = rig_growth
 	state.purchased = ranks.duplicate()
 	# A build that has been here before: every Tier 1 checkpoint to wave 100 is
 	# claimed, so the Gems column shows what a repeat run pays (D030).
