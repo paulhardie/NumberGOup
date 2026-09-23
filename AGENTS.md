@@ -149,6 +149,7 @@ Before finishing, leave the repository able to answer the next session's questio
 Start with the smallest set of current sources, and read them when the work needs them rather than all at once:
 
 - [`README.md`](README.md) — what the game is and how to run it.
+- [`docs/HANDOVER.md`](docs/HANDOVER.md) — where the game is now, open decisions and the next steps. Read it first when picking up work; replace it, never append, when you hand off.
 - [`docs/GAME_VISION.md`](docs/GAME_VISION.md) — the player experience, pillars and anti-goals.
 - [`docs/TOWER_SCALING_FOUNDATION.md`](docs/TOWER_SCALING_FOUNDATION.md) — researched encounter foundation and rationale.
 - [`docs/WORKSHOP_DESIGN.md`](docs/WORKSHOP_DESIGN.md) — Workshop categories, the wave rule, player-facing vocabulary and balance targets.
