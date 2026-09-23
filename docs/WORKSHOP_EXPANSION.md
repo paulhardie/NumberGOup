@@ -2,6 +2,7 @@
 
 **Status:** Proposed, 23 September 2026. Step 1 (the core rules, with Leech and Thorns) is accepted and built as [D037](DECISIONS.md) and [D038](DECISIONS.md); everything else here is still proposed. It follows the owner's direction that the Workshop should be fleshed out rather than cut, and that the difficulty curve should be solved by investment in it. Each row below needs its decision recorded in [`DECISIONS.md`](DECISIONS.md) before it is built.
 **Scope:** the permanent Workshop's Attack, Defense and Utility rows: what each existing row does under the proposed core rules, eight new rows, and how the Workshop keeps scaling across tiers. Ultimates stay as [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md#ultimates--rare-powerful-earned) describes them.
+**Ladders:** rank depth, cost curves and stat curves for every row, with JSON and tables, are in [`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md).
 **Depends on:** the core-rule change below, which is itself proposed. [`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md) covers the tier ladder and the percentage Boosts (the Rig) this document assumes.
 
 ## The short version
