@@ -6,7 +6,7 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v3"
+const PROFILE_ID := "tax-foundation-v4"
 const WAVE_INTERVAL_SECONDS := 15.0
 const BOSS_WAVE_INTERVAL := 10
 const TIER_UNLOCK_WAVE := 100
@@ -32,15 +32,15 @@ const BOSS_LIABILITY_MULTIPLIER := 3.0
 const BOSS_COLLECTION_MULTIPLIER := 1.5
 const BOSS_REWARD_MULTIPLIER := 5.0
 
-## The Tier 1 opening (D033): warm-up wave HP and hit at wave 1 and how much
+## The Tier 1 opening (D033, D036): warm-up wave HP and hit at wave 1 and how much
 ## each grows per wave, what a warm-up boss multiplies them by, the Number a run with
 ## a warm-up starts with, output every run has before any Workshop rank, and
 ## the share of the first full wave's HP the Rig quotes for a run's first few
 ## purchases during the warm-up.
-const WARM_UP_START_HP := 30.0
-const WARM_UP_HP_GROWTH := 1.12
+const WARM_UP_START_HP := 20.0
+const WARM_UP_HP_GROWTH := 1.08
 const WARM_UP_START_HIT := 1.0
-const WARM_UP_HIT_GROWTH := 1.08
+const WARM_UP_HIT_GROWTH := 1.085
 const WARM_UP_BOSS_HP := 1.4
 const WARM_UP_BOSS_HIT := 1.4
 const WARM_UP_STARTING_NUMBER := 50.0

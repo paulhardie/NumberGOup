@@ -589,15 +589,49 @@ func can_purchase_rig(upgrade_id: String) -> bool:
 		return false
 	return number.compare_to(get_rig_cost(upgrade_id)) >= 0
 
+## Quote the ranks a single Rig press can afford. The two opening discounts
+## count purchases across all rows, so a bulk quote must consume them in order.
+func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
+	var refused := {"ranks": 0, "cost": ScientificNumber.new()}
+	if not in_run or (count != MAX_BUY and count <= 0):
+		return refused
+	var definition := get_definition(upgrade_id)
+	if definition == null or not balance_profile.rig_has_row(definition.workshop_category, upgrade_id):
+		return refused
+	var bought_before := rig_ranks_bought()
+	var owned := rig_owned(upgrade_id)
+	var warm_up := not balance_profile.is_pressured_wave(selected_tier, wave)
+	var spent := ScientificNumber.new()
+	var ranks := 0
+	while count == MAX_BUY or ranks < count:
+		var step: ScientificNumber
+		if warm_up and bought_before + ranks < balance_profile.RIG_WARM_UP_DISCOUNTED_PURCHASES:
+			step = balance_profile.rig_warm_up_reference_hp(selected_tier)
+		else:
+			step = get_rig_cost(upgrade_id, owned + ranks)
+		if step.is_zero():
+			break
+		var next_spent := spent.add(step)
+		if next_spent.compare_to(number) > 0:
+			break
+		spent = next_spent
+		ranks += 1
+	return {"ranks": ranks, "cost": spent}
+
+func purchase_rig_ranks(upgrade_id: String, count: int = 1) -> int:
+	var plan := plan_rig_purchase(upgrade_id, count)
+	var ranks: int = int(plan.ranks)
+	if ranks <= 0:
+		return 0
+	number = number.subtract(plan.cost)
+	rig_ranks[upgrade_id] = rig_owned(upgrade_id) + ranks
+	return ranks
+
 ## Buys one uncapped run-scoped rank with Number. It sells even when the price
 ## eats the buffer against the next hit: the contract is that the price is
 ## visible before it kills you, not that the game refuses the decision (D015).
 func purchase_rig(upgrade_id: String) -> bool:
-	if not can_purchase_rig(upgrade_id):
-		return false
-	number = number.subtract(get_rig_cost(upgrade_id))
-	rig_ranks[upgrade_id] = rig_owned(upgrade_id) + 1
-	return true
+	return purchase_rig_ranks(upgrade_id, 1) > 0
 
 ## Labs (The Tower): permanent research paid in Coins, gated by real time
 ## rather than Coins alone. A line keeps researching whether a run is active or
@@ -1586,32 +1620,32 @@ func _card_effect_sum(effect_name: String) -> float:
 ## Ladder shape (D019): each row runs 50-100 ranks at a flat cost growth, rather
 ## than 3-10 ranks at 1.55-2.00. A rank's effect is divided by the same factor
 ## its cap was multiplied by, so the value at max rank is unchanged, and each
-## row's Coins-to-max is designed rather than inherited: the Workshop still
-## costs about 86,000 Coins in total, now spread over 906 ranks instead of 51.
+## row's Coins-to-max is designed rather than inherited. D035 lowers the first
+## rank prices and reshapes growth so later ranks remain meaningful purchases.
 func _make_definitions() -> Array[UpgradeDefinition]:
 	const ATTACK := ProgressionTaxonomy.ATTACK
 	const DEFENSE := ProgressionTaxonomy.DEFENSE
 	const UTILITY := ProgressionTaxonomy.UTILITY
 	return [
-		UpgradeDefinition.new("stronger_tap", "TAP DAMAGE", "Hand Press. +0.05 damage per tap per rank.", ScientificNumber.from_float(2.77), ScientificNumber.from_float(10), "workshop", {"tap_flat": 0.05}, false, 1.03796, ProgressionTaxonomy.MODULE, ATTACK, 100, 0),
-		UpgradeDefinition.new("generator", "DAMAGE PER SECOND", "Desk Dynamo. +0.075 base damage every second per rank.", ScientificNumber.from_float(3.71), ScientificNumber.from_float(20), "workshop", {"passive_flat": 0.075}, false, 1.03796, ProgressionTaxonomy.MODULE, ATTACK, 100, 0),
-		UpgradeDefinition.new("generator_two", "DAMAGE MULTIPLIER", "Number Engine. All damage ×1.007 per rank.", ScientificNumber.from_float(12.37), ScientificNumber.from_float(120), "workshop", {"base_output_multiplier": 1.00701257}, false, 1.06452, ProgressionTaxonomy.MODULE, ATTACK, 60, 0),
-		UpgradeDefinition.new("faster_cadence", "TICK SPEED", "Tick Wheel. Ticks come ×1.009 faster per rank.", ScientificNumber.from_float(6.52), ScientificNumber.from_float(100), "workshop", {"tick_rate": 1.00915776}, false, 1.03796, ProgressionTaxonomy.MODULE, ATTACK, 100, 12),
-		UpgradeDefinition.new("faster_echo", "DOUBLE TICK", "+0.4% chance a tick counts twice per rank.", ScientificNumber.from_float(7.71), ScientificNumber.from_float(300), "workshop", {"double_tick_chance": 0.004}, false, 1.06452, ProgressionTaxonomy.PROTOCOL, ATTACK, 60, 12),
-		UpgradeDefinition.new("burst_relay", "BURST", "Burst Relay. Every 11th tick counts double, one tick sooner per rank, down to every 6th.", ScientificNumber.from_float(103), ScientificNumber.from_float(700), "workshop", {}, false, 1.64375, ProgressionTaxonomy.PROTOCOL, ATTACK, 6, 12),
-		UpgradeDefinition.new("more_critical", "CRIT CHANCE", "Critical Lens. +0.25% critical chance per rank.", ScientificNumber.from_float(7.45), ScientificNumber.from_float(500), "workshop", {"critical_chance": 0.0025}, false, 1.03796, ProgressionTaxonomy.PROTOCOL, ATTACK, 100, 30),
-		UpgradeDefinition.new("magnitude_coil", "CRIT DAMAGE", "Magnitude Coil. +0.05 critical multiplier per rank.", ScientificNumber.from_float(10.82), ScientificNumber.from_float(900), "workshop", {"critical_multiplier_add": 0.05}, false, 1.06452, ProgressionTaxonomy.PROTOCOL, ATTACK, 60, 30),
-		UpgradeDefinition.new("chain_reaction", "CRIT CHAIN", "Chain Reaction. Each critical strengthens the next by 0.5% per rank.", ScientificNumber.from_float(15.47), ScientificNumber.from_float(1800), "workshop", {}, false, 1.06452, ProgressionTaxonomy.PROTOCOL, ATTACK, 60, 30),
-		UpgradeDefinition.new("automation_core", "AUTO CRANK", "+0.1 base damage every second per rank.", ScientificNumber.from_float(9.23), ScientificNumber.new(), "workshop", {"passive_flat": 0.1}, false, 1.07819, ProgressionTaxonomy.ROUTINE, ATTACK, 50, 60),
-		UpgradeDefinition.new("boss_damage", "BOSS DAMAGE", "+1% damage against boss waves per rank.", ScientificNumber.from_float(7.45), ScientificNumber.new(), "workshop", {"boss_damage": 0.01}, false, 1.03796, ProgressionTaxonomy.PROTOCOL, ATTACK, 100, 30),
-		UpgradeDefinition.new(ARMOR_ID, "ARMOR", "Every hit is 0.4% smaller per rank.", ScientificNumber.from_float(7.45), ScientificNumber.new(), "workshop", {"collection_resistance": 0.004}, false, 1.03796, ProgressionTaxonomy.MODULE, DEFENSE, 100, 0),
-		UpgradeDefinition.new("siphon", "SIPHON", "+0.25% of the damage you deal still reaches your Number, per rank.", ScientificNumber.from_float(13.08), ScientificNumber.new(), "workshop", {"siphon_share": 0.0025}, false, 1.03796, ProgressionTaxonomy.MODULE, DEFENSE, 100, 30),
-		UpgradeDefinition.new("recoil", "RECOIL", "+0.5% of every hit you take is dealt back to the wave, per rank.", ScientificNumber.from_float(13.08), ScientificNumber.new(), "workshop", {"recoil_share": 0.005}, false, 1.03796, ProgressionTaxonomy.MODULE, DEFENSE, 100, 30),
-		UpgradeDefinition.new("priority_buffer", "CUSHION", "Starting Reserve. Begin every run with 10 Number per rank.", ScientificNumber.from_float(18.51), ScientificNumber.new(), "workshop", {"starting_number_flat": 10.0}, false, 1.07819, ProgressionTaxonomy.ROUTINE, DEFENSE, 50, 60),
-		UpgradeDefinition.new("brace_discount", "BRACE COST", "Brace costs 0.25 points less of your Number per rank, down to 15%.", ScientificNumber.from_float(10.82), ScientificNumber.new(), "workshop", {"brace_discount": -0.0025}, false, 1.06452, ProgressionTaxonomy.PROTOCOL, DEFENSE, 60, 12),
-		UpgradeDefinition.new("second_wind", "SECOND WIND", "Once per run, a hit that would end it leaves you 0.5% of your peak Number per rank.", ScientificNumber.from_float(12.95), ScientificNumber.new(), "workshop", {"second_wind_share": 0.005}, false, 1.07819, ProgressionTaxonomy.PROTOCOL, DEFENSE, 50, 60),
-		UpgradeDefinition.new("smarter_efficiency", "DISCOUNT", "Efficiency Matrix. All Workshop costs 0.25% lower per rank.", ScientificNumber.from_float(12.37), ScientificNumber.from_float(2500), "workshop", {"cost_discount": 0.0025}, false, 1.06452, ProgressionTaxonomy.MODULE, UTILITY, 60, 60),
-		UpgradeDefinition.new("coin_bonus", "COIN BONUS", "+0.5% Coins from every wave beaten, per rank.", ScientificNumber.from_float(28.07), ScientificNumber.new(), "workshop", {"coin_bonus": 0.005}, false, 1.03796, ProgressionTaxonomy.ROUTINE, UTILITY, 100, 60),
-		UpgradeDefinition.new("knowledge_bonus", "KNOWLEDGE BONUS", "+1% Knowledge when a run ends, per rank.", ScientificNumber.from_float(55.62), ScientificNumber.new(), "workshop", {"knowledge_bonus": 0.01}, false, 1.07819, ProgressionTaxonomy.ROUTINE, UTILITY, 50, 60),
+		UpgradeDefinition.new("stronger_tap", "TAP DAMAGE", "Hand Press. +0.05 damage per tap per rank.", ScientificNumber.from_float(1.385), ScientificNumber.from_float(10), "workshop", {"tap_flat": 0.05}, false, 1.042220, ProgressionTaxonomy.MODULE, ATTACK, 100, 0),
+		UpgradeDefinition.new("generator", "DAMAGE PER SECOND", "Desk Dynamo. +0.075 base damage every second per rank.", ScientificNumber.from_float(1.855), ScientificNumber.from_float(20), "workshop", {"passive_flat": 0.075}, false, 1.042220, ProgressionTaxonomy.MODULE, ATTACK, 100, 0),
+		UpgradeDefinition.new("generator_two", "DAMAGE MULTIPLIER", "Number Engine. All damage ×1.007 per rank.", ScientificNumber.from_float(6.185), ScientificNumber.from_float(120), "workshop", {"base_output_multiplier": 1.00701257}, false, 1.071861, ProgressionTaxonomy.MODULE, ATTACK, 60, 0),
+		UpgradeDefinition.new("faster_cadence", "TICK SPEED", "Tick Wheel. Ticks come ×1.009 faster per rank.", ScientificNumber.from_float(3.260), ScientificNumber.from_float(100), "workshop", {"tick_rate": 1.00915776}, false, 1.042220, ProgressionTaxonomy.MODULE, ATTACK, 100, 12),
+		UpgradeDefinition.new("faster_echo", "DOUBLE TICK", "+0.4% chance a tick counts twice per rank.", ScientificNumber.from_float(3.855), ScientificNumber.from_float(300), "workshop", {"double_tick_chance": 0.004}, false, 1.071861, ProgressionTaxonomy.PROTOCOL, ATTACK, 60, 12),
+		UpgradeDefinition.new("burst_relay", "BURST", "Burst Relay. Every 11th tick counts double, one tick sooner per rank, down to every 6th.", ScientificNumber.from_float(51.500), ScientificNumber.from_float(700), "workshop", {}, false, 1.782600, ProgressionTaxonomy.PROTOCOL, ATTACK, 6, 12),
+		UpgradeDefinition.new("more_critical", "CRIT CHANCE", "Critical Lens. +0.25% critical chance per rank.", ScientificNumber.from_float(3.725), ScientificNumber.from_float(500), "workshop", {"critical_chance": 0.0025}, false, 1.042220, ProgressionTaxonomy.PROTOCOL, ATTACK, 100, 30),
+		UpgradeDefinition.new("magnitude_coil", "CRIT DAMAGE", "Magnitude Coil. +0.05 critical multiplier per rank.", ScientificNumber.from_float(5.410), ScientificNumber.from_float(900), "workshop", {"critical_multiplier_add": 0.05}, false, 1.071861, ProgressionTaxonomy.PROTOCOL, ATTACK, 60, 30),
+		UpgradeDefinition.new("chain_reaction", "CRIT CHAIN", "Chain Reaction. Each critical strengthens the next by 0.5% per rank.", ScientificNumber.from_float(7.735), ScientificNumber.from_float(1800), "workshop", {}, false, 1.071861, ProgressionTaxonomy.PROTOCOL, ATTACK, 60, 30),
+		UpgradeDefinition.new("automation_core", "AUTO CRANK", "+0.1 base damage every second per rank.", ScientificNumber.from_float(4.615), ScientificNumber.new(), "workshop", {"passive_flat": 0.1}, false, 1.087149, ProgressionTaxonomy.ROUTINE, ATTACK, 50, 60),
+		UpgradeDefinition.new("boss_damage", "BOSS DAMAGE", "+1% damage against boss waves per rank.", ScientificNumber.from_float(3.725), ScientificNumber.new(), "workshop", {"boss_damage": 0.01}, false, 1.042220, ProgressionTaxonomy.PROTOCOL, ATTACK, 100, 30),
+		UpgradeDefinition.new(ARMOR_ID, "ARMOR", "Every hit is 0.4% smaller per rank.", ScientificNumber.from_float(3.725), ScientificNumber.new(), "workshop", {"collection_resistance": 0.004}, false, 1.042220, ProgressionTaxonomy.MODULE, DEFENSE, 100, 0),
+		UpgradeDefinition.new("siphon", "SIPHON", "+0.25% of the damage you deal still reaches your Number, per rank.", ScientificNumber.from_float(6.540), ScientificNumber.new(), "workshop", {"siphon_share": 0.0025}, false, 1.042220, ProgressionTaxonomy.MODULE, DEFENSE, 100, 30),
+		UpgradeDefinition.new("recoil", "RECOIL", "+0.5% of every hit you take is dealt back to the wave, per rank.", ScientificNumber.from_float(6.540), ScientificNumber.new(), "workshop", {"recoil_share": 0.005}, false, 1.042220, ProgressionTaxonomy.MODULE, DEFENSE, 100, 30),
+		UpgradeDefinition.new("priority_buffer", "CUSHION", "Starting Reserve. Begin every run with 10 Number per rank.", ScientificNumber.from_float(9.255), ScientificNumber.new(), "workshop", {"starting_number_flat": 10.0}, false, 1.087149, ProgressionTaxonomy.ROUTINE, DEFENSE, 50, 60),
+		UpgradeDefinition.new("brace_discount", "BRACE COST", "Brace costs 0.25 points less of your Number per rank, down to 15%.", ScientificNumber.from_float(5.410), ScientificNumber.new(), "workshop", {"brace_discount": -0.0025}, false, 1.071861, ProgressionTaxonomy.PROTOCOL, DEFENSE, 60, 12),
+		UpgradeDefinition.new("second_wind", "SECOND WIND", "Once per run, a hit that would end it leaves you 0.5% of your peak Number per rank.", ScientificNumber.from_float(6.475), ScientificNumber.new(), "workshop", {"second_wind_share": 0.005}, false, 1.087149, ProgressionTaxonomy.PROTOCOL, DEFENSE, 50, 60),
+		UpgradeDefinition.new("smarter_efficiency", "DISCOUNT", "Efficiency Matrix. All Workshop costs 0.25% lower per rank.", ScientificNumber.from_float(6.185), ScientificNumber.from_float(2500), "workshop", {"cost_discount": 0.0025}, false, 1.071861, ProgressionTaxonomy.MODULE, UTILITY, 60, 60),
+		UpgradeDefinition.new("coin_bonus", "COIN BONUS", "+0.5% Coins from every wave beaten, per rank.", ScientificNumber.from_float(14.035), ScientificNumber.new(), "workshop", {"coin_bonus": 0.005}, false, 1.042220, ProgressionTaxonomy.ROUTINE, UTILITY, 100, 60),
+		UpgradeDefinition.new("knowledge_bonus", "KNOWLEDGE BONUS", "+1% Knowledge when a run ends, per rank.", ScientificNumber.from_float(27.810), ScientificNumber.new(), "workshop", {"knowledge_bonus": 0.01}, false, 1.087149, ProgressionTaxonomy.ROUTINE, UTILITY, 50, 60),
 		UpgradeDefinition.new("insight", "INSIGHT", "Base production ×1.02 per rank. Costs Knowledge; survives every reset.", ScientificNumber.new(), ScientificNumber.new(), "knowledge", {"base_output_multiplier": 1.02}, true, 1.0, ProgressionTaxonomy.KNOWLEDGE, "", 999999, 0)
 	]

@@ -25,7 +25,7 @@
 - Each tier's milestone checkpoints pay once per tier record: Gems at every checkpoint, and the Coin bonus at 10/25/50/100 (D030). A checkpoint a record has already passed is paid on load, never twice.
 - Every boss wave beaten pays one Gem, every run (D030).
 - Tier 2 and Tier 3 unlock only by clearing wave 100 of the preceding tier.
-- Tier 1 waves 1–20 are a warm-up (D033, D034): small Liability and Collection that grow each wave, softer bosses, and repeatable Coin rewards (1 per wave, 5 on boss waves). A warm-up wave that outlasts its timer lands its hit and then ends as if beaten; past the warm-up a stuck wave keeps its Liability. A Tier 1 run starts with 50 Number; its first two warm-up Rig purchases cost about 12 Number each, and its effective hits climb from the last warm-up boss to the full curve by wave 26. The base pressured-wave curve retains the tier pressure ratios.
+- Tier 1 waves 1–20 are a warm-up (D033, D034, D036): Wave HP starts at 20 and grows 8% per wave, Hit starts at 1 and grows 8.5%, bosses are softer, and Coins repeat (1 per wave, 5 on boss waves). A warm-up wave that outlasts its timer lands its hit and then ends as if beaten; past the warm-up a stuck wave keeps its HP. A Tier 1 run starts with 50 Number; its first two warm-up Rig purchases cost about 12 Number each, and its effective hits climb from the last warm-up boss to the full curve by wave 26. The base pressured-wave curve retains the tier pressure ratios. Doing nothing, including no Rig purchases, must end before all 20 warm-up rewards are paid.
 - Every run produces a flat 1 a second from its first second, which upgrades do not raise (D033).
 
 ## Must — rules and persistence
@@ -42,7 +42,7 @@
 
 - Upgrade costs and ranks are legible before purchase. A multi-buy press costs exactly what the same ranks cost one at a time, and exactly what it quoted.
 - A Workshop row's value at its maximum rank is a contract, not a consequence of its rank count: changing a cap without dividing the per-rank effect to match is a retune and needs a decision.
-- The first failed run funds at least one permanent Workshop rank.
+- The first failed Tier 1 run funds permanent Workshop progress. The opening's Coin payout depends on how far the player gets and which one-time checkpoints they first claim; later runs retain every Workshop rank bought with it.
 - UI presents and reports; it mutates domain state only by calling `GameState` methods.
 - Every Workshop row belongs to exactly one of the four categories (Attack, Defense, Utility, Ultimates) and opens at its own Workshop level: 0, 12, 30 or 60. Retired bays gated each row at the same level the row itself required, so their removal moved nothing; D019 then moved the levels to hold the same Coin pacing across deeper ladders.
 - Brace spends 30% of current Number, less whatever Brace Cost has bought, never below a 15% floor, and blocks exactly the next Collection hit. A blocked boundary deals no Recoil, because no hit landed.
