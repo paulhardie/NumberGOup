@@ -1,6 +1,7 @@
 extends SceneTree
 
 const RuleModifierPipelineClass = preload("res://src/rule_modifier_pipeline.gd")
+const GameDataClass = preload("res://src/game_data.gd")
 
 var failures := 0
 
@@ -62,11 +63,13 @@ func _init() -> void:
 	_test_card_pull_costs_gems_and_grants_a_level()
 	_test_card_pull_is_a_between_run_action()
 	_test_card_pull_never_exceeds_max_level()
+	_test_card_pull_duplicate_protection()
 	_test_card_equip_respects_slot_cap_and_run_state()
 	_test_active_card_applies_its_effect_but_inventory_does_not()
 	_test_card_save_round_trip()
 	_test_defensive_ceilings_bound_the_combined_effects()
 	_test_armor_ceiling_bounds_armor_not_other_rules()
+	_test_game_data_loads_cleanly()
 	_test_catalogues_are_internally_consistent()
 	_test_loaded_ranks_stay_within_their_caps()
 	_test_wave_death_resets_run_but_keeps_meta_progress()
@@ -1328,6 +1331,17 @@ func _test_armor_ceiling_bounds_armor_not_other_rules() -> void:
 	state.active_rule_modifiers = [{"source": "test_rule", "target": "collection", "stage": "multiplicative", "value": 0.2}]
 	_expect(state.get_effective_collection().compare_to(base.multiply_scalar(0.25 * 0.2)) == 0, "a separate rule that shrinks hits should still apply past Armor's ceiling")
 
+func _test_game_data_loads_cleanly() -> void:
+	GameDataClass.clear_cache()
+	var workshop: Array = GameDataClass.get_workshop_upgrades()
+	_expect(workshop.size() == 20, "GameData should load exactly 20 Workshop upgrades")
+	var knowledge: Array = GameDataClass.get_knowledge_upgrades()
+	_expect(knowledge.size() == 1 and knowledge[0].id == "insight", "GameData should load Insight from knowledge upgrades")
+	var all: Array = GameDataClass.get_all_upgrades()
+	_expect(all.size() == 21, "GameData should return all 21 upgrades")
+	var cached: Array = GameDataClass.get_all_upgrades()
+	_expect(cached.size() == 21, "cached upgrades should match")
+
 ## Every catalogue a save keys ranks by: ids unique across all three, effects
 ## the game knows how to read, shelves that exist, caps and prices that make
 ## sense, Rig rows that are real Workshop rows, and Workshop levels a player
@@ -2118,6 +2132,19 @@ func _test_card_pull_never_exceeds_max_level() -> void:
 		state.pull_card()
 	_expect(state.get_card_level("card_damage") == CardCollection.MAX_LEVEL, "a maxed card should never level past its cap")
 	_expect(state.gems < gems_before, "pulls should still spend Gems even when a maxed card is drawn")
+	_expect(not state.has_unmaxed_cards(), "all cards should now be maxed")
+	_expect(not state.can_pull_card(), "pulls should be disabled when all cards are maxed")
+	var gems_at_cap := state.gems
+	_expect(state.pull_card() == "" and state.gems == gems_at_cap, "pulling when all cards are maxed must not spend gems")
+
+func _test_card_pull_duplicate_protection() -> void:
+	var state := _funded_state()
+	state.gems = 1000
+	state.card_ranks["card_damage"] = CardCollection.MAX_LEVEL
+	for i in range(20):
+		var drawn := state.pull_card()
+		if drawn != "":
+			_expect(drawn != "card_damage", "a maxed card should never be drawn while other cards can level up")
 
 func _test_card_equip_respects_slot_cap_and_run_state() -> void:
 	var state := _funded_state()

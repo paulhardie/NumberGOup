@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "max_level": 7,
+  "pull_cost_gems": 20,
+  "active_slots": 4,
+  "rarity_weights": {
+    "common": 70,
+    "rare": 30
+  },
+  "cards": [
+    {
+      "id": "card_damage",
+      "title": "DAMAGE",
+      "description": "All damage \u00d71.025 per level.",
+      "rarity": "common",
+      "effects": {
+        "base_output_multiplier": 1.025
+      }
+    },
+    {
+      "id": "card_attack_speed",
+      "title": "ATTACK SPEED",
+      "description": "Ticks come \u00d71.02 faster per level.",
+      "rarity": "common",
+      "effects": {
+        "tick_rate": 1.02
+      }
+    },
+    {
+      "id": "card_coins",
+      "title": "COINS",
+      "description": "+1% Coins from every wave beaten, per level.",
+      "rarity": "common",
+      "effects": {
+        "coin_bonus": 0.01
+      }
+    },
+    {
+      "id": "card_critical_chance",
+      "title": "CRITICAL CHANCE",
+      "description": "+0.5% critical chance per level.",
+      "rarity": "common",
+      "effects": {
+        "critical_chance": 0.005
+      }
+    },
+    {
+      "id": "card_health",
+      "title": "HEALTH",
+      "description": "Begin every run with 5 extra Number per level.",
+      "rarity": "rare",
+      "effects": {
+        "starting_number_flat": 5.0
+      }
+    },
+    {
+      "id": "card_extra_defense",
+      "title": "EXTRA DEFENSE",
+      "description": "Every hit is 0.3% smaller per level.",
+      "rarity": "rare",
+      "effects": {
+        "collection_resistance": 0.003
+      }
+    }
+  ]
+}

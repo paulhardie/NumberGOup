@@ -1,6 +1,6 @@
 # Handover
 
-**Last updated:** 23 September 2026, after merging the Tier 1 curve (D040).
+**Last updated:** 23 September 2026, after adding Card duplicate protection and moving Workshop data to JSON.
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
 
 ## Where the game is
@@ -15,6 +15,8 @@
   - Bosses are ×3 HP and ×1.5 Hit.
   - Coins are 0.65 × the wave, ×5 on a boss.
   - Tiers 2 and 3 multiply the same curve by 20 and 60.
+- **Card duplicate protection:** maxed cards are excluded from the pull pool, and pulls are disabled once the catalogue is complete, preventing wasted Gems.
+- **Data layer:** Workshop and Knowledge catalogues load from canonical JSON in `res://data/` via `GameData`.
 - **Where builds land:**
 
   | Build | Result |
@@ -39,8 +41,7 @@
 
 1. **Owner:** play a first run on the merged build, watching the wave 10 and 20 bosses. Boss HP is 3.5–3.7× the wave before, and every early build in the simulator ends on a boss. If they feel like walls, the smallest dial is the boss HP multiplier: grow it from ×2 to ×3 over the first few bosses.
 2. **Guard**, the flat Hit reduction (Defense Absolute), priced in the tier's Hits, applied before Armor, never below 10% of a Hit. It's step 2 of [`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md): the first early Defense tool and the biggest forgiveness gain for the least code. High risk (economy).
-3. **The Workshop loads its rows from `data/workshop/`**, reproducing today's ladders exactly. That's the foundation the deep ladders need, and it removes a second copy of the catalogue. Medium risk.
-4. **A GDScript career simulator** on the real game: runs back to back, Workshop buying and tier unlocks, reporting hours per tier. `tools/career_model.py` still models the pre-D037 rules, so its hour figures are shapes only. Low risk (a tool).
+3. **A GDScript career simulator** on the real game: runs back to back, Workshop buying and tier unlocks, reporting hours per tier. `tools/career_model.py` still models the pre-D037 rules, so its hour figures are shapes only. Low risk (a tool).
 
 ## Known issues and risks
 

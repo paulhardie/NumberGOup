@@ -1,0 +1,341 @@
+{
+  "version": 1,
+  "upgrades": [
+    {
+      "id": "stronger_tap",
+      "title": "TAP DAMAGE",
+      "description": "Hand Press. +0.05 damage per tap per rank.",
+      "category": "workshop",
+      "workshop_category": "attack",
+      "progression_type": "module",
+      "cost_base": 1.385,
+      "cost_growth": 1.04222,
+      "max_rank": 100,
+      "required_workshop_level": 0,
+      "unlock_lifetime": 10.0,
+      "repeatable": false,
+      "effects": {
+        "tap_flat": 0.05
+      }
+    },
+    {
+      "id": "generator",
+      "title": "DAMAGE PER SECOND",
+      "description": "Desk Dynamo. +0.075 base damage every second per rank.",
+      "category": "workshop",
+      "workshop_category": "attack",
+      "progression_type": "module",
+      "cost_base": 1.855,
+      "cost_growth": 1.04222,
+      "max_rank": 100,
+      "required_workshop_level": 0,
+      "unlock_lifetime": 20.0,
+      "repeatable": false,
+      "effects": {
+        "passive_flat": 0.075
+      }
+    },
+    {
+      "id": "generator_two",
+      "title": "DAMAGE MULTIPLIER",
+      "description": "Number Engine. All damage \u00d71.007 per rank.",
+      "category": "workshop",
+      "workshop_category": "attack",
+      "progression_type": "module",
+      "cost_base": 6.185,
+      "cost_growth": 1.071861,
+      "max_rank": 60,
+      "required_workshop_level": 0,
+      "unlock_lifetime": 120.0,
+      "repeatable": false,
+      "effects": {
+        "base_output_multiplier": 1.00701257
+      }
+    },
+    {
+      "id": "faster_cadence",
+      "title": "TICK SPEED",
+      "description": "Tick Wheel. Ticks come \u00d71.009 faster per rank.",
+      "category": "workshop",
+      "workshop_category": "attack",
+      "progression_type": "module",
+      "cost_base": 3.26,
+      "cost_growth": 1.04222,
+      "max_rank": 100,
+      "required_workshop_level": 12,
+      "unlock_lifetime": 100.0,
+      "repeatable": false,
+      "effects": {
+        "tick_rate": 1.00915776
+      }
+    },
+    {
+      "id": "faster_echo",
+      "title": "DOUBLE TICK",
+      "description": "+0.4% chance a tick counts twice per rank.",
+      "category": "workshop",
+      "workshop_category": "attack",
+      "progression_type": "protocol",
+      "cost_base": 3.855,
+      "cost_growth": 1.071861,
+      "max_rank": 60,
+      "required_workshop_level": 12,
+      "unlock_lifetime": 300.0,
+      "repeatable": false,
+      "effects": {
+        "double_tick_chance": 0.004
+      }
+    },
+    {
+      "id": "burst_relay",
+      "title": "BURST",
+      "description": "Burst Relay. Every 11th tick counts double, one tick sooner per rank, down to every 6th.",
+      "category": "workshop",
+      "workshop_category": "attack",
+      "progression_type": "protocol",
+      "cost_base": 51.5,
+      "cost_growth": 1.7826,
+      "max_rank": 6,
+      "required_workshop_level": 12,
+      "unlock_lifetime": 700.0,
+      "repeatable": false,
+      "effects": {}
+    },
+    {
+      "id": "more_critical",
+      "title": "CRIT CHANCE",
+      "description": "Critical Lens. +0.25% critical chance per rank.",
+      "category": "workshop",
+      "workshop_category": "attack",
+      "progression_type": "protocol",
+      "cost_base": 3.725,
+      "cost_growth": 1.04222,
+      "max_rank": 100,
+      "required_workshop_level": 30,
+      "unlock_lifetime": 500.0,
+      "repeatable": false,
+      "effects": {
+        "critical_chance": 0.0025
+      }
+    },
+    {
+      "id": "magnitude_coil",
+      "title": "CRIT DAMAGE",
+      "description": "Magnitude Coil. +0.05 critical multiplier per rank.",
+      "category": "workshop",
+      "workshop_category": "attack",
+      "progression_type": "protocol",
+      "cost_base": 5.41,
+      "cost_growth": 1.071861,
+      "max_rank": 60,
+      "required_workshop_level": 30,
+      "unlock_lifetime": 900.0,
+      "repeatable": false,
+      "effects": {
+        "critical_multiplier_add": 0.05
+      }
+    },
+    {
+      "id": "chain_reaction",
+      "title": "CRIT CHAIN",
+      "description": "Chain Reaction. Each critical strengthens the next by 0.5% per rank.",
+      "category": "workshop",
+      "workshop_category": "attack",
+      "progression_type": "protocol",
+      "cost_base": 7.735,
+      "cost_growth": 1.071861,
+      "max_rank": 60,
+      "required_workshop_level": 30,
+      "unlock_lifetime": 1800.0,
+      "repeatable": false,
+      "effects": {}
+    },
+    {
+      "id": "automation_core",
+      "title": "AUTO CRANK",
+      "description": "+0.1 base damage every second per rank.",
+      "category": "workshop",
+      "workshop_category": "attack",
+      "progression_type": "routine",
+      "cost_base": 4.615,
+      "cost_growth": 1.087149,
+      "max_rank": 50,
+      "required_workshop_level": 60,
+      "unlock_lifetime": 0.0,
+      "repeatable": false,
+      "effects": {
+        "passive_flat": 0.1
+      }
+    },
+    {
+      "id": "boss_damage",
+      "title": "BOSS DAMAGE",
+      "description": "+1% damage against boss waves per rank.",
+      "category": "workshop",
+      "workshop_category": "attack",
+      "progression_type": "protocol",
+      "cost_base": 3.725,
+      "cost_growth": 1.04222,
+      "max_rank": 100,
+      "required_workshop_level": 30,
+      "unlock_lifetime": 0.0,
+      "repeatable": false,
+      "effects": {
+        "boss_damage": 0.01
+      }
+    },
+    {
+      "id": "tax_resistance",
+      "title": "ARMOR",
+      "description": "Every hit is 0.4% smaller per rank.",
+      "category": "workshop",
+      "workshop_category": "defense",
+      "progression_type": "module",
+      "cost_base": 3.725,
+      "cost_growth": 1.04222,
+      "max_rank": 100,
+      "required_workshop_level": 0,
+      "unlock_lifetime": 0.0,
+      "repeatable": false,
+      "effects": {
+        "collection_resistance": 0.004
+      }
+    },
+    {
+      "id": "siphon",
+      "title": "LEECH",
+      "description": "While a boss stands, +0.25% of the damage you deal it is added to your Number again, per rank.",
+      "category": "workshop",
+      "workshop_category": "defense",
+      "progression_type": "module",
+      "cost_base": 6.54,
+      "cost_growth": 1.04222,
+      "max_rank": 100,
+      "required_workshop_level": 30,
+      "unlock_lifetime": 0.0,
+      "repeatable": false,
+      "effects": {
+        "siphon_share": 0.0025
+      }
+    },
+    {
+      "id": "recoil",
+      "title": "THORNS",
+      "description": "+0.5% of every hit you take is dealt to the wave in front of you, per rank.",
+      "category": "workshop",
+      "workshop_category": "defense",
+      "progression_type": "module",
+      "cost_base": 6.54,
+      "cost_growth": 1.04222,
+      "max_rank": 100,
+      "required_workshop_level": 30,
+      "unlock_lifetime": 0.0,
+      "repeatable": false,
+      "effects": {
+        "recoil_share": 0.005
+      }
+    },
+    {
+      "id": "priority_buffer",
+      "title": "CUSHION",
+      "description": "Starting Reserve. Begin every run with 10 Number per rank.",
+      "category": "workshop",
+      "workshop_category": "defense",
+      "progression_type": "routine",
+      "cost_base": 9.255,
+      "cost_growth": 1.087149,
+      "max_rank": 50,
+      "required_workshop_level": 60,
+      "unlock_lifetime": 0.0,
+      "repeatable": false,
+      "effects": {
+        "starting_number_flat": 10.0
+      }
+    },
+    {
+      "id": "brace_discount",
+      "title": "BRACE COST",
+      "description": "Brace costs 0.25 points less of your Number per rank, down to 15%.",
+      "category": "workshop",
+      "workshop_category": "defense",
+      "progression_type": "protocol",
+      "cost_base": 5.41,
+      "cost_growth": 1.071861,
+      "max_rank": 60,
+      "required_workshop_level": 12,
+      "unlock_lifetime": 0.0,
+      "repeatable": false,
+      "effects": {
+        "brace_discount": -0.0025
+      }
+    },
+    {
+      "id": "second_wind",
+      "title": "SECOND WIND",
+      "description": "Once per run, a hit that would end it leaves you 0.5% of your peak Number per rank.",
+      "category": "workshop",
+      "workshop_category": "defense",
+      "progression_type": "protocol",
+      "cost_base": 6.475,
+      "cost_growth": 1.087149,
+      "max_rank": 50,
+      "required_workshop_level": 60,
+      "unlock_lifetime": 0.0,
+      "repeatable": false,
+      "effects": {
+        "second_wind_share": 0.005
+      }
+    },
+    {
+      "id": "smarter_efficiency",
+      "title": "DISCOUNT",
+      "description": "Efficiency Matrix. All Workshop costs 0.25% lower per rank.",
+      "category": "workshop",
+      "workshop_category": "utility",
+      "progression_type": "module",
+      "cost_base": 6.185,
+      "cost_growth": 1.071861,
+      "max_rank": 60,
+      "required_workshop_level": 60,
+      "unlock_lifetime": 2500.0,
+      "repeatable": false,
+      "effects": {
+        "cost_discount": 0.0025
+      }
+    },
+    {
+      "id": "coin_bonus",
+      "title": "COIN BONUS",
+      "description": "+0.5% Coins from every wave beaten, per rank.",
+      "category": "workshop",
+      "workshop_category": "utility",
+      "progression_type": "routine",
+      "cost_base": 14.035,
+      "cost_growth": 1.04222,
+      "max_rank": 100,
+      "required_workshop_level": 60,
+      "unlock_lifetime": 0.0,
+      "repeatable": false,
+      "effects": {
+        "coin_bonus": 0.005
+      }
+    },
+    {
+      "id": "knowledge_bonus",
+      "title": "KNOWLEDGE BONUS",
+      "description": "+1% Knowledge when a run ends, per rank.",
+      "category": "workshop",
+      "workshop_category": "utility",
+      "progression_type": "routine",
+      "cost_base": 27.81,
+      "cost_growth": 1.087149,
+      "max_rank": 50,
+      "required_workshop_level": 60,
+      "unlock_lifetime": 0.0,
+      "repeatable": false,
+      "effects": {
+        "knowledge_bonus": 0.01
+      }
+    }
+  ]
+}

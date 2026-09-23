@@ -38,6 +38,7 @@
 - A save the loader cannot read, or one written by a newer build, is never written over: an unreadable save is moved aside intact and the backup loads, and a newer save pauses saving (D028). A load happens whole or not at all.
 - A saved active encounter resumes with identical remaining Liability, RNG state, tick phase and crit chain, so the resumed run produces exactly what the saved one would have; matching run seeds reproduce outcomes.
 - `ScientificNumber` values stay finite and non-negative; subtraction floors at zero; balance evaluation cannot overflow ordinary floats.
+- Card pulls level up one unmaxed card. Maxed cards are excluded from the pull pool; if all cards are maxed, pulling is disabled and no Gems can be spent.
 - `user://number_go_up_save.json` is the live save, with its `.bak` backup beside it; tests must never leave `res://.number_go_up_test_save.json` or any file derived from it behind.
 
 ## Should — expected behaviour

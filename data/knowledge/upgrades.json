@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "upgrades": [
+    {
+      "id": "insight",
+      "title": "INSIGHT",
+      "description": "Base production \u00d71.02 per rank. Costs Knowledge; survives every reset.",
+      "category": "knowledge",
+      "workshop_category": "",
+      "progression_type": "knowledge",
+      "cost_base": 0.0,
+      "cost_growth": 1.0,
+      "max_rank": 999999,
+      "required_workshop_level": 0,
+      "unlock_lifetime": 0.0,
+      "repeatable": true,
+      "effects": {
+        "base_output_multiplier": 1.02
+      }
+    }
+  ]
+}
