@@ -35,7 +35,7 @@ Workshop upgrades are bought with Coins between runs and permanently raise the b
 
 Retreat ends and resets a run—it cannot pause Tax while Number keeps growing. Active runs freeze exactly while the app is away. Save schema V8 preserves the permanent Workshop, Labs (with their slots), Cards, Gems, the active encounter and deterministic RNG state, with V1–V7 migration. A save the game cannot read, or one from a newer version, is never written over (D028).
 
-The researched scaling rationale, source links, data contracts, and later-system boundaries are in [`docs/TOWER_SCALING_FOUNDATION.md`](docs/TOWER_SCALING_FOUNDATION.md).
+The broader inspiration and system roles are mapped in [`docs/TOWER_SYSTEMS_REFERENCE.md`](docs/TOWER_SYSTEMS_REFERENCE.md). The researched scaling rationale, source links, data contracts, and later-system boundaries are in [`docs/TOWER_SCALING_FOUNDATION.md`](docs/TOWER_SCALING_FOUNDATION.md).
 
 ## Progression vocabulary
 

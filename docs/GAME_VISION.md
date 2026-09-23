@@ -1,7 +1,7 @@
 # Number Go Up — Game vision
 
 Status: living document, last revised 23 September 2026 for D041.
-Companion documents: [`README.md`](../README.md) for the current build, [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md) for the researched encounter foundation, [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md) for the Workshop categories and the wave rule they rest on.
+Companion documents: [`README.md`](../README.md) for the current build, [`TOWER_SYSTEMS_REFERENCE.md`](TOWER_SYSTEMS_REFERENCE.md) for The Tower's system roles and our originality boundary, [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md) for the researched encounter foundation, [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md) for the Workshop categories and the wave rule they rest on.
 
 ## Guiding principle
 
