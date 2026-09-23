@@ -125,6 +125,11 @@ func _init() -> void:
 		_simulate_opening()
 		quit(0)
 		return
+	# `-- --maxed-workshop` measures a fully maxed Workshop under candidate ladders.
+	if OS.get_cmdline_user_args().has("--maxed-workshop"):
+		_simulate_maxed_workshop()
+		quit(0)
+		return
 	# `-- --hit-sweep` measures balance target 5 across Hit scales (D043).
 	if OS.get_cmdline_user_args().has("--hit-sweep"):
 		_simulate_hit_sweep()
@@ -332,6 +337,78 @@ func _simulate_build(label: String, tier: int, ranks: Dictionary, rig_policy: St
 		"  rig_ranks=", rig_bought,
 		"  rig_last_10m=", rig_late
 	)
+
+## How far a player who has maxed the whole Workshop gets, with no Labs, Cards
+## or run ranks, under each candidate ladder (WORKSHOP_LADDERS.md). A ladder
+## that does not exist yet is given as the ranks that reach its maximum value
+## with today's per-rank effects, since only the maximum matters here.
+## `proposal` is WORKSHOP_LADDERS.md at 5,000 / 1,000 ranks; `tower` matches
+## The Tower's level counts and scales, reading our rank 100 as its level 100
+## (its Damage is x67,480 from level 100 to 6,000, Defense Absolute x78,930,
+## Health x310,500); `recommended` is `tower` with Cushion capped at 150 ranks,
+## Armor at 50% and Thorns at 100%.
+const MAXED_TODAY := {
+	"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 100,
+	"faster_echo": 60, "burst_relay": 6, "more_critical": 100, "magnitude_coil": 60,
+	"chain_reaction": 60, "automation_core": 50, "boss_damage": 100,
+	"tax_resistance": 100, "guard": 100, "siphon": 100, "recoil": 100,
+	"priority_buffer": 50, "brace_discount": 60, "second_wind": 50,
+	"smarter_efficiency": 60, "coin_bonus": 100, "knowledge_bonus": 50,
+}
+
+func _maxed_ladder(name: String) -> Dictionary:
+	var ranks := MAXED_TODAY.duplicate()
+	if name == "proposal":
+		ranks["stronger_tap"] = int(916.0 / 0.05)
+		ranks["generator"] = int(1367.0 / 0.075)
+		ranks["generator_two"] = int(ceil(log(80.0) / log(1.00701257)))
+		ranks["guard"] = 494
+		ranks["magnitude_coil"] = 1000
+		ranks["boss_damage"] = 1000
+		ranks["priority_buffer"] = 1000
+	elif name == "tower" or name == "recommended":
+		ranks["stronger_tap"] = int(6.0 * 67480.0 / 0.05)
+		ranks["generator"] = int(7.5 * 67480.0 / 0.075)
+		ranks["guard"] = int(100.0 * 78930.0)
+		ranks["priority_buffer"] = int(500.0 * 310500.0 / 10.0)
+		ranks["faster_cadence"] = int(ceil(log(5.95) / log(1.00915776)))
+		ranks["more_critical"] = 320
+		ranks["magnitude_coil"] = int((16.2 - 2.0) / 0.05)
+		ranks["faster_echo"] = int(0.495 / 0.004)
+		ranks["tax_resistance"] = int(0.495 / 0.004)
+		ranks["recoil"] = int(0.99 / 0.005)
+		ranks["second_wind"] = int(0.30 / 0.005)
+		ranks["coin_bonus"] = int(1.49 / 0.005)
+		if name == "recommended":
+			ranks["priority_buffer"] = 150
+			ranks["tax_resistance"] = 125
+			ranks["recoil"] = 200
+	return ranks
+
+func _simulate_maxed_workshop() -> void:
+	print("MAXED WORKSHOP  every row at its ladder's maximum, no Labs, Cards or run ranks, 2 taps/sec, seed ", SEED)
+	for name in ["today", "proposal", "tower", "recommended"]:
+		for tier in [1, 2, 3]:
+			var state := GameState.new()
+			state.purchased = _maxed_ladder(name)
+			state.tier_records["1"] = {"highest_wave": 100, "milestones_claimed": [10, 20, 25, 30, 40, 50, 60, 75, 90, 100]}
+			state.tier_records["2"] = {"highest_wave": 100, "milestones_claimed": []}
+			state.start_run(tier, SEED)
+			var seconds := 0.0
+			var reached := 1
+			while seconds < 10800.0 and state.in_run:
+				reached = state.wave
+				state.tap()
+				state.advance(STEP * 0.5)
+				state.advance(STEP * 0.5)
+				seconds += STEP
+			print(
+				"  ", name.rpad(12), "T", tier, "  ", ("alive" if state.in_run else "death"), " at wave ", reached,
+				"  minutes=", snappedf(seconds / 60.0, 0.1),
+				"  coins=", state.coins,
+				"  damage/s=", state.get_rate_per_second().format_value(),
+				"  wave HP=", state.balance_profile.liability_for_wave(tier, reached).format_value()
+			)
 
 ## Balance target 5: the cheapest build that reaches wave 100 includes both
 ## Attack and Defense. Each Hit scale runs the builds that decide it (max Attack
