@@ -46,9 +46,13 @@ func _init() -> void:
 	_test_rig_cost_is_quoted_in_seconds_of_income()
 	_test_rig_purchase_spends_cash_and_stacks()
 	_test_rig_multi_buy_quotes_and_spends()
+	_test_rig_stops_at_the_rows_max_rank()
 	_test_rig_is_run_scoped()
 	_test_rig_refuses_what_it_does_not_sell()
 	_test_rig_save_round_trip()
+	_test_cash_flows_at_the_priced_income()
+	_test_rig_cushion_pays_its_number_now()
+	_test_rig_discount_bulk_matches_singles()
 	_test_rig_ranks_are_worth_more_than_workshop_ranks()
 	_test_lab_definitions_cover_the_open_categories()
 	_test_lab_research_costs_coins_and_takes_real_time()
@@ -746,7 +750,14 @@ func _test_tier_one_opening() -> void:
 			_expect(hit_growth > 1.0 and hit_growth < 1.6, "the Hit should rise smoothly from wave " + str(previous) + " to " + str(check_wave))
 		previous = check_wave
 	_expect(profile.liability_for_wave(1, 21).compare_to(profile.liability_for_wave(1, 19)) > 0 and pow(10.0, profile.liability_for_wave(1, 21).log10() - profile.liability_for_wave(1, 19).log10()) < 1.4, "wave 21 should no longer jump")
-	_expect(profile.collection_for_wave(1, 1).compare_to(ScientificNumber.from_float(5.0)) <= 0 and profile.collection_for_wave(1, 100).compare_to(profile.collection_for_wave(1, 1)) > 0, "the Hit curve starts small at wave 1 and scales into depth")
+	# D043: the Hit has its own curve, 1.5 x (0.08 w^2.10 + 0.4 w + 1), with the
+	# same milestone steps as Wave HP, rather than a share of the wave's HP.
+	for check_wave in [1, 21, 49, 101, 999, 5001]:
+		var w := float(check_wave)
+		var steps := pow(1.08, check_wave / 10) * pow(1.2, check_wave / 50) * pow(1.5, check_wave / 100)
+		var expected := 1.5 * (0.08 * pow(w, 2.10) + 0.4 * w + 1.0) * steps
+		_expect(absf(profile.collection_for_wave(1, check_wave).log10() - log(expected) / log(10.0)) < 0.000001, "an ordinary Hit should follow the D043 curve (wave " + str(check_wave) + ")")
+	_expect(profile.collection_for_wave(2, 21).compare_to(profile.collection_for_wave(1, 21).multiply_scalar(20.0)) == 0, "Tier 2 should multiply the same Hit curve by 20")
 	var boss_hp := profile.liability_for_wave(1, 10)
 	var ordinary_hit_10 := profile._from_log10(profile._wave_hit_log10(10))
 	_expect(profile.collection_for_wave(1, 10).compare_to(ordinary_hit_10.multiply_scalar(profile.BOSS_COLLECTION_MULTIPLIER)) == 0 and not boss_hp.is_zero(), "a boss's Hit should be 1.5 times an ordinary Hit at its wave")
@@ -800,8 +811,9 @@ func _test_tier_one_opening() -> void:
 	rig.start_run(1, 3)
 	var opening_cost: ScientificNumber = rig.get_rig_cost("generator")
 	_expect(opening_cost.compare_to(ScientificNumber.from_float(12.0)) <= 0, "the first Rig rank should cost about 10 Cash")
+	var opening_number: ScientificNumber = rig.number.copy()
 	_expect(rig.purchase_rig("generator") and rig.purchase_rig("stronger_tap"), "both opening Rig ranks should be affordable immediately")
-	_expect(rig.number.compare_to(ScientificNumber.from_float(25.0)) > 0, "opening purchases should not reduce Number")
+	_expect(rig.number.compare_to(opening_number) == 0, "opening purchases should not reduce Number")
 	_expect(rig.cash.compare_to(ScientificNumber.new()) >= 0, "opening purchases should leave non-negative Cash")
 	var climb := GameState.new()
 	climb.start_run(1, 3)
@@ -1798,12 +1810,29 @@ func _test_rig_purchase_spends_cash_and_stacks() -> void:
 	var multiplier: float = state.balance_profile.rig_effect_multiplier(ProgressionTaxonomy.ATTACK, "stronger_tap")
 	_expect(is_equal_approx(state._tap_base(), base_tap + 0.05 * multiplier), "a Rig rank should grant its multiplier of one Workshop rank's effect")
 	_expect(state.get_workshop_level() == 0, "Rig ranks must not raise the Workshop level")
-	# Uncapped: the Rig keeps selling past the Workshop's rank cap.
+	# D044: Workshop and run ranks together stop at the row's max rank.
 	state.cash = ScientificNumber.new(1.0, 40)
 	var cap: int = state.get_definition("stronger_tap").max_rank
-	for rank in range(cap):
-		_expect(state.purchase_rig("stronger_tap"), "Rig ranks are uncapped while Cash lasts")
-	_expect(state.rig_owned("stronger_tap") == cap + 1, "the Rig should hold ranks past the Workshop cap")
+	for rank in range(cap - 1):
+		_expect(state.purchase_rig("stronger_tap"), "run ranks should sell up to the row's max rank")
+	_expect(state.rig_owned("stronger_tap") == cap and state.rig_room("stronger_tap") == 0, "run ranks should fill the row exactly to its max rank")
+	var cash_at_cap: ScientificNumber = state.cash.copy()
+	_expect(not state.can_purchase_rig("stronger_tap") and not state.purchase_rig("stronger_tap"), "a full row should sell no more run ranks")
+	_expect(state.cash.compare_to(cash_at_cap) == 0 and int(state.plan_rig_purchase("stronger_tap", GameState.MAX_BUY).ranks) == 0, "a full row should quote nothing and spend nothing")
+
+## D044: a row maxed in the Workshop sells nothing in a run, and a part-built
+## row sells only the ranks it has left, whatever the press asks for.
+func _test_rig_stops_at_the_rows_max_rank() -> void:
+	var state := _funded_state()
+	var definition := state.get_definition("generator_two")
+	state.purchased = {"generator_two": definition.max_rank, "stronger_tap": 97}
+	state.start_run(1, 19)
+	state.cash = ScientificNumber.new(1.0, 40)
+	_expect(state.rig_room("generator_two") == 0 and not state.can_purchase_rig("generator_two"), "a Workshop-maxed row should sell nothing in a run")
+	_expect(state.purchase_rig_ranks("generator_two", GameState.MAX_BUY) == 0, "MAX on a Workshop-maxed row should buy nothing")
+	_expect(state.rig_room("stronger_tap") == 3, "a row should have room for its unbought ranks only")
+	_expect(int(state.plan_rig_purchase("stronger_tap", 5).ranks) == 3, "an x5 press should quote only the room left")
+	_expect(state.purchase_rig_ranks("stronger_tap", GameState.MAX_BUY) == 3 and state.rig_room("stronger_tap") == 0, "MAX should fill the row to its max rank and stop")
 
 func _test_rig_multi_buy_quotes_and_spends() -> void:
 	# An opening x5 press buys what it can afford, and exactly what buying the
@@ -1897,6 +1926,71 @@ func _test_rig_refuses_what_it_does_not_sell() -> void:
 	exact.cash = exact.get_rig_cost("stronger_tap").copy()
 	_expect(exact.purchase_rig("stronger_tap"), "a rank the Cash exactly covers should sell")
 	_expect(exact.cash.is_zero(), "spending the exact price should leave zero Cash")
+
+## D042: Cash comes in at the same income the Rig's prices are quoted in, so a
+## rank that speeds up ticks never raises prices faster than Cash.
+func _test_cash_flows_at_the_priced_income() -> void:
+	var state := GameState.new()
+	state.purchased = {"generator": 50, "faster_cadence": 60}
+	state.start_run(1, 21)
+	state.cash = ScientificNumber.new()
+	var ticks := 200
+	for tick in range(ticks):
+		state._produce_tick()
+	var seconds := float(ticks) / state._tick_rate()
+	var expected := state.get_rig_income_rate() * seconds
+	_expect(state._tick_rate() > 1.5, "the fixture should tick faster than once a second")
+	_expect(absf(state.cash.log10() - log(expected) / log(10.0)) < 0.0001, "Cash should flow at the Rig's priced income per second")
+	var outside := GameState.new()
+	outside._produce_tick()
+	_expect(outside.cash.is_zero(), "no Cash should flow outside a run")
+
+	var profile := TaxBalanceProfile.new()
+	_expect(is_equal_approx(profile.wave_cash(1), 15.0) and is_equal_approx(profile.wave_cash(21), 115.0) and is_equal_approx(profile.wave_cash(10), 180.0), "a beaten wave should pay 10 + 5 x its number in Cash, x3 on a boss")
+	var clearing := GameState.new()
+	clearing.start_run(1, 22)
+	var before: ScientificNumber = clearing.cash.copy()
+	clearing.active_encounter.remaining_liability = ScientificNumber.new()
+	clearing._complete_current_wave()
+	_expect(clearing.cash.compare_to(before.add(ScientificNumber.from_float(profile.wave_cash(1)))) == 0, "beating wave 1 should pay its Cash")
+	_expect(clearing.run_cash_earned.compare_to(clearing.cash) == 0, "Cash earned should count the wave's Cash")
+
+## Cushion is starting Number, and an in-run rank arrives after the start, so
+## the Rig pays it into this run's Number at the Rig's worth and the tier's scale.
+func _test_rig_cushion_pays_its_number_now() -> void:
+	for tier in [1, 2]:
+		var state := _funded_state()
+		state.tier_records["1"] = {"highest_wave": GameState.TIER_UNLOCK_WAVE, "best_time": 0.0, "milestones_claimed": []}
+		_expect(state.start_run(tier, 23), "the Cushion fixture should start Tier " + str(tier))
+		state.cash = ScientificNumber.from_float(1.0e9)
+		var before: ScientificNumber = state.number.copy()
+		var definition := state.get_definition("priority_buffer")
+		var per_rank := float(definition.effects["starting_number_flat"]) * state.balance_profile.rig_effect_multiplier(definition.workshop_category, "priority_buffer") * state.get_cushion_scale()
+		_expect(state.purchase_rig_ranks("priority_buffer", 2) == 2, "two Cushion ranks should sell")
+		_expect(state.number.compare_to(before.add(ScientificNumber.from_float(per_rank * 2.0))) == 0, "Rig Cushion should add its Number now (Tier " + str(tier) + ")")
+		_expect(state.run_peak_number.compare_to(state.number) >= 0, "the run peak should include Cushion's Number")
+	var armor := _funded_state()
+	armor.start_run(1, 24)
+	armor.cash = ScientificNumber.from_float(1.0e9)
+	var number_before: ScientificNumber = armor.number.copy()
+	armor.purchase_rig(GameState.ARMOR_ID)
+	_expect(armor.number.compare_to(number_before) == 0, "a row without starting Number should leave Number alone")
+
+## GAME_INVARIANTS: a bulk press costs what the same ranks cost singly. Each
+## Discount rank lowers the next Rig price, so the quote has to follow it.
+func _test_rig_discount_bulk_matches_singles() -> void:
+	var bulk := _funded_state()
+	var singles := _funded_state()
+	bulk.start_run(1, 25)
+	singles.start_run(1, 25)
+	bulk.cash = ScientificNumber.from_float(1.0e6)
+	singles.cash = ScientificNumber.from_float(1.0e6)
+	var single_price := singles.get_rig_cost("stronger_tap")
+	_expect(bulk.purchase_rig_ranks("smarter_efficiency", 5) == 5, "a funded x5 Discount press should buy five")
+	for rank in range(5):
+		_expect(singles.purchase_rig("smarter_efficiency"), "the comparison run should buy each Discount rank singly")
+	_expect(bulk.cash.compare_to(singles.cash) == 0, "bulk and single Discount buys should spend the same Cash")
+	_expect(singles.get_rig_cost("stronger_tap").compare_to(single_price) < 0, "Rig Discount ranks should lower other Rig prices")
 
 func _test_rig_save_round_trip() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
@@ -2317,17 +2411,13 @@ func _test_rig_ranks_are_worth_more_than_workshop_ranks() -> void:
 	_expect(state.purchase_rig("burst_relay"), "a Rig Burst rank should buy")
 	_expect(state._burst_interval() == 11, "a Rig Burst rank should shorten the interval by one step, not by its multiplier")
 
-## D023: the combined defensive effects are bounded, so an uncapped Rig cannot
-## turn a run immortal.
+## D023: the combined defensive effects are bounded. Run ranks worth more than
+## Workshop ranks, Labs and Cards can all stack past a row's own cap, so the
+## fixture stands in for them with ranks past the Workshop maximum.
 func _test_defensive_ceilings_bound_the_combined_effects() -> void:
 	var state := _funded_state()
 	state.start_run(1, 13)
-	state.purchased = {GameState.ARMOR_ID: 100, "siphon": 100, "recoil": 100}
-	state.cash = ScientificNumber.new(1.0, 40)
-	for rank in range(200):
-		state.purchase_rig(GameState.ARMOR_ID)
-		state.purchase_rig("siphon")
-		state.purchase_rig("recoil")
+	state.purchased = {GameState.ARMOR_ID: 250, "siphon": 300, "recoil": 300}
 	_expect(state._effect_sum("collection_resistance") > state.balance_profile.COLLECTION_RESISTANCE_CEILING, "the fixture should stack Armor past its ceiling")
 	state.wave = 30
 	state.active_encounter = state._make_encounter(30)

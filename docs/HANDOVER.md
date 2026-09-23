@@ -1,64 +1,61 @@
 # Handover
 
-**Last updated:** 23 September 2026, after D042 (Cash economy & 21-row Workshop parity) and D043 (decoupled Wave Attack curve & 5,000-wave milestones) committed and pushed to `main` (commit `dfbac69`).
+**Last updated:** 23 September 2026, after D044 (run ranks stop at a row's max rank and are worth two Workshop ranks) and D045 (the Rig is called Upgrades), and after measuring the proposed coin gates with the new career simulator.
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
 
 ## Where the game is
 
-`main` plays like this (seed 7 simulator figures; verified with Godot 4.7.2):
+`main` plus branch `claude/game-changes-review-fbili3` plays like this (seed 7 simulator figures, Godot 4.7.2, balance profile `tax-foundation-v9`; nothing below has been checked on a phone):
 
-- **The core loop (D037, D038):** everything you produce is Number and also damages the wave. A beaten wave gives way to the next after 2.5 seconds. A missed ordinary wave hits once and moves on, paying Coins for the share you cleared. Bosses, every 10th wave, stay and hit every 15 seconds until you beat them. Siphon became Leech and Recoil became Thorns: both are boss-fight stats. Guard cuts the Hit by a flat amount before Armor's percentage.
-- **In-run Cash & Rig parity (D042):**
-  - Upgrades during a run spend **Cash**, completely separating in-run upgrades from the **Number** health pool. Purchasing upgrades never endangers player survival.
-  - **100% Workshop parity:** all 21 Workshop rows (11 Attack, 7 Defense, 3 Utility) can be purchased in the Rig during an active run, matching *The Tower*.
-  - Cash is earned continuously per second based on steady income rate, plus bonuses on wave clears (2× income rate, 6× on bosses). Runs start with an opening Cash buffer (`starting_cash()`) enabling 1–2 immediate purchases.
-  - Cash is strictly run-scoped and resets on run conclusion; mid-run saves preserve `cash` and `run_cash_earned` in `SaveDataV8`.
-- **Decoupled difficulty & 5,000-wave milestones (D043):**
-  - **Wave HP:** $4 \times (0.05 w^{2.13} + 0.8 w + 1.5) \times \text{milestones}$.
-  - **Wave Hit:** $1.5 \times (0.08 w^{2.10} + 0.4 w + 1.0) \times \text{milestones}$ (independent curve; not tied to HP).
-  - Bosses are ×3 HP and ×1.5 Hit.
-  - **5,000-wave depth:** Waves can run indefinitely. Milestones extend to wave 5,000 with checkpoints at:
-    - All milestones: 10, 20, 25, 30, 40, 50, 60, 75, 90, 100, 150, 200, 250, 350, 500, 750, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000.
-    - Coin milestones: 10, 25, 50, 100, 250, 500, 750, 1000, 2500, 5000.
-  - Tiers 2 and 3 multiply the same curve by 20 and 60.
-- **Where builds land (profile v8, seed 7):**
+- **The core loop (D037, D038):** everything you produce is Number and also damages the wave. A beaten wave gives way to the next after 2.5 seconds. A missed ordinary wave hits once and moves on, paying Coins for the share you cleared. Bosses, every 10th wave, stay and hit every 15 seconds until you beat them. Guard cuts the Hit by a flat amount before Armor's percentage.
+- **Run Upgrades (the Rig in code; D042, D044, D045):** during a run all 21 Workshop rows can be raised with run-only Cash; Number is never spent on them.
+  - A row's Workshop ranks and run ranks together stop at its max rank, so a Workshop-maxed row shows MAX and sells nothing. A run rank is worth two Workshop ranks (Burst's is one step).
+  - Cash flows at the priced income (passive rate plus one tap a second, whether or not you tap). A beaten wave adds 10 + 5 × the wave, ×3 on a boss; a missed wave adds the share it cleared. A run starts with 12.5 seconds of its opening income.
+  - Prices: about 5 seconds of income, ×1.4 per run rank of that row. Discount lowers them.
+- **Difficulty (D043):** Wave HP = 4 × (0.05 w^2.13 + 0.8 w + 1.5) and the Hit = 1.5 × (0.08 w^2.10 + 0.4 w + 1), both with the milestone steps. Bosses are ×3 HP and ×1.5 Hit. Tiers 2 and 3 multiply by 20 and 60. Milestones run from wave 10 to 5,000.
+- **Where builds land (two taps a second):**
 
-  | Build | Result |
-  | --- | --- |
-  | First run (two taps a second) | wave 20 boss, ~102 Coins |
-  | Fresh run + Rig | wave 30, ~8.9 minutes, 234 Coins |
-  | Mid Workshop + Rig | wave 70, ~16.2 minutes, 1,632 Coins |
-  | Max Attack (solo, no defense) | wave 103, ~19.7 minutes, 3,808 Coins |
-  | Max Attack + Armor | wave 116, ~26.0 minutes, 4,264 Coins |
-  | Max Attack + Armor + Rig | wave 150, ~35.3 minutes, 6,811 Coins |
-  | Tier 2, all Defense | wave 50 |
+  | Build | Not buying run ranks | Buying run ranks |
+  | --- | --- | --- |
+  | Fresh | wave 20, 86 Coins | wave 28, 202 Coins |
+  | Early Workshop | wave 33 | wave 40 |
+  | Mid Workshop | wave 60 | wave 60 |
+  | Max Attack | wave 103 | wave 110 |
+  | Max Attack + Armor | wave 116 | wave 120 |
+  | Everything maxed | wave 128 | wave 128 (nothing to buy) |
 
-- **Balance targets:** 5 (wave 100 needs Defense) holds strongly (max Attack dies at wave 103 boss; adding Armor reaches 116).
+  A career from a fresh save (`tools/career_simulator.gd`, 40 runs) reaches wave 100 in 7.6 hours without run ranks and 5.0 with them.
+- **Balance targets ([`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md)):** 7, 9 and 10 hold. 8 is restated by D044 and passes narrowly at mid builds (no extra wave, about 6% more Coins). **5 fails:** max Attack alone clears the wave 100 boss and dies at wave 103, because D043's Hits are smaller. 2 still fails by design since D037.
 
 ## Open decisions for the owner
 
-1. **Combat HUD presentation:** implementing the concentric dual ring (Wave HP inner ring, 15s Hit timer outer ring) and dynamic mitigation telemetry readout (`[ HIT: 340 (-38% ARMOR) IN 4.2s ]`).
-2. **Tier unlock wave threshold:** currently 100 (`TIER_UNLOCK_WAVE = 100`). Decide what wave should unlock Tier 2 as ladders and content grow.
-3. **Coins per minute (balance target 2):** rewards came up about 1.5–1.8× when beaten waves stopped waiting out their timers (D037). Accept and restate the target, or bring Coins down.
-4. **The Workshop ladders** ([`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md), with data in [`data/workshop/`](../data/workshop/)): 5,000-rank core rows, a band of ranks per tier, dropping Breakthroughs from pacing, and making `data/workshop/` the Workshop's single source.
+1. **Balance target 5.** Max Attack clears wave 100 with no Defense. Either raise the Hit (D043's scale is 1.5) or restate the target. I'd raise the Hit scale a little and re-measure, because the two-axes pillar depends on it.
+2. **Save schema V9.** `cash` and `run_cash_earned` widened V8 instead of bumping it, which D028 rules out. Recommended: bump to V9 with a V8 migration, together with coin gates' `workshop_unlocks` if those are accepted.
+3. **The Tower parity plan and coin gates** ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md#tower-parity-plan-and-coin-gates--proposed-23-september-2026)): the gate model, the measured ladder (first gates 100, 250, 500), the starter rows, run Upgrades selling only unlocked rows, each new mechanic, and three primitives (movable Hit timer, wave queue, difficulty counter).
+4. **Tier unlock wave:** still 100 (`TIER_UNLOCK_WAVE`).
+5. **Coins per minute (balance target 2):** above target since D037. Accept and restate, or bring Coins down.
+6. **The Workshop ladders** ([`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md)): 5,000-rank core rows, bands per tier, `data/workshop/` as the single source.
+7. **Still open from before:** Bounty, Finisher, Streak, Payback and Auto Tap; the Tiers 1–10 proposal ([`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md)); the play-folder sync rule on branch `claude/sync-play-checkout`; enemy-growth suppression ([`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md)).
 
-## Immediate next steps for incoming agent
+## Next steps, in order
 
-1. **Implement the combat HUD pass (Item 2):**
-   - In [`src/ring_arc.gd`](../src/ring_arc.gd): Add a concentric outer arc (radius ~0.37, thickness ~3.0px) representing the 15-second Hit timer ticking clockwise towards 12 o'clock, while the inner ring (radius ~0.31, thickness ~7.0px) tracks Wave HP cleared. When a wave is cleared, the timer ring snaps away cleanly (`BEATEN · NO HIT`).
-   - In [`src/main.gd`](../src/main.gd): Update `encounter_label` to show dynamic mitigation readout: `[ HIT: X (-Y% ARMOR) IN Zs · W HP LEFT ]` when active, and `BEATEN · NO HIT` when cleared.
-   - Reference: [`docs/COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md) and D041.
-2. **Owner with new players:** watch a fresh 10–20-minute run. Check whether players can read the inner vs outer ring and explain why a clean clear avoided a Hit.
-3. **Agent:** build a GDScript career simulator on the real rules before tuning new combat or progression systems.
+1. **Owner:** decide coin gates and save V9; then **agent:** build them together as the parity plan's step 1. High risk: saves, economy.
+2. **Agent:** the ordered player-stat pipeline (parity plan step 2), which almost every new row needs. Medium–high risk: touches every stat.
+3. **Agent:** the combat HUD pass in [`src/ring_arc.gd`](../src/ring_arc.gd) and [`src/main.gd`](../src/main.gd) (D041; [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md)). Medium risk: presentation.
 
 ## Known issues and risks
 
-- **Lab research is unreachable past about rank 20.** Each rank takes 1.55× longer and costs 1.7× more, so maxing Damage Research would take about 425 years. Needs its own pass with the Gem economy.
-- **Rig ranks are Workshop-sized.** Late in a run a flat Tap Damage or Damage per Second rank adds very little. The percentage Boosts in the tier proposal would fix it.
+- **Lab research is unreachable past about rank 20.** Each rank takes 1.55× longer and costs 1.7× more. Needs its own pass with the Gem economy.
+- **Run ranks are Workshop-sized.** Late in a run a flat Tap Damage or Damage per Second rank adds very little.
 - **The wave 100 boss** doubles in one step: the ×1.5 milestone lands on the boss's ×3. It's the tier gate, left as is.
+- **Cash counts a tap a second even when you're idle**, so an idle player buying run ranks keeps pace with a light tapper.
+- **`run_cash_earned` is saved but nothing reads it**, and `tools/balance_simulator.gd` still carries the unused `_rig_reserve`.
+- **`TOWER_SYSTEMS_REFERENCE.md`** still says the Hit is derived from Wave HP; D043 changed that.
+- **`src/game_data.gd.uid`** is not committed, though the other scripts' `.uid` files are.
+- **No independent review** has run on D042–D044's economy diffs; this environment's agents are only spawned when the owner asks.
 
 ## Working notes
 
-- **The owner plays from `~/NumberGOup-main`.** It must end on merged `main`. When a game is running from it (`Godot --path /Users/paulhardie/NumberGOup-main`), work in a separate worktree. After a merge, check `git -C ~/NumberGOup-main status -sb` reads `## main...origin/main`.
-- **Every economy change** needs `bash run_tests.sh`, `bash run_balance.sh` before and after, and an independent review of the diff ([`QUALITY_GATES.md`](QUALITY_GATES.md)).
+- **The owner plays from `~/NumberGOup-main`.** It must end on merged `main`. When a game is running from it, work in a separate worktree.
+- **Every economy change** needs `bash run_tests.sh`, `bash run_balance.sh` before and after, the career simulator for anything that changes pacing, and an independent review of the diff ([`QUALITY_GATES.md`](QUALITY_GATES.md)).
 - **`tools/export_workshop.gd`** regenerates `data/workshop/current.*` from the live game. Rerun it after any catalogue or profile change.

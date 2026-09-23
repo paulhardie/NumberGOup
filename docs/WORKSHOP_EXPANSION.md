@@ -1,9 +1,164 @@
 # Workshop expansion
 
-**Status:** Proposed, 23 September 2026. Step 1 (the core rules, with Leech and Thorns) is accepted and built as [D037](DECISIONS.md) and [D038](DECISIONS.md); everything else here is still proposed. It follows the owner's direction that the Workshop should be fleshed out rather than cut, and that the difficulty curve should be solved by investment in it. Each row below needs its decision recorded in [`DECISIONS.md`](DECISIONS.md) before it is built.
+**Status:** Proposed, 23 September 2026. The [Tower parity plan and coin gates](#tower-parity-plan-and-coin-gates--proposed-23-september-2026) below is the newer proposal and says which of the earlier rows survive. Step 1 (the core rules, with Leech and Thorns) is accepted and built as [D037](DECISIONS.md) and [D038](DECISIONS.md); everything else here is still proposed. It follows the owner's direction that the Workshop should be fleshed out rather than cut, and that the difficulty curve should be solved by investment in it. Each row below needs its decision recorded in [`DECISIONS.md`](DECISIONS.md) before it is built.
 **Scope:** the permanent Workshop's Attack, Defense and Utility rows: what each existing row does under the proposed core rules, eight new rows, and how the Workshop keeps scaling across tiers. Ultimates stay as [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md#ultimates--rare-powerful-earned) describes them.
 **Ladders:** rank depth, cost curves and stat curves for every row, with JSON and tables, are in [`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md).
 **Depends on:** the core-rule change below, which is itself proposed. [`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md) covers the tier ladder and the percentage Boosts (the Rig) this document assumes.
+
+## Tower parity plan and coin gates — proposed, 23 September 2026
+
+**Status:** proposed on owner direction, 23 September 2026: carry The Tower's Workshop over as far as it makes sense, and "hide some behind coin gates similar to the tower … so players don't get everything immediately at the start." Nothing here is accepted or built. "The Rig" below means run Upgrades (D045), whose ranks now stop at a row's max rank and are worth two Workshop ranks (D044). Each gate, row and foundation piece needs its decision in [`DECISIONS.md`](DECISIONS.md) first. Where this plan overlaps the earlier 28-row plan below, this plan is the newer proposal; the [reconciliation](#how-this-meets-the-earlier-proposals) says which earlier rows survive.
+
+**Sources:** The Tower's 48 Workshop rows (17 Attack, 18 Defense, 13 Utility) and their ranges come from the unofficial community [TheTowerSDK](https://github.com/TmRxJD/TheTowerSDK) workshop table (release 0.11.0, 13 September 2026). Death Defy's place in Defense and the unlock prices quoted below come from the community wikis ([Fandom](https://the-tower-idle-tower-defense.fandom.com/wiki/Workshop_Upgrades), [Game Vault](https://the-tower-idle-tower-defense.game-vault.net/wiki/Workshop)). These are community reconstructions, not developer data. Every number in this plan is ours (D009), not copied.
+
+### The idea in one paragraph
+
+A wave has no enemies on screen, so every "spatial" Tower row is translated through two readings the game already supports: **the Hit timer is distance** (the wave walks in and lands its Hit when it arrives) and **the waves behind this one form a queue** (a proposed new primitive: the next two or three waves' HP shown as small numbers behind the big one). Each Workshop tab starts with a few free rows. The rest open one at a time through **coin gates**: a one-time Coin payment that unlocks the next mechanic in that tab, in a fixed order. A fresh save opens with 7 rows (today 5, with the other 16 opening by Workshop level); a fully unlocked Workshop has 49, against The Tower's 48.
+
+### How coin gates work
+
+- **What The Tower does.** Its first rows in each tab are free; from there each new mechanic is a one-time Coin unlock that needs the previous one. The wikis give Attack as Multishot 400 Coins, Rapid Fire 1,500, Bounce Shot 10,000, Super Critical 100 million, and Death Defy at 1.5 million after the Land Mine rows. Crit Chance and Crit Factor are free there; gating them is our choice.
+- **One ladder per tab, in a fixed order.** Only the next gate in each tab shows, as a locked card with its price (`UNLOCK FRENZY · 2,500 COINS`). Later gates show as locked without a name, so the tab promises more without listing it.
+- **A gate is a choice, not a toll.** After the first run a player can afford one first gate in one tab, or a handful of ranks. Opening a mechanic and deepening one compete for the same Coins.
+- **Fixed prices.** Gates ignore Discount and Research Focus, so the ladder reads the same for everyone and a discount never reorders it.
+- **Replaces the Workshop-level row gates.** `workshop_level_required` stops gating rows, so there is one rule for "why can't I buy this". The Workshop level stays: Labs and Research Focus still open by it.
+- **The Rig sells only unlocked rows,** as The Tower's in-run upgrades do. This narrows D042's "all 21 rows in the Rig" to "every unlocked row", so it needs recording against D042. It also narrows what a fresh run can buy: 7 rows instead of 21. Measured with the career simulator (40 runs from a fresh save), the first ladder below made early progress without run ranks about twice as slow as today; see [the gate prices](#the-gate-ladder-measured).
+- **Saves.** Unlocks are permanent and saved as `workshop_unlocks`, a new field, so under D028 it is save schema V9. That is the same bump the Cash fields owe. Migration unlocks every row an old save holds ranks in or whose old Workshop-level gate it already meets, so no player loses a row they had.
+
+**The gate ladder**, the same in every tab (starting proposal; the first three gates raised from 60, 150 and 400 after the [measurement below](#the-gate-ladder-measured)):
+
+| Gate | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Coins | 100 | 250 | 500 | 1,000 | 2,500 | 6,000 | 15,000 | 35,000 | 80,000 | 180,000 | 400,000 |
+
+Sized against measured Coins per run (profile `tax-foundation-v8`, seed 7, two taps a second, hoarding / playing the Rig): fresh 86 / 232, early 382 / 683, mid 1,154 / 1,659, max Attack 3,808 / 5,875, everything maxed 7,760 / 13,675. So the first gate is about one first run; gate 3 is an early run; gate 5 is about one strong run; gates 8 and later exceed today's whole Workshop (about 140,000 Coins to max) and are sized for the deeper economy the [ladders](WORKSHOP_LADDERS.md) and higher tiers bring. Tune with the simulator; revisit the top of the ladder when the ladders land.
+
+#### The gate ladder, measured
+
+Measured on 23 September 2026 with `tools/career_simulator.gd`: 40 runs from a fresh save, Tier 1, two taps a second, seed 7 + run, on balance profile `tax-foundation-v9` (run ranks capped and worth 2, D044). The simulated player buys every affordable next gate, cheapest first, keeps back the next gate when one run pays for it, and spends the rest on ranks in turn. Gates for rows that don't exist yet are skipped, which flatters the gated careers slightly.
+
+| Ladder (first gates) | Wave 30, no run Upgrades | Wave 100, no run Upgrades | Wave 100, buying run Upgrades |
+| --- | --- | --- | --- |
+| Today, no gates | run 4 (0.5 h) | run 33 (7.6 h) | run 20 (5.0 h) |
+| First proposal: 60, 150, 400, … | run 9 (1.0 h) | run 40 (8.7 h) | run 26 (6.3 h) |
+| Gentle: 25, 75, 200, … | run 9 (1.0 h) | not in 40 runs | run 25 (6.0 h) |
+| **Now proposed: 100, 250, 500, then as before** | **run 6 (0.7 h)** | **run 37 (8.2 h)** | **run 26 (6.1 h)** |
+
+**The lever is how many gates a player buys early, not what each costs.** The first real wall is the wave 20 boss, and passing it takes Damage ranks: today's player has about 70 Workshop ranks by run 3 and clears it. Cheap gates let the gated player spend its first 250 Coins opening six rows that do not help at wave 20 (Crit at rank 0, Thorns, Coin Bonus), so its ranks lag two or three runs behind. A dearer first gate opens fewer rows early and leaves those Coins in ranks. The new ladder is the starting proposal (`--ladder plan` in the simulator): gates cost about half an hour at the start and 8% of the time to wave 100 without run Upgrades, or 22% with them, because locked rows are locked for run Upgrades too. Players who unlock less greedily than the simulated one will lose less.
+
+
+### Attack
+
+Free at the start: **Tap Damage, Damage per Second, Tick Speed.**
+
+| Gate | Opens | Tower row(s) | What it does here | Needs |
+| --- | --- | --- | --- | --- |
+| 1 | Crit Chance, Crit Damage | Critical Chance, Critical Factor | As today | — |
+| 2 | Damage Multiplier | Damage (its scaling) | As today | — |
+| 3 | Boss Damage | — (ours) | As today | — |
+| 4 | Auto Crank | — (ours) | As today; its Auto Tap job is still open | — |
+| 5 | **Early Strike** | Damage / Meter | Bonus damage for every second left on the Hit timer: a wave hit while still far away takes more. Shown as a shrinking multiplier (`×1.3 EARLY`) | Pipeline |
+| 6 | **Frenzy Chance, Frenzy Duration** | Rapid Fire Chance, Duration | Chance per tick to tick 4× faster for a few seconds, with a countdown on the ring. **Replaces Burst** | Pipeline |
+| 7 | Double Tick → **Volley Chance, Volley Depth** | Multishot Chance, Targets | Double Tick as today until the queue exists; then a tick has a chance to also strike the queued waves, Depth setting how far down | Queue |
+| 8 | Crit Chain | — (ours) | As today | — |
+| 9 | **Reach** | Range | During the 2.5 seconds a beaten wave stays on screen, output already strikes the next wave; today it only adds Number | Queue |
+| 10 | **Super Crit Chance, Super Crit Damage** | Super Crit Chance, Mult | A crit has a chance to multiply again, in its own colour (`SUPER ×13`) | Pipeline |
+| 11 | **Rend Chance, Rend Strength** | Rend Armor Chance, Mult | Chance per tick to add a stack of "takes more damage" to the current wave, up to a cap; stacks clear with the wave. A boss-fight stat, shown as `REND ×1.8` | Pipeline |
+
+Not taken: **Bounce Shot** (Chance, Targets, Range). Its job, overkill carrying into the next wave, is the "overkill carry-over" [already considered and not proposed](#considered-and-not-proposed): contested waves end with almost no overkill, and an outclassed wave's overkill buys nothing because the next wave waits out its 2.5 seconds anyway. Volley covers "hit more than one wave".
+
+19 rows when complete (today 11); Burst and Double Tick are replaced.
+
+### Defense
+
+Free at the start: **Armor, Guard.**
+
+| Gate | Opens | Tower row(s) | What it does here | Needs |
+| --- | --- | --- | --- | --- |
+| 1 | Thorns | Thorn Damage | As today | — |
+| 2 | Cushion | Health | As today | — |
+| 3 | Leech | Lifesteal | As today | — |
+| 4 | Brace Cost | — (ours) | As today | — |
+| 5 | **Wall Health, Wall Rebuild** | Wall Health, Rebuild | A rechargeable shield around the ring that takes Hits before Number does, sized in the tier's Hits like Cushion; once broken it rebuilds after a delay | Pipeline, saved run state |
+| 6 | Second Wind | — (Death Defy's cousin) | As today | — |
+| 7 | **Knockback Chance, Knockback Force** | Knockback Chance, Force | Chance per tick to push the wave back, adding seconds to its Hit timer, capped per wave; the ring visibly jumps back | Movable timer |
+| 8 | **Orbs, Orb Speed** | Orbs, Orb Speed | Dots circle the ring; each pass takes a share of the approaching wave's max HP, less on bosses. The Defense stat that keeps scaling with depth | Pipeline |
+| 9 | **Shockwave Size, Shockwave Frequency** | Shockwave Size, Frequency | Once the wave is within Size seconds of its Hit, a pulse every Frequency seconds strikes it and pushes it back a little | Movable timer |
+| 10 | **Mine Chance, Mine Damage** (+ **Mine Blast**) | Land Mine Chance, Damage, Radius | Chance per tick to lay a mine; mines go off when the next wave arrives, turning output made after a clear into damage (`3 MINES READY`). Mine Blast lets them hit queued waves too | Pipeline; Blast needs the queue |
+| 11 | **Defy** | Death Defy | After Second Wind's one guaranteed rescue, a chance that a later killing Hit leaves you alive | Pipeline |
+
+Not taken: **Health Regen** as "Mend" (win back part of the Number lost since your peak). Supply Drop in Utility does the same job actively and visibly; two ways to restore Number is one too many. **Health** is Cushion, since Number is our health and has no maximum.
+
+19 rows when complete (today 7).
+
+### Utility
+
+Free at the start: **Cash per Wave, Cash Bonus.**
+
+| Gate | Opens | Tower row(s) | What it does here | Needs |
+| --- | --- | --- | --- | --- |
+| — (free) | **Cash per Wave** | Cash / Wave | Raises the Cash a beaten wave pays (today a fixed 10 + 5 × the wave) | — |
+| — (free) | **Cash Bonus** | Cash Bonus | Multiplies all Cash. D042 names this row as its revisit trigger | — |
+| 1 | Coin Bonus | Coins / Kill Bonus | As today | — |
+| 2 | Discount | — (ours) | As today; since D042 it also lowers Rig prices | — |
+| 3 | **Interest** | Interest / Wave | Each beaten wave pays a share of your unspent Cash, capped in seconds of income. It brings back the spend-or-save choice D042 took out of the Rig | Pipeline |
+| 4 | **Supply Chance, Supply Size** | Package Chance, Recovery Amount, Max Recovery | After a wave, a glowing number sometimes floats onto the stage; tap it to collect Number. At most a few wait uncollected (a fixed cap standing in for Max Recovery), so idle play can't bank them | Saved run state |
+| 5 | Knowledge Bonus | — (ours) | As today | — |
+| 6 | **Free Upgrade** | Free Attack / Defense / Utility Upgrade | Chance a Rig purchase costs nothing (`FREE`). One row for all three tabs. A chance rather than the earlier "every Nth" Free Boost: the run's saved random state keeps it reproducible (law 6) | Pipeline |
+| 7 | **Stall HP** | Enemy Health Level Skip | Chance the next wave's HP stays at this wave's level (`HP STALLED`) | Difficulty counter |
+| 8 | **Stall Hit** | Enemy Attack Level Skip | The same for the Hit | Difficulty counter |
+
+Not taken: **Coins / Wave**. Waves already pay Coins by wave number, Coin Bonus already lifts them, and Coins per minute (balance target 2) is already above target.
+
+11 rows when complete (today 3).
+
+### Foundation pieces this plan needs
+
+| Piece | What it is | Rows that need it | Risk |
+| --- | --- | --- | --- |
+| Coin gates | One-time unlocks, `workshop_unlocks`, save V9, the Rig selling only unlocked rows | Every gated row | High: saves and economy |
+| Ordered player-stat pipeline | Player stats pass through the same ordered stages (flat, percentage, multiplier, caps) the enemy side already uses, replacing the Burst and Crit Chain special cases | Almost every new row | Medium–high: touches every stat |
+| Movable Hit timer | Defense may add seconds to a wave's timer, capped per wave. It changes D037's fixed 15-second boundary, so it needs its own decision | Knockback, Shockwave | High: the wave rule |
+| Wave queue | The next two or three waves exist, show their HP, and can take damage early; saved with the encounter | Volley, Reach, Mine Blast | High: encounter state, saves |
+| Difficulty counter | Wave HP and Hit each have a level that usually rises with the wave but can stall; Coins, milestones and records still follow the wave number. The enemy-growth candidate in [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md) needs the same counter | Stall HP, Stall Hit | High: encounter state, saves, every balance measurement |
+
+### How this meets the earlier proposals
+
+| Earlier proposal | Now |
+| --- | --- |
+| Interest (on Number) | Kept, **on Cash** (Utility gate 3) |
+| Free Boost ("every Nth") | Becomes **Free Upgrade**, a chance (Utility gate 6) |
+| Boost Discount | **Dropped:** D042 already makes Discount lower Rig prices |
+| Bounty, Finisher, Streak, Payback | Still candidates outside The Tower's set. Each takes a gate slot only if chosen; Bounty overlaps Supply Drop and Finisher overlaps Early Strike, so those two most need a reason to exist |
+| Auto Crank → Auto Tap | Still open; Auto Crank keeps Attack gate 4 either way |
+| Tier bands, the category rebalance | Unchanged, and still later |
+
+### Risks
+
+- **Cash rows strengthen run Upgrades.** D044 capped run ranks and set their worth at 2 after they had outgrown the Workshop; Cash per Wave, Cash Bonus and Free Upgrade make them cheaper again, so each needs the career simulator run before and after.
+- **Attack-side damage rows push balance target 5** (wave 100 needs Defense). Early Strike, Frenzy, Super Crit and Rend all strengthen Attack-only builds; Orbs and Mines put damage in the Defense tab. Each needs the target re-measured.
+- **Gating existing rows changes existing progression.** Damage Multiplier is free today and becomes gate 2; Crit opens at Workshop level 30 today and becomes gate 1. Migration keeps every row a save already uses, but the measured early and mid builds need re-running under the gates.
+- **Replacing Burst and Double Tick** touches owned ranks. Each replacement needs a decision: carry ranks across to the new row, or refund their Coins.
+
+### Decisions this plan needs
+
+1. **Coin gates**: the model (one-time unlock per mechanic, in a fixed order per tab), the ladder, the starter rows, replacing Workshop-level row gates, and the Rig selling only unlocked rows (a narrowing of D042).
+2. **Save V9** for Cash and unlocks together, with the migration above.
+3. **Each new mechanic,** separately, as for the earlier rows.
+4. **The three primitives**: the movable Hit timer, the wave queue and the difficulty counter.
+5. **Burst → Frenzy and Double Tick → Volley**: carry ranks across or refund.
+
+### Build order
+
+| Step | What | Why here | Risk |
+| --- | --- | --- | --- |
+| 0 | Rig strength re-sweep (owner decision pending) | Every Cash row and the gates change the Rig | High: economy |
+| 1 | Coin gates and save V9 | Shapes what every later row costs to reach, cuts the fresh-run Rig, and carries the Cash fields' overdue bump | High: saves, economy |
+| 2 | Ordered player-stat pipeline | Almost every new row stacks through it | Medium–high |
+| 3 | Rows needing only the pipeline: Early Strike, Frenzy, Super Crit, Rend, Wall, Orbs, Mines, Defy, Cash per Wave, Cash Bonus, Interest, Supply Drop, Free Upgrade | No new encounter primitive; each lands and is measured on its own | Medium–high each |
+| 4 | Movable Hit timer, then Knockback and Shockwave | One wave-rule decision unlocks both | High |
+| 5 | Wave queue, then Volley, Reach and Mine Blast | The biggest new primitive | High |
+| 6 | Difficulty counter, then Stall HP and Stall Hit | The biggest single lever on depth, so last and most carefully measured | High |
 
 ## The short version
 
@@ -213,6 +368,7 @@ That's a 27% spread, against today's 13%. **Target: within 15%**, reached by rev
 - **First Strike** (every wave starts X% cleared). Same job as Finisher; Finisher reads better.
 - **Head Start** (begin runs at a later wave). With rule 3 the early waves take seconds each, so there's little to skip, and skipping risks milestone claims.
 - **Overkill carry-over.** With damage arriving continuously, very little ever carries over; it would be a row nobody could feel.
+- **Bounce Shot as Ricochet, Health Regen as Mend, and Coins / Wave** (from The Tower survey). Ricochet is overkill carry-over again; Mend duplicates Supply Drop; Coins / Wave duplicates the wave's own Coins and Coin Bonus. See the [Tower parity plan](#tower-parity-plan-and-coin-gates--proposed-23-september-2026).
 
 ## Saves
 

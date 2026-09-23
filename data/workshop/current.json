@@ -1,6 +1,6 @@
 {
   "generated_by": "tools/export_workshop.gd",
-  "balance_profile": "tax-foundation-v7",
+  "balance_profile": "tax-foundation-v9",
   "note": "Generated from the live catalogue. Edit the game, not this file.",
   "workshop_coins_to_max_by_category": {
     "attack": 46590,
@@ -28,7 +28,7 @@
       "coins_to_max": 2068,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -653,7 +653,7 @@
       "coins_to_max": 2751,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -1278,7 +1278,7 @@
       "coins_to_max": 5486,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -1663,7 +1663,7 @@
       "coins_to_max": 4799,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -2288,7 +2288,7 @@
       "coins_to_max": 3424,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -2671,7 +2671,7 @@
       "coins_to_max": 2048,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -2732,7 +2732,7 @@
       "coins_to_max": 5475,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -3357,7 +3357,7 @@
       "coins_to_max": 4795,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -3740,7 +3740,7 @@
       "coins_to_max": 6842,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -4125,7 +4125,7 @@
       "coins_to_max": 3427,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -4450,7 +4450,7 @@
       "coins_to_max": 5475,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -5075,7 +5075,7 @@
       "coins_to_max": 5475,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -5700,7 +5700,7 @@
       "coins_to_max": 5475,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -6325,7 +6325,7 @@
       "coins_to_max": 9577,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -6950,7 +6950,7 @@
       "coins_to_max": 9577,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -7575,7 +7575,7 @@
       "coins_to_max": 6848,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -7900,7 +7900,7 @@
       "coins_to_max": 4795,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -8285,7 +8285,7 @@
       "coins_to_max": 4798,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -8610,7 +8610,7 @@
       "coins_to_max": 5486,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -8995,7 +8995,7 @@
       "coins_to_max": 20498,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {
@@ -9620,7 +9620,7 @@
       "coins_to_max": 20519,
       "rig": {
         "sold": true,
-        "rank_worth_workshop_ranks": 3.0
+        "rank_worth_workshop_ranks": 2.0
       },
       "ranks": [
         {

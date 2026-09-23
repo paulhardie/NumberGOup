@@ -6,7 +6,7 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v8"
+const PROFILE_ID := "tax-foundation-v9"
 const WAVE_INTERVAL_SECONDS := 15.0
 const BOSS_WAVE_INTERVAL := 10
 ## A beaten wave stays on screen at least this long before the next arrives
@@ -39,6 +39,12 @@ const WAVE_REWARD_SCALE := 0.65
 const BOSS_LIABILITY_MULTIPLIER := 3.0
 const BOSS_COLLECTION_MULTIPLIER := 1.5
 const BOSS_REWARD_MULTIPLIER := 5.0
+## A beaten wave pays this much Cash plus CASH_PER_WAVE times its number, times
+## BOSS_CASH_MULTIPLIER on a boss (D042). It is flat rather than income-scaled,
+## so it matters most in the opening and fades beside income deeper in.
+const CASH_WAVE_BASE := 10.0
+const CASH_PER_WAVE := 5.0
+const BOSS_CASH_MULTIPLIER := 3.0
 ## Output every run has from its first second, before any Workshop rank, which
 ## upgrades do not raise (D033).
 const BASE_DAMAGE_PER_SECOND := 1.0
@@ -124,6 +130,12 @@ func reward_for_wave(tier_id: int, wave: int) -> int:
 	var boss_multiplier := BOSS_REWARD_MULTIPLIER if is_boss_wave(wave) else 1.0
 	return maxi(1, roundi(base_reward * get_tier(tier_id).reward_multiplier * boss_multiplier))
 
+## The Cash a beaten wave pays (D042). A missed wave pays the share of it
+## that was cleared.
+func wave_cash(wave: int) -> float:
+	var boss_multiplier := BOSS_CASH_MULTIPLIER if is_boss_wave(wave) else 1.0
+	return (CASH_WAVE_BASE + CASH_PER_WAVE * float(maxi(1, wave))) * boss_multiplier
+
 func is_milestone_wave(wave: int) -> bool:
 	return MILESTONE_WAVES.has(wave)
 
@@ -143,7 +155,7 @@ func milestone_gems(tier_id: int, wave: int) -> int:
 func wave_gems(wave: int) -> int:
 	return BOSS_WAVE_GEMS if is_boss_wave(wave) else 0
 
-## The Rig (D015): run-scoped ranks bought with Number during a run. Since
+## The Rig (D015): run-scoped ranks bought with Cash during a run (D042). Since
 ## D039 a rank is priced in seconds of the player's own steady income, not in
 ## Wave HP: `k` times RIG_PRICE_SECONDS of income, times the row's growth per
 ## rank already owned. The price follows what the player makes, so it stays in
@@ -187,25 +199,26 @@ func rig_has_row(category: String, upgrade_id: String) -> bool:
 	var rows: Array = RIG_ROWS.get(category, [])
 	return rows.has(upgrade_id)
 
-## A Rig rank is worth more than a Workshop rank. The measurement that forced
-## this: with one-to-one effects, spending Number was a net loss at every build
-## (mid 40 against 50, attack max 94 against 96), because the rank's effect was
-## worth less than the hit buffer its Number bought. Temporary power has to beat
-## the buffer, or the optimal player ignores the Rig and the panel is noise.
-## Mutable so the balance simulator can sweep it; the sweep picks the value.
+## A run rank is worth two Workshop ranks (D044). With run ranks capped at the
+## row's max rank, this is the dial on how much buying them speeds a career.
+## Measured by tools/career_simulator.gd from a fresh save to wave 100: 5.0
+## hours at worth 2 against 7.6 without them; with the proposed coin gates,
+## 7.2 hours at worth 1 (The Tower's), 6.3 at 2 and 4.9 at 3, against 8.7. At 2
+## they clearly pay without replacing the Workshop. Mutable so the simulators
+## can sweep it.
 var RIG_EFFECT_MULTIPLIER := {
-	"attack": 3.0,
-	"defense": 3.0,
-	"utility": 3.0,
+	"attack": 2.0,
+	"defense": 2.0,
+	"utility": 2.0,
 }
 
 func rig_effect_multiplier(category: String, upgrade_id: String) -> float:
 	return float(RIG_EFFECT_MULTIPLIER.get(category, 1.0))
 
-## Combined defensive ceilings (D023). Workshop caps alone cannot bound a layer
-## that stacks on top of them and is uncapped: Rig Armor at 2% a rank would
-## reach immunity within one run's Number. These are the ceilings the combined
-## effect can never pass, whichever lens the ranks came from.
+## Combined defensive ceilings (D023). Run ranks are worth more than Workshop
+## ranks, and Labs and Cards stack on both, so a row's own cap does not bound
+## the combined effect. These are the ceilings it can never pass, whichever
+## layer the ranks came from.
 const COLLECTION_RESISTANCE_CEILING := 0.75
 const SIPHON_CEILING := 0.5
 const RECOIL_CEILING := 1.0
@@ -214,8 +227,8 @@ const RECOIL_CEILING := 1.0
 const HIT_FLOOR_PERCENT := 0.10
 
 ## One rank costs `k` times RIG_PRICE_SECONDS of the given income at the first
-## rank and grows from there (D039). Ranks are uncapped; cost growth against
-## the income each rank adds is the only limit (D015).
+## rank and grows from there (D039). Past that, a row's Workshop and run ranks
+## together stop at its max rank (D044).
 func rig_cost(category: String, rank: int, income_per_second: float) -> ScientificNumber:
 	var scale := float(RIG_COST_K.get(category, 1.0))
 	var growth := float(RIG_COST_GROWTH.get(category, 1.4))

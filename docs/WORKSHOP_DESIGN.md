@@ -87,7 +87,8 @@ Player-facing words move away from tax and collection phrasing. **Implemented in
 | Brace | Brace (keep) | `braced` | Spend 30% of your Number to block the next hit |
 | Armor (was Shield Matrix) | Armor | `tax_resistance` Workshop rank | Every hit is permanently smaller |
 | Number, Coins, Knowledge, Retreat | Keep | — | — |
-| — | The Rig, and `THIS RUN ONLY` on its panel | new (D015) | What you build inside one run, bought with Number |
+| — | **Upgrades** (run Upgrades in docs; was the Rig), run ranks, and `THIS RUN ONLY` on the panel | new (D015), renamed (D045) | What you build inside one run, bought with Cash (D042; was Number), never past a row's max rank (D044) |
+| — | Cash | new (D042) | The run-only currency the Rig spends; earned from income and beaten waves, lost at every ending |
 
 Player-facing text never calls the Number "health". It says "If a hit takes your Number to zero, the run ends." That keeps one HP on screen, not two.
 
@@ -270,7 +271,9 @@ Rejected: *Stop the Clock* (pause the wave timer). It breaks the vision's anti-g
 
 ## The Rig — the same four categories inside a run (D015)
 
-**Status:** Domain core, prices, multiplier and ceilings implemented (2026-09-22, D023); the panel shipped the same day and sits below the Number on the run screen (D032). The four categories in the run and Number as their price are both owner-confirmed (21 September 2026). Targets 7, 8 and 9 pass at the swept multiplier; early and mid builds still cannot profit from the Rig under the simulator's policy, which is the open playtest question (see [measured targets](#the-rigs-measured-targets-step-7-core)).
+**Renamed (D045, 23 September 2026):** the player sees this layer as **Upgrades** and its ranks as **run ranks**; this section keeps its historical name. **Since D044** a row's Workshop and run ranks together stop at its max rank, and a run rank is worth two Workshop ranks, not three.
+
+**Status:** Domain core, prices, multiplier and ceilings implemented (2026-09-22, D023); the panel shipped the same day and sits below the Number on the run screen (D032). The four categories in the run and Number as their price are both owner-confirmed (21 September 2026). Targets 7, 8 and 9 pass at the swept multiplier; early and mid builds still cannot profit from the Rig under the simulator's policy, which is the open playtest question (see [measured targets](#the-rigs-measured-targets-step-7-core)). **Since [D042](DECISIONS.md) (23 September 2026) the Rig spends run-only Cash, not Number, and sells all 21 Workshop rows.** The Number-as-price reasoning below is kept as history; the measurements after D042 are under the targets.
 
 A run contains one decision today: Brace, at a flat 30%. Everything else the player does between starting a run and dying is tapping. That is the friction this section answers, and it is the reason the four categories belong on the run screen and not only in the Workshop.
 
@@ -278,14 +281,16 @@ The Rig is what you build inside a single run. Same four categories, same stat c
 
 | | Workshop | Rig |
 | --- | --- | --- |
-| Spends | Coins | Number |
+| Spends | Coins | Cash (Number before D042) |
 | Bought | Between runs | During a run |
 | Lasts | Every later run | This run only |
 | Lives | The Workshop screen | The run screen's bottom bar |
 
-One catalogue, two price tags. A player learns "Tap Damage" once and meets it twice: as a permanent floor raised with Coins, and as a rank bought with Number while a wave is standing.
+One catalogue, two price tags. A player learns "Tap Damage" once and meets it twice: as a permanent floor raised with Coins, and as a rank bought with Cash while a wave is standing.
 
 ### Why Number is the right cost
+
+**Superseded by [D042](DECISIONS.md) (23 September 2026):** the Rig spends Cash, so a purchase no longer cuts the Hit buffer, the spend-yourself-to-death risk and its warning are gone, and Attack and Defense no longer compete for one pool inside the run. The reasoning below is kept as history.
 
 Pillar 3 and architectural law 4 require a temporary layer to carry a distinct name and resource. Number already **is** the run-only resource: it exists only during a run and resets at every ending (D004, D008). Spending it adds no fourth currency (pillar 4), and Brace already sets the precedent at 30%.
 
@@ -317,9 +322,13 @@ One rank costs roughly what one wave is worth, which is a price a player can fee
 
 Rig ranks are uncapped; cost growth is the only limit. *Rejected: capping Rig ranks at the matching permanent rank.* It reads well — the Workshop raises the ceiling — but it means the stat a player needs is the one they cannot buy, exactly while they are learning what they need. The Workshop keeps one job: raise the value every rank starts from.
 
-**The rank's worth is the tuned value (D023), not the price.** One Rig rank grants three Workshop ranks' worth of its effect, because the Number it spends was the hit buffer it has to beat. The alternative — cheaper ranks at one-to-one effect — was measured and rejected: k=0.2 with 1.15 growth turned the game into a runaway (mid reached wave 204, top builds never died). The combined defensive effects also gained ceilings: Armor never takes more than 75% off a hit, Siphon never banks more than half the damage dealt, Recoil never returns more than the hit itself.
+**The rank's worth is the tuned value (D023), not the price.** One Rig rank grants three Workshop ranks' worth of its effect, because the Number it spends was the hit buffer it has to beat. *Since D042 the Rig spends Cash, so that reason no longer holds; the ×3 stands until a re-sweep.* The alternative — cheaper ranks at one-to-one effect — was measured and rejected: k=0.2 with 1.15 growth turned the game into a runaway (mid reached wave 204, top builds never died). The combined defensive effects also gained ceilings: Armor never takes more than 75% off a hit, Siphon never banks more than half the damage dealt, Recoil never returns more than the hit itself.
 
 ### The Rig's measured targets (step 7 core)
+
+**Measured after D044 (run ranks capped at the row's max rank, worth 2; profile `tax-foundation-v9`, seed 7, two taps a second):** hoarding against buying run ranks, fresh 20 against 28, early 33 against 40, mid 60 against 60, max Attack 103 against 110, max Attack + Armor 116 against 120, everything maxed 128 against 128 (nothing to buy), Defense only 30 against 40. Target 7 holds; target 8 is restated below; target 9 holds.
+
+**Measured after D042 (Cash, all 21 rows; balance profile `tax-foundation-v8`, seed 7, two taps a second, Cash flowing at the priced income):** hoarding against spending, fresh 20 against 30, early 33 against 47, mid 60 against 70, max Attack 103 against 130, max Attack + Armor 116 against 158, everything maxed 128 against 170, Defense only 30 against 50. **Target 7 is at best borderline**: a fresh build with the Rig reaches wave 30, where early Workshop builds stopped before D042. Target 8 holds. Target 9 holds as D039 left it: purchases thin to 9–15 in a top run's last ten minutes rather than stopping. Rig spending also takes max Attack past wave 100 without Defense, so target 5 fails with the Rig. A re-sweep of the multiplier, prices and Cash rate is an open owner decision.
 
 **Superseded measurements (D039, 23 September 2026):** the table below was measured with wave-priced ranks. With income-priced ranks, seed 7 at two taps a second: fresh 29 hoarding against 25 spending, early 30 against 29, mid 50 against 50 (in 8.1 rather than 10.3 minutes, with more Coins), max Attack 105 against 125, everything maxed 130 against 164. Targets 7 and 9 hold; purchases thin to 1–11 in a top run's last ten minutes rather than stopping. `run_balance.sh` prints a price-growth sweep beside the multiplier sweep.
 
@@ -344,6 +353,8 @@ The multiplier sweep is the dial: M=2 fails (attack max 97, everything maxed 107
 **The panel is no longer blocked on target 8.** It is blocked on nothing technical; the open mid question above should be watched in playtest rather than pre-solved.
 
 ### Which rows appear in which lens
+
+**Superseded by [D042](DECISIONS.md) (23 September 2026):** every Workshop row now appears in the Rig, including Cushion (a rank adds its starting Number to the current Number at once), Brace Cost, Second Wind, Knowledge Bonus (it lifts this run's Prestige Knowledge) and Workshop Discount (it lowers this run's Rig prices, and Workshop Discount ranks lower Rig prices too). Brace stays the Defense tab's free action. The table below records the pre-D042 split and its reasons.
 
 | Stat | Workshop | Rig | Why |
 | --- | --- | --- | --- |
@@ -492,7 +503,7 @@ This keeps the single ring from the restage.
 | Burst | Ultimates | Surge and Breach land on bosses | Boss waves and milestone pushes |
 | Reinvestor | The Rig | Banks overflow on easy waves and spends it the moment a wave starts resisting | Pushing one tier deeper than the permanent build allows |
 
-The Rig does not add a fifth strategy so much as a second timescale to the four above. The same permanent build plays differently depending on whether its owner spends inside the run or hoards Number as a buffer, and that is the choice the run screen has been missing.
+The Rig does not add a fifth strategy so much as a second timescale to the four above. The same permanent build plays differently depending on whether its owner spends inside the run or hoards Number as a buffer, and that is the choice the run screen has been missing. *Since D042 the Rig spends Cash, so hoarding buys nothing; the in-run choice is which row to raise.*
 
 Higher tiers can ask for different builds by changing the *shape* of waves as well as their size. Today D002 multiplies both axes by the same 20× and 60×, so every tier asks for the same build. A later decision could skew them. For example, Tier 2 could start hot, with a hit at wave 1 that calls for Cushion and Armor, and Tier 3 could hit hard relative to its HP, calling for Defense first. Tier conditions would enter through the modifier pipeline (D005), which already supports this. **This is a recommendation only. D002 stands until a new decision replaces it.**
 
@@ -500,22 +511,22 @@ Higher tiers can ask for different builds by changing the *shape* of waves as we
 
 Targets 1–4 gate D012's retune; 5 and 6 gate step 4's new stats. `tools/balance_simulator.gd` measures them with its build matrix.
 
-1. A fresh first run reaches the first pressured waves and banks enough Coins for permanent progress (D010). *Measured after D036: the seed-7 representative run ends at wave 23 with 76 Coins; one tap per second with cautious Rig spending reaches wave 21 with 48.* *After D037 (seed 7): the representative run reaches wave 29 with 56 Coins; one tap a second reaches wave 26 with 48. Met.* *After D040: the representative run reaches the wave 20 boss with 106 Coins; one tap a second buying Rig ranks whenever affordable reaches wave 16 with 104. Met.*
+1. A fresh first run reaches the first pressured waves and banks enough Coins for permanent progress (D010). *Measured after D036: the seed-7 representative run ends at wave 23 with 76 Coins; one tap per second with cautious Rig spending reaches wave 21 with 48.* *After D037 (seed 7): the representative run reaches wave 29 with 56 Coins; one tap a second reaches wave 26 with 48. Met.* *After D040: the representative run reaches the wave 20 boss with 106 Coins; one tap a second buying Rig ranks whenever affordable reaches wave 16 with 104. Met.* *After D042/D043: the representative run still reaches the wave 20 boss with 106 Coins; one tap a second buying Rig ranks reaches wave 29 with 231, and an idle player buying Rig ranks reaches wave 20 with 102. Met, with a much more generous first run.* *After D044: one tap a second buying run ranks reaches wave 20 with 120 Coins. Met.*
 2. Coins per minute at equal builds are within ±10% of the pre-D012 baseline. *This measures the D012 retune, not the Workshop: Coin Bonus (step 4b) is meant to lift Coins per minute, and does, by 49% at its cap. Compare like builds, not maxed ones.* *Met for the main progression builds: mid −2%, Max Attack −7%, Max Attack + Armor +6%. Two small runs sit above: early is +20% (2.4 Coins a minute) and Tier 2 is +19%, because both go relatively deeper now. Recheck when step 4 adds new Coin sinks.* ***Fails after D037, by design:*** *beaten waves no longer wait out their timers, so Coins per minute rise about 1.5–1.8× at equal builds (mid 45.8 → 69.5, max Attack 102 → 181). Either Coin rewards come down with the Hit retune, or this target is restated for D037; that is a decision.*
 3. Tier 1 wave 100 is reachable for a Workshop investment comparable to before. *Met: Max Attack + Armor 40% reaches wave 100, as it did before.*
 4. A player who has just unlocked Tier 2 survives its opening waves. *Met: that build reaches Tier 2 wave 26 (was 28).*
-5. **The cheapest build that reaches Tier 1 wave 100 includes both Attack and Defense.** This is pillar 2 written as a test. ***Met, and worth watching:*** *maxed Attack alone reaches wave 97 after D036, while maxed Attack plus Armor reaches 100. Boss Damage moved Attack's solo reach close to 100 in step 4b; another Attack row of that size would break this target.* ***Fails after D037:*** *max Attack alone reaches wave 105, because its output is also the Number that absorbs Hits. The Hit retune and Guard are the planned fix (D037).* ***Holds again after D040:*** *max Attack alone dies at the wave 100 boss; adding Armor reaches 110.*
+5. **The cheapest build that reaches Tier 1 wave 100 includes both Attack and Defense.** This is pillar 2 written as a test. ***Met, and worth watching:*** *maxed Attack alone reaches wave 97 after D036, while maxed Attack plus Armor reaches 100. Boss Damage moved Attack's solo reach close to 100 in step 4b; another Attack row of that size would break this target.* ***Fails after D037:*** *max Attack alone reaches wave 105, because its output is also the Number that absorbs Hits. The Hit retune and Guard are the planned fix (D037).* ***Holds again after D040:*** *max Attack alone dies at the wave 100 boss; adding Armor reaches 110.* ***Fails again after D043:*** *max Attack alone clears the wave 100 boss and dies at wave 103, because D043's Hits are 17–25% smaller than D040's from wave 30; adding Armor reaches 116. Playing the Rig takes max Attack to wave 130 with no Defense (D042). Capping Workshop plus Rig ranks at each row's max rank, as The Tower does, holds that to 110, reached by buying Defense in the run.*
 6. Every stat's first rank visibly moves a simulator outcome. ***Met at the cap for every new stat, with two qualifications:*** *Cushion moves Tier 2's final wave but not Tier 1's at the measured max-Attack build, and Brace Cost cannot be measured by a simulator that never Braces — it is covered by test rather than by simulation. Utility's two bonuses move Coins and Knowledge rather than the wave reached, which is the category's whole point. Sizes were chosen from the older measurements that showed Siphon at 10% adding nothing: Siphon caps at 25% and Recoil at 50%.*
 
 Targets 7–9 gate the Rig (step 7). All three need the simulator to model in-run spending, which is itself part of that step.
 
 7. **The Rig cannot replace the Workshop.** A fresh permanent build playing the Rig perfectly does not reach a wave that previously required Workshop investment. If it does, the meta loop is optional and pillar 3 is decorative.
-8. **The Rig cannot be ignored.** At the top build, playing the Rig reaches meaningfully deeper than hoarding Number does. If it does not, the panel is four tabs of noise.
+8. **The Rig cannot be ignored.** At the top build, playing the Rig reaches meaningfully deeper than hoarding Number does. If it does not, the panel is four tabs of noise. ***Restated by D044:*** *a fully maxed build has nothing left to buy, so the test is every build short of maxed: buying run ranks reaches deeper or faster than not, by patching what the Workshop lacks. After D044, fresh, early, max Attack and Defense-only builds gain 4–10 waves; a mid build gains no wave and about 6% more Coins (1,225 against 1,154), so it passes only narrowly.*
 9. **No runaway.** Over a long run, Rig cost growth outruns Number income: no build reaches a state where every row is affordable on every wave.
 
 Target 10 gates the Tier 1 opening (D033, retuned by D034 and D036), measured by the OPENING table in `run_balance.sh`.
 
-10. **A new player is in the action at once, with room to learn.** From a fresh save the first two Rig purchases together leave over half the starting Number, waves carry HP and Hit from the start, an idle player is hit within the first minute, and a steady tapper's first hit is survivable. The first run should fund permanent ranks while one-tap play makes visible progress and idle play does not earn the whole warm-up reward. *Measured at seed 7 after D036: the cautious opening policy buys from the first second; idle ends at wave 16 with 39 Coins, one tap per second at wave 21 with 48, and two taps at wave 23 with 76. The representative two-tap run without Rig spending also ends at wave 23 with 76.* *After D037: an idle player is first hit at 15 seconds (44 with the two opening Rig buys) and a steady tapper's first Hit is survivable; doing nothing earns 30 Coins against one tap a second's 48. Met, with the idle clause restated in GAME_INVARIANTS.* *After D040 there is no warm-up: the clause about the warm-up reward reads as "doing nothing earns far less than tapping" (9 Coins against 104). An idle player is first hit at 46 seconds, and a steady tapper's first Hit is survivable. Met.*
+10. **A new player is in the action at once, with room to learn.** From a fresh save the first two Rig purchases together leave over half the starting Number, waves carry HP and Hit from the start, an idle player is hit within the first minute, and a steady tapper's first hit is survivable. The first run should fund permanent ranks while one-tap play makes visible progress and idle play does not earn the whole warm-up reward. *Measured at seed 7 after D036: the cautious opening policy buys from the first second; idle ends at wave 16 with 39 Coins, one tap per second at wave 21 with 48, and two taps at wave 23 with 76. The representative two-tap run without Rig spending also ends at wave 23 with 76.* *After D037: an idle player is first hit at 15 seconds (44 with the two opening Rig buys) and a steady tapper's first Hit is survivable; doing nothing earns 30 Coins against one tap a second's 48. Met, with the idle clause restated in GAME_INVARIANTS.* *After D040 there is no warm-up: the clause about the warm-up reward reads as "doing nothing earns far less than tapping" (9 Coins against 104). An idle player is first hit at 46 seconds, and a steady tapper's first Hit is survivable. Met.* *After D042 Rig purchases spend Cash, so the first two leave all the starting Number. Doing nothing earns 9 Coins against one tap a second's 231. An idle player who buys the opening Rig ranks is first hit at 73 seconds, outside the first minute: **the idle clause fails** for that player.* *After D044 that player is first hit at 48 seconds. Met again.*
 
 ### Core-loop balance review — proposed, 23 September 2026
 

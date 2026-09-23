@@ -645,8 +645,8 @@ func _build_run_controls(parent: Control) -> void:
 	tap_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	number_col.add_child(tap_hint)
 
-## The Rig panel: buy ranks with Number during a run. Sits above the category
-## strip and shows the currently selected category's rows priced in Number.
+## The Rig panel: buy ranks with Cash during a run (D042). Sits above the
+## category strip and shows the currently selected category's rows priced in Cash.
 func _build_rig_panel(parent: Control) -> void:
 	rig_panel = Control.new()
 	rig_panel.visible = false
@@ -1782,7 +1782,8 @@ func _show_stat_info(definition: UpgradeDefinition, from_rig: bool = false) -> v
 	if from_rig:
 		var rig_ranks := state.rig_owned(definition.id)
 		var worth := state.balance_profile.rig_effect_multiplier(definition.workshop_category, definition.id)
-		extra.append("THIS RUN  ·  " + str(rig_ranks) + " RIG RANK" + ("" if rig_ranks == 1 else "S") + ", EACH WORTH " + _trim(worth) + " WORKSHOP RANKS  ·  NEXT " + state.get_rig_cost(definition.id).format_value() + " NUMBER")
+		var next := ("NEXT " + state.get_rig_cost(definition.id).format_value() + " CASH") if state.rig_room(definition.id) > 0 else "AT MAX RANK"
+		extra.append("THIS RUN  ·  " + str(rig_ranks) + " RUN RANK" + ("" if rig_ranks == 1 else "S") + ", EACH WORTH " + _trim(worth) + " WORKSHOP RANKS  ·  " + next)
 	stat_info_extra.text = "\n".join(extra)
 	stat_info_extra.visible = not extra.is_empty()
 	stat_info_screen.visible = true
@@ -2582,9 +2583,8 @@ func _make_stat_card(definition: UpgradeDefinition, category: String) -> PanelCo
 	return card
 
 ## A compact Rig card for a run-scoped rank: name on left, value-and-cost box
-## on right. Like the Workshop card but with Number cost and a warning if it
-## would leave too little for the next hit. Built once; _update_rig_card fills
-## the parts that move with the Number.
+## on right. Like the Workshop card but priced in Cash. Built once;
+## _update_rig_card fills the parts that move with Cash.
 func _make_rig_stat_card(definition: UpgradeDefinition, category: String) -> PanelContainer:
 	var unlocked := state.is_unlocked(definition)
 	var card := PanelContainer.new()
@@ -2630,7 +2630,10 @@ func _make_rig_stat_card(definition: UpgradeDefinition, category: String) -> Pan
 		var step := _buy_step(state.workshop.selected_category)
 		var plan := state.plan_rig_purchase(upgrade_id, step)
 		if int(plan.ranks) == 0:
-			_show_toast("NEED " + state.get_rig_cost(upgrade_id).format_value() + " CASH", MUTED_TEXT)
+			if state.rig_room(upgrade_id) <= 0:
+				_show_toast(definition.title + " IS AT MAX RANK", MUTED_TEXT)
+			else:
+				_show_toast("NEED " + state.get_rig_cost(upgrade_id).format_value() + " CASH", MUTED_TEXT)
 			return
 		var bought := state.purchase_rig_ranks(upgrade_id, step)
 		if bought > 0:
@@ -2646,7 +2649,8 @@ func _make_rig_stat_card(definition: UpgradeDefinition, category: String) -> Pan
 	_update_rig_card(definition)
 	return card
 
-## The parts of a Rig card that move with in-run Cash: its price and affordability.
+## The parts of a run Upgrades card that move with Cash: its price, whether it
+## is affordable, and MAX once Workshop and run ranks fill the row (D044).
 func _update_rig_card(definition: UpgradeDefinition) -> void:
 	var refs: Dictionary = rig_card_refs[definition.id]
 	var card: PanelContainer = refs.card
@@ -2667,7 +2671,10 @@ func _update_rig_card(definition: UpgradeDefinition) -> void:
 	value_button.add_theme_stylebox_override("hover", _panel_style(Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.12), 10, box_tint))
 	(refs.value_label as Label).text = _stat_value_text(definition, effective)
 	var cost_label: Label = refs.cost_label
-	cost_label.text = ("x" + str(ranks) + " · " if ranks > 1 else "") + _stat_number(quoted_cost) + " CASH"
+	if state.rig_room(definition.id) <= 0:
+		cost_label.text = "MAX"
+	else:
+		cost_label.text = ("x" + str(ranks) + " · " if ranks > 1 else "") + _stat_number(quoted_cost) + " CASH"
 	cost_label.add_theme_color_override("font_color", WORKSHOP_ACCENT if can_afford else MUTED_TEXT)
 
 ## Holding a card reads it instead of acting on it: after LONG_PRESS_SECONDS
