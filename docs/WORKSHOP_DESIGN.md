@@ -545,6 +545,8 @@ The wider matrix also exposes an independent Rig problem. At two taps a second u
 
 **Recommendation before changing the live rule:** retune the opening's duration, clear-versus-timeout rewards, and first few Rig prices together with either D012 or the 10%-tap split as explicit alternatives. Require the same player-policy matrix to pass on the second run and early/mid builds; do not choose a split only because its Number animates. Keep the all-output splits as negative controls for idle farming. A phone playtest decides whether the tap-only split's visible gain is worth the extra tapping it encourages in an idle game.
 
+**Longer horizon:** [`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md) (proposed, 23 September 2026) sets out a balance pass for Tiers 1–10 that bears on this review: Rush (a broken wave ends early and pays the rest of its timer at once) and a scale-free Rig both address the flat opening while keeping D012.
+
 ## Implementation order
 
 Each step lands on its own and clears the gate for its risk level in [`QUALITY_GATES.md`](QUALITY_GATES.md).
@@ -577,4 +579,4 @@ Held true by step 1:
 
 1. **What Ultimates cost to upgrade permanently.** Recommendation: Knowledge. It gives Knowledge a second sink beside Insight and adds no currency (pillar 4). The alternative, Coins, competes directly with the Workshop. Their in-run levels cost Number like every other Rig row.
 2. **The Tier 2+ opening.** Should Cushion scale with the tier, or should every tier get a few warm-up waves? Recommendation: scaled Cushion, because it makes the opening a Defense decision rather than a free pass. The Rig sharpens this: on Tier 2 the first hit lands before there is any Number to spend, so the opening is the one stretch of a run the Rig cannot help with.
-3. **Tier shapes.** Whether and when to skew Tiers 2 and 3 away from uniform multipliers. That would supersede part of D002.
+3. **Tier shapes.** Whether and when to skew Tiers 2 and 3 away from uniform multipliers. That would supersede part of D002. [`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md) proposes skewing Hits, not Wave HP, by tier, with Toll tiers at 2, 5 and 8.
