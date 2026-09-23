@@ -33,6 +33,8 @@ Tier 1 runs one difficulty curve from wave 1 (D040): Wave HP grows a little fast
 
 Workshop upgrades are bought with Coins between runs and permanently raise the baseline used by every later attempt. Starting a run resets Number to that baseline; death, retreat, and Prestige never remove Workshop ranks. Number production only happens during an active run, so neither waiting at the hub nor going offline can bank a risk-free head start.
 
+The Workshop also has labelled **Labs** and **Cards** entrances. Labs queue permanent, timed Coin research; Cards are pulled with Gems and only equipped Cards add their effects to a run. Both can be inspected during a run, but spending and loadout changes happen between runs.
+
 Retreat ends and resets a run—it cannot pause Tax while Number keeps growing. Active runs freeze exactly while the app is away. Save schema V8 preserves the permanent Workshop, Labs (with their slots), Cards, Gems, the active encounter and deterministic RNG state, with V1–V7 migration. A save the game cannot read, or one from a newer version, is never written over (D028).
 
 The broader inspiration and system roles are mapped in [`docs/TOWER_SYSTEMS_REFERENCE.md`](docs/TOWER_SYSTEMS_REFERENCE.md). The researched scaling rationale, source links, data contracts, and later-system boundaries are in [`docs/TOWER_SCALING_FOUNDATION.md`](docs/TOWER_SCALING_FOUNDATION.md).
