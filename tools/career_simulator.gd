@@ -10,7 +10,7 @@ extends SceneTree
 ## Run: bash run_godot.sh --headless --path . -s res://tools/career_simulator.gd
 ## Options after `--`: `--runs N` (default 40); `--careers a,b` runs only the
 ## named careers (today_hoard, today_rig, gates_hoard, gates_rig, gates_tower,
-## gates_cap).
+## gates_cap, gates_cap2).
 ##
 ## A measurement tool, not a gate. Not modelled: Prestige, Labs, Cards, Gems,
 ## tiers above 1, and retreating early. Gates for rows that do not exist yet are
@@ -128,7 +128,8 @@ func _init() -> void:
 			_career(career[1], career[2], career[3], runs, career[4])
 	quit(0)
 
-## [key, label, coin gates, plays the Rig, Rig rules: "today", "tower" or "cap"]
+## [key, label, coin gates, plays the Rig, Rig rules: "today", "tower", "cap"
+## or "cap2" (capped, with a Rig rank worth two Workshop ranks)]
 const CAREERS := [
 	["today_hoard", "today's rules, hoarding", false, false, "today"],
 	["today_rig", "today's rules, playing the Rig", false, true, "today"],
@@ -136,6 +137,7 @@ const CAREERS := [
 	["gates_rig", "coin gates, playing the Rig", true, true, "today"],
 	["gates_tower", "coin gates, Rig on Tower rules (capped, worth 1)", true, true, "tower"],
 	["gates_cap", "coin gates, Rig capped at max rank (worth 3)", true, true, "cap"],
+	["gates_cap2", "coin gates, Rig capped at max rank (worth 2)", true, true, "cap2"],
 ]
 
 func _career(label: String, gated: bool, play_rig: bool, runs: int, rig_rules: String) -> void:
@@ -146,6 +148,10 @@ func _career(label: String, gated: bool, play_rig: bool, runs: int, rig_rules: S
 		state.use_tower_rig()
 	elif rig_rules == "cap":
 		state.rig_cap = true
+	elif rig_rules == "cap2":
+		state.rig_cap = true
+		for category in state.balance_profile.RIG_EFFECT_MULTIPLIER.keys():
+			state.balance_profile.RIG_EFFECT_MULTIPLIER[category] = 2.0
 	for row_id in STARTER_ROWS:
 		state.unlocked[row_id] = true
 	var next_gate := {"attack": 0, "defense": 0, "utility": 0}
