@@ -125,6 +125,11 @@ func _init() -> void:
 		_simulate_opening()
 		quit(0)
 		return
+	# `-- --hit-sweep` measures balance target 5 across Hit scales (D043).
+	if OS.get_cmdline_user_args().has("--hit-sweep"):
+		_simulate_hit_sweep()
+		quit(0)
+		return
 	if OS.get_cmdline_user_args().has("--core-loop"):
 		_simulate_core_loop()
 		quit(0)
@@ -267,8 +272,10 @@ func _ranks(spec: Variant) -> Dictionary:
 			merged[key] = (part as Dictionary)[key]
 	return merged
 
-func _simulate_build(label: String, tier: int, ranks: Dictionary, rig_policy: String = "none", rig_multiplier: float = -1.0, rig_growth: float = -1.0) -> void:
+func _simulate_build(label: String, tier: int, ranks: Dictionary, rig_policy: String = "none", rig_multiplier: float = -1.0, rig_growth: float = -1.0, hit_scale: float = -1.0) -> void:
 	var state := GameState.new()
+	if hit_scale > 0.0:
+		state.balance_profile.COLLECTION_SCALE = hit_scale
 	if rig_multiplier > 0.0:
 		for category in state.balance_profile.RIG_EFFECT_MULTIPLIER.keys():
 			state.balance_profile.RIG_EFFECT_MULTIPLIER[category] = rig_multiplier
@@ -325,6 +332,50 @@ func _simulate_build(label: String, tier: int, ranks: Dictionary, rig_policy: St
 		"  rig_ranks=", rig_bought,
 		"  rig_last_10m=", rig_late
 	)
+
+## Balance target 5: the cheapest build that reaches wave 100 includes both
+## Attack and Defense. Each Hit scale runs the builds that decide it (max Attack
+## alone must stop at or before the wave 100 boss; adding Defense must pass it)
+## and the opening that the Hit also shapes (target 10's first Hits).
+const HIT_SWEEP_SCALES := [1.5, 1.6, 1.7, 1.8, 2.0, 2.2]
+const HIT_SWEEP_BUILDS := [
+	["fresh", {}, "none"],
+	["fresh + rig", {}, "reinvest"],
+	["early", EARLY, "none"],
+	["mid", MID, "none"],
+	["attack max", ATTACK_MAX, "none"],
+	["attack max + rig", ATTACK_MAX, "reinvest"],
+	["attack max + armor", [ATTACK_MAX, ARMOR], "none"],
+	["attack max + defense max", [ATTACK_MAX, DEFENSE_MAX], "none"],
+	["defense max only", DEFENSE_MAX, "none"],
+]
+
+func _simulate_hit_sweep() -> void:
+	print("HIT SCALE SWEEP  (D043 Hit = scale x (0.08 w^2.10 + 0.4 w + 1) x milestones; 2 taps/sec, seed ", SEED, ")")
+	for scale in HIT_SWEEP_SCALES:
+		print("SCALE ", scale)
+		for tap_rate in [0.0, 1.0, 2.0]:
+			var state := GameState.new()
+			state.balance_profile.COLLECTION_SCALE = scale
+			state.start_run(1, SEED)
+			var seconds := 0.0
+			var tap_clock := 0.0
+			var first_hit := -1.0
+			while seconds < 3600.0 and state.in_run:
+				tap_clock += OPENING_STEP
+				if tap_rate > 0.0 and tap_clock >= 1.0 / tap_rate:
+					tap_clock -= 1.0 / tap_rate
+					state.tap()
+				var number_before: ScientificNumber = state.number.copy()
+				for event in state.advance(OPENING_STEP):
+					if first_hit < 0.0 and event.type in ["tax_collection", "boss_collection", "wave_death"]:
+						first_hit = seconds
+				seconds += OPENING_STEP
+				if first_hit < 0.0 and state.number.compare_to(number_before) < 0:
+					first_hit = seconds
+			print("  opening taps/s=", tap_rate, "  first_hit=", snappedf(first_hit, 1.0), "s  end=wave ", state.last_run_summary.wave_reached if not state.in_run else state.wave, "  coins=", state.coins)
+		for build in HIT_SWEEP_BUILDS:
+			_simulate_build(str(build[0]), 1, _ranks(build[1]), str(build[2]), -1.0, -1.0, scale)
 
 ## Plays the Rig the way a player reaching for the next wave does: never spend
 ## the Number that covers the incoming hit, and put everything else into the

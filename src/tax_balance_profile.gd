@@ -6,7 +6,7 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v9"
+const PROFILE_ID := "tax-foundation-v10"
 const WAVE_INTERVAL_SECONDS := 15.0
 const BOSS_WAVE_INTERVAL := 10
 ## A beaten wave stays on screen at least this long before the next arrives
@@ -30,9 +30,12 @@ const BOSS_WAVE_GEMS := 1
 ## (early, mid, maxed) has a natural wave it stops at. Every tenth wave steps
 ## up by the milestone factors. Higher tiers multiply the same curve (D002).
 const LIABILITY_SCALE := 4.0
-## The Attack scale for Collection Hit, decoupled from Wave HP into its own
-## independent polynomial curve.
-const COLLECTION_SCALE := 1.5
+## The Hit curve's scale, independent of Wave HP (D043). 1.7 (D046) is the
+## smallest step from D043's 1.5 at which max Attack with no Defense stops at
+## the wave 100 boss on every measured seed (balance target 5); 1.6 still let
+## it through on three seeds in ten. Mutable so the balance simulator can sweep
+## it (`-- --hit-sweep`).
+var COLLECTION_SCALE := 1.7
 ## Every wave pays this times its number in Coins, times the tier's reward
 ## multiplier, from wave 1 (D040).
 const WAVE_REWARD_SCALE := 0.65
