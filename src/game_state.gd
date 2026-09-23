@@ -12,6 +12,7 @@ const SaveDataV5Class = preload("res://src/save_data_v5.gd")
 const SaveDataV6Class = preload("res://src/save_data_v6.gd")
 const SaveDataV7Class = preload("res://src/save_data_v7.gd")
 const SaveDataV8Class = preload("res://src/save_data_v8.gd")
+const GameDataClass = preload("res://src/game_data.gd")
 
 const SAVE_PATH := "user://number_go_up_save.json"
 ## What the last load() found, for the UI to report (D028).
@@ -850,35 +851,53 @@ func unequip_card(card_id: String) -> bool:
 func get_pull_cost() -> int:
 	return CardCollectionClass.PULL_COST_GEMS
 
+func has_unmaxed_cards() -> bool:
+	for definition in card_collection.definitions:
+		if not definition.is_maxed(get_card_level(definition.id)):
+			return true
+	return false
+
 func can_pull_card() -> bool:
-	return not in_run and gems >= get_pull_cost()
+	return not in_run and gems >= get_pull_cost() and has_unmaxed_cards()
 
 ## Draws one card weighted by rarity, uniform within it. Owned cards level up
 ## one step per repeat pull, to MAX_LEVEL; a new card starts at level 1.
+## Maxed cards are excluded from the pull pool (duplicate protection); if all
+## cards of a rarity are maxed, pulls roll from the remaining rarities.
 ## Returns the drawn card's id, or "" if the pull was refused.
 func pull_card() -> String:
 	if not can_pull_card():
 		return ""
-	gems -= get_pull_cost()
+	var eligible_rarities: Array[String] = []
 	var weight_total := 0
 	for rarity in CardCollectionClass.RARITY_WEIGHT:
-		if not card_collection.definitions_for_rarity(rarity).is_empty():
+		var has_available := false
+		for card in card_collection.definitions_for_rarity(rarity):
+			if not card.is_maxed(get_card_level(card.id)):
+				has_available = true
+				break
+		if has_available:
+			eligible_rarities.append(rarity)
 			weight_total += int(CardCollectionClass.RARITY_WEIGHT[rarity])
+	if eligible_rarities.is_empty():
+		return ""
 	var roll := rng.randi_range(0, maxi(0, weight_total - 1))
 	var chosen_rarity := ""
 	var cursor := 0
-	for rarity in CardCollectionClass.RARITY_WEIGHT:
-		var tier: Array[CardCollection.Definition] = card_collection.definitions_for_rarity(rarity)
-		if tier.is_empty():
-			continue
+	for rarity in eligible_rarities:
 		cursor += int(CardCollectionClass.RARITY_WEIGHT[rarity])
 		if roll < cursor:
 			chosen_rarity = rarity
 			break
-	var tier_cards := card_collection.definitions_for_rarity(chosen_rarity)
-	var picked: CardCollection.Definition = tier_cards[rng.randi_range(0, tier_cards.size() - 1)]
-	if not picked.is_maxed(get_card_level(picked.id)):
-		card_ranks[picked.id] = get_card_level(picked.id) + 1
+	var available_cards: Array[CardCollection.Definition] = []
+	for card in card_collection.definitions_for_rarity(chosen_rarity):
+		if not card.is_maxed(get_card_level(card.id)):
+			available_cards.append(card)
+	if available_cards.is_empty():
+		return ""
+	var picked: CardCollection.Definition = available_cards[rng.randi_range(0, available_cards.size() - 1)]
+	gems -= get_pull_cost()
+	card_ranks[picked.id] = get_card_level(picked.id) + 1
 	return picked.id
 
 ## Reads a card's value the same way stat_display and lab_stat_display do.
@@ -1678,39 +1697,8 @@ func _card_effect_sum(effect_name: String) -> float:
 			total += float(card_definition.effects[effect_name]) * float(get_card_level(card_definition.id))
 	return total
 
-## The Workshop catalogue. Every row declares the category it sits on (D013);
-## ids are stable because saves key ranks by them, so a row can move shelf or
-## change its player-facing name without touching a save.
-##
-## Ladder shape (D019): each row runs 50-100 ranks at a flat cost growth, rather
-## than 3-10 ranks at 1.55-2.00. A rank's effect is divided by the same factor
-## its cap was multiplied by, so the value at max rank is unchanged, and each
-## row's Coins-to-max is designed rather than inherited. D035 lowers the first
-## rank prices and reshapes growth so later ranks remain meaningful purchases.
+## The Workshop and Knowledge catalogues, loaded from res://data/ (the single
+## authority for game content).
 func _make_definitions() -> Array[UpgradeDefinition]:
-	const ATTACK := ProgressionTaxonomy.ATTACK
-	const DEFENSE := ProgressionTaxonomy.DEFENSE
-	const UTILITY := ProgressionTaxonomy.UTILITY
-	return [
-		UpgradeDefinition.new("stronger_tap", "TAP DAMAGE", "Hand Press. +0.05 damage per tap per rank.", ScientificNumber.from_float(1.385), ScientificNumber.from_float(10), "workshop", {"tap_flat": 0.05}, false, 1.042220, ProgressionTaxonomy.MODULE, ATTACK, 100, 0),
-		UpgradeDefinition.new("generator", "DAMAGE PER SECOND", "Desk Dynamo. +0.075 base damage every second per rank.", ScientificNumber.from_float(1.855), ScientificNumber.from_float(20), "workshop", {"passive_flat": 0.075}, false, 1.042220, ProgressionTaxonomy.MODULE, ATTACK, 100, 0),
-		UpgradeDefinition.new("generator_two", "DAMAGE MULTIPLIER", "Number Engine. All damage ×1.007 per rank.", ScientificNumber.from_float(6.185), ScientificNumber.from_float(120), "workshop", {"base_output_multiplier": 1.00701257}, false, 1.071861, ProgressionTaxonomy.MODULE, ATTACK, 60, 0),
-		UpgradeDefinition.new("faster_cadence", "TICK SPEED", "Tick Wheel. Ticks come ×1.009 faster per rank.", ScientificNumber.from_float(3.260), ScientificNumber.from_float(100), "workshop", {"tick_rate": 1.00915776}, false, 1.042220, ProgressionTaxonomy.MODULE, ATTACK, 100, 12),
-		UpgradeDefinition.new("faster_echo", "DOUBLE TICK", "+0.4% chance a tick counts twice per rank.", ScientificNumber.from_float(3.855), ScientificNumber.from_float(300), "workshop", {"double_tick_chance": 0.004}, false, 1.071861, ProgressionTaxonomy.PROTOCOL, ATTACK, 60, 12),
-		UpgradeDefinition.new("burst_relay", "BURST", "Burst Relay. Every 11th tick counts double, one tick sooner per rank, down to every 6th.", ScientificNumber.from_float(51.500), ScientificNumber.from_float(700), "workshop", {}, false, 1.782600, ProgressionTaxonomy.PROTOCOL, ATTACK, 6, 12),
-		UpgradeDefinition.new("more_critical", "CRIT CHANCE", "Critical Lens. +0.25% critical chance per rank.", ScientificNumber.from_float(3.725), ScientificNumber.from_float(500), "workshop", {"critical_chance": 0.0025}, false, 1.042220, ProgressionTaxonomy.PROTOCOL, ATTACK, 100, 30),
-		UpgradeDefinition.new("magnitude_coil", "CRIT DAMAGE", "Magnitude Coil. +0.05 critical multiplier per rank.", ScientificNumber.from_float(5.410), ScientificNumber.from_float(900), "workshop", {"critical_multiplier_add": 0.05}, false, 1.071861, ProgressionTaxonomy.PROTOCOL, ATTACK, 60, 30),
-		UpgradeDefinition.new("chain_reaction", "CRIT CHAIN", "Chain Reaction. Each critical strengthens the next by 0.5% per rank.", ScientificNumber.from_float(7.735), ScientificNumber.from_float(1800), "workshop", {}, false, 1.071861, ProgressionTaxonomy.PROTOCOL, ATTACK, 60, 30),
-		UpgradeDefinition.new("automation_core", "AUTO CRANK", "+0.1 base damage every second per rank.", ScientificNumber.from_float(4.615), ScientificNumber.new(), "workshop", {"passive_flat": 0.1}, false, 1.087149, ProgressionTaxonomy.ROUTINE, ATTACK, 50, 60),
-		UpgradeDefinition.new("boss_damage", "BOSS DAMAGE", "+1% damage against boss waves per rank.", ScientificNumber.from_float(3.725), ScientificNumber.new(), "workshop", {"boss_damage": 0.01}, false, 1.042220, ProgressionTaxonomy.PROTOCOL, ATTACK, 100, 30),
-		UpgradeDefinition.new(ARMOR_ID, "ARMOR", "Every hit is 0.4% smaller per rank.", ScientificNumber.from_float(3.725), ScientificNumber.new(), "workshop", {"collection_resistance": 0.004}, false, 1.042220, ProgressionTaxonomy.MODULE, DEFENSE, 100, 0),
-		UpgradeDefinition.new("siphon", "LEECH", "While a boss stands, +0.25% of the damage you deal it is added to your Number again, per rank.", ScientificNumber.from_float(6.540), ScientificNumber.new(), "workshop", {"siphon_share": 0.0025}, false, 1.042220, ProgressionTaxonomy.MODULE, DEFENSE, 100, 30),
-		UpgradeDefinition.new("recoil", "THORNS", "+0.5% of every hit you take is dealt to the wave in front of you, per rank.", ScientificNumber.from_float(6.540), ScientificNumber.new(), "workshop", {"recoil_share": 0.005}, false, 1.042220, ProgressionTaxonomy.MODULE, DEFENSE, 100, 30),
-		UpgradeDefinition.new("priority_buffer", "CUSHION", "Starting Reserve. Begin every run with 10 Number per rank.", ScientificNumber.from_float(9.255), ScientificNumber.new(), "workshop", {"starting_number_flat": 10.0}, false, 1.087149, ProgressionTaxonomy.ROUTINE, DEFENSE, 50, 60),
-		UpgradeDefinition.new("brace_discount", "BRACE COST", "Brace costs 0.25 points less of your Number per rank, down to 15%.", ScientificNumber.from_float(5.410), ScientificNumber.new(), "workshop", {"brace_discount": -0.0025}, false, 1.071861, ProgressionTaxonomy.PROTOCOL, DEFENSE, 60, 12),
-		UpgradeDefinition.new("second_wind", "SECOND WIND", "Once per run, a hit that would end it leaves you 0.5% of your peak Number per rank.", ScientificNumber.from_float(6.475), ScientificNumber.new(), "workshop", {"second_wind_share": 0.005}, false, 1.087149, ProgressionTaxonomy.PROTOCOL, DEFENSE, 50, 60),
-		UpgradeDefinition.new("smarter_efficiency", "DISCOUNT", "Efficiency Matrix. All Workshop costs 0.25% lower per rank.", ScientificNumber.from_float(6.185), ScientificNumber.from_float(2500), "workshop", {"cost_discount": 0.0025}, false, 1.071861, ProgressionTaxonomy.MODULE, UTILITY, 60, 60),
-		UpgradeDefinition.new("coin_bonus", "COIN BONUS", "+0.5% Coins from every wave beaten, per rank.", ScientificNumber.from_float(14.035), ScientificNumber.new(), "workshop", {"coin_bonus": 0.005}, false, 1.042220, ProgressionTaxonomy.ROUTINE, UTILITY, 100, 60),
-		UpgradeDefinition.new("knowledge_bonus", "KNOWLEDGE BONUS", "+1% Knowledge when a run ends, per rank.", ScientificNumber.from_float(27.810), ScientificNumber.new(), "workshop", {"knowledge_bonus": 0.01}, false, 1.087149, ProgressionTaxonomy.ROUTINE, UTILITY, 50, 60),
-		UpgradeDefinition.new("insight", "INSIGHT", "Base production ×1.02 per rank. Costs Knowledge; survives every reset.", ScientificNumber.new(), ScientificNumber.new(), "knowledge", {"base_output_multiplier": 1.02}, true, 1.0, ProgressionTaxonomy.KNOWLEDGE, "", 999999, 0)
-	]
+	return GameDataClass.get_all_upgrades()
+

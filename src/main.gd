@@ -1464,6 +1464,9 @@ func _open_card_collection_sheet() -> void:
 	_refresh_card_collection()
 
 func _on_card_pull_pressed() -> void:
+	if not state.has_unmaxed_cards():
+		_show_toast("ALL CARDS ARE AT MAX LEVEL", CARDS_ACCENT)
+		return
 	var drawn := state.pull_card()
 	if drawn == "":
 		_show_toast("NEED " + str(state.get_pull_cost()) + " GEMS", MUTED_TEXT)
@@ -1478,8 +1481,12 @@ func _refresh_card_collection() -> void:
 	if card_collection_sheet == null or not card_collection_sheet.visible:
 		return
 	card_collection_gems_label.text = str(state.gems)
-	card_collection_pull_button.text = "PULL A CARD  ·  " + str(state.get_pull_cost()) + " GEMS"
-	card_collection_pull_button.disabled = not state.can_pull_card()
+	if not state.has_unmaxed_cards():
+		card_collection_pull_button.text = "ALL CARDS MAXED"
+		card_collection_pull_button.disabled = true
+	else:
+		card_collection_pull_button.text = "PULL A CARD  ·  " + str(state.get_pull_cost()) + " GEMS"
+		card_collection_pull_button.disabled = not state.can_pull_card()
 	card_collection_active_label.text = "ACTIVE  " + str(state.active_card_count()) + " / " + str(state.card_slots_total())
 	var signature := "|".join([state.in_run, str(state.card_ranks), str(state.card_active)])
 	if signature == card_sheet_signature:

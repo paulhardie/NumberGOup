@@ -1,0 +1,70 @@
+{
+  "version": 1,
+  "starting_slots": 1,
+  "max_slots": 5,
+  "slot_gem_costs": [
+    20,
+    40,
+    80,
+    160
+  ],
+  "legacy_slots": 2,
+  "speed_duration_step": 0.02,
+  "speed_duration_floor": 0.4,
+  "research": [
+    {
+      "id": "lab_speed",
+      "title": "LAB SPEED",
+      "description": "Every other line researches 2% faster per rank, to a floor of 60% of its time.",
+      "category": "main",
+      "base_cost": 500,
+      "cost_growth": 1.8,
+      "base_duration": 120.0,
+      "duration_growth": 1.5,
+      "max_rank": 20,
+      "effects": {}
+    },
+    {
+      "id": "lab_damage",
+      "title": "DAMAGE RESEARCH",
+      "description": "All damage \u00d71.01 per rank.",
+      "category": "attack",
+      "base_cost": 800,
+      "cost_growth": 1.7,
+      "base_duration": 180.0,
+      "duration_growth": 1.55,
+      "max_rank": 40,
+      "effects": {
+        "base_output_multiplier": 1.01
+      }
+    },
+    {
+      "id": "lab_resilience",
+      "title": "RESILIENCE RESEARCH",
+      "description": "Every hit is 0.5% smaller per rank.",
+      "category": "defense",
+      "base_cost": 800,
+      "cost_growth": 1.7,
+      "base_duration": 180.0,
+      "duration_growth": 1.55,
+      "max_rank": 40,
+      "effects": {
+        "collection_resistance": 0.005
+      }
+    },
+    {
+      "id": "lab_coin_research",
+      "title": "COIN RESEARCH",
+      "description": "+1% Coins from every wave beaten, per rank.",
+      "category": "utility",
+      "base_cost": 1000,
+      "cost_growth": 1.7,
+      "base_duration": 240.0,
+      "duration_growth": 1.55,
+      "max_rank": 40,
+      "effects": {
+        "coin_bonus": 0.01
+      }
+    }
+  ]
+}
