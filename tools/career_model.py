@@ -19,7 +19,8 @@ farming a lower tier, or a player who taps less as the game goes on.
 
 It models the D012 wave rule (a stuck wave stays and Siphon/Recoil as they
 were), which D037 replaced on 23 September 2026, so its absolute hours are
-out of date; its comparisons between rule sets still hold as shapes.
+out of date, and so is its Tier 1 warm-up (replaced by one curve in D040);
+its comparisons between rule sets still hold as shapes.
 Replace with a GDScript career simulator before tuning real numbers; see the
 proposal's build order. Run: python3 tools/career_model.py
 """

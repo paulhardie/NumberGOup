@@ -2269,7 +2269,7 @@ func _refresh_encounter_line() -> void:
 		return
 	var encounter: Variant = state.active_encounter
 	if encounter == null or encounter.max_liability.is_zero():
-		encounter_label.text = "WARM-UP  ·  EVERYTHING BANKS"
+		encounter_label.text = "BEATEN"
 		return
 	if encounter.is_cleared():
 		encounter_label.text = "BEATEN"
@@ -2901,8 +2901,8 @@ func _pulse_stage_impact(colour: Color) -> void:
 	tween.tween_callback(flash.queue_free)
 
 ## How close the current wave is to its Collection hit, 0 (safe) to 1 (about
-## to land). Zero whenever no hit is coming: outside a run, during grace, or
-## once Liability is already cleared for the wave.
+## to land). Zero whenever no hit is coming: outside a run, or once Liability
+## is already cleared for the wave.
 func _stage_danger_progress() -> float:
 	if not state.in_run:
 		return 0.0

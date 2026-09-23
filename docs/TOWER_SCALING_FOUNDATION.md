@@ -1,6 +1,6 @@
 # Tower scaling research and Number Go Up foundation
 
-Status: researched and implemented as foundation profile `tax-foundation-v1`, retuned to `tax-foundation-v2` for D012, `tax-foundation-v3` for Tier 1's opening (D034), and `tax-foundation-v4` for lower warm-up Wave HP and idle-safe Hit growth (D036), 22 September 2026. The encounter rules changed with D037 (the Number always rises; missed waves move on; bosses stay) under `tax-foundation-v5`, with the curves unchanged.
+Status: researched and implemented as foundation profile `tax-foundation-v1`, retuned to `tax-foundation-v2` for D012, `tax-foundation-v3` for Tier 1's opening (D034), and `tax-foundation-v4` for lower warm-up Wave HP and idle-safe Hit growth (D036), 22 September 2026. The encounter rules changed with D037 (the Number always rises; missed waves move on; bosses stay) under `tax-foundation-v5`, with the curves unchanged. D040 (`tax-foundation-v7`) replaced Tier 1's warm-up with one curve from wave 1 and made each Hit a share of its wave's HP.
 
 ## Implemented foundation
 
@@ -9,7 +9,7 @@ The first complete slice now includes:
 - absolute Liability and Collection encounters;
 - original wave curves with milestone growth and separate boss multipliers;
 - Tiers 1–3 with 1×/20×/60× pressure and 1×/1.8×/2.6× rewards;
-- Tier 1's 20-wave onboarding warm-up (a ramp from small waves since D033, originally a grace with no pressure), with immediate pressure in Tiers 2–3;
+- Tier 1's 20-wave onboarding warm-up (a ramp from small waves since D033, originally a grace with no pressure), with immediate pressure in Tiers 2–3; *replaced by one curve from wave 1 in D040 (`tax-foundation-v7`), with Hits a share of their wave's HP;*
 - per-tier wave records, milestones at 10/25/50/100, and wave-100 tier unlocks;
 - deterministic run seeds and exact RNG/encounter restoration in save V4;
 - V1, V2 and V3 migration;
@@ -226,17 +226,17 @@ The committed profile evaluator currently produces:
 
 | Tier | Wave | Liability | Collection | Wave reward |
 | ---: | ---: | ---: | ---: | ---: |
-| 1 | 21 | 238 | 156 | 14 |
-| 1 | 50 boss | 5,276 | 1,493 | 163 |
-| 1 | 100 boss | 55,475 | 12,251 | 325 |
-| 2 | 21 | 4,764 | 3,121 | 25 |
-| 2 | 100 boss | 1.11M | 245,016 | 585 |
-| 3 | 21 | 14,293 | 9,364 | 35 |
-| 3 | 100 boss | 3.33M | 735,049 | 845 |
+| 1 | 21 | 238 | 113 | 14 |
+| 1 | 50 boss | 5,276 | 1,583 | 163 |
+| 1 | 100 boss | 55,475 | 16,643 | 325 |
+| 2 | 21 | 4,764 | 2,267 | 25 |
+| 2 | 100 boss | 1.11M | 332,852 | 585 |
+| 3 | 21 | 14,293 | 6,801 | 35 |
+| 3 | 100 boss | 3.33M | 998,556 | 845 |
 
-These base curve values carry forward into `tax-foundation-v4`: v1's Liability and Collection were halved and pressured rewards multiplied by 0.65 for D012. Tier 1's effective hits at waves 21–25 ramp up from its warm-up through a rule modifier; at wave 21 the hit shown and dealt is about 13 rather than the base Collection of 156. D036 lowers Tier 1 warm-up Wave HP and raises warm-up Hit growth slightly to keep the true no-action run from collecting all twenty rewards. Higher tiers and the base pressure ratios keep the table's values. `run_balance.sh` prints both base and effective Tier 1 opening hits. Before-and-after measurements are in [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md).
+These are `tax-foundation-v7` values (D040). Liability keeps the v2 curve (v1 halved for D012) and now applies from wave 1 on every tier. Collection is no longer a separate curve: a Hit is a share of its wave's HP, 20% at wave 1 rising to 60% by wave 30, ×1.5 on bosses. Tier 1's warm-up and its wave 21–25 Hit ramp are gone. `run_balance.sh` prints the Tier 1 curve at sample waves. Before-and-after measurements are in [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md).
 
-The deterministic first-run baseline in `tools/balance_simulator.gd` taps twice per second and buys permanent Workshop upgrades in its standard order after the run. With seed 7 it dies at Tier 1 wave 23 after 495 seconds with 76 Coins. The simulator's build matrix also compares two fixed builds bought from the former 48-Coin opening budget; those rows remain a D035 pricing comparison, not the current first-run spend. This is a reproducible calibration baseline, not a claim that the balance is final.
+The deterministic first-run baseline in `tools/balance_simulator.gd` taps twice per second and buys permanent Workshop upgrades in its standard order after the run. With seed 7 it dies at the Tier 1 wave 20 boss after 338 seconds with 106 Coins (D040). The simulator's build matrix also compares two fixed builds bought from the former 48-Coin opening budget; those rows remain a D035 pricing comparison, not the current first-run spend. This is a reproducible calibration baseline, not a claim that the balance is final.
 
 ### Data contracts to create before content
 
