@@ -6,18 +6,17 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v7"
+const PROFILE_ID := "tax-foundation-v8"
 const WAVE_INTERVAL_SECONDS := 15.0
 const BOSS_WAVE_INTERVAL := 10
 ## A beaten wave stays on screen at least this long before the next arrives
 ## (D037), so a clear still registers when the build outclasses the wave.
 const MIN_WAVE_SECONDS := 2.5
 const TIER_UNLOCK_WAVE := 100
-## Every tier's milestone checkpoints (D030). Each pays once per tier record:
-## Gems at every checkpoint, and the Coin bonus as well at the four Coin
-## checkpoints (D002, D010).
-const MILESTONE_WAVES := [10, 20, 25, 30, 40, 50, 60, 75, 90, 100, 125, 150, 200]
-const COIN_MILESTONE_WAVES := [10, 25, 50, 100]
+## Every tier's milestone checkpoints. Extends to wave 5,000 with final milestone
+## at 5,000, paying Gems at every checkpoint and Coins at coin checkpoints.
+const MILESTONE_WAVES := [10, 20, 25, 30, 40, 50, 60, 75, 90, 100, 150, 200, 250, 350, 500, 750, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000]
+const COIN_MILESTONE_WAVES := [10, 25, 50, 100, 250, 500, 750, 1000, 2500, 5000]
 ## A checkpoint pays this times the square root of its wave, times the tier's
 ## reward multiplier, in Gems: deeper checkpoints and harder tiers pay more,
 ## without a hand-authored table to drift.
@@ -25,21 +24,15 @@ const MILESTONE_GEM_SCALE := 2.0
 ## Every boss wave beaten pays this many Gems, every run (D030).
 const BOSS_WAVE_GEMS := 1
 
-## Tier 1's difficulty curve (D040): one set of rules from wave 1, with no
+## Tier 1's difficulty curve: one set of rules from wave 1, with no
 ## warm-up splice. Wave HP rises a little faster than wave squared, which
 ## matches how Workshop damage grows with Coins spent: each investment level
 ## (early, mid, maxed) has a natural wave it stops at. Every tenth wave steps
 ## up by the milestone factors. Higher tiers multiply the same curve (D002).
 const LIABILITY_SCALE := 4.0
-## A Hit is a share of its own wave's HP (D040): missing a wave costs part of
-## what clearing it would have taken, so the Hit can neither spike nor lag
-## behind the wave, and doubling damage or shrinking Hits move the same scale.
-## The share starts at 20% on wave 1 and grows evenly to 60% by wave 30, so a
-## new player's early mistakes cost a little; from wave 30 it is 60%, where
-## maxed Attack alone dies at the wave 100 boss and Defense gets it past.
-const HIT_SHARE_OF_HP := 0.6
-const HIT_SHARE_AT_WAVE_1 := 0.2
-const HIT_SHARE_FULL_BY_WAVE := 30
+## The Attack scale for Collection Hit, decoupled from Wave HP into its own
+## independent polynomial curve.
+const COLLECTION_SCALE := 1.5
 ## Every wave pays this times its number in Coins, times the tier's reward
 ## multiplier, from wave 1 (D040).
 const WAVE_REWARD_SCALE := 0.65
@@ -81,6 +74,11 @@ func is_boss_wave(wave: int) -> bool:
 func starting_number(tier_id: int) -> float:
 	return get_tier(tier_id).starting_number
 
+## What every run starts with in Cash: enough to afford opening Rig ranks
+## based on the player's opening income rate.
+func starting_cash(income_per_second: float) -> float:
+	return RIG_PRICE_SECONDS * maxf(income_per_second, BASE_DAMAGE_PER_SECOND) * 2.5
+
 ## An ordinary wave's HP on the Tier 1 scale, in log10 so deep waves stay
 ## finite: 4 x (0.05 w^2.13 + 0.8 w + 1.5), x1.08 every 10 waves, x1.2 every
 ## 50 and x1.5 every 100.
@@ -99,17 +97,25 @@ func liability_for_wave(tier_id: int, wave: int) -> ScientificNumber:
 	var boss_multiplier := BOSS_LIABILITY_MULTIPLIER if is_boss_wave(wave) else 1.0
 	return _from_log10(_wave_hp_log10(wave) + log(tier.liability_multiplier * boss_multiplier) / log(10.0))
 
-## The share of an ordinary wave's HP its Hit takes (D040).
-func hit_share(wave: int) -> float:
-	var progress := clampf(float(maxi(1, wave) - 1) / float(HIT_SHARE_FULL_BY_WAVE - 1), 0.0, 1.0)
-	return HIT_SHARE_AT_WAVE_1 + (HIT_SHARE_OF_HP - HIT_SHARE_AT_WAVE_1) * progress
+## An ordinary wave's Attack/Hit on the Tier 1 scale: independent of
+## Wave HP so DPS checks (beating the clock) and EHP checks (surviving contact)
+## are calibrated separately. Scales to wave 5,000 and beyond.
+func _wave_hit_log10(wave: int) -> float:
+	var w := float(maxi(1, wave))
+	var body := 0.08 * pow(w, 2.10) + 0.4 * w + 1.0
+	var milestone_log := (
+		float(wave / 10) * log(1.08)
+		+ float(wave / 50) * log(1.20)
+		+ float(wave / 100) * log(1.50)
+	) / log(10.0)
+	return log(COLLECTION_SCALE * body) / log(10.0) + milestone_log
 
-## A boss's Hit is 1.5 times an ordinary Hit at its wave, not a share of its
+## A boss's Hit is 1.5 times an ordinary Hit at its wave, not a multiple of its
 ## tripled HP, so a boss fight is long rather than instantly lethal.
 func collection_for_wave(tier_id: int, wave: int) -> ScientificNumber:
 	var tier: Variant = get_tier(tier_id)
 	var boss_multiplier := BOSS_COLLECTION_MULTIPLIER if is_boss_wave(wave) else 1.0
-	return _from_log10(_wave_hp_log10(wave) + log(hit_share(wave) * tier.collection_multiplier * boss_multiplier) / log(10.0))
+	return _from_log10(_wave_hit_log10(wave) + log(tier.collection_multiplier * boss_multiplier) / log(10.0))
 
 ## Every tier shares the same wave base, which keeps the 1.8x/2.6x reward
 ## ratios honest at equal waves.
@@ -160,19 +166,21 @@ var RIG_COST_GROWTH := {
 	"defense": 1.4,
 	"utility": 1.4,
 }
-## Which rows the Rig sells: the shared catalogue minus the rows whose value is
-## decided before a run starts. Brace is the Defense tab's first row as a free
-## action, not a purchase. Cushion, Brace Cost, Second Wind, Knowledge Bonus and
-## Workshop Discount stay Workshop-only, because buying them mid-run is either
-## meaningless or a solved decision (D015).
+## Which rows the Rig sells: all 21 Workshop rows from the canonical catalogue
+## are available in-run (matching The Tower). Upgrades spend in-run Cash.
 const RIG_ROWS := {
 	"attack": [
 		"stronger_tap", "generator", "generator_two", "faster_cadence",
 		"faster_echo", "burst_relay", "more_critical", "magnitude_coil",
-		"chain_reaction", "boss_damage",
+		"chain_reaction", "automation_core", "boss_damage",
 	],
-	"defense": ["tax_resistance", "siphon", "recoil"],
-	"utility": ["coin_bonus"],
+	"defense": [
+		"tax_resistance", "guard", "siphon", "recoil",
+		"priority_buffer", "brace_discount", "second_wind",
+	],
+	"utility": [
+		"smarter_efficiency", "coin_bonus", "knowledge_bonus",
+	],
 }
 
 func rig_has_row(category: String, upgrade_id: String) -> bool:

@@ -363,3 +363,40 @@ Rules:
 - **Decision:** Keep the current D037 encounter rule: clearing Wave HP before its 15-second boundary prevents the Hit; a missed ordinary wave hits once and moves on, while a boss stays and can hit again. Present Wave HP and time until the Hit as distinct, legible progress measures, with the current effective Hit plainly readable before contact. Keep Number central and make clean clears, missed waves, blocked Hits and boss repeats visibly different. First prove that players understand and respond to this contest in a short run before adding more progression systems. [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md) owns the proof and next steps.
 - **Consequences:** This is a presentation and validation direction, not a new damage, wave or save rule. A second meter has to fit the portrait stage and remain usable with high contrast and reduced motion. The Tower-inspired idea of suppressing future enemy HP or Hit increases is worth comparing later, but its chance, accumulation, unlock and balance effects are not accepted by this decision.
 - **Revisit when:** Fresh-player observation shows that the contest is still unclear or that, once clear, the player lacks a meaningful choice during a run.
+
+## D042 — In-run upgrades spend Cash with 100% Workshop parity
+
+- **Status:** Accepted (2026-09-23) on owner direction: "Everything in the workshop out of run is available in run. Same way as the tower... Cash for in run purchases, coins for out of run lab and workshop purchases." Supersedes D015's rule that in-run upgrades spend Number. Implemented (2026-09-23).
+- **Context:** Under D015, in-run Rig upgrades spent Number—the player's health buffer. Because spending health reduced survivability, 7 Workshop upgrades (Guard, Cushion/Priority Buffer, Second Wind, Automation Core, Smart Efficiency, Knowledge Bonus, Brace Discount) were locked out of the Rig, breaking parity with *The Tower* where all Workshop upgrades can be bought in-run. Furthermore, early players risked suicide by buying upgrades, and the simulator required an artificial reserve buffer.
+- **Decision:**
+  1. **Cash is the in-run upgrade currency:** Upgrades in the Rig spend run-scoped Cash. Number remains purely the player's active health/shield buffer.
+  2. **100% Workshop parity:** All 21 canonical Workshop rows (11 Attack, 7 Defense, 3 Utility) are available in the Rig during an active run.
+  3. **Cash income:** Cash is earned continuously per second during a run proportional to steady income rate (`get_rig_income_rate()`), plus bonus Cash on wave clears (2× income rate, 6× on boss waves). Runs start with an opening buffer (`balance_profile.starting_cash()`) sufficient to purchase 1–2 opening ranks immediately.
+  4. **Persistence & Lifecycle:** Cash is strictly run-scoped and resets to zero on run end, retreat, death, or prestige. Saves taken mid-run serialize `cash` and `run_cash_earned` in `SaveDataV8`.
+- **Consequences:**
+  - In-run purchases never endanger the player's survival or deplete Number.
+  - The Rig UI clearly labels prices in Cash, shows active Cash balance in category headers, and removes red hazard indicators from stat cards.
+  - Defensive and utility rows like Cushion (flat buffer addition) and Second Wind (death prevention) work seamlessly in-run.
+  - Out-of-run progression remains strictly Coins (Workshop and Labs) and Knowledge.
+- **Revisit when:** Wave economy or specific Cash-generation upgrades (like Cash per Wave or Cash Multiplier) are introduced to the Utility tree.
+
+## D043 — Decouple Wave Attack from Wave HP with independent polynomial scaling and 5,000-wave milestones
+
+- **Status:** Accepted (2026-09-23) on owner direction: "I'd go with option A for scaling... Waves can technically go on forever, until the player can't keep up with the demands anymore. Our final milestone should be 5000, with intervals at 2500, 1000, 750, 500, 250, 100 etc etc... In order to unlock the next tier the player needs to get to wave ???? not known yet". Implemented (2026-09-23) as balance profile `tax-foundation-v8`.
+- **Context:** D040 tied Collection Hit directly to a share of Wave HP (20% to 60%). This coupled damage output checks and survival checks together: tuning Wave HP shifted Hit automatically, preventing independent balancing of DPS vs EHP. In addition, milestones stopped at wave 200, creating an artificial cap incompatible with *The Tower*'s thousands-of-waves depth and our planned 5,000-rank Workshop ladders.
+- **Decision:**
+  1. **Dual Independent Polynomials:** Wave HP and Wave Hit scale on completely separate polynomial curves:
+     - **Wave HP:** $4 \times (0.05 w^{2.13} + 0.8 w + 1.5) \times \text{milestones}$ (unchanged).
+     - **Wave Hit:** $1.5 \times (0.08 w^{2.10} + 0.4 w + 1.0) \times \text{milestones}$.
+     - Boss Hit is $1.5\times$ an ordinary Hit at its wave.
+  2. **Endless waves & 5,000-wave milestone depth:** Waves can run indefinitely. Milestones extend to wave 5,000 with checkpoints at:
+     - `MILESTONE_WAVES`: `[10, 20, 25, 30, 40, 50, 60, 75, 90, 100, 150, 200, 250, 350, 500, 750, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000]`.
+     - `COIN_MILESTONE_WAVES`: `[10, 25, 50, 100, 250, 500, 750, 1000, 2500, 5000]`.
+  3. **Tier unlock gate:** Kept as `TIER_UNLOCK_WAVE = 100` as the isolated baseline gate between Tier 1 and Tier 2, pending owner calibration.
+- **Consequences:**
+  - Pacing of damage checks (clearing before the 15s timer) and survival checks (absorbing hits when the timer expires) are cleanly decoupled.
+  - Siphon/Leech, Recoil/Thorns, Second Wind, Cushion, Guard, and Armor each have measurable, independent value extending runs across waves.
+  - Curves smoothly support endless deep farming runs to wave 5,000 and beyond without numerical overflow in `ScientificNumber`.
+- **Revisit when:** 5,000-rank Workshop ladders ship or tier unlock thresholds are formally calibrated.
+
+

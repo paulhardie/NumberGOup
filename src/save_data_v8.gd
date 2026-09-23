@@ -28,6 +28,8 @@ static func make(state) -> Dictionary:
 		"braced": state.braced,
 		"run_peak_number": state.run_peak_number.to_dict(),
 		"second_wind_used": state.second_wind_used,
+		"cash": state.cash.to_dict(),
+		"run_cash_earned": state.run_cash_earned.to_dict(),
 		"rig_ranks": state.rig_ranks,
 		"tick_accumulator": state.tick_accumulator,
 		"critical_chain": state.critical_chain,

@@ -234,8 +234,7 @@ func _core_case(label: String, tier: int, ranks: Dictionary, labs: Dictionary, c
 				first_hit = seconds
 		if rig_policy != "hoard" and state.in_run and _rig_can_spend(state):
 			if tier == 1 and state.wave <= 20 and state.rig_ranks_bought() < 2:
-				var cost: ScientificNumber = state.get_rig_cost("generator")
-				if state.can_purchase_rig("generator") and state.number.subtract(cost).compare_to(_rig_reserve(state)) >= 0 and state.purchase_rig("generator"):
+				if state.can_purchase_rig("generator") and state.purchase_rig("generator"):
 					rig_buys += 1
 			elif rig_policy == "reinvest":
 				rig_buys += _play_rig(state)
@@ -338,13 +337,9 @@ func _play_rig(state: GameState) -> int:
 			order = RIG_BOSS_PRIORITY
 			break
 	while true:
-		var reserve := _rig_reserve(state)
 		var purchased := false
 		for upgrade_id in order:
 			if not state.can_purchase_rig(upgrade_id):
-				continue
-			var cost: ScientificNumber = state.get_rig_cost(upgrade_id)
-			if state.number.subtract(cost).compare_to(reserve) < 0:
 				continue
 			if state.purchase_rig(upgrade_id):
 				bought += 1
@@ -473,7 +468,7 @@ func _simulate_opening() -> void:
 				if cheapest_cost == null or cost.compare_to(cheapest_cost) < 0:
 					cheapest = row_id
 					cheapest_cost = cost
-			if state.number.compare_to(cheapest_cost.multiply_scalar(1.5)) >= 0 and state.purchase_rig(cheapest):
+			if state.can_purchase_rig(cheapest) and state.purchase_rig(cheapest):
 				if first_purchase < 0.0:
 					first_purchase = seconds
 			if three_minute == "" and seconds >= 180.0:

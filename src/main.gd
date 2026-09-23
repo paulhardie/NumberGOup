@@ -841,8 +841,8 @@ func _refresh_rig() -> void:
 	if not ProgressionTaxonomy.WORKSHOP_CATEGORIES.has(category):
 		category = ProgressionTaxonomy.ATTACK
 		state.workshop.selected_category = category
-	rig_category_header.text = ProgressionTaxonomy.category_name(category) + " UPGRADES"
-	rig_purchase_policy.text = "THIS RUN ONLY · BUY WITH NUMBER · HOLD A CARD FOR DETAILS"
+	rig_category_header.text = ProgressionTaxonomy.category_name(category) + " UPGRADES · " + state.cash.format_value() + " CASH"
+	rig_purchase_policy.text = "THIS RUN ONLY · BUY WITH CASH · HOLD A CARD FOR DETAILS"
 	rig_multiplier_label.text = _buy_step_label(category)
 	for tab_category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
 		var active: bool = category == tab_category
@@ -2630,11 +2630,11 @@ func _make_rig_stat_card(definition: UpgradeDefinition, category: String) -> Pan
 		var step := _buy_step(state.workshop.selected_category)
 		var plan := state.plan_rig_purchase(upgrade_id, step)
 		if int(plan.ranks) == 0:
-			_show_toast("NEED " + state.get_rig_cost(upgrade_id).format_value() + " NUMBER", MUTED_TEXT)
+			_show_toast("NEED " + state.get_rig_cost(upgrade_id).format_value() + " CASH", MUTED_TEXT)
 			return
 		var bought := state.purchase_rig_ranks(upgrade_id, step)
 		if bought > 0:
-			_show_toast("-" + _stat_number(plan.cost) + " NUMBER · +" + str(bought) + " " + definition.title, WORKSHOP_ACCENT)
+			_show_toast("-" + _stat_number(plan.cost) + " CASH · +" + str(bought) + " " + definition.title, WORKSHOP_ACCENT)
 			_snap_number_display()
 			state.save()
 			_refresh_all()
@@ -2646,8 +2646,7 @@ func _make_rig_stat_card(definition: UpgradeDefinition, category: String) -> Pan
 	_update_rig_card(definition)
 	return card
 
-## The parts of a Rig card that move with the Number: its price, whether it is
-## affordable, and the warning when buying would leave less than the next hit.
+## The parts of a Rig card that move with in-run Cash: its price and affordability.
 func _update_rig_card(definition: UpgradeDefinition) -> void:
 	var refs: Dictionary = rig_card_refs[definition.id]
 	var card: PanelContainer = refs.card
@@ -2660,22 +2659,16 @@ func _update_rig_card(definition: UpgradeDefinition) -> void:
 	var ranks := int(plan.ranks)
 	var can_afford := ranks > 0
 	var quoted_cost: ScientificNumber = plan.cost if can_afford else next_cost
-	var after_purchase := state.number.subtract(quoted_cost)
-	var encounter: Variant = state.active_encounter
-	var hit_cost := ScientificNumber.new()
-	if encounter != null and not encounter.max_liability.is_zero() and not encounter.is_cleared():
-		hit_cost = state.get_effective_collection()
-	var warning_colour := DANGER if after_purchase.compare_to(hit_cost) < 0 and not hit_cost.is_zero() else Color(1, 1, 1, 0.0)
 	var edge: Color = WORKSHOP_ACCENT if can_afford else Color(1, 1, 1, 0.07)
 	card.add_theme_stylebox_override("panel", _panel_style(SURFACE, 12, edge))
-	card.tooltip_text = ("LEAVES " + after_purchase.format_value() + " · HITS FOR " + hit_cost.format_value()) if warning_colour.a > 0 else ""
+	card.tooltip_text = definition.description
 	var box_tint: Color = WORKSHOP_ACCENT if can_afford else Color(1, 1, 1, 0.05)
 	value_button.add_theme_stylebox_override("normal", _panel_style(Color(0, 0, 0, 0.25), 10, box_tint))
 	value_button.add_theme_stylebox_override("hover", _panel_style(Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.12), 10, box_tint))
 	(refs.value_label as Label).text = _stat_value_text(definition, effective)
 	var cost_label: Label = refs.cost_label
-	cost_label.text = ("x" + str(ranks) + " · " if ranks > 1 else "") + "-" + _stat_number(quoted_cost) + " #"
-	cost_label.add_theme_color_override("font_color", warning_colour if warning_colour.a > 0 else (WORKSHOP_ACCENT if can_afford else MUTED_TEXT))
+	cost_label.text = ("x" + str(ranks) + " · " if ranks > 1 else "") + _stat_number(quoted_cost) + " CASH"
+	cost_label.add_theme_color_override("font_color", WORKSHOP_ACCENT if can_afford else MUTED_TEXT)
 
 ## Holding a card reads it instead of acting on it: after LONG_PRESS_SECONDS
 ## held, the card's detail opens, and the release that follows is swallowed so
