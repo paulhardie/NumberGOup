@@ -22,7 +22,7 @@ Exported files must be served over HTTPS for browser persistence and PWA behavio
 
 ## Current game
 
-The playable slice includes tapping, passive production, a four-category permanent Workshop of 20 rows and 1,466 ranks with multi-buy, Research Focus, upgrade synergies, Prestige, Knowledge/Insight, local saves, a stats/settings drawer, and tiered Tax runs.
+The playable slice includes tapping, passive production, a permanent Workshop with 21 loaded rows across Attack, Defense and Utility (and an Ultimates category reserved for later) with multi-buy, Research Focus, upgrade synergies, Prestige, Knowledge/Insight, local saves, a stats/settings drawer, and tiered Tax runs.
 
 Tax runs use two independent absolute stats:
 

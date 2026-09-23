@@ -1,69 +1,118 @@
-# The Tower — systems and structure reference
+# The Tower — current systems and Number Go Up comparison
 
-**Snapshot:** 23 September 2026, through the developer's v29 notes (updated 26 August 2026). This is a map of system *roles*, not a complete rules database or a Number Go Up feature backlog. Recheck dated sources before relying on a specific mechanic; a live game's systems change.
+**Reference snapshot:** 23 September 2026. The latest released Tower build found in the developer's notes is **v29.0.3 (10 September 2026)** [S1]. The [14 September developer update][S9] discusses a future v29.1 and later modules; those plans are **not** counted as released systems here. This is a structural inventory of the live game's major loops, not an exact balance database or a claim that we have played every late-game system.
 
-**Authority:** [`GAME_VISION.md`](GAME_VISION.md) and accepted [`DECISIONS.md`](DECISIONS.md) govern our game. This document supplies reference evidence and design questions. D009 requires our own names, coefficients, pacing and content. [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md) holds the narrower wave and tier research, including its historical implementation notes; [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md) owns the current player-experience proof.
+**Purpose and authority:** Use this page to ask what a Tower system *does for the player*, what comparable role Number Go Up already serves, and where the foundation is still thin. [`GAME_VISION.md`](GAME_VISION.md), accepted [`DECISIONS.md`](DECISIONS.md) and current code govern our game. D009 requires original names, coefficients, pacing and content. [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md) holds detailed wave research; [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md) owns the immediate combat proof. A low score here is not an instruction to build the Tower system.
 
-## The compounding structure
+## How the closeness ratings work
 
-The Tower combines several time scales. A run tests a build against increasing enemy pressure. Run earnings improve a permanent baseline. Milestones open further choices, and later systems modify earlier ones. The useful pattern is that an unlock changes *which decision matters next*, rather than merely adding another multiplier.
+Ratings compare **player-facing function and supporting rules**, not visual similarity, amount of content, or overall game quality. They are dated editorial judgements against the current checkout, not percentages of completion.
 
-| Time scale | Tower structure | Design job | Number Go Up reading |
+| Rating | Meaning |
+| --- | --- |
+| **0/4** | No playable equivalent. A reserved name or generic hook alone does not count. |
+| **1/4** | A specific supporting primitive exists, but the player cannot yet use the comparable loop. |
+| **2/4** | A playable, narrower version exists; a major choice, feedback or progression link is missing. |
+| **3/4** | The comparable role works end to end, with meaningful differences in breadth or maturity. |
+| **4/4** | The role is broadly mature and validated in our own design; this never requires copying Tower content. |
+
+**Fit** is separate: **Core** = supports our accepted vision; **Investigate** = a test could justify it; **Defer** = depends on later needs; **Outside** = contrary to present scope. A **0/4 · Outside** row is a deliberate product boundary, not a defect. Section scores summarise the central role in that section rather than averaging unrelated rows.
+
+## 1. The battle and the run — **2/4**
+
+The Tower's visible radial defence combines enemy movement, range, projectiles, orbs, knockback, wall, damage and mitigation. Enemies include simple, advanced, elite and fleet groups; v29's Vault names Basic/Fast/Tank, Boss/Ranged/Protector, Elites and Fleets [S2]. Fleets can make a tournament wave wait for a kill rather than a timer [S2], and v28.3 changed Fleet counterplay and added tier conditions [S3]. Those are examples of *different decisions during a fight*, not a prescription for spatial simulation in our game.
+
+| Tower system | What it does | Number Go Up today, and why the score | Fit |
 | --- | --- | --- | --- |
-| Seconds to waves | Enemies, health, attack, bosses and other enemy types; timed or kill-gated waves | Make offensive output and survival matter during play | Existing Wave HP, Hit, boss and Rig contest; D041 first makes the threat legible. No spatial tower defence is implied. |
-| One run | In-run cash upgrades, free upgrades, perks and wave skips | Allow temporary adaptation and sometimes alter how quickly pressure grows | The Number-funded Rig is our temporary layer. A future run choice needs an observable effect and an explicit reset boundary. |
-| Between runs | Workshop, Labs, Cards, Modules, Ultimate Weapons, Bots and Guardians | Make several long-term investments compound and compete | Workshop, Labs and Cards exist in our own forms. Other layers are reference roles only; each must earn a distinct job. |
-| Across tiers | Difficulty choice, wave records, milestones, relics and later tier conditions | Give the player a reason to farm, push and revisit builds | Tiers 1–3, records and milestones exist. More tier content follows proof that the current wave contest works. |
-| Mature game | Presets, Vault, events, tournaments, guilds and monetised currencies | Serve complex build switching, competition and ongoing operation | Presets are useful only once build switching is a real burden. Live-service layers are outside the current product direction. |
+| Escalating waves and two survival checks | Enemy health tests damage; attacks test survival. | **3/4** — Wave HP and Hit are separate, with authored tier curves and boss multipliers. The HP/time contest has not been validated with new players. [NG: `tax_encounter.gd`, `tax_balance_profile.gd`, D037–D041] | Core |
+| Distinct enemies and boss encounters | Enemy behaviours change which defence works; bosses and Fleets can change wave progression [S2][S3]. | **1/4** — ordinary waves and standing bosses differ, but there is no enemy roster or enemy-specific counterplay. [NG: `game_state.gd` wave resolution] | Investigate |
+| Readable contact and combat feedback | Stats, hit text, battle reports and an in-game encyclopedia explain effects [S4][S5]. | **2/4** — Wave HP ring and exact Hit line exist; a separate time meter and clear/no-Hit feedback remain planned. No fresh-player comprehension result. [NG: D041, `COMBAT_FEEL_PLAN.md`] | Core |
+| Run ending, resume and reports | A run records its outcome; Tower has had to preserve complex cooldown states on resume [S10]. | **3/4** — death, retreat, Prestige, frozen offline run, run summary, deterministic active-run restoration and V1–V8 migrations exist. Tower's pause and live-account behaviour is intentionally different. [NG: `game_state.gd`, `save_data_v8.gd`] | Core |
+| In-run economy and purchases | Cash and temporary upgrades let a run develop independently of permanent Workshop ranks. | **2/4** — the Rig spends Number and resets each run; its cost competes directly with the Hit buffer. Meaningful mid-run build choices still need playtesting. [NG: `game_state.gd`, D015/D039] | Core |
+| Free upgrades and automated choice | Automatic purchases or free ranks remove solved repetition and alter which stats grow. | **1/4** — automation targets exist, but no Tower-like free-upgrade pool or evolving candidate selection. [NG: `workshop_state.gd`, `game_state.gd`] | Investigate |
+| Perks and temporary rule changes | Choices during a run reshape that attempt; v28 still refers to perk effects [S4]. | **1/4** — the ordered modifier pipeline exists, but there is no playable Perk choice. [NG: `rule_modifier_pipeline.gd`] | Investigate |
+| Enemy Level Skip and wave acceleration | Enemy Level Skip changes pressure growth; Wave Skip/Intro Sprint change progression. Skip ordering interacts with a battle condition [S6], and v29 changed tournament sprint behaviour [S2]. | **0/4** — no enemy-growth suppression or wave skip. Our chance-based versus earned-suppression question is only a candidate in `COMBAT_FEEL_PLAN.md`. | Investigate |
 
-The [developer's v29 notes](https://www.techtreegames.com/post/v29-patch-notes-august-25-2026) show how mature layers connect: Labs unlock presets for several systems; the Vault changes those systems; modules now level their *slots* while item substats remain on the item. That is a useful dependency example, **not** an instruction to add these layers.
+**Foundation read:** The clearest gap is the *felt fight*, not a missing radial physics engine. The existing rule already lets a clean clear prevent a Hit. First prove that players see the HP and time races and can predict the exact loss; then judge whether a new counterplay rule adds a choice. The user-supplied Gemini architecture note is useful as a list of possible Tower mechanics, but its exact formulas, implementation prescriptions and performance claims have not been independently verified and are not adopted here.
 
-## System map and what it teaches us
+## 2. Permanent build layers — **2/4**
 
-The Tower facts in this table are grounded in the developer sources below unless marked as a qualified community account. “Our reading” is an authored design interpretation, not a claim about The Tower's intent. “Status” describes Number Go Up as of this snapshot; it does not approve future work.
+The Tower compounds a broad Workshop with timed Labs, equipped Cards and Modules, special weapons, Bots, Guardians and late Vault choices. v29 explicitly connects these through presets and the Vault, while moving Module levels onto slots and leaving substats on individual Modules [S2][S7]. Its breadth is a mature-game state, not a sensible starting checklist.
 
-| Tower system or group | Structural role in The Tower | Our reading and status |
+| Tower system | What it does | Number Go Up today, and why the score | Fit |
+| --- | --- | --- | --- |
+| Workshop and enhancements | Coins improve the permanent baseline; later enhancement layers extend existing stats [S3]. | **2/4** — 21 loaded rows in Attack, Defense and Utility, permanent Coin purchases and multi-buy. Ultimates is reserved; ladder expansion and balance are open. [NG: `data/workshop/upgrades.json`, `WORKSHOP_LADDERS.md`] | Core |
+| Labs and research slots | Time-gated, Coin-funded research competes for slots and improves other systems; v29 uses a Lab to unlock presets [S2]. | **2/4** — four research lines, real-time completion, one starting slot and four more Gem-funded slots exist. Late ranks are currently unreachable on sensible timescales. [NG: `lab_research.gd`, `data/labs/research.json`, `HANDOVER.md`] | Core |
+| Cards, active slots and mastery | A limited equipped collection changes builds; v29 adds a Cells card and describes its Mastery [S2]. | **2/4** — six Gem-pulled cards, four Active slots, rank growth and duplicate protection. No Mastery, presets or settled Gem economy. [NG: `card_collection.gd`, `data/cards/cards.json`, D027] | Core |
+| Modules and substats | Four Module types and individual substats add equipment choices; v29 levels slots, and swaps are restricted during a run [S7]. | **0/4** — no equipment inventory, substats or module rolls. Cards already supply a small equipped-build layer. | Defer |
+| Ultimate Weapons and cooldown overlap | Special powers interact with enemies, Labs, Modules and each other; sync/resume matters [S5][S10]. | **0/4** — an Ultimates category is reserved, but there is no comparable capstone power or cooldown system. A label is not a playable layer. | Defer |
+| Bots | Separate timed effects and upgrades; v28 added Bot+ and synchronised pathing [S4]. | **0/4** — no comparable autonomous effect layer. | Defer |
+| Guardians and Guild progression | v26 Guilds introduced Guardians alongside contribution, chests and a rotating store [S8]. | **0/4** — no Guardian or social progression layer. | Outside |
+| Relics and collectible bonuses | Persistent rewards from milestones and events; v28 expanded the Event Store's older Relics [S4]. | **1/4** — milestone rewards exist, but no relic collection or collection-driven bonus. | Defer |
+| Presets and respec | Store build configurations for different purposes; v29 Lab unlocks Card, Workshop, Bot, Module and Guardian presets, plus a global selector [S2]. | **0/4** — Cards have one manually edited Active set; no named preset or general respec. Add only if switching builds becomes costly. [NG: D027] | Defer |
+| Vault / late-game trees | Harmony, Power and Enemy trees add decisions across established systems; v29 reworked them [S2]. | **0/4** — our Knowledge/Insight is original permanent progression, not a Vault equivalent. No cross-system late tree exists. | Defer |
+
+**Foundation read:** Our Workshop, Labs and Cards already establish the permanent-versus-run boundary. The next structural issue is whether their purchases meaningfully change a *visible* wave contest. Adding Modules or a Vault before that would multiply complexity without proving the loop.
+
+## 3. Campaign, goals and challenge variants — **2/4**
+
+Tower tiers offer different pressure, rewards and unlocks. v28.3 added Tiers 22–24 with Fleet-specific conditions [S3]. v28 introduced Dissonant Runs, where one Workshop tab is disabled in exchange for a tier-specific boost, and late Overheat pressure to limit very long runs [S4]. These are examples of extending familiar runs after players have learned them.
+
+| Tower system | What it does | Number Go Up today, and why the score | Fit |
+| --- | --- | --- | --- |
+| Tier choice and scaling | Explicit difficulty/reward choice with tier-specific gates. | **2/4** — three tiers with distinct pressure/reward multipliers and wave-100 unlocks; no broad late-tier challenge catalogue. [NG: `tax_balance_profile.gd`, `tier_definition.gd`] | Core |
+| Records and milestones | Wave achievements make pushing legible and open rewards or systems. | **2/4** — per-tier records and thirteen one-time Gem checkpoints per tier; some also pay Coins. Unlock spine exists but few new play styles open from it. [NG: `game_state.gd`, D030] | Core |
+| Battle conditions and enemy counters | Rules vary by tier or tournament and support counter-builds [S3]. | **1/4** — the modifier pipeline can stack rules, but no player-facing condition content exists. [NG: `rule_modifier_pipeline.gd`] | Investigate |
+| Dissonance / restricted builds | Voluntary restriction changes how a familiar tier plays and pays [S4]. | **0/4** — no optional build-restriction mode or corresponding reward. | Defer |
+| Overheat / very-long-run control | Late-wave conditions push otherwise endless runs towards an outcome [S4]. | **0/4** — no such late-run system; current runs do not yet justify it. | Defer |
+| Battle reports and learning tools | In-run stats, end reports and encyclopedia descriptions help explain deep interactions [S4][S5]. | **2/4** — run summary, lost-to explanation and stats exist, but effect provenance and a searchable rules reference are limited. [NG: `main.gd`, `HANDOVER.md`] | Core |
+
+## 4. Currencies and compounding economy — **2/4**
+
+Tower resources split by job. Cash is a run resource; Coins buy persistent baseline/research; Gems open options; Cells, Stones, Medals, Keys and shards support additional research, specialist, event, tournament, Vault and equipment loops. The released developer notes confirm these named resources and their links to current systems [S2][S4]. This table is **not** a complete earning-rate or spend-price ledger, and the Gemini note's Cell acceleration formula is unverified.
+
+| Tower resource role | Number Go Up today, and why the score | Fit |
 | --- | --- | --- |
-| Waves, enemy types and bosses | Increasing health/attack pressure; enemy types make different defences matter. v29 also describes Fleet waves that advance on a kill condition in tournaments. | **Built in part:** Wave HP, Hit, bosses and two build axes. First make the existing clear-before-Hit fight readable; new enemy types need a new player decision, not just another colour. |
-| Tiers, records and milestones | Players choose the pressure/reward setting and pursue visible checkpoints. Later tiers add battle conditions. | **Built in part:** three tiers, records, milestone Gems and unlocks. The tier curve is ours; see the [scaling research](TOWER_SCALING_FOUNDATION.md). |
-| Run cash and free upgrades | Temporary growth can rescue or redirect a run without becoming permanent power. | **Adapted:** the Rig spends Number and resets each run. Do not add a second temporary currency just to match the reference. |
-| Workshop | Permanent, broad baseline that makes the next attempt stronger. | **Built:** Coin-funded permanent rows. Keep its contrast with the Rig and make purchases visibly change the next run. |
-| Labs | Long-horizon research unlocks and improves other systems, including presets and enemy counters. | **Built in part:** our timed Labs exist. Further research needs reachable duration/costs and an actual consumer; the current late-rank timing is a known risk in [handover](HANDOVER.md). |
-| Cards and mastery | A limited equipped set adds configurable power; advanced investment extends existing cards. | **Built in part:** Cards, Active slots and pulls exist. Mastery and presets remain separate future decisions, with duplication and Gem economy constraints. |
-| Perks and run modifiers | In-run choices change the shape of one attempt. | **Candidate:** a choice could add counterplay once the current wave is readable. Any rule must use the modifier pipeline and save/replay contract. |
-| Enemy Level Skip and wave skips | Pressure growth or wave progression can be altered. [v27.5.1](https://www.techtreegames.com/post/v27-5-1-update) confirms Enemy Level Skip ordering interacts with a skip-decay condition. | **Candidate, not approved:** compare chance-based and earned growth suppression in [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md). The reference does not determine our trigger, probability, cap or reward policy. |
-| Modules and equipment | Equipped items and substats make build choice wider; v29's slot levelling reduces switching friction. | **Deferred:** an equipment layer needs a distinct decision beyond Cards and a migration plan for owned items. No module system is needed for the combat proof. |
-| Ultimate Weapons, Bots and Guardians | Specialised, longer-term effects can interact with core stats and timing. | **Deferred as separate systems:** evaluate a specific missing combat role first. Adding several overlapping multipliers would hide the wave contest. |
-| Relics and collections | Long-term achievements and event rewards supply persistent bonuses. | **Deferred:** a reward must change a meaningful choice, and its source and permanence must be legible. Our milestones already carry the first reward spine. |
-| Presets and respec | Reduce the cost of switching builds for different run goals. In v29, Labs unlock preset types and a global preset combines them. | **Deferred:** introduce only when manual build switching becomes a measured problem. Changing equipment and preset state would need saved, explicit ownership. |
-| Dissonant runs, battle conditions and Overheat | Optional restrictions and late-run pressure reshape familiar tiers. [v28](https://www.techtreegames.com/post/v28-patch-notes) describes disabling a Workshop tab for a tier-specific bonus and late-wave skip decay. | **Possible later tier design:** use a visible rule and trade-off only after base tiers teach the player what changed. Route through the modifier pipeline. |
-| Vault and very late trees | Adds a further investment layer across existing systems. v29 reorganises Harmony/Power and adds an enemy tree. | **Defer:** its value depends on mature underlying systems; it is not a foundation primitive for the current game. |
-| Events, missions, tournaments, guilds and stores | Recurring goals, competition, social play and additional currency sinks. | **Outside current scope:** these require service, scheduling, moderation or commerce decisions. The local run must be fun first (D011). |
+| Run spend versus survival | **3/4** — Number buys Rig ranks, funds survival and rises from output. Its dual role is intentionally unlike Tower cash. [NG: D015/D037] | Core |
+| Repeatable permanent earnings | **2/4** — Coins pay for Workshop and Labs; boss/wave payouts work, but Coins per minute and long ladders are open balance decisions. [NG: `game_state.gd`, `HANDOVER.md`] | Core |
+| Option currency | **2/4** — Gems come from bosses and per-tier milestones and pay for Cards/Lab slots; broader supply and price policy remain unsettled. [NG: D027/D030] | Core |
+| Long-term knowledge layer | **2/4** — Knowledge/Insight and Prestige are our own persistent layer; this is a design difference, not a direct Tower-currency match. [NG: `game_state.gd`, `GAME_VISION.md`] | Core |
+| Specialist/live resources | **0/4** — no Cells, Stones, Medals, Keys or Module shards. Their dependent systems are absent or outside scope, so copying these resources has no current value. | Outside / Defer |
 
-## Resource and unlock flow
+**Dependency rule:** A new currency must have a distinct decision, earning route, sink, reset boundary, save contract and player-facing explanation. Currency count is not a measure of depth.
 
-The Tower uses different resources to separate run decisions, permanent growth and mature-game activities. Developer [v29](https://www.techtreegames.com/post/v29-patch-notes-august-25-2026) and [v28](https://www.techtreegames.com/post/v28-patch-notes) notes refer to cash, Coins, Gems, Stones, Cells, Medals, Keys and module shards; this is a role summary, not a full source/sink ledger.
+## 5. Live operation, social and commercial layers — **0/4**
 
-| Reference role | Examples in The Tower | Number Go Up boundary |
+Tower's events, daily missions, tournaments, Guilds, stores and account services make a released live game operate over months. v29 added a Mythic tournament league and adjusted rewards and Fleet waves [S2]; v26 Guilds introduced contribution, chests, store and Guardians [S8]. v29.0.3 still fixes cross-device/run-stat and Vault-respec issues [S1], evidence of the maintenance load these layers carry.
+
+| Tower system | Number Go Up today, and why the score | Fit |
 | --- | --- | --- |
-| Spend during one attempt | Cash and temporary upgrades | Number funds the Rig and is also the survival buffer; every spend has a visible cost. |
-| Improve the next attempt | Coins for Workshop and research | Coins fund permanent Workshop progress. Our Knowledge, Labs and other existing resources follow their own accepted rules. |
-| Open and configure options | Gems for Cards, slots and other choices | Gems already fund Cards and Lab slots. Do not introduce another currency without a distinct, tested purpose. |
-| Support later specialist and service loops | Stones, Cells, Medals, Keys and shards | Reference only. Their Tower sinks depend on systems and operations we have not built or approved. |
+| Events, missions and rotating rewards | **0/4** — no calendar or event system. Milestones give long-term goals without a schedule. | Outside for now |
+| Tournaments and leagues | **0/4** — no competitive service, ranked rewards or battle-condition schedule. | Outside for now |
+| Guilds, Guardians and shared rewards | **0/4** — no account/social backend or cooperative economy. | Outside for now |
+| Ads, purchases, premium passes and remote account | **0/4** — local-save game with no store or account service. The absence is deliberate, not missing foundation for the current loop. | Outside for now |
 
-This exposes a useful dependency order: **readable run → meaningful run choice → satisfying permanent purchase → milestone that opens a new choice**. A later system should name the resource it consumes, its reset boundary, its unlock, and the decision it adds before it is put on a roadmap.
+## What this comparison means for our next move
 
-## Design lessons to test, not copy
+1. **Prove combat comprehension first.** The 2/4 battle score is primarily a presentation and playtest gap: show remaining Wave HP, time to the next Hit and the exact effective loss together. Test whether a clean clear reads as a prevented attack (`COMBAT_FEEL_PLAN.md`, D041).
+2. **Then test a consequential counterplay choice.** If players understand the existing rule but still feel passive, compare earned versus chance-based enemy-growth suppression, or a narrower encounter choice. Measure run length, reward rate, Attack/Defense value, and deterministic resume before accepting a rule.
+3. **Only then deepen the permanent ladder.** Make existing Workshop, Rig, Labs and Cards improve a visible combat outcome. Their balance and reachability issues are more immediate than Tower's missing endgame layers.
 
-1. **A fight needs a visible alternative outcome.** In our rules, beating Wave HP before the boundary already prevents a Hit. Make HP remaining, time to Hit and the effective Hit readable together, then test whether players perceive that as fighting back (D041).
-2. **Offence and survival should create different choices.** Two pressure axes permit an Attack build to clear faster and a Defense build to survive misses. Measure both at the same tier and wave before adding another stat.
-3. **A growth-suppression upgrade changes future encounters, not today's damage.** It may be a satisfying counter to scaling, but could merely lengthen runs. Test its effect on decisions, run length, rewards and deterministic resume before accepting it.
-4. **New layers should interact with established layers in a way the player can explain.** A deeper tree is useful when it opens a choice; a bare multiplier or new currency is insufficient evidence.
-5. **Complexity has a maintenance cost.** The Tower's [v28 resume fixes](https://www.techtreegames.com/post/v28-0-6-patch-notes) cover cooldown synchronisation across Bots, Guardians and Ultimate Weapons. For our game, every new timed or random layer increases save, resume and explanation work.
+## Evidence and maintenance
 
-## Source and update discipline
+**Developer sources (released unless stated otherwise):**
 
-- **Developer evidence:** [v29 patch notes](https://www.techtreegames.com/post/v29-patch-notes-august-25-2026) for current presets, Modules, Vault, Cards and tournament structure; [v28 patch notes](https://www.techtreegames.com/post/v28-patch-notes) for Dissonance, Bots, Overheat, relics and events; [v28.1 notes](https://www.techtreegames.com/post/v28-1-patch-notes) for the in-game encyclopedia's Workshop, Ultimate Weapons, Cards, Modules, Enemies and Other categories; [v27.5.1](https://www.techtreegames.com/post/v27-5-1-update) for Enemy Level Skip ordering. Patch notes establish described changes, not every evergreen rule or exact formula.
-- **Qualified community evidence:** [TheTowerSDK](https://github.com/TmRxJD/TheTowerSDK) and the other references in [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md) can help inspect wave shapes. They are version-sensitive, unofficial, and need a pinned version plus independent checks before numeric use.
-- **Our decisions:** D009 and D011 set the originality and product boundaries; D041 and [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md) set the immediate validation order. A row in this reference is never approval to implement it.
-- **Maintenance:** when a Tower update is relevant to a proposed design, check the latest developer notes, date the affected claim, update only the affected rows, and record whether the claim is developer-stated, community-reconstructed or our interpretation. Do not treat this snapshot as a live catalogue.
+[S1]: https://www.techtreegames.com/post/v29-0-3-patch-notes-september-10-2026 "v29.0.3 patch notes, 10 September 2026"
+[S2]: https://www.techtreegames.com/post/v29-patch-notes-august-25-2026 "v29 patch notes, updated 26 August 2026"
+[S3]: https://www.techtreegames.com/post/v28-3-patch-notes "v28.3 patch notes, 29 June 2026"
+[S4]: https://www.techtreegames.com/post/v28-patch-notes "v28 patch notes, 7 April 2026"
+[S5]: https://www.techtreegames.com/post/v28-1-patch-notes "v28.1 patch notes, encyclopedia and descriptions"
+[S6]: https://www.techtreegames.com/post/v27-5-1-update "v27.5.1 patch notes, Enemy Level Skip ordering"
+[S7]: https://techtreegames.zendesk.com/hc/en-us/articles/55088947675547-Modules-Changes-with-v29 "Official v29 Modules help article"
+[S8]: https://www.techtreegames.com/post/tower-tea-july-6-2026 "Developer Guild retrospective, 6 July 2026"
+[S9]: https://www.techtreegames.com/post/tower-tea-september-14-2026 "Developer update, 14 September 2026; future items distinguished above"
+[S10]: https://www.techtreegames.com/post/v28-0-6-patch-notes "v28.0.6 resume fixes"
+
+**Evidence limits:** Developer patch notes establish the features and changes stated there, not every evergreen rule, current numeric value or early unlock. [`TheTowerSDK`](https://github.com/TmRxJD/TheTowerSDK) and calculators in [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md) are qualified community evidence for formulas and need a pinned version before numeric use. The supplied Gemini research is an unverified secondary interpretation. Our ratings come from the checked-in Godot code and accepted decisions; they have not been validated by a fresh phone playtest. This is a current-state reference, not implementation approval.
+
+**Update rule:** On a relevant Tower release, verify what shipped from developer notes, move unreleased items into the snapshot only after release, update the affected system rows and their source links, then rescore against the *current* Number Go Up checkout. Keep future proposals in their owning design documents. Do not import Tower's terminology, coefficients, art, layouts or full currency stack into our game.
