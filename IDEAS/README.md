@@ -15,3 +15,4 @@ Each file keeps the pitch as written, then a short **Fit today** section: what a
 ## Batches
 
 - **2026-09-23 — Design and mechanics expansion.** Early-game friction, damage feedback, build archetypes, Tower-style mechanics, bosses, tournaments and future systems. 21 files.
+- **2026-09-23 — Multi-Equation Field.** Waves as a board of living equations instead of one Wave HP ring. `multi-equation-field.md`.
