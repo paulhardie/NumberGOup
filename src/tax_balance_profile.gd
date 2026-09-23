@@ -39,6 +39,12 @@ const WAVE_REWARD_SCALE := 0.65
 const BOSS_LIABILITY_MULTIPLIER := 3.0
 const BOSS_COLLECTION_MULTIPLIER := 1.5
 const BOSS_REWARD_MULTIPLIER := 5.0
+## A beaten wave pays this much Cash plus CASH_PER_WAVE times its number, times
+## BOSS_CASH_MULTIPLIER on a boss (D042). It is flat rather than income-scaled,
+## so it matters most in the opening and fades beside income deeper in.
+const CASH_WAVE_BASE := 10.0
+const CASH_PER_WAVE := 5.0
+const BOSS_CASH_MULTIPLIER := 3.0
 ## Output every run has from its first second, before any Workshop rank, which
 ## upgrades do not raise (D033).
 const BASE_DAMAGE_PER_SECOND := 1.0
@@ -124,6 +130,12 @@ func reward_for_wave(tier_id: int, wave: int) -> int:
 	var boss_multiplier := BOSS_REWARD_MULTIPLIER if is_boss_wave(wave) else 1.0
 	return maxi(1, roundi(base_reward * get_tier(tier_id).reward_multiplier * boss_multiplier))
 
+## The Cash a beaten wave pays (D042). A missed wave pays the share of it
+## that was cleared.
+func wave_cash(wave: int) -> float:
+	var boss_multiplier := BOSS_CASH_MULTIPLIER if is_boss_wave(wave) else 1.0
+	return (CASH_WAVE_BASE + CASH_PER_WAVE * float(maxi(1, wave))) * boss_multiplier
+
 func is_milestone_wave(wave: int) -> bool:
 	return MILESTONE_WAVES.has(wave)
 
@@ -143,7 +155,7 @@ func milestone_gems(tier_id: int, wave: int) -> int:
 func wave_gems(wave: int) -> int:
 	return BOSS_WAVE_GEMS if is_boss_wave(wave) else 0
 
-## The Rig (D015): run-scoped ranks bought with Number during a run. Since
+## The Rig (D015): run-scoped ranks bought with Cash during a run (D042). Since
 ## D039 a rank is priced in seconds of the player's own steady income, not in
 ## Wave HP: `k` times RIG_PRICE_SECONDS of income, times the row's growth per
 ## rank already owned. The price follows what the player makes, so it stays in
@@ -192,6 +204,8 @@ func rig_has_row(category: String, upgrade_id: String) -> bool:
 ## (mid 40 against 50, attack max 94 against 96), because the rank's effect was
 ## worth less than the hit buffer its Number bought. Temporary power has to beat
 ## the buffer, or the optimal player ignores the Rig and the panel is noise.
+## Since D042 the Rig spends Cash, not Number, so that reason no longer holds;
+## the value is unchanged until an owner-approved re-sweep.
 ## Mutable so the balance simulator can sweep it; the sweep picks the value.
 var RIG_EFFECT_MULTIPLIER := {
 	"attack": 3.0,

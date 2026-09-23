@@ -1,61 +1,55 @@
 # Handover
 
-**Last updated:** 23 September 2026, after D042 (Cash economy & 21-row Workshop parity) and D043 (decoupled Wave Attack curve & 5,000-wave milestones) committed and pushed to `main` (commit `dfbac69`).
+**Last updated:** 23 September 2026, after a review of D042 and D043: Cash now flows at the income Rig prices are quoted in, and the docs describe Cash and the new Hit curve.
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
 
 ## Where the game is
 
-`main` plays like this (seed 7 simulator figures; verified with Godot 4.7.2):
+`main` plays like this (seed 7 simulator figures, Godot 4.7.2, balance profile `tax-foundation-v8`; nothing below has been checked on a phone):
 
-- **The core loop (D037, D038):** everything you produce is Number and also damages the wave. A beaten wave gives way to the next after 2.5 seconds. A missed ordinary wave hits once and moves on, paying Coins for the share you cleared. Bosses, every 10th wave, stay and hit every 15 seconds until you beat them. Siphon became Leech and Recoil became Thorns: both are boss-fight stats. Guard cuts the Hit by a flat amount before Armor's percentage.
-- **In-run Cash & Rig parity (D042):**
-  - Upgrades during a run spend **Cash**, completely separating in-run upgrades from the **Number** health pool. Purchasing upgrades never endangers player survival.
-  - **100% Workshop parity:** all 21 Workshop rows (11 Attack, 7 Defense, 3 Utility) can be purchased in the Rig during an active run, matching *The Tower*.
-  - Cash is earned continuously per second based on steady income rate, plus bonuses on wave clears (2× income rate, 6× on bosses). Runs start with an opening Cash buffer (`starting_cash()`) enabling 1–2 immediate purchases.
-  - Cash is strictly run-scoped and resets on run conclusion; mid-run saves preserve `cash` and `run_cash_earned` in `SaveDataV8`.
-- **Decoupled difficulty & 5,000-wave milestones (D043):**
-  - **Wave HP:** $4 \times (0.05 w^{2.13} + 0.8 w + 1.5) \times \text{milestones}$.
-  - **Wave Hit:** $1.5 \times (0.08 w^{2.10} + 0.4 w + 1.0) \times \text{milestones}$ (independent curve; not tied to HP).
-  - Bosses are ×3 HP and ×1.5 Hit.
-  - **5,000-wave depth:** Waves can run indefinitely. Milestones extend to wave 5,000 with checkpoints at:
-    - All milestones: 10, 20, 25, 30, 40, 50, 60, 75, 90, 100, 150, 200, 250, 350, 500, 750, 1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000.
-    - Coin milestones: 10, 25, 50, 100, 250, 500, 750, 1000, 2500, 5000.
-  - Tiers 2 and 3 multiply the same curve by 20 and 60.
-- **Where builds land (profile v8, seed 7):**
+- **The core loop (D037, D038):** everything you produce is Number and also damages the wave. A beaten wave gives way to the next after 2.5 seconds. A missed ordinary wave hits once and moves on, paying Coins for the share you cleared. Bosses, every 10th wave, stay and hit every 15 seconds until you beat them. Leech and Thorns are boss-fight stats. Guard cuts the Hit by a flat amount before Armor's percentage.
+- **The Rig spends Cash (D042):** all 21 Workshop rows can be bought during a run with run-only Cash; Number is never spent on it.
+  - Cash flows at the Rig's priced income (passive rate plus one tap a second, whether or not you tap). A beaten wave adds 10 + 5 × the wave, ×3 on a boss; a missed wave adds the share it cleared. A run starts with 12.5 seconds of its opening income.
+  - A Cushion rank bought in a run adds its Number at once. Discount lowers Rig prices, from Workshop and Rig ranks alike.
+  - Prices are unchanged from D039: about 5 seconds of income, ×1.4 per rank owned.
+- **Difficulty (D043):** Wave HP = 4 × (0.05 w^2.13 + 0.8 w + 1.5) and the Hit = 1.5 × (0.08 w^2.10 + 0.4 w + 1), both with the milestone steps. Against D040 the Hit is 12–18% larger in the first five waves and 17–25% smaller from wave 30 on. Bosses are ×3 HP and ×1.5 Hit. Tiers 2 and 3 multiply by 20 and 60. Milestones run from wave 10 to 5,000; ten of them pay Coins.
+- **Where builds land (two taps a second):**
 
-  | Build | Result |
-  | --- | --- |
-  | First run (two taps a second) | wave 20 boss, ~102 Coins |
-  | Fresh run + Rig | wave 30, ~8.9 minutes, 234 Coins |
-  | Mid Workshop + Rig | wave 70, ~16.2 minutes, 1,632 Coins |
-  | Max Attack (solo, no defense) | wave 103, ~19.7 minutes, 3,808 Coins |
-  | Max Attack + Armor | wave 116, ~26.0 minutes, 4,264 Coins |
-  | Max Attack + Armor + Rig | wave 150, ~35.3 minutes, 6,811 Coins |
-  | Tier 2, all Defense | wave 50 |
+  | Build | Hoarding | Playing the Rig |
+  | --- | --- | --- |
+  | Fresh | wave 20, 86 Coins | wave 30, 232 Coins |
+  | Early Workshop | wave 33 | wave 47 |
+  | Mid Workshop | wave 60 | wave 70 |
+  | Max Attack | wave 103 | **wave 130** |
+  | Max Attack + Armor | wave 116 | wave 158 |
+  | Everything maxed | wave 128 | wave 170 |
 
-- **Balance targets:** 5 (wave 100 needs Defense) holds strongly (max Attack dies at wave 103 boss; adding Armor reaches 116).
+  The representative first run reaches the wave 20 boss with 106 Coins. One tap a second buying Rig ranks reaches wave 29 with 231 Coins; an idle player buying Rig ranks reaches wave 20 with 102.
+- **Balance targets ([`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md)):** 5 (wave 100 needs Defense) holds for Workshop builds only; **max Attack playing the Rig reaches wave 130 with no Defense.** 7 (the Rig cannot replace the Workshop) is borderline: fresh + Rig reaches wave 30, where early Workshop builds stopped before D042. 10's idle clause fails for an idle player who buys the opening Rig ranks (first hit at 73 seconds). 2 still fails by design since D037.
 
 ## Open decisions for the owner
 
-1. **Combat HUD presentation:** implementing the concentric dual ring (Wave HP inner ring, 15s Hit timer outer ring) and dynamic mitigation telemetry readout (`[ HIT: 340 (-38% ARMOR) IN 4.2s ]`).
-2. **Tier unlock wave threshold:** currently 100 (`TIER_UNLOCK_WAVE = 100`). Decide what wave should unlock Tier 2 as ladders and content grow.
-3. **Coins per minute (balance target 2):** rewards came up about 1.5–1.8× when beaten waves stopped waiting out their timers (D037). Accept and restate the target, or bring Coins down.
-4. **The Workshop ladders** ([`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md), with data in [`data/workshop/`](../data/workshop/)): 5,000-rank core rows, a band of ranks per tier, dropping Breakthroughs from pacing, and making `data/workshop/` the Workshop's single source.
+1. **Rig strength under Cash.** The ×3 Rig rank worth (D023) was set so a rank beat the Hit buffer it spent; Cash removed that cost. Re-sweep the multiplier, prices and Cash rate against targets 5 and 7, or restate those targets. Lowering the multiplier alone is not enough: at ×2, max Attack + Rig still reaches wave 120.
+2. **Save schema V9 for Cash.** `cash` and `run_cash_earned` widened V8 instead of bumping it, which D028 rules out; an older build would load a mid-run save and write it back without Cash. Recommended: bump to V9 with a V8 migration.
+3. **Tier unlock wave:** still 100 (`TIER_UNLOCK_WAVE`). Decide what should unlock Tier 2 as ladders and content grow.
+4. **Coins per minute (balance target 2):** rewards came up about 1.5–1.8× when beaten waves stopped waiting out their timers (D037), and D042 roughly doubles early-run Coins again. Accept and restate the target, or bring Coins down.
+5. **The Workshop ladders** ([`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md), with data in [`data/workshop/`](../data/workshop/)): 5,000-rank core rows, a band of ranks per tier, dropping Breakthroughs from pacing, and making `data/workshop/` the Workshop's single source.
+6. **Still open from before D042:** the Workshop expansion rows ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md)), the Tiers 1–10 proposal ([`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md)), the play-folder sync rule on branch `claude/sync-play-checkout`, and enemy-growth suppression ([`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md)).
+7. **`AGENTS.md` law 4** still says the Rig spends Number (D015). It is a working rule, so it changes only on owner instruction.
 
-## Immediate next steps for incoming agent
+## Next steps, in order
 
-1. **Implement the combat HUD pass (Item 2):**
-   - In [`src/ring_arc.gd`](../src/ring_arc.gd): Add a concentric outer arc (radius ~0.37, thickness ~3.0px) representing the 15-second Hit timer ticking clockwise towards 12 o'clock, while the inner ring (radius ~0.31, thickness ~7.0px) tracks Wave HP cleared. When a wave is cleared, the timer ring snaps away cleanly (`BEATEN · NO HIT`).
-   - In [`src/main.gd`](../src/main.gd): Update `encounter_label` to show dynamic mitigation readout: `[ HIT: X (-Y% ARMOR) IN Zs · W HP LEFT ]` when active, and `BEATEN · NO HIT` when cleared.
-   - Reference: [`docs/COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md) and D041.
-2. **Owner with new players:** watch a fresh 10–20-minute run. Check whether players can read the inner vs outer ring and explain why a clean clear avoided a Hit.
-3. **Agent:** build a GDScript career simulator on the real rules before tuning new combat or progression systems.
+1. **Owner:** decide open decision 1; then **agent:** re-sweep and retune with `run_balance.sh` before and after. High risk: economy.
+2. **Agent:** implement the combat HUD pass in [`src/ring_arc.gd`](../src/ring_arc.gd) and [`src/main.gd`](../src/main.gd): an outer ring for the 15-second Hit timer around the inner Wave HP ring, clearing to `BEATEN · NO HIT`, and an encounter line reading `HIT: X (-Y% ARMOR) IN Zs · W HP LEFT` (D041; [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md)). Medium risk: presentation and touch.
+3. **Owner with new players:** watch a fresh 10–20-minute run. Check whether players can read the two rings and explain why a clean clear avoided a Hit.
 
 ## Known issues and risks
 
 - **Lab research is unreachable past about rank 20.** Each rank takes 1.55× longer and costs 1.7× more, so maxing Damage Research would take about 425 years. Needs its own pass with the Gem economy.
 - **Rig ranks are Workshop-sized.** Late in a run a flat Tap Damage or Damage per Second rank adds very little. The percentage Boosts in the tier proposal would fix it.
 - **The wave 100 boss** doubles in one step: the ×1.5 milestone lands on the boss's ×3. It's the tier gate, left as is.
+- **`run_cash_earned` is saved but nothing reads it**, and `tools/balance_simulator.gd` still carries the unused `_rig_reserve` from Number-priced Rig play.
+- **`src/game_data.gd.uid`** is not committed, though the other scripts' `.uid` files are; a fresh import creates it.
 
 ## Working notes
 

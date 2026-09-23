@@ -645,8 +645,8 @@ func _build_run_controls(parent: Control) -> void:
 	tap_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	number_col.add_child(tap_hint)
 
-## The Rig panel: buy ranks with Number during a run. Sits above the category
-## strip and shows the currently selected category's rows priced in Number.
+## The Rig panel: buy ranks with Cash during a run (D042). Sits above the
+## category strip and shows the currently selected category's rows priced in Cash.
 func _build_rig_panel(parent: Control) -> void:
 	rig_panel = Control.new()
 	rig_panel.visible = false
@@ -1782,7 +1782,7 @@ func _show_stat_info(definition: UpgradeDefinition, from_rig: bool = false) -> v
 	if from_rig:
 		var rig_ranks := state.rig_owned(definition.id)
 		var worth := state.balance_profile.rig_effect_multiplier(definition.workshop_category, definition.id)
-		extra.append("THIS RUN  ·  " + str(rig_ranks) + " RIG RANK" + ("" if rig_ranks == 1 else "S") + ", EACH WORTH " + _trim(worth) + " WORKSHOP RANKS  ·  NEXT " + state.get_rig_cost(definition.id).format_value() + " NUMBER")
+		extra.append("THIS RUN  ·  " + str(rig_ranks) + " RIG RANK" + ("" if rig_ranks == 1 else "S") + ", EACH WORTH " + _trim(worth) + " WORKSHOP RANKS  ·  NEXT " + state.get_rig_cost(definition.id).format_value() + " CASH")
 	stat_info_extra.text = "\n".join(extra)
 	stat_info_extra.visible = not extra.is_empty()
 	stat_info_screen.visible = true
@@ -2582,9 +2582,8 @@ func _make_stat_card(definition: UpgradeDefinition, category: String) -> PanelCo
 	return card
 
 ## A compact Rig card for a run-scoped rank: name on left, value-and-cost box
-## on right. Like the Workshop card but with Number cost and a warning if it
-## would leave too little for the next hit. Built once; _update_rig_card fills
-## the parts that move with the Number.
+## on right. Like the Workshop card but priced in Cash. Built once;
+## _update_rig_card fills the parts that move with Cash.
 func _make_rig_stat_card(definition: UpgradeDefinition, category: String) -> PanelContainer:
 	var unlocked := state.is_unlocked(definition)
 	var card := PanelContainer.new()

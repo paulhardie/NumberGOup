@@ -1,6 +1,6 @@
 {
   "generated_by": "tools/export_workshop.gd",
-  "balance_profile": "tax-foundation-v7",
+  "balance_profile": "tax-foundation-v8",
   "note": "Generated from the live catalogue. Edit the game, not this file.",
   "workshop_coins_to_max_by_category": {
     "attack": 46590,

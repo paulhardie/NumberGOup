@@ -102,8 +102,8 @@ var braced := false
 ## highest_number, which is permanent and drives dock unlocks.
 var run_peak_number := ScientificNumber.new()
 var second_wind_used := false
-## Rig ranks are run-scoped like the Number that buys them (D015): they stack
-## with `purchased` for this run only and die with every ending.
+## Rig ranks are run-scoped like the Cash that buys them (D015, D042): they
+## stack with `purchased` for this run only and die with every ending.
 var rig_ranks: Dictionary = {}
 ## In-run currency (The Tower Cash): earned during a run and spent on in-run
 ## Rig upgrades. Resets when the run ends; spending it never reduces Number.
@@ -216,9 +216,10 @@ func _produce_tick() -> SimulationEvent:
 		amount = amount.multiply_scalar(2.0)
 	_add_number(amount)
 	if in_run:
-		var tick_cash := ScientificNumber.from_float(_rig_income(_passive_base(), _tap_base(), 1.0, _base_output_multiplier()) * (1.0 / _tick_rate()))
-		cash = cash.add(tick_cash)
-		run_cash_earned = run_cash_earned.add(tick_cash)
+		# Cash flows at the income Rig prices are quoted in (D042), shared across
+		# the ticks in a second. Anything else lets Tick Speed or Momentum raise
+		# every price without raising what pays for it.
+		_add_cash(ScientificNumber.from_float(get_rig_income_rate() / _tick_rate()))
 	return SimulationEvent.new("tick", amount, is_critical)
 
 ## True while the active wave still has HP to clear. Output is Number either
@@ -376,9 +377,7 @@ func _pass_missed_wave() -> void:
 	var coin_gain := floori(float(active_encounter.reward) * share * (1.0 + _effect_sum("coin_bonus")) + 0.000001)
 	coins += coin_gain
 	run_coins_earned += coin_gain
-	var wave_cash := ScientificNumber.from_float((10.0 + 5.0 * float(wave)) * share)
-	cash = cash.add(wave_cash)
-	run_cash_earned = run_cash_earned.add(wave_cash)
+	_add_cash(ScientificNumber.from_float(balance_profile.wave_cash(wave) * share))
 	wave += 1
 	active_encounter = _make_encounter(wave)
 
@@ -450,9 +449,7 @@ func _complete_current_wave() -> SimulationEvent:
 	coin_gain = floori(float(coin_gain) * (1.0 + _effect_sum("coin_bonus")))
 	coins += coin_gain
 	run_coins_earned += coin_gain
-	var wave_cash := ScientificNumber.from_float((10.0 + 5.0 * float(completed_wave)) * (3.0 if completed_boss else 1.0))
-	cash = cash.add(wave_cash)
-	run_cash_earned = run_cash_earned.add(wave_cash)
+	_add_cash(ScientificNumber.from_float(balance_profile.wave_cash(completed_wave)))
 	wave += 1
 	active_encounter = _make_encounter(wave)
 	if completed_wave == TIER_UNLOCK_WAVE and previous_best < TIER_UNLOCK_WAVE and balance_profile.has_tier(selected_tier + 1):
@@ -623,17 +620,18 @@ func rig_ranks_bought() -> int:
 		total += int(rig_ranks[upgrade_id])
 	return total
 
-## What a row's Rig ranks are worth in Workshop ranks. Temporary power has to
-## beat the hit buffer its Number spends (D023), so one Rig rank is worth a
-## multiple of a Workshop rank rather than one for one.
+## What a row's Rig ranks are worth in Workshop ranks: a multiple, set when a
+## Rig rank spent the Number that buffers the next hit (D023). Since D042 it
+## spends Cash, and the multiple awaits a re-sweep.
 func rig_rank_equivalent(definition: UpgradeDefinition) -> float:
 	var ranks := float(rig_owned(definition.id))
 	if ranks <= 0.0:
 		return 0.0
 	return ranks * balance_profile.rig_effect_multiplier(definition.workshop_category, definition.id)
 
-## What the Rig's prices are quoted against (D039): the Number a steady player
-## makes each second, which is the passive rate plus one tap a second. It leaves
+## What the Rig's prices are quoted against (D039), and the rate Cash flows at
+## (D042): the Number a steady player makes each second, which is the passive
+## rate plus one tap a second, whether or not the player taps. It leaves
 ## out the boss-only bonus, so prices do not jump while a boss stands, and it
 ## rises with every Rig rank that adds damage, so the next price rises too.
 func get_rig_income_rate() -> float:
@@ -648,11 +646,19 @@ func get_rig_cost(upgrade_id: String, rank: int = -1) -> ScientificNumber:
 	if definition == null or not balance_profile.rig_has_row(definition.workshop_category, upgrade_id):
 		return ScientificNumber.new()
 	var at_rank := rig_owned(upgrade_id) if rank < 0 else rank
-	var base_cost := balance_profile.rig_cost(definition.workshop_category, at_rank, get_rig_income_rate())
-	var discount := _effect_sum("cost_discount")
+	return _rig_price(definition.workshop_category, at_rank, get_rig_income_rate(), _effect_sum("cost_discount"))
+
+## Discount lowers Rig prices as well as Workshop ones (D042), never below a
+## tenth of the price.
+func _rig_price(category: String, rank: int, income: float, discount: float) -> ScientificNumber:
+	var price := balance_profile.rig_cost(category, rank, income)
 	if discount > 0.0:
-		return base_cost.multiply_scalar(clampf(1.0 - discount, 0.1, 1.0))
-	return base_cost
+		return price.multiply_scalar(clampf(1.0 - discount, 0.1, 1.0))
+	return price
+
+func _add_cash(amount: ScientificNumber) -> void:
+	cash = cash.add(amount)
+	run_cash_earned = run_cash_earned.add(amount)
 
 func can_purchase_rig(upgrade_id: String) -> bool:
 	if not in_run:
@@ -682,6 +688,7 @@ func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
 	var ticks := _tick_rate()
 	var multiplier := _base_output_multiplier()
 	var momentum := _momentum_multiplier()
+	var discount := _effect_sum("cost_discount")
 	var spent := ScientificNumber.new()
 	var ranks := 0
 	while count == MAX_BUY or ranks < count:
@@ -690,6 +697,7 @@ func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
 		var t := tap_value
 		var r := ticks
 		var m := multiplier
+		var d := discount
 		for effect in definition.effects:
 			var per_rank := float(definition.effects[effect])
 			match effect:
@@ -701,10 +709,9 @@ func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
 					r *= pow(per_rank, extra)
 				"base_output_multiplier":
 					m *= pow(per_rank, extra)
-		var step := balance_profile.rig_cost(definition.workshop_category, owned + ranks, _rig_income(p, t, r, m * momentum))
-		var discount := _effect_sum("cost_discount")
-		if discount > 0.0:
-			step = step.multiply_scalar(clampf(1.0 - discount, 0.1, 1.0))
+				"cost_discount":
+					d += per_rank * extra
+		var step := _rig_price(definition.workshop_category, owned + ranks, _rig_income(p, t, r, m * momentum), d)
 		if step.is_zero():
 			break
 		var next_spent := spent.add(step)
@@ -721,16 +728,18 @@ func purchase_rig_ranks(upgrade_id: String, count: int = 1) -> int:
 		return 0
 	cash = cash.subtract(plan.cost)
 	rig_ranks[upgrade_id] = rig_owned(upgrade_id) + ranks
-	if upgrade_id == "priority_buffer":
-		var cushion_gain := 10.0 * float(ranks) * balance_profile.rig_effect_multiplier("defense", "priority_buffer") * get_cushion_scale()
-		number = number.add(ScientificNumber.from_float(cushion_gain))
+	# Cushion adds to the Number a run starts with, and this run has already
+	# started, so an in-run rank pays its share of that Number now (D042).
+	var definition := get_definition(upgrade_id)
+	var starting_flat := float(definition.effects.get("starting_number_flat", 0.0))
+	if starting_flat > 0.0:
+		var worth := balance_profile.rig_effect_multiplier(definition.workshop_category, upgrade_id)
+		number = number.add(ScientificNumber.from_float(starting_flat * float(ranks) * worth * get_cushion_scale()))
 		if number.compare_to(run_peak_number) > 0:
 			run_peak_number = number.copy()
 	return ranks
 
-## Buys one uncapped run-scoped rank with Number. It sells even when the price
-## eats the buffer against the next hit: the contract is that the price is
-## visible before it kills you, not that the game refuses the decision (D015).
+## Buys one uncapped run-scoped rank with Cash (D042). Number is never spent.
 func purchase_rig(upgrade_id: String) -> bool:
 	return purchase_rig_ranks(upgrade_id, 1) > 0
 
