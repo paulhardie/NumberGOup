@@ -1,6 +1,6 @@
 # Workshop ladders: ranks, cost curves and stat curves
 
-**Status:** Proposed, 23 September 2026. Nothing here is accepted or built; the game still uses its current ladders. The [Tower-matched review](#tower-matched-review--23-september-2026) above revises it. It answers the owner's request to look at every Workshop row, put them in JSON and tables, and decide how deep the ladders go (The Tower runs its core rows to about 5,000 levels) and how cost and stats climb.
+**Status:** The [Tower-matched review](#tower-matched-review--23-september-2026) is accepted and built as [D047](DECISIONS.md#d047--deep-workshop-ladders-on-the-towers-shape-and-150-hours-to-max); see [As built](#as-built--d047). The original proposal from [The short version](#the-short-version) on (5,000 / 1,000-rank classes, tier bands, rank conversion) is superseded and kept as the record. It answers the owner's request to look at every Workshop row, put them in JSON and tables, and decide how deep the ladders go (The Tower runs its core rows to about 5,000 levels) and how cost and stats climb.
 **Data:**
 - [`data/workshop/current.json`](../data/workshop/current.json) and [`current.md`](../data/workshop/current.md): every current Workshop row, Lab line and Card, generated from the live game by [`tools/export_workshop.gd`](../tools/export_workshop.gd).
 - [`data/workshop/proposed_spec.json`](../data/workshop/proposed_spec.json): the proposal as an editable spec.
@@ -10,7 +10,7 @@
 
 ## Tower-matched review — 23 September 2026
 
-**Status:** review on owner direction ("roughly match the Tower's equivalent levels for each stat and check their individual scales and gates so we can establish how powerful a player who maxes the workbench out is"). It revises the proposal below; nothing is accepted or built.
+**Status:** review on owner direction ("roughly match the Tower's equivalent levels for each stat and check their individual scales and gates so we can establish how powerful a player who maxes the workbench out is"). It revises the proposal below. Accepted with every recommendation and a 150-hour target (D047), and built.
 
 **Sources:** The Tower's level counts, values and prices come from the unofficial community [TheTowerSDK](https://github.com/TmRxJD/TheTowerSDK) workshop table (release 0.11.0, 13 September 2026); community data, not developer data. Our side comes from `data/workshop/upgrades.json` and the balance simulator.
 
@@ -76,6 +76,16 @@ Every row at its ladder's maximum, with no Labs, Cards or run ranks, two taps a 
 6. **Breakthroughs.** The proposal's finding assumed its ten-tier climb; recommended to leave it with the tier proposal rather than decide it here.
 7. **`data/workshop/` as the single source.** Done: the Workshop loads from `data/workshop/upgrades.json` (PR #40).
 8. **New: the depth a maxed Workshop should reach**, and what happens past it (above).
+
+### As built — D047
+
+- **Ladders:** as recommended in the table above. Tap Damage and Damage per Second run to 6,000 ranks on the Damage depth curve, Guard to 5,000 on Defense Absolute's; ranks 1–100 keep their old values. The curves live in `data/workshop/upgrades.json` as `depth_curve` anchors (rank: multiple of the rank-100 value), interpolated in log space.
+- **Price:** ranks 1–100 keep their old prices. Past rank 100 each deep-row rank costs 1.0007× the last, and each extended capped row 1.02× the last (`deep_cost_growth`). The whole Workshop costs 34.6 million Coins: Attack 18.5 million, Defense 13.9 million, Utility 2.3 million. Tap Damage's last rank costs 5,372 Coins and Damage per Second's 7,195; Cushion's last is the dearest at 103,919.
+- **Hours to max:** the career simulator's focused player (`--spend focused --careers today_rig --runs 600 --run-cap-minutes 180`, buying run Upgrades, seed 7) maxes the Workshop on run 120, **147.9 hours**. The other growths measured: 1.0006 took 115.2 h, 1.00065 134.9 h, 1.0008 188.9 h, and 1.001 had not maxed by 217 h.
+- **Maxed reach:** Tier 1 wave 830, Tier 2 660, Tier 3 608 (`-- --maxed-workshop`), as the review predicted.
+- **Early pacing moved.** Tick Speed, Crit Chance and Crit Damage now take bigger steps per rank, and Tap Damage and Damage per Second keep selling past 100, so the same Coins buy more: the focused player reaches wave 100 in 1.4 hours instead of 2.8, and a rank-100 Attack build reaches wave 200 instead of 100 (balance target 5 no longer holds). The first run is unchanged.
+- **Research Focus is lopsided.** Its 25% off a category was balanced on equal category totals (WORKSHOP_DESIGN step 4a); Attack now costs eight times Utility, so focusing Utility saves little. Open.
+- **Save V9:** raising a max rank changes no key, but a V8 build would clamp ranks past 100, so saves move to V9 and older builds refuse them (D028).
 
 ## The short version
 

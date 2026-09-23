@@ -14,7 +14,10 @@ extends SceneTree
 ## starter rows and gates (default plan); `--ladder plan|first|gentle`
 ## picks the gate prices (default plan); `--careers a,b` runs only the
 ## named careers (today_hoard, today_rig, gates_hoard, gates_rig, gates_worth1,
-## gates_worth3).
+## gates_worth3); `--run-cap-minutes N` caps each run (default 90);
+## `--deep-growth G` and `--capped-growth G` override the price growth past
+## rank 100 of the deep rows and of the capped rows that run past 100 (D047).
+## A career stops early once every Workshop row is at its max rank.
 ##
 ## A measurement tool, not a gate. Not modelled: Prestige, Labs, Cards, Gems,
 ## tiers above 1, and retreating early. Gates for rows that do not exist yet are
@@ -22,7 +25,7 @@ extends SceneTree
 
 const SEED := 7
 const STEP := 0.5
-const RUN_CAP_SECONDS := 5400.0
+var run_cap_seconds := 5400.0
 const DEFAULT_RUNS := 40
 const WAVE_MARKS := [20, 30, 50, 75, 100]
 
@@ -151,7 +154,12 @@ func _init() -> void:
 	var ladder_at := args.find("--ladder")
 	if ladder_at >= 0 and ladder_at + 1 < args.size() and LADDERS.has(args[ladder_at + 1]):
 		ladder = LADDERS[args[ladder_at + 1]]
-	print("CAREER  fresh save, Tier 1, 2 taps/sec, seed ", SEED, " + run, ", runs, " runs, each capped at ", int(RUN_CAP_SECONDS / 60.0), " min")
+	var cap_at := args.find("--run-cap-minutes")
+	if cap_at >= 0 and cap_at + 1 < args.size():
+		run_cap_seconds = maxf(1.0, args[cap_at + 1].to_float()) * 60.0
+	print("CAREER  fresh save, Tier 1, 2 taps/sec, seed ", SEED, " + run, ", runs, " runs, each capped at ", int(run_cap_seconds / 60.0), " min")
+	_override_growth(args, "--deep-growth", true)
+	_override_growth(args, "--capped-growth", false)
 	var spend_at := args.find("--spend")
 	if spend_at >= 0 and spend_at + 1 < args.size() and args[spend_at + 1] == "focused":
 		spend_policy = "focused"
@@ -205,7 +213,7 @@ func _career(label: String, gated: bool, play_rig: bool, runs: int, worth: float
 		var seconds := 0.0
 		var reached := 1
 		var rig_ranks := 0
-		while seconds < RUN_CAP_SECONDS and state.in_run:
+		while seconds < run_cap_seconds and state.in_run:
 			reached = state.wave
 			state.tap()
 			state.advance(STEP * 0.5)
@@ -234,6 +242,9 @@ func _career(label: String, gated: bool, play_rig: bool, runs: int, worth: float
 				opened = _buy_gates(state, next_gate)
 			var reserve := _gate_reserve(next_gate, earned) if gated else 0
 			_buy_ranks(state, reserve)
+		var maxed := _workshop_maxed(state)
+		if maxed and not marks.has("maxed"):
+			marks["maxed"] = [run + 1, hours]
 		print(
 			"  run ", str(run + 1).lpad(2),
 			"  wave=", str(reached).lpad(3),
@@ -243,14 +254,21 @@ func _career(label: String, gated: bool, play_rig: bool, runs: int, worth: float
 			"  level=", str(state.get_workshop_level()).lpad(4),
 			"  rows_open=", str(_rows_open(state)).lpad(2),
 			("  rig=" + str(rig_ranks)) if play_rig else "",
-			("  opened: " + ", ".join(opened)) if not opened.is_empty() else ""
+			("  opened: " + ", ".join(opened)) if not opened.is_empty() else "",
+			"  coins_held=", state.coins
 		)
+		if maxed:
+			break
 	var summary: Array[String] = []
 	for mark in WAVE_MARKS:
 		if marks.has(mark):
 			summary.append("wave " + str(mark) + " on run " + str(marks[mark][0]) + " (" + str(snappedf(float(marks[mark][1]), 0.1)) + " h)")
 		else:
 			summary.append("wave " + str(mark) + " not reached")
+	if marks.has("maxed"):
+		summary.append("Workshop maxed on run " + str(marks["maxed"][0]) + " (" + str(snappedf(float(marks["maxed"][1]), 0.1)) + " h)")
+	else:
+		summary.append("Workshop not maxed")
 	print("  SUMMARY  ", "  ·  ".join(summary))
 
 ## Buys every next gate it can afford, cheapest first, and returns what opened.
@@ -361,6 +379,26 @@ func _buy_ranks_focused(state: CareerState, reserve: int, focus: String) -> void
 
 func _tab_order(focus: String) -> Array:
 	return ["defense", "attack", "utility"] if focus == "defense" else ["attack", "defense", "utility"]
+
+func _workshop_maxed(state: CareerState) -> bool:
+	for definition in state.definitions:
+		if definition.category == ProgressionTaxonomy.WORKSHOP and state.get_owned(definition.id) < definition.max_rank:
+			return false
+	return true
+
+## Sets the price growth past rank 100 (D047) on every row it applies to: the
+## deep rows (those with a depth curve), or the capped rows that run past 100.
+func _override_growth(args: PackedStringArray, flag: String, deep: bool) -> void:
+	var at := args.find(flag)
+	if at < 0 or at + 1 >= args.size():
+		return
+	var growth := args[at + 1].to_float()
+	for definition in CareerState.new().definitions:
+		if definition.category != ProgressionTaxonomy.WORKSHOP or definition.max_rank <= UpgradeDefinition.DEEP_PRICE_FROM:
+			continue
+		if (not definition.depth_curve.is_empty()) == deep:
+			definition.deep_cost_growth = growth
+	print("CAREER  ", flag.substr(2), " ", growth)
 
 func _rows_open(state: CareerState) -> int:
 	var count := 0

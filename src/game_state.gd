@@ -12,6 +12,7 @@ const SaveDataV5Class = preload("res://src/save_data_v5.gd")
 const SaveDataV6Class = preload("res://src/save_data_v6.gd")
 const SaveDataV7Class = preload("res://src/save_data_v7.gd")
 const SaveDataV8Class = preload("res://src/save_data_v8.gd")
+const SaveDataV9Class = preload("res://src/save_data_v9.gd")
 const GameDataClass = preload("res://src/game_data.gd")
 
 const SAVE_PATH := "user://number_go_up_save.json"
@@ -105,6 +106,8 @@ var second_wind_used := false
 ## Rig ranks are run-scoped like the Cash that buys them (D015, D042): they
 ## stack with `purchased` for this run only and die with every ending.
 var rig_ranks: Dictionary = {}
+## Per-row running price totals for Workshop quotes (see _price_totals).
+var _price_total_cache: Dictionary = {}
 ## In-run currency (The Tower Cash): earned during a run and spent on in-run
 ## Rig upgrades. Resets when the run ends; spending it never reduces Number.
 var cash := ScientificNumber.new()
@@ -702,8 +705,11 @@ func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
 	var discount := _effect_sum("cost_discount")
 	var spent := ScientificNumber.new()
 	var ranks := 0
+	var held := float(get_owned(upgrade_id)) + rig_rank_equivalent(definition)
+	var held_units := definition.units_at(held)
 	while ranks < room and (count == MAX_BUY or ranks < count):
-		var extra := float(ranks) * worth
+		# Steps this press would add, along the row's depth curve (D047).
+		var extra := definition.units_at(held + float(ranks) * worth) - held_units
 		var p := passive
 		var t := tap_value
 		var r := ticks
@@ -993,17 +999,23 @@ func get_cost(definition: UpgradeDefinition) -> ScientificNumber:
 	return get_cost_at(definition, get_owned(definition.id))
 
 func get_cost_at(definition: UpgradeDefinition, owned: int) -> ScientificNumber:
+	return definition.cost_at(owned, _workshop_discount(definition))
+
+func _workshop_discount(definition: UpgradeDefinition) -> float:
 	var discount := _effect_sum("cost_discount")
 	# Focus is a nudge toward a first build, never a permanent branch lock.
 	if definition.workshop_category == focus_path:
 		discount += 0.25
-	return definition.cost_at(owned, discount)
+	return discount
 
 func get_workshop_coin_cost(definition: UpgradeDefinition) -> int:
 	return get_workshop_coin_cost_at(definition, get_owned(definition.id))
 
 func get_workshop_coin_cost_at(definition: UpgradeDefinition, owned: int) -> int:
-	var cost := get_cost_at(definition, owned)
+	return _workshop_coin_cost(definition, owned, _workshop_discount(definition))
+
+func _workshop_coin_cost(definition: UpgradeDefinition, owned: int, discount: float) -> int:
+	var cost := definition.cost_at(owned, discount)
 	if cost.is_zero():
 		return 0
 	# Authored Workshop costs stay in the exact-number helper so growth and
@@ -1024,15 +1036,38 @@ func plan_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
 		return refused
 	var owned := get_owned(upgrade_id)
 	var wanted := definition.max_rank - owned if count == MAX_BUY else maxi(0, count)
-	var ranks := 0
-	var spent := 0
-	while ranks < wanted and owned + ranks < definition.max_rank:
-		var step := get_workshop_coin_cost_at(definition, owned + ranks)
-		if spent + step > coins:
-			break
-		spent += step
-		ranks += 1
-	return {"ranks": ranks, "cost": spent}
+	wanted = mini(wanted, definition.max_rank - owned)
+	if wanted <= 0:
+		return {"ranks": 0, "cost": 0}
+	# A MAX press on a deep row can span thousands of ranks and the Workshop
+	# re-quotes every card several times a second (D047), so ranks are summed
+	# once into running totals and the press is a binary search over them: the
+	# same ranks and price as buying one at a time, without walking them.
+	var totals := _price_totals(definition)
+	var low := 0
+	var high := wanted
+	while low < high:
+		var middle := (low + high + 1) / 2
+		if totals[owned + middle] - totals[owned] <= coins:
+			low = middle
+		else:
+			high = middle - 1
+	return {"ranks": low, "cost": totals[owned + low] - totals[owned]}
+
+## Running totals of a row's Coin prices: entry k is what ranks 0 to k-1 cost
+## together at the discount in force. Rebuilt only when that discount changes.
+func _price_totals(definition: UpgradeDefinition) -> PackedInt64Array:
+	var discount := _workshop_discount(definition)
+	var cached: Variant = _price_total_cache.get(definition.id)
+	if cached is Dictionary and is_equal_approx(float(cached.discount), discount) and (cached.totals as PackedInt64Array).size() == definition.max_rank + 1:
+		return cached.totals
+	var totals := PackedInt64Array()
+	totals.resize(definition.max_rank + 1)
+	totals[0] = 0
+	for rank in range(definition.max_rank):
+		totals[rank + 1] = totals[rank] + _workshop_coin_cost(definition, rank, discount)
+	_price_total_cache[definition.id] = {"discount": discount, "totals": totals}
+	return totals
 
 func is_unlocked(definition: UpgradeDefinition) -> bool:
 	if definition.category == ProgressionTaxonomy.WORKSHOP:
@@ -1064,6 +1099,7 @@ func purchase_ranks(upgrade_id: String, count: int = 1) -> int:
 ## with no declared effect (Burst, Crit Chain) fall back to their rank, which is
 ## what their description already talks in.
 func stat_display(definition: UpgradeDefinition, rank: int) -> Dictionary:
+	var units := definition.units_at(float(rank))
 	for effect_name in definition.effects:
 		if not STAT_DISPLAY.has(effect_name):
 			continue
@@ -1071,9 +1107,9 @@ func stat_display(definition: UpgradeDefinition, rank: int) -> Dictionary:
 		var step := float(definition.effects[effect_name])
 		var value: float = float(shape.base)
 		if str(shape.op) == "mul":
-			value *= pow(step, rank)
+			value *= pow(step, units)
 		else:
-			value += step * float(rank)
+			value += step * units
 		return {"value": value, "unit": str(shape.unit)}
 	return {"value": float(rank), "unit": "rank"}
 
@@ -1171,7 +1207,7 @@ func save() -> bool:
 	var file := FileAccess.open(temp, FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify(SaveDataV8Class.make(self), "", true, true))
+	file.store_string(JSON.stringify(SaveDataV9Class.make(self), "", true, true))
 	var write_error := file.get_error()
 	file.close()
 	if write_error != OK:
@@ -1217,7 +1253,7 @@ func _read_save(path: String) -> Dictionary:
 		return {"status": READ_UNREADABLE}
 	var data: Dictionary = json.data
 	var version := int(data.get("version", 0)) if (data.get("version") is int or data.get("version") is float) else 0
-	if version > SaveDataV8Class.VERSION:
+	if version > SaveDataV9Class.VERSION:
 		return {"status": READ_NEWER}
 	var known := (
 		SaveDataV2.is_legacy_v1(data)
@@ -1228,8 +1264,9 @@ func _read_save(path: String) -> Dictionary:
 		or SaveDataV6Class.is_valid(data)
 		or SaveDataV7Class.is_valid(data)
 		or SaveDataV8Class.is_valid(data)
+		or SaveDataV9Class.is_valid(data)
 	)
-	if not known or SaveDataV8Class.problem(data) != "":
+	if not known or SaveDataV9Class.problem(data) != "":
 		return {"status": READ_UNREADABLE}
 	return {"status": READ_OK, "data": data}
 
@@ -1250,13 +1287,16 @@ func _load_parsed(data: Dictionary, source_path: String) -> OfflineAward:
 			return _migrate_v6(data, source_path)
 		7:
 			return _migrate_v7(data, source_path)
+		8:
+			return _migrate_v8(data, source_path)
 	return _load_current(data)
 
-## V5 through V8 share every key and meaning. V6 declared the fields added to
+## V5 through V9 share every key and meaning. V6 declared the fields added to
 ## V5 after it shipped and added the run's tick phase and crit chain, which a
 ## V5 save resumes without, as it always did; V7 added the Lab slot count, which
 ## an older save reads as the two slots every player then had; V8 added the
-## run's Gems and marks that milestones paid at the old rate were topped up.
+## run's Gems and marks that milestones paid at the old rate were topped up;
+## V9 declared the run's Cash and marks saves whose deep rows may pass rank 100.
 func _load_current(data: Dictionary) -> OfflineAward:
 	_load_common_fields(data)
 	_load_tier_progress(data)
@@ -1276,6 +1316,11 @@ func _migrate_v6(data: Dictionary, source_path: String) -> OfflineAward:
 func _migrate_v7(data: Dictionary, source_path: String) -> OfflineAward:
 	var award := _load_current(data)
 	_save_migrated_state(7, source_path)
+	return award
+
+func _migrate_v8(data: Dictionary, source_path: String) -> OfflineAward:
+	var award := _load_current(data)
+	_save_migrated_state(8, source_path)
 	return award
 
 ## V4 kept the Workshop in four bays, with the Armor rank in a field of its own.
@@ -1614,7 +1659,7 @@ func _save_migrated_state(from_version: int, source_path: String) -> void:
 func clear_save() -> void:
 	for path in [save_path, _backup_path(), _temp_path()]:
 		_remove_if_present(path)
-	for version in range(1, SaveDataV8Class.VERSION):
+	for version in range(1, SaveDataV9Class.VERSION):
 		_remove_if_present(_migration_backup_path(version))
 	var folder := save_path.get_base_dir()
 	var quarantine_prefix := save_path.get_file().get_basename() + QUARANTINE_INFIX
@@ -1731,11 +1776,16 @@ func _burst_interval() -> int:
 		return 0
 	return maxi(6, 12 - rank)
 
+## What a row's Workshop and run ranks are worth together, in steps of its
+## effect: one a rank, or more along a deep row's depth curve (D047).
+func _row_units(definition: UpgradeDefinition) -> float:
+	return definition.units_at(float(get_owned(definition.id)) + rig_rank_equivalent(definition))
+
 func _effect_sum(effect_name: String) -> float:
 	var total := 0.0
 	for definition in definitions:
 		if definition.effects.has(effect_name):
-			total += float(definition.effects[effect_name]) * (float(get_owned(definition.id)) + rig_rank_equivalent(definition))
+			total += float(definition.effects[effect_name]) * _row_units(definition)
 	total += _lab_effect_sum(effect_name)
 	return total
 
@@ -1743,7 +1793,7 @@ func _effect_product(effect_name: String, base: float) -> float:
 	var total := base
 	for definition in definitions:
 		if definition.effects.has(effect_name):
-			total *= pow(float(definition.effects[effect_name]), float(get_owned(definition.id)) + rig_rank_equivalent(definition))
+			total *= pow(float(definition.effects[effect_name]), _row_units(definition))
 	for lab_definition in lab_research.definitions:
 		if lab_definition.effects.has(effect_name):
 			total *= pow(float(lab_definition.effects[effect_name]), float(_lab_rank(lab_definition.id)))

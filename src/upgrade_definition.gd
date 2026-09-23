@@ -18,6 +18,15 @@ var workshop_level_required: int
 var effects: Dictionary
 var repeatable: bool
 var cost_growth: float
+## Deep rows (D047): past the first anchor's rank, a rank is worth more than one
+## step, following [rank, multiplier] anchors read log-linearly, so ranks 1-100
+## keep today's value and the ladder then climbs The Tower's way. Empty means
+## every rank is one step.
+var depth_curve: Array = []
+## The price growth per rank past rank DEEP_PRICE_FROM (D047); 0 keeps
+## `cost_growth` for every rank.
+var deep_cost_growth: float = 0.0
+const DEEP_PRICE_FROM := 100
 
 func _init(
 		upgrade_id: String,
@@ -49,8 +58,32 @@ func _init(
 	cost_growth = growth
 
 func cost_at(owned: int, discount: float = 0.0) -> ScientificNumber:
-	var scaled := cost.multiply_scalar(pow(cost_growth, owned))
+	var scaled: ScientificNumber
+	if deep_cost_growth > 0.0 and owned > DEEP_PRICE_FROM:
+		scaled = cost.multiply_scalar(pow(cost_growth, DEEP_PRICE_FROM) * pow(deep_cost_growth, owned - DEEP_PRICE_FROM))
+	else:
+		scaled = cost.multiply_scalar(pow(cost_growth, owned))
 	return scaled.multiply_scalar(maxf(0.1, 1.0 - discount))
+
+## How many steps of `effects` a row is worth at `ranks` (a float, because run
+## ranks count as fractions or multiples of a Workshop rank). One step a rank
+## up to the depth curve's first anchor, then that anchor's rank times the
+## curve's multiplier; past the last anchor the last segment's growth carries on.
+func units_at(ranks: float) -> float:
+	if depth_curve.size() < 2 or ranks <= float(depth_curve[0][0]):
+		return ranks
+	var start_rank := float(depth_curve[0][0])
+	var segment := depth_curve.size() - 2
+	for index in range(depth_curve.size() - 1):
+		if ranks <= float(depth_curve[index + 1][0]):
+			segment = index
+			break
+	var low_rank := float(depth_curve[segment][0])
+	var high_rank := float(depth_curve[segment + 1][0])
+	var low_log := log(float(depth_curve[segment][1]))
+	var high_log := log(float(depth_curve[segment + 1][1]))
+	var t := (ranks - low_rank) / (high_rank - low_rank)
+	return start_rank * exp(low_log + (high_log - low_log) * t)
 
 func is_maxed(owned: int) -> bool:
 	return owned >= max_rank
@@ -90,7 +123,7 @@ static func from_dict(dict: Dictionary) -> UpgradeDefinition:
 	var def_effects: Dictionary = dict.get("effects", dict.get("effects_per_rank", {}))
 	var def_repeatable: bool = bool(dict.get("repeatable", false))
 	var def_growth: float = float(dict.get("cost_growth", dict.get("cost_growth_per_rank", 1.0)))
-	return UpgradeDefinition.new(
+	var definition := UpgradeDefinition.new(
 		def_id,
 		def_title,
 		def_description,
@@ -105,6 +138,11 @@ static func from_dict(dict: Dictionary) -> UpgradeDefinition:
 		def_cap,
 		def_req_level
 	)
+	var curve: Variant = dict.get("depth_curve", [])
+	if curve is Array:
+		definition.depth_curve = curve
+	definition.deep_cost_growth = float(dict.get("deep_cost_growth", 0.0))
+	return definition
 
 func to_dict() -> Dictionary:
 	return {
@@ -121,4 +159,6 @@ func to_dict() -> Dictionary:
 		"unlock_lifetime": unlock_lifetime.mantissa * pow(10.0, unlock_lifetime.exponent),
 		"repeatable": repeatable,
 		"effects": effects,
+		"depth_curve": depth_curve,
+		"deep_cost_growth": deep_cost_growth,
 	}
