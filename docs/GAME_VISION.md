@@ -1,6 +1,6 @@
 # Number Go Up — Game vision
 
-Status: living document, last revised 21 September 2026.
+Status: living document, last revised 23 September 2026 for D041.
 Companion documents: [`README.md`](../README.md) for the current build, [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md) for the researched encounter foundation, [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md) for the Workshop categories and the wave rule they rest on.
 
 ## Guiding principle
@@ -38,7 +38,7 @@ Making Number go up is the whole game. Everything you produce is Number, and the
 3. **Run power and permanent power are separate.** Number exists only during a run. Workshop ranks, Coins, Knowledge, Insights and records survive every run ending. A temporary layer gets a distinct name and resource instead of blurring this line: the Rig is that layer, and Number — already the run-only resource — is what it spends (D015).
 4. **One currency per layer.** Number, Coins and Knowledge are sufficient for the tiered foundation. A new currency has to earn its place by enabling a system the others cannot.
 5. **One modifier pipeline.** Laws, Violations, challenges, perks and battle conditions all enter through the shared ordered pipeline. No system gets a special case inside the state machine.
-6. **Visible causality.** If a number changed, the player can find out why: inspectable costs, damage, records and summaries over hidden multipliers.
+6. **Visible causality.** Wave HP and time until a Hit are two legible races around the central Number; the exact incoming Hit is visible before it lands. If a number changed, the player can find out why through inspectable costs, damage, records and summaries (D041).
 7. **No risk-free growth.** Retreat ends and resets a run. Active runs freeze exactly while away. Waiting, closing the app or banking a run cannot farm a head start.
 8. **Legibility over feature count.** Four categories (Attack, Defense, Utility, Ultimates) seen through two lenses — permanent in the Workshop, run-only in the Rig — one research choice, three tiers. New systems must fit the vocabulary before they fit the code.
 
@@ -79,7 +79,7 @@ The run loop is the game. The meta loop exists to make the next run different, n
 | --- | --- | --- |
 | Two honest axes | Absolute Liability and Collection per encounter | More encounter patterns, boss modifiers, conditions |
 | Permanent progression | Coin-funded Workshop in four categories, Knowledge/Insight | Research tree, Breakthroughs |
-| Run lifecycle | Start from baseline, retreat-as-reset, frozen offline | The Rig: run-only upgrades bought with Number (D015) |
+| Run lifecycle | Start from baseline, retreat-as-reset, frozen offline, Number-funded Rig | More choices whose costs visibly compete with the Hit buffer |
 | Tiered difficulty | Tiers 1–3 with records and wave-100 unlocks | More tiers behind the same unlock spine |
 | Shared rules | Ordered modifier pipeline | Laws, Violations, challenges, battle conditions |
 | Vocabulary | `ProgressionTaxonomy` and reserved layer names | Card loadouts, Perks, Modules |
@@ -90,6 +90,7 @@ The run loop is the game. The meta loop exists to make the next run different, n
 The foundation is locked when:
 
 - a new player can start a run, understand what is happening, die, and explain why;
+- a new player can read the remaining Wave HP, time to Hit and effective Hit, then tell whether beating the wave prevented that Hit (D041);
 - retreat, death, app suspension and offline return cannot be turned into pause-and-grow;
 - a saved active run resumes identically, including RNG outcomes;
 - migration preserves every declared permanent currency and rank;
