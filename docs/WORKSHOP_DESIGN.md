@@ -83,7 +83,7 @@ Player-facing words move away from tax and collection phrasing. **Implemented in
 | Compliance | Damage | `apply_compliance()` | What your taps and ticks do to the wave |
 | Liability cleared | Beaten | `is_cleared()` | The wave is done and can't hit you |
 | Collection, Tax collected | Hit | `collection` | What the wave takes from your Number when its timer runs out |
-| Grace wave · nothing due | Warm-up wave | `is_pressured_wave() == false` | Small HP and hit that grow each wave; ends on its timer (D033) |
+| Grace wave · nothing due | *(retired by D040)* | — | Tier 1 had a 20-wave warm-up (D033); since D040 it runs one curve from wave 1 |
 | Brace | Brace (keep) | `braced` | Spend 30% of your Number to block the next hit |
 | Armor (was Shield Matrix) | Armor | `tax_resistance` Workshop rank | Every hit is permanently smaller |
 | Number, Coins, Knowledge, Retreat | Keep | — | — |
@@ -264,7 +264,7 @@ There is one Ultimate per milestone. The first time you reach wave 10, 25, 50 or
 | Wave 50 | Breach | Instantly deals X% of the wave's max HP | Attack, as a boss-breaker |
 | Wave 100 | Windfall | Coins from waves beaten in the next X seconds ×N | Utility |
 
-Wave 10 falls inside Tier 1's warm-up, so every player meets their first Ultimate safely.
+Wave 10 is Tier 1's first boss, so every player earns their first Ultimate on the first real fight.
 
 Rejected: *Stop the Clock* (pause the wave timer). It breaks the vision's anti-goal "no pausing an active run while Number keeps growing, in any form".
 
@@ -467,10 +467,10 @@ This keeps the single ring from the restage.
 - One line under the ring reads `HITS FOR 900 IN 6s`, replacing `LIABILITY … LEFT · COLLECTION …`.
 - When the ring closes, a short `BEATEN` beat plays, then the Number climbs for the rest of the timer. The climb is the reward.
 - A hit shows `−900` in the warning colour on the Number, then `STILL STANDING · HITS AGAIN IN 15s` if the wave survives.
-- Warm-up waves read `WARM-UP · EVERYTHING BANKS`.
+- *(Retired by D040: Tier 1 has no warm-up, so no wave reads `WARM-UP · EVERYTHING BANKS`.)*
 - A ready or firing Ultimate announces itself on the wave line — `SURGE · ALL DAMAGE ×3 FOR 8s` — so it needs no button and no open panel. Ultimates fire on their own (D013, pillar 1); the Rig's Ultimate tab levels them, it does not trigger them.
 
-**Implemented in step 2 (2026-09-22):** the `HITS FOR …` / `BEATEN` / `WARM-UP · EVERYTHING BANKS` encounter line, the `−X` hit float on the Number with the `STILL STANDING · HITS AGAIN IN 15s` beat, a blocked boundary reading `HIT BLOCKED` with no hit float, and tap and critical floats that read `X DAMAGE` while a wave stands and `+X` as Number once it is beaten (D012).
+**Implemented in step 2 (2026-09-22):** the `HITS FOR …` / `BEATEN` / `WARM-UP · EVERYTHING BANKS` encounter line (the warm-up text retired with D040; the line now reads `HITS ONCE FOR …` or `BOSS HITS FOR …` since D037), the `−X` hit float on the Number with the `STILL STANDING · HITS AGAIN IN 15s` beat, a blocked boundary reading `HIT BLOCKED` with no hit float, and tap and critical floats that read `X DAMAGE` while a wave stands and `+X` as Number once it is beaten (D012).
 
 ### The run-over screen says what the run was lost to (D022)
 
@@ -498,7 +498,7 @@ Higher tiers can ask for different builds by changing the *shape* of waves as we
 
 Targets 1–4 gate D012's retune; 5 and 6 gate step 4's new stats. `tools/balance_simulator.gd` measures them with its build matrix.
 
-1. A fresh first run reaches the first pressured waves and banks enough Coins for permanent progress (D010). *Measured after D036: the seed-7 representative run ends at wave 23 with 76 Coins; one tap per second with cautious Rig spending reaches wave 21 with 48.* *After D037 (seed 7): the representative run reaches wave 29 with 56 Coins; one tap a second reaches wave 26 with 48. Met.*
+1. A fresh first run reaches the first pressured waves and banks enough Coins for permanent progress (D010). *Measured after D036: the seed-7 representative run ends at wave 23 with 76 Coins; one tap per second with cautious Rig spending reaches wave 21 with 48.* *After D037 (seed 7): the representative run reaches wave 29 with 56 Coins; one tap a second reaches wave 26 with 48. Met.* *After D040: the representative run reaches the wave 20 boss with 106 Coins; one tap a second buying Rig ranks whenever affordable reaches wave 16 with 104. Met.*
 2. Coins per minute at equal builds are within ±10% of the pre-D012 baseline. *This measures the D012 retune, not the Workshop: Coin Bonus (step 4b) is meant to lift Coins per minute, and does, by 49% at its cap. Compare like builds, not maxed ones.* *Met for the main progression builds: mid −2%, Max Attack −7%, Max Attack + Armor +6%. Two small runs sit above: early is +20% (2.4 Coins a minute) and Tier 2 is +19%, because both go relatively deeper now. Recheck when step 4 adds new Coin sinks.* ***Fails after D037, by design:*** *beaten waves no longer wait out their timers, so Coins per minute rise about 1.5–1.8× at equal builds (mid 45.8 → 69.5, max Attack 102 → 181). Either Coin rewards come down with the Hit retune, or this target is restated for D037; that is a decision.*
 3. Tier 1 wave 100 is reachable for a Workshop investment comparable to before. *Met: Max Attack + Armor 40% reaches wave 100, as it did before.*
 4. A player who has just unlocked Tier 2 survives its opening waves. *Met: that build reaches Tier 2 wave 26 (was 28).*
@@ -513,7 +513,7 @@ Targets 7–9 gate the Rig (step 7). All three need the simulator to model in-ru
 
 Target 10 gates the Tier 1 opening (D033, retuned by D034 and D036), measured by the OPENING table in `run_balance.sh`.
 
-10. **A new player is in the action at once, with room to learn.** From a fresh save the first two Rig purchases together leave over half the starting Number, waves carry HP and Hit from the start, an idle player is hit within the first minute, and a steady tapper's first hit is survivable. The first run should fund permanent ranks while one-tap play makes visible progress and idle play does not earn the whole warm-up reward. *Measured at seed 7 after D036: the cautious opening policy buys from the first second; idle ends at wave 16 with 39 Coins, one tap per second at wave 21 with 48, and two taps at wave 23 with 76. The representative two-tap run without Rig spending also ends at wave 23 with 76.* *After D037: an idle player is first hit at 15 seconds (44 with the two opening Rig buys) and a steady tapper's first Hit is survivable; doing nothing earns 30 Coins against one tap a second's 48. Met, with the idle clause restated in GAME_INVARIANTS.*
+10. **A new player is in the action at once, with room to learn.** From a fresh save the first two Rig purchases together leave over half the starting Number, waves carry HP and Hit from the start, an idle player is hit within the first minute, and a steady tapper's first hit is survivable. The first run should fund permanent ranks while one-tap play makes visible progress and idle play does not earn the whole warm-up reward. *Measured at seed 7 after D036: the cautious opening policy buys from the first second; idle ends at wave 16 with 39 Coins, one tap per second at wave 21 with 48, and two taps at wave 23 with 76. The representative two-tap run without Rig spending also ends at wave 23 with 76.* *After D037: an idle player is first hit at 15 seconds (44 with the two opening Rig buys) and a steady tapper's first Hit is survivable; doing nothing earns 30 Coins against one tap a second's 48. Met, with the idle clause restated in GAME_INVARIANTS.* *After D040 there is no warm-up: the clause about the warm-up reward reads as "doing nothing earns far less than tapping" (9 Coins against 104). An idle player is first hit at 46 seconds, and a steady tapper's first Hit is survivable. Met.*
 
 ### Core-loop balance review — proposed, 23 September 2026
 

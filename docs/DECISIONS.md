@@ -86,7 +86,7 @@ Rules:
 
 ## D010 — Grace waves pay repeatable Coins
 
-- **Status:** Accepted (2026-09-21). The grace itself is replaced by [D033](#d033--tier-1-opens-under-attack)'s warm-up, which ramps from a small wave HP and hit instead of doing nothing; its Coin payouts and the 48-Coin first run stand.
+- **Status:** Accepted (2026-09-21). The grace itself was replaced by [D033](#d033--tier-1-opens-under-attack)'s warm-up, and that by [D040](#d040--one-difficulty-curve-for-tier-1-from-wave-1)'s single curve (2026-09-23): every wave now pays 0.65 × its number in Coins from wave 1. The first failed run still funds permanent Workshop progress, now about 100 Coins rather than 48.
 - **Context:** With a permanent Coin-funded Workshop, a first run that earned nothing until wave 21 would leave a new player with no visible progress.
 - **Decision:** Tier 1 grace waves pay 1 Coin per wave and 5 on boss waves, plus the existing milestone bonus at wave 10.
 - **Consequences:** A representative first failure banks 48 Coins, enough for the first two Workshop ranks; grace is onboarding, not empty time.
@@ -347,8 +347,11 @@ Rules:
 - **Consequences:** Seed 7:
   - **First run:** the representative two-tap run reaches wave 20 in 5.6 minutes with 106 Coins (was wave 29, 6.9 minutes, 56 Coins). A player who buys a Rig rank whenever affordable reaches wave 16 at one tap a second (104 Coins) and wave 20 at two (146). Doing nothing reaches wave 10 with 9 Coins.
   - **Builds:** early 30, mid 50, max Attack dies at the wave 100 boss, max Attack plus Armor 110, plus all Defense 120.
-  - **Targets:** balance target 5 holds again (wave 100 needs Defense). Tier 2 all-Defense is unchanged at wave 50.
+  - **Targets:** balance target 5 holds again for Workshop builds (wave 100 needs Defense). Tier 2 all-Defense is unchanged at wave 50.
   - **Hit share:** from wave 30 a Hit is 60% of its HP everywhere, a little more than the old separate Hit curve at depth (the wave 100 boss hits 16,643 rather than 12,251).
   - **Remaining step:** the ×1.5 milestone at wave 100, on top of the boss's ×3, doubles that boss in one step; it is the tier gate and is left as is.
-  - **Saves:** a saved run keeps its stored wave HP and Hit, and later waves use the new curve.
+  - **Saves:** a run saved under an older profile is rebuilt on the current curve when it loads, keeping the share of its wave already cleared. The retired wave 21–25 Hit ramp was applied at read time and never stored, so a save at those waves would otherwise have landed the full old Hit (156 at wave 21, against the 13 the player was shown). Saves under the current profile resume exactly.
+  - **Tiers 2 and 3 change too**, because they multiply this curve. Their early Hits are much lighter (Tier 2's wave 1 Hit 38 rather than 250; wave 21 2,267 rather than 3,121), and their deep Hits heavier (the Tier 2 wave 100 boss 332,852 rather than 245,016). The 20×/60× ratios hold at equal waves; all-Defense Tier 2 still reaches wave 50, and Cushion is still worth about two waves there.
+  - **Target 5's qualifier:** Workshop-only max Attack dies at the wave 100 boss, but with in-run Rig spending on Attack rows alone it reaches wave 106. Wave 100 needs Defense or the Rig.
+  - **Watch the bosses:** boss HP is now 3.5–3.7× the wave before at waves 10, 20 and 30 (the warm-up bosses were 1.4×), and every early build in the simulator ends on a boss (idle at 10, the first run at 20, early at 30, mid at 50). That is "fight boss waves" by design, but it is the first thing to check in a playtest.
 - **Revisit when:** A phone playtest finds the first boss or the first run too short, or the wave 100 step reads as a spike rather than a gate.

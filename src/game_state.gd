@@ -429,7 +429,7 @@ func _complete_current_wave() -> SimulationEvent:
 	# Coin Bonus lifts everything a beaten wave pays, milestone bonuses included:
 	# a milestone is a wave beaten, and one rule is easier to read than two.
 	# Floored, not rounded: "+50% Coins" that sometimes pays +100% reads as a
-	# bug. Coins are whole, so a 1-Coin grace wave carries no percentage at all
+	# bug. Coins are whole, so a 1-Coin early wave carries no percentage at all
 	# — which costs nothing real, because this row opens at Workshop level 60,
 	# far past the waves that pay one Coin.
 	coin_gain = floori(float(coin_gain) * (1.0 + _effect_sum("coin_bonus")))
@@ -1307,6 +1307,8 @@ func _restore_saved_run(data: Dictionary) -> void:
 	if in_run:
 		var encounter_data: Variant = data.get("active_encounter", null)
 		active_encounter = TaxEncounterClass.from_dict(encounter_data) if encounter_data is Dictionary else _make_encounter(wave)
+		if str(data.get("balance_profile_id", "")) != balance_profile.PROFILE_ID:
+			_rebuild_encounter_on_current_profile()
 		# Added after V5 shipped, like the run peak: a save without Rig ranks
 		# resumes with none, and malformed ranks read as none rather than crash.
 		var saved_rig: Variant = data.get("rig_ranks", {})
@@ -1326,6 +1328,19 @@ func _restore_saved_run(data: Dictionary) -> void:
 	# A save taken between runs settles research finished since; one taken
 	# mid-run leaves it for the run's end (D031).
 	_settle_labs()
+
+## A run saved under an older balance profile resumes on the current one
+## (D040). The Hit an old profile read at load time, such as the retired wave
+## 21-25 ramp, was never stored, so keeping the old encounter could land a far
+## bigger Hit than the player was last shown. The active wave is rebuilt from
+## today's curve, keeping the share of its HP already cleared.
+func _rebuild_encounter_on_current_profile() -> void:
+	if active_encounter == null:
+		return
+	var cleared := get_wave_cleared_share()
+	var rebuilt = _make_encounter(wave)
+	rebuilt.remaining_liability = rebuilt.max_liability.multiply_scalar(1.0 - cleared)
+	active_encounter = rebuilt
 
 func _seconds_since(data: Dictionary) -> float:
 	return Time.get_unix_time_from_system() - float(data.get("last_seen_unix", Time.get_unix_time_from_system()))
@@ -1348,6 +1363,7 @@ func _migrate_v3(data: Dictionary, source_path: String) -> OfflineAward:
 		braced = bool(data.get("braced", false))
 		var encounter_data: Variant = data.get("active_encounter", null)
 		active_encounter = TaxEncounterClass.from_dict(encounter_data) if encounter_data is Dictionary else _make_encounter(wave)
+		_rebuild_encounter_on_current_profile()
 		var saved_rng_state := str(data.get("rng_state", "0")).to_int()
 		if saved_rng_state != 0:
 			rng.state = saved_rng_state

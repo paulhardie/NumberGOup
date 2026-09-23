@@ -720,10 +720,12 @@ func _test_tier_one_opening() -> void:
 	tier_two.start_run(2, 3)
 	_expect(tier_two.number.is_zero(), "Tier 2 should start with no extra Number")
 
-	# One curve from wave 1: no ordinary wave is ever more than half again as
-	# tough as the one before, for HP or for Hit, which is the wave-21 spike
-	# D040 removed. Milestone steps land on boss waves, so compare ordinary
-	# neighbours across them.
+	# One curve from wave 1: below wave 100, no ordinary wave's HP or Hit is
+	# ever more than 1.6 times the ordinary wave before it (the Hit climbs
+	# fastest early, as its share grows). The wave-21 spike D040 removed was
+	# 3x HP and 30x Hit in five waves. Milestone steps land on boss waves, so
+	# neighbours are compared across them; wave 100's x1.5 step is the tier
+	# gate and is deliberate.
 	var previous := 0
 	for check_wave in range(1, 101):
 		if profile.is_boss_wave(check_wave):
@@ -731,9 +733,11 @@ func _test_tier_one_opening() -> void:
 		var hp := profile.liability_for_wave(1, check_wave)
 		var hit := profile.collection_for_wave(1, check_wave)
 		_expect(absf(pow(10.0, hit.log10() - hp.log10()) - profile.hit_share(check_wave)) < 0.000001, "an ordinary Hit should be its wave's share of HP (wave " + str(check_wave) + ")")
-		if previous > 0:
+		if previous > 0 and check_wave < 100:
 			var growth := pow(10.0, hp.log10() - profile.liability_for_wave(1, previous).log10())
-			_expect(growth > 1.0 and growth < 1.5, "Wave HP should rise smoothly from wave " + str(previous) + " to " + str(check_wave))
+			var hit_growth := pow(10.0, hit.log10() - profile.collection_for_wave(1, previous).log10())
+			_expect(growth > 1.0 and growth < 1.6, "Wave HP should rise smoothly from wave " + str(previous) + " to " + str(check_wave))
+			_expect(hit_growth > 1.0 and hit_growth < 1.6, "the Hit should rise smoothly from wave " + str(previous) + " to " + str(check_wave))
 		previous = check_wave
 	_expect(profile.liability_for_wave(1, 21).compare_to(profile.liability_for_wave(1, 19)) > 0 and pow(10.0, profile.liability_for_wave(1, 21).log10() - profile.liability_for_wave(1, 19).log10()) < 1.4, "wave 21 should no longer jump")
 	_expect(is_equal_approx(profile.hit_share(1), 0.2) and is_equal_approx(profile.hit_share(30), 0.6) and is_equal_approx(profile.hit_share(100), 0.6) and profile.hit_share(15) > 0.2 and profile.hit_share(15) < 0.6, "the Hit share should grow from 20% at wave 1 to 60% by wave 30 and stay there")
@@ -758,7 +762,7 @@ func _test_tier_one_opening() -> void:
 			one_tap.tap()
 		one_tap.advance(0.25)
 	_expect(not no_action.in_run and not one_tap.in_run, "both openings should end within fifteen minutes")
-	_expect(no_action.coins < 48 and no_action.coins * 4 < one_tap.coins * 3, "a no-action opening must earn clearly less than tapping once a second")
+	_expect(no_action.coins * 4 < one_tap.coins * 3, "a no-action opening must earn clearly less than tapping once a second")
 	var armored := GameState.new()
 	armored.purchased = {"tax_resistance": 1}
 	armored.start_run(1, 3)
@@ -1047,6 +1051,31 @@ func _test_mid_wave_save_resumes_identically() -> void:
 	_expect(opening_restored.number.compare_to(opening.number) == 0 and opening_restored.wave == opening.wave, "the reloaded Tier 1 hit should resolve identically")
 	opening_restored.clear_save()
 
+	# D040: a run saved under an older balance profile resumes on the current
+	# curve. The old profile read a small wave 21 Hit through a ramp it never
+	# stored; its saved encounter holds the full old Hit (156), which must not
+	# land. The rebuilt wave keeps the share of HP already cleared.
+	var legacy := GameState.new()
+	legacy.save_path = save_path
+	legacy.start_run(1, 32)
+	legacy.wave = 21
+	legacy.active_encounter = legacy._make_encounter(21)
+	legacy.number = ScientificNumber.from_float(1000.0)
+	_expect(legacy.save(), "the legacy fixture should save")
+	var saved: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(save_path))
+	saved.balance_profile_id = "tax-foundation-v6"
+	saved.active_encounter.max_liability = ScientificNumber.from_float(238.0).to_dict()
+	saved.active_encounter.remaining_liability = ScientificNumber.from_float(166.6).to_dict()
+	saved.active_encounter.collection = ScientificNumber.from_float(156.0).to_dict()
+	_write_json(save_path, saved)
+	var migrated := GameState.new()
+	migrated.save_path = save_path
+	migrated.load()
+	_expect(migrated.in_run and migrated.wave == 21, "an old-profile run should resume at its wave")
+	_expect(migrated.get_effective_collection().compare_to(migrated.balance_profile.collection_for_wave(1, 21)) == 0, "an old-profile wave should hit with today's Hit, not its stored one")
+	_expect(absf(migrated.get_wave_cleared_share() - 0.3) < 0.0001, "an old-profile wave should keep the share of HP already cleared")
+	migrated.clear_save()
+
 func _test_collection_is_absolute() -> void:
 	var small := GameState.new()
 	small.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
@@ -1210,7 +1239,7 @@ func _test_cushion_scales_with_the_tier() -> void:
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	state.purchased = {"priority_buffer": 50}
 	state.start_run(1, 47)
-	_expect(state.number.compare_to(ScientificNumber.from_float(500 + state.balance_profile.starting_number(1))) == 0, "Cushion should be worth its face value on Tier 1, on top of the warm-up's start")
+	_expect(state.number.compare_to(ScientificNumber.from_float(500 + state.balance_profile.starting_number(1))) == 0, "Cushion should be worth its face value on Tier 1, on top of Tier 1's starting Number")
 	state.end_run()
 	state.start_run(2, 47)
 	var scale := state.get_cushion_scale(2)
