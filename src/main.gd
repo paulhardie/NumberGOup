@@ -1982,14 +1982,10 @@ func _refresh_dock() -> void:
 	dock_signature = signature
 	nav_dock.update_state(active, unlocked)
 
-## Output is damage while a wave stands and Number once it is beaten (D012), so
-## the floating text says which one the player just got.
+## Every point of output is Number (D037), so the floating text always reads
+## as a gain; the ring pulse is what shows the same output striking a wave.
 func _output_float_text(amount: ScientificNumber, critical: bool) -> String:
-	var banking := state.is_output_banking()
-	var value := ("+" if banking else "") + amount.format_value()
-	if not banking:
-		value += " DAMAGE"
-	return ("CRITICAL " if critical else "") + value
+	return ("CRITICAL " if critical else "") + "+" + amount.format_value()
 
 func _tap_number() -> void:
 	if not state.in_run:
@@ -2008,7 +2004,7 @@ func _tap_number() -> void:
 		_pulse_number(1.035)
 	# A tap that still has Liability to chew through strikes the ring, so the
 	# player sees the wave take damage, not only their own Number rise.
-	if not state.is_output_banking():
+	if state.is_wave_standing():
 		_pulse_ring_hit(1.01 if event.is_critical else 1.006)
 	if state.settings.haptics:
 		Input.vibrate_handheld(8)
@@ -2089,12 +2085,7 @@ func _refresh_all() -> void:
 	background_rect.visible = not bool(state.settings.high_contrast)
 	rate_label.visible = true
 	var rate := _stat_number(state.get_rate_per_second())
-	if not state.in_run:
-		rate_label.text = "STARTING +" + rate + " / sec"
-	elif state.is_output_banking():
-		rate_label.text = "+" + rate + " / sec"
-	else:
-		rate_label.text = rate + " DAMAGE / sec"
+	rate_label.text = ("+" if state.in_run else "STARTING +") + rate + " / sec"
 	tap_hint.text = "TAP TO PRODUCE" if state.in_run else "START A RUN TO PRODUCE"
 	coins_label.text = _coins(state.coins)
 	knowledge_label.text = str(state.knowledge)
