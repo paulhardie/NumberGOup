@@ -275,12 +275,13 @@ func _process(delta: float) -> void:
 			var boss_hit: bool = event.type == "boss_collection"
 			var hit_colour: Color = BOSS_DANGER if boss_hit else DANGER
 			if event.amount.is_zero():
-				_show_toast("HIT BLOCKED", ACCENT)
+				_show_toast("HIT BLOCKED · 0 NUMBER LOST", ACCENT)
 				_flash_number(ACCENT)
 				_pulse_ring_hit(1.008)
 			else:
-				_spawn_floating_text("-" + event.amount.format_value(), hit_colour, _stage_float_point())
-				_show_toast("STILL STANDING  ·  HITS AGAIN IN " + str(int(GameState.WAVE_INTERVAL_SECONDS)) + "s", hit_colour)
+				_spawn_floating_text("-" + _stat_number(event.amount) + " NUMBER", hit_colour, _stage_float_point())
+				_show_toast(("BOSS HIT" if boss_hit else "HIT") + " · -" + _stat_number(event.amount) + " NUMBER · " + state.number.format_value() + " LEFT", hit_colour)
+				_snap_number_display()
 				_flash_number(hit_colour, 0.5 if boss_hit else 0.35)
 				_pulse_stage_impact(hit_colour)
 				_shake_stage(9.0 if boss_hit else 3.5)
@@ -2049,8 +2050,10 @@ func _on_tier_pressed() -> void:
 	_show_toast("NO OTHER TIER UNLOCKED", MUTED_TEXT)
 
 func _on_brace_pressed() -> void:
+	var cost := state.number.multiply_scalar(state.get_brace_cost_percent())
 	if state.brace():
-		_show_toast("BRACED FOR NEXT WAVE", ACCENT)
+		_show_toast("BRACED · -" + _stat_number(cost) + " NUMBER", ACCENT)
+		_snap_number_display()
 		_refresh_all()
 	else:
 		_show_toast("CANNOT BRACE YET", MUTED_TEXT)
@@ -2187,7 +2190,7 @@ func _refresh_run_bar() -> void:
 	# Armor is a Workshop rank, locked during a run, so its shortcut only
 	# earns its place between runs.
 	armor_button.visible = not state.in_run
-	brace_cost_label.text = "%.0f%% OF NUMBER" % (state.get_brace_cost_percent() * 100.0)
+	brace_cost_label.text = "-" + _stat_number(state.number.multiply_scalar(state.get_brace_cost_percent())) + " NUMBER"
 	brace_button.disabled = not state.can_brace()
 	_set_action_enabled(brace_button, not brace_button.disabled)
 	var armor := state.get_definition(GameState.ARMOR_ID)
@@ -2625,11 +2628,15 @@ func _make_rig_stat_card(definition: UpgradeDefinition, category: String) -> Pan
 	value_button.pressed.connect(func(upgrade_id: String = definition.id):
 		if _consume_long_press(value_button):
 			return
-		if not state.can_purchase_rig(upgrade_id):
+		var step := _buy_step(state.workshop.selected_category)
+		var plan := state.plan_rig_purchase(upgrade_id, step)
+		if int(plan.ranks) == 0:
 			_show_toast("NEED " + state.get_rig_cost(upgrade_id).format_value() + " NUMBER", MUTED_TEXT)
 			return
-		if state.purchase_rig(upgrade_id):
-			_show_toast("+" + definition.title, WORKSHOP_ACCENT)
+		var bought := state.purchase_rig_ranks(upgrade_id, step)
+		if bought > 0:
+			_show_toast("-" + _stat_number(plan.cost) + " NUMBER · +" + str(bought) + " " + definition.title, WORKSHOP_ACCENT)
+			_snap_number_display()
 			state.save()
 			_refresh_all()
 		else:
@@ -2650,8 +2657,11 @@ func _update_rig_card(definition: UpgradeDefinition) -> void:
 		return
 	var effective := state.get_owned(definition.id) + int(state.rig_rank_equivalent(definition))
 	var next_cost := state.get_rig_cost(definition.id)
-	var can_afford := state.can_purchase_rig(definition.id)
-	var after_purchase := state.number.subtract(next_cost)
+	var plan := state.plan_rig_purchase(definition.id, _buy_step(state.workshop.selected_category))
+	var ranks := int(plan.ranks)
+	var can_afford := ranks > 0
+	var quoted_cost: ScientificNumber = plan.cost if can_afford else next_cost
+	var after_purchase := state.number.subtract(quoted_cost)
 	var encounter: Variant = state.active_encounter
 	var hit_cost := ScientificNumber.new()
 	if encounter != null and not encounter.max_liability.is_zero() and not encounter.is_cleared():
@@ -2665,7 +2675,7 @@ func _update_rig_card(definition: UpgradeDefinition) -> void:
 	value_button.add_theme_stylebox_override("hover", _panel_style(Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.12), 10, box_tint))
 	(refs.value_label as Label).text = _stat_value_text(definition, effective)
 	var cost_label: Label = refs.cost_label
-	cost_label.text = next_cost.format_value() + " #"
+	cost_label.text = ("x" + str(ranks) + " · " if ranks > 1 else "") + "-" + _stat_number(quoted_cost) + " #"
 	cost_label.add_theme_color_override("font_color", warning_colour if warning_colour.a > 0 else (WORKSHOP_ACCENT if can_afford else MUTED_TEXT))
 
 ## Holding a card reads it instead of acting on it: after LONG_PRESS_SECONDS

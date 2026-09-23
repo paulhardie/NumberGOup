@@ -42,6 +42,7 @@ func _init() -> void:
 	_test_coin_and_knowledge_bonuses_lift_what_a_run_pays()
 	_test_rig_cost_is_quoted_against_wave_hp()
 	_test_rig_purchase_spends_number_and_stacks()
+	_test_rig_multi_buy_quotes_and_spends()
 	_test_rig_is_run_scoped()
 	_test_rig_refuses_what_it_does_not_sell()
 	_test_rig_save_round_trip()
@@ -1565,6 +1566,38 @@ func _test_rig_purchase_spends_number_and_stacks() -> void:
 	for rank in range(cap):
 		_expect(state.purchase_rig("stronger_tap"), "Rig ranks are uncapped while Number lasts")
 	_expect(state.rig_owned("stronger_tap") == cap + 1, "the Rig should hold ranks past the Workshop cap")
+
+func _test_rig_multi_buy_quotes_and_spends() -> void:
+	var fresh := GameState.new()
+	fresh.start_run(1, 7)
+	var partial := fresh.plan_rig_purchase("generator", 5)
+	_expect(int(partial.ranks) == 2, "an opening x5 press should quote only its two affordable discounted ranks")
+	var before: ScientificNumber = fresh.number.copy()
+	_expect(fresh.purchase_rig_ranks("generator", 5) == 2, "an opening x5 press should buy both affordable ranks")
+	_expect(fresh.number.compare_to(before.subtract(partial.cost)) == 0 and fresh.rig_owned("generator") == 2, "the opening bulk press should spend exactly its quote and grant two ranks")
+
+	var bulk := _funded_state()
+	var singles := _funded_state()
+	bulk.start_run(1, 17)
+	singles.start_run(1, 17)
+	bulk.number = ScientificNumber.from_float(10000.0)
+	singles.number = ScientificNumber.from_float(10000.0)
+	var five := bulk.plan_rig_purchase("stronger_tap", 5)
+	_expect(int(five.ranks) == 5, "a funded x5 press should quote five Rig ranks")
+	for rank in range(5):
+		_expect(singles.purchase_rig("stronger_tap"), "the comparison run should buy each Rig rank singly")
+	_expect(bulk.purchase_rig_ranks("stronger_tap", 5) == 5, "a funded x5 press should grant five ranks")
+	_expect(bulk.number.compare_to(singles.number) == 0 and bulk.rig_owned("stronger_tap") == singles.rig_owned("stronger_tap"), "bulk and single Rig buys should spend the same Number and grant the same ranks")
+
+	var maxed := _funded_state()
+	maxed.start_run(1, 18)
+	maxed.number = ScientificNumber.from_float(10000.0)
+	var all := maxed.plan_rig_purchase("stronger_tap", GameState.MAX_BUY)
+	var max_before: ScientificNumber = maxed.number.copy()
+	_expect(int(all.ranks) > 5, "Rig MAX should quote every affordable rank, past x5")
+	_expect(maxed.purchase_rig_ranks("stronger_tap", GameState.MAX_BUY) == int(all.ranks), "Rig MAX should buy exactly its quoted ranks")
+	_expect(maxed.number.compare_to(max_before.subtract(all.cost)) == 0 and not maxed.can_purchase_rig("stronger_tap"), "Rig MAX should spend its quote and leave the next rank unaffordable")
+	_expect(maxed.purchase_rig_ranks("stronger_tap", 0) == 0 and maxed.purchase_rig_ranks("not_a_row", GameState.MAX_BUY) == 0, "invalid Rig multi-buy requests should change nothing")
 
 func _test_rig_is_run_scoped() -> void:
 	var state := _funded_state()

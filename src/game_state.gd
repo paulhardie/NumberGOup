@@ -589,15 +589,49 @@ func can_purchase_rig(upgrade_id: String) -> bool:
 		return false
 	return number.compare_to(get_rig_cost(upgrade_id)) >= 0
 
+## Quote the ranks a single Rig press can afford. The two opening discounts
+## count purchases across all rows, so a bulk quote must consume them in order.
+func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
+	var refused := {"ranks": 0, "cost": ScientificNumber.new()}
+	if not in_run or (count != MAX_BUY and count <= 0):
+		return refused
+	var definition := get_definition(upgrade_id)
+	if definition == null or not balance_profile.rig_has_row(definition.workshop_category, upgrade_id):
+		return refused
+	var bought_before := rig_ranks_bought()
+	var owned := rig_owned(upgrade_id)
+	var warm_up := not balance_profile.is_pressured_wave(selected_tier, wave)
+	var spent := ScientificNumber.new()
+	var ranks := 0
+	while count == MAX_BUY or ranks < count:
+		var step: ScientificNumber
+		if warm_up and bought_before + ranks < balance_profile.RIG_WARM_UP_DISCOUNTED_PURCHASES:
+			step = balance_profile.rig_warm_up_reference_hp(selected_tier)
+		else:
+			step = get_rig_cost(upgrade_id, owned + ranks)
+		if step.is_zero():
+			break
+		var next_spent := spent.add(step)
+		if next_spent.compare_to(number) > 0:
+			break
+		spent = next_spent
+		ranks += 1
+	return {"ranks": ranks, "cost": spent}
+
+func purchase_rig_ranks(upgrade_id: String, count: int = 1) -> int:
+	var plan := plan_rig_purchase(upgrade_id, count)
+	var ranks: int = int(plan.ranks)
+	if ranks <= 0:
+		return 0
+	number = number.subtract(plan.cost)
+	rig_ranks[upgrade_id] = rig_owned(upgrade_id) + ranks
+	return ranks
+
 ## Buys one uncapped run-scoped rank with Number. It sells even when the price
 ## eats the buffer against the next hit: the contract is that the price is
 ## visible before it kills you, not that the game refuses the decision (D015).
 func purchase_rig(upgrade_id: String) -> bool:
-	if not can_purchase_rig(upgrade_id):
-		return false
-	number = number.subtract(get_rig_cost(upgrade_id))
-	rig_ranks[upgrade_id] = rig_owned(upgrade_id) + 1
-	return true
+	return purchase_rig_ranks(upgrade_id, 1) > 0
 
 ## Labs (The Tower): permanent research paid in Coins, gated by real time
 ## rather than Coins alone. A line keeps researching whether a run is active or
