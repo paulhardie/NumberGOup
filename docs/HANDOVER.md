@@ -1,6 +1,6 @@
 # Handover
 
-**Last updated:** 23 September 2026, after a review of D042 and D043: Cash now flows at the income Rig prices are quoted in, and the docs describe Cash and the new Hit curve.
+**Last updated:** 23 September 2026, after a survey of The Tower's Workshop: the proposed Tower parity plan with coin gates is in [`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md#tower-parity-plan-and-coin-gates--proposed-23-september-2026). No game code changed since the Cash fix.
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
 
 ## Where the game is
@@ -30,18 +30,20 @@
 ## Open decisions for the owner
 
 1. **Rig strength under Cash.** The ×3 Rig rank worth (D023) was set so a rank beat the Hit buffer it spent; Cash removed that cost. Re-sweep the multiplier, prices and Cash rate against targets 5 and 7, or restate those targets. Lowering the multiplier alone is not enough: at ×2, max Attack + Rig still reaches wave 120.
-2. **Save schema V9 for Cash.** `cash` and `run_cash_earned` widened V8 instead of bumping it, which D028 rules out; an older build would load a mid-run save and write it back without Cash. Recommended: bump to V9 with a V8 migration.
-3. **Tier unlock wave:** still 100 (`TIER_UNLOCK_WAVE`). Decide what should unlock Tier 2 as ladders and content grow.
-4. **Coins per minute (balance target 2):** rewards came up about 1.5–1.8× when beaten waves stopped waiting out their timers (D037), and D042 roughly doubles early-run Coins again. Accept and restate the target, or bring Coins down.
-5. **The Workshop ladders** ([`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md), with data in [`data/workshop/`](../data/workshop/)): 5,000-rank core rows, a band of ranks per tier, dropping Breakthroughs from pacing, and making `data/workshop/` the Workshop's single source.
-6. **Still open from before D042:** the Workshop expansion rows ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md)), the Tiers 1–10 proposal ([`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md)), the play-folder sync rule on branch `claude/sync-play-checkout`, and enemy-growth suppression ([`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md)).
-7. **`AGENTS.md` law 4** still says the Rig spends Number (D015). It is a working rule, so it changes only on owner instruction.
+2. **Save schema V9 for Cash.** `cash` and `run_cash_earned` widened V8 instead of bumping it, which D028 rules out; an older build would load a mid-run save and write it back without Cash. Recommended: bump to V9 with a V8 migration, together with the coin gates' `workshop_unlocks` if those are accepted.
+3. **The Tower parity plan and coin gates** ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md#tower-parity-plan-and-coin-gates--proposed-23-september-2026)): the gate model and ladder, the starter rows, the Rig selling only unlocked rows (narrowing D042), each new mechanic, and three primitives: the movable Hit timer, the wave queue and the difficulty counter.
+4. **Tier unlock wave:** still 100 (`TIER_UNLOCK_WAVE`). Decide what should unlock Tier 2 as ladders and content grow.
+5. **Coins per minute (balance target 2):** rewards came up about 1.5–1.8× when beaten waves stopped waiting out their timers (D037), and D042 roughly doubles early-run Coins again. Accept and restate the target, or bring Coins down.
+6. **The Workshop ladders** ([`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md), with data in [`data/workshop/`](../data/workshop/)): 5,000-rank core rows, a band of ranks per tier, dropping Breakthroughs from pacing, and making `data/workshop/` the Workshop's single source.
+7. **Still open from before D042:** the earlier Workshop expansion rows not covered by the parity plan (Bounty, Finisher, Streak, Payback, Auto Tap), the Tiers 1–10 proposal ([`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md)), the play-folder sync rule on branch `claude/sync-play-checkout`, and enemy-growth suppression ([`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md)).
+8. **`AGENTS.md` law 4** still says the Rig spends Number (D015). It is a working rule, so it changes only on owner instruction.
 
 ## Next steps, in order
 
 1. **Owner:** decide open decision 1; then **agent:** re-sweep and retune with `run_balance.sh` before and after. High risk: economy.
-2. **Agent:** implement the combat HUD pass in [`src/ring_arc.gd`](../src/ring_arc.gd) and [`src/main.gd`](../src/main.gd): an outer ring for the 15-second Hit timer around the inner Wave HP ring, clearing to `BEATEN · NO HIT`, and an encounter line reading `HIT: X (-Y% ARMOR) IN Zs · W HP LEFT` (D041; [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md)). Medium risk: presentation and touch.
-3. **Owner with new players:** watch a fresh 10–20-minute run. Check whether players can read the two rings and explain why a clean clear avoided a Hit.
+2. **Owner:** decide the coin gates and save V9; then **agent:** build them as step 1 of the parity plan's build order. High risk: saves, economy.
+3. **Agent:** implement the combat HUD pass in [`src/ring_arc.gd`](../src/ring_arc.gd) and [`src/main.gd`](../src/main.gd): an outer ring for the 15-second Hit timer around the inner Wave HP ring, clearing to `BEATEN · NO HIT`, and an encounter line reading `HIT: X (-Y% ARMOR) IN Zs · W HP LEFT` (D041; [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md)). Medium risk: presentation and touch.
+4. **Owner with new players:** watch a fresh 10–20-minute run. Check whether players can read the two rings and explain why a clean clear avoided a Hit.
 
 ## Known issues and risks
 
@@ -49,6 +51,7 @@
 - **Rig ranks are Workshop-sized.** Late in a run a flat Tap Damage or Damage per Second rank adds very little. The percentage Boosts in the tier proposal would fix it.
 - **The wave 100 boss** doubles in one step: the ×1.5 milestone lands on the boss's ×3. It's the tier gate, left as is.
 - **`run_cash_earned` is saved but nothing reads it**, and `tools/balance_simulator.gd` still carries the unused `_rig_reserve` from Number-priced Rig play.
+- **`TOWER_SYSTEMS_REFERENCE.md`** still says the Hit is derived from Wave HP (its enemy-attack row and scaling paragraph); D043 changed that.
 - **`src/game_data.gd.uid`** is not committed, though the other scripts' `.uid` files are; a fresh import creates it.
 
 ## Working notes
