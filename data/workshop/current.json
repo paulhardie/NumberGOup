@@ -4,7 +4,7 @@
   "note": "Generated from the live catalogue. Edit the game, not this file.",
   "workshop_coins_to_max_by_category": {
     "attack": 46590,
-    "defense": 41070,
+    "defense": 46545,
     "utility": 46503
   },
   "workshop": [
@@ -5677,6 +5677,631 @@
           "cost": 224,
           "coins_to_here": 5475,
           "value": 0.4
+        }
+      ]
+    },
+    {
+      "id": "guard",
+      "name": "GUARD",
+      "description": "Every hit is smaller by 1 flat amount (scaled by tier) per rank.",
+      "category": "defense",
+      "opens_at_workshop_level": 0,
+      "max_rank": 100,
+      "effects_per_rank": {
+        "guard_flat": 1.0
+      },
+      "unit": "flat",
+      "value_at_rank_0": 0.0,
+      "value_at_max": 100.0,
+      "cost_base": 3.725,
+      "cost_growth_per_rank": 1.04222,
+      "first_rank_coins": 4,
+      "last_rank_coins": 224,
+      "coins_to_max": 5475,
+      "rig": {
+        "sold": false,
+        "rank_worth_workshop_ranks": 0.0
+      },
+      "ranks": [
+        {
+          "rank": 1,
+          "cost": 4,
+          "coins_to_here": 4,
+          "value": 1.0
+        },
+        {
+          "rank": 2,
+          "cost": 4,
+          "coins_to_here": 8,
+          "value": 2.0
+        },
+        {
+          "rank": 3,
+          "cost": 5,
+          "coins_to_here": 13,
+          "value": 3.0
+        },
+        {
+          "rank": 4,
+          "cost": 5,
+          "coins_to_here": 18,
+          "value": 4.0
+        },
+        {
+          "rank": 5,
+          "cost": 5,
+          "coins_to_here": 23,
+          "value": 5.0
+        },
+        {
+          "rank": 6,
+          "cost": 5,
+          "coins_to_here": 28,
+          "value": 6.0
+        },
+        {
+          "rank": 7,
+          "cost": 5,
+          "coins_to_here": 33,
+          "value": 7.0
+        },
+        {
+          "rank": 8,
+          "cost": 5,
+          "coins_to_here": 38,
+          "value": 8.0
+        },
+        {
+          "rank": 9,
+          "cost": 6,
+          "coins_to_here": 44,
+          "value": 9.0
+        },
+        {
+          "rank": 10,
+          "cost": 6,
+          "coins_to_here": 50,
+          "value": 10.0
+        },
+        {
+          "rank": 11,
+          "cost": 6,
+          "coins_to_here": 56,
+          "value": 11.0
+        },
+        {
+          "rank": 12,
+          "cost": 6,
+          "coins_to_here": 62,
+          "value": 12.0
+        },
+        {
+          "rank": 13,
+          "cost": 7,
+          "coins_to_here": 69,
+          "value": 13.0
+        },
+        {
+          "rank": 14,
+          "cost": 7,
+          "coins_to_here": 76,
+          "value": 14.0
+        },
+        {
+          "rank": 15,
+          "cost": 7,
+          "coins_to_here": 83,
+          "value": 15.0
+        },
+        {
+          "rank": 16,
+          "cost": 7,
+          "coins_to_here": 90,
+          "value": 16.0
+        },
+        {
+          "rank": 17,
+          "cost": 8,
+          "coins_to_here": 98,
+          "value": 17.0
+        },
+        {
+          "rank": 18,
+          "cost": 8,
+          "coins_to_here": 106,
+          "value": 18.0
+        },
+        {
+          "rank": 19,
+          "cost": 8,
+          "coins_to_here": 114,
+          "value": 19.0
+        },
+        {
+          "rank": 20,
+          "cost": 9,
+          "coins_to_here": 123,
+          "value": 20.0
+        },
+        {
+          "rank": 21,
+          "cost": 9,
+          "coins_to_here": 132,
+          "value": 21.0
+        },
+        {
+          "rank": 22,
+          "cost": 9,
+          "coins_to_here": 141,
+          "value": 22.0
+        },
+        {
+          "rank": 23,
+          "cost": 10,
+          "coins_to_here": 151,
+          "value": 23.0
+        },
+        {
+          "rank": 24,
+          "cost": 10,
+          "coins_to_here": 161,
+          "value": 24.0
+        },
+        {
+          "rank": 25,
+          "cost": 11,
+          "coins_to_here": 172,
+          "value": 25.0
+        },
+        {
+          "rank": 26,
+          "cost": 11,
+          "coins_to_here": 183,
+          "value": 26.0
+        },
+        {
+          "rank": 27,
+          "cost": 11,
+          "coins_to_here": 194,
+          "value": 27.0
+        },
+        {
+          "rank": 28,
+          "cost": 12,
+          "coins_to_here": 206,
+          "value": 28.0
+        },
+        {
+          "rank": 29,
+          "cost": 12,
+          "coins_to_here": 218,
+          "value": 29.0
+        },
+        {
+          "rank": 30,
+          "cost": 13,
+          "coins_to_here": 231,
+          "value": 30.0
+        },
+        {
+          "rank": 31,
+          "cost": 13,
+          "coins_to_here": 244,
+          "value": 31.0
+        },
+        {
+          "rank": 32,
+          "cost": 14,
+          "coins_to_here": 258,
+          "value": 32.0
+        },
+        {
+          "rank": 33,
+          "cost": 14,
+          "coins_to_here": 272,
+          "value": 33.0
+        },
+        {
+          "rank": 34,
+          "cost": 15,
+          "coins_to_here": 287,
+          "value": 34.0
+        },
+        {
+          "rank": 35,
+          "cost": 16,
+          "coins_to_here": 303,
+          "value": 35.0
+        },
+        {
+          "rank": 36,
+          "cost": 16,
+          "coins_to_here": 319,
+          "value": 36.0
+        },
+        {
+          "rank": 37,
+          "cost": 17,
+          "coins_to_here": 336,
+          "value": 37.0
+        },
+        {
+          "rank": 38,
+          "cost": 18,
+          "coins_to_here": 354,
+          "value": 38.0
+        },
+        {
+          "rank": 39,
+          "cost": 18,
+          "coins_to_here": 372,
+          "value": 39.0
+        },
+        {
+          "rank": 40,
+          "cost": 19,
+          "coins_to_here": 391,
+          "value": 40.0
+        },
+        {
+          "rank": 41,
+          "cost": 20,
+          "coins_to_here": 411,
+          "value": 41.0
+        },
+        {
+          "rank": 42,
+          "cost": 21,
+          "coins_to_here": 432,
+          "value": 42.0
+        },
+        {
+          "rank": 43,
+          "cost": 22,
+          "coins_to_here": 454,
+          "value": 43.0
+        },
+        {
+          "rank": 44,
+          "cost": 23,
+          "coins_to_here": 477,
+          "value": 44.0
+        },
+        {
+          "rank": 45,
+          "cost": 23,
+          "coins_to_here": 500,
+          "value": 45.0
+        },
+        {
+          "rank": 46,
+          "cost": 24,
+          "coins_to_here": 524,
+          "value": 46.0
+        },
+        {
+          "rank": 47,
+          "cost": 25,
+          "coins_to_here": 549,
+          "value": 47.0
+        },
+        {
+          "rank": 48,
+          "cost": 27,
+          "coins_to_here": 576,
+          "value": 48.0
+        },
+        {
+          "rank": 49,
+          "cost": 28,
+          "coins_to_here": 604,
+          "value": 49.0
+        },
+        {
+          "rank": 50,
+          "cost": 29,
+          "coins_to_here": 633,
+          "value": 50.0
+        },
+        {
+          "rank": 51,
+          "cost": 30,
+          "coins_to_here": 663,
+          "value": 51.0
+        },
+        {
+          "rank": 52,
+          "cost": 31,
+          "coins_to_here": 694,
+          "value": 52.0
+        },
+        {
+          "rank": 53,
+          "cost": 32,
+          "coins_to_here": 726,
+          "value": 53.0
+        },
+        {
+          "rank": 54,
+          "cost": 34,
+          "coins_to_here": 760,
+          "value": 54.0
+        },
+        {
+          "rank": 55,
+          "cost": 35,
+          "coins_to_here": 795,
+          "value": 55.0
+        },
+        {
+          "rank": 56,
+          "cost": 37,
+          "coins_to_here": 832,
+          "value": 56.0
+        },
+        {
+          "rank": 57,
+          "cost": 38,
+          "coins_to_here": 870,
+          "value": 57.0
+        },
+        {
+          "rank": 58,
+          "cost": 40,
+          "coins_to_here": 910,
+          "value": 58.0
+        },
+        {
+          "rank": 59,
+          "cost": 41,
+          "coins_to_here": 951,
+          "value": 59.0
+        },
+        {
+          "rank": 60,
+          "cost": 43,
+          "coins_to_here": 994,
+          "value": 60.0
+        },
+        {
+          "rank": 61,
+          "cost": 45,
+          "coins_to_here": 1039,
+          "value": 61.0
+        },
+        {
+          "rank": 62,
+          "cost": 47,
+          "coins_to_here": 1086,
+          "value": 62.0
+        },
+        {
+          "rank": 63,
+          "cost": 49,
+          "coins_to_here": 1135,
+          "value": 63.0
+        },
+        {
+          "rank": 64,
+          "cost": 51,
+          "coins_to_here": 1186,
+          "value": 64.0
+        },
+        {
+          "rank": 65,
+          "cost": 53,
+          "coins_to_here": 1239,
+          "value": 65.0
+        },
+        {
+          "rank": 66,
+          "cost": 55,
+          "coins_to_here": 1294,
+          "value": 66.0
+        },
+        {
+          "rank": 67,
+          "cost": 58,
+          "coins_to_here": 1352,
+          "value": 67.0
+        },
+        {
+          "rank": 68,
+          "cost": 60,
+          "coins_to_here": 1412,
+          "value": 68.0
+        },
+        {
+          "rank": 69,
+          "cost": 62,
+          "coins_to_here": 1474,
+          "value": 69.0
+        },
+        {
+          "rank": 70,
+          "cost": 65,
+          "coins_to_here": 1539,
+          "value": 70.0
+        },
+        {
+          "rank": 71,
+          "cost": 68,
+          "coins_to_here": 1607,
+          "value": 71.0
+        },
+        {
+          "rank": 72,
+          "cost": 71,
+          "coins_to_here": 1678,
+          "value": 72.0
+        },
+        {
+          "rank": 73,
+          "cost": 74,
+          "coins_to_here": 1752,
+          "value": 73.0
+        },
+        {
+          "rank": 74,
+          "cost": 77,
+          "coins_to_here": 1829,
+          "value": 74.0
+        },
+        {
+          "rank": 75,
+          "cost": 80,
+          "coins_to_here": 1909,
+          "value": 75.0
+        },
+        {
+          "rank": 76,
+          "cost": 83,
+          "coins_to_here": 1992,
+          "value": 76.0
+        },
+        {
+          "rank": 77,
+          "cost": 87,
+          "coins_to_here": 2079,
+          "value": 77.0
+        },
+        {
+          "rank": 78,
+          "cost": 90,
+          "coins_to_here": 2169,
+          "value": 78.0
+        },
+        {
+          "rank": 79,
+          "cost": 94,
+          "coins_to_here": 2263,
+          "value": 79.0
+        },
+        {
+          "rank": 80,
+          "cost": 98,
+          "coins_to_here": 2361,
+          "value": 80.0
+        },
+        {
+          "rank": 81,
+          "cost": 102,
+          "coins_to_here": 2463,
+          "value": 81.0
+        },
+        {
+          "rank": 82,
+          "cost": 107,
+          "coins_to_here": 2570,
+          "value": 82.0
+        },
+        {
+          "rank": 83,
+          "cost": 111,
+          "coins_to_here": 2681,
+          "value": 83.0
+        },
+        {
+          "rank": 84,
+          "cost": 116,
+          "coins_to_here": 2797,
+          "value": 84.0
+        },
+        {
+          "rank": 85,
+          "cost": 121,
+          "coins_to_here": 2918,
+          "value": 85.0
+        },
+        {
+          "rank": 86,
+          "cost": 126,
+          "coins_to_here": 3044,
+          "value": 86.0
+        },
+        {
+          "rank": 87,
+          "cost": 131,
+          "coins_to_here": 3175,
+          "value": 87.0
+        },
+        {
+          "rank": 88,
+          "cost": 137,
+          "coins_to_here": 3312,
+          "value": 88.0
+        },
+        {
+          "rank": 89,
+          "cost": 142,
+          "coins_to_here": 3454,
+          "value": 89.0
+        },
+        {
+          "rank": 90,
+          "cost": 148,
+          "coins_to_here": 3602,
+          "value": 90.0
+        },
+        {
+          "rank": 91,
+          "cost": 154,
+          "coins_to_here": 3756,
+          "value": 91.0
+        },
+        {
+          "rank": 92,
+          "cost": 161,
+          "coins_to_here": 3917,
+          "value": 92.0
+        },
+        {
+          "rank": 93,
+          "cost": 168,
+          "coins_to_here": 4085,
+          "value": 93.0
+        },
+        {
+          "rank": 94,
+          "cost": 175,
+          "coins_to_here": 4260,
+          "value": 94.0
+        },
+        {
+          "rank": 95,
+          "cost": 182,
+          "coins_to_here": 4442,
+          "value": 95.0
+        },
+        {
+          "rank": 96,
+          "cost": 190,
+          "coins_to_here": 4632,
+          "value": 96.0
+        },
+        {
+          "rank": 97,
+          "cost": 198,
+          "coins_to_here": 4830,
+          "value": 97.0
+        },
+        {
+          "rank": 98,
+          "cost": 206,
+          "coins_to_here": 5036,
+          "value": 98.0
+        },
+        {
+          "rank": 99,
+          "cost": 215,
+          "coins_to_here": 5251,
+          "value": 99.0
+        },
+        {
+          "rank": 100,
+          "cost": 224,
+          "coins_to_here": 5475,
+          "value": 100.0
         }
       ]
     },

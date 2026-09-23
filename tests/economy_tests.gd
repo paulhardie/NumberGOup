@@ -69,6 +69,7 @@ func _init() -> void:
 	_test_card_save_round_trip()
 	_test_defensive_ceilings_bound_the_combined_effects()
 	_test_armor_ceiling_bounds_armor_not_other_rules()
+	_test_guard_flat_reduction_and_floor()
 	_test_game_data_loads_cleanly()
 	_test_catalogues_are_internally_consistent()
 	_test_loaded_ranks_stay_within_their_caps()
@@ -199,7 +200,7 @@ func _test_workshop_price_onramp() -> void:
 			continue
 		for rank in range(definition.max_rank):
 			category_totals[definition.workshop_category] += state.get_workshop_coin_cost_at(definition, rank)
-	_expect(category_totals[ProgressionTaxonomy.ATTACK] == 46590 and category_totals[ProgressionTaxonomy.DEFENSE] == 41070 and category_totals[ProgressionTaxonomy.UTILITY] == 46503, "the full Workshop should keep the authored category prices")
+	_expect(category_totals[ProgressionTaxonomy.ATTACK] == 46590 and category_totals[ProgressionTaxonomy.DEFENSE] == 46545 and category_totals[ProgressionTaxonomy.UTILITY] == 46503, "the full Workshop should keep the authored category prices")
 	state.coins = 48
 	_expect(state.purchase_ranks("stronger_tap", 12) == 12, "a first run should fund twelve Tap Damage ranks")
 	_expect(state.purchase_ranks("generator", 6) == 6, "a first run should also fund six Damage Per Second ranks")
@@ -239,7 +240,7 @@ func _test_deepened_ladders_keep_their_old_maxima() -> void:
 		"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 100,
 		"faster_echo": 60, "burst_relay": 6, "more_critical": 100, "magnitude_coil": 60,
 		"chain_reaction": 60, "automation_core": 50, "boss_damage": 100,
-		"tax_resistance": 100, "siphon": 100, "recoil": 100, "priority_buffer": 50,
+		"tax_resistance": 100, "guard": 100, "siphon": 100, "recoil": 100, "priority_buffer": 50,
 		"brace_discount": 60, "second_wind": 50,
 		"smarter_efficiency": 60, "coin_bonus": 100, "knowledge_bonus": 50,
 	}
@@ -256,6 +257,7 @@ func _test_deepened_ladders_keep_their_old_maxima() -> void:
 	_expect(is_equal_approx(state._effect_sum("double_tick_chance"), 0.24), "Double Tick should still cap at 24%")
 	_expect(is_equal_approx(state._effect_sum("cost_discount"), 0.15), "Discount should still cap at 15%")
 	_expect(is_equal_approx(state._effect_sum("collection_resistance"), 0.4), "Armor should still cap at 40%")
+	_expect(is_equal_approx(state._effect_sum("guard_flat"), 100.0), "Guard should still cap at 100 flat reduction")
 	_expect(is_equal_approx(state._effect_sum("starting_number_flat"), 500.0), "Cushion should still cap at 500 Number")
 	_expect(state._burst_interval() == 6, "Burst should still bottom out at every sixth tick")
 	_expect(is_equal_approx(state._effect_sum("siphon_share"), 0.25), "Siphon should cap at a quarter of the damage dealt")
@@ -1331,16 +1333,71 @@ func _test_armor_ceiling_bounds_armor_not_other_rules() -> void:
 	state.active_rule_modifiers = [{"source": "test_rule", "target": "collection", "stage": "multiplicative", "value": 0.2}]
 	_expect(state.get_effective_collection().compare_to(base.multiply_scalar(0.25 * 0.2)) == 0, "a separate rule that shrinks hits should still apply past Armor's ceiling")
 
+## Guard (Defense Absolute): flat Hit reduction, priced in the tier's Hit pressure,
+## floored so a Hit never drops below 10% of its size after Guard and Armor together.
+func _test_guard_flat_reduction_and_floor() -> void:
+	var state := GameState.new()
+	state.start_run(1, 4)
+	var base_hit: ScientificNumber = state.active_encounter.collection.copy()
+	_expect(state.get_effective_collection().compare_to(base_hit) == 0, "with no Guard or Armor, hit should match base")
+
+	# 10 ranks of Guard on Tier 1 (flat reduction of 10):
+	state.purchased = {"guard": 10}
+	var hit_with_guard := state.get_effective_collection()
+	var expected_hit := base_hit.subtract(ScientificNumber.from_float(10.0))
+	var min_floor := base_hit.multiply_scalar(0.10)
+	if expected_hit.compare_to(min_floor) < 0:
+		expected_hit = min_floor
+	_expect(hit_with_guard.compare_to(expected_hit) == 0, "10 ranks of Guard should reduce hit by 10 or floor at 10%")
+
+	# 100 ranks of Guard on wave 1 (Hit is small, e.g. ~1.8): floored to exactly 10%
+	state.purchased = {"guard": 100}
+	var floored_hit := state.get_effective_collection()
+	_expect(floored_hit.compare_to(base_hit.multiply_scalar(0.10)) == 0, "100 Guard on a small hit should floor at exactly 10% of base hit")
+
+	# Guard + Armor together (100 Guard + 100 Armor = 40% resistance):
+	state.purchased = {"guard": 100, GameState.ARMOR_ID: 100}
+	var guarded_and_armored := state.get_effective_collection()
+	_expect(guarded_and_armored.compare_to(base_hit.multiply_scalar(0.10)) == 0, "Guard and Armor combined should never reduce hit below 10%")
+
+	# External rules can still reduce hits past the 10% floor (D023):
+	state.active_rule_modifiers = [{"source": "test_perk", "target": "collection", "stage": "multiplicative", "value": 0.5}]
+	_expect(state.get_effective_collection().compare_to(base_hit.multiply_scalar(0.10 * 0.5)) == 0, "external rule modifiers should still apply past Guard's floor")
+	state.active_rule_modifiers = []
+
+	# Tier scaling: On Tier 2 (collection_multiplier = 20.0), 10 Guard reduces by 200:
+	state.purchased = {"guard": 10}
+	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	state.start_run(2, 4)
+	var t2_base_hit: ScientificNumber = state.active_encounter.collection.copy()
+	var t2_expected := t2_base_hit.subtract(ScientificNumber.from_float(200.0))
+	var t2_floor := t2_base_hit.multiply_scalar(0.10)
+	if t2_expected.compare_to(t2_floor) < 0:
+		t2_expected = t2_floor
+	var t2_hit := state.get_effective_collection()
+	_expect(t2_hit.compare_to(t2_expected) == 0, "Guard should scale by Tier 2's collection multiplier")
+
+	# Save/load round-trip preserves Guard:
+	var save_path := "res://.number_go_up_test_save.json"
+	state.save_path = save_path
+	state.purchased = {"guard": 25}
+	_expect(state.save(), "save with Guard should write")
+	var loaded := GameState.new()
+	loaded.save_path = save_path
+	loaded.load()
+	_expect(loaded.get_owned("guard") == 25, "loaded save should keep 25 Guard ranks")
+	loaded.clear_save()
+
 func _test_game_data_loads_cleanly() -> void:
 	GameDataClass.clear_cache()
 	var workshop: Array = GameDataClass.get_workshop_upgrades()
-	_expect(workshop.size() == 20, "GameData should load exactly 20 Workshop upgrades")
+	_expect(workshop.size() == 21, "GameData should load exactly 21 Workshop upgrades")
 	var knowledge: Array = GameDataClass.get_knowledge_upgrades()
 	_expect(knowledge.size() == 1 and knowledge[0].id == "insight", "GameData should load Insight from knowledge upgrades")
 	var all: Array = GameDataClass.get_all_upgrades()
-	_expect(all.size() == 21, "GameData should return all 21 upgrades")
+	_expect(all.size() == 22, "GameData should return all 22 upgrades")
 	var cached: Array = GameDataClass.get_all_upgrades()
-	_expect(cached.size() == 21, "cached upgrades should match")
+	_expect(cached.size() == 22, "cached upgrades should match")
 
 ## Every catalogue a save keys ranks by: ids unique across all three, effects
 ## the game knows how to read, shelves that exist, caps and prices that make

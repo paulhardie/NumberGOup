@@ -201,6 +201,9 @@ func rig_effect_multiplier(category: String, upgrade_id: String) -> float:
 const COLLECTION_RESISTANCE_CEILING := 0.75
 const SIPHON_CEILING := 0.5
 const RECOIL_CEILING := 1.0
+## Combined defensive floor (WORKSHOP_EXPANSION): a Hit never drops below 10%
+## of its base size after Guard and Armor together.
+const HIT_FLOOR_PERCENT := 0.10
 
 ## One rank costs `k` times RIG_PRICE_SECONDS of the given income at the first
 ## rank and grows from there (D039). Ranks are uncapped; cost growth against

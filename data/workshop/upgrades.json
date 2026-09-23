@@ -202,6 +202,23 @@
       }
     },
     {
+      "id": "guard",
+      "title": "GUARD",
+      "description": "Every hit is smaller by 1 flat amount (scaled by tier) per rank.",
+      "category": "workshop",
+      "workshop_category": "defense",
+      "progression_type": "module",
+      "cost_base": 3.725,
+      "cost_growth": 1.04222,
+      "max_rank": 100,
+      "required_workshop_level": 0,
+      "unlock_lifetime": 0.0,
+      "repeatable": false,
+      "effects": {
+        "guard_flat": 1.0
+      }
+    },
+    {
       "id": "siphon",
       "title": "LEECH",
       "description": "While a boss stands, +0.25% of the damage you deal it is added to your Number again, per rank.",
