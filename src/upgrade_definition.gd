@@ -19,14 +19,16 @@ var effects: Dictionary
 var repeatable: bool
 var cost_growth: float
 ## Deep rows (D047): past the first anchor's rank, a rank is worth more than one
-## step, following [rank, multiplier] anchors read log-linearly, so ranks 1-100
-## keep today's value and the ladder then climbs The Tower's way. Empty means
-## every rank is one step.
+## step, following [rank, multiplier] anchors joined by straight lines, so ranks
+## 1-100 keep today's value and the ladder then climbs The Tower's way. Straight
+## lines rather than a log-linear read keep every rank worth at least the one
+## before it, since the anchors' slopes rise. Empty means every rank is one step.
 var depth_curve: Array = []
-## The price growth per rank past rank DEEP_PRICE_FROM (D047); 0 keeps
-## `cost_growth` for every rank.
+## The price growth per rank past `deep_price_from` (D047); 0 keeps
+## `cost_growth` for every rank. `deep_price_from` is the row's cap before D047,
+## so ranks that existed keep their price and new ones take the gentler growth.
 var deep_cost_growth: float = 0.0
-const DEEP_PRICE_FROM := 100
+var deep_price_from: int = 100
 
 func _init(
 		upgrade_id: String,
@@ -59,8 +61,8 @@ func _init(
 
 func cost_at(owned: int, discount: float = 0.0) -> ScientificNumber:
 	var scaled: ScientificNumber
-	if deep_cost_growth > 0.0 and owned > DEEP_PRICE_FROM:
-		scaled = cost.multiply_scalar(pow(cost_growth, DEEP_PRICE_FROM) * pow(deep_cost_growth, owned - DEEP_PRICE_FROM))
+	if deep_cost_growth > 0.0 and owned > deep_price_from:
+		scaled = cost.multiply_scalar(pow(cost_growth, deep_price_from) * pow(deep_cost_growth, owned - deep_price_from))
 	else:
 		scaled = cost.multiply_scalar(pow(cost_growth, owned))
 	return scaled.multiply_scalar(maxf(0.1, 1.0 - discount))
@@ -80,10 +82,10 @@ func units_at(ranks: float) -> float:
 			break
 	var low_rank := float(depth_curve[segment][0])
 	var high_rank := float(depth_curve[segment + 1][0])
-	var low_log := log(float(depth_curve[segment][1]))
-	var high_log := log(float(depth_curve[segment + 1][1]))
+	var low := float(depth_curve[segment][1])
+	var high := float(depth_curve[segment + 1][1])
 	var t := (ranks - low_rank) / (high_rank - low_rank)
-	return start_rank * exp(low_log + (high_log - low_log) * t)
+	return start_rank * (low + (high - low) * t)
 
 func is_maxed(owned: int) -> bool:
 	return owned >= max_rank
@@ -142,6 +144,7 @@ static func from_dict(dict: Dictionary) -> UpgradeDefinition:
 	if curve is Array:
 		definition.depth_curve = curve
 	definition.deep_cost_growth = float(dict.get("deep_cost_growth", 0.0))
+	definition.deep_price_from = int(dict.get("deep_price_from", 100))
 	return definition
 
 func to_dict() -> Dictionary:
@@ -161,4 +164,5 @@ func to_dict() -> Dictionary:
 		"effects": effects,
 		"depth_curve": depth_curve,
 		"deep_cost_growth": deep_cost_growth,
+		"deep_price_from": deep_price_from,
 	}

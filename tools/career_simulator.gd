@@ -394,7 +394,7 @@ func _override_growth(args: PackedStringArray, flag: String, deep: bool) -> void
 		return
 	var growth := args[at + 1].to_float()
 	for definition in CareerState.new().definitions:
-		if definition.category != ProgressionTaxonomy.WORKSHOP or definition.max_rank <= UpgradeDefinition.DEEP_PRICE_FROM:
+		if definition.category != ProgressionTaxonomy.WORKSHOP or definition.deep_cost_growth <= 0.0:
 			continue
 		if (not definition.depth_curve.is_empty()) == deep:
 			definition.deep_cost_growth = growth

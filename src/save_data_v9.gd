@@ -3,8 +3,9 @@ extends RefCounted
 
 ## V9 is V8 plus two things an older build must not quietly mishandle, so it
 ## now refuses the save instead (D028): the run's `cash` and `run_cash_earned`
-## (D042), which V8 carried without declaring, and Workshop ranks past 100 on
-## the deep rows (D047), which a V8 build would clamp back to 100 and save.
+## (D042), which V8 carried without declaring and V9 checks, and Workshop
+## ranks past a row's old cap (D047: the deep rows past 100 and the capped rows
+## raised to Tower-like maxima), which a V8 build would clamp back and save.
 ## Every other key keeps its V8 name and meaning.
 const VERSION := 9
 
@@ -73,12 +74,12 @@ static func problem(data: Dictionary) -> String:
 	for key in ["number", "lifetime"]:
 		if not (data.get(key) is Dictionary):
 			return key + " is missing"
-	for key in ["number", "lifetime", "highest"]:
+	for key in ["number", "lifetime", "highest", "cash", "run_cash_earned"]:
 		if data.has(key) and data[key] is Dictionary:
 			var mantissa: Variant = data[key].get("mantissa", 0.0)
 			if not ((mantissa is int or mantissa is float) and is_finite(float(mantissa))):
 				return key + " is not a finite number"
-	for key in ["highest", "purchased", "knowledge_purchased", "workshop", "tier_records", "statistics", "settings"]:
+	for key in ["highest", "cash", "run_cash_earned", "purchased", "knowledge_purchased", "workshop", "tier_records", "statistics", "settings"]:
 		if data.has(key) and not (data[key] is Dictionary):
 			return key + " is not an object"
 	for key in ["coins", "knowledge", "gems", "lab_slots", "run_gems_earned", "wave", "highest_wave", "selected_tier"]:

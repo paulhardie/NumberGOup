@@ -197,6 +197,15 @@ func _test_multi_buy_matches_buying_one_at_a_time() -> void:
 		singles += discounted.get_workshop_coin_cost_at(discounted.get_definition("generator"), rank)
 	var after_discount := int(discounted.plan_purchase("generator", 5).cost)
 	_expect(after_discount < before_discount and after_discount == singles, "a quote should follow a new Discount rank at once")
+	var focused := _funded_state()
+	focused.coins = 100000
+	var before_focus := int(focused.plan_purchase("generator", 5).cost)
+	focused.focus_path = ProgressionTaxonomy.ATTACK
+	var focus_singles := 0
+	for rank in range(5):
+		focus_singles += focused.get_workshop_coin_cost_at(focused.get_definition("generator"), rank)
+	var after_focus := int(focused.plan_purchase("generator", 5).cost)
+	_expect(after_focus < before_focus and after_focus == focus_singles, "a quote should follow a Research Focus choice at once")
 
 	var deep := _funded_state()
 	deep.purchased = {"stronger_tap": 2000}
@@ -228,7 +237,7 @@ func _test_workshop_price_onramp() -> void:
 			continue
 		for rank in range(definition.max_rank):
 			category_totals[definition.workshop_category] += state.get_workshop_coin_cost_at(definition, rank)
-	_expect(category_totals[ProgressionTaxonomy.ATTACK] == 18451600 and category_totals[ProgressionTaxonomy.DEFENSE] == 13892019 and category_totals[ProgressionTaxonomy.UTILITY] == 2305008, "the full Workshop should keep the authored category prices")
+	_expect(category_totals[ProgressionTaxonomy.ATTACK] == 22415267 and category_totals[ProgressionTaxonomy.DEFENSE] == 12297232 and category_totals[ProgressionTaxonomy.UTILITY] == 2305008, "the full Workshop should keep the authored category prices")
 	state.coins = 48
 	_expect(state.purchase_ranks("stronger_tap", 12) == 12, "a first run should fund twelve Tap Damage ranks")
 	_expect(state.purchase_ranks("generator", 6) == 6, "a first run should also fund six Damage Per Second ranks")
@@ -299,7 +308,25 @@ func _test_every_ladder_reaches_its_d047_maximum() -> void:
 	_expect(is_equal_approx(state._effect_sum("coin_bonus"), 1.5), "Coin Bonus should cap at x2.5")
 	_expect(is_equal_approx(state._effect_sum("knowledge_bonus"), 0.5), "Knowledge Bonus should keep half again")
 	var tap := state.get_definition("stronger_tap")
-	_expect(is_equal_approx(tap.units_at(100.0), 100.0) and is_equal_approx(tap.units_at(250.0), 500.0) and tap.units_at(175.0) > 100.0 and tap.units_at(175.0) < 500.0, "a depth curve should read log-linearly between its anchors")
+	_expect(is_equal_approx(tap.units_at(100.0), 100.0) and is_equal_approx(tap.units_at(250.0), 500.0) and is_equal_approx(tap.units_at(175.0), 300.0), "a depth curve should run in straight lines between its anchors")
+	for definition in state.definitions:
+		if definition.depth_curve.is_empty():
+			continue
+		var worst := INF
+		var last_gain := 0.0
+		for rank in range(1, definition.max_rank + 1):
+			var gain := definition.units_at(float(rank)) - definition.units_at(float(rank - 1))
+			worst = minf(worst, gain - last_gain)
+			last_gain = gain
+		_expect(worst > -1.0e-6, "every %s rank should be worth at least the one before it" % definition.id)
+	for definition in state.definitions:
+		if definition.deep_cost_growth <= 0.0:
+			continue
+		var from := definition.deep_price_from
+		var kept := definition.cost.multiply_scalar(pow(definition.cost_growth, from))
+		_expect(definition.cost_at(from).compare_to(kept) == 0, "%s should keep its old price up to rank %d" % [definition.id, from])
+		var ratio := pow(10.0, definition.cost_at(from + 1).log10() - definition.cost_at(from).log10())
+		_expect(is_equal_approx(ratio, definition.deep_cost_growth), "%s should switch to its deep growth after rank %d" % [definition.id, from])
 
 func _test_workshop_effects() -> void:
 	var state := _funded_state()
@@ -562,8 +589,15 @@ func _test_bad_saves_are_never_written_over() -> void:
 	# the unreadable save is still kept.
 	var typed_wrong: Dictionary = SaveDataV9.make(_funded_state())
 	typed_wrong.purchased = "not a dictionary"
+	# Cash is read only while a run is saved, so the bad value sits in one.
+	var cash_wrong: Dictionary = SaveDataV9.make(_funded_state())
+	cash_wrong.in_run = true
+	cash_wrong.cash = "not a number"
+	var earned_wrong: Dictionary = SaveDataV9.make(_funded_state())
+	earned_wrong.in_run = true
+	earned_wrong.run_cash_earned = {"exponent": 0, "mantissa": "lots"}
 	var not_finite := JSON.stringify(SaveDataV9.make(_funded_state())).replace('"highest":{"exponent":0,"mantissa":0.0}', '"highest":{"exponent":0,"mantissa":1e999}')
-	for unreadable in [JSON.stringify(typed_wrong), not_finite, "{", ""]:
+	for unreadable in [JSON.stringify(typed_wrong), JSON.stringify(cash_wrong), JSON.stringify(earned_wrong), not_finite, "{", ""]:
 		_write_text(save_path, unreadable)
 		var fresh := GameState.new()
 		fresh.save_path = save_path
@@ -1461,6 +1495,14 @@ func _test_catalogues_are_internally_consistent() -> void:
 		if definition.category == ProgressionTaxonomy.WORKSHOP:
 			_expect(ProgressionTaxonomy.WORKSHOP_CATEGORIES.has(definition.workshop_category), "%s should sit on one of the four Workshop categories" % definition.id)
 			_expect(not definition.cost.is_zero(), "%s should cost something" % definition.id)
+			if definition.deep_cost_growth > 0.0:
+				_expect(definition.deep_price_from > 0 and definition.deep_price_from < definition.max_rank, "%s should switch price growth inside its ladder" % definition.id)
+		if not definition.depth_curve.is_empty():
+			var curve := definition.depth_curve
+			var sound: bool = curve.size() >= 2 and is_equal_approx(float(curve[0][1]), 1.0)
+			for index in range(1, curve.size()):
+				sound = sound and float(curve[index][0]) > float(curve[index - 1][0]) and float(curve[index][1]) > float(curve[index - 1][1])
+			_expect(sound, "%s's depth curve should start at x1 and rise through ascending anchors" % definition.id)
 	for lab_definition in state.lab_research.definitions:
 		_expect(not ids.has(lab_definition.id), "catalogue id %s should be unique" % lab_definition.id)
 		ids[lab_definition.id] = true
@@ -1929,6 +1971,19 @@ func _test_rig_multi_buy_quotes_and_spends() -> void:
 		_expect(singles.purchase_rig("stronger_tap"), "the comparison run should buy each Rig rank singly")
 	_expect(bulk.purchase_rig_ranks("stronger_tap", 5) == 5, "a funded x5 press should grant five ranks")
 	_expect(bulk.cash.compare_to(singles.cash) == 0 and bulk.rig_owned("stronger_tap") == singles.rig_owned("stronger_tap"), "bulk and single Rig buys should spend the same Cash and grant the same ranks")
+
+	# Past rank 100 each run rank moves further along the depth curve (D047).
+	var deep_bulk := _funded_state()
+	var deep_singles := _funded_state()
+	for deep_state in [deep_bulk, deep_singles]:
+		deep_state.purchased["stronger_tap"] = 2000
+		deep_state.start_run(1, 19)
+		deep_state.cash = ScientificNumber.from_float(1.0e9)
+	_expect(int(deep_bulk.plan_rig_purchase("stronger_tap", 5).ranks) == 5, "a funded deep-row x5 press should quote five run ranks")
+	for rank in range(5):
+		deep_singles.purchase_rig("stronger_tap")
+	deep_bulk.purchase_rig_ranks("stronger_tap", 5)
+	_expect(deep_bulk.cash.compare_to(deep_singles.cash) == 0 and is_equal_approx(deep_bulk._tap_base(), deep_singles._tap_base()), "a deep-row run press should cost and add what single presses do")
 
 	var maxed := _funded_state()
 	maxed.start_run(1, 18)

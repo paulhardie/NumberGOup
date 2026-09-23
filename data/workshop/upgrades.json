@@ -59,7 +59,7 @@
           67500
         ]
       ],
-      "deep_cost_growth": 1.0007
+      "deep_cost_growth": 1.00075
     },
     {
       "id": "generator",
@@ -119,7 +119,7 @@
           67500
         ]
       ],
-      "deep_cost_growth": 1.0007
+      "deep_cost_growth": 1.00075
     },
     {
       "id": "generator_two",
@@ -171,7 +171,8 @@
       "effects": {
         "double_tick_chance": 0.004
       },
-      "deep_cost_growth": 1.02
+      "deep_cost_growth": 1.02,
+      "deep_price_from": 60
     },
     {
       "id": "burst_relay",
@@ -221,7 +222,8 @@
       "effects": {
         "critical_multiplier_add": 0.0947
       },
-      "deep_cost_growth": 1.02
+      "deep_cost_growth": 1.02,
+      "deep_price_from": 60
     },
     {
       "id": "chain_reaction",
@@ -344,7 +346,7 @@
           79000
         ]
       ],
-      "deep_cost_growth": 1.0007
+      "deep_cost_growth": 1.00075
     },
     {
       "id": "siphon",
@@ -397,7 +399,8 @@
       "effects": {
         "starting_number_flat": 10.0
       },
-      "deep_cost_growth": 1.02
+      "deep_cost_growth": 1.02,
+      "deep_price_from": 50
     },
     {
       "id": "brace_discount",
@@ -431,7 +434,9 @@
       "repeatable": false,
       "effects": {
         "second_wind_share": 0.005
-      }
+      },
+      "deep_cost_growth": 1.02,
+      "deep_price_from": 50
     },
     {
       "id": "smarter_efficiency",

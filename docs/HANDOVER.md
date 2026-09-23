@@ -8,7 +8,7 @@
 The branch plays like this (seed 7 simulator figures, Godot 4.7.2, balance profile `tax-foundation-v10`; nothing below has been checked on a phone):
 
 - **The core loop (D037, D038):** everything you produce is Number and also damages the wave. A beaten wave gives way to the next after 2.5 seconds. A missed ordinary wave hits once and moves on, paying Coins for the share you cleared. Bosses, every 10th wave, stay and hit every 15 seconds until you beat them. Guard cuts the Hit by a flat amount before Armor's percentage.
-- **The Workshop (D047):** Tap Damage and Damage per Second run to 6,000 ranks and Guard to 5,000, on The Tower's Damage and Defense Absolute curves; ranks 1–100 keep their old values and prices. Tick Speed (×5.95), Crit Chance (80%), Crit Damage (×16.2 over 150), Double Tick and Armor (50% over 125), Thorns (100% over 200), Second Wind (30%), Coin Bonus (×2.5 over 300) and Cushion (150 ranks) reach Tower-like maxima. No tier bands. Past rank 100 a deep-row rank costs 1.0007× the last and an extended capped row 1.02×. The whole Workshop costs 34.6 million Coins.
+- **The Workshop (D047):** Tap Damage and Damage per Second run to 6,000 ranks and Guard to 5,000, on The Tower's Damage and Defense Absolute curves; ranks 1–100 keep their old values and prices. Tick Speed (×5.95), Crit Chance (80%), Crit Damage (×16.2 over 150), Double Tick and Armor (50% over 125), Thorns (100% over 200), Second Wind (30%), Coin Bonus (×2.5 over 300) and Cushion (150 ranks) reach Tower-like maxima. No tier bands. Each row keeps its old prices to its old cap; past it a deep-row rank costs 1.00075× the last and an extended capped row 1.02×. The whole Workshop costs 37.0 million Coins.
 - **Run Upgrades (the Rig in code; D042, D044, D045):** during a run all 21 Workshop rows can be raised with run-only Cash; Number is never spent on them.
   - A row's Workshop ranks and run ranks together stop at its max rank. A run rank is worth two Workshop ranks (Burst's is one step); on a deep row that is two ranks further along the depth curve.
   - Cash flows at the priced income (passive rate plus one tap a second, whether or not you tap). A beaten wave adds 10 + 5 × the wave, ×3 on a boss; a missed wave adds the share it cleared. A run starts with 12.5 seconds of its opening income.
@@ -20,19 +20,19 @@ The branch plays like this (seed 7 simulator figures, Godot 4.7.2, balance profi
   | --- | --- | --- |
   | Fresh | wave 20, 86 Coins | wave 28, 213 Coins |
   | Early Workshop | wave 30 | wave 40 |
-  | Mid Workshop | wave 60 | wave 76 |
-  | Attack rows at rank 100 | wave 200 | wave 210 |
-  | Every row at rank 100 | wave 220 | wave 246 |
+  | Mid Workshop | wave 60 | wave 80 |
+  | Attack rows at rank 100 | wave 200 | wave 212 |
+  | Every row at rank 100 | wave 220 | wave 252 |
   | Everything maxed | wave 830 (Tier 2: 660, Tier 3: 608) | — |
 
-- **Careers (`tools/career_simulator.gd`, runs capped at 3 hours):** the focused player (cheapest rank in Attack, Defense after a stalled run) buying run ranks reaches wave 100 in **1.4 hours (it was 2.8 before D047)** and maxes the Workshop in **147.9 hours**. An even spender (one rank of each row in turn) not buying run ranks reaches wave 100 in 4.3 hours and maxes the Workshop in 138.1 hours.
+- **Careers (`tools/career_simulator.gd`, runs capped at 3 hours):** the focused player (cheapest rank in Attack, Defense after a stalled run) buying run ranks reaches wave 100 in **1.4 hours (it was 2.8 before D047)** and maxes the Workshop in **149.9 hours**. Without run ranks the focused player takes 2.3 hours to wave 100 and 164 to max. An even spender (one rank of each row in turn) maxes sooner, in 107.6 hours with run ranks and 111.4 without, because it buys Coin Bonus early; the 150-hour target is the focused player's.
 - **Balance targets ([`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md)):** 5 fails again since D047 (Attack alone at rank 100 reaches wave 200) and needs restating against the deep rows, as do 7 and 8; the owner chose not to retune the waves for the Workshop alone. 2 still fails by design since D037.
 
 ## Open decisions for the owner
 
 1. **Merge branch `claude/game-changes-review-fbili3`** (D047 plus the earlier tools and docs). High risk: economy and saves; an independent review ran on the D047 diff (see Known issues).
 2. **The early-game pacing change.** D047's bigger Tick Speed and Crit steps halve the focused player's time to wave 100. Built as approved. The alternative keeps today's per-rank steps and adds ranks instead (Tick Speed 196, Crit Chance 320, Crit Damage 284 ranks), which keeps the first hours as they were and moves the extra power later.
-3. **Research Focus is lopsided.** Its 25% off one category was balanced on equal category totals; Attack now costs 18.5 million, Defense 13.9 million, Utility 2.3 million. Options: give Research Focus a per-category effect, or deepen Utility's prices.
+3. **Research Focus is lopsided.** Its 25% off one category was balanced on equal category totals; Attack now costs 22.4 million, Defense 12.3 million, Utility 2.3 million, and Coin Bonus is nearly all of Utility. Options: give Research Focus a per-category effect, or deepen Utility's prices.
 4. **Save V9 clash:** unmerged branch `codex/prestige-run-summary` (persisted run summaries) also adds `src/save_data_v9.gd`. This branch now takes V9 for D047; that branch must rebase onto it and become V10.
 5. **The Tower parity plan and coin gates** ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md#tower-parity-plan-and-coin-gates--proposed-23-september-2026)): the gate model, the measured ladder, Crit free from the start, the starter rows, run Upgrades selling only unlocked rows, each new mechanic, and three primitives (movable Hit timer, wave queue, difficulty counter). Gates would add `workshop_unlocks`, so they need their own save version after V9.
 6. **Past a maxed Workshop:** wave 5,000's Wave HP is about 10^40 against the maxed Workshop's 10^11; Labs, Cards, Ultimate Weapons and higher tiers are meant to close it (owner direction), and none are sized yet.
@@ -54,7 +54,7 @@ The branch plays like this (seed 7 simulator figures, Godot 4.7.2, balance profi
 - **The wave 100 boss** doubles in one step: the ×1.5 milestone lands on the boss's ×3. It's the tier gate, left as is.
 - **Cash counts a tap a second even when you're idle**, so an idle player buying run ranks keeps pace with a light tapper.
 - **`run_cash_earned` is saved but nothing reads it**, and `tools/balance_simulator.gd` still carries the unused `_rig_reserve`.
-- **The independent review of the D047 diff** had not reported at this commit; its findings follow in a later commit on this branch.
+- **Independent review of D047 (two passes):** no blockers. Fixed from it: prices now switch at each row's old cap rather than rank 100 (Cushion had become 27% of Defense), the depth curves run in straight lines so no rank is worth less than the one before, the price cache compares the discount exactly, and V9 refuses a save with malformed Cash. Left open: **the Crit Chance card adds nothing once Workshop Crit Chance is maxed** (80% is also the ceiling), and Coin Bonus's last ranks (45,143 Coins) are the dearest in the Workshop.
 
 ## Working notes
 

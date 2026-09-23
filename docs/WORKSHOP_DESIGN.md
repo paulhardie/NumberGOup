@@ -156,7 +156,7 @@ Four consequences are real and were accepted:
 
 Multi-buy made the Workshop's real shortness visible: 51 ranks across 13 rows, which `MAX` collapsed into about thirteen presses. The reference's ladders run to hundreds of levels per stat. Step 3b rebuilds every ladder to that shape.
 
-**Since D047 (23 September 2026)** Tap Damage and Damage per Second run to 6,000 ranks and Guard to 5,000 on The Tower's shape, and several capped rows reach Tower-like maxima; ranks 1–100 keep the values and prices below. The whole Workshop now costs 34.6 million Coins (Attack 18.5 million, Defense 13.9 million, Utility 2.3 million), about 148 hours for a focused player. See [`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md#tower-matched-review--23-september-2026).
+**Since D047 (23 September 2026)** Tap Damage and Damage per Second run to 6,000 ranks and Guard to 5,000 on The Tower's shape, and several capped rows reach Tower-like maxima; ranks 1–100 keep the values and prices below. The whole Workshop now costs 37.0 million Coins (Attack 22.4 million, Defense 12.3 million, Utility 2.3 million), about 150 hours for a focused player. See [`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md#tower-matched-review--23-september-2026).
 
 **The rule: multiply the cap, divide the step, keep the cap's value.** Each row's rank cap rose by roughly 20×, and its per-rank effect fell by the same factor, so the value at maximum rank is exactly what the three-to-ten-rank ladder reached. Cost growth flattens from 1.55–2.00 to 1.038–1.078, and each row's Coins-to-max is designed rather than inherited, which also retires two distortions: Cushion was 30% of the Workshop's price for a stat that does nothing on Tier 1, and Tap Damage was 0.2% of it for a stat used all game.
 

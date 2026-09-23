@@ -1059,7 +1059,7 @@ func plan_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
 func _price_totals(definition: UpgradeDefinition) -> PackedInt64Array:
 	var discount := _workshop_discount(definition)
 	var cached: Variant = _price_total_cache.get(definition.id)
-	if cached is Dictionary and is_equal_approx(float(cached.discount), discount) and (cached.totals as PackedInt64Array).size() == definition.max_rank + 1:
+	if cached is Dictionary and float(cached.discount) == discount and (cached.totals as PackedInt64Array).size() == definition.max_rank + 1:
 		return cached.totals
 	var totals := PackedInt64Array()
 	totals.resize(definition.max_rank + 1)
