@@ -13,16 +13,16 @@
 
 ### The idea in one paragraph
 
-A wave has no enemies on screen, so every "spatial" Tower row is translated through two readings the game already supports: **the Hit timer is distance** (the wave walks in and lands its Hit when it arrives) and **the waves behind this one form a queue** (a proposed new primitive: the next two or three waves' HP shown as small numbers behind the big one). Each Workshop tab starts with a few free rows. The rest open one at a time through **coin gates**: a one-time Coin payment that unlocks the next mechanic in that tab, in a fixed order. A fresh save opens with 7 rows (today 5, with the other 16 opening by Workshop level); a fully unlocked Workshop has 49, against The Tower's 48.
+A wave has no enemies on screen, so every "spatial" Tower row is translated through two readings the game already supports: **the Hit timer is distance** (the wave walks in and lands its Hit when it arrives) and **the waves behind this one form a queue** (a proposed new primitive: the next two or three waves' HP shown as small numbers behind the big one). Each Workshop tab starts with a few free rows. The rest open one at a time through **coin gates**: a one-time Coin payment that unlocks the next mechanic in that tab, in a fixed order. A fresh save opens with 9 rows (today 5, with the other 16 opening by Workshop level); a fully unlocked Workshop has 49, against The Tower's 48.
 
 ### How coin gates work
 
-- **What The Tower does.** Its first rows in each tab are free; from there each new mechanic is a one-time Coin unlock that needs the previous one. The wikis give Attack as Multishot 400 Coins, Rapid Fire 1,500, Bounce Shot 10,000, Super Critical 100 million, and Death Defy at 1.5 million after the Land Mine rows. Crit Chance and Crit Factor are free there; gating them is our choice.
+- **What The Tower does.** Its first rows in each tab are free; from there each new mechanic is a one-time Coin unlock that needs the previous one. The wikis give Attack as Multishot 400 Coins, Rapid Fire 1,500, Bounce Shot 10,000, Super Critical 100 million, and Death Defy at 1.5 million after the Land Mine rows. Crit Chance and Crit Factor are free there, and they are free here too.
 - **One ladder per tab, in a fixed order.** Only the next gate in each tab shows, as a locked card with its price (`UNLOCK FRENZY · 2,500 COINS`). Later gates show as locked without a name, so the tab promises more without listing it.
 - **A gate is a choice, not a toll.** After the first run a player can afford one first gate in one tab, or a handful of ranks. Opening a mechanic and deepening one compete for the same Coins.
 - **Fixed prices.** Gates ignore Discount and Research Focus, so the ladder reads the same for everyone and a discount never reorders it.
 - **Replaces the Workshop-level row gates.** `workshop_level_required` stops gating rows, so there is one rule for "why can't I buy this". The Workshop level stays: Labs and Research Focus still open by it.
-- **The Rig sells only unlocked rows,** as The Tower's in-run upgrades do. This narrows D042's "all 21 rows in the Rig" to "every unlocked row", so it needs recording against D042. It also narrows what a fresh run can buy: 7 rows instead of 21. Measured with the career simulator (40 runs from a fresh save), the first ladder below made early progress without run ranks about twice as slow as today; see [the gate prices](#the-gate-ladder-measured).
+- **The Rig sells only unlocked rows,** as The Tower's in-run upgrades do. This narrows D042's "all 21 rows in the Rig" to "every unlocked row", so it needs recording against D042. It also narrows what a fresh run can buy: 9 rows instead of 21. Measured with the career simulator (40 runs from a fresh save), the first ladder below made early progress without run ranks about twice as slow as today; see [the gate prices](#the-gate-ladder-measured).
 - **Saves.** Unlocks are permanent and saved as `workshop_unlocks`, a new field, so under D028 it is save schema V9. That is the same bump the Cash fields owe. Migration unlocks every row an old save holds ranks in or whose old Workshop-level gate it already meets, so no player loses a row they had.
 
 **The gate ladder**, the same in every tab (starting proposal; the first three gates raised from 60, 150 and 400 after the [measurement below](#the-gate-ladder-measured)):
@@ -48,6 +48,21 @@ Measured on 23 September 2026 with `tools/career_simulator.gd`: 40 runs from a f
 
 *Re-measured after D046 (Hit scale 1.7), new ladder:* without run Upgrades, wave 30 on run 8 against today's run 5, and wave 100 not reached within 40 runs against today's run 34 (7.3 h); buying run Upgrades, wave 100 on run 28 (6.2 h) against today's run 22 (5.2 h). The harder Hit widens what gates cost a player who never buys run Upgrades.
 
+#### A focused player, and Crit free
+
+The career simulator's first player spreads Coins evenly across every open row. `--spend focused` adds a second: between runs it buys the cheapest rank in its focus tab first (Attack, or Defense after a run that did not beat its best wave), opens its focus tab's next gate as soon as it can and another tab's only at twice the price. Measured on 23 September 2026 (profile `tax-foundation-v10`, 40 runs from a fresh save, two taps a second), with Crit free in the plan as the owner directed:
+
+| Layout | Focused, no run Upgrades | Focused, buying run Upgrades | Even, no run Upgrades | Even, buying run Upgrades |
+| --- | --- | --- | --- | --- |
+| No gates (today) | wave 100 in 5.0 h (run 22) | 2.8 h (run 12) | 7.3 h (run 34) | 5.2 h (run 22) |
+| **The plan, Crit free** | **7.2 h (run 34)** | **4.0 h (run 17)** | 8.2 h (run 40) | 5.7 h (run 26) |
+| The Tower's shape (`--layout tower`) | 9.2 h (run 40) | 3.9 h (run 17) | not reached in 40 runs | 6.9 h (run 30) |
+
+- **How a player spends matters more than how the gates are laid out:** the focused player reaches wave 100 in about half the even player's time under every layout.
+- **The plan with Crit free is the better layout.** It matches the Tower shape for a player buying run Upgrades and is two hours faster for one who does not, because it opens Boss Damage second (every Tier 1 wall is a boss) where the Tower shape puts it at 2,500 Coins. Freeing Crit also helped the even player (wave 100 in 8.2 hours instead of not at all within 40 runs).
+- **Gates cost a focused player about 40% more time to wave 100** (4.0 against 2.8 hours buying run Upgrades, 7.2 against 5.0 without). That is the slowdown the gates are for; whether 40% is the right amount is the owner's call.
+- **Tier 1 is short for a focused player:** wave 100, and so Tier 2, in about three to seven hours. The Workshop's rows stop at 50–100 ranks; the deep ladders in [`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md) are proposed, not built.
+
 #### How The Tower prices its gates
 
 From the community wikis ([Fandom](https://the-tower-idle-tower-defense.fandom.com/wiki/Workshop_Upgrades), [Game Vault](https://the-tower-idle-tower-defense.game-vault.net/wiki/Workshop)); community data, not developer data, and prices can change between versions:
@@ -71,21 +86,20 @@ Its rules, read from that table:
 
 ### Attack
 
-Free at the start: **Tap Damage, Damage per Second, Tick Speed.**
+Free at the start: **Tap Damage, Damage per Second, Tick Speed, Crit Chance, Crit Damage.** Crit is free, as in The Tower (owner direction, 23 September 2026).
 
 | Gate | Opens | Tower row(s) | What it does here | Needs |
 | --- | --- | --- | --- | --- |
-| 1 | Crit Chance, Crit Damage | Critical Chance, Critical Factor | As today | — |
-| 2 | Damage Multiplier | Damage (its scaling) | As today | — |
-| 3 | Boss Damage | — (ours) | As today | — |
-| 4 | Auto Crank | — (ours) | As today; its Auto Tap job is still open | — |
-| 5 | **Early Strike** | Damage / Meter | Bonus damage for every second left on the Hit timer: a wave hit while still far away takes more. Shown as a shrinking multiplier (`×1.3 EARLY`) | Pipeline |
-| 6 | **Frenzy Chance, Frenzy Duration** | Rapid Fire Chance, Duration | Chance per tick to tick 4× faster for a few seconds, with a countdown on the ring. **Replaces Burst** | Pipeline |
-| 7 | Double Tick → **Volley Chance, Volley Depth** | Multishot Chance, Targets | Double Tick as today until the queue exists; then a tick has a chance to also strike the queued waves, Depth setting how far down | Queue |
-| 8 | Crit Chain | — (ours) | As today | — |
-| 9 | **Reach** | Range | During the 2.5 seconds a beaten wave stays on screen, output already strikes the next wave; today it only adds Number | Queue |
-| 10 | **Super Crit Chance, Super Crit Damage** | Super Crit Chance, Mult | A crit has a chance to multiply again, in its own colour (`SUPER ×13`) | Pipeline |
-| 11 | **Rend Chance, Rend Strength** | Rend Armor Chance, Mult | Chance per tick to add a stack of "takes more damage" to the current wave, up to a cap; stacks clear with the wave. A boss-fight stat, shown as `REND ×1.8` | Pipeline |
+| 1 | Damage Multiplier | Damage (its scaling) | As today | — |
+| 2 | Boss Damage | — (ours) | As today | — |
+| 3 | Auto Crank | — (ours) | As today; its Auto Tap job is still open | — |
+| 4 | **Early Strike** | Damage / Meter | Bonus damage for every second left on the Hit timer: a wave hit while still far away takes more. Shown as a shrinking multiplier (`×1.3 EARLY`) | Pipeline |
+| 5 | **Frenzy Chance, Frenzy Duration** | Rapid Fire Chance, Duration | Chance per tick to tick 4× faster for a few seconds, with a countdown on the ring. **Replaces Burst** | Pipeline |
+| 6 | Double Tick → **Volley Chance, Volley Depth** | Multishot Chance, Targets | Double Tick as today until the queue exists; then a tick has a chance to also strike the queued waves, Depth setting how far down | Queue |
+| 7 | Crit Chain | — (ours) | As today | — |
+| 8 | **Reach** | Range | During the 2.5 seconds a beaten wave stays on screen, output already strikes the next wave; today it only adds Number | Queue |
+| 9 | **Super Crit Chance, Super Crit Damage** | Super Crit Chance, Mult | A crit has a chance to multiply again, in its own colour (`SUPER ×13`) | Pipeline |
+| 10 | **Rend Chance, Rend Strength** | Rend Armor Chance, Mult | Chance per tick to add a stack of "takes more damage" to the current wave, up to a cap; stacks clear with the wave. A boss-fight stat, shown as `REND ×1.8` | Pipeline |
 
 Not taken: **Bounce Shot** (Chance, Targets, Range). Its job, overkill carrying into the next wave, is the "overkill carry-over" [already considered and not proposed](#considered-and-not-proposed): contested waves end with almost no overkill, and an outclassed wave's overkill buys nothing because the next wave waits out its 2.5 seconds anyway. Volley covers "hit more than one wave".
 

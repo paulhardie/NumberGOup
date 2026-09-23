@@ -30,11 +30,11 @@
 ## Open decisions for the owner
 
 1. **Merge D046** (branch `claude/game-changes-review-fbili3`).
-2. **Save schema V9.** `cash` and `run_cash_earned` widened V8 instead of bumping it, which D028 rules out. Recommended: bump to V9 with a V8 migration, together with coin gates' `workshop_unlocks` if those are accepted.
-3. **The Tower parity plan and coin gates** ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md#tower-parity-plan-and-coin-gates--proposed-23-september-2026)): the gate model, the measured ladder (first gates 100, 250, 500; since D046, a player who never buys run Upgrades doesn't reach wave 100 within 40 gated runs), the starter rows, run Upgrades selling only unlocked rows, each new mechanic, and three primitives (movable Hit timer, wave queue, difficulty counter).
+2. **Save schema V9.** `cash` and `run_cash_earned` widened V8 instead of bumping it, which D028 rules out. Recommended: bump to V9 with a V8 migration, together with coin gates' `workshop_unlocks` if those are accepted. **Clash:** unmerged branch `codex/prestige-run-summary` already calls its own save change "V9" (persisted run summaries); whichever lands second must become V10.
+3. **The Tower parity plan and coin gates** ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md#tower-parity-plan-and-coin-gates--proposed-23-september-2026)): the gate model, the measured ladder (first gates 100, 250, 500), Crit free from the start (owner direction), gates costing a focused player about 40% more time to wave 100, the starter rows, run Upgrades selling only unlocked rows, each new mechanic, and three primitives (movable Hit timer, wave queue, difficulty counter).
 4. **Tier unlock wave:** still 100 (`TIER_UNLOCK_WAVE`).
 5. **Coins per minute (balance target 2):** above target since D037. Accept and restate, or bring Coins down.
-6. **The Workshop ladders** ([`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md)): 5,000-rank core rows, bands per tier, `data/workshop/` as the single source.
+6. **The Workshop ladders** ([`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md)): **proposed, not built** — every row still stops at 50–100 ranks. The proposal: 5,000-rank core rows, 1,000-rank long rows, a band per tier, `data/workshop/` as the single source. A focused player reaches Tier 2 in three to seven hours on today's ladders.
 7. **Still open from before:** Bounty, Finisher, Streak, Payback and Auto Tap; the Tiers 1–10 proposal ([`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md)); the play-folder sync rule on branch `claude/sync-play-checkout`; enemy-growth suppression ([`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md)).
 
 ## Next steps, in order
