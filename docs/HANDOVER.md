@@ -25,7 +25,7 @@
   | Everything maxed | wave 128 | wave 170 |
 
   The representative first run reaches the wave 20 boss with 106 Coins. One tap a second buying Rig ranks reaches wave 29 with 231 Coins; an idle player buying Rig ranks reaches wave 20 with 102.
-- **Balance targets ([`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md)):** 5 (wave 100 needs Defense) holds for Workshop builds only; **max Attack playing the Rig reaches wave 130 with no Defense.** 7 (the Rig cannot replace the Workshop) is borderline: fresh + Rig reaches wave 30, where early Workshop builds stopped before D042. 10's idle clause fails for an idle player who buys the opening Rig ranks (first hit at 73 seconds). 2 still fails by design since D037.
+- **Balance targets ([`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md)):** **5 (wave 100 needs Defense) fails**: since D043's smaller Hits, max Attack alone clears the wave 100 boss and dies at wave 103, and playing the Rig takes it to 130. 7 (the Rig cannot replace the Workshop) is borderline: fresh + Rig reaches wave 30, where early Workshop builds stopped before D042. 10's idle clause fails for an idle player who buys the opening Rig ranks (first hit at 73 seconds). 2 still fails by design since D037.
 
 ## Open decisions for the owner
 
