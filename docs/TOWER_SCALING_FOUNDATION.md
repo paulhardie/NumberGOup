@@ -2,6 +2,8 @@
 
 Status: researched and implemented as foundation profile `tax-foundation-v1`, retuned to `tax-foundation-v2` for D012, `tax-foundation-v3` for Tier 1's opening (D034), and `tax-foundation-v4` for lower warm-up Wave HP and idle-safe Hit growth (D036), 22 September 2026. The encounter rules changed with D037 (the Number always rises; missed waves move on; bosses stay) under `tax-foundation-v5`, with the curves unchanged. D040 (`tax-foundation-v7`) replaced Tier 1's warm-up with one curve from wave 1 and made each Hit a share of its wave's HP.
 
+**Reading guide (23 September 2026):** This page retains the research and implementation history. Its “baseline audited”, “recommended” and “implementation sequence” sections are historical, not pending instructions. For a dated comparison of Tower scaling with the current game, source confidence and closeness ratings, use the scaling chapter in [`TOWER_SYSTEMS_REFERENCE.md`](TOWER_SYSTEMS_REFERENCE.md). The live Number Go Up formula authority is [`TaxBalanceProfile`](../src/tax_balance_profile.gd), with encounter resolution in [`GameState`](../src/game_state.gd). Tower SDK formulas and tier tables here are unofficial, version-sensitive research evidence: its [documented parity check](https://github.com/TmRxJD/TheTowerSDK/blob/main/src/mechanics/waves/base-empirical-scaling.ts) covered 21 tiers in August 2026, while the [developer's v28.3 notes](https://www.techtreegames.com/post/v28-3-patch-notes) added Tiers 22–24. Do not treat the early-body examples or full table below as independently verified v29 constants. The live Wave HP body uses the same written polynomial terms as the early SDK example below, with a ×4 scale; the provenance of those terms needs review under D009 before claiming independent coefficients.
+
 ## Implemented foundation
 
 The first complete slice now includes:
@@ -60,7 +62,7 @@ The recoverable pre-migration baseline is commit `5e4b499` (`Initial commit: Num
 
 ## Best available public formula/data sources
 
-### 1. TheTowerSDK — strongest current source
+### 1. TheTowerSDK — strongest public reconstruction reviewed
 
 [TheTowerSDK](https://github.com/TmRxJD/TheTowerSDK) is the most useful public source found. It exposes typed data, save parsing and game-mechanics calculations. The important files are:
 

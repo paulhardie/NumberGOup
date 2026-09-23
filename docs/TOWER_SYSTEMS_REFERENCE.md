@@ -67,7 +67,39 @@ Tower tiers offer different pressure, rewards and unlocks. v28.3 added Tiers 22�
 | Overheat / very-long-run control | Late-wave conditions push otherwise endless runs towards an outcome [S4]. | **0/4** — no such late-run system; current runs do not yet justify it. | Defer |
 | Battle reports and learning tools | In-run stats, end reports and encyclopedia descriptions help explain deep interactions [S4][S5]. | **2/4** — run summary, lost-to explanation and stats exist, but effect provenance and a searchable rules reference are limited. [NG: `main.gd`, `HANDOVER.md`] | Core |
 
-## 4. Currencies and compounding economy — **2/4**
+## 4. Scaling and balance architecture — **2/4**
+
+**Source boundary:** Tower developer notes confirm tier additions, battle conditions and Enemy Level Skip interactions [S3][S4][S6], but they do not publish a complete current formula set. The more detailed wave and tier shapes below are an **unofficial reconstruction** from [TheTowerSDK's wave model][S11], [tier profile][S12] and [enemy-type modifiers][S13], consulted on 23 September 2026. Its repository `main` can change; the exact values in [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md) are version-sensitive research evidence, not verified current developer constants.
+
+The useful shape is `wave body × milestone steps × later compound growth × tier table × encounter modifiers`. The SDK models enemy health and attack with **different wave bodies and growth chains**. Tower's later pressure is not one constant percentage applied to the player's current resources. Our [`TaxBalanceProfile`](../src/tax_balance_profile.gd) likewise creates absolute Wave HP and Hit values, but **our Hit curve is derived from Wave HP**, so the two numbers cannot currently be tuned independently by wave. That is an intentional simplification in D040, not full scaling equivalence.
+
+| Scaling axis | Tower reference, with evidence level | Number Go Up now, and why the score | Fit |
+| --- | --- | --- | --- |
+| Enemy health across waves | The SDK reconstructs a wave body with milestone and compound growth [S11]. **Community model**, not an official formula. | **3/4** — Wave HP is a polynomial body with ×1.08 every 10 waves, ×1.2 every 50 and ×1.5 every 100; log-space calculation supports large values. Deep waves lack a real career playthrough. The polynomial's terms match the early SDK example in the older research after our ×4 scale; see the provenance note below. [NG: `tax_balance_profile.gd`] | Core |
+| Enemy attack across waves | The SDK reconstructs a separate attack body and milestone chain [S11]. **Community model**. | **2/4** — Hit starts at 20% of ordinary Wave HP and rises to 60% by wave 30, then stays at that share. Defence modifies the effective Hit. The coupling limits separate offensive and survival pacing. [NG: D040, `tax_balance_profile.gd`] | Core |
+| Tier pressure versus reward | SDK tables show explicit, irregular tier pressure jumps and much smaller Coin reward steps [S12]; v28.3 confirms Tiers 22–24 exist [S3]. **Community numbers; developer-confirmed tier expansion.** | **3/4** — three authored tiers use pressure 1×/20×/60× on both axes and reward 1×/1.8×/2.6×. The same wave body applies in each tier. Later tiers are proposals, not live content. [NG: `tier_definition.gd`, `TIER_BALANCE_PROPOSAL.md`] | Core |
+| Enemy and boss modifiers | The SDK applies enemy-type health/attack modifiers after base wave stats [S13]; developer notes document different Fleet behaviour [S3]. **Mixed source confidence.** | **2/4** — every tenth wave is a boss with ×3 Wave HP, ×1.5 base Hit and ×5 wave Coins; bosses stand and hit repeatedly. No broader enemy-type modifier table exists. [NG: `tax_balance_profile.gd`, `game_state.gd`] | Core |
+| Wave timing and run length | Tower pacing can change with skips, sprint and late Overheat [S2][S4][S6]. **Developer-confirmed systems, not a single timing formula.** | **2/4** — ordinary waves have a 15-second Hit boundary; clears advance after at least 2.5 seconds, misses hit once and move on, bosses stand. Run-length control is limited to these rules and the current curve. [NG: D037, `game_state.gd`] | Core |
+| Rewards and farming | Tier Coin multipliers grow more slowly than pressure in the SDK [S12]; Tower also has multiple specialist resource loops [S2][S4]. **Community multiplier table; developer-confirmed resource layers.** | **2/4** — base Coins are `round(0.65 × wave × tier reward × boss factor)`, with partial Coins on missed ordinary waves and milestone bonuses. Current Coins-per-minute target fails after faster clears; reward tuning is open. [NG: `tax_balance_profile.gd`, `game_state.gd`, `HANDOVER.md`] | Core |
+| Permanent and run upgrade costs | Tower's Workshop, Labs and other systems each have their own investment ladders [S2][S4]; this reference does **not** assert a universal Tower cost formula. | **2/4** — Workshop rows have authored price ladders, Rig ranks cost roughly five seconds of current income then grow ×1.4 per row rank, and Labs have separate Coin/time growth. Long Workshop ladders and late Lab reachability are open balance questions. [NG: `data/workshop/upgrades.json`, `lab_research.gd`, D039] | Core |
+| Suppressing future pressure | Enemy Level Skip changes whether an enemy level increase applies; developer notes confirm its ordering relative to Skip Decay [S6]. Exact chance and cumulative formula are **not established here**. | **0/4** — no suppression rule or saved skip counters. Compare chance-based and earned variants only after the visible fight is tested; neither is accepted balance. [NG: `COMBAT_FEEL_PLAN.md`] | Investigate |
+| Numeric range and measurement | Tower reaches very large tier/wave values in community models [S11][S12]; exact current extremes need game-version checks. | **2/4** — `ScientificNumber`, log-space Wave HP and a GDScript balance simulator exist. A full real-rules career model and player-observed pacing are still missing. [NG: `scientific_number.gd`, `tax_balance_profile.gd`, `HANDOVER.md`] | Core |
+
+**Current Number Go Up calibration, not Tower values.** The safe `run_balance.sh` measurement on this branch printed profile `tax-foundation-v7` (display-rounded values):
+
+| Tier and wave | Wave HP | Base Hit | Wave Coins |
+| --- | ---: | ---: | ---: |
+| Tier 1, wave 1 | 9 | 2 | 1 |
+| Tier 1, wave 50 boss | 5,276 | 1,583 | 163 |
+| Tier 1, wave 100 boss | 55,475 | 16,643 | 325 |
+| Tier 2, wave 100 boss | 1.11M | 332,852 | 585 |
+| Tier 3, wave 100 boss | 3.33M | 998,556 | 845 |
+
+The same measurement's representative seed-7 first run ended at the wave-20 boss after 337.5 seconds with 106 Coins. These are simulator/profile checks, **not** a phone playtest or proof of a balanced career. The current open question is whether coupling Hit to HP and the larger boss steps create interesting Attack-versus-Defense choices once players can read the contest. Changing that coupling, a tier multiplier, reward rate or skip rule would be a separate balance decision with high-risk verification.
+
+**Coefficient provenance needs a decision.** [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md#what-the-towers-curve-actually-looks-like) quotes an early SDK health body of `0.05 × wave^2.13 + 0.8 × wave + 1.5`. The live [`TaxBalanceProfile`](../src/tax_balance_profile.gd) uses those same written terms inside a ×4 scale, despite its comment saying the coefficients are deliberately ours. Git history shows both expressions in the tiered foundation commit `0f88c38`; it does not record an independent derivation. This establishes an overlap, **not** why it happened or whether the SDK expression is current Tower behaviour. Before changing or defending those constants under D009, decide whether to author a replacement and test it against the current first-run and build baselines. This document does not authorise a balance change.
+
+## 5. Currencies and compounding economy — **2/4**
 
 Tower resources split by job. Cash is a run resource; Coins buy persistent baseline/research; Gems open options; Cells, Stones, Medals, Keys and shards support additional research, specialist, event, tournament, Vault and equipment loops. The released developer notes confirm these named resources and their links to current systems [S2][S4]. This table is **not** a complete earning-rate or spend-price ledger, and the Gemini note's Cell acceleration formula is unverified.
 
@@ -81,7 +113,7 @@ Tower resources split by job. Cash is a run resource; Coins buy persistent basel
 
 **Dependency rule:** A new currency must have a distinct decision, earning route, sink, reset boundary, save contract and player-facing explanation. Currency count is not a measure of depth.
 
-## 5. Live operation, social and commercial layers — **0/4**
+## 6. Live operation, social and commercial layers — **0/4**
 
 Tower's events, daily missions, tournaments, Guilds, stores and account services make a released live game operate over months. v29 added a Mythic tournament league and adjusted rewards and Fleet waves [S2]; v26 Guilds introduced contribution, chests, store and Guardians [S8]. v29.0.3 still fixes cross-device/run-stat and Vault-respec issues [S1], evidence of the maintenance load these layers carry.
 
@@ -112,6 +144,9 @@ Tower's events, daily missions, tournaments, Guilds, stores and account services
 [S8]: https://www.techtreegames.com/post/tower-tea-july-6-2026 "Developer Guild retrospective, 6 July 2026"
 [S9]: https://www.techtreegames.com/post/tower-tea-september-14-2026 "Developer update, 14 September 2026; future items distinguished above"
 [S10]: https://www.techtreegames.com/post/v28-0-6-patch-notes "v28.0.6 resume fixes"
+[S11]: https://github.com/TmRxJD/TheTowerSDK/blob/main/src/mechanics/waves/base-empirical-scaling.ts "Unofficial SDK wave reconstruction, consulted 23 September 2026"
+[S12]: https://github.com/TmRxJD/TheTowerSDK/blob/main/src/mechanics/waves/scaling-regression-profile.ts "Unofficial SDK tier and reward profile, consulted 23 September 2026"
+[S13]: https://github.com/TmRxJD/TheTowerSDK/blob/main/src/mechanics/enemies/type-mults.ts "Unofficial SDK enemy-type modifiers, consulted 23 September 2026"
 
 **Evidence limits:** Developer patch notes establish the features and changes stated there, not every evergreen rule, current numeric value or early unlock. [`TheTowerSDK`](https://github.com/TmRxJD/TheTowerSDK) and calculators in [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md) are qualified community evidence for formulas and need a pinned version before numeric use. The supplied Gemini research is an unverified secondary interpretation. Our ratings come from the checked-in Godot code and accepted decisions; they have not been validated by a fresh phone playtest. This is a current-state reference, not implementation approval.
 
