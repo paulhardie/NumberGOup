@@ -14,7 +14,7 @@ var outcome: String = "death"
 var final_hit: ScientificNumber = ScientificNumber.new()
 var lost_to_boss: bool = false
 ## The two gaps under "Lost to" (D022, step 6): how far short Attack fell
-## against the wave's HP — the HP it left when the timer ran out, before Recoil
+## against the wave's HP — the HP it left when the timer ran out, before Thorns
 ## returned any of the hit — and how far short Defense fell against the killing
 ## hit, the hit minus the Number held before it. Both zero on a retreat, which
 ## was lost to nothing.

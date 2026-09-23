@@ -344,9 +344,9 @@ func _play_rig(state: GameState) -> int:
 	return bought
 
 ## The Reinvestor spends "the moment a wave starts resisting": while a wave is
-## cleared or still in warm-up the Number is left to bank, so the buffer grows
-## before the spend. Buying during banking time is what made the first policy
-## drain the buffer and die early.
+## cleared or still in warm-up it leaves the Number alone, so the buffer grows
+## before the spend. Buying on easy waves is what made the first policy drain
+## the buffer and die early.
 func _rig_can_spend(state: GameState) -> bool:
 	if state.active_encounter == null:
 		return false
@@ -354,7 +354,7 @@ func _rig_can_spend(state: GameState) -> bool:
 
 ## The Number the policy will not spend: the hits that are actually coming, with
 ## a one-hit margin. While a wave is cleared, that is the next wave's hit, so
-## banking time is spent down to a real reserve rather than to zero.
+## the Number is spent down to a real reserve rather than to zero.
 func _rig_reserve(state: GameState) -> ScientificNumber:
 	var hit := ScientificNumber.new()
 	if state.active_encounter != null and not state.active_encounter.is_cleared() and not state.active_encounter.max_liability.is_zero():

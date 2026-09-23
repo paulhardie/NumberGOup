@@ -280,7 +280,8 @@ func _process(delta: float) -> void:
 				_pulse_ring_hit(1.008)
 			else:
 				_spawn_floating_text("-" + _stat_number(event.amount) + " NUMBER", hit_colour, _stage_float_point())
-				_show_toast(("BOSS HIT" if boss_hit else "HIT") + " · -" + _stat_number(event.amount) + " NUMBER · " + state.number.format_value() + " LEFT", hit_colour)
+				# D037: an ordinary wave hits once and passes; a boss stays and hits again.
+				_show_toast(("BOSS HIT · HITS AGAIN IN " + str(int(GameState.WAVE_INTERVAL_SECONDS)) + "s" if boss_hit else "WAVE PASSED") + " · -" + _stat_number(event.amount) + " NUMBER · " + state.number.format_value() + " LEFT", hit_colour)
 				_snap_number_display()
 				_flash_number(hit_colour, 0.5 if boss_hit else 0.35)
 				_pulse_stage_impact(hit_colour)
@@ -2274,7 +2275,7 @@ func _refresh_encounter_line() -> void:
 		encounter_label.text = "BEATEN"
 		return
 	var seconds_left := maxi(0, ceili(GameState.WAVE_INTERVAL_SECONDS - state.wave_accumulator))
-	encounter_label.text = "HITS FOR " + state.get_effective_collection().format_value() + " IN " + str(seconds_left) + "s"
+	encounter_label.text = ("BOSS HITS FOR " if encounter.is_boss else "HITS ONCE FOR ") + state.get_effective_collection().format_value() + " IN " + str(seconds_left) + "s"
 
 func _set_action_enabled(button: Button, enabled: bool) -> void:
 	var verb: Label = button.get_meta("verb_label")

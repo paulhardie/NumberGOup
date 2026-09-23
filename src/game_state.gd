@@ -357,11 +357,11 @@ func _resolve_wave_boundary() -> SimulationEvent:
 
 ## An ordinary wave that outlasts its timer moves on (D037). It pays Coins for
 ## the share of it that was cleared, floored like Coin Bonus so a one-Coin
-## warm-up wave pays only when beaten. It was not beaten, so it sets no record,
-## claims no checkpoint and pays no Gems.
+## warm-up wave pays only when beaten. It was not beaten, so it sets no record
+## and pays no Gems; its checkpoint pays when a later wave is beaten.
 func _pass_missed_wave() -> void:
 	var share := get_wave_cleared_share()
-	var coin_gain := floori(float(active_encounter.reward) * share * (1.0 + _effect_sum("coin_bonus")))
+	var coin_gain := floori(float(active_encounter.reward) * share * (1.0 + _effect_sum("coin_bonus")) + 0.000001)
 	coins += coin_gain
 	run_coins_earned += coin_gain
 	wave += 1
@@ -373,7 +373,12 @@ func get_wave_cleared_share() -> float:
 		return 1.0
 	if active_encounter.remaining_liability.compare_to(active_encounter.max_liability) >= 0:
 		return 0.0
-	return clampf(1.0 - pow(10.0, active_encounter.remaining_liability.log10() - active_encounter.max_liability.log10()), 0.0, 1.0)
+	# A plain ratio of mantissas, not logarithms, so 20 left of 100 is exactly
+	# 0.8 and a floored Coin count never comes out one short.
+	var remaining: ScientificNumber = active_encounter.remaining_liability
+	var full: ScientificNumber = active_encounter.max_liability
+	var left := remaining.mantissa / full.mantissa * pow(10.0, remaining.exponent - full.exponent)
+	return clampf(1.0 - left, 0.0, 1.0)
 
 ## Once per run, a hit that would end the run leaves a share of the run's peak
 ## Number instead. The share is the rank's own value, so an early rank buys a
@@ -402,11 +407,17 @@ func _complete_current_wave() -> SimulationEvent:
 	# Gems (D030): every boss wave pays a little, every run, and each tier's
 	# checkpoints pay a lot, once per tier record.
 	var gem_gain := balance_profile.wave_gems(completed_wave)
-	if balance_profile.is_milestone_wave(completed_wave) and not claimed.has(completed_wave):
-		claimed.append(completed_wave)
-		record.milestones_claimed = claimed
-		coin_gain += balance_profile.milestone_bonus(selected_tier, completed_wave)
-		gem_gain += balance_profile.milestone_gems(selected_tier, completed_wave)
+	# Every checkpoint the record has now passed pays, not only this wave's:
+	# a missed ordinary checkpoint (D037) pays once a later wave is beaten, the
+	# same rule the load-time catch-up applies, so a run and a reload agree.
+	for checkpoint in balance_profile.MILESTONE_WAVES:
+		if checkpoint > completed_wave or claimed.has(checkpoint):
+			continue
+		claimed.append(checkpoint)
+		coin_gain += balance_profile.milestone_bonus(selected_tier, checkpoint)
+		gem_gain += balance_profile.milestone_gems(selected_tier, checkpoint)
+	claimed.sort()
+	record.milestones_claimed = claimed
 	gems += gem_gain
 	run_gems_earned += gem_gain
 	if completed_wave == TIER_UNLOCK_WAVE:

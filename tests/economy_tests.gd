@@ -29,6 +29,7 @@ func _init() -> void:
 	_test_repeated_taps_count_once()
 	_test_missed_waves_move_on_and_bosses_stay()
 	_test_beaten_wave_gives_way_after_the_minimum_beat()
+	_test_missed_checkpoint_pays_when_passed()
 	_test_mid_wave_save_resumes_identically()
 	_test_collection_is_absolute()
 	_test_boss_axes_and_rewards()
@@ -937,6 +938,29 @@ func _test_missed_waves_move_on_and_bosses_stay() -> void:
 	_advance_seconds(boss, boss.balance_profile.MIN_WAVE_SECONDS)
 	_expect(boss.wave == 31 and boss.get_tier_best(2) == 30, "beating the boss should advance and count")
 
+func _test_missed_checkpoint_pays_when_passed() -> void:
+	# D037 with D030: wave 25 is an ordinary checkpoint. Missing it claims
+	# nothing; beating a later wave pays it in the run, as a reload would.
+	var state := GameState.new()
+	state.tier_records["1"] = {"highest_wave": 24, "best_time": 0.0, "milestones_claimed": [10, 20]}
+	state.start_run(1, 29)
+	state.wave = 25
+	state.active_encounter = state._make_encounter(25)
+	state.number = ScientificNumber.from_float(1e9)
+	var coins_before := state.coins
+	var gems_before := state.gems
+	state._resolve_wave_boundary()
+	_expect(state.wave == 26 and not state.get_tier_record(1).milestones_claimed.has(25), "a missed checkpoint wave should claim nothing")
+	state._add_number(state.active_encounter.remaining_liability)
+	_advance_seconds(state, state.balance_profile.MIN_WAVE_SECONDS)
+	var bonus: int = state.balance_profile.milestone_bonus(1, 25)
+	_expect(state.get_tier_record(1).milestones_claimed.has(25), "beating a later wave should claim the passed checkpoint")
+	_expect(state.coins - coins_before >= bonus and state.gems - gems_before == state.balance_profile.milestone_gems(1, 25), "the passed checkpoint should pay its Coin bonus and Gems once")
+	var paid_coins := state.coins
+	var paid_gems := state.gems
+	state._catch_up_passed_milestones()
+	_expect(state.coins == paid_coins and state.gems == paid_gems, "a reload catch-up should find nothing left to pay")
+
 func _test_beaten_wave_gives_way_after_the_minimum_beat() -> void:
 	# D037: a beaten wave no longer waits out its timer. It stays on screen for
 	# the minimum beat so the clear registers, then the next wave arrives.
@@ -950,7 +974,33 @@ func _test_beaten_wave_gives_way_after_the_minimum_beat() -> void:
 	_expect(state.wave == 2 and state.coins == 1, "the next wave should arrive once the beat has passed, paying the cleared wave")
 	_expect(state.wave_accumulator < state.balance_profile.MIN_WAVE_SECONDS, "the new wave's timer should start fresh")
 	_expect(state.balance_profile.MIN_WAVE_SECONDS < GameState.WAVE_INTERVAL_SECONDS, "the minimum beat should be shorter than the timer")
-	_expect(events.size() >= 0, "advance should report its events")
+	var cleared_event := false
+	for event in events:
+		cleared_event = cleared_event or event.type == "wave_clear"
+	_expect(not cleared_event, "no clear should be reported before the beat")
+
+	# Driven through the clock: an ordinary wave left standing hits once at 15
+	# seconds and moves on, with its partial Coins, exactly like the boundary.
+	var clocked := GameState.new()
+	clocked.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	clocked.start_run(2, 27)
+	clocked.wave = 31
+	clocked.active_encounter = clocked._make_encounter(31)
+	clocked.number = ScientificNumber.from_float(1e9)
+	var hp: ScientificNumber = clocked.active_encounter.max_liability.copy()
+	clocked.active_encounter.remaining_liability = hp.multiply_scalar(0.2)
+	var reward: int = clocked.active_encounter.reward
+	_advance_seconds(clocked, GameState.WAVE_INTERVAL_SECONDS - 0.5)
+	_expect(clocked.wave == 31, "a standing wave should not move on before its timer")
+	_advance_seconds(clocked, 0.5)
+	_expect(clocked.wave == 32 and clocked.coins == floori(float(reward) * 0.8 + 0.000001), "at 15 seconds a standing ordinary wave should hit, pay its share and move on")
+
+	# 20 left of 100 is exactly 0.8 cleared: the share must not round down a Coin.
+	var exact := GameState.new()
+	exact.start_run(1, 28)
+	exact.active_encounter.max_liability = ScientificNumber.from_float(100)
+	exact.active_encounter.remaining_liability = ScientificNumber.from_float(20)
+	_expect(floori(10.0 * exact.get_wave_cleared_share() + 0.000001) == 8, "a cleared share of exactly 0.8 should pay 8 of 10 Coins")
 
 func _test_mid_wave_save_resumes_identically() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
