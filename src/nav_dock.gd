@@ -12,8 +12,11 @@ signal tab_selected(tab_id: String)
 const TAB_ORDER: Array[String] = ["number", "workshop", "cards", "ultimates", "labs", "settings"]
 ## Seats held for systems still to be built.
 const SOON_TABS: Array[String] = ["ultimates"]
-const MUTED := Color(0.925, 0.925, 0.918, 0.35)
-const DIVIDER := Color(0.925, 0.925, 0.918, 0.08)
+const MUTED := Color("8b8c88")
+const ACTIVE := Color("ececea")
+## A seat for a system not built yet: present, but plainly not pressable.
+const SOON_COLOUR := Color("3a3b3e")
+const DIVIDER := Color("1c1d1f")
 const BAR_HEIGHT := 92.0
 const ICON_SIZE := 21.0
 
@@ -25,26 +28,18 @@ var _icon_kind := {
 	"labs": IconGlyph.Kind.FLASK,
 	"settings": IconGlyph.Kind.SLIDERS,
 }
-# One accent for every tab: per-tab hues were HUD noise, and the active tab is
-# already unambiguous from colour against the muted rest.
+# One accent for every tab: per-tab hues were HUD noise.
 const ACCENT := Color("8fbfa8")
-var _accent := {
-	"number": ACCENT,
-	"workshop": ACCENT,
-	"cards": ACCENT,
-	"ultimates": ACCENT,
-	"labs": ACCENT,
-	"settings": ACCENT,
-}
 var _buttons: Dictionary = {}
 var _icons: Dictionary = {}
 var _labels: Dictionary = {}
 var _locks: Dictionary = {}
 var _soon_tags: Dictionary = {}
+var _marks: Dictionary = {}
 
 ## A flush bar rather than a floating pill: a pill is an app pattern, and it
-## competed with the stage for attention. Colour alone marks the active tab,
-## so no tab needs a box of its own.
+## competed with the stage for attention. The active tab is lit and carries a
+## short accent bar at the bar's top edge (D049), so no tab needs a box.
 func _ready() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 	custom_minimum_size = Vector2(0, BAR_HEIGHT)
@@ -58,7 +53,7 @@ func _ready() -> void:
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	row.offset_left = 4
 	row.offset_right = -4
-	row.offset_top = 14
+	row.offset_top = 1
 	row.offset_bottom = -30
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	add_child(row)
@@ -92,9 +87,21 @@ func _make_button(tab_id: String) -> Button:
 	label.text = _tab_label(tab_id)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	label.add_theme_font_size_override("font_size", 8)
+	label.add_theme_font_size_override("font_size", 10)
 	label.add_theme_color_override("font_color", MUTED)
 	column.add_child(label)
+
+	var mark := ColorRect.new()
+	mark.color = ACCENT
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mark.anchor_left = 0.5
+	mark.anchor_right = 0.5
+	mark.offset_left = -10
+	mark.offset_right = 10
+	mark.offset_top = -1
+	mark.offset_bottom = 1
+	mark.visible = false
+	button.add_child(mark)
 
 	var lock := IconGlyph.new(IconGlyph.Kind.LOCK, MUTED, 11.0)
 	lock.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
@@ -106,7 +113,7 @@ func _make_button(tab_id: String) -> Button:
 	soon.text = "SOON"
 	soon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	soon.add_theme_font_size_override("font_size", 7)
-	soon.add_theme_color_override("font_color", MUTED)
+	soon.add_theme_color_override("font_color", SOON_COLOUR)
 	soon.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	soon.offset_left = 8
 	soon.offset_top = 0
@@ -118,16 +125,17 @@ func _make_button(tab_id: String) -> Button:
 	_labels[tab_id] = label
 	_locks[tab_id] = lock
 	_soon_tags[tab_id] = soon
+	_marks[tab_id] = mark
 	return button
 
 func _tab_label(tab_id: String) -> String:
 	match tab_id:
 		"settings":
-			return "MORE"
+			return "More"
 		"number":
-			return "BATTLE"
+			return "Battle"
 		_:
-			return tab_id.to_upper()
+			return tab_id.capitalize()
 
 ## unlocked maps each tab id to whether it can be opened; active_id is the
 ## tab or sheet currently showing ("settings", "labs" or "cards" for a sheet).
@@ -140,8 +148,9 @@ func update_state(active_id: String, unlocked: Dictionary) -> void:
 		var is_soon := SOON_TABS.has(tab_id)
 		var is_locked := not is_soon and not bool(unlocked.get(tab_id, true))
 		var is_active := tab_id == active_id and not is_locked
-		var colour: Color = _accent[tab_id] if is_active else MUTED
+		var colour: Color = ACTIVE if is_active else (SOON_COLOUR if is_soon else MUTED)
 		icon.set_glyph_color(colour)
 		label.add_theme_color_override("font_color", colour)
+		(_marks[tab_id] as ColorRect).visible = is_active
 		lock.visible = is_locked
-		button.modulate.a = 0.5 if is_locked or is_soon else 1.0
+		button.modulate.a = 0.5 if is_locked else 1.0

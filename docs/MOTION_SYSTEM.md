@@ -1,6 +1,6 @@
 # Number Go Up — Motion system
 
-Status: reference document, last revised 22 September 2026.
+Status: reference document, last revised 24 September 2026 for D049.
 Purpose: the game's motion vocabulary, and the specific techniques worth borrowing from two reviewed animation libraries. It records research; it does not introduce a framework or commit the game to any of these changes.
 Companion documents: [`GAME_VISION.md`](GAME_VISION.md) for the feel this serves, [`QUALITY_GATES.md`](QUALITY_GATES.md) for the proof a motion change needs, [`DECISIONS.md`](DECISIONS.md) for choices once the owner accepts them.
 
@@ -17,7 +17,7 @@ Vendoring either library would add dead weight to a Godot project: they cannot d
 These describe what the game already does; new motion should stay inside them.
 
 1. **Reduce Motion is a hard gate for movement, not colour.** Translation and scale return early when `state.settings.reduce_motion` is set; colour fades may still run, because they carry no motion-sickness risk. `_pulse_number`, `_shake_number` and `_pulse_stage_impact` already obey this; `_flash_number` deliberately does not.
-2. **Severity is duration and size, never a new hue.** One accent for positive states, one warning for negative, with boss hits distinguished by a larger, longer motion than routine tax. Extra colours read as noise on this HUD.
+2. **Severity is duration and size, never a new hue.** One accent for positive states, one warning for negative, with boss hits distinguished by a larger, longer motion than routine tax. Extra colours read as noise on this HUD. The one exception is the currency icons (D049): a gold coin and a blue gem say which currency, not good or bad, so those colours stay on the icons and never tint an amount.
 3. **Motion never blocks input and never moves what the player is reading.** A tween is feedback on top of an already-resolved state change, never a gate in front of one.
 4. **One animated voice on the Number.** The big Number may pulse, flash or shake, but only one of those at a time, and the resting colour is always restored.
 5. **Durations stay in the established bands.** Feedback (tap pulse, shake steps): 0.04–0.12 s. Transition (tab slide, toast fade): 0.15–0.5 s. Celebration (floating text, run-over beats): 0.35–1.2 s.

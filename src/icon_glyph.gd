@@ -4,7 +4,8 @@ extends Control
 ## Minimal monoline vector icons drawn on a 24x24 grid, scaled to fit this
 ## Control's size. Avoids shipping icon image assets for a handful of shapes
 ## that only ever need to be a single flat color.
-enum Kind { HOME, GEAR, FLASK, DIAMOND, SLIDERS, LOCK, CHART, BOLT, DICE, CHIP, CHECK, CLOSE, SPARKLE, COIN, SHIELD }
+## New kinds go at the end: main.gd keys CATEGORY_ICON by these numbers.
+enum Kind { HOME, GEAR, FLASK, DIAMOND, SLIDERS, LOCK, CHART, BOLT, DICE, CHIP, CHECK, CLOSE, SPARKLE, COIN, SHIELD, GOLD_COIN, GEM, BOOK, CHEVRON, CHEVRON_LEFT }
 
 var kind: int = Kind.HOME
 var glyph_color: Color = Color.WHITE
@@ -116,9 +117,41 @@ func _draw() -> void:
 			for point in star:
 				scaled_star.append(origin + point * scale)
 			draw_colored_polygon(scaled_star, glyph_color)
+		# The currency icons are filled, not monoline (D049): at 12-14px a
+		# solid shape in the currency's own colour reads before its outline.
+		Kind.GOLD_COIN:
+			draw_circle(origin + Vector2(12, 12) * scale, 10.5 * scale, glyph_color)
+			_p_colour(origin, scale, Vector2(12, 12), 6.4, 2.0 * scale, glyph_color.darkened(0.3))
+		Kind.GEM:
+			var gem := PackedVector2Array([
+				Vector2(7, 2.5), Vector2(17, 2.5), Vector2(22, 8.5), Vector2(12, 21.5), Vector2(2, 8.5)
+			])
+			var scaled_gem := PackedVector2Array()
+			for point in gem:
+				scaled_gem.append(origin + point * scale)
+			draw_colored_polygon(scaled_gem, glyph_color)
+			var facet := glyph_color.lightened(0.45)
+			var facet_width := 1.3 * scale
+			draw_line(origin + Vector2(2, 8.5) * scale, origin + Vector2(22, 8.5) * scale, facet, facet_width, true)
+			draw_line(origin + Vector2(7, 2.5) * scale, origin + Vector2(9.5, 8.5) * scale, facet, facet_width, true)
+			draw_line(origin + Vector2(9.5, 8.5) * scale, origin + Vector2(12, 21.5) * scale, facet, facet_width, true)
+			draw_line(origin + Vector2(17, 2.5) * scale, origin + Vector2(14.5, 8.5) * scale, facet, facet_width, true)
+			draw_line(origin + Vector2(14.5, 8.5) * scale, origin + Vector2(12, 21.5) * scale, facet, facet_width, true)
+		Kind.BOOK:
+			draw_rect(Rect2(origin + Vector2(3, 5) * scale, Vector2(8, 14) * scale), glyph_color, false, w)
+			draw_rect(Rect2(origin + Vector2(13, 5) * scale, Vector2(8, 14) * scale), glyph_color, false, w)
+		Kind.CHEVRON:
+			var mark := PackedVector2Array([Vector2(9, 5), Vector2(16, 12), Vector2(9, 19)])
+			_poly(origin, scale, mark, w, false)
+		Kind.CHEVRON_LEFT:
+			var mark := PackedVector2Array([Vector2(15, 5), Vector2(8, 12), Vector2(15, 19)])
+			_poly(origin, scale, mark, w, false)
 
 func _p(origin: Vector2, scale: float, center: Vector2, radius: float, w: float) -> void:
 	draw_arc(origin + center * scale, radius * scale, 0, TAU, 32, glyph_color, w, true)
+
+func _p_colour(origin: Vector2, scale: float, center: Vector2, radius: float, w: float, colour: Color) -> void:
+	draw_arc(origin + center * scale, radius * scale, 0, TAU, 32, colour, w, true)
 
 func _line(origin: Vector2, scale: float, from: Vector2, to: Vector2, w: float) -> void:
 	draw_line(origin + from * scale, origin + to * scale, glyph_color, w, true)

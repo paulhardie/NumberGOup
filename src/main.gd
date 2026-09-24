@@ -1,15 +1,21 @@
 extends Control
 
 const SAVE_INTERVAL_SECONDS := 20.0
-const BACKGROUND_TOP := Color("212224")
-const BACKGROUND_BOTTOM := Color("18191b")
+# The Instrument look (D049): a near-black ground, borderless surfaces a step
+# lighter, and three greys for text, so containers read by fill, not outline.
+const BACKGROUND_TOP := Color("111213")
+const BACKGROUND_BOTTOM := Color("0f1011")
 const BACKGROUND := BACKGROUND_BOTTOM
-const SURFACE := Color("232426")
-const SURFACE_HOVER := Color("2b2c2f")
+const SURFACE := Color("17181a")
+const SURFACE_RAISED := Color("1c1d20")
+const SURFACE_HOVER := Color("222326")
+const SHEET := Color("151618")
+const LINE := Color("232427")
 const TEXT := Color("ececea")
-const MUTED_TEXT := Color(0.925, 0.925, 0.918, 0.45)
-const FAINT_TEXT := Color(0.925, 0.925, 0.918, 0.3)
-const DIVIDER := Color(0.925, 0.925, 0.918, 0.08)
+const MUTED_TEXT := Color("8b8c88")
+const FAINT_TEXT := Color("5e5f5c")
+const DIVIDER := Color("1e1f21")
+const ACCENT_INK := Color("0d1016")
 
 # One accent carries every positive state, and a single warning carries every
 # negative one. Severity inside a valence (routine tax against a boss hit) is
@@ -17,12 +23,18 @@ const DIVIDER := Color(0.925, 0.925, 0.918, 0.08)
 # noise rather than as meaning.
 const ACCENT := Color("8fbfa8")
 const WARNING := Color("d68e5c")
+# Currency icons are the one exception (D049): gold and blue say which
+# currency, not good or bad, so they stay on the icons and never tint amounts.
+const COIN_COLOUR := Color("d4b04e")
+const GEM_COLOUR := Color("6aa6d6")
+const UI_FONT_PATH := "res://assets/fonts/Geist.ttf"
+## Every number on screen is monospaced, so a climbing value never jitters.
+const NUMBER_FONT_PATH := "res://assets/fonts/GeistMono.ttf"
 # A critical tick is the one moment worth lifting above the accent, so it
 # brightens towards white instead of introducing a third colour.
 const CRITICAL := Color("f5f5f3")
 const DANGER := WARNING
 const BOSS_DANGER := WARNING
-const COIN_ACCENT := ACCENT
 const WORKSHOP_ACCENT := ACCENT
 const LABS_ACCENT := ACCENT
 const CARDS_ACCENT := ACCENT
@@ -35,27 +47,28 @@ const CATEGORY_ICON := {
 	"ultimate": 12, # IconGlyph.Kind.SPARKLE
 }
 
-## The category strip's height. It sits above the nav dock between runs, and a
-## run has no dock, so the same strip can sit flush there later.
-const CATEGORY_STRIP_HEIGHT := 64
+## The run screen's category strip, flush at the foot of the screen.
+const CATEGORY_STRIP_HEIGHT := 60
 ## How long a card must be held to read it rather than act on it.
 const LONG_PRESS_SECONDS := 0.45
-## The run screen's vertical budget (D018, D032): the stage starts below the
-## wave line, the hit line and Brace sit under it, and the Rig panel takes the
-## rest down to its category strip. The stage takes half the free height, but
-## never less than a ring the Number can read in.
-const RUN_STAGE_TOP := 136.0
-const RUN_ENCOUNTER_ROW := 24.0
-const RUN_ACTION_ROW := 46.0
+## The run screen's vertical budget (D018, D032, D049): the stage starts below
+## the wave line with the hit and Brace row under it, and the Upgrades sheet
+## sits on the category strip at the foot. Whatever height is left stays empty
+## between them, held for systems that will want the upper half later.
+const RUN_STAGE_TOP := 84.0
+const RUN_ENCOUNTER_ROW := 70.0
 const RUN_STAGE_MIN := 170.0
-const RUN_STAGE_MAX := 460.0
-const RUN_STAGE_SHARE := 0.5
+const RUN_STAGE_MAX := 264.0
+const RUN_SHEET_MIN := 150.0
+const RUN_SHEET_MAX := 262.0
+const RUN_SHEET_SHARE := 0.31
 
 const TAB_IDS: Array[String] = ["number", "workshop"]
 const TAB_NAMES := {"number": "BATTLE", "workshop": "WORKSHOP", "cards": "CARDS", "labs": "LABS", "settings": "SETTINGS"}
 ## The hub column's widest, so panels do not stretch across a tablet (D048).
 const HUB_MAX_WIDTH := 440.0
 const HUB_BATTLE_HEIGHT := 56.0
+const HUB_RING_SIZE := 232.0
 ## Lifetime Number required before a row inside the Knowledge sheet can be used.
 ## These were the Labs and Cards dock gates before D016 moved them inside.
 const RESEARCH_UNLOCK := 1000.0
@@ -93,7 +106,6 @@ var stage_glow: TextureRect
 ## column: a container re-sorts its child whenever the number's width changes,
 ## which would overwrite a position tween mid-shake.
 var stage_root: Control
-var run_actions: HBoxContainer
 ## Which layout the run screen holds, so it is only reapplied when the run
 ## state, the tab or the height changes.
 var screen_layout_key := ""
@@ -113,22 +125,32 @@ var hub_column: VBoxContainer
 var hub_coins_label: Label
 var hub_gems_label: Label
 var hub_knowledge_label: Label
+var hub_ring: RingArc
+var hub_ring_caption: Label
 var hub_last_run_label: Label
-var hub_last_run_detail: Label
+var hub_last_run_cause: Label
+var hub_last_run_hit: Label
+var hub_last_run_reward: Label
+var hub_last_run_coin: Control
+var hub_last_run_extra: Label
 var hub_coin_bonus_label: Label
+var hub_milestones_label: Label
+var hub_knowledge_row_label: Label
 var hub_tier_label: Label
 var hub_best_wave_label: Label
 var hub_reward_label: Label
-var hub_tier_hint: Label
 var hub_prev_tier: Button
 var hub_next_tier: Button
-var currency_stack: VBoxContainer
+var currency_stack: HBoxContainer
 var wave_line: HBoxContainer
 var milestones_sheet: Control
 var milestones_title: Label
 var milestones_content: VBoxContainer
 var milestones_signature := ""
 var tracked_font: FontVariation
+var ui_font: Font
+var ui_font_medium: FontVariation
+var number_font: Font
 var number_flash_tween: Tween
 # Smoothed log10 of the displayed Number (log10(mantissa) + exponent), eased
 # toward the true value every frame instead of snapping to it. -INF means 0.
@@ -141,6 +163,7 @@ const NUMBER_SMOOTH_RATE := 12.0
 const BOSS_TELEGRAPH_START := 0.7
 const BOSS_TELEGRAPH_BEAT_RATE := 0.008
 
+var toast_wrap: Control
 var toast_panel: PanelContainer
 var toast_label: Label
 var toast_tween: Tween
@@ -149,29 +172,38 @@ var wave_label: Label
 var tier_button: Button
 var boss_label: Label
 var boss_separator: Label
-var encounter_label: Label
+## The row under the stage: a key for the ring's two arcs, and Brace.
+var encounter_row: HBoxContainer
+var wave_key_swatch: ColorRect
+var wave_key_value: Label
+var hit_key_swatch: ColorRect
+var hit_key_label: Label
+var hit_key_value: Label
 var brace_button: Button
 var brace_cost_label: Label
-var armor_button: Button
-var armor_cost_label: Label
 var run_button: Button
 
 var rig_panel: Control
 var rig_detail: VBoxContainer
 var rig_category_header: Label
-var rig_purchase_policy: Label
+var rig_cash_label: Label
 var rig_multiplier_label: Label
 var rig_tab_buttons: Dictionary = {}
 var rig_tab_icons: Dictionary = {}
 var rig_tab_labels: Dictionary = {}
+var rig_tab_marks: Dictionary = {}
 
 var died_screen: Control
+var died_title_label: Label
 var died_wave_label: Label
 var died_coins_label: Label
 var died_knowledge_label: Label
+var died_knowledge_tile: Control
 var died_gems_label: Label
+var died_gems_tile: Control
 var died_peak_label: Label
 var died_cause_label: Label
+var died_gap_rows: Control
 var died_attack_gap_label: Label
 var died_defense_gap_label: Label
 var died_knowledge_door: Button
@@ -184,9 +216,7 @@ var stats_grid: GridContainer
 var workshop_header: Label
 var workshop_board_row: HBoxContainer
 var workshop_detail: VBoxContainer
-var workshop_category_header: Label
 var workshop_purpose: Label
-var workshop_buy_when: Label
 var workshop_multiplier_label: Label
 ## Which multi-buy step each category is set to, by index into
 ## GameState.BUY_STEPS. Presentation only: it is not worth a save key until a
@@ -204,9 +234,6 @@ var stat_info_extra: Label
 var rig_detail_signature := ""
 var rig_card_refs: Dictionary = {}
 var workshop_tab_buttons: Dictionary = {}
-var workshop_tab_icons: Dictionary = {}
-var workshop_tab_labels: Dictionary = {}
-var workshop_lock_badges: Dictionary = {}
 
 var labs_content: VBoxContainer
 var cards_content: VBoxContainer
@@ -357,6 +384,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		get_viewport().set_input_as_handled()
 
 func _build_ui() -> void:
+	_load_fonts()
 	# A flat fill underneath so High Contrast can simply hide the gradient.
 	var base := ColorRect.new()
 	base.color = Color.BLACK
@@ -394,6 +422,22 @@ func _build_ui() -> void:
 	add_child(audio_feedback)
 
 	_select_tab("number")
+
+## Geist for words and Geist Mono for numbers (D049). The theme sets Geist as
+## every Control's default, so only numbers need a font of their own.
+func _load_fonts() -> void:
+	ui_font = load(UI_FONT_PATH)
+	number_font = load(NUMBER_FONT_PATH)
+	ui_font_medium = _weighted_font(ui_font, 500)
+	var ui_theme := Theme.new()
+	ui_theme.default_font = ui_font
+	theme = ui_theme
+
+func _weighted_font(base: Font, weight: int) -> FontVariation:
+	var variation := FontVariation.new()
+	variation.base_font = base
+	variation.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): weight}
+	return variation
 
 ## Registers a tab's screen and its fade/slide tween target together, since
 ## every other builder in this file works through _build_flat_screen instead.
@@ -435,38 +479,39 @@ func _build_number_screen(parent: Control) -> void:
 ## A currency is the door to its own spend (D016): Coins open the Workshop and
 ## Knowledge opens the Knowledge sheet, which is why neither needs a dock seat.
 func _build_currency_stack(parent: Control) -> void:
-	var stack := VBoxContainer.new()
+	var stack := HBoxContainer.new()
 	currency_stack = stack
 	stack.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	stack.offset_left = 22
-	stack.offset_top = 26
-	stack.add_theme_constant_override("separation", 4)
+	stack.offset_left = 12
+	stack.offset_top = 8
+	stack.add_theme_constant_override("separation", 0)
 	parent.add_child(stack)
-	coins_button = _make_currency_row(stack, IconGlyph.Kind.COIN, ACCENT, 17.0, 16, TEXT)
+	coins_button = _make_currency_row(stack, IconGlyph.Kind.GOLD_COIN, COIN_COLOUR, 12.0, 12, MUTED_TEXT)
 	coins_label = coins_button.get_meta("value_label")
 	coins_button.tooltip_text = "Open the Workshop"
 	coins_button.pressed.connect(func(): _on_dock_tab_selected("workshop"))
-	knowledge_button = _make_currency_row(stack, IconGlyph.Kind.DIAMOND, MUTED_TEXT, 15.0, 15, Color(0.925, 0.925, 0.918, 0.7))
-	knowledge_label = knowledge_button.get_meta("value_label")
-	knowledge_button.tooltip_text = "Spend Knowledge"
-	knowledge_button.pressed.connect(_open_knowledge_sheet)
-	gems_button = _make_currency_row(stack, IconGlyph.Kind.DICE, CARDS_ACCENT, 15.0, 15, Color(0.925, 0.925, 0.918, 0.7))
+	gems_button = _make_currency_row(stack, IconGlyph.Kind.GEM, GEM_COLOUR, 12.0, 12, MUTED_TEXT)
 	gems_label = gems_button.get_meta("value_label")
 	gems_button.tooltip_text = "Pull a Card"
 	gems_button.pressed.connect(_open_card_collection_sheet)
+	knowledge_button = _make_currency_row(stack, IconGlyph.Kind.BOOK, MUTED_TEXT, 12.0, 12, MUTED_TEXT)
+	knowledge_label = knowledge_button.get_meta("value_label")
+	knowledge_button.tooltip_text = "Spend Knowledge"
+	knowledge_button.pressed.connect(_open_knowledge_sheet)
 
+## A currency's icon and amount, pressable as the door to its spend. Tall
+## enough for a thumb even where the text is small.
 func _make_currency_row(parent: Control, icon_kind: int, icon_colour: Color, icon_size: float, font_size: int, text_colour: Color) -> Button:
 	var button := Button.new()
 	button.text = ""
 	button.flat = true
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(96, 30)
+	button.custom_minimum_size = Vector2(0, 44)
 	button.size_flags_horizontal = Control.SIZE_SHRINK_BEGIN
 	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	parent.add_child(button)
 	var row := HBoxContainer.new()
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	row.offset_left = 6
 	row.add_theme_constant_override("separation", 7)
 	row.alignment = BoxContainer.ALIGNMENT_BEGIN
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -478,9 +523,13 @@ func _make_currency_row(parent: Control, icon_kind: int, icon_colour: Color, ico
 	var value_wrap := CenterContainer.new()
 	value_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(value_wrap)
-	var label := _make_label("", font_size, HORIZONTAL_ALIGNMENT_LEFT, text_colour)
+	var label := _make_number_label("", font_size, HORIZONTAL_ALIGNMENT_LEFT, text_colour)
 	value_wrap.add_child(label)
 	button.set_meta("value_label", label)
+	# The row is laid over the button rather than inside a container, so the
+	# button's width follows the row's plus side padding.
+	row.minimum_size_changed.connect(func(): button.custom_minimum_size.x = row.get_combined_minimum_size().x + 16)
+	row.offset_left = 8
 	return button
 
 ## Wave, tier and the boss warning on one line, shown during a run; between
@@ -489,31 +538,34 @@ func _build_wave_line(parent: Control) -> void:
 	var line := HBoxContainer.new()
 	wave_line = line
 	line.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	line.offset_top = 112
+	line.offset_top = 54
+	line.offset_bottom = 74
 	line.alignment = BoxContainer.ALIGNMENT_CENTER
 	line.add_theme_constant_override("separation", 10)
 	parent.add_child(line)
 
-	wave_label = _make_tracked_label("WAVE 1", 14, Color(0.925, 0.925, 0.918, 0.8))
+	wave_label = _make_tracked_label("WAVE 1", 12, TEXT)
 	line.add_child(wave_label)
-	line.add_child(_make_tracked_label("·", 14, Color(0.925, 0.925, 0.918, 0.25)))
+	line.add_child(_make_tracked_label("·", 12, LINE.lightened(0.15)))
 	tier_button = Button.new()
 	tier_button.flat = true
 	tier_button.focus_mode = Control.FOCUS_NONE
-	tier_button.add_theme_font_size_override("font_size", 14)
+	tier_button.add_theme_font_override("font", _tracked_font())
+	tier_button.add_theme_font_size_override("font_size", 12)
 	tier_button.add_theme_constant_override("outline_size", 0)
 	tier_button.add_theme_color_override("font_color", MUTED_TEXT)
 	tier_button.add_theme_color_override("font_hover_color", ACCENT)
 	tier_button.add_theme_color_override("font_pressed_color", ACCENT)
 	tier_button.add_theme_color_override("font_disabled_color", MUTED_TEXT)
 	line.add_child(tier_button)
-	boss_separator = _make_tracked_label("·", 14, Color(0.925, 0.925, 0.918, 0.25))
+	boss_separator = _make_tracked_label("·", 12, LINE.lightened(0.15))
 	line.add_child(boss_separator)
-	boss_label = _make_tracked_label("", 14, WARNING)
+	boss_label = _make_tracked_label("", 12, WARNING)
 	line.add_child(boss_label)
 
-## The ring stage. The arc is Liability cleared and its colour is time until
-## the Collection hit, so both encounter axes land in one read.
+## The ring stage: the outer arc is how much of the wave is cleared and the
+## thin inner ring is the time left before its hit (D049), so both encounter
+## axes land in one read around the Number.
 func _build_stage(parent: Control) -> void:
 	# A centring frame rather than a box: only the ring and the number draw in
 	# it, and the ring's own radius keeps them clear of the controls below.
@@ -528,14 +580,17 @@ func _build_stage(parent: Control) -> void:
 	# Built white and tinted through modulate, so the ring's colour can drive
 	# the glow every frame without rebuilding the gradient texture.
 	stage_glow = TextureRect.new()
-	stage_glow.texture = _make_radial_glow(Color.WHITE, 340)
+	stage_glow.texture = _make_radial_glow(Color.WHITE, 300, 0.08)
 	stage_glow.modulate = ACCENT
-	stage_glow.custom_minimum_size = Vector2(340, 340)
+	stage_glow.custom_minimum_size = Vector2(300, 300)
 	stage_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage_glow.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
 	stage.add_child(stage_glow)
 
 	ring = RingArc.new()
+	ring.radius_ratio = 0.47
+	ring.thickness = 3.0
+	ring.inner_thickness = 1.5
 	ring.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(ring)
 
@@ -549,21 +604,17 @@ func _build_stage(parent: Control) -> void:
 	number_col.add_theme_constant_override("separation", 6)
 	number_col.resized.connect(func(): number_col.pivot_offset = number_col.size / 2.0)
 	centre.add_child(number_col)
-	number_label = Label.new()
+	number_label = _make_number_label("", 48, HORIZONTAL_ALIGNMENT_CENTER, Color("f5f5f3"))
 	number_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	number_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	number_label.add_theme_font_size_override("font_size", 80)
-	number_label.add_theme_color_override("font_color", Color("f5f5f3"))
 	number_col.add_child(number_label)
-	rate_label = _make_label("", 15, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	rate_label = _make_number_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	number_col.add_child(rate_label)
 
-## The battle hub between runs (D048), laid out the way The Tower lays out its
-## battle screen: currencies across the top, the doors that are not a whole
-## tab down the sides, then what the next run will be (Coin bonus, tier and
-## its record) above the BATTLE button. It keeps the D025 landing beat: the
-## last run's result sits under the title. Scrolls rather than overlaps on a
-## short screen.
+## The battle hub between runs (D048), in the Instrument look (D049): the
+## currencies across the top, a ring of the highest wave against the next goal
+## with each milestone on the way as a dot, the tier selector, the last run,
+## then the doors as a plain list, with BATTLE pinned above the bar. Scrolls
+## rather than overlaps on a short screen.
 func _build_hub(parent: Control) -> void:
 	hub_panel = Control.new()
 	hub_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -575,215 +626,227 @@ func _build_hub(parent: Control) -> void:
 	var column := VBoxContainer.new()
 	hub_column = column
 	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.add_theme_constant_override("separation", 12)
+	column.add_theme_constant_override("separation", 0)
 	scroll.add_child(column)
 
 	var bar := HBoxContainer.new()
-	bar.add_theme_constant_override("separation", 4)
+	bar.add_theme_constant_override("separation", 0)
 	column.add_child(bar)
-	var coins := _make_currency_row(bar, IconGlyph.Kind.COIN, ACCENT, 17.0, 16, TEXT)
+	var coins := _make_currency_row(bar, IconGlyph.Kind.GOLD_COIN, COIN_COLOUR, 14.0, 13, TEXT)
 	coins.tooltip_text = "Open the Workshop"
 	coins.pressed.connect(func(): _on_dock_tab_selected("workshop"))
 	hub_coins_label = coins.get_meta("value_label")
-	var gems := _make_currency_row(bar, IconGlyph.Kind.DICE, CARDS_ACCENT, 15.0, 15, TEXT)
+	var gems := _make_currency_row(bar, IconGlyph.Kind.GEM, GEM_COLOUR, 14.0, 13, TEXT)
 	gems.tooltip_text = "Pull a Card"
 	gems.pressed.connect(func(): _on_dock_tab_selected("cards"))
 	hub_gems_label = gems.get_meta("value_label")
-	var knowledge := _make_currency_row(bar, IconGlyph.Kind.DIAMOND, MUTED_TEXT, 15.0, 15, TEXT)
+	var knowledge := _make_currency_row(bar, IconGlyph.Kind.BOOK, MUTED_TEXT, 14.0, 13, TEXT)
 	knowledge.tooltip_text = "Spend Knowledge"
 	knowledge.pressed.connect(_open_knowledge_sheet)
 	hub_knowledge_label = knowledge.get_meta("value_label")
-	for chip in [coins, gems, knowledge]:
-		chip.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 
-	var title := _make_tracked_label("NUMBER GO UP", 22, TEXT)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(title)
-	column.add_child(_make_hub_spacer())
+	column.add_child(_make_gap(20))
+	var ring_box := Control.new()
+	ring_box.custom_minimum_size = Vector2(HUB_RING_SIZE, HUB_RING_SIZE)
+	ring_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	ring_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(ring_box)
+	hub_ring = RingArc.new()
+	hub_ring.radius_ratio = (HUB_RING_SIZE * 0.5 - 8.0) / HUB_RING_SIZE
+	hub_ring.thickness = 3.0
+	hub_ring.marker_colour = ACCENT
+	hub_ring.marker_next_colour = TEXT
+	hub_ring.cutout_colour = BACKGROUND
+	hub_ring.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	ring_box.add_child(hub_ring)
+	var ring_text := VBoxContainer.new()
+	ring_text.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	ring_text.alignment = BoxContainer.ALIGNMENT_CENTER
+	ring_text.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	ring_text.add_theme_constant_override("separation", 4)
+	ring_box.add_child(ring_text)
+	ring_text.add_child(_make_tracked_label("HIGHEST WAVE", 11, MUTED_TEXT))
+	hub_best_wave_label = _make_number_label("", 72, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
+	ring_text.add_child(hub_best_wave_label)
+	hub_ring_caption = _make_number_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	ring_text.add_child(hub_ring_caption)
 
-	var middle := HBoxContainer.new()
-	middle.add_theme_constant_override("separation", 8)
-	column.add_child(middle)
-	var left := VBoxContainer.new()
-	left.add_theme_constant_override("separation", 10)
-	middle.add_child(left)
-	left.add_child(_make_side_door(IconGlyph.Kind.DIAMOND, "KNOWLEDGE", _open_knowledge_sheet))
-	left.add_child(_make_side_door(IconGlyph.Kind.CHIP, "MODULES", Callable()))
-	var centre := VBoxContainer.new()
-	centre.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	centre.alignment = BoxContainer.ALIGNMENT_CENTER
-	centre.add_theme_constant_override("separation", 8)
-	middle.add_child(centre)
-	var emblem := Control.new()
-	emblem.custom_minimum_size = Vector2(0, 96)
-	emblem.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	centre.add_child(emblem)
-	var glow := TextureRect.new()
-	glow.texture = _make_radial_glow(ACCENT, 160)
-	glow.modulate.a = 0.55
-	glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_centre_in(glow, 160.0)
-	emblem.add_child(glow)
-	var emblem_icon := IconGlyph.new(IconGlyph.Kind.SPARKLE, ACCENT, 64.0)
-	_centre_in(emblem_icon, 64.0)
-	emblem.add_child(emblem_icon)
-	var milestones := _make_door("MILESTONES", ACCENT, _open_milestones_sheet)
-	milestones.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	milestones.custom_minimum_size = Vector2(150, 38)
-	centre.add_child(milestones)
-	var right := VBoxContainer.new()
-	right.add_theme_constant_override("separation", 10)
-	middle.add_child(right)
-	right.add_child(_make_side_door(IconGlyph.Kind.CHART, "STATS", func(): _on_dock_tab_selected("settings")))
-	right.add_child(_make_side_door(IconGlyph.Kind.BOLT, "PERKS", Callable()))
-	column.add_child(_make_hub_spacer())
-
-	hub_last_run_label = _make_label("", 14, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
-	hub_last_run_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(hub_last_run_label)
-	hub_last_run_detail = _make_label("", 11, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
-	hub_last_run_detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(hub_last_run_detail)
-
-	var bonus_panel := PanelContainer.new()
-	bonus_panel.add_theme_stylebox_override("panel", _panel_style(SURFACE, 14))
-	column.add_child(bonus_panel)
-	var bonus := VBoxContainer.new()
-	bonus.add_theme_constant_override("separation", 2)
-	bonus_panel.add_child(bonus)
-	var bonus_title := _make_tracked_label("TOTAL COIN BONUS", 11, MUTED_TEXT)
-	bonus_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	bonus.add_child(bonus_title)
-	hub_coin_bonus_label = _make_label("", 20, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
-	bonus.add_child(hub_coin_bonus_label)
-
-	var tier_panel := PanelContainer.new()
-	tier_panel.add_theme_stylebox_override("panel", _panel_style(SURFACE, 14))
-	column.add_child(tier_panel)
-	var tier_column := VBoxContainer.new()
-	tier_column.add_theme_constant_override("separation", 2)
-	tier_panel.add_child(tier_column)
-	var tier_title := _make_tracked_label("DIFFICULTY", 11, MUTED_TEXT)
-	tier_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	tier_column.add_child(tier_title)
+	column.add_child(_make_gap(12))
 	var selector := HBoxContainer.new()
 	selector.alignment = BoxContainer.ALIGNMENT_CENTER
-	tier_column.add_child(selector)
-	hub_prev_tier = _make_tier_arrow("‹", -1)
+	column.add_child(selector)
+	hub_prev_tier = _make_tier_arrow(-1)
 	selector.add_child(hub_prev_tier)
-	hub_tier_label = _make_label("", 22, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
-	hub_tier_label.custom_minimum_size = Vector2(110, 0)
-	selector.add_child(hub_tier_label)
-	hub_next_tier = _make_tier_arrow("›", 1)
+	var tier_text := VBoxContainer.new()
+	tier_text.custom_minimum_size = Vector2(96, 0)
+	tier_text.alignment = BoxContainer.ALIGNMENT_CENTER
+	tier_text.add_theme_constant_override("separation", 2)
+	selector.add_child(tier_text)
+	hub_tier_label = _make_tracked_label("", 15, TEXT)
+	tier_text.add_child(hub_tier_label)
+	hub_reward_label = _make_number_label("", 11, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	tier_text.add_child(hub_reward_label)
+	hub_next_tier = _make_tier_arrow(1)
 	selector.add_child(hub_next_tier)
-	hub_best_wave_label = _make_label("", 15, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
-	tier_column.add_child(hub_best_wave_label)
-	hub_reward_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
-	tier_column.add_child(hub_reward_label)
-	hub_tier_hint = _make_label("", 11, HORIZONTAL_ALIGNMENT_CENTER, FAINT_TEXT)
-	hub_tier_hint.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	tier_column.add_child(hub_tier_hint)
 
-	# A seat for tier conditions and challenge runs, which will enter through
-	# the modifier pipeline (architecture law 3); nothing is built behind it.
-	var challenge := _make_door("CHALLENGE RUNS  ·  SOON", MUTED_TEXT, func(): _show_toast("CHALLENGE RUNS  ·  COMING LATER", MUTED_TEXT))
-	challenge.modulate.a = 0.6
-	column.add_child(challenge)
+	column.add_child(_make_gap(18))
+	var last_run := PanelContainer.new()
+	var card_style := _panel_style(SURFACE, 12)
+	card_style.content_margin_left = 16
+	card_style.content_margin_right = 16
+	card_style.content_margin_top = 14
+	card_style.content_margin_bottom = 14
+	last_run.add_theme_stylebox_override("panel", card_style)
+	column.add_child(last_run)
+	var last_column := VBoxContainer.new()
+	last_column.add_theme_constant_override("separation", 6)
+	last_run.add_child(last_column)
+	var heading := HBoxContainer.new()
+	last_column.add_child(heading)
+	var heading_title := _make_label("Last run", 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	heading_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	heading.add_child(heading_title)
+	hub_last_run_label = _make_number_label("", 12, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT)
+	heading.add_child(hub_last_run_label)
+	var outcome := HBoxContainer.new()
+	outcome.add_theme_constant_override("separation", 6)
+	last_column.add_child(outcome)
+	hub_last_run_cause = _make_label("", 14, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	outcome.add_child(hub_last_run_cause)
+	hub_last_run_hit = _make_number_label("", 14, HORIZONTAL_ALIGNMENT_LEFT, WARNING)
+	hub_last_run_hit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	outcome.add_child(hub_last_run_hit)
+	hub_last_run_reward = _make_number_label("", 14, HORIZONTAL_ALIGNMENT_RIGHT, ACCENT)
+	outcome.add_child(hub_last_run_reward)
+	hub_last_run_coin = CenterContainer.new()
+	hub_last_run_coin.add_child(IconGlyph.new(IconGlyph.Kind.GOLD_COIN, COIN_COLOUR, 12.0))
+	outcome.add_child(hub_last_run_coin)
+	hub_last_run_extra = _make_label("", 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	last_column.add_child(hub_last_run_extra)
 
-## Soaks up a tall screen's spare height around the emblem, so the panels sit
-## on the BATTLE button as The Tower's do; on a short screen each is zero.
-func _make_hub_spacer() -> Control:
+	column.add_child(_make_gap(8))
+	hub_milestones_label = _make_hub_row(column, "Milestones", _open_milestones_sheet, true)
+	hub_coin_bonus_label = _make_hub_row(column, "Total Coin bonus", Callable(), true)
+	hub_knowledge_row_label = _make_hub_row(column, "Knowledge", _open_knowledge_sheet, true)
+	_make_hub_row(column, "Stats", func(): _on_dock_tab_selected("settings"), false)
+
 	var spacer := Control.new()
 	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	spacer.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	return spacer
+	column.add_child(spacer)
+	# Seats for systems still to come (D048), as one quiet line rather than
+	# doors that do nothing: tier conditions and challenge runs will enter
+	# through the modifier pipeline (architecture law 3).
+	var soon := _make_label("Modules · Perks · Challenge runs — coming later", 11, HORIZONTAL_ALIGNMENT_CENTER, FAINT_TEXT)
+	soon.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(soon)
+	column.add_child(_make_gap(6))
 
-## Pins a square child to its parent's centre at a fixed size, whatever size
-## the parent ends up (a preset would read the child's size before layout).
-func _centre_in(control: Control, side: float) -> void:
-	control.anchor_left = 0.5
-	control.anchor_right = 0.5
-	control.anchor_top = 0.5
-	control.anchor_bottom = 0.5
-	control.offset_left = -side * 0.5
-	control.offset_right = side * 0.5
-	control.offset_top = -side * 0.5
-	control.offset_bottom = side * 0.5
+## A fixed vertical gap in a column.
+func _make_gap(height: float) -> Control:
+	var gap := Control.new()
+	gap.custom_minimum_size = Vector2(0, height)
+	gap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	return gap
 
-## A square door beside the hub's emblem for a system that has no tab of its
-## own. With no action it is a seat held for a later system: dimmed, marked
-## SOON, and a press says so rather than doing nothing.
-func _make_side_door(icon_kind: int, caption: String, on_press: Callable) -> VBoxContainer:
-	var soon := not on_press.is_valid()
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 4)
+## One of the hub's doors: a name, what is behind it, and a chevron. With no
+## action it is a fact rather than a door, so it shows no chevron.
+func _make_hub_row(parent: Control, title: String, on_press: Callable, divided: bool) -> Label:
 	var button := Button.new()
+	button.flat = true
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(52, 52)
-	button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
-	button.tooltip_text = caption.capitalize()
-	button.add_theme_stylebox_override("normal", _panel_style(SURFACE, 12, DIVIDER))
-	button.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 12, ACCENT))
-	button.add_theme_stylebox_override("pressed", _panel_style(SURFACE_HOVER, 12, ACCENT))
-	var icon_centre := CenterContainer.new()
-	icon_centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	icon_centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	icon_centre.add_child(IconGlyph.new(icon_kind, MUTED_TEXT if soon else ACCENT, 22.0))
-	button.add_child(icon_centre)
-	if soon:
-		button.pressed.connect(func(): _show_toast(caption + "  ·  COMING LATER", MUTED_TEXT))
-		column.modulate.a = 0.5
-	else:
+	button.custom_minimum_size = Vector2(0, 48)
+	button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND if on_press.is_valid() else Control.CURSOR_ARROW
+	if on_press.is_valid():
 		button.pressed.connect(on_press)
-	column.add_child(button)
-	column.add_child(_make_label(caption + ("\nSOON" if soon else ""), 8, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT))
-	return column
+	parent.add_child(button)
+	var row := HBoxContainer.new()
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", 12)
+	button.add_child(row)
+	var name_label := _make_label(title, 14, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_label.size_flags_vertical = Control.SIZE_FILL
+	row.add_child(name_label)
+	var value := _make_number_label("", 13, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT)
+	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	value.size_flags_vertical = Control.SIZE_FILL
+	row.add_child(value)
+	var chevron := CenterContainer.new()
+	chevron.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chevron.add_child(IconGlyph.new(IconGlyph.Kind.CHEVRON, FAINT_TEXT if on_press.is_valid() else Color.TRANSPARENT, 14.0))
+	row.add_child(chevron)
+	if divided:
+		var line := ColorRect.new()
+		line.color = DIVIDER
+		line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		line.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+		line.offset_top = -1
+		button.add_child(line)
+	return value
 
-func _make_tier_arrow(glyph: String, direction: int) -> Button:
+func _make_tier_arrow(direction: int) -> Button:
 	var button := Button.new()
-	button.text = glyph
 	button.flat = true
 	button.focus_mode = Control.FOCUS_NONE
 	button.custom_minimum_size = Vector2(44, 44)
-	button.add_theme_font_size_override("font_size", 30)
-	button.add_theme_color_override("font_color", ACCENT)
-	button.add_theme_color_override("font_hover_color", TEXT)
-	button.add_theme_color_override("font_pressed_color", TEXT)
-	button.add_theme_color_override("font_disabled_color", Color(ACCENT.r, ACCENT.g, ACCENT.b, 0.2))
+	button.tooltip_text = "Next tier" if direction > 0 else "Previous tier"
+	var centre := CenterContainer.new()
+	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(centre)
+	var chevron := IconGlyph.new(IconGlyph.Kind.CHEVRON if direction > 0 else IconGlyph.Kind.CHEVRON_LEFT, TEXT, 16.0)
+	centre.add_child(chevron)
+	button.set_meta("chevron", chevron)
 	button.pressed.connect(func(): _step_tier(direction))
 	return button
 
-## The run's own controls: what the encounter is asking for, the two answers to
-## it, and the way out. All text, no panels, so the stage stays the loud thing.
+## The run's own controls under the stage: a key for the ring's two arcs (how
+## much of the wave is cleared, and the hit with its countdown) beside Brace,
+## the answer to a hit the wave will land; and the way out.
 func _build_run_controls(parent: Control) -> void:
-	encounter_label = _make_tracked_label("", 12, MUTED_TEXT)
-	encounter_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	encounter_label.offset_top = -295
-	encounter_label.offset_bottom = -270
-	encounter_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	parent.add_child(encounter_label)
+	encounter_row = HBoxContainer.new()
+	encounter_row.add_theme_constant_override("separation", 12)
+	parent.add_child(encounter_row)
+	var margin_left := _make_gap(0)
+	margin_left.custom_minimum_size = Vector2(8, 0)
+	encounter_row.add_child(margin_left)
+	var key := VBoxContainer.new()
+	key.alignment = BoxContainer.ALIGNMENT_CENTER
+	key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	key.add_theme_constant_override("separation", 6)
+	key.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	encounter_row.add_child(key)
+	var wave_line_key := HBoxContainer.new()
+	wave_line_key.add_theme_constant_override("separation", 8)
+	key.add_child(wave_line_key)
+	wave_key_swatch = _make_key_swatch(3.0)
+	wave_line_key.add_child(wave_key_swatch.get_parent())
+	wave_line_key.add_child(_make_label("Wave", 13, HORIZONTAL_ALIGNMENT_LEFT, TEXT))
+	wave_key_value = _make_number_label("", 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	wave_line_key.add_child(wave_key_value)
+	var hit_line_key := HBoxContainer.new()
+	hit_line_key.add_theme_constant_override("separation", 8)
+	key.add_child(hit_line_key)
+	hit_key_swatch = _make_key_swatch(1.5)
+	hit_line_key.add_child(hit_key_swatch.get_parent())
+	hit_key_label = _make_label("", 13, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	hit_line_key.add_child(hit_key_label)
+	hit_key_value = _make_number_label("", 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	hit_line_key.add_child(hit_key_value)
 
-	var actions := HBoxContainer.new()
-	actions.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	actions.offset_top = -258
-	actions.offset_bottom = -200
-	actions.alignment = BoxContainer.ALIGNMENT_CENTER
-	actions.add_theme_constant_override("separation", 60)
-	parent.add_child(actions)
-	run_actions = actions
-	brace_button = _make_text_action("BRACE", "")
+	brace_button = _make_pill_action("BRACE")
 	brace_button.tooltip_text = "Spend a share of Number to block the next hit. Brace Cost lowers the share."
 	brace_cost_label = brace_button.get_meta("cost_label")
 	brace_button.pressed.connect(_on_brace_pressed)
-	actions.add_child(brace_button)
-	# Armor is an ordinary Workshop rank now (D013); this is a shortcut to the
-	# Defense row, not a second purchase path.
-	armor_button = _make_text_action("ARMOR", "")
-	armor_button.tooltip_text = "Spend Coins to make every hit smaller. A permanent Defense rank that survives every reset."
-	armor_button.pressed.connect(_on_armor_pressed)
-	actions.add_child(armor_button)
-	armor_cost_label = armor_button.get_meta("cost_label")
+	var brace_wrap := CenterContainer.new()
+	brace_wrap.add_child(brace_button)
+	encounter_row.add_child(brace_wrap)
+	var margin_right := _make_gap(0)
+	margin_right.custom_minimum_size = Vector2(8, 0)
+	encounter_row.add_child(margin_right)
 
 	# Deliberately the quietest control on the screen: ending a run is
 	# destructive and rare, so it should never be the thing a thumb finds first.
@@ -791,55 +854,65 @@ func _build_run_controls(parent: Control) -> void:
 	run_button.flat = true
 	run_button.focus_mode = Control.FOCUS_NONE
 	run_button.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	run_button.offset_top = -188
-	run_button.offset_bottom = -154
-	run_button.add_theme_font_size_override("font_size", 11)
 	run_button.add_theme_constant_override("outline_size", 0)
 	run_button.pressed.connect(_on_run_button_pressed)
 	parent.add_child(run_button)
 
-	# Under the Number, where the tap lands, rather than at the foot of the
-	# screen where the Rig panel now sits (D032).
-	tap_hint = _make_tracked_label("TAP TO PRODUCE", 11, FAINT_TEXT)
+	# Under the Number, where the tap lands, for a player who has not found it.
+	tap_hint = _make_tracked_label("TAP TO PRODUCE", 10, FAINT_TEXT)
 	tap_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tap_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	number_col.add_child(tap_hint)
 
-## The Rig panel: buy ranks with Cash during a run (D042). Sits above the
-## category strip and shows the currently selected category's rows priced in Cash.
+## A short line in the key, drawn at the thickness of the ring it names.
+func _make_key_swatch(thickness: float) -> ColorRect:
+	var wrap := CenterContainer.new()
+	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var swatch := ColorRect.new()
+	swatch.custom_minimum_size = Vector2(14, thickness)
+	swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	wrap.add_child(swatch)
+	return swatch
+
+## The Upgrades sheet (the Rig in code; D042, D045): buy ranks with Cash during
+## a run. A sheet resting on the category strip at the foot of the screen
+## (D049), so the upper half stays free; it shows the selected category's rows
+## as tiles. Tap a tile to buy, hold it to read it.
 func _build_rig_panel(parent: Control) -> void:
 	rig_panel = Control.new()
 	rig_panel.visible = false
-	# Placed below the stage by _apply_screen_layout, never over it (D032); its
-	# category strip sits flush at the foot of the screen, where no dock shows
-	# during a run (D016), so the rows stop above the strip.
 	rig_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	parent.add_child(rig_panel)
 
-	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 14)
-	margin.add_theme_constant_override("margin_right", 14)
-	margin.add_theme_constant_override("margin_top", 4)
-	margin.add_theme_constant_override("margin_bottom", CATEGORY_STRIP_HEIGHT + 6)
-	rig_panel.add_child(margin)
+	var sheet := PanelContainer.new()
+	sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	sheet.offset_bottom = -CATEGORY_STRIP_HEIGHT
+	var sheet_style := StyleBoxFlat.new()
+	sheet_style.bg_color = SHEET
+	sheet_style.corner_radius_top_left = 20
+	sheet_style.corner_radius_top_right = 20
+	sheet_style.content_margin_left = 20
+	sheet_style.content_margin_right = 20
+	sheet_style.content_margin_top = 8
+	sheet_style.content_margin_bottom = 10
+	sheet.add_theme_stylebox_override("panel", sheet_style)
+	rig_panel.add_child(sheet)
 
 	var content := VBoxContainer.new()
-	content.add_theme_constant_override("separation", 12)
-	content.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	margin.add_child(content)
+	content.add_theme_constant_override("separation", 8)
+	sheet.add_child(content)
+	content.add_child(_make_sheet_handle())
 
 	var category_row := HBoxContainer.new()
-	category_row.add_theme_constant_override("separation", 8)
+	category_row.add_theme_constant_override("separation", 10)
 	content.add_child(category_row)
-	rig_category_header = _make_label("", 16, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
-	rig_category_header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rig_category_header = _make_label("", 15, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	rig_category_header.add_theme_font_override("font", ui_font_medium)
 	category_row.add_child(rig_category_header)
+	rig_cash_label = _make_number_label("", 12, HORIZONTAL_ALIGNMENT_LEFT, ACCENT)
+	rig_cash_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	category_row.add_child(rig_cash_label)
 	category_row.add_child(_make_rig_multiplier_chip())
-
-	rig_purchase_policy = _make_label("", 11, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
-	rig_purchase_policy.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	content.add_child(rig_purchase_policy)
 
 	var detail_scroll := ScrollContainer.new()
 	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -852,22 +925,40 @@ func _build_rig_panel(parent: Control) -> void:
 
 	_build_rig_category_strip(rig_panel)
 
-## A borderless action: the verb, and under it what it costs.
-func _make_text_action(verb: String, cost: String) -> Button:
+## The grab handle at the top of every sheet.
+func _make_sheet_handle() -> CenterContainer:
+	var handle := Panel.new()
+	handle.custom_minimum_size = Vector2(36, 4)
+	handle.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var handle_style := StyleBoxFlat.new()
+	handle_style.bg_color = Color("2a2b2e")
+	handle_style.set_corner_radius_all(2)
+	handle.add_theme_stylebox_override("panel", handle_style)
+	var handle_wrap := CenterContainer.new()
+	handle_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	handle_wrap.add_child(handle)
+	return handle_wrap
+
+## An outlined pill: the verb, and under it what it costs.
+func _make_pill_action(verb: String) -> Button:
 	var button := Button.new()
-	button.flat = true
 	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(140, 46)
+	button.custom_minimum_size = Vector2(104, 48)
+	var style := _panel_style(Color.TRANSPARENT, 24, Color("2a2b2e"))
+	button.add_theme_stylebox_override("normal", style)
+	button.add_theme_stylebox_override("hover", _panel_style(SURFACE, 24, Color("2a2b2e")))
+	button.add_theme_stylebox_override("pressed", _panel_style(SURFACE_HOVER, 24, Color("2a2b2e")))
+	button.add_theme_stylebox_override("disabled", style)
 	var column := VBoxContainer.new()
 	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	column.add_theme_constant_override("separation", 5)
+	column.add_theme_constant_override("separation", 1)
 	button.add_child(column)
-	var verb_label := _make_tracked_label(verb, 13, ACCENT)
+	var verb_label := _make_tracked_label(verb, 12, TEXT)
 	verb_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(verb_label)
-	var cost_label := _make_label(cost, 10, HORIZONTAL_ALIGNMENT_CENTER, FAINT_TEXT)
+	var cost_label := _make_number_label("", 10, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	column.add_child(cost_label)
 	button.set_meta("verb_label", verb_label)
 	button.set_meta("cost_label", cost_label)
@@ -883,10 +974,16 @@ func _make_tracked_label(content: String, font_size: int, colour: Color) -> Labe
 
 func _tracked_font() -> FontVariation:
 	if tracked_font == null:
-		tracked_font = FontVariation.new()
-		tracked_font.base_font = ThemeDB.fallback_font
-		tracked_font.spacing_glyph = 2
+		tracked_font = _weighted_font(ui_font, 500)
+		tracked_font.spacing_glyph = 1
 	return tracked_font
+
+## Numbers are set in Geist Mono (D049), so digits keep their width as a value
+## climbs and columns of values line up.
+func _make_number_label(content: String, font_size: int, alignment: HorizontalAlignment, colour: Color) -> Label:
+	var label := _make_label(content, font_size, alignment, colour)
+	label.add_theme_font_override("font", number_font)
+	return label
 
 func _make_vertical_gradient(top: Color, bottom: Color) -> GradientTexture2D:
 	var gradient := Gradient.new()
@@ -900,9 +997,9 @@ func _make_vertical_gradient(top: Color, bottom: Color) -> GradientTexture2D:
 	texture.height = 256
 	return texture
 
-func _make_radial_glow(colour: Color, diameter: int) -> GradientTexture2D:
+func _make_radial_glow(colour: Color, diameter: int, strength: float = 0.18) -> GradientTexture2D:
 	var gradient := Gradient.new()
-	gradient.colors = PackedColorArray([Color(colour.r, colour.g, colour.b, 0.18), Color(colour.r, colour.g, colour.b, 0.0)])
+	gradient.colors = PackedColorArray([Color(colour.r, colour.g, colour.b, strength), Color(colour.r, colour.g, colour.b, 0.0)])
 	gradient.offsets = PackedFloat32Array([0.0, 1.0])
 	var texture := GradientTexture2D.new()
 	texture.gradient = gradient
@@ -935,42 +1032,50 @@ func _build_flat_screen(parent: Control, tab_id: String) -> VBoxContainer:
 	tab_panels[tab_id] = content
 	return content
 
-## Header, then the open category's rows, then the four category buttons pinned
-## above the nav dock. The strip stays put while the rows scroll, so switching
-## shelf is always one thumb reach away.
+## The Workshop (D049): a title, the Coins to spend, the four categories as one
+## segmented control at the top, then the open category's rows as a list. Rows
+## that are not open yet fold into one line saying what opens them.
 func _build_workshop_screen(parent: Control) -> void:
 	var content := _build_flat_screen(parent, "workshop")
 	var margin := content.get_parent() as MarginContainer
-	margin.add_theme_constant_override("margin_left", 14)
-	margin.add_theme_constant_override("margin_right", 14)
-	margin.add_theme_constant_override("margin_bottom", CATEGORY_STRIP_HEIGHT + int(NavDock.BAR_HEIGHT))
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_right", 20)
+	margin.add_theme_constant_override("margin_bottom", int(NavDock.BAR_HEIGHT))
+	content.add_theme_constant_override("separation", 0)
 
 	var header_row := HBoxContainer.new()
 	content.add_child(header_row)
-	var title := _make_label("WORKSHOP", 19, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_row.add_child(title)
-	var chip := PanelContainer.new()
-	chip.add_theme_stylebox_override("panel", _chip_style(SURFACE))
-	workshop_header = _make_label("", 12, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT)
-	chip.add_child(workshop_header)
-	header_row.add_child(chip)
-	content.add_child(_make_label("PERMANENT · APPLIES TO EVERY RUN", 10, HORIZONTAL_ALIGNMENT_LEFT, WORKSHOP_ACCENT))
+	var titles := VBoxContainer.new()
+	titles.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	titles.add_theme_constant_override("separation", 4)
+	header_row.add_child(titles)
+	var title := _make_label("Workshop", 22, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	title.add_theme_font_override("font", ui_font_medium)
+	titles.add_child(title)
+	titles.add_child(_make_label("Permanent. Every run starts from here.", 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
+	var balance := HBoxContainer.new()
+	balance.add_theme_constant_override("separation", 7)
+	balance.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
+	header_row.add_child(balance)
+	var coin_wrap := CenterContainer.new()
+	coin_wrap.add_child(IconGlyph.new(IconGlyph.Kind.GOLD_COIN, COIN_COLOUR, 14.0))
+	balance.add_child(coin_wrap)
+	workshop_header = _make_number_label("", 15, HORIZONTAL_ALIGNMENT_RIGHT, TEXT)
+	balance.add_child(workshop_header)
 
-	var category_row := HBoxContainer.new()
-	category_row.add_theme_constant_override("separation", 8)
-	content.add_child(category_row)
-	workshop_category_header = _make_label("", 16, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
-	workshop_category_header.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	category_row.add_child(workshop_category_header)
-	category_row.add_child(_make_multiplier_chip())
+	content.add_child(_make_gap(20))
+	workshop_board_row = _build_category_segments(content)
 
-	workshop_purpose = _make_label("", 12, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	content.add_child(_make_gap(14))
+	var purpose_row := HBoxContainer.new()
+	purpose_row.add_theme_constant_override("separation", 8)
+	content.add_child(purpose_row)
+	workshop_purpose = _make_label("", 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
 	workshop_purpose.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	content.add_child(workshop_purpose)
-	workshop_buy_when = _make_label("", 11, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
-	workshop_buy_when.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	content.add_child(workshop_buy_when)
+	workshop_purpose.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	purpose_row.add_child(workshop_purpose)
+	purpose_row.add_child(_make_multiplier_chip())
+	content.add_child(_make_gap(6))
 
 	var detail_scroll := ScrollContainer.new()
 	detail_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -978,10 +1083,8 @@ func _build_workshop_screen(parent: Control) -> void:
 	content.add_child(detail_scroll)
 	workshop_detail = VBoxContainer.new()
 	workshop_detail.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	workshop_detail.add_theme_constant_override("separation", 8)
+	workshop_detail.add_theme_constant_override("separation", 0)
 	detail_scroll.add_child(workshop_detail)
-
-	workshop_board_row = _build_category_strip(screens["workshop"], NavDock.BAR_HEIGHT)
 
 ## Refresh the Rig panel's detail display for the currently selected category.
 func _refresh_rig() -> void:
@@ -991,18 +1094,15 @@ func _refresh_rig() -> void:
 	if not ProgressionTaxonomy.WORKSHOP_CATEGORIES.has(category):
 		category = ProgressionTaxonomy.ATTACK
 		state.workshop.selected_category = category
-	rig_category_header.text = ProgressionTaxonomy.category_name(category) + " UPGRADES · " + state.cash.format_value() + " CASH"
-	rig_purchase_policy.text = "THIS RUN ONLY · BUY WITH CASH · HOLD A CARD FOR DETAILS"
+	rig_category_header.text = ProgressionTaxonomy.category_name(category).capitalize()
+	rig_cash_label.text = state.cash.format_value() + " Cash · this run"
 	rig_multiplier_label.text = _buy_step_label(category)
 	for tab_category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
 		var active: bool = category == tab_category
-		var colour: Color = WORKSHOP_ACCENT if active else MUTED_TEXT
+		var colour: Color = TEXT if active else MUTED_TEXT
 		(rig_tab_icons[tab_category] as IconGlyph).set_glyph_color(colour)
 		(rig_tab_labels[tab_category] as Label).add_theme_color_override("font_color", colour)
-		var button: Button = rig_tab_buttons[tab_category]
-		var border: Color = WORKSHOP_ACCENT if active else Color.TRANSPARENT
-		var fill: Color = Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.14) if active else Color.TRANSPARENT
-		button.add_theme_stylebox_override("normal", _panel_style(fill, 12, border))
+		(rig_tab_marks[tab_category] as ColorRect).visible = active
 	_refresh_rig_detail(category)
 
 func _refresh_rig_detail(category: String) -> void:
@@ -1028,18 +1128,8 @@ func _refresh_rig_detail(category: String) -> void:
 ## The multi-buy control: one press cycles x1 → x5 → x10 → MAX for the open
 ## category, which is how a player buys a ladder without a hundred taps.
 func _make_multiplier_chip() -> Button:
-	var button := Button.new()
-	button.text = ""
-	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(62, 30)
-	button.add_theme_stylebox_override("normal", _panel_style(Color.TRANSPARENT, 8, WORKSHOP_ACCENT))
-	button.add_theme_stylebox_override("hover", _panel_style(Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.14), 8, WORKSHOP_ACCENT))
-	var centre := CenterContainer.new()
-	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	button.add_child(centre)
-	workshop_multiplier_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, WORKSHOP_ACCENT)
-	centre.add_child(workshop_multiplier_label)
+	var button := _make_step_chip()
+	workshop_multiplier_label = button.get_meta("label")
 	button.pressed.connect(func():
 		var category: String = state.workshop.selected_category
 		buy_step_index[category] = (_buy_step_index(category) + 1) % GameState.BUY_STEPS.size()
@@ -1048,23 +1138,32 @@ func _make_multiplier_chip() -> Button:
 	return button
 
 func _make_rig_multiplier_chip() -> Button:
-	var button := Button.new()
-	button.text = ""
-	button.focus_mode = Control.FOCUS_NONE
-	button.custom_minimum_size = Vector2(62, 30)
-	button.add_theme_stylebox_override("normal", _panel_style(Color.TRANSPARENT, 8, WORKSHOP_ACCENT))
-	button.add_theme_stylebox_override("hover", _panel_style(Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.14), 8, WORKSHOP_ACCENT))
-	var centre := CenterContainer.new()
-	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	button.add_child(centre)
-	rig_multiplier_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, WORKSHOP_ACCENT)
-	centre.add_child(rig_multiplier_label)
+	var button := _make_step_chip()
+	rig_multiplier_label = button.get_meta("label")
 	button.pressed.connect(func():
 		var category: String = state.workshop.selected_category
 		buy_step_index[category] = (_buy_step_index(category) + 1) % GameState.BUY_STEPS.size()
 		_refresh_rig()
 	)
+	return button
+
+## A small filled pill holding the buy step; tall enough to press, drawn small.
+func _make_step_chip() -> Button:
+	var button := Button.new()
+	button.text = ""
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(52, 36)
+	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	button.add_theme_stylebox_override("normal", _panel_style(SURFACE_RAISED, 14))
+	button.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 14))
+	button.add_theme_stylebox_override("pressed", _panel_style(SURFACE_HOVER, 14))
+	var centre := CenterContainer.new()
+	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(centre)
+	var label := _make_number_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
+	centre.add_child(label)
+	button.set_meta("label", label)
 	return button
 
 func _buy_step_index(category: String) -> int:
@@ -1075,14 +1174,16 @@ func _buy_step(category: String) -> int:
 
 func _buy_step_label(category: String) -> String:
 	var step := _buy_step(category)
-	return "MAX" if step == GameState.MAX_BUY else "x" + str(step)
+	return "MAX" if step == GameState.MAX_BUY else "×" + str(step)
 
-## The Rig panel's category strip sits above it at the bottom of the run screen.
+## The run's category strip, flush at the foot of the screen and joined to the
+## Upgrades sheet above it: the active category carries a short accent bar.
 func _build_rig_category_strip(parent: Control) -> HBoxContainer:
-	var strip := Control.new()
+	var strip := Panel.new()
 	strip.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	strip.offset_top = -(CATEGORY_STRIP_HEIGHT)
 	strip.offset_bottom = 0
+	strip.add_theme_stylebox_override("panel", _panel_style(SHEET, 0))
 	parent.add_child(strip)
 	var divider := ColorRect.new()
 	divider.color = DIVIDER
@@ -1091,86 +1192,71 @@ func _build_rig_category_strip(parent: Control) -> HBoxContainer:
 	strip.add_child(divider)
 	var row := HBoxContainer.new()
 	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	row.offset_left = 10
-	row.offset_right = -10
-	row.offset_top = 6
-	row.offset_bottom = -6
-	row.add_theme_constant_override("separation", 8)
+	row.add_theme_constant_override("separation", 0)
 	strip.add_child(row)
 	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
 		row.add_child(_make_rig_category_tab(category))
 	return row
 
-## The four category buttons, pinned to the bottom of the screen that owns them.
-## bottom_offset lifts them clear of the nav dock; a run screen has no dock, so
-## the same strip can sit flush there when the Rig arrives (D015, D016).
-func _build_category_strip(parent: Control, bottom_offset: float) -> HBoxContainer:
-	var strip := Control.new()
-	strip.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	strip.offset_top = -(bottom_offset + float(CATEGORY_STRIP_HEIGHT))
-	strip.offset_bottom = -bottom_offset
-	parent.add_child(strip)
-	var divider := ColorRect.new()
-	divider.color = DIVIDER
-	divider.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	divider.offset_bottom = 1
-	strip.add_child(divider)
+## The Workshop's four categories as one segmented control.
+func _build_category_segments(parent: Control) -> HBoxContainer:
+	var track := PanelContainer.new()
+	var track_style := _panel_style(SURFACE, 22)
+	track_style.set_content_margin_all(3)
+	track.add_theme_stylebox_override("panel", track_style)
+	parent.add_child(track)
 	var row := HBoxContainer.new()
-	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	row.offset_left = 10
-	row.offset_right = -10
-	row.offset_top = 6
-	row.offset_bottom = -6
-	row.add_theme_constant_override("separation", 8)
-	strip.add_child(row)
+	row.add_theme_constant_override("separation", 0)
+	track.add_child(row)
 	for category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
 		row.add_child(_make_category_tab(category))
 	return row
 
 func _make_category_tab(category: String) -> Button:
 	var button := Button.new()
-	button.text = ""
+	button.text = ProgressionTaxonomy.category_name(category).capitalize()
 	button.focus_mode = Control.FOCUS_NONE
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var layout := _tile_layout(button, 4, 4)
-	layout.alignment = BoxContainer.ALIGNMENT_CENTER
-	var icon_wrap := CenterContainer.new()
-	icon_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var icon := IconGlyph.new(CATEGORY_ICON[category], MUTED_TEXT, 18.0)
-	icon_wrap.add_child(icon)
-	layout.add_child(icon_wrap)
-	var label := _make_label(ProgressionTaxonomy.category_name(category), 9, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
-	layout.add_child(label)
-	var lock_badge := IconGlyph.new(IconGlyph.Kind.LOCK, MUTED_TEXT, 10.0)
-	lock_badge.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
-	lock_badge.position += Vector2(-4, 4)
-	button.add_child(lock_badge)
+	button.custom_minimum_size = Vector2(0, 38)
+	button.add_theme_font_size_override("font_size", 13)
+	button.add_theme_stylebox_override("hover", StyleBoxEmpty.new())
+	button.add_theme_stylebox_override("pressed", StyleBoxEmpty.new())
+	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	button.pressed.connect(func(selected: String = category):
 		state.workshop.selected_category = selected
 		_refresh_workshop()
 	)
 	workshop_tab_buttons[category] = button
-	workshop_tab_icons[category] = icon
-	workshop_tab_labels[category] = label
-	workshop_lock_badges[category] = lock_badge
 	return button
 
 func _make_rig_category_tab(category: String) -> Button:
 	var button := Button.new()
 	button.text = ""
+	button.flat = true
 	button.focus_mode = Control.FOCUS_NONE
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	var layout := _tile_layout(button, 4, 4)
 	layout.alignment = BoxContainer.ALIGNMENT_CENTER
+	layout.add_theme_constant_override("separation", 5)
 	var icon_wrap := CenterContainer.new()
 	icon_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var icon := IconGlyph.new(CATEGORY_ICON[category], MUTED_TEXT, 18.0)
 	icon_wrap.add_child(icon)
 	layout.add_child(icon_wrap)
-	var label := _make_label(ProgressionTaxonomy.category_name(category), 9, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
+	var label := _make_tracked_label(ProgressionTaxonomy.category_name(category), 10, MUTED_TEXT)
 	layout.add_child(label)
+	var mark := ColorRect.new()
+	mark.color = ACCENT
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	mark.anchor_left = 0.5
+	mark.anchor_right = 0.5
+	mark.offset_left = -10
+	mark.offset_right = 10
+	mark.offset_top = 0
+	mark.offset_bottom = 2
+	mark.visible = false
+	button.add_child(mark)
 	button.pressed.connect(func(selected: String = category):
 		state.workshop.selected_category = selected
 		_refresh_rig()
@@ -1178,6 +1264,7 @@ func _make_rig_category_tab(category: String) -> Button:
 	rig_tab_buttons[category] = button
 	rig_tab_icons[category] = icon
 	rig_tab_labels[category] = label
+	rig_tab_marks[category] = mark
 	return button
 
 ## Research Focus, Insight and Prestige in one sheet (D016). None of the three
@@ -1204,7 +1291,7 @@ func _build_knowledge_sheet() -> void:
 	sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	sheet.offset_top = 150
 	var sheet_style := StyleBoxFlat.new()
-	sheet_style.bg_color = Color("111722")
+	sheet_style.bg_color = SHEET
 	sheet_style.corner_radius_top_left = 24
 	sheet_style.corner_radius_top_right = 24
 	sheet.add_theme_stylebox_override("panel", sheet_style)
@@ -1220,15 +1307,7 @@ func _build_knowledge_sheet() -> void:
 	column.add_theme_constant_override("separation", 12)
 	margin.add_child(column)
 
-	var handle := Panel.new()
-	handle.custom_minimum_size = Vector2(36, 4)
-	var handle_style := StyleBoxFlat.new()
-	handle_style.bg_color = Color(1, 1, 1, 0.16)
-	handle_style.set_corner_radius_all(2)
-	handle.add_theme_stylebox_override("panel", handle_style)
-	var handle_wrap := CenterContainer.new()
-	handle_wrap.add_child(handle)
-	column.add_child(handle_wrap)
+	column.add_child(_make_sheet_handle())
 
 	var header_row := HBoxContainer.new()
 	column.add_child(header_row)
@@ -1240,8 +1319,8 @@ func _build_knowledge_sheet() -> void:
 	var chip_row := HBoxContainer.new()
 	chip_row.add_theme_constant_override("separation", 6)
 	chip.add_child(chip_row)
-	chip_row.add_child(IconGlyph.new(IconGlyph.Kind.DIAMOND, CARDS_ACCENT, 13.0))
-	cards_knowledge_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_LEFT, CARDS_ACCENT)
+	chip_row.add_child(IconGlyph.new(IconGlyph.Kind.BOOK, MUTED_TEXT, 13.0))
+	cards_knowledge_label = _make_number_label("", 12, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
 	chip_row.add_child(cards_knowledge_label)
 	header_row.add_child(chip)
 
@@ -1339,7 +1418,7 @@ func _build_lab_research_sheet() -> void:
 	sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	sheet.offset_top = 150
 	var sheet_style := StyleBoxFlat.new()
-	sheet_style.bg_color = Color("111722")
+	sheet_style.bg_color = SHEET
 	sheet_style.corner_radius_top_left = 24
 	sheet_style.corner_radius_top_right = 24
 	sheet.add_theme_stylebox_override("panel", sheet_style)
@@ -1355,15 +1434,7 @@ func _build_lab_research_sheet() -> void:
 	column.add_theme_constant_override("separation", 12)
 	margin.add_child(column)
 
-	var handle := Panel.new()
-	handle.custom_minimum_size = Vector2(36, 4)
-	var handle_style := StyleBoxFlat.new()
-	handle_style.bg_color = Color(1, 1, 1, 0.16)
-	handle_style.set_corner_radius_all(2)
-	handle.add_theme_stylebox_override("panel", handle_style)
-	var handle_wrap := CenterContainer.new()
-	handle_wrap.add_child(handle)
-	column.add_child(handle_wrap)
+	column.add_child(_make_sheet_handle())
 
 	var header_row := HBoxContainer.new()
 	column.add_child(header_row)
@@ -1383,8 +1454,8 @@ func _build_lab_research_sheet() -> void:
 	lab_slot_button.focus_mode = Control.FOCUS_NONE
 	lab_slot_button.custom_minimum_size = Vector2(0, 44)
 	lab_slot_button.add_theme_font_size_override("font_size", 13)
-	lab_slot_button.add_theme_color_override("font_color", Color("0d1016"))
-	lab_slot_button.add_theme_color_override("font_hover_color", Color("0d1016"))
+	lab_slot_button.add_theme_color_override("font_color", ACCENT_INK)
+	lab_slot_button.add_theme_color_override("font_hover_color", ACCENT_INK)
 	lab_slot_button.add_theme_color_override("font_disabled_color", MUTED_TEXT)
 	lab_slot_button.add_theme_stylebox_override("normal", _panel_style(LABS_ACCENT, 12))
 	lab_slot_button.add_theme_stylebox_override("hover", _panel_style(LABS_ACCENT.lightened(0.1), 12))
@@ -1460,7 +1531,7 @@ func _make_lab_research_card(definition: LabResearch.Definition) -> Button:
 	button.disabled = maxed or active or not state.can_start_lab(definition.id)
 	button.add_theme_stylebox_override("normal", _panel_style(SURFACE, 14, Color.TRANSPARENT))
 	button.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 14, LABS_ACCENT))
-	button.add_theme_stylebox_override("pressed", _panel_style(Color("0f5848"), 14, LABS_ACCENT))
+	button.add_theme_stylebox_override("pressed", _panel_style(SURFACE_HOVER, 14, LABS_ACCENT))
 	button.add_theme_stylebox_override("disabled", _panel_style(SURFACE, 14, LABS_ACCENT if active else Color.TRANSPARENT))
 	var row := _row_layout(button, 14, 10)
 	var chip := Panel.new()
@@ -1529,7 +1600,7 @@ func _build_card_collection_sheet() -> void:
 	sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	sheet.offset_top = 150
 	var sheet_style := StyleBoxFlat.new()
-	sheet_style.bg_color = Color("111722")
+	sheet_style.bg_color = SHEET
 	sheet_style.corner_radius_top_left = 24
 	sheet_style.corner_radius_top_right = 24
 	sheet.add_theme_stylebox_override("panel", sheet_style)
@@ -1545,15 +1616,7 @@ func _build_card_collection_sheet() -> void:
 	column.add_theme_constant_override("separation", 12)
 	margin.add_child(column)
 
-	var handle := Panel.new()
-	handle.custom_minimum_size = Vector2(36, 4)
-	var handle_style := StyleBoxFlat.new()
-	handle_style.bg_color = Color(1, 1, 1, 0.16)
-	handle_style.set_corner_radius_all(2)
-	handle.add_theme_stylebox_override("panel", handle_style)
-	var handle_wrap := CenterContainer.new()
-	handle_wrap.add_child(handle)
-	column.add_child(handle_wrap)
+	column.add_child(_make_sheet_handle())
 
 	var header_row := HBoxContainer.new()
 	column.add_child(header_row)
@@ -1565,8 +1628,8 @@ func _build_card_collection_sheet() -> void:
 	var chip_row := HBoxContainer.new()
 	chip_row.add_theme_constant_override("separation", 6)
 	chip.add_child(chip_row)
-	chip_row.add_child(IconGlyph.new(IconGlyph.Kind.DIAMOND, CARDS_ACCENT, 13.0))
-	card_collection_gems_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_LEFT, CARDS_ACCENT)
+	chip_row.add_child(IconGlyph.new(IconGlyph.Kind.GEM, GEM_COLOUR, 13.0))
+	card_collection_gems_label = _make_number_label("", 12, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
 	chip_row.add_child(card_collection_gems_label)
 	header_row.add_child(chip)
 	column.add_child(_make_label("PERMANENT · ACTIVE CARDS APPLY TO EVERY RUN", 10, HORIZONTAL_ALIGNMENT_LEFT, CARDS_ACCENT))
@@ -1575,8 +1638,8 @@ func _build_card_collection_sheet() -> void:
 	card_collection_pull_button.focus_mode = Control.FOCUS_NONE
 	card_collection_pull_button.custom_minimum_size = Vector2(0, 44)
 	card_collection_pull_button.add_theme_font_size_override("font_size", 13)
-	card_collection_pull_button.add_theme_color_override("font_color", Color("0d1016"))
-	card_collection_pull_button.add_theme_color_override("font_hover_color", Color("0d1016"))
+	card_collection_pull_button.add_theme_color_override("font_color", ACCENT_INK)
+	card_collection_pull_button.add_theme_color_override("font_hover_color", ACCENT_INK)
 	card_collection_pull_button.add_theme_color_override("font_disabled_color", MUTED_TEXT)
 	card_collection_pull_button.add_theme_stylebox_override("normal", _panel_style(CARDS_ACCENT, 12))
 	card_collection_pull_button.add_theme_stylebox_override("hover", _panel_style(CARDS_ACCENT.lightened(0.1), 12))
@@ -1643,7 +1706,7 @@ func _build_milestones_sheet() -> void:
 	sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	sheet.offset_top = 150
 	var sheet_style := StyleBoxFlat.new()
-	sheet_style.bg_color = Color("111722")
+	sheet_style.bg_color = SHEET
 	sheet_style.corner_radius_top_left = 24
 	sheet_style.corner_radius_top_right = 24
 	sheet.add_theme_stylebox_override("panel", sheet_style)
@@ -1769,7 +1832,7 @@ func _make_card_tile(definition: CardCollection.Definition, in_active_section: b
 	button.disabled = locked or not can_act
 	button.add_theme_stylebox_override("normal", _panel_style(SURFACE, 14, Color.TRANSPARENT))
 	button.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 14, tint))
-	button.add_theme_stylebox_override("pressed", _panel_style(Color("0f5848"), 14, tint))
+	button.add_theme_stylebox_override("pressed", _panel_style(SURFACE_HOVER, 14, tint))
 	var row := _row_layout(button, 14, 8)
 	var chip := Panel.new()
 	chip.custom_minimum_size = Vector2(32, 32)
@@ -1803,11 +1866,12 @@ func _make_card_tile(definition: CardCollection.Definition, in_active_section: b
 	)
 	return button
 
+## Toasts sit just above the screen's main controls (D049): over the
+## Upgrades sheet in a run, over BATTLE on the hub, over the bar elsewhere, so
+## they never land on the ring or the Number.
 func _build_toast() -> void:
-	var toast_wrap := Control.new()
-	toast_wrap.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	toast_wrap.custom_minimum_size = Vector2(0, 90)
-	toast_wrap.offset_top = 56
+	toast_wrap = Control.new()
+	toast_wrap.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
 	toast_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(toast_wrap)
 	var center := CenterContainer.new()
@@ -1844,7 +1908,7 @@ func _build_drawer() -> void:
 	sheet.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	sheet.offset_top = 200
 	var sheet_style := StyleBoxFlat.new()
-	sheet_style.bg_color = Color("111722")
+	sheet_style.bg_color = SHEET
 	sheet_style.corner_radius_top_left = 24
 	sheet_style.corner_radius_top_right = 24
 	sheet.add_theme_stylebox_override("panel", sheet_style)
@@ -1860,15 +1924,7 @@ func _build_drawer() -> void:
 	drawer_content.add_theme_constant_override("separation", 14)
 	margin.add_child(drawer_content)
 
-	var handle := Panel.new()
-	handle.custom_minimum_size = Vector2(36, 4)
-	var handle_style := StyleBoxFlat.new()
-	handle_style.bg_color = Color(1, 1, 1, 0.16)
-	handle_style.set_corner_radius_all(2)
-	handle.add_theme_stylebox_override("panel", handle_style)
-	var handle_wrap := CenterContainer.new()
-	handle_wrap.add_child(handle)
-	drawer_content.add_child(handle_wrap)
+	drawer_content.add_child(_make_sheet_handle())
 
 	var top := HBoxContainer.new()
 	drawer_content.add_child(top)
@@ -1898,10 +1954,10 @@ func _build_drawer() -> void:
 
 	var knowledge_route := _make_row_button()
 	knowledge_route.custom_minimum_size = Vector2(0, 62)
-	knowledge_route.add_theme_stylebox_override("normal", _panel_style(SURFACE, 14, Color(CARDS_ACCENT.r, CARDS_ACCENT.g, CARDS_ACCENT.b, 0.35)))
+	knowledge_route.add_theme_stylebox_override("normal", _panel_style(SURFACE, 14))
 	knowledge_route.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 14, CARDS_ACCENT))
 	var route_row := _row_layout(knowledge_route, 14, 10)
-	route_row.add_child(IconGlyph.new(IconGlyph.Kind.DIAMOND, CARDS_ACCENT, 16.0))
+	route_row.add_child(IconGlyph.new(IconGlyph.Kind.BOOK, MUTED_TEXT, 16.0))
 	var route_label := _make_label("Spend Knowledge", 14, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
 	route_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	route_row.add_child(route_label)
@@ -1983,7 +2039,7 @@ func _build_stat_info() -> void:
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(272, 0)
 	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	panel.add_theme_stylebox_override("panel", _panel_style(Color("171c26"), 20, Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.5)))
+	panel.add_theme_stylebox_override("panel", _panel_style(SHEET, 20))
 	centre.add_child(panel)
 
 	var margin := MarginContainer.new()
@@ -2039,9 +2095,10 @@ func _show_stat_info(definition: UpgradeDefinition, from_rig: bool = false) -> v
 	stat_info_extra.visible = not extra.is_empty()
 	stat_info_screen.visible = true
 
-## The run-over report: same scrim-and-sheet shape as the drawer, but modal
-## (no scrim-tap-to-dismiss) since a death should be acknowledged, not brushed
-## past, and its content is a fixed summary rather than a live-editing form.
+## The run-over report (D049): a sheet from the foot of the screen over a
+## dimmed stage, modal (no scrim-tap-to-dismiss) since a death should be
+## acknowledged, not brushed past. It names the wave and its hit, how far
+## Attack and Defense fell short, what the run earned, and the ways on.
 func _build_died_screen() -> void:
 	died_screen = Control.new()
 	died_screen.visible = false
@@ -2049,128 +2106,213 @@ func _build_died_screen() -> void:
 	add_child(died_screen)
 
 	var scrim := ColorRect.new()
-	scrim.color = Color(0, 0, 0, 0.7)
+	scrim.color = Color(0, 0, 0, 0.55)
 	scrim.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	scrim.mouse_filter = Control.MOUSE_FILTER_STOP
 	died_screen.add_child(scrim)
 
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	died_screen.add_child(center)
-
-	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(280, 0)
-	panel.add_theme_stylebox_override("panel", _panel_style(Color("171c26"), 22, Color(DANGER.r, DANGER.g, DANGER.b, 0.4)))
-	center.add_child(panel)
-
-	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_top", 26)
-	margin.add_theme_constant_override("margin_bottom", 26)
-	panel.add_child(margin)
+	var sheet := PanelContainer.new()
+	sheet.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	sheet.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	var sheet_style := StyleBoxFlat.new()
+	sheet_style.bg_color = SHEET
+	sheet_style.corner_radius_top_left = 24
+	sheet_style.corner_radius_top_right = 24
+	sheet_style.content_margin_left = 20
+	sheet_style.content_margin_right = 20
+	sheet_style.content_margin_top = 10
+	sheet_style.content_margin_bottom = 28
+	sheet.add_theme_stylebox_override("panel", sheet_style)
+	died_screen.add_child(sheet)
 
 	var inner := VBoxContainer.new()
-	inner.alignment = BoxContainer.ALIGNMENT_CENTER
-	inner.add_theme_constant_override("separation", 6)
-	margin.add_child(inner)
-
-	inner.add_child(_make_label("LOST TO", 12, HORIZONTAL_ALIGNMENT_CENTER, DANGER))
-	died_wave_label = _make_label("", 26, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
-	inner.add_child(died_wave_label)
-	died_cause_label = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, DANGER)
+	inner.add_theme_constant_override("separation", 0)
+	sheet.add_child(inner)
+	inner.add_child(_make_sheet_handle())
+	inner.add_child(_make_gap(22))
+	died_title_label = _make_tracked_label("", 11, WARNING)
+	died_title_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	inner.add_child(died_title_label)
+	inner.add_child(_make_gap(6))
+	var wave_row := HBoxContainer.new()
+	wave_row.add_theme_constant_override("separation", 8)
+	inner.add_child(wave_row)
+	died_wave_label = _make_label("", 28, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	died_wave_label.add_theme_font_override("font", ui_font_medium)
+	wave_row.add_child(died_wave_label)
+	inner.add_child(_make_gap(6))
+	died_cause_label = _make_label("", 14, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
 	died_cause_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	inner.add_child(died_cause_label)
-	died_attack_gap_label = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
-	inner.add_child(died_attack_gap_label)
-	died_defense_gap_label = _make_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, TEXT)
-	inner.add_child(died_defense_gap_label)
-	var subtitle := _make_label("Your Workshop was retained.", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
-	subtitle.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	inner.add_child(subtitle)
-	inner.add_child(HSeparator.new())
 
-	died_coins_label = _make_label("", 14, HORIZONTAL_ALIGNMENT_CENTER, COIN_ACCENT)
-	inner.add_child(died_coins_label)
-	died_knowledge_label = _make_label("", 14, HORIZONTAL_ALIGNMENT_CENTER, CARDS_ACCENT)
-	inner.add_child(died_knowledge_label)
-	died_gems_label = _make_label("", 14, HORIZONTAL_ALIGNMENT_CENTER, CRITICAL)
-	inner.add_child(died_gems_label)
-	died_peak_label = _make_label("", 12, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
-	inner.add_child(died_peak_label)
+	# The two gaps (D022, step 6): how far short Attack fell against the wave's
+	# HP and Defense against its hit.
+	var gaps := VBoxContainer.new()
+	gaps.add_theme_constant_override("separation", 0)
+	died_gap_rows = gaps
+	inner.add_child(gaps)
+	gaps.add_child(_make_gap(20))
+	var top_line := ColorRect.new()
+	top_line.color = LINE
+	top_line.custom_minimum_size = Vector2(0, 1)
+	gaps.add_child(top_line)
+	died_attack_gap_label = _make_gap_row(gaps, IconGlyph.Kind.BOLT, "Attack", "HP short")
+	died_defense_gap_label = _make_gap_row(gaps, IconGlyph.Kind.SHIELD, "Defense", "short of the hit")
+
+	inner.add_child(_make_gap(20))
+	var rewards := HBoxContainer.new()
+	rewards.add_theme_constant_override("separation", 8)
+	inner.add_child(rewards)
+	died_coins_label = _make_reward_tile(rewards, IconGlyph.Kind.GOLD_COIN, COIN_COLOUR, "Coins earned")
+	died_knowledge_label = _make_reward_tile(rewards, IconGlyph.Kind.BOOK, MUTED_TEXT, "Knowledge")
+	died_knowledge_tile = died_knowledge_label.get_meta("tile")
+	died_gems_label = _make_reward_tile(rewards, IconGlyph.Kind.GEM, GEM_COLOUR, "Gems")
+	died_gems_tile = died_gems_label.get_meta("tile")
+
+	inner.add_child(_make_gap(14))
+	var footnote := HBoxContainer.new()
+	inner.add_child(footnote)
+	died_peak_label = _make_number_label("", 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	died_peak_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	footnote.add_child(died_peak_label)
+	footnote.add_child(_make_label("Workshop kept", 12, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT))
 
 	# Both doors, at the moment the currency lands (D016).
+	inner.add_child(_make_gap(22))
 	var doors := HBoxContainer.new()
 	doors.add_theme_constant_override("separation", 8)
 	inner.add_child(doors)
-	doors.add_child(_make_door("WORKSHOP", ACCENT, func():
+	doors.add_child(_make_door("Workshop", TEXT, func():
 		_dismiss_died_screen()
 		_on_dock_tab_selected("workshop")
 	))
-	died_knowledge_door = _make_door("SPEND KNOWLEDGE", CARDS_ACCENT, func():
+	died_knowledge_door = _make_door("Spend Knowledge", TEXT, func():
 		_dismiss_died_screen()
 		_open_knowledge_sheet()
 	)
 	doors.add_child(died_knowledge_door)
 
-	var continue_button := Button.new()
-	continue_button.text = "CONTINUE"
-	continue_button.focus_mode = Control.FOCUS_NONE
-	continue_button.custom_minimum_size = Vector2(0, 48)
-	continue_button.add_theme_font_size_override("font_size", 14)
-	continue_button.add_theme_color_override("font_color", Color("0d1016"))
-	continue_button.add_theme_color_override("font_hover_color", Color("0d1016"))
-	continue_button.add_theme_stylebox_override("normal", _panel_style(ACCENT, 999))
-	continue_button.add_theme_stylebox_override("hover", _panel_style(ACCENT.lightened(0.1), 999))
+	inner.add_child(_make_gap(10))
+	var continue_button := _make_primary_button("CONTINUE")
 	continue_button.pressed.connect(_dismiss_died_screen)
 	inner.add_child(continue_button)
 
-## A named cause, not a counterfactual: the run was lost to a particular wave's
-## hit, and the screen says which and how big.
+## One shortfall line on the run-over sheet: its category, how far short, and
+## of what. Returns the amount's label.
+func _make_gap_row(parent: Control, icon_kind: int, category: String, unit: String) -> Label:
+	var row := HBoxContainer.new()
+	row.custom_minimum_size = Vector2(0, 48)
+	row.add_theme_constant_override("separation", 10)
+	parent.add_child(row)
+	var icon_wrap := CenterContainer.new()
+	icon_wrap.add_child(IconGlyph.new(icon_kind, MUTED_TEXT, 16.0))
+	row.add_child(icon_wrap)
+	var name_label := _make_label(category, 14, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_label.size_flags_vertical = Control.SIZE_FILL
+	row.add_child(name_label)
+	var amount := _make_number_label("", 14, HORIZONTAL_ALIGNMENT_RIGHT, TEXT)
+	amount.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	amount.size_flags_vertical = Control.SIZE_FILL
+	row.add_child(amount)
+	var unit_label := _make_label(unit, 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
+	unit_label.custom_minimum_size = Vector2(108, 0)
+	unit_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	unit_label.size_flags_vertical = Control.SIZE_FILL
+	row.add_child(unit_label)
+	var line := ColorRect.new()
+	line.color = LINE
+	line.custom_minimum_size = Vector2(0, 1)
+	parent.add_child(line)
+	return amount
+
+## A reward tile on the run-over sheet: the currency's icon and name over the
+## amount earned. Returns the amount's label, with its tile in meta "tile".
+func _make_reward_tile(parent: Control, icon_kind: int, icon_colour: Color, caption: String) -> Label:
+	var tile := PanelContainer.new()
+	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var style := _panel_style(SURFACE_RAISED, 12)
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 14
+	style.content_margin_bottom = 14
+	tile.add_theme_stylebox_override("panel", style)
+	parent.add_child(tile)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 4)
+	tile.add_child(column)
+	var heading := HBoxContainer.new()
+	heading.add_theme_constant_override("separation", 6)
+	column.add_child(heading)
+	var icon_wrap := CenterContainer.new()
+	icon_wrap.add_child(IconGlyph.new(icon_kind, icon_colour, 12.0))
+	heading.add_child(icon_wrap)
+	heading.add_child(_make_label(caption, 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
+	var amount := _make_number_label("", 26, HORIZONTAL_ALIGNMENT_LEFT, ACCENT)
+	column.add_child(amount)
+	amount.set_meta("tile", tile)
+	return amount
+
+## The one filled button a screen has: its main way on.
+func _make_primary_button(text: String) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(0, 56)
+	button.add_theme_font_override("font", _tracked_font())
+	button.add_theme_font_size_override("font_size", 15)
+	button.add_theme_color_override("font_color", ACCENT_INK)
+	button.add_theme_color_override("font_hover_color", ACCENT_INK)
+	button.add_theme_color_override("font_pressed_color", ACCENT_INK)
+	button.add_theme_stylebox_override("normal", _panel_style(ACCENT, 999))
+	button.add_theme_stylebox_override("hover", _panel_style(ACCENT.lightened(0.1), 999))
+	button.add_theme_stylebox_override("pressed", _panel_style(ACCENT.darkened(0.08), 999))
+	return button
+
+## An outlined pill for a secondary way on.
 func _make_door(text: String, tint: Color, on_press: Callable) -> Button:
 	var button := Button.new()
 	button.text = text
 	button.focus_mode = Control.FOCUS_NONE
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.custom_minimum_size = Vector2(0, 42)
-	button.add_theme_font_size_override("font_size", 11)
+	button.custom_minimum_size = Vector2(0, 44)
+	button.add_theme_font_size_override("font_size", 13)
 	button.add_theme_color_override("font_color", tint)
 	button.add_theme_color_override("font_hover_color", tint)
-	button.add_theme_stylebox_override("normal", _panel_style(Color(tint.r, tint.g, tint.b, 0.1), 999, Color(tint.r, tint.g, tint.b, 0.4)))
-	button.add_theme_stylebox_override("hover", _panel_style(Color(tint.r, tint.g, tint.b, 0.2), 999, tint))
+	button.add_theme_color_override("font_pressed_color", tint)
+	button.add_theme_stylebox_override("normal", _panel_style(Color.TRANSPARENT, 999, Color("2a2b2e")))
+	button.add_theme_stylebox_override("hover", _panel_style(SURFACE, 999, Color("2a2b2e")))
+	button.add_theme_stylebox_override("pressed", _panel_style(SURFACE_HOVER, 999, Color("2a2b2e")))
 	button.pressed.connect(on_press)
 	return button
 
 func _show_died_screen(summary: RunSummary) -> void:
 	if summary == null or died_screen == null:
 		return
-	var wave_name := "BOSS WAVE " if summary.lost_to_boss else "WAVE "
-	died_wave_label.text = wave_name + str(summary.wave_reached)
+	died_title_label.text = "RUN OVER  ·  TIER " + str(summary.tier_id)
+	died_wave_label.text = ("Boss wave " if summary.lost_to_boss else "Wave ") + str(summary.wave_reached)
 	died_cause_label.text = "Its hit took " + summary.final_hit.format_value() + " and you had less."
-	# The two gaps under "Lost to" (D022, step 6): how far short Attack fell
-	# against the wave's HP and Defense against its hit. The smaller gap is the
-	# closer fix, so it carries the accent: the screen points at the category
-	# to open next without saying so in words. A tie leaves both lines plain.
+	# The smaller gap is the closer fix, so it carries the accent: the sheet
+	# points at the category to open next without saying so in words. A tie
+	# leaves both plain.
 	var lost_to_a_hit := not summary.final_hit.is_zero()
-	died_attack_gap_label.visible = lost_to_a_hit
-	died_defense_gap_label.visible = lost_to_a_hit
+	died_gap_rows.visible = lost_to_a_hit
 	if lost_to_a_hit:
 		var smaller_gap := summary.attack_gap.compare_to(summary.defense_gap)
-		died_attack_gap_label.text = "ATTACK  ·  " + summary.attack_gap.format_value() + " HP SHORT"
-		died_defense_gap_label.text = "DEFENSE  ·  " + summary.defense_gap.format_value() + " SHORT OF THE HIT"
+		died_attack_gap_label.text = summary.attack_gap.format_value()
+		died_defense_gap_label.text = summary.defense_gap.format_value()
 		died_attack_gap_label.add_theme_color_override("font_color", ACCENT if smaller_gap < 0 else TEXT)
 		died_defense_gap_label.add_theme_color_override("font_color", ACCENT if smaller_gap > 0 else TEXT)
 	died_knowledge_door.visible = summary.knowledge_gained > 0 or state.knowledge > 0
-	_count_total(died_coins_label, summary.coins_earned, func(value: int): return "+" + _coins(value) + " COINS EARNED")
+	_count_total(died_coins_label, summary.coins_earned, func(value: int): return "+" + _coins(value))
+	died_knowledge_tile.visible = summary.knowledge_gained > 0
 	if summary.knowledge_gained > 0:
-		died_knowledge_label.visible = true
-		_count_total(died_knowledge_label, summary.knowledge_gained, func(value: int): return "+" + str(value) + " KNOWLEDGE", 0.7)
-	else:
-		died_knowledge_label.visible = false
-	died_gems_label.visible = summary.gems_earned > 0
+		_count_total(died_knowledge_label, summary.knowledge_gained, func(value: int): return "+" + str(value), 0.7)
+	died_gems_tile.visible = summary.gems_earned > 0
 	if summary.gems_earned > 0:
-		_count_total(died_gems_label, summary.gems_earned, func(value: int): return "+" + str(value) + " GEMS", 0.7)
-	died_peak_label.text = "TIER " + str(summary.tier_id) + "  ·  PEAK NUMBER " + summary.peak_number.format_value()
+		_count_total(died_gems_label, summary.gems_earned, func(value: int): return "+" + str(value), 0.7)
+	died_peak_label.text = "Peak Number " + summary.peak_number.format_value()
 	died_screen.visible = true
 
 func _dismiss_died_screen() -> void:
@@ -2314,14 +2456,6 @@ func _on_brace_pressed() -> void:
 	else:
 		_show_toast("CANNOT BRACE YET", MUTED_TEXT)
 
-func _on_armor_pressed() -> void:
-	if state.purchase(GameState.ARMOR_ID):
-		_show_toast("ARMOR +1", ACCENT)
-		state.save()
-		_refresh_all()
-	else:
-		_show_toast("NEED " + _coins(state.get_workshop_coin_cost(state.get_definition(GameState.ARMOR_ID))) + " COINS", MUTED_TEXT)
-
 ## The core per-tap "juice": a short line of text that rises from the tap
 ## point and fades, replacing a single static feedback label.
 func _spawn_floating_text(text: String, colour: Color, local_pos: Vector2) -> void:
@@ -2364,16 +2498,16 @@ func _refresh_all() -> void:
 	if current_tab == "workshop":
 		# Do not rebuild live buttons during the player's press/release cycle.
 		# Rebuilding a Control tree every refresh can eat touch releases on Web.
-		workshop_header.text = _coins(state.coins) + " COINS"
+		workshop_header.text = _coins(state.coins)
 
-## The run screen has two layouts (D032). During a run the Number keeps the
-## top of the screen: the stage sits under the wave line, the hit line and
-## Brace under it, and the Rig panel fills the rest above its strip, with no
-## dock (D016) and Retreat tucked top right, away from the thumb. Between runs
-## the landing panel, the Armor shortcut, the RUN button and the dock keep the
-## layout they had. The dock still shows on other tabs mid-run, so the
-## Workshop always has a way back. Between runs the hub (D048) takes the
-## screen: a width-capped column, with BATTLE pinned above the dock.
+## The run screen has two layouts (D032, D049). During a run the currencies
+## and Retreat share the top line, the wave line sits under them, then the
+## stage and the row with the ring's key and Brace. The Upgrades sheet rests on
+## the category strip at the foot, with no dock (D016); the height between the
+## Brace row and the sheet is left empty on purpose, for systems that will want
+## the upper half. The dock still shows on other tabs mid-run, so the Workshop
+## always has a way back. Between runs the hub (D048) takes the screen: a
+## width-capped column, with BATTLE pinned above the dock.
 func _apply_screen_layout() -> void:
 	var screen: Control = screens.get("number")
 	if screen == null or stage_root == null:
@@ -2387,26 +2521,28 @@ func _apply_screen_layout() -> void:
 	nav_dock.visible = not (state.in_run and current_tab == "number")
 	currency_stack.visible = state.in_run
 	wave_line.visible = state.in_run
-	encounter_label.visible = state.in_run
-	run_actions.visible = state.in_run
+	encounter_row.visible = state.in_run
 	number_button.visible = state.in_run
 	if state.in_run:
-		var free := height - RUN_STAGE_TOP - CATEGORY_STRIP_HEIGHT - RUN_ENCOUNTER_ROW - RUN_ACTION_ROW
-		var stage_height := clampf(free * RUN_STAGE_SHARE, minf(RUN_STAGE_MIN, free), RUN_STAGE_MAX)
+		var sheet_height := clampf(height * RUN_SHEET_SHARE, RUN_SHEET_MIN, RUN_SHEET_MAX)
+		var sheet_top := height - CATEGORY_STRIP_HEIGHT - sheet_height
+		var free := sheet_top - RUN_STAGE_TOP - RUN_ENCOUNTER_ROW
+		var stage_height := clampf(free, minf(RUN_STAGE_MIN, free), RUN_STAGE_MAX)
 		var stage_bottom := RUN_STAGE_TOP + stage_height
 		_place(stage_root, 0.0, RUN_STAGE_TOP, 0.0, stage_bottom)
-		_place(encounter_label, 0.0, stage_bottom, 0.0, stage_bottom + RUN_ENCOUNTER_ROW)
-		_place(run_actions, 0.0, stage_bottom + RUN_ENCOUNTER_ROW, 0.0, stage_bottom + RUN_ENCOUNTER_ROW + RUN_ACTION_ROW)
-		_place(rig_panel, 0.0, stage_bottom + RUN_ENCOUNTER_ROW + RUN_ACTION_ROW, 1.0, 0.0)
+		_place(encounter_row, 0.0, stage_bottom + 10.0, 0.0, stage_bottom + RUN_ENCOUNTER_ROW - 10.0)
+		encounter_row.offset_left = 12.0
+		encounter_row.offset_right = -12.0
+		_place(rig_panel, 1.0, -(sheet_height + CATEGORY_STRIP_HEIGHT), 1.0, 0.0)
 		run_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-		run_button.offset_left = -150
-		run_button.offset_right = -16
-		run_button.offset_top = 24
-		run_button.offset_bottom = 54
+		run_button.offset_left = -130
+		run_button.offset_right = -12
+		run_button.offset_top = 8
+		run_button.offset_bottom = 52
 		run_button.alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	else:
-		var half := minf(width - 32.0, HUB_MAX_WIDTH) * 0.5
-		var battle_bottom := -NavDock.BAR_HEIGHT - 14.0
+		var half := minf(width - 40.0, HUB_MAX_WIDTH) * 0.5
+		var battle_bottom := -NavDock.BAR_HEIGHT - 12.0
 		var battle_top := battle_bottom - HUB_BATTLE_HEIGHT
 		hub_panel.anchor_left = 0.5
 		hub_panel.anchor_right = 0.5
@@ -2414,9 +2550,9 @@ func _apply_screen_layout() -> void:
 		hub_panel.anchor_bottom = 1.0
 		hub_panel.offset_left = -half
 		hub_panel.offset_right = half
-		hub_panel.offset_top = 18.0
-		hub_panel.offset_bottom = battle_top - 12.0
-		hub_column.custom_minimum_size.y = height + battle_top - 12.0 - 18.0
+		hub_panel.offset_top = 8.0
+		hub_panel.offset_bottom = battle_top - 6.0
+		hub_column.custom_minimum_size.y = height + battle_top - 6.0 - 8.0
 		run_button.anchor_left = 0.5
 		run_button.anchor_right = 0.5
 		run_button.anchor_top = 1.0
@@ -2460,39 +2596,32 @@ func _refresh_run_bar() -> void:
 		stage_root.visible = state.in_run
 	_refresh_hub()
 	tap_hint.visible = state.in_run
-	brace_button.visible = state.in_run
-	# Armor is a Workshop rank, locked during a run, so its shortcut only
-	# earns its place between runs.
-	armor_button.visible = not state.in_run
-	brace_cost_label.text = "-" + _stat_number(state.number.multiply_scalar(state.get_brace_cost_percent())) + " NUMBER"
+	brace_cost_label.text = "−" + _stat_number(state.number.multiply_scalar(state.get_brace_cost_percent()))
 	brace_button.disabled = not state.can_brace()
 	_set_action_enabled(brace_button, not brace_button.disabled)
-	var armor := state.get_definition(GameState.ARMOR_ID)
-	armor_button.disabled = not state.can_purchase(GameState.ARMOR_ID)
-	_set_action_enabled(armor_button, not armor_button.disabled)
-	if armor.is_maxed(state.get_owned(GameState.ARMOR_ID)):
-		armor_cost_label.text = "MAXED"
-	else:
-		armor_cost_label.text = _coins(state.get_workshop_coin_cost(armor)) + " COINS"
-	run_button.text = "RETREAT & RESET" if state.in_run else "BATTLE"
-	run_button.add_theme_font_size_override("font_size", 11 if state.in_run else 18)
+	run_button.text = "RETREAT" if state.in_run else "BATTLE"
+	run_button.tooltip_text = "End this run. Number and run Upgrades reset; the Workshop is kept." if state.in_run else ""
+	run_button.add_theme_font_size_override("font_size", 11 if state.in_run else 15)
 	# Retreat is destructive and rare, so it stays the quietest control on the
 	# screen (flat text). Starting is the whole point of being here, so it
-	# gets the same filled pill the run-over screen's CONTINUE door uses (D025).
+	# gets the filled pill the run-over sheet's CONTINUE uses (D025).
 	run_button.flat = state.in_run
-	var run_colour := FAINT_TEXT if state.in_run else Color("0d1016")
+	var run_colour := FAINT_TEXT if state.in_run else ACCENT_INK
 	run_button.add_theme_color_override("font_color", run_colour)
-	run_button.add_theme_color_override("font_hover_color", TEXT if state.in_run else Color("0d1016"))
+	run_button.add_theme_color_override("font_hover_color", MUTED_TEXT if state.in_run else ACCENT_INK)
+	run_button.add_theme_color_override("font_pressed_color", MUTED_TEXT if state.in_run else ACCENT_INK)
 	run_button.add_theme_font_override("font", _tracked_font())
 	if state.in_run:
 		run_button.add_theme_stylebox_override("normal", StyleBoxEmpty.new())
 		run_button.add_theme_stylebox_override("hover", StyleBoxEmpty.new())
+		run_button.add_theme_stylebox_override("pressed", StyleBoxEmpty.new())
 	else:
 		run_button.add_theme_stylebox_override("normal", _panel_style(ACCENT, 999))
 		run_button.add_theme_stylebox_override("hover", _panel_style(ACCENT.lightened(0.1), 999))
+		run_button.add_theme_stylebox_override("pressed", _panel_style(ACCENT.darkened(0.08), 999))
 
-## The hub's facts (D048), including the D025 landing beat: what the last run
-## did, and what the next one will be.
+## The hub's facts (D048, D049), including the D025 landing beat: what the
+## last run did, and what the next one will be.
 func _refresh_hub() -> void:
 	if hub_panel == null:
 		return
@@ -2503,35 +2632,84 @@ func _refresh_hub() -> void:
 	hub_gems_label.text = str(state.gems)
 	hub_knowledge_label.text = str(state.knowledge)
 	var summary := state.last_run_summary
+	var reward_visible := summary != null and summary.coins_earned > 0
+	hub_last_run_reward.visible = reward_visible
+	hub_last_run_coin.visible = reward_visible
+	hub_last_run_hit.text = ""
+	hub_last_run_extra.text = ""
 	if summary == null:
-		hub_last_run_label.text = "NO RUNS YET"
-		hub_last_run_detail.text = "Press BATTLE when you're ready."
+		hub_last_run_label.text = ""
+		hub_last_run_cause.text = "No runs yet. Press Battle when you're ready."
 	else:
-		hub_last_run_label.text = "LAST RUN  ·  TIER " + str(summary.tier_id) + "  ·  WAVE " + str(summary.wave_reached)
-		var cause := ""
+		hub_last_run_label.text = "Tier " + str(summary.tier_id) + " · wave " + str(summary.wave_reached)
 		match summary.outcome:
-			"retreat": cause = "RETREATED"
-			"prestige": cause = "PRESTIGED"
-			_: cause = "LOST TO A HIT OF " + summary.final_hit.format_value()
-		var reward := "+" + _coins(summary.coins_earned) + " COINS"
+			"retreat": hub_last_run_cause.text = "Retreated"
+			"prestige": hub_last_run_cause.text = "Prestiged"
+			_:
+				hub_last_run_cause.text = "Lost to a hit of"
+				hub_last_run_hit.text = summary.final_hit.format_value()
+		hub_last_run_reward.text = "+" + _coins(summary.coins_earned)
+		var extra: Array[String] = []
 		if summary.knowledge_gained > 0:
-			reward += "  ·  +" + str(summary.knowledge_gained) + " KNOWLEDGE"
+			extra.append("+" + str(summary.knowledge_gained) + " Knowledge")
 		if summary.gems_earned > 0:
-			reward += "  ·  +" + str(summary.gems_earned) + " GEMS"
-		hub_last_run_detail.text = cause + "  ·  " + reward
+			extra.append("+" + str(summary.gems_earned) + " Gems")
+		hub_last_run_extra.text = "  ·  ".join(extra)
+	hub_last_run_extra.visible = hub_last_run_extra.text != ""
 	hub_coin_bonus_label.text = "×" + ("%.2f" % state.get_coin_bonus_multiplier())
+	hub_knowledge_row_label.text = str(state.knowledge) + " to spend" if state.knowledge > 0 else "0"
 	var tier: Variant = state.balance_profile.get_tier(state.selected_tier)
 	hub_tier_label.text = "TIER " + str(state.selected_tier)
-	hub_best_wave_label.text = "HIGHEST WAVE  " + str(state.get_tier_best())
-	hub_reward_label.text = "REWARDS ×" + ("%.1f" % tier.reward_multiplier)
+	hub_reward_label.text = "rewards ×" + ("%.1f" % tier.reward_multiplier)
 	var index := _selected_tier_index()
 	var tiers: Array = state.balance_profile.tiers
 	hub_prev_tier.disabled = index <= 0
 	hub_next_tier.disabled = index >= tiers.size() - 1
-	hub_tier_hint.text = ""
-	if index + 1 < tiers.size() and not state.is_tier_unlocked(tiers[index + 1].id):
-		var next_tier = tiers[index + 1]
-		hub_tier_hint.text = "TIER " + str(next_tier.id) + " OPENS AT WAVE " + str(next_tier.unlock_previous_tier_wave) + " HERE"
+	for arrow in [hub_prev_tier, hub_next_tier]:
+		(arrow.get_meta("chevron") as IconGlyph).set_glyph_color(Color("3a3b3e") if arrow.disabled else TEXT)
+	_refresh_hub_ring(index)
+
+## The hub ring's goal is the next tier's gate while it is shut, else the next
+## milestone; its dots are the tier's milestones up to that goal (D049). The
+## ring only reads the tier record and the balance profile.
+func _refresh_hub_ring(tier_index: int) -> void:
+	var profile: TaxBalanceProfile = state.balance_profile
+	var tiers: Array = profile.tiers
+	var tier_id := state.selected_tier
+	var best := state.get_tier_best(tier_id)
+	var claimed := {}
+	for wave in state.get_tier_record(tier_id).get("milestones_claimed", []):
+		claimed[int(wave)] = true
+	var goal := 0
+	if tier_index + 1 < tiers.size() and not state.is_tier_unlocked(tiers[tier_index + 1].id):
+		goal = int(tiers[tier_index + 1].unlock_previous_tier_wave)
+		hub_ring_caption.text = "of " + str(goal) + " for Tier " + str(tiers[tier_index + 1].id)
+	else:
+		for wave in profile.MILESTONE_WAVES:
+			if int(wave) > best:
+				goal = int(wave)
+				break
+		hub_ring_caption.text = ("next milestone " + str(goal)) if goal > 0 else "every milestone passed"
+	if goal <= 0:
+		goal = maxi(best, 1)
+	hub_best_wave_label.text = str(best)
+	hub_ring.set_arc(float(best) / float(goal), ACCENT)
+	var markers: Array = []
+	var next_marked := false
+	var shown_claimed := 0
+	for wave in profile.MILESTONE_WAVES:
+		if int(wave) > goal:
+			break
+		var marker_state := RingArc.Marker.AHEAD
+		if claimed.has(int(wave)):
+			marker_state = RingArc.Marker.CLAIMED
+			shown_claimed += 1
+		elif not next_marked:
+			marker_state = RingArc.Marker.NEXT
+			next_marked = true
+		markers.append({"at": float(wave) / float(goal), "state": marker_state})
+	hub_ring.set_markers(markers)
+	hub_milestones_label.text = str(shown_claimed) + " / " + str(markers.size())
 
 func _selected_tier_index() -> int:
 	var tiers: Array = state.balance_profile.tiers
@@ -2580,23 +2758,32 @@ func _waves_until_boss(current_wave: int) -> int:
 			return ahead
 	return 0
 
+## The key under the stage: how much of the wave is cleared, and the hit with
+## its countdown, each beside a swatch of the ring it names (D049).
 func _refresh_encounter_line() -> void:
 	if not state.in_run:
-		encounter_label.text = "TIER BEST " + str(state.get_tier_best()) + "  ·  " + _coins(state.coins) + " COINS BANKED"
 		return
 	var encounter: Variant = state.active_encounter
-	if encounter == null or encounter.max_liability.is_zero():
-		encounter_label.text = "BEATEN"
-		return
-	if encounter.is_cleared():
-		encounter_label.text = "BEATEN"
+	var boss: bool = encounter != null and encounter.is_boss
+	var wave_colour: Color = WARNING if boss else ACCENT
+	var time_colour: Color = WARNING if boss else MUTED_TEXT
+	wave_key_swatch.color = wave_colour
+	hit_key_swatch.color = time_colour
+	var cleared := _liability_cleared()
+	wave_key_value.text = str(int(floor(cleared * 100.0))) + "% cleared"
+	if encounter == null or encounter.max_liability.is_zero() or encounter.is_cleared():
+		hit_key_label.text = "Beaten"
+		hit_key_value.text = ""
+		hit_key_swatch.color = ACCENT
 		return
 	var seconds_left := maxi(0, ceili(GameState.WAVE_INTERVAL_SECONDS - state.wave_accumulator))
-	encounter_label.text = ("BOSS HITS FOR " if encounter.is_boss else "HITS ONCE FOR ") + state.get_effective_collection().format_value() + " IN " + str(seconds_left) + "s"
+	hit_key_label.text = "Boss hits" if boss else "Hit"
+	hit_key_value.text = state.get_effective_collection().format_value() + " in " + str(seconds_left) + "s"
+	hit_key_value.add_theme_color_override("font_color", time_colour)
 
 func _set_action_enabled(button: Button, enabled: bool) -> void:
 	var verb: Label = button.get_meta("verb_label")
-	verb.add_theme_color_override("font_color", ACCENT if enabled else FAINT_TEXT)
+	verb.add_theme_color_override("font_color", TEXT if enabled else FAINT_TEXT)
 	button.modulate.a = 1.0 if enabled else 0.55
 
 func _refresh_workshop() -> void:
@@ -2604,42 +2791,80 @@ func _refresh_workshop() -> void:
 	if not ProgressionTaxonomy.WORKSHOP_CATEGORIES.has(category):
 		category = ProgressionTaxonomy.ATTACK
 		state.workshop.selected_category = category
-	workshop_header.text = _coins(state.coins) + " COINS"
-	workshop_category_header.text = ProgressionTaxonomy.category_name(category) + " UPGRADES"
+	workshop_header.text = _coins(state.coins)
 	workshop_purpose.text = ProgressionTaxonomy.category_purpose(category)
-	workshop_buy_when.text = ProgressionTaxonomy.category_buy_when(category)
 	workshop_multiplier_label.text = _buy_step_label(category)
-	# Every tab opens, including one with nothing in it yet: its panel is where
-	# the player reads what is coming and when. The badge carries the lock.
+	# Every segment opens, including one with nothing in it yet: its panel is
+	# where the player reads what is coming and when.
 	for tab_category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
 		var active: bool = category == tab_category
 		var has_rows := state.has_category_content(tab_category)
-		var colour: Color = WORKSHOP_ACCENT if active else MUTED_TEXT
-		(workshop_tab_icons[tab_category] as IconGlyph).set_glyph_color(colour)
-		(workshop_tab_labels[tab_category] as Label).add_theme_color_override("font_color", colour)
 		var button: Button = workshop_tab_buttons[tab_category]
-		button.modulate.a = 1.0 if has_rows else 0.6
-		var border: Color = WORKSHOP_ACCENT if active else Color.TRANSPARENT
-		var fill: Color = Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.14) if active else Color.TRANSPARENT
-		button.add_theme_stylebox_override("normal", _panel_style(fill, 12, border))
-		(workshop_lock_badges[tab_category] as IconGlyph).visible = not has_rows
+		var colour: Color = TEXT if active else (MUTED_TEXT if has_rows else Color("3a3b3e"))
+		button.add_theme_color_override("font_color", colour)
+		button.add_theme_color_override("font_hover_color", TEXT)
+		button.add_theme_color_override("font_pressed_color", TEXT)
+		button.add_theme_font_override("font", ui_font_medium if active else ui_font)
+		button.add_theme_stylebox_override("normal", _panel_style(Color("26272a"), 19) if active else StyleBoxEmpty.new())
+		button.add_theme_stylebox_override("hover", _panel_style(Color("26272a"), 19) if active else StyleBoxEmpty.new())
 	_refresh_workshop_detail(category)
 
+## The open category as a list (D049): one row per open upgrade, and the rows
+## still shut folded into a line per Workshop level that opens them.
 func _refresh_workshop_detail(category: String) -> void:
 	_clear_children(workshop_detail)
 	if state.in_run:
 		workshop_detail.add_child(_make_locked_panel("AVAILABLE BETWEEN RUNS", "Current ranks are active now and will be retained when this run ends."))
+		workshop_detail.add_child(_make_gap(8))
 	if not state.has_category_content(category):
 		workshop_detail.add_child(_make_locked_panel("NOTHING HERE YET", "Ultimates unlock at waves 10, 25, 50 and 100."))
 		return
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 8)
-	workshop_detail.add_child(grid)
+	var locked_by_level := {}
 	for definition in state.cards_for_category(category):
-		grid.add_child(_make_stat_card(definition, category))
+		if state.is_unlocked(definition):
+			workshop_detail.add_child(_make_stat_card(definition, category))
+		else:
+			var level := definition.workshop_level_required
+			if not locked_by_level.has(level):
+				locked_by_level[level] = []
+			locked_by_level[level].append(definition.title.capitalize())
+	if not locked_by_level.is_empty():
+		workshop_detail.add_child(_make_gap(16))
+		workshop_detail.add_child(_make_locked_rows_panel(locked_by_level))
+
+## What is still shut in this category and the Workshop level that opens it.
+func _make_locked_rows_panel(locked_by_level: Dictionary) -> PanelContainer:
+	var panel := PanelContainer.new()
+	var style := _panel_style(Color.TRANSPARENT, 12, LINE)
+	style.content_margin_left = 16
+	style.content_margin_right = 16
+	style.content_margin_top = 14
+	style.content_margin_bottom = 14
+	panel.add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	panel.add_child(row)
+	var lines := VBoxContainer.new()
+	lines.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lines.add_theme_constant_override("separation", 3)
+	row.add_child(lines)
+	var levels: Array = locked_by_level.keys()
+	levels.sort()
+	for i in range(levels.size()):
+		var names: Array = locked_by_level[levels[i]]
+		if i == 0:
+			lines.add_child(_make_label(str(names.size()) + " more at Workshop level " + str(levels[i]), 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
+			var first := _make_label(", ".join(names), 12, HORIZONTAL_ALIGNMENT_LEFT, FAINT_TEXT)
+			first.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			lines.add_child(first)
+		else:
+			var later := _make_label(", ".join(names) + " at level " + str(levels[i]), 12, HORIZONTAL_ALIGNMENT_LEFT, FAINT_TEXT)
+			later.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+			lines.add_child(later)
+	var level_label := _make_number_label("You: Lv " + str(state.get_workshop_level()), 12, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT)
+	level_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(level_label)
+	return panel
 
 func _refresh_labs() -> void:
 	_clear_children(labs_content)
@@ -2665,7 +2890,7 @@ func _make_focus_card(category: String) -> Button:
 	var border := LABS_ACCENT if active else Color.TRANSPARENT
 	button.add_theme_stylebox_override("normal", _panel_style(SURFACE, 14, border))
 	button.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 14, LABS_ACCENT))
-	button.add_theme_stylebox_override("pressed", _panel_style(Color("0f5848"), 14, LABS_ACCENT))
+	button.add_theme_stylebox_override("pressed", _panel_style(SURFACE_HOVER, 14, LABS_ACCENT))
 	var layout := _tile_layout(button, 14, 12)
 	var chip := Panel.new()
 	chip.custom_minimum_size = Vector2(30, 30)
@@ -2732,7 +2957,7 @@ func _make_insight_card(definition: UpgradeDefinition) -> Button:
 	button.disabled = disabled
 	button.add_theme_stylebox_override("normal", _panel_style(SURFACE, 14, Color.TRANSPARENT))
 	button.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 14, CARDS_ACCENT))
-	button.add_theme_stylebox_override("pressed", _panel_style(Color("0f5848"), 14, CARDS_ACCENT))
+	button.add_theme_stylebox_override("pressed", _panel_style(SURFACE_HOVER, 14, CARDS_ACCENT))
 	var row := _row_layout(button, 14, 10)
 	var chip := Panel.new()
 	chip.custom_minimum_size = Vector2(36, 36)
@@ -2794,8 +3019,8 @@ func _make_prestige_panel() -> PanelContainer:
 	confirm.custom_minimum_size = Vector2(0, 50)
 	confirm.add_theme_font_size_override("font_size", 14)
 	confirm.disabled = gain <= 0
-	confirm.add_theme_color_override("font_color", Color("1a1023"))
-	confirm.add_theme_color_override("font_hover_color", Color("1a1023"))
+	confirm.add_theme_color_override("font_color", ACCENT_INK)
+	confirm.add_theme_color_override("font_hover_color", ACCENT_INK)
 	confirm.add_theme_color_override("font_disabled_color", MUTED_TEXT)
 	confirm.add_theme_stylebox_override("normal", _panel_style(CARDS_ACCENT, 999))
 	confirm.add_theme_stylebox_override("hover", _panel_style(CARDS_ACCENT.lightened(0.1), 999))
@@ -2815,63 +3040,66 @@ func _confirm_prestige() -> void:
 	_refresh_all()
 	_refresh_knowledge()
 
-## A row card for a ranked, permanent Coin-funded Workshop upgrade: an icon chip, a
-## title with an optional NEXT tag, a thin fill bar for rank, and cost/rank
-## at the right.
-## A compact Workshop card, two to a row: the stat's name on the left, which
-## opens its detail, and the value-and-cost box on the right, which buys. The
-## description lives in the detail popup rather than on the card, so a category
-## fits on one screen.
-func _make_stat_card(definition: UpgradeDefinition, category: String) -> PanelContainer:
+## One Workshop row (D049): the upgrade's name and rank, its value now, and a
+## price chip. Tap the row to buy at the chosen step; hold it to read it. The
+## description lives in the detail popup, so a category fits on one screen.
+func _make_stat_card(definition: UpgradeDefinition, category: String) -> Button:
 	var owned := state.get_owned(definition.id)
 	var maxed := definition.is_maxed(owned)
 	var unlocked := state.is_unlocked(definition)
 	var plan := state.plan_purchase(definition.id, _buy_step(category))
-	var ranks := int(plan.ranks)
-	var affordable := ranks > 0
+	var affordable := int(plan.ranks) > 0
 
-	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(0, 80)
-	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var edge: Color = WORKSHOP_ACCENT if affordable else Color(1, 1, 1, 0.07)
-	card.add_theme_stylebox_override("panel", _panel_style(SURFACE, 12, edge))
+	var button := Button.new()
+	button.flat = true
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(0, 60)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.tooltip_text = definition.description
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	card.add_child(row)
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_theme_constant_override("separation", 10)
+	button.add_child(row)
+	var names := VBoxContainer.new()
+	names.alignment = BoxContainer.ALIGNMENT_CENTER
+	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	names.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	names.add_theme_constant_override("separation", 3)
+	row.add_child(names)
+	names.add_child(_make_label(definition.title.capitalize(), 14, HORIZONTAL_ALIGNMENT_LEFT, TEXT if unlocked else MUTED_TEXT))
+	names.add_child(_make_number_label("Rank " + _coins(owned) + " / " + _coins(definition.max_rank), 11, HORIZONTAL_ALIGNMENT_LEFT, FAINT_TEXT))
+	var value := _make_number_label(_stat_value_text(definition, owned), 16, HORIZONTAL_ALIGNMENT_RIGHT, TEXT if unlocked else MUTED_TEXT)
+	value.custom_minimum_size = Vector2(72, 0)
+	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	value.size_flags_vertical = Control.SIZE_FILL
+	row.add_child(value)
+	var chip := PanelContainer.new()
+	chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var chip_style := _panel_style(Color(ACCENT.r, ACCENT.g, ACCENT.b, 0.12) if affordable else SURFACE, 16)
+	chip_style.content_margin_left = 12
+	chip_style.content_margin_right = 12
+	chip_style.content_margin_top = 7
+	chip_style.content_margin_bottom = 7
+	chip.add_theme_stylebox_override("panel", chip_style)
+	chip.add_child(_make_number_label(_stat_cost_text(definition, owned, maxed, unlocked, plan), 12, HORIZONTAL_ALIGNMENT_CENTER, ACCENT if affordable else MUTED_TEXT))
+	var chip_wrap := HBoxContainer.new()
+	chip_wrap.custom_minimum_size = Vector2(64, 0)
+	chip_wrap.alignment = BoxContainer.ALIGNMENT_END
+	chip_wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip_wrap.add_child(chip)
+	row.add_child(chip_wrap)
+	var line := ColorRect.new()
+	line.color = DIVIDER
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	line.offset_top = -1
+	button.add_child(line)
 
-	var name_button := Button.new()
-	name_button.text = ""
-	name_button.flat = true
-	name_button.focus_mode = Control.FOCUS_NONE
-	name_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_button.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	name_button.tooltip_text = definition.description
-	var name_layout := _tile_layout(name_button, 10, 6)
-	name_layout.alignment = BoxContainer.ALIGNMENT_CENTER
-	var name_label := _make_label(definition.title, 12, HORIZONTAL_ALIGNMENT_LEFT, TEXT if unlocked else MUTED_TEXT)
-	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_layout.add_child(name_label)
-	_add_long_press(name_button, func(): _show_stat_info(definition))
-	name_button.pressed.connect(func():
-		if not _consume_long_press(name_button):
-			_show_stat_info(definition)
-	)
-	row.add_child(name_button)
-
-	var value_button := _make_tile_button()
-	value_button.custom_minimum_size = Vector2(84, 58)
-	value_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	_add_long_press(value_button, func(): _show_stat_info(definition))
-	var box_tint: Color = WORKSHOP_ACCENT if affordable else Color(1, 1, 1, 0.05)
-	value_button.add_theme_stylebox_override("normal", _panel_style(Color(0, 0, 0, 0.25), 10, box_tint))
-	value_button.add_theme_stylebox_override("hover", _panel_style(Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.12), 10, box_tint))
-	var value_layout := _tile_layout(value_button, 6, 6)
-	value_layout.alignment = BoxContainer.ALIGNMENT_CENTER
-	value_layout.add_child(_make_label(_stat_value_text(definition, owned), 13, HORIZONTAL_ALIGNMENT_RIGHT, TEXT if unlocked else MUTED_TEXT))
-	value_layout.add_child(_make_label(_stat_cost_text(definition, owned, maxed, unlocked, plan), 9, HORIZONTAL_ALIGNMENT_RIGHT, WORKSHOP_ACCENT if affordable else MUTED_TEXT))
-	value_button.pressed.connect(func(upgrade_id: String = definition.id, step: int = _buy_step(category)):
-		if _consume_long_press(value_button):
+	_add_long_press(button, func(): _show_stat_info(definition))
+	button.pressed.connect(func(upgrade_id: String = definition.id, step: int = _buy_step(category)):
+		if _consume_long_press(button):
 			return
 		var bought := state.purchase_ranks(upgrade_id, step)
 		if bought > 0:
@@ -2888,59 +3116,53 @@ func _make_stat_card(definition: UpgradeDefinition, category: String) -> PanelCo
 		else:
 			_show_toast("NEED " + _coins(state.get_workshop_coin_cost(definition)) + " COINS", MUTED_TEXT)
 	)
-	row.add_child(value_button)
-	return card
+	return button
 
-## A compact Rig card for a run-scoped rank: name on left, value-and-cost box
-## on right. Like the Workshop card but priced in Cash. Built once;
-## _update_rig_card fills the parts that move with Cash.
-func _make_rig_stat_card(definition: UpgradeDefinition, category: String) -> PanelContainer:
+## A run Upgrades tile (D049): the row's name over its value, with the Cash
+## price in the corner. Tap to buy, hold to read. Built once; _update_rig_card
+## fills the parts that move with Cash.
+func _make_rig_stat_card(definition: UpgradeDefinition, category: String) -> Button:
 	var unlocked := state.is_unlocked(definition)
-	var card := PanelContainer.new()
-	card.custom_minimum_size = Vector2(0, 80)
-	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 6)
-	card.add_child(row)
-
-	var name_button := Button.new()
-	name_button.text = ""
-	name_button.flat = true
-	name_button.focus_mode = Control.FOCUS_NONE
-	name_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_button.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	name_button.tooltip_text = definition.description
-	var name_layout := _tile_layout(name_button, 10, 6)
-	name_layout.alignment = BoxContainer.ALIGNMENT_CENTER
-	var name_label := _make_label(definition.title, 12, HORIZONTAL_ALIGNMENT_LEFT, TEXT if unlocked else MUTED_TEXT)
-	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_layout.add_child(name_label)
-	_add_long_press(name_button, func(): _show_stat_info(definition, true))
-	name_button.pressed.connect(func():
-		if not _consume_long_press(name_button):
-			_show_stat_info(definition, true)
-	)
-	row.add_child(name_button)
-
-	var value_button := _make_tile_button()
-	value_button.custom_minimum_size = Vector2(84, 58)
-	value_button.size_flags_horizontal = Control.SIZE_SHRINK_END
-	_add_long_press(value_button, func(): _show_stat_info(definition, true))
-	var value_layout := _tile_layout(value_button, 6, 6)
-	value_layout.alignment = BoxContainer.ALIGNMENT_CENTER
-	var value_label := _make_label("", 13, HORIZONTAL_ALIGNMENT_RIGHT, TEXT if unlocked else MUTED_TEXT)
-	value_layout.add_child(value_label)
-	var cost_label := _make_label("", 9, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT)
-	value_layout.add_child(cost_label)
-	value_button.pressed.connect(func(upgrade_id: String = definition.id):
-		if _consume_long_press(value_button):
+	var tile := Button.new()
+	tile.text = ""
+	tile.focus_mode = Control.FOCUS_NONE
+	tile.custom_minimum_size = Vector2(0, 68)
+	tile.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tile.tooltip_text = definition.description
+	if unlocked:
+		tile.add_theme_stylebox_override("normal", _panel_style(SURFACE_RAISED, 12))
+		tile.add_theme_stylebox_override("hover", _panel_style(SURFACE_HOVER, 12))
+		tile.add_theme_stylebox_override("pressed", _panel_style(SURFACE_HOVER, 12))
+	else:
+		# A row the Workshop has not opened yet: an outline, not a fill.
+		for stylebox_name in ["normal", "hover", "pressed"]:
+			tile.add_theme_stylebox_override(stylebox_name, _panel_style(Color.TRANSPARENT, 12, LINE))
+	var layout := _tile_layout(tile, 14, 11)
+	layout.alignment = BoxContainer.ALIGNMENT_BEGIN
+	var name_label := _make_label(definition.title.capitalize(), 12, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT if unlocked else FAINT_TEXT)
+	name_label.clip_text = true
+	name_label.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	layout.add_child(name_label)
+	var bottom := HBoxContainer.new()
+	bottom.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layout.add_child(bottom)
+	var value_label := _make_number_label("", 18, HORIZONTAL_ALIGNMENT_LEFT, TEXT if unlocked else FAINT_TEXT)
+	value_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bottom.add_child(value_label)
+	var cost_label := _make_number_label("", 11, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT)
+	cost_label.size_flags_vertical = Control.SIZE_SHRINK_END
+	bottom.add_child(cost_label)
+	_add_long_press(tile, func(): _show_stat_info(definition, true))
+	tile.pressed.connect(func(upgrade_id: String = definition.id):
+		if _consume_long_press(tile):
 			return
 		var step := _buy_step(state.workshop.selected_category)
 		var plan := state.plan_rig_purchase(upgrade_id, step)
 		if int(plan.ranks) == 0:
 			if state.rig_room(upgrade_id) <= 0:
 				_show_toast(definition.title + " IS AT MAX RANK", MUTED_TEXT)
+			elif not state.is_unlocked(definition):
+				_show_toast("NEEDS WORKSHOP LV " + str(definition.workshop_level_required), MUTED_TEXT)
 			else:
 				_show_toast("NEED " + state.get_rig_cost(upgrade_id).format_value() + " CASH", MUTED_TEXT)
 			return
@@ -2953,38 +3175,36 @@ func _make_rig_stat_card(definition: UpgradeDefinition, category: String) -> Pan
 		else:
 			_show_toast("CANNOT BUY NOW", MUTED_TEXT)
 	)
-	row.add_child(value_button)
-	rig_card_refs[definition.id] = {"card": card, "value_button": value_button, "value_label": value_label, "cost_label": cost_label}
+	rig_card_refs[definition.id] = {"card": tile, "value_label": value_label, "cost_label": cost_label}
 	_update_rig_card(definition)
-	return card
+	return tile
 
-## The parts of a run Upgrades card that move with Cash: its price, whether it
+## The parts of a run Upgrades tile that move with Cash: its price, whether it
 ## is affordable, and MAX once Workshop and run ranks fill the row (D044).
 func _update_rig_card(definition: UpgradeDefinition) -> void:
 	var refs: Dictionary = rig_card_refs[definition.id]
-	var card: PanelContainer = refs.card
-	var value_button: Button = refs.value_button
-	if not is_instance_valid(card):
+	var tile: Button = refs.card
+	if not is_instance_valid(tile):
 		return
+	var unlocked := state.is_unlocked(definition)
 	var effective := state.get_owned(definition.id) + int(state.rig_rank_equivalent(definition))
 	var next_cost := state.get_rig_cost(definition.id)
 	var plan := state.plan_rig_purchase(definition.id, _buy_step(state.workshop.selected_category))
 	var ranks := int(plan.ranks)
 	var can_afford := ranks > 0
 	var quoted_cost: ScientificNumber = plan.cost if can_afford else next_cost
-	var edge: Color = WORKSHOP_ACCENT if can_afford else Color(1, 1, 1, 0.07)
-	card.add_theme_stylebox_override("panel", _panel_style(SURFACE, 12, edge))
-	card.tooltip_text = definition.description
-	var box_tint: Color = WORKSHOP_ACCENT if can_afford else Color(1, 1, 1, 0.05)
-	value_button.add_theme_stylebox_override("normal", _panel_style(Color(0, 0, 0, 0.25), 10, box_tint))
-	value_button.add_theme_stylebox_override("hover", _panel_style(Color(WORKSHOP_ACCENT.r, WORKSHOP_ACCENT.g, WORKSHOP_ACCENT.b, 0.12), 10, box_tint))
 	(refs.value_label as Label).text = _stat_value_text(definition, effective)
 	var cost_label: Label = refs.cost_label
+	if not unlocked:
+		cost_label.text = "Workshop Lv " + str(definition.workshop_level_required)
+		cost_label.add_theme_color_override("font_color", FAINT_TEXT)
+		return
 	if state.rig_room(definition.id) <= 0:
 		cost_label.text = "MAX"
-	else:
-		cost_label.text = ("x" + str(ranks) + " · " if ranks > 1 else "") + _stat_number(quoted_cost) + " CASH"
-	cost_label.add_theme_color_override("font_color", WORKSHOP_ACCENT if can_afford else MUTED_TEXT)
+		cost_label.add_theme_color_override("font_color", MUTED_TEXT)
+		return
+	cost_label.text = ("×" + str(ranks) + " · " if ranks > 1 else "") + _stat_number(quoted_cost)
+	cost_label.add_theme_color_override("font_color", ACCENT if can_afford else FAINT_TEXT)
 
 ## Holding a card reads it instead of acting on it: after LONG_PRESS_SECONDS
 ## held, the card's detail opens, and the release that follows is swallowed so
@@ -3034,10 +3254,10 @@ func _stat_cost_text(definition: UpgradeDefinition, owned: int, maxed: bool, unl
 	if not unlocked:
 		return "LV " + str(definition.workshop_level_required)
 	if int(plan.ranks) > 1:
-		return "x" + str(int(plan.ranks)) + " · " + _coins(int(plan.cost)) + " ©"
+		return "×" + str(int(plan.ranks)) + " · " + _coins(int(plan.cost))
 	if int(plan.ranks) == 1:
-		return _coins(int(plan.cost)) + " ©"
-	return _coins(state.get_workshop_coin_cost_at(definition, owned)) + " ©"
+		return _coins(int(plan.cost))
+	return _coins(state.get_workshop_coin_cost_at(definition, owned))
 
 func _make_locked_panel(title_text: String, subtitle_text: String) -> PanelContainer:
 	var panel := PanelContainer.new()
@@ -3123,6 +3343,9 @@ func _clear_local_save() -> void:
 	_refresh_all()
 
 func _show_toast(text: String, colour: Color) -> void:
+	var bottom := _toast_bottom()
+	toast_wrap.offset_top = bottom - 28.0
+	toast_wrap.offset_bottom = bottom
 	toast_label.text = text
 	toast_label.add_theme_color_override("font_color", colour)
 	if toast_tween != null and toast_tween.is_valid():
@@ -3131,6 +3354,13 @@ func _show_toast(text: String, colour: Color) -> void:
 	toast_tween = create_tween()
 	toast_tween.tween_interval(1.6)
 	toast_tween.tween_property(toast_panel, "modulate:a", 0.0, 0.5)
+
+func _toast_bottom() -> float:
+	if current_tab == "number" and state.in_run and rig_panel != null:
+		return rig_panel.offset_top - 10.0
+	if current_tab == "number":
+		return -NavDock.BAR_HEIGHT - 12.0 - HUB_BATTLE_HEIGHT - 8.0
+	return -NavDock.BAR_HEIGHT - 8.0
 
 func _pulse_number(target_scale: float) -> void:
 	if state.settings.reduce_motion:
@@ -3230,17 +3460,23 @@ func _stage_danger_progress() -> float:
 		return 0.0
 	return clampf(state.wave_accumulator / GameState.WAVE_INTERVAL_SECONDS, 0.0, 1.0)
 
-## Drives the stage ring: its arc is how much Liability is cleared, its colour
-## is how near the Collection hit is. The glow follows the same colour so the
-## whole stage warms together as the hit approaches, and throbs through the last
-## seconds of a boss wave so the heaviest hit is telegraphed before it lands.
+## Drives the stage ring (D049): the outer arc is how much Liability is
+## cleared, and the thin inner ring drains with the time left before the hit;
+## both turn warm on a boss. The glow behind them warms as the hit approaches,
+## and throbs through the last seconds of a boss wave so the heaviest hit is
+## telegraphed before it lands.
 func _update_stage_colour() -> void:
 	var danger := _stage_danger_progress()
 	var colour := _heat_colour(danger)
-	ring.set_arc(_liability_cleared(), colour)
-	var alpha := 1.0
 	var encounter: Variant = state.active_encounter
-	if state.in_run and encounter != null and encounter.is_boss and danger > BOSS_TELEGRAPH_START:
+	var boss: bool = state.in_run and encounter != null and encounter.is_boss
+	ring.set_arc(_liability_cleared(), WARNING if boss else ACCENT)
+	var time_left := 0.0
+	if state.in_run and encounter != null and not encounter.max_liability.is_zero() and not encounter.is_cleared():
+		time_left = 1.0 - danger
+	ring.set_inner(time_left, WARNING if boss else Color(MUTED_TEXT, 0.6))
+	var alpha := 1.0
+	if boss and danger > BOSS_TELEGRAPH_START:
 		var phase := (danger - BOSS_TELEGRAPH_START) / (1.0 - BOSS_TELEGRAPH_START)
 		var beat := 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * BOSS_TELEGRAPH_BEAT_RATE)
 		alpha = lerpf(1.0, lerpf(0.6, 1.0, beat), phase)
@@ -3307,8 +3543,9 @@ func _number_font_size(text: String) -> int:
 	var radius := 168.0
 	if ring != null and ring.radius() > 0.0:
 		radius = ring.radius()
-	var available := radius * 1.62
-	var ideal := int(clampf(radius * 0.46, 22.0, 96.0))
+	# Inside the inner ring, with room either side.
+	var available := (radius - RingArc.INNER_GAP) * 1.6
+	var ideal := int(clampf(radius * 0.40, 22.0, 72.0))
 	var font := number_label.get_theme_font("font")
 	if font == null or text.is_empty():
 		return ideal
@@ -3334,7 +3571,7 @@ func _make_tile_button() -> Button:
 	button.text = ""
 	button.focus_mode = Control.FOCUS_NONE
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.add_theme_stylebox_override("disabled", _panel_style(Color("141923"), 12, Color.TRANSPARENT))
+	button.add_theme_stylebox_override("disabled", _panel_style(SURFACE, 12, Color.TRANSPARENT))
 	return button
 
 func _tile_layout(button: Button, margin_lr: int, margin_tb: int) -> VBoxContainer:
