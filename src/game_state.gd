@@ -334,8 +334,9 @@ func _advance_waves(delta: float) -> Array[SimulationEvent]:
 ## after the minimum beat (D037); one still standing when its clock runs out
 ## passes, as does an opening wave whose members hit and left (D059). Whatever
 ## still lives at the Number carries into the next wave,
-## so a build that cannot beat them is worn down by the pile. A boss holds the
-## clock until beaten (D037), its clock wrapping every 15 seconds.
+## so a build that cannot beat them is worn down by the pile. Waves keep
+## coming while a boss stands, as The Tower's do (D063): an unbeaten boss
+## joins the pile.
 func _run_wave_clock(events: Array[SimulationEvent]) -> void:
 	var safety := 0
 	while safety < 200 and in_run:
@@ -360,8 +361,7 @@ func _run_wave_clock(events: Array[SimulationEvent]) -> void:
 			wave_accumulator -= WAVE_INTERVAL_SECONDS
 			active_encounter.shift_clock(WAVE_INTERVAL_SECONDS)
 			_end_brace_window()
-			if not active_encounter.is_boss:
-				_pass_missed_wave(active_encounter.living_members())
+			_pass_missed_wave(active_encounter.living_members())
 		else:
 			break
 
@@ -377,16 +377,17 @@ func _resolve_wave_boundary() -> SimulationEvent:
 			found = event
 	return found
 
-## A member hits the Number (D057, D058): its share of its wave's Hit, after
-## Guard and Armor on that whole Hit, so a group costs what the single wave
-## did. Its first hit is its arrival; after that it stays and hits again every
-## interval. A Brace blocks every hit until the wave's clock ends. Thorns
-## returns part of each hit to whatever stands in front.
+## A member hits the Number (D057, D058): its share of its wave's Hit, heated
+## up 4% for every hit it has already landed, then Armor and Guard on that one
+## enemy's hit, as The Tower's defences work (D063). Its first hit is its
+## arrival; after that it stays and hits again every interval. A Brace blocks
+## every hit until the wave's clock ends. Thorns returns part of each hit to
+## whatever stands in front.
 func _member_hit(index: int) -> SimulationEvent:
 	var member: Dictionary = active_encounter.members[index]
 	var first := not bool(member.landed)
-	var boss_hit: bool = active_encounter.is_boss and active_encounter.is_own(member)
-	var landed := _effective_hit(member.wave_hit).multiply_scalar(float(member.share))
+	var boss_hit: bool = active_encounter.is_boss_member(index)
+	var landed := _effective_hit(_member_raw_hit(member))
 	if braced:
 		landed = ScientificNumber.new()
 		brace_spent = true
@@ -408,6 +409,12 @@ func _member_hit(index: int) -> SimulationEvent:
 	if boss_hit:
 		return SimulationEvent.new("boss_collection", landed)
 	return SimulationEvent.new("tax_collection" if first else "pile_hit", landed)
+
+## One enemy's hit before any defence: its share of its wave's Hit, times 4%
+## for every hit it has already landed (D063).
+func _member_raw_hit(member: Dictionary) -> ScientificNumber:
+	var heat := pow(balance_profile.HEAT_UP_PER_HIT, float(int(member.get("hits", 0))))
+	return member.wave_hit.multiply_scalar(float(member.share) * heat)
 
 ## A Brace covers the wave's clock it was raised in. Spent on any hit, it ends
 ## with that clock; never tested, it carries on, as before.
@@ -506,7 +513,9 @@ func _complete_current_wave(carried: Array = []) -> SimulationEvent:
 	wave += 1
 	active_encounter = _make_encounter(wave)
 	active_encounter.carry_in(carried)
-	if completed_wave == TIER_UNLOCK_WAVE and previous_best < TIER_UNLOCK_WAVE and balance_profile.has_tier(selected_tier + 1):
+	# Since D063 the wave 100 boss can be passed and beaten later, so the tier
+	# opens with the first beaten wave at or past it.
+	if completed_wave >= TIER_UNLOCK_WAVE and previous_best < TIER_UNLOCK_WAVE and balance_profile.has_tier(selected_tier + 1):
 		return SimulationEvent.new("tier_unlock", ScientificNumber.from_float(float(selected_tier + 1)))
 	return SimulationEvent.new("boss_clear" if completed_boss else "wave_clear", ScientificNumber.from_float(float(coin_gain)))
 
@@ -528,7 +537,7 @@ func _make_encounter(target_wave: int):
 		balance_profile.reward_for_wave(selected_tier, target_wave),
 		balance_profile.is_boss_wave(target_wave),
 		arrivals,
-		WAVE_INTERVAL_SECONDS if balance_profile.is_boss_wave(target_wave) else balance_profile.member_hit_seconds(target_wave)
+		balance_profile.boss_hit_seconds(target_wave) if balance_profile.is_boss_wave(target_wave) else balance_profile.member_hit_seconds(target_wave)
 	)
 
 func _wave_death(reached: int, hit: ScientificNumber, boss: bool, number_before_hit: ScientificNumber, wave_hp_left: ScientificNumber) -> SimulationEvent:
@@ -562,22 +571,21 @@ func get_effective_collection() -> ScientificNumber:
 func _effective_hit(base: ScientificNumber) -> ScientificNumber:
 	return RuleModifierPipelineClass.apply(base, "collection", _collection_modifiers(base))
 
-## The next Hit as it is worked out at contact (D052): the Hit after any rule
-## that changes it but before the player's defences, what Guard takes off, what
-## Armor then takes off, and what lands. Each part is the same pipeline stopped
-## earlier, so the parts always add up to what lands. The next Hit is the
-## front member's share of its wave's (D057).
+## The next Hit as it is worked out at contact (D052): one enemy's hit after
+## any rule that changes it but before the player's defences, what Armor takes
+## off, what Guard then takes off (The Tower's order, D063), and what lands.
+## Each part is the same pipeline stopped earlier, so the parts always add up
+## to what lands. The next Hit is the front member's, heated up (D063).
 func get_hit_breakdown(member_index: int = -1) -> Dictionary:
 	if active_encounter == null:
 		return {"raw": ScientificNumber.new(), "guard": ScientificNumber.new(), "armor": ScientificNumber.new(), "final": ScientificNumber.new()}
 	var front: int = member_index if member_index >= 0 else active_encounter.front_index()
-	var base: ScientificNumber = active_encounter.members[front].wave_hit if front >= 0 else active_encounter.collection
+	var base: ScientificNumber = _member_raw_hit(active_encounter.members[front]) if front >= 0 else active_encounter.collection
 	var modifiers := _collection_modifiers(base)
 	var raw := RuleModifierPipelineClass.apply(base, "collection", modifiers.filter(func(modifier): return not ["guard", "armor"].has(str(modifier.get("source", "")))))
-	var after_guard := RuleModifierPipelineClass.apply(base, "collection", modifiers.filter(func(modifier): return str(modifier.get("source", "")) != "armor"))
+	var after_armor := RuleModifierPipelineClass.apply(base, "collection", modifiers.filter(func(modifier): return str(modifier.get("source", "")) != "guard"))
 	var final := RuleModifierPipelineClass.apply(base, "collection", modifiers)
-	var share: float = float(active_encounter.members[front].share) if front >= 0 else 1.0
-	return {"raw": raw.multiply_scalar(share), "guard": raw.subtract(after_guard).multiply_scalar(share), "armor": after_guard.subtract(final).multiply_scalar(share), "final": final.multiply_scalar(share)}
+	return {"raw": raw, "armor": raw.subtract(after_armor), "guard": after_armor.subtract(final), "final": final}
 
 ## The share of its wave's Hit the front member carries: a third of wave 1's,
 ## all of a boss's.
@@ -588,30 +596,23 @@ func next_hit_share() -> float:
 	return float(active_encounter.members[front].share) if front >= 0 else 1.0
 
 ## Every modifier the Hit passes through, in one list: the run's rules, then
-## Guard, then Armor. The pipeline decides the order by stage.
-func _collection_modifiers(base: ScientificNumber = null) -> Array:
+## Armor, then Guard. The pipeline decides the order by stage.
+func _collection_modifiers(_base: ScientificNumber = null) -> Array:
 	var modifiers := active_rule_modifiers.duplicate(true)
-	var base_hit: ScientificNumber = base if base != null else active_encounter.collection
 	var resistance := clampf(_effect_sum("collection_resistance"), 0.0, balance_profile.COLLECTION_RESISTANCE_CEILING)
 	var guard_stat := _effect_sum("guard_flat")
 
-	# Guard (Defense Absolute): flat reduction on every Hit, priced in the tier's
-	# Hit pressure. A Hit never drops below 10% of its size after Guard and Armor
-	# together (WORKSHOP_EXPANSION). Following D023, the 10% floor bounds the defensive
-	# reduction itself so external rules can still shrink hits beyond it.
-	if guard_stat > 0.0 and not base_hit.is_zero():
+	# Guard (Defense Absolute): a flat amount off each enemy's hit after Armor,
+	# priced in the tier's Hit pressure. As in The Tower (D063), it can take a
+	# hit to nothing.
+	if guard_stat > 0.0:
 		var tier_multiplier: float = balance_profile.get_tier(selected_tier).collection_multiplier
-		var raw_guard := ScientificNumber.from_float(guard_stat * tier_multiplier)
-		var max_guard_factor := maxf(0.0, 1.0 - (balance_profile.HIT_FLOOR_PERCENT / (1.0 - resistance)))
-		var max_guard := base_hit.multiply_scalar(max_guard_factor)
-		var effective_guard := raw_guard if raw_guard.compare_to(max_guard) < 0 else max_guard
-		if not effective_guard.is_zero():
-			modifiers.append({
-				"source": "guard",
-				"target": "collection",
-				"stage": "flat_reduce",
-				"amount": effective_guard.to_dict(),
-			})
+		modifiers.append({
+			"source": "guard",
+			"target": "collection",
+			"stage": "flat_reduce_last",
+			"amount": ScientificNumber.from_float(guard_stat * tier_multiplier).to_dict(),
+		})
 
 	# The combined ceiling (D023): Workshop, Rig, Lab and Card Armor stack, and
 	# without a limit a run could stop taking hits entirely. The ceiling bounds
@@ -1582,6 +1583,14 @@ func _reconcile_opening_members_on_load() -> void:
 	for member in active_encounter.members:
 		var member_wave := int(member.wave)
 		if balance_profile.is_boss_wave(member_wave):
+			# A boss keeps the time since its last hit when its 15-second clock
+			# becomes its wave's (D063).
+			var boss_interval := balance_profile.boss_hit_seconds(member_wave)
+			var saved_boss_interval := float(member.interval)
+			if saved_boss_interval > 0.0 and not is_equal_approx(saved_boss_interval, boss_interval):
+				if int(member.state) == TaxEncounterClass.AT_NUMBER:
+					member.next_hit = float(member.next_hit) + boss_interval - saved_boss_interval
+				member.interval = boss_interval
 			retained.append(member)
 			continue
 		var interval := balance_profile.member_hit_seconds(member_wave)
@@ -1862,12 +1871,14 @@ func _add_number(amount: ScientificNumber) -> void:
 	lifetime_generated = lifetime_generated.add(amount)
 	var banked := amount
 	if in_run and active_encounter != null:
+		var struck_boss: bool = active_encounter.is_boss_member(active_encounter.front_index())
 		var into_wave: ScientificNumber = active_encounter.apply_compliance(amount)
 		# Leech (D038) feeds on a boss that stands and fights: a share of the
-		# damage it takes is added to the Number a second time. The combined
-		# share is capped (D023) so Rig ranks cannot stack it without limit.
+		# damage the boss itself takes, not the pile in front of it, is added to
+		# the Number a second time. The combined share is capped (D023) so Rig
+		# ranks cannot stack it without limit.
 		var leech := minf(_effect_sum("siphon_share"), balance_profile.SIPHON_CEILING)
-		if leech > 0.0 and active_encounter.is_boss and not into_wave.is_zero():
+		if leech > 0.0 and struck_boss and not into_wave.is_zero():
 			banked = banked.add(into_wave.multiply_scalar(leech))
 	number = number.add(banked)
 	if number.compare_to(highest_number) > 0:
@@ -1907,8 +1918,10 @@ func _tick_rate() -> float:
 func _damage_multiplier() -> float:
 	return _base_output_multiplier() * _boss_damage_multiplier()
 
+## Boss Damage works on the boss itself, this wave's or one carried in, and
+## not on the pile in front of it.
 func _boss_damage_multiplier() -> float:
-	if active_encounter == null or not active_encounter.is_boss:
+	if active_encounter == null or not active_encounter.is_boss_member(active_encounter.front_index()):
 		return 1.0
 	return 1.0 + _effect_sum("boss_damage")
 

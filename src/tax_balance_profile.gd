@@ -6,7 +6,7 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v11"
+const PROFILE_ID := "tax-foundation-v12"
 const WAVE_INTERVAL_SECONDS := 15.0
 const BOSS_WAVE_INTERVAL := 10
 ## A beaten wave stays on screen at least this long before the next arrives
@@ -30,17 +30,30 @@ const BOSS_WAVE_GEMS := 1
 ## (early, mid, maxed) has a natural wave it stops at. Every tenth wave steps
 ## up by the milestone factors. Higher tiers multiply the same curve (D002).
 const LIABILITY_SCALE := 4.0
-## The Hit curve's scale, independent of Wave HP (D043). 1.7 (D046) is the
-## smallest step from D043's 1.5 at which max Attack with no Defense stops at
-## the wave 100 boss on every measured seed (balance target 5); 1.6 still let
-## it through on three seeds in ten. Mutable so the balance simulator can sweep
-## it (`-- --hit-sweep`).
-var COLLECTION_SCALE := 1.7
+## A multiplier on every Hit, 1 by default. Since D063 the Hit follows the
+## wave's HP through HIT_RATIO rather than its own curve; this stays so the
+## balance simulator can sweep the Hit's size (`-- --hit-sweep`).
+var COLLECTION_SCALE := 1.0
+## The Tower's shape (D063): an enemy's health divided by its damage grows
+## with the wave, so the long run is a wall of HP to clear rather than of Hits
+## to absorb. log10 of the ratio is log10(HIT_RATIO_BASE) + HIT_RATIO_POWER x
+## log10(w) + HIT_RATIO_GROWTH x w to wave 100; past it, DEEP_RATIO_POWER x
+## log10(w / 100) + DEEP_RATIO_GROWTH x (w - 100) on top. Our own coefficients
+## (D009), fitted to The Tower's Tier 1 ratio: about 2.4 at wave 1, 11 at 100,
+## 118 at 500 and 1,480 at 1,000.
+const HIT_RATIO_BASE := 2.4
+const HIT_RATIO_POWER := 0.15
+const HIT_RATIO_GROWTH := 0.0036
+const DEEP_RATIO_POWER := 0.33
+const DEEP_RATIO_GROWTH := 0.002
+## Every hit an enemy lands makes its next one this much stronger,
+## compounding, as The Tower's do (D063), so nothing that reaches the Number
+## can stay there harmlessly.
+const HEAT_UP_PER_HIT := 1.04
 ## Every wave pays this times its number in Coins, times the tier's reward
 ## multiplier, from wave 1 (D040).
 const WAVE_REWARD_SCALE := 0.65
 const BOSS_LIABILITY_MULTIPLIER := 3.0
-const BOSS_COLLECTION_MULTIPLIER := 1.5
 const BOSS_REWARD_MULTIPLIER := 5.0
 ## A beaten wave pays this much Cash plus CASH_PER_WAVE times its number, times
 ## BOSS_CASH_MULTIPLIER on a boss (D042). It is flat rather than income-scaled,
@@ -119,7 +132,19 @@ func has_tier(tier_id: int) -> bool:
 func members_for_wave(wave: int) -> int:
 	if is_boss_wave(wave):
 		return 1
+	return ordinary_members(wave)
+
+## How many enemies an ordinary wave at `wave` has, boss wave or not: a boss
+## hits like one of them (D063).
+func ordinary_members(wave: int) -> int:
 	return mini(MAX_WAVE_MEMBERS, FIRST_WAVE_MEMBERS + (maxi(1, wave) - 1) / WAVES_PER_EXTRA_MEMBER)
+
+## How often a boss hits once it reaches the Number: as often as the enemies
+## that stay at its wave (D063), and every 15 seconds through the opening,
+## where ordinary enemies hit once and leave but a boss stays.
+func boss_hit_seconds(wave: int) -> float:
+	var interval := member_hit_seconds(wave)
+	return interval if interval > 0.0 else WAVE_INTERVAL_SECONDS
 
 ## When member `index` (0 is the front) of `count` reaches the Number, in
 ## seconds from the wave's start.
@@ -158,24 +183,25 @@ func liability_for_wave(tier_id: int, wave: int) -> ScientificNumber:
 	var boss_multiplier := BOSS_LIABILITY_MULTIPLIER if is_boss_wave(wave) else 1.0
 	return _from_log10(_wave_hp_log10(wave) + log(tier.liability_multiplier * boss_multiplier) / log(10.0))
 
-## An ordinary wave's Attack/Hit on the Tier 1 scale: independent of
-## Wave HP so DPS checks (beating the clock) and EHP checks (surviving contact)
-## are calibrated separately. Scales to wave 5,000 and beyond.
-func _wave_hit_log10(wave: int) -> float:
+## log10 of how many times its Hit an ordinary wave's HP is (D063).
+func hit_ratio_log10(wave: int) -> float:
 	var w := float(maxi(1, wave))
-	var body := 0.08 * pow(w, 2.10) + 0.4 * w + 1.0
-	var milestone_log := (
-		float(wave / 10) * log(1.08)
-		+ float(wave / 50) * log(1.20)
-		+ float(wave / 100) * log(1.50)
-	) / log(10.0)
-	return log(COLLECTION_SCALE * body) / log(10.0) + milestone_log
+	var early := minf(w, 100.0)
+	var ratio_log := log(HIT_RATIO_BASE) / log(10.0) + HIT_RATIO_POWER * log(early) / log(10.0) + HIT_RATIO_GROWTH * early
+	if w > 100.0:
+		ratio_log += DEEP_RATIO_POWER * log(w / 100.0) / log(10.0) + DEEP_RATIO_GROWTH * (w - 100.0)
+	return ratio_log
 
-## A boss's Hit is 1.5 times an ordinary Hit at its wave, not a multiple of its
-## tripled HP, so a boss fight is long rather than instantly lethal.
+## An ordinary wave's Hit on the Tier 1 scale: its HP divided by the ratio,
+## so the milestone steps move both together. Scales to wave 5,000 and beyond.
+func _wave_hit_log10(wave: int) -> float:
+	return _wave_hp_log10(wave) - hit_ratio_log10(wave) + log(COLLECTION_SCALE) / log(10.0)
+
+## A boss is a wall of HP that hits like one ordinary enemy of its wave (D063),
+## so its Hit is the ordinary wave's shared by that wave's enemy count.
 func collection_for_wave(tier_id: int, wave: int) -> ScientificNumber:
 	var tier: Variant = get_tier(tier_id)
-	var boss_multiplier := BOSS_COLLECTION_MULTIPLIER if is_boss_wave(wave) else 1.0
+	var boss_multiplier := 1.0 / float(ordinary_members(wave)) if is_boss_wave(wave) else 1.0
 	return _from_log10(_wave_hit_log10(wave) + log(tier.collection_multiplier * boss_multiplier) / log(10.0))
 
 ## Every tier shares the same wave base, which keeps the 1.8x/2.6x reward
@@ -277,9 +303,6 @@ func rig_effect_multiplier(category: String, upgrade_id: String) -> float:
 const COLLECTION_RESISTANCE_CEILING := 0.75
 const SIPHON_CEILING := 0.5
 const RECOIL_CEILING := 1.0
-## Combined defensive floor (WORKSHOP_EXPANSION): a Hit never drops below 10%
-## of its base size after Guard and Armor together.
-const HIT_FLOOR_PERCENT := 0.10
 
 ## One rank costs `k` times RIG_PRICE_SECONDS of the given income at the first
 ## rank and grows from there (D039). Past that, a row's Workshop and run ranks

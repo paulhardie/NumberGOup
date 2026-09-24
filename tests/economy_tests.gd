@@ -33,6 +33,7 @@ func _init() -> void:
 	_test_group_brace_guard_and_thorns()
 	_test_group_saves_and_resumes()
 	_test_members_stay_and_the_pile_grows()
+	_test_tower_shaped_bosses_and_heat_up()
 	_test_opening_members_pass()
 	_test_d058_opening_save_reconciles()
 	_test_output_is_number_and_strikes_the_wave()
@@ -864,18 +865,24 @@ func _test_tier_one_opening() -> void:
 			_expect(hit_growth > 1.0 and hit_growth < 1.6, "the Hit should rise smoothly from wave " + str(previous) + " to " + str(check_wave))
 		previous = check_wave
 	_expect(profile.liability_for_wave(1, 21).compare_to(profile.liability_for_wave(1, 19)) > 0 and pow(10.0, profile.liability_for_wave(1, 21).log10() - profile.liability_for_wave(1, 19).log10()) < 1.4, "wave 21 should no longer jump")
-	# D043: the Hit has its own curve, scale x (0.08 w^2.10 + 0.4 w + 1), with
-	# the same milestone steps as Wave HP, rather than a share of the wave's HP.
-	# D046 sets the scale to 1.7.
-	for check_wave in [1, 21, 49, 101, 999, 5001]:
-		var w := float(check_wave)
-		var steps := pow(1.08, check_wave / 10) * pow(1.2, check_wave / 50) * pow(1.5, check_wave / 100)
-		var expected := 1.7 * (0.08 * pow(w, 2.10) + 0.4 * w + 1.0) * steps
-		_expect(absf(profile.collection_for_wave(1, check_wave).log10() - log(expected) / log(10.0)) < 0.000001, "an ordinary Hit should follow the D043 curve (wave " + str(check_wave) + ")")
+	# D063: the Hit is the wave's HP divided by a ratio on The Tower's shape,
+	# which grows with the wave: about 2.4 at wave 1, 11 at 100, 118 at 500 and
+	# 1,480 at 1,000, so enemies grow tankier than they hit.
+	var previous_ratio := 0.0
+	for check_wave in [1, 21, 49, 99, 101, 499, 501, 999, 1001, 5001]:
+		var hp_log := profile.liability_for_wave(1, check_wave).log10()
+		var hit_log := profile.collection_for_wave(1, check_wave).log10()
+		var ratio := pow(10.0, hp_log - hit_log)
+		_expect(absf(hp_log - hit_log - profile.hit_ratio_log10(check_wave)) < 0.000001, "an ordinary Hit should be the wave's HP over the D063 ratio (wave " + str(check_wave) + ")")
+		_expect(ratio >= previous_ratio, "enemies should never grow less tanky relative to their Hit (wave " + str(check_wave) + ")")
+		previous_ratio = ratio
+	for anchor in [[1, 2.4], [100, 11.0], [500, 118.0], [1000, 1480.0]]:
+		var anchor_ratio := pow(10.0, profile.hit_ratio_log10(int(anchor[0])))
+		_expect(absf(anchor_ratio / float(anchor[1]) - 1.0) < 0.05, "the ratio should sit on The Tower's shape at wave %d: %f" % [int(anchor[0]), anchor_ratio])
 	_expect(profile.collection_for_wave(2, 21).compare_to(profile.collection_for_wave(1, 21).multiply_scalar(20.0)) == 0, "Tier 2 should multiply the same Hit curve by 20")
 	var boss_hp := profile.liability_for_wave(1, 10)
 	var ordinary_hit_10 := profile._from_log10(profile._wave_hit_log10(10))
-	_expect(profile.collection_for_wave(1, 10).compare_to(ordinary_hit_10.multiply_scalar(profile.BOSS_COLLECTION_MULTIPLIER)) == 0 and not boss_hp.is_zero(), "a boss's Hit should be 1.5 times an ordinary Hit at its wave")
+	_expect(absf(profile.collection_for_wave(1, 10).log10() - ordinary_hit_10.multiply_scalar(1.0 / float(profile.ordinary_members(10))).log10()) < 0.000001 and not boss_hp.is_zero(), "a boss should hit like one ordinary enemy of its wave (D063)")
 	_expect(profile.reward_for_wave(1, 1) == 1 and profile.reward_for_wave(1, 21) == 14 and profile.reward_for_wave(1, 10) == roundi(10 * profile.WAVE_REWARD_SCALE * profile.BOSS_REWARD_MULTIPLIER), "Coins should follow 0.65 x the wave from wave 1, x5 on a boss")
 	# Doing nothing still ends, and earns clearly less than a player tapping
 	# once a second.
@@ -916,12 +923,13 @@ func _test_tier_one_opening() -> void:
 	_expect(absf(before.subtract(stuck.number).log10() - hit.log10()) < 0.000001 and not stuck.number.is_zero(), "an opening wave should cost its Hit once, not the run")
 	_expect(stuck.active_encounter.at_number_count() == 0, "opening members should not stay at the Number")
 	_expect(stuck.wave == 2 and stuck.coins == 0 and stuck.get_tier_best(1) == 0, "the missed wave should move on unpaid and unrecorded")
-	# The first boss stands and fights like every boss.
+	# The first boss stays and fights like every boss, but waves keep coming
+	# (D063): it joins the next wave's pile.
 	stuck.wave = 10
 	stuck.active_encounter = stuck._make_encounter(10)
 	stuck.number = ScientificNumber.new(1.0, 9)
 	stuck._resolve_wave_boundary()
-	_expect(stuck.wave == 10, "the wave 10 boss should stay until beaten")
+	_expect(stuck.wave == 11 and stuck.active_encounter.boss_index() >= 0, "the wave 10 boss should stay at the Number while the next wave comes")
 
 	# D039: a fresh run's first Rig ranks cost a few seconds of its income in Cash, and
 	# repeated purchases climb gently rather than jumping to a wave's HP.
@@ -1071,7 +1079,8 @@ func _test_missed_waves_move_on_and_bosses_stay() -> void:
 	_expect(state.active_encounter.own_uncleared().compare_to(state.active_encounter.max_liability) == 0, "the next wave should arrive whole")
 	_expect(state.active_encounter.at_number_count() == 2 and state.active_encounter.front_index() == 0, "the missed wave's two members should stay at the Number, in front")
 
-	# A boss stays until beaten, keeps the damage dealt and hits again.
+	# D063: waves keep coming while a boss stands. An unbeaten boss hits and
+	# joins the pile in front of the next wave, keeping the damage dealt.
 	var boss := GameState.new()
 	boss.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	boss.start_run(2, 25)
@@ -1081,13 +1090,15 @@ func _test_missed_waves_move_on_and_bosses_stay() -> void:
 	var boss_hp: ScientificNumber = boss.active_encounter.max_liability.copy()
 	boss._add_number(ScientificNumber.from_float(40))
 	event = boss._resolve_wave_boundary()
-	_expect(event.type == "boss_collection" and boss.wave == 30, "a boss still standing at its boundary should hit and stay")
-	_expect(boss.active_encounter.remaining_liability.compare_to(boss_hp.subtract(ScientificNumber.from_float(40.0 * boss._boss_damage_multiplier()))) <= 0, "a standing boss should keep the damage already dealt")
-	event = boss._resolve_wave_boundary()
-	_expect(event.type == "boss_collection" and boss.wave == 30, "a standing boss should hit again at the next boundary")
+	_expect(event.type == "boss_collection" and boss.wave == 31, "a boss still standing at its boundary should hit and let the next wave come")
+	var carried_boss: int = boss.active_encounter.boss_index()
+	_expect(carried_boss == 0 and boss.active_encounter.front_index() == 0, "the boss should stay at the Number, in front of the next wave")
+	_expect(boss.active_encounter.members[carried_boss].hp.compare_to(boss_hp.subtract(ScientificNumber.from_float(40.0 * boss._boss_damage_multiplier()))) <= 0, "a standing boss should keep the damage already dealt")
+	boss._add_number(boss.active_encounter.members[carried_boss].hp.copy())
+	_expect(boss.active_encounter.boss_index() < 0 and boss.get_tier_best(2) == 0, "a boss beaten after its wave passed should not count its wave as beaten")
 	_beat_wave(boss)
 	_advance_seconds(boss, boss.balance_profile.MIN_WAVE_SECONDS)
-	_expect(boss.wave == 31 and boss.get_tier_best(2) == 30, "beating the boss should advance and count")
+	_expect(boss.wave == 32 and boss.get_tier_best(2) == 31, "beating the next wave should advance and count")
 
 func _test_missed_checkpoint_pays_when_passed() -> void:
 	# D037 with D030: wave 25 is an ordinary checkpoint. Missing it claims
@@ -1247,7 +1258,8 @@ func _test_boss_axes_and_rewards() -> void:
 	var normal_collection := profile.collection_for_wave(2, 29)
 	var boss_collection := profile.collection_for_wave(2, 30)
 	_expect(boss_liability.compare_to(normal_liability) > 0, "boss liability should exceed the preceding normal wave")
-	_expect(boss_collection.compare_to(normal_collection) > 0, "boss collection should exceed the preceding normal wave")
+	var one_enemy_30 := profile._from_log10(profile._wave_hit_log10(30)).multiply_scalar(20.0 / float(profile.ordinary_members(30)))
+	_expect(absf(boss_collection.log10() - one_enemy_30.log10()) < 0.000001 and boss_collection.compare_to(normal_collection) < 0, "a boss should be a wall of HP that hits like one enemy, not a whole wave (D063)")
 	_expect(profile.reward_for_wave(2, 30) > profile.reward_for_wave(2, 29), "boss waves should grant a larger independent reward")
 
 func _test_brace_blocks_next_collection() -> void:
@@ -1322,8 +1334,9 @@ func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
 	var hit := state.get_effective_collection()
 	var before: ScientificNumber = state.active_encounter.remaining_liability.copy()
 	var event := state._resolve_wave_boundary()
-	_expect(event.type == "boss_collection" and state.wave == 20, "an unbeaten boss should hit and stay")
-	_expect(state.active_encounter.remaining_liability.compare_to(before.subtract(hit.multiply_scalar(0.5))) == 0, "half the hit should be dealt back to the boss")
+	_expect(event.type == "boss_collection" and state.wave == 21, "an unbeaten boss should hit and join the pile (D063)")
+	var thorned_boss: Dictionary = state.active_encounter.members[state.active_encounter.boss_index()]
+	_expect(thorned_boss.hp.compare_to(before.subtract(hit.multiply_scalar(0.5))) == 0, "half the hit should be dealt back to the boss")
 
 	# An ordinary wave's members stay at the Number (D058), so Thorns returns
 	# each hit to them, and the wave that replaces a missed one arrives whole.
@@ -1487,36 +1500,36 @@ func _test_armor_ceiling_bounds_armor_not_other_rules() -> void:
 	state.active_rule_modifiers = [{"source": "test_rule", "target": "collection", "stage": "multiplicative", "value": 0.2}]
 	_expect(state.get_effective_collection().compare_to(base.multiply_scalar(0.25 * 0.2)) == 0, "a separate rule that shrinks hits should still apply past Armor's ceiling")
 
-## Guard (Defense Absolute): flat Hit reduction, priced in the tier's Hit pressure,
-## floored so a Hit never drops below 10% of its size after Guard and Armor together.
+## Guard (Defense Absolute): a flat amount off each enemy's hit, priced in the
+## tier's Hit pressure, after Armor and down to nothing, as in The Tower (D063).
 func _test_guard_flat_reduction_and_floor() -> void:
 	var state := GameState.new()
 	state.start_run(1, 4)
+	state.wave = 40
+	state.active_encounter = state._make_encounter(40)
 	var base_hit: ScientificNumber = state.active_encounter.collection.copy()
 	_expect(state.get_effective_collection().compare_to(base_hit) == 0, "with no Guard or Armor, hit should match base")
 
-	# 10 ranks of Guard on Tier 1 (flat reduction of 10):
+	# 10 ranks of Guard on Tier 1 take exactly 10 off.
 	state.purchased = {"guard": 10}
-	var hit_with_guard := state.get_effective_collection()
-	var expected_hit := base_hit.subtract(ScientificNumber.from_float(10.0))
-	var min_floor := base_hit.multiply_scalar(0.10)
-	if expected_hit.compare_to(min_floor) < 0:
-		expected_hit = min_floor
-	_expect(hit_with_guard.compare_to(expected_hit) == 0, "10 ranks of Guard should reduce hit by 10 or floor at 10%")
+	_expect(state.get_effective_collection().compare_to(base_hit.subtract(ScientificNumber.from_float(10.0))) == 0, "10 ranks of Guard should take exactly 10 off a hit")
 
-	# 100 ranks of Guard on wave 1 (Hit is small, e.g. ~1.8): floored to exactly 10%
+	# Guard larger than the hit takes it to nothing: no floor (D063).
 	state.purchased = {"guard": 100}
-	var floored_hit := state.get_effective_collection()
-	_expect(floored_hit.compare_to(base_hit.multiply_scalar(0.10)) == 0, "100 Guard on a small hit should floor at exactly 10% of base hit")
+	var wave_one := GameState.new()
+	wave_one.purchased = {"guard": 100}
+	wave_one.start_run(1, 4)
+	_expect(wave_one.get_effective_collection().is_zero(), "Guard larger than a hit should take it to nothing")
 
-	# Guard + Armor together (100 Guard + 100 Armor = 40% resistance):
-	state.purchased = {"guard": 100, GameState.ARMOR_ID: 100}
-	var guarded_and_armored := state.get_effective_collection()
-	_expect(guarded_and_armored.compare_to(base_hit.multiply_scalar(0.10)) == 0, "Guard and Armor combined should never reduce hit below 10%")
+	# Armor comes off first, then Guard: 60 Armor ranks (24%) and 10 Guard.
+	state.purchased = {"guard": 10, GameState.ARMOR_ID: 60}
+	var armor_first := base_hit.multiply_scalar(1.0 - state._effect_sum("collection_resistance")).subtract(ScientificNumber.from_float(10.0))
+	_expect(absf(state.get_effective_collection().log10() - armor_first.log10()) < 1.0e-9, "Armor should come off before Guard")
 
-	# External rules can still reduce hits past the 10% floor (D023):
+	# A rule that shrinks hits comes off before Guard too.
+	state.purchased = {"guard": 10}
 	state.active_rule_modifiers = [{"source": "test_perk", "target": "collection", "stage": "multiplicative", "value": 0.5}]
-	_expect(state.get_effective_collection().compare_to(base_hit.multiply_scalar(0.10 * 0.5)) == 0, "external rule modifiers should still apply past Guard's floor")
+	_expect(absf(state.get_effective_collection().log10() - base_hit.multiply_scalar(0.5).subtract(ScientificNumber.from_float(10.0)).log10()) < 1.0e-9, "a rule that shrinks hits should apply before Guard")
 	state.active_rule_modifiers = []
 
 	# The Hit shown on the wave is its raw size; its defences come off at contact
@@ -1527,28 +1540,32 @@ func _test_guard_flat_reduction_and_floor() -> void:
 	_expect(bare_parts.guard.is_zero() and bare_parts.armor.is_zero() and bare_parts.raw.compare_to(bare_parts.final) == 0, "with no defences the raw Hit is the Hit that lands")
 	bare.wave = 40
 	bare.active_encounter = bare._make_encounter(40)
-	for mix in [{"guard": 30}, {GameState.ARMOR_ID: 60}, {"guard": 30, GameState.ARMOR_ID: 60}]:
+	var front_member: Dictionary = bare.active_encounter.members[bare.active_encounter.front_index()]
+	for mix in [{"guard": 3}, {GameState.ARMOR_ID: 60}, {"guard": 3, GameState.ARMOR_ID: 60}]:
 		bare.purchased = mix
 		for rules in [[], [{"source": "test_perk", "target": "collection", "stage": "multiplicative", "value": 0.5}]]:
 			bare.active_rule_modifiers = rules
 			var parts := bare.get_hit_breakdown()
-			var rebuilt: ScientificNumber = parts.raw.subtract(parts.guard).subtract(parts.armor)
-			_expect(absf(rebuilt.log10() - parts.final.log10()) < 1.0e-9 and parts.final.compare_to(bare.get_effective_collection()) == 0, "a Hit's parts should add up to the Hit that lands: %s" % str(mix))
-	bare.purchased = {"guard": 30, GameState.ARMOR_ID: 60}
+			var rebuilt: ScientificNumber = parts.raw.subtract(parts.armor).subtract(parts.guard)
+			var lands: ScientificNumber = bare._effective_hit(bare._member_raw_hit(front_member))
+			_expect(not parts.final.is_zero() and absf(rebuilt.log10() - parts.final.log10()) < 1.0e-9 and parts.final.compare_to(lands) == 0, "a Hit's parts should add up to the Hit that lands: %s" % str(mix))
+	bare.purchased = {"guard": 3, GameState.ARMOR_ID: 60}
 	bare.active_rule_modifiers = []
 	var both := bare.get_hit_breakdown()
 	_expect(not both.guard.is_zero() and not both.armor.is_zero(), "Guard and Armor should each show what they took off")
 
-	# Tier scaling: On Tier 2 (collection_multiplier = 20.0), 10 Guard reduces by 200:
-	state.purchased = {"guard": 10}
-	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
-	state.start_run(2, 4)
-	var t2_base_hit: ScientificNumber = state.active_encounter.collection.copy()
+	# Tier scaling: On Tier 2 (collection_multiplier = 20.0), 10 Guard reduces by 200.
+	# A fresh state, since start_run refuses while a run is already going.
+	var tier_two := GameState.new()
+	tier_two.purchased = {"guard": 10}
+	tier_two.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	_expect(tier_two.start_run(2, 4), "the Tier 2 fixture should start")
+	tier_two.wave = 40
+	tier_two.active_encounter = tier_two._make_encounter(40)
+	var t2_base_hit: ScientificNumber = tier_two.active_encounter.collection.copy()
 	var t2_expected := t2_base_hit.subtract(ScientificNumber.from_float(200.0))
-	var t2_floor := t2_base_hit.multiply_scalar(0.10)
-	if t2_expected.compare_to(t2_floor) < 0:
-		t2_expected = t2_floor
-	var t2_hit := state.get_effective_collection()
+	var t2_hit := tier_two.get_effective_collection()
+	_expect(not t2_expected.is_zero(), "the Tier 2 fixture's Hit should outweigh 200 Guard")
 	_expect(t2_hit.compare_to(t2_expected) == 0, "Guard should scale by Tier 2's collection multiplier")
 
 	# Save/load round-trip preserves Guard:
@@ -2654,7 +2671,8 @@ func _test_defensive_ceilings_bound_the_combined_effects() -> void:
 	var hit := state.get_effective_collection()
 	state.number = ScientificNumber.new(1.0, 40)
 	state._resolve_wave_boundary()
-	var dealt := liability_before.subtract(state.active_encounter.remaining_liability)
+	# The boss joins the next wave's pile (D063); its own HP shows what came back.
+	var dealt := liability_before.subtract(state.active_encounter.members[state.active_encounter.boss_index()].hp)
 	_expect(dealt.compare_to(hit) == 0, "Thorns should deal back exactly the hit, never more")
 
 ## D057: a wave is a group whose members share its HP and Hit evenly, three
@@ -2769,11 +2787,11 @@ func _test_group_brace_guard_and_thorns() -> void:
 	guarded.number = ScientificNumber.from_float(1e6)
 	guarded.wave = 31
 	guarded.active_encounter = guarded._make_encounter(31)
-	var whole := guarded.get_effective_collection()
+	var own_hit: ScientificNumber = guarded.active_encounter.collection.multiply_scalar(guarded.active_encounter.members[0].share)
 	var before := guarded.number.copy()
 	for step in range(25):
 		guarded._advance_waves(0.25)
-	_expect(before.subtract(guarded.number).compare_to(whole.multiply_scalar(guarded.active_encounter.members[0].share)) == 0, "a member should land its share of the Hit after Guard on the whole Hit")
+	_expect(before.subtract(guarded.number).compare_to(own_hit.subtract(ScientificNumber.from_float(3.0))) == 0, "a member should land its own share of the Hit less Guard (D063)")
 
 	var thorny := GameState.new()
 	thorny.purchased = {"recoil": 100}
@@ -2894,6 +2912,94 @@ func _test_group_saves_and_resumes() -> void:
 ## into the next wave, in front, so an unbeaten pile grows wave on wave. A boss
 ## holds the clock and hits every 15 seconds. A member beaten after landing
 ## still counts towards beating its wave, and a Brace covers the whole clock.
+## D063: a boss is a wall that joins the pile when its wave passes, Boss Damage
+## and Leech follow the boss itself rather than whatever stands in front of it,
+## heat-up and the boss marker survive a save, and older saves load with safe
+## defaults.
+func _test_tower_shaped_bosses_and_heat_up() -> void:
+	var state := GameState.new()
+	state.balance_profile.OPENING_HIT_WAVES = 0
+	state.balance_profile.OPENING_EASED_BY = 0
+	state.purchased = {"boss_damage": 100, "siphon": 100}
+	state.start_run(1, 91)
+	state.number = ScientificNumber.from_float(1e12)
+	state.wave = 20
+	state.active_encounter = state._make_encounter(20)
+	_expect(state._boss_damage_multiplier() > 1.0, "Boss Damage should work on a boss in its own wave")
+	state._resolve_wave_boundary()
+	var boss_at: int = state.active_encounter.boss_index()
+	_expect(state.wave == 21 and boss_at == 0, "the unbeaten boss should lead the next wave's pile")
+	_expect(state._boss_damage_multiplier() > 1.0, "Boss Damage should follow the boss into the next wave")
+	# Leech feeds on damage to the boss itself.
+	state.number = ScientificNumber.from_float(1000)
+	state._add_number(ScientificNumber.from_float(100))
+	_expect(state.number.compare_to(ScientificNumber.from_float(1125)) == 0, "Leech should feed on the carried boss")
+	state.number = ScientificNumber.from_float(1e12)
+	# With the boss beaten, what stands in front is ordinary: neither applies.
+	state._add_number(state.active_encounter.members[boss_at].hp.copy())
+	state.active_encounter.members[1].state = TaxEncounter.AT_NUMBER
+	_expect(state.active_encounter.boss_index() < 0 and is_equal_approx(state._boss_damage_multiplier(), 1.0), "Boss Damage should not work on the pile once the boss is beaten")
+	state.number = ScientificNumber.from_float(1000)
+	state._add_number(ScientificNumber.from_float(1))
+	_expect(state.number.compare_to(ScientificNumber.from_float(1001)) == 0, "Leech should not feed on ordinary enemies")
+
+	# A boss standing in front of an ordinary wave hits like one of its enemies,
+	# heated up for the hits it has landed.
+	var carried := GameState.new()
+	carried.balance_profile.OPENING_HIT_WAVES = 0
+	carried.balance_profile.OPENING_EASED_BY = 0
+	carried.start_run(1, 92)
+	carried.number = ScientificNumber.from_float(1e12)
+	carried.wave = 10
+	carried.active_encounter = carried._make_encounter(10)
+	carried._resolve_wave_boundary()
+	var boss: Dictionary = carried.active_encounter.members[carried.active_encounter.boss_index()]
+	_expect(int(boss.hits) == 1 and is_equal_approx(float(boss.interval), carried.balance_profile.MEMBER_HIT_SECONDS), "the boss should have hit once and keep its wave's clock")
+	var heated: ScientificNumber = carried.get_hit_breakdown(carried.active_encounter.boss_index()).raw
+	_expect(absf(heated.log10() - boss.wave_hit.multiply_scalar(carried.balance_profile.HEAT_UP_PER_HIT).log10()) < 1.0e-9, "the boss's next hit should be heated up 4%")
+
+	# The carried boss and its heat survive a save and load exactly.
+	var save_path := "res://.number_go_up_test_save.json"
+	carried.save_path = save_path
+	_expect(carried.save(), "a run with a carried boss should save")
+	var loaded := GameState.new()
+	loaded.balance_profile.OPENING_HIT_WAVES = 0
+	loaded.balance_profile.OPENING_EASED_BY = 0
+	loaded.save_path = save_path
+	loaded.load()
+	var loaded_boss_at: int = loaded.active_encounter.boss_index()
+	_expect(loaded_boss_at >= 0 and int(loaded.active_encounter.members[loaded_boss_at].hits) == 1 and loaded.active_encounter.members[loaded_boss_at].hp.compare_to(boss.hp) == 0, "the carried boss should load with its HP and heat")
+	loaded.clear_save()
+
+	# A member saved before D063 has no marker or count: a boss is its own
+	# wave's, and a member that has landed has hit at least once.
+	var old: Dictionary = carried.active_encounter.to_dict()
+	for member in old.members:
+		member.erase("boss")
+		member.erase("hits")
+	old.wave = 10
+	old.is_boss = true
+	for member in old.members:
+		member.wave = 10
+	var restored = TaxEncounter.from_dict(old)
+	_expect(restored.boss_index() >= 0 and restored.members.all(func(member): return int(member.hits) == (1 if bool(member.landed) else 0)), "an older member should load as its wave's boss with its landed hit counted")
+
+	# Tier 2 opens with the first beaten wave past 100 when the wave 100 boss
+	# was passed rather than beaten.
+	var gate := GameState.new()
+	gate.start_run(1, 93)
+	gate.number = ScientificNumber.from_float(1e30)
+	gate.wave = 100
+	gate.active_encounter = gate._make_encounter(100)
+	gate._resolve_wave_boundary()
+	_expect(gate.wave == 101 and not gate.is_tier_unlocked(2), "passing the wave 100 boss should not open Tier 2 by itself")
+	_beat_wave(gate)
+	var opened := false
+	for step in range(12):
+		for event in gate.advance(0.25):
+			opened = opened or event.type == "tier_unlock"
+	_expect(opened and gate.is_tier_unlocked(2), "beating wave 101 should open Tier 2 and say so")
+
 func _test_members_stay_and_the_pile_grows() -> void:
 	var state := GameState.new()
 	state.balance_profile.OPENING_HIT_WAVES = 0
@@ -2911,7 +3017,7 @@ func _test_members_stay_and_the_pile_grows() -> void:
 				first_hits.append(clock)
 			elif event.type == "pile_hit":
 				repeats.append(clock)
-				_expect(event.amount.compare_to(share_hit) == 0, "a repeat hit should be the member's share again")
+				_expect(absf(event.amount.log10() - share_hit.multiply_scalar(state.balance_profile.HEAT_UP_PER_HIT).log10()) < 1.0e-9, "a repeat hit should be the member's share heated up 4% (D063)")
 		clock += 0.25
 	# Times are the clock at the start of the step the hit fell in.
 	_expect(first_hits.size() == 2 and repeats.size() == 1 and absf(float(repeats[0]) + 0.25 - (6.0 + interval)) < 0.01, "the front member should hit again one interval after it lands: %s" % str(repeats))
@@ -2967,8 +3073,8 @@ func _test_members_stay_and_the_pile_grows() -> void:
 		hits_per_clock.append(count)
 	_expect(hits_per_clock[3] > hits_per_clock[1] and hits_per_clock[1] > hits_per_clock[0], "an unbeaten pile should hit more often clock on clock: %s" % str(hits_per_clock))
 
-	# A boss holds the clock and hits every 15 seconds while members it did
-	# not bring keep hitting on their own interval.
+	# D063: a boss lets waves keep coming. It reaches the Number at 15 seconds,
+	# hits, joins the next wave's pile and hits again on its wave's clock.
 	var boss := GameState.new()
 	boss.balance_profile.OPENING_HIT_WAVES = 0
 	boss.balance_profile.OPENING_EASED_BY = 0
@@ -2979,7 +3085,7 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	var boss_hits := 0
 	for step in range(125):
 		boss_hits += boss._advance_waves(0.25).filter(func(event): return event.type == "boss_collection").size()
-	_expect(boss.wave == 10 and boss_hits == 2, "a boss should hold its wave and hit every 15 seconds: %d" % boss_hits)
+	_expect(boss.wave == 12 and boss_hits == 4, "a boss should let waves come and hit every %.0f seconds: wave %d, %d hits" % [boss.balance_profile.MEMBER_HIT_SECONDS, boss.wave, boss_hits])
 
 	# Beaten after landing: the wave still counts as beaten.
 	var late := GameState.new()

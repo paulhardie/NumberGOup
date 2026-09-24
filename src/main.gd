@@ -410,7 +410,7 @@ func _process(delta: float) -> void:
 					# A boss stays and hits again (D037); members stay too (D058), and
 					# their countdown is on the wave's number.
 					if boss_hit:
-						_show_toast("BOSS HITS AGAIN IN " + str(int(GameState.WAVE_INTERVAL_SECONDS)) + "s", hit_colour)
+						_show_toast("BOSS HITS AGAIN IN " + str(int(_boss_interval())) + "s", hit_colour)
 				else:
 					_show_hit_ledger(landing_parts, event.amount, hit_colour)
 				_snap_number_display()
@@ -3601,14 +3601,14 @@ func _update_wave_enemy(delta: float) -> void:
 		_clear_arena()
 		return
 	var front: int = encounter.front_index()
-	# The live number is the front member, except on a boss wave, where the boss
-	# stays the live number even behind a pile (D058); damage still strikes the
-	# front, and the motes fly there.
+	# The live number is the front member, except while a boss stands, when the
+	# boss stays the live number even behind a pile (D058), in its own wave or
+	# carried into later ones (D063); damage still strikes the front, and the
+	# motes fly there.
 	var display := front
-	if encounter.is_boss:
-		for index in range(encounter.members.size()):
-			if encounter.is_own(encounter.members[index]) and TaxEncounterClass.is_alive(encounter.members[index]):
-				display = index
+	var standing_boss: int = encounter.boss_index()
+	if standing_boss >= 0:
+		display = standing_boss
 	# The live member beaten while the rest stand breaks apart where it was,
 	# and the next becomes the live number (D057).
 	if encounter == enemy_encounter and wave_enemy.visible and enemy_front >= 0 and display != enemy_front and enemy_front < encounter.members.size() and int(encounter.members[enemy_front].state) == TaxEncounterClass.KILLED:
@@ -3622,7 +3622,9 @@ func _update_wave_enemy(delta: float) -> void:
 		enemy_entry = _enemy_entry(state.wave)
 		_clear_arena()
 		wave_enemy.visible = true
-		if not state.settings.reduce_motion:
+		# A boss carried into the next wave (D063) is already at the Number, so
+		# only a number walking in fades in.
+		if not state.settings.reduce_motion and int(encounter.members[display].state) != TaxEncounterClass.AT_NUMBER:
 			wave_enemy.modulate.a = 0.0
 			create_tween().tween_property(wave_enemy, "modulate:a", 1.0, 0.3)
 	# Reduce Motion stops movement, not information (MOTION_SYSTEM rule 1): the
@@ -3634,7 +3636,7 @@ func _update_wave_enemy(delta: float) -> void:
 		enemy_travel = 0.0
 	else:
 		enemy_travel = _member_progress(member)
-	var boss: bool = encounter.is_boss
+	var boss: bool = encounter.is_boss_member(display)
 	var tint: Color = BOSS_COLOUR if boss else TEXT.lerp(WARNING, smoothstep(0.5, 1.0, enemy_travel))
 	# The front member shows its own HP, less nothing the motes in flight have
 	# yet to deliver; motes only ever fly at the front.
@@ -3721,6 +3723,13 @@ func _hide_followers(from: int) -> void:
 	for index in range(from, enemy_followers.size()):
 		enemy_followers[index].visible = false
 
+## How often the standing boss hits (D063): its wave's clock, which the boss
+## carries with it into later waves.
+func _boss_interval() -> float:
+	var encounter: Variant = state.active_encounter
+	var index: int = encounter.boss_index() if encounter != null else -1
+	return float(encounter.members[index].interval) if index >= 0 else GameState.WAVE_INTERVAL_SECONDS
+
 ## The Hit worked out in front of the player at contact (D052). An unreduced
 ## Hit uses the fixed readout; a reduced one keeps its working in a single
 ## reusable spot, so quick arrivals do not stack several columns of numbers.
@@ -3730,19 +3739,22 @@ func _show_hit_ledger(parts: Dictionary, landed: ScientificNumber, colour: Color
 	if is_instance_valid(active_hit_ledger):
 		active_hit_ledger.queue_free()
 	active_hit_ledger = null
-	var blocked := landed.is_zero()
+	# A Brace blocks a Hit that would have landed; Guard taking it to nothing
+	# (D063) shows as its own working instead.
+	var blocked: bool = landed.is_zero() and not parts.final.is_zero()
 	if parts.guard.is_zero() and parts.armor.is_zero() and not blocked:
 		_record_hit_readout(landed, colour == BOSS_DANGER)
 		return
 	var lines: Array = []
 	lines.append([_stat_number(parts.raw), colour, 16])
-	if not parts.guard.is_zero():
-		lines.append(["-" + _stat_number(parts.guard) + " guard", ACCENT, 12])
+	# The Tower's order (D063): Armor comes off first, then Guard.
 	if not parts.armor.is_zero():
 		lines.append(["-" + _stat_number(parts.armor) + " armor", ACCENT, 12])
+	if not parts.guard.is_zero():
+		lines.append(["-" + _stat_number(parts.guard) + " guard", ACCENT, 12])
 	if blocked:
 		lines.append(["braced", ACCENT, 12])
-	lines.append(["= " + ("0" if blocked else "-" + _stat_number(landed)), ACCENT if blocked else colour, 16])
+	lines.append(["= " + ("0" if landed.is_zero() else "-" + _stat_number(landed)), ACCENT if landed.is_zero() else colour, 16])
 	var column := VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.alignment = BoxContainer.ALIGNMENT_CENTER

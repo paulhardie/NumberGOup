@@ -130,7 +130,7 @@ func _init() -> void:
 		_simulate_maxed_workshop()
 		quit(0)
 		return
-	# `-- --hit-sweep` measures balance target 5 across Hit scales (D043).
+	# `-- --hit-sweep` measures balance target 5 across Hit scales (D063).
 	if OS.get_cmdline_user_args().has("--hit-sweep"):
 		_simulate_hit_sweep()
 		quit(0)
@@ -378,7 +378,8 @@ func _simulate_maxed_workshop() -> void:
 ## Attack and Defense. Each Hit scale runs the builds that decide it (max Attack
 ## alone must stop at or before the wave 100 boss; adding Defense must pass it)
 ## and the opening that the Hit also shapes (target 10's first Hits).
-const HIT_SWEEP_SCALES := [1.5, 1.6, 1.7, 1.8, 2.0, 2.2]
+## Multipliers on D063's Hit (wave HP over the Tower-shaped ratio); 1 is today's.
+const HIT_SWEEP_SCALES := [0.5, 0.75, 1.0, 1.5, 2.0, 3.0]
 const HIT_SWEEP_BUILDS := [
 	["fresh", {}, "none"],
 	["fresh + rig", {}, "reinvest"],
@@ -392,7 +393,7 @@ const HIT_SWEEP_BUILDS := [
 ]
 
 func _simulate_hit_sweep() -> void:
-	print("HIT SCALE SWEEP  (D043 Hit = scale x (0.08 w^2.10 + 0.4 w + 1) x milestones; 2 taps/sec, seed ", SEED, ")")
+	print("HIT SCALE SWEEP  (D063 Hit = scale x wave HP / Tower-shaped ratio; 2 taps/sec, seed ", SEED, ")")
 	for scale in HIT_SWEEP_SCALES:
 		print("SCALE ", scale)
 		for tap_rate in [0.0, 1.0, 2.0]:

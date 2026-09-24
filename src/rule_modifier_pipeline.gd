@@ -19,6 +19,11 @@ static func apply(base: ScientificNumber, target: String, modifiers: Array) -> S
 	for modifier in modifiers:
 		if _matches(modifier, target, "multiplicative"):
 			result = result.multiply_scalar(maxf(0.0, float(modifier.get("value", 1.0))))
+	# Flat reductions that come off after every percentage, as The Tower's
+	# Defense Absolute does after Defense % (D063). Never below zero.
+	for modifier in modifiers:
+		if _matches(modifier, target, "flat_reduce_last"):
+			result = result.subtract(ScientificNumber.from_dict(modifier.get("amount", {})))
 	for modifier in modifiers:
 		if _matches(modifier, target, "cap_max"):
 			var maximum := ScientificNumber.from_dict(modifier.get("amount", {}))
