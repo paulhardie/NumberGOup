@@ -210,7 +210,7 @@ func _init() -> void:
 	await create_timer(1.0).timeout
 	var pops := 0
 	for label in main.floating_text_layer.get_children():
-		if label is Label and not seen.has(label) and (label.text.begins_with("-") or label.text.begins_with("CRIT -")):
+		if label is Label and not seen.has(label) and label.text.begins_with("-"):
 			pops += 1
 	_check(st.statistics.ticks - shots_before >= 12 and pops == 0 and main.damage_readout.visible, "fourteen shots a second update one fixed readout: %d shots, %d pops" % [st.statistics.ticks - shots_before, pops])
 	st.purchased.erase("faster_cadence")
@@ -263,7 +263,7 @@ func _init() -> void:
 	st.wave_accumulator = 9.0
 	await _frames(3)
 	main._pop_damage(ScientificNumber.from_float(5.0), true, true)
-	_check(main.damage_readout.visible and main.damage_readout.text.begins_with("CRIT -"), "Reduce Motion still shows critical damage in the fixed readout")
+	_check(main.damage_readout.visible and main.damage_readout.text.begins_with("-") and not main.damage_readout.text.contains("CRIT") and main.damage_readout.get_theme_color("font_color") == main.CRIT_COLOUR and main.damage_readout.get_theme_font("font") == main.number_font_semibold, "Reduce Motion shows a critical as red, heavier damage text without a word")
 	var rm_front: Dictionary = st.active_encounter.members[main.enemy_front]
 	_check(main.wave_enemy.visible and main.enemy_travel == (1.0 if int(rm_front.state) == TaxEncounter.AT_NUMBER else 0.0), "with Reduce Motion a walking front holds at the edge")
 	_beat(st)

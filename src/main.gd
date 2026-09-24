@@ -38,11 +38,14 @@ const GEM_COLOUR := Color("6aa6d6")
 # their Hit, so the fight that stays apart from the waves that pass reads at a
 # glance. The second exception to one accent and one warning.
 const BOSS_COLOUR := Color("e0625a")
+## Critical numbers share the existing red, but stay beside the enemy rather
+## than on the Number, so they do not read as incoming boss Hits (D062).
+const CRIT_COLOUR := BOSS_COLOUR
 const UI_FONT_PATH := "res://assets/fonts/Geist.ttf"
 ## Every number on screen is monospaced, so a climbing value never jitters.
 const NUMBER_FONT_PATH := "res://assets/fonts/GeistMono.ttf"
-# A critical tick is the one moment worth lifting above the accent, so it
-# brightens towards white instead of introducing a third colour.
+# A critical flash or mote brightens towards white; its damage text uses the
+# existing boss red (D062), so neither adds another hue.
 const CRITICAL := Color("f5f5f3")
 const DANGER := WARNING
 const BOSS_DANGER := BOSS_COLOUR
@@ -212,7 +215,9 @@ var milestones_signature := ""
 var tracked_font: FontVariation
 var ui_font: Font
 var ui_font_medium: FontVariation
+var ui_font_semibold: FontVariation
 var number_font: Font
+var number_font_semibold: FontVariation
 var number_flash_tween: Tween
 # Smoothed log10 of the displayed Number (log10(mantissa) + exponent), eased
 # toward the true value every frame instead of snapping to it. -INF means 0.
@@ -372,7 +377,7 @@ func _process(delta: float) -> void:
 	for event in events:
 		if event.is_critical:
 			if not fighting:
-				_spawn_floating_text(_output_float_text(event.amount, true), CRITICAL, _stage_float_point())
+				_spawn_floating_text(_output_float_text(event.amount), CRIT_COLOUR, _stage_float_point(), 15, true)
 			_pulse_number(1.06)
 			_flash_number(CRITICAL)
 		elif event.type == "tick":
@@ -461,7 +466,7 @@ func _process(delta: float) -> void:
 	if passive_float_elapsed >= PASSIVE_FLOAT_INTERVAL:
 		passive_float_elapsed = 0.0
 		if not passive_float_accumulator.is_zero():
-			_spawn_floating_text(_output_float_text(passive_float_accumulator, false), ACCENT, _stage_float_point())
+			_spawn_floating_text(_output_float_text(passive_float_accumulator), ACCENT, _stage_float_point())
 			passive_float_accumulator = ScientificNumber.new()
 	_advance_display_number(delta)
 	_refresh_number_display()
@@ -538,6 +543,8 @@ func _load_fonts() -> void:
 	ui_font = load(UI_FONT_PATH)
 	number_font = load(NUMBER_FONT_PATH)
 	ui_font_medium = _weighted_font(ui_font, 500)
+	ui_font_semibold = _weighted_font(ui_font, 600)
+	number_font_semibold = _weighted_font(number_font, 600)
 	var ui_theme := Theme.new()
 	ui_theme.default_font = ui_font
 	theme = ui_theme
@@ -2474,8 +2481,8 @@ func _refresh_dock() -> void:
 
 ## Every point of output is Number (D037), so the floating text always reads
 ## as a gain; the ring pulse is what shows the same output striking a wave.
-func _output_float_text(amount: ScientificNumber, critical: bool) -> String:
-	return ("CRITICAL " if critical else "") + "+" + amount.format_value()
+func _output_float_text(amount: ScientificNumber) -> String:
+	return "+" + amount.format_value()
 
 func _tap_number() -> void:
 	if not state.in_run:
@@ -2494,7 +2501,7 @@ func _tap_number() -> void:
 	if struck:
 		_fire_mote(hp_before.subtract(hp_encounter.uncleared()), event.is_critical, true)
 	else:
-		_spawn_floating_text(_output_float_text(event.amount, event.is_critical), CRITICAL if event.is_critical else ACCENT, spawn_pos)
+		_spawn_floating_text(_output_float_text(event.amount), CRIT_COLOUR if event.is_critical else ACCENT, spawn_pos, 15, event.is_critical)
 	if event.is_critical:
 		_pulse_number(1.09)
 		_flash_number(CRITICAL)
@@ -2530,10 +2537,12 @@ func _on_brace_pressed() -> void:
 
 ## The core per-tap "juice": a short line of text that rises from the tap
 ## point and fades, replacing a single static feedback label.
-func _spawn_floating_text(text: String, colour: Color, local_pos: Vector2, font_size: int = 15) -> void:
+func _spawn_floating_text(text: String, colour: Color, local_pos: Vector2, font_size: int = 15, semibold: bool = false) -> void:
 	if floating_text_layer == null:
 		return
 	var label := _make_label(text, font_size, HORIZONTAL_ALIGNMENT_CENTER, colour)
+	if semibold:
+		label.add_theme_font_override("font", ui_font_semibold)
 	label.position = local_pos - Vector2(24, 10)
 	floating_text_layer.add_child(label)
 	if bool(state.settings.reduce_motion):
@@ -3855,8 +3864,9 @@ func _pop_damage(amount: ScientificNumber, crit: bool, tap: bool) -> void:
 	damage_readout_total = damage_readout_total.add(amount)
 	damage_readout_crit = damage_readout_crit or crit
 	damage_readout_tap = damage_readout_tap or tap
-	damage_readout.text = ("CRIT -" if damage_readout_crit else "-") + _stat_number(damage_readout_total)
-	damage_readout.add_theme_color_override("font_color", CRITICAL if damage_readout_crit else ACCENT)
+	damage_readout.text = "-" + _stat_number(damage_readout_total)
+	damage_readout.add_theme_color_override("font_color", CRIT_COLOUR if damage_readout_crit else ACCENT)
+	damage_readout.add_theme_font_override("font", number_font_semibold if damage_readout_crit else number_font)
 	damage_readout.add_theme_font_size_override("font_size", 15 if damage_readout_crit or damage_readout_tap else 13)
 	damage_readout.visible = true
 	damage_readout_idle = 0.0
