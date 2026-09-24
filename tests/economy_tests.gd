@@ -32,6 +32,7 @@ func _init() -> void:
 	_test_group_members_land_one_by_one()
 	_test_group_brace_guard_and_thorns()
 	_test_group_saves_and_resumes()
+	_test_members_stay_and_the_pile_grows()
 	_test_output_is_number_and_strikes_the_wave()
 	_test_repeated_taps_count_once()
 	_test_missed_waves_move_on_and_bosses_stay()
@@ -900,15 +901,17 @@ func _test_tier_one_opening() -> void:
 	_expect(armored.get_effective_collection().compare_to(profile.collection_for_wave(1, 21).multiply_scalar(0.996)) == 0, "Armor should reduce Tier 1's Hit")
 	_expect(tier_two.get_effective_collection().compare_to(tier_two.active_encounter.collection) == 0, "Tier 2's opening hit should be its base")
 
-	# An unbeaten wave lands its hit and moves on (D037). Nothing was cleared,
-	# so its one Coin is not paid and it sets no record.
+	# An unbeaten wave's members land and stay (D058); at the end of its clock
+	# it moves on (D037). Nothing was cleared, so its one Coin is not paid and
+	# it sets no record, and its members carry into the next wave.
 	var stuck := GameState.new()
 	stuck.start_run(1, 3)
 	var before: ScientificNumber = stuck.number.copy()
 	var hit := stuck.get_effective_collection()
 	var event := stuck._resolve_wave_boundary()
-	_expect(event.type == "tax_collection" and event.amount.compare_to(hit) == 0, "an unbeaten wave should land its hit")
-	_expect(stuck.number.compare_to(before.subtract(hit)) == 0, "the hit should cost Number, not the run")
+	_expect(event.type == "tax_collection" and absf(event.amount.log10() - hit.multiply_scalar(1.0 / 3.0).log10()) < 0.000001, "each member should land its third of the Hit")
+	_expect(stuck.number.compare_to(before.subtract(hit)) < 0 and not stuck.number.is_zero(), "the Hit and the pile's repeat hits should cost Number, not the run")
+	_expect(stuck.active_encounter.at_number_count() == 3, "the unbeaten members should stay at the Number into the next wave")
 	_expect(stuck.wave == 2 and stuck.coins == 0 and stuck.get_tier_best(1) == 0, "the missed wave should move on unpaid and unrecorded")
 	# The first boss stands and fights like every boss.
 	stuck.wave = 10
@@ -1058,10 +1061,12 @@ func _test_missed_waves_move_on_and_bosses_stay() -> void:
 	var hit := state.get_effective_collection()
 	var event := state._resolve_wave_boundary()
 	_expect(event.type == "tax_collection" and state.wave == 32, "a missed ordinary wave should hit and move on")
-	_expect(state.number.compare_to(ScientificNumber.from_float(1e9).subtract(hit)) == 0, "the hit should come out of Number")
+	# Three of its five members were beaten, so only the other two land.
+	_expect(absf(ScientificNumber.from_float(1e9).subtract(state.number).log10() - hit.multiply_scalar(0.4).log10()) < 0.000001, "only the members left standing should land, each its share")
 	_expect(reward > 10 and state.coins == floori(float(reward) * 0.6), "a missed wave should pay Coins for the share cleared")
 	_expect(state.get_tier_best(2) == 0, "a missed wave should set no record")
-	_expect(state.active_encounter.remaining_liability.compare_to(state.active_encounter.max_liability) == 0, "the next wave should arrive whole")
+	_expect(state.active_encounter.own_uncleared().compare_to(state.active_encounter.max_liability) == 0, "the next wave should arrive whole")
+	_expect(state.active_encounter.at_number_count() == 2 and state.active_encounter.front_index() == 0, "the missed wave's two members should stay at the Number, in front")
 
 	# A boss stays until beaten, keeps the damage dealt and hits again.
 	var boss := GameState.new()
@@ -1230,7 +1235,7 @@ func _test_collection_is_absolute() -> void:
 	large.number = ScientificNumber.from_float(500000000)
 	var large_event := large._resolve_wave_boundary()
 	_expect(small_event.type == "tax_collection" and large_event.type == "tax_collection", "uncleared encounters should collect")
-	_expect(small_event.amount.compare_to(expected) == 0 and large_event.amount.compare_to(expected) == 0, "Collection must be the same absolute value at every player Number")
+	_expect(small_event.amount.compare_to(large_event.amount) == 0 and absf(small_event.amount.log10() - expected.multiply_scalar(1.0 / 3.0).log10()) < 0.000001, "Collection must be the same absolute value at every player Number")
 
 func _test_boss_axes_and_rewards() -> void:
 	var profile = GameState.new().balance_profile
@@ -1317,19 +1322,29 @@ func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
 	_expect(event.type == "boss_collection" and state.wave == 20, "an unbeaten boss should hit and stay")
 	_expect(state.active_encounter.remaining_liability.compare_to(before.subtract(hit.multiply_scalar(0.5))) == 0, "half the hit should be dealt back to the boss")
 
+	# An ordinary wave's members stay at the Number (D058), so Thorns returns
+	# each hit to them, and the wave that replaces a missed one arrives whole.
 	state.wave = 21
 	state.active_encounter = state._make_encounter(21)
-	var ordinary_hit := state.get_effective_collection()
+	var wave_hp: ScientificNumber = state.active_encounter.max_liability.copy()
 	state._resolve_wave_boundary()
 	_expect(state.wave == 22, "a missed ordinary wave should move on")
-	var next_full: ScientificNumber = state.active_encounter.max_liability.copy()
-	_expect(state.active_encounter.remaining_liability.compare_to(next_full.subtract(ordinary_hit.multiply_scalar(0.5))) == 0, "Thorns should land on the wave that replaces a missed one")
+	var pile_hp := ScientificNumber.new()
+	for member in state.active_encounter.members:
+		if not state.active_encounter.is_own(member):
+			pile_hp = pile_hp.add(member.hp)
+	_expect(pile_hp.compare_to(wave_hp) < 0 and state.active_encounter.own_uncleared().compare_to(state.active_encounter.max_liability) == 0, "Thorns should land on the members at the Number, and the next wave arrive whole")
 
-	var braced_before: ScientificNumber = state.active_encounter.remaining_liability.copy()
+	var pile_before := pile_hp.copy()
+	var number_before_brace := state.number.copy()
 	_expect(state.brace(), "Brace should be available against an active wave")
+	var spent := number_before_brace.subtract(state.number)
 	state._resolve_wave_boundary()
-	_expect(state.wave == 23 and state.active_encounter.remaining_liability.compare_to(state.active_encounter.max_liability) == 0, "a braced boundary should deal no Thorns, because no hit landed")
-	_expect(braced_before.compare_to(next_full) < 0, "the fixture should have dealt Thorns before the brace")
+	var pile_after := ScientificNumber.new()
+	for member in state.active_encounter.members:
+		if int(member.wave) == 21 and TaxEncounter.is_alive(member):
+			pile_after = pile_after.add(member.hp)
+	_expect(state.wave == 23 and pile_after.compare_to(pile_before) == 0 and number_before_brace.subtract(spent).compare_to(state.number) == 0, "a Brace should block every hit of its clock, so no Thorns are dealt")
 
 func _test_brace_cost_falls_to_its_floor() -> void:
 	var state := GameState.new()
@@ -1360,8 +1375,8 @@ func _test_second_wind_forgives_one_ending_hit() -> void:
 	_expect(state.run_peak_number.compare_to(ScientificNumber.from_float(20000)) == 0, "the run should track its own peak Number")
 	state.active_encounter = state._make_encounter(1)
 	state.number = ScientificNumber.from_float(10)
-	var event := state._resolve_wave_boundary()
-	_expect(event.type == "second_wind", "a hit that would end the run should trigger Second Wind instead")
+	var event := _play_until(state, "second_wind")
+	_expect(event != null and event.type == "second_wind", "a hit that would end the run should trigger Second Wind instead")
 	_expect(state.in_run and not state.number.is_zero(), "Second Wind should keep the run alive")
 	_expect(state.number.compare_to(ScientificNumber.from_float(5000)) == 0, "Second Wind should leave a quarter of the run's peak")
 	state.number = ScientificNumber.from_float(10)
@@ -1674,9 +1689,10 @@ func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	state.workshop.tick_count = 12
 	state.run_coins_earned = 5
 	var expected_knowledge := state.get_prestige_knowledge_gain()
-	var killing_hit := state.get_effective_collection()
+	# The first member to land is the one that ends the run: its share.
+	var killing_hit: ScientificNumber = state.get_hit_breakdown().final
 	var was_boss: bool = state.active_encounter.is_boss
-	var expected_attack_gap: ScientificNumber = state.active_encounter.remaining_liability.copy()
+	var expected_attack_gap: ScientificNumber = state.active_encounter.own_uncleared()
 	var number_before_hit := state.number.copy()
 	var event := state._resolve_wave_boundary()
 	_expect(event.type == "wave_death", "Collection that depletes Number should report death")
@@ -1714,9 +1730,10 @@ func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	recoil_death.purchased = {"recoil": 100}
 	recoil_death.start_run(2, 73)
 	recoil_death.number = ScientificNumber.from_float(1)
-	var recoil_hit := recoil_death.get_effective_collection()
-	var recoil_hp_left := recoil_hit.multiply_scalar(0.25)
+	var recoil_hp_left := recoil_death.get_effective_collection().multiply_scalar(0.25)
 	recoil_death.active_encounter.remaining_liability = recoil_hp_left
+	# The member left in front lands first, with its share of the Hit (D057).
+	var recoil_hit: ScientificNumber = recoil_death.get_hit_breakdown().final
 	var recoil_event := recoil_death._resolve_wave_boundary()
 	_expect(recoil_event.type == "wave_death", "a killing hit should still end the run when Recoil clears the wave")
 	_expect(recoil_death.last_run_summary.attack_gap.compare_to(recoil_hp_left) == 0, "the Attack gap should be the HP Attack left, before Recoil returned part of the hit")
@@ -2666,9 +2683,9 @@ func _test_a_wave_is_a_group() -> void:
 	state.active_encounter = state._make_encounter(10)
 	_expect(state.active_encounter.members.size() == 1 and state.active_encounter.is_boss, "a boss should be a single member")
 
-## D057 with D037 per member: each member left standing reaches the Number at
-## its arrival time, lands its share of the Hit once and passes. A wave with a
-## member through is passed, not beaten, and pays for the share it cleared.
+## D057: each member left standing reaches the Number at its arrival time and
+## lands its share of the Hit. A wave with a member still standing when its
+## clock runs out is passed, not beaten, and pays for the share it cleared.
 func _test_group_members_land_one_by_one() -> void:
 	var state := GameState.new()
 	state.start_run(1, 52)
@@ -2767,8 +2784,9 @@ func _test_group_brace_guard_and_thorns() -> void:
 	for step in range(25):
 		thorny._advance_waves(0.25)
 	var thorns := landing.multiply_scalar(minf(thorny._effect_sum("recoil_share"), thorny.balance_profile.RECOIL_CEILING))
-	var expected_left := standing_before.subtract(front_hp).subtract(thorns if thorns.compare_to(thorny.active_encounter.members[1].max) < 0 else thorny.active_encounter.members[1].max)
-	_expect(thorny.active_encounter.landed_count() == 1 and absf(thorny.active_encounter.remaining_liability.log10() - expected_left.log10()) < 0.000001, "Thorns should return a share of the landing to the next member")
+	# The member that landed stays at the Number (D058), in front, and takes it.
+	var expected_left := standing_before.subtract(thorns if thorns.compare_to(front_hp) < 0 else front_hp)
+	_expect(thorny.active_encounter.landed_count() == 1 and absf(thorny.active_encounter.remaining_liability.log10() - expected_left.log10()) < 0.000001, "Thorns should return a share of the landing to the member at the Number")
 
 ## D057: V10 keeps each member's HP and state, so a run saved mid-wave resumes
 ## exactly; a V9 run resumes its wave as a group, keeping the share cleared.
@@ -2796,7 +2814,7 @@ func _test_group_saves_and_resumes() -> void:
 		var a: Dictionary = source.active_encounter.members[index]
 		var b: Dictionary = resumed.active_encounter.members[index]
 		_expect(int(a.state) == int(b.state) and a.hp.compare_to(b.hp) == 0 and is_equal_approx(float(a.arrive), float(b.arrive)), "member %d should resume exactly" % index)
-	_expect(resumed.active_encounter.passed_liability.compare_to(source.active_encounter.passed_liability) == 0, "the HP that walked past should resume")
+	_expect(resumed.active_encounter.own_uncleared().compare_to(source.active_encounter.own_uncleared()) == 0 and resumed.active_encounter.at_number_count() == source.active_encounter.at_number_count(), "the members at the Number should resume")
 	for step in range(120):
 		source.advance(0.25)
 		resumed.advance(0.25)
@@ -2867,6 +2885,101 @@ func _test_group_saves_and_resumes() -> void:
 	refused.load()
 	_expect(refused.load_status == GameState.LOAD_UNREADABLE, "a save whose members are not a list should be refused whole")
 	refused.clear_save()
+
+## D058: a member that reaches the Number stays and hits again every
+## MEMBER_HIT_SECONDS until beaten. When its wave's clock runs out it carries
+## into the next wave, in front, so an unbeaten pile grows wave on wave. A boss
+## holds the clock and hits every 15 seconds. A member beaten after landing
+## still counts towards beating its wave, and a Brace covers the whole clock.
+func _test_members_stay_and_the_pile_grows() -> void:
+	var state := GameState.new()
+	state.start_run(1, 71)
+	state.number = ScientificNumber.from_float(1e9)
+	var interval: float = state.balance_profile.MEMBER_HIT_SECONDS
+	var share_hit := state.get_effective_collection().multiply_scalar(1.0 / 3.0)
+	var first_hits: Array = []
+	var repeats: Array = []
+	var clock := 0.0
+	while clock < 14.5:
+		for event in state._advance_waves(0.25):
+			if event.type == "tax_collection":
+				first_hits.append(clock)
+			elif event.type == "pile_hit":
+				repeats.append(clock)
+				_expect(event.amount.compare_to(share_hit) == 0, "a repeat hit should be the member's share again")
+		clock += 0.25
+	# Times are the clock at the start of the step the hit fell in.
+	_expect(first_hits.size() == 2 and repeats.size() == 1 and absf(float(repeats[0]) + 0.25 - (6.0 + interval)) < 0.01, "the front member should hit again one interval after it lands: %s" % str(repeats))
+	for step in range(2):
+		state._advance_waves(0.25)
+	_expect(state.wave == 2 and state.active_encounter.at_number_count() == 3 and state.active_encounter.front_index() == 0 and not state.active_encounter.is_own(state.active_encounter.members[0]), "unbeaten members should carry into the next wave, in front")
+	var front_before: ScientificNumber = state.active_encounter.members[0].hp.copy()
+	state.active_encounter.apply_compliance(ScientificNumber.from_float(0.5))
+	_expect(state.active_encounter.members[0].hp.compare_to(front_before.subtract(ScientificNumber.from_float(0.5))) == 0, "damage should strike the carried member at the Number first")
+
+	# Left alone, the pile grows, and so do the hits it lands each clock.
+	var pile := GameState.new()
+	pile.start_run(1, 72)
+	pile.number = ScientificNumber.from_float(1e12)
+	var hits_per_clock: Array = []
+	for clock_index in range(4):
+		var count := 0
+		for step in range(60):
+			count += pile._advance_waves(0.25).filter(func(event): return event.type == "tax_collection" or event.type == "pile_hit").size()
+		hits_per_clock.append(count)
+	_expect(hits_per_clock[3] > hits_per_clock[1] and hits_per_clock[1] > hits_per_clock[0], "an unbeaten pile should hit more often clock on clock: %s" % str(hits_per_clock))
+
+	# A boss holds the clock and hits every 15 seconds while members it did
+	# not bring keep hitting on their own interval.
+	var boss := GameState.new()
+	boss.start_run(1, 73)
+	boss.number = ScientificNumber.from_float(1e12)
+	boss.wave = 10
+	boss.active_encounter = boss._make_encounter(10)
+	var boss_hits := 0
+	for step in range(125):
+		boss_hits += boss._advance_waves(0.25).filter(func(event): return event.type == "boss_collection").size()
+	_expect(boss.wave == 10 and boss_hits == 2, "a boss should hold its wave and hit every 15 seconds: %d" % boss_hits)
+
+	# Beaten after landing: the wave still counts as beaten.
+	var late := GameState.new()
+	late.start_run(1, 74)
+	late.number = ScientificNumber.from_float(1e6)
+	for step in range(61):
+		late._advance_waves(0.25)
+	_expect(late.wave == 2, "the fixture should carry wave 1's members into wave 2")
+	late._advance_waves(0.25)
+	_beat_wave(late)
+	var late_events: Array = []
+	for step in range(12):
+		late_events.append_array(late._advance_waves(0.25))
+	_expect(late.wave == 3 and late_events.any(func(event): return event.type == "wave_clear") and late.get_tier_record(1).highest_wave >= 2, "a wave whose members are all beaten should count as beaten")
+
+	# A Brace blocks every hit of the clock it was raised in, the pile's too.
+	var braced := GameState.new()
+	braced.start_run(1, 75)
+	braced.number = ScientificNumber.from_float(1e6)
+	for step in range(61):
+		braced._advance_waves(0.25)
+	_expect(braced.brace(), "a Brace should be raised against the pile")
+	var after_brace := braced.number.copy()
+	for step in range(58):
+		braced._advance_waves(0.25)
+	_expect(braced.number.compare_to(after_brace) == 0 and braced.braced, "a Brace should block every hit until its clock ends")
+	for step in range(2):
+		braced._advance_waves(0.25)
+	_expect(not braced.braced, "a spent Brace should end with its clock")
+
+## Plays the wave clock in quarter seconds until an event of `type` happens,
+## for up to `seconds`, and returns it (null if none).
+func _play_until(state: GameState, type: String, seconds: float = 30.0) -> SimulationEvent:
+	var elapsed := 0.0
+	while elapsed < seconds and state.in_run:
+		for event in state._advance_waves(0.25):
+			if event.type == type:
+				return event
+		elapsed += 0.25
+	return null
 
 ## Beats every member of the active wave with exactly its HP, front first, so
 ## the Number gains what the whole wave had, as one blow used to (D057).

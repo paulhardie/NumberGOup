@@ -69,6 +69,9 @@ const MAX_WAVE_MEMBERS := 20
 ## member in time exactly when it would have cleared the whole wave in 15
 ## seconds, so the split alone does not move a wave's difficulty.
 const FIRST_ARRIVAL_SECONDS := 6.0
+## A member that reaches the Number stays and hits again this often until
+## beaten (D058). A boss keeps the 15-second clock.
+var MEMBER_HIT_SECONDS := 5.0
 
 var tiers: Array = []
 

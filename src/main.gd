@@ -357,26 +357,40 @@ func _process(delta: float) -> void:
 		elif event.type == "tick":
 			if not event.amount.is_zero() and not fighting:
 				passive_float_accumulator = passive_float_accumulator.add(event.amount)
+		elif event.type == "pile_hit":
+			# A member at the Number hitting again (D058): a small bite, not the
+			# arrival's full beat, since a pile can bite several times a second.
+			if not event.amount.is_zero():
+				_spawn_floating_text("-" + _stat_number(event.amount), DANGER, _stage_float_point(), 13)
+				_flash_number(DANGER, 0.2)
+				_shake_stage(1.5)
 		elif event.type == "tax_collection" or event.type == "boss_collection":
 			var boss_hit: bool = event.type == "boss_collection"
 			var hit_colour: Color = BOSS_DANGER if boss_hit else DANGER
+			# The working shown is the front member's; a member landing from
+			# further back shows its plain amount instead (D057).
+			var landing_parts: Dictionary = hit_parts
+			if not landing_parts.is_empty() and not event.amount.is_zero() and landing_parts.final.compare_to(event.amount) != 0:
+				landing_parts = {}
 			# With the Hit's working to show, the working is the landing beat.
-			_enemy_landed(ACCENT if event.amount.is_zero() else hit_colour, hit_parts.is_empty())
+			_enemy_landed(ACCENT if event.amount.is_zero() else hit_colour, landing_parts.is_empty())
 			# The Hit's working over the Number says what the toast used to (D053),
 			# so the toast only speaks when there is no working to show.
 			if event.amount.is_zero():
 				_flash_number(ACCENT)
-				if hit_parts.is_empty():
+				if landing_parts.is_empty():
 					_show_toast("HIT BLOCKED", ACCENT)
 				else:
-					_show_hit_ledger(hit_parts, event.amount, hit_colour)
+					_show_hit_ledger(landing_parts, event.amount, hit_colour)
 			else:
-				if hit_parts.is_empty():
+				if landing_parts.is_empty():
 					_spawn_floating_text("-" + _stat_number(event.amount) + " NUMBER", hit_colour, _stage_float_point())
-					# D037: an ordinary wave hits once and passes; a boss stays and hits again.
-					_show_toast("BOSS HITS AGAIN IN " + str(int(GameState.WAVE_INTERVAL_SECONDS)) + "s" if boss_hit else "WAVE PASSED", hit_colour)
+					# A boss stays and hits again (D037); members stay too (D058), and
+					# their countdown is on the wave's number.
+					if boss_hit:
+						_show_toast("BOSS HITS AGAIN IN " + str(int(GameState.WAVE_INTERVAL_SECONDS)) + "s", hit_colour)
 				else:
-					_show_hit_ledger(hit_parts, event.amount, hit_colour)
+					_show_hit_ledger(landing_parts, event.amount, hit_colour)
 				_snap_number_display()
 				_flash_number(hit_colour, 0.5 if boss_hit else 0.35)
 				_pulse_stage_impact(hit_colour)
@@ -387,7 +401,7 @@ func _process(delta: float) -> void:
 			var boss_clear: bool = event.type == "boss_clear"
 			# A wave beaten after the 2.5-second beat is replaced in the same
 			# step, so its body shatters here rather than waiting to be seen.
-			_shatter_enemy(boss_clear)
+			_shatter_enemy(boss_clear, boss_clear or hp_encounter == null or hp_encounter.landed_count() == 0)
 			var clear_colour: Color = CRITICAL if boss_clear else ACCENT
 			_pulse_stage_impact(clear_colour)
 			_pop_label(wave_label, 1.18 if boss_clear else 1.08)
@@ -3476,13 +3490,16 @@ func _stage_danger_progress() -> float:
 	var encounter: Variant = state.active_encounter
 	if encounter == null or encounter.max_liability.is_zero() or encounter.is_cleared():
 		return 0.0
-	# The next Hit is the front member's, so the heat follows its approach.
+	# The next Hit is the front member's, so the heat follows its approach; a
+	# member already at the Number keeps it hot (D058).
 	return _member_progress(encounter.members[encounter.front_index()])
 
 ## How far a member has walked, 0 at the arena's top edge and 1 at the Number
 ## (D057). Every member sets off together and reaches the Number at its own
 ## arrival time, so the front one walks fastest and the column spreads out.
 func _member_progress(member: Dictionary) -> float:
+	if int(member.state) == TaxEncounterClass.AT_NUMBER:
+		return 1.0
 	return clampf(state.wave_accumulator / maxf(float(member.arrive), 0.001), 0.0, 1.0)
 
 ## The glow behind the Number warms as the Hit approaches, and throbs through
@@ -3526,7 +3543,7 @@ func _update_wave_enemy(delta: float) -> void:
 		# Beaten inside the 2.5-second beat: the wave is still on screen. A wave
 		# whose last member landed has already slammed into the Number.
 		if encounter == enemy_encounter and state.in_run and encounter != null and encounter.is_beaten():
-			_shatter_enemy(encounter.is_boss)
+			_shatter_enemy(encounter.is_boss, encounter.landed_count() == 0 or encounter.is_boss)
 		# The last member of a wave that let one through still breaks apart
 		# when beaten, without the no-Hit beat.
 		elif encounter == enemy_encounter and state.in_run and encounter != null and enemy_front >= 0 and enemy_front < encounter.members.size() and int(encounter.members[enemy_front].state) == TaxEncounterClass.KILLED:
@@ -3558,7 +3575,7 @@ func _update_wave_enemy(delta: float) -> void:
 	# Reduce Motion stops movement, not information (MOTION_SYSTEM rule 1): the
 	# number holds at the top edge and its caption keeps the time.
 	var member: Dictionary = encounter.members[front]
-	if enemy_latched:
+	if enemy_latched or int(member.state) == TaxEncounterClass.AT_NUMBER:
 		enemy_travel = 1.0
 	elif state.settings.reduce_motion:
 		enemy_travel = 0.0
@@ -3575,9 +3592,9 @@ func _update_wave_enemy(delta: float) -> void:
 	# front of them (D052), so a Hit that shrinks reads as getting stronger.
 	var caption: String = "hits " + state.get_hit_breakdown().raw.format_value()
 	var behind: int = encounter.standing_count() - 1
-	if enemy_latched or state.settings.reduce_motion:
-		var due: float = GameState.WAVE_INTERVAL_SECONDS if boss else float(member.arrive)
-		caption += " in " + str(maxi(0, ceili(due - state.wave_accumulator))) + "s"
+	var at_number: bool = int(member.state) == TaxEncounterClass.AT_NUMBER
+	if enemy_latched or at_number or state.settings.reduce_motion:
+		caption += " in " + str(maxi(0, ceili(float(member.next_hit) - state.wave_accumulator))) + "s"
 		if behind > 0:
 			caption += " · " + str(behind) + " more"
 	wave_enemy.show_value(_stat_number(shown), tint, 30 if boss else 18, caption, BOSS_COLOUR if boss else MUTED_TEXT)
@@ -3598,9 +3615,10 @@ func _place_followers(encounter, front: int, path: Array) -> void:
 		_hide_followers(0)
 		return
 	var shown := 0
-	for index in range(front + 1, encounter.members.size()):
+	var at_number := 0
+	for index in range(encounter.members.size()):
 		var member: Dictionary = encounter.members[index]
-		if int(member.state) != TaxEncounterClass.STANDING:
+		if index == front or not TaxEncounterClass.is_alive(member):
 			continue
 		if shown >= enemy_followers.size():
 			var follower := WaveEnemyClass.new(number_font)
@@ -3610,6 +3628,22 @@ func _place_followers(encounter, front: int, path: Array) -> void:
 			enemy_followers.append(follower)
 		var node = enemy_followers[shown]
 		var progress := _member_progress(member)
+		if int(member.state) == TaxEncounterClass.AT_NUMBER:
+			# Members at the Number flank it (D058): alternating sides, three
+			# rows each, then a column further out, so each stays readable.
+			var box := number_label.get_global_rect()
+			var centre := box.get_center() - stage_root.global_position
+			var side := -1.0 if at_number % 2 == 0 else 1.0
+			var row := (at_number / 2) % 3
+			var column := at_number / 6
+			var x := centre.x + side * (box.size.x / 2.0 + 26.0 + 44.0 * float(column))
+			x = clampf(x, 24.0, stage_root.size.x - 24.0)
+			node.show_value(_stat_number(member.hp), Color(DANGER, 0.8), 13)
+			node.centre_on(Vector2(x, centre.y + (float(row) - 1.0) * 22.0))
+			node.visible = true
+			shown += 1
+			at_number += 1
+			continue
 		# A golden-ratio fan keeps neighbours apart without touching the run's
 		# random stream.
 		var spread := (fposmod(float(index) * 0.618034, 1.0) - 0.5) * minf(stage_root.size.x * 0.8, 300.0)
@@ -3709,12 +3743,13 @@ func _enemy_entry(wave: int) -> float:
 
 ## A clean clear: the number breaks apart where it stood, with the no-Hit beat
 ## D041 asks for. Once only, since the body hides as it shatters.
-func _shatter_enemy(boss: bool) -> void:
+func _shatter_enemy(boss: bool, clean: bool = true) -> void:
 	if wave_enemy == null or not wave_enemy.visible:
 		return
 	_flush_shot_pops()
 	_enemy_beat(WaveEnemyClass.Beat.SHATTER, BOSS_COLOUR if boss else TEXT)
-	_spawn_floating_text("BEATEN · NO HIT", ACCENT, wave_enemy.value_centre() + stage_root.position)
+	# "No hit" only when none of the wave reached the Number (D058).
+	_spawn_floating_text("BEATEN · NO HIT" if clean else "BEATEN", ACCENT, wave_enemy.value_centre() + stage_root.position)
 	wave_enemy.visible = false
 	_clear_arena()
 

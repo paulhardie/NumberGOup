@@ -1,6 +1,6 @@
 # Handover
 
-**Last updated:** 24 September 2026, after building D057 (a wave is a group: 3 to 20 members sharing its HP and Hit, walking in as a column, each hitting once and passing; save V10) on branch `claude/game-changes-review-fbili3`, not merged. D044–D055 and the class-cache fix are merged to `main` (PRs #48–#54).
+**Last updated:** 24 September 2026, after building D057 (a wave is a group of 3 to 20 members sharing its HP and Hit; save V10) and D058 (members stay at the Number and hit every 5 seconds; survivors carry into the next wave, so an unbeaten pile is the ramp) on branch `claude/game-changes-review-fbili3`, not merged. D044–D055 and the class-cache fix are merged to `main` (PRs #48–#54).
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
 
 ## Where the game is
@@ -35,7 +35,17 @@
 ## Open decisions for the owner
 
 1. **Play-test D055 (merged):** 2.5 shots a second, each smaller, the same damage a second; measured neutral over twelve seeds, not yet felt in motion.
-2. **Groups step 1 is built (D057), with members hitting once and passing. The owner asked to revisit straight away: should a member that reaches the Number stay and keep hitting, as in The Tower?** More pressure and a retune; the engine already tracks each member, so it is a rule change rather than a rebuild.
+2. **Retune after D058, or accept?** Staying members end runs sooner: fresh 20 → 17 waves, mid 60 → 56, Attack maxed 200 → 158; a focused career's first run reaches wave 17 instead of 29, and wave 300 takes about 7.1 hours instead of 6.2. The hit interval barely moves it (six seeds, waves reached):
+
+   | Interval | Fresh | Mid | Attack maxed | + Armor |
+   | --- | --- | --- | --- | --- |
+   | 3 s | 16 | 55 | 155 | 159 |
+   | 5 s (built) | 17 | 56 | 158 | 165 |
+   | 7.5 s | 18 | 58 | 160 | 170 |
+   | 10 s | 19 | 59 | 165 | 176 |
+   | 15 s | 20 | 60 | 170 | 181 |
+
+   Options: accept (the ramp is the point), soften the opening only (for example a longer interval for the first waves), or lower the Hit scale. Agent's recommendation: fix the opening only, so the first run again reaches the high 20s, and leave the deep game's ramp.
 3. **Step 2 of the shots rework: how much tapping should add, and the damage/speed split.** Today tapping is most of a fresh run's damage (two taps a second about triples it; 0 taps reaches about wave 19, 2 a second 29, 6 a second 40) but only about a fifth by rank 100, and run Cash assumes one tap a second whether or not you tap. The proposal: a tap fires a shot worth a share of current Damage (Tap Damage becomes that share), taps past about five a second count half, and target idle 100%, one tap a second about +15–20%, three about +40–50%, a cap near double. High risk: economy; measure with the balance simulator's taps-a-second sweep and the career simulator before building.
 4. **When position becomes a rule:** slowing bosses (not pushing them), and range or several bodies for area damage.
 5. **The early-game pacing change.** D047's bigger Attack Speed and Crit steps halve the focused player's time to wave 100. Built as approved. The alternative keeps today's per-rank steps and adds ranks instead (Attack Speed 196, Crit Chance 320, Crit Damage 284 ranks), which keeps the first hours as they were and moves the extra power later.
@@ -49,7 +59,7 @@
 
 ## Next steps, in order
 
-1. **Owner:** play and merge D057 (groups). **Agent:** then the revisit the owner asked for: members that stay and keep hitting, measured against today's hit-once rule before anything is chosen. High risk: encounter, economy.
+1. **Owner:** play D057 and D058 and decide decision 2 (retune or accept). **Agent:** on a decision, tune and re-measure with the balance and career simulators. High risk: economy.
 2. **Agent:** draw Labs, Cards, Milestones and Stats on the design canvas in the Instrument look and build them; they only have the new palette and fonts so far. Low–medium risk.
 3. **Owner:** decide the pacing alternative (decision 5). **Agent:** if the alternative is chosen, it is a data change in `data/workshop/upgrades.json` plus a price recalibration. Medium risk.
 4. **Owner:** decide coin gates; then **agent:** build them as the parity plan's step 1 with save V10. High risk: saves, economy.
@@ -57,7 +67,7 @@
 
 ## Known issues and risks
 
-- **Groups (D057) were checked in the economy tests, a scripted arena run and screenshots, not in motion or by touch.** As a new wave enters, its members overlap near the top edge for a moment. Save V10: a V10 save will not load in an older build.
+- **Groups (D057, D058) were checked in the economy tests, a scripted arena run and screenshots, not in motion or by touch.** As a new wave enters, its members overlap near the top edge for a moment; the front member's caption can clip on a narrow screen ("· 9 mor"). A big pile bites several times a second. Save V10: a V10 save will not load in an older build.
 - **One mote per shot (D054, D055) was checked in a scripted run and screenshots, not in motion.** At full Attack Speed and Multishot about 22 motes a second fly; the shots' "-X" folds to three a second. While a wave is at the top edge its pops can still rise into the header line.
 - **The arena (D051) was checked in screenshots and a scripted run through each beat, not by touch or in motion.** On a 320 × 568 phone the wave's path is about 100 px (250 px at 390 × 844). Long toasts such as a boss Hit's run wider than a small phone and clip at the edges. `RingArc`'s inner ring has no user since D051.
 - **D049 has only been checked in screenshots** (`tools/capture_ui.gd` at four sizes, all twelve screens), not by touch on a phone or in a web export. The larger canvas makes every screen about 1.4× bigger on a phone; the untouched sheets (Labs, Cards, Knowledge, Stats) have not been re-laid-out for that and are worth a look. Workshop rows and Upgrades tiles now open their detail only on a hold, so a player who never holds will not find descriptions.

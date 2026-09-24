@@ -579,3 +579,19 @@ Rules:
 - **Review (independent, before merge):** fixed a member landing being shown as damage (its HP moving past read as a "-X"), a profile rebuild that could land a landed member twice, and malformed member data loading as a free beaten wave; V10 now refuses a save whose members or active wave are malformed.
 - **Consequences:** slightly easier for a struggling player than the single wave was. The balance simulator's "hits" now count member landings, so they do not compare with figures from before D057. The arena overlaps members for a moment as a new wave enters. Motes fly only at the front member, so area, spread and targeting remain for step 4.
 - **Revisit when:** members staying and hitting is decided (next), enemy types arrive (step 3), or the arena needs its full treatment (step 2).
+
+## D058 — Members stay at the Number, and the pile is the ramp
+
+- **Status:** Accepted (2026-09-24) on owner direction, the revisit D057 promised: "I think enemies stay at your centre mass and keep attacking. There should be a fair delay between hits. I know the tower does a ramp up mechanic so eventually you get outscaled if it just sits there forever". Implemented (2026-09-24).
+- **Context:** The Tower's ramp is not a per-enemy enrage: its waves keep arriving on the clock whether or not the last ones are dead, so survivors pile up at the tower. TheTowerSDK does not expose an enemy's attack interval, so ours was measured rather than copied.
+- **Decision:**
+  1. **A member that reaches the Number stays and hits again every `MEMBER_HIT_SECONDS` (5) until beaten.** Each hit is its share of its wave's Hit after Guard and Armor on the whole Hit, as its first was.
+  2. **The clock keeps going.** An ordinary wave with a member alive at 15 seconds passes, paying for the share it cleared, and its living members carry into the next wave, in front. An unbeaten pile grows wave on wave, and that is the ramp that outscales a build that cannot beat it.
+  3. **A wave is beaten once all its own members are beaten, before or after they landed.** A member at the Number is still a fight.
+  4. **Bosses still hold their wave** until beaten, hitting every 15 seconds (D037); carried members keep hitting on their own interval meanwhile.
+  5. **Brace blocks every hit until the wave's clock ends,** the pile's included. **Thorns** returns part of each hit to the front member, now always one at the Number.
+  6. **The arena** flanks the Number with the members at it, in red, three rows a side; the front member's caption counts down to its next hit; repeat hits are small red pops.
+  7. Save V10 carries each member's wave, whole Hit, next hit and interval. V10 has not shipped to `main`, so no new version; a V10 save from D057's branch loads its passed members as gone.
+- **Evidence (six seeds a build, two taps a second; D057 → 5 seconds; the sweep at 3, 5, 7.5, 10, 15 seconds is in the handover):** fresh 20 → 17, first spend 20 → 23, early 30 → 30, mid 60 → 56, Attack maxed 200 → 158, Attack maxed with Armor 210 → 165. Most of the drop is the pile itself, not the interval: at 15 seconds Attack maxed still stops at 170, because members carried into a boss wave keep hitting while the boss holds the clock. A focused career buying run Upgrades: first run wave 17 (was 29), wave 100 at 1.46 hours (1.17 under D057, 1.44 before groups), wave 200 at about 4.2 hours (3.3), wave 300 at about 7.1 (6.2).
+- **Consequences:** runs end sooner and the late game is slower; the 150-hour calibration and balance targets 5, 7 and 8 need re-measuring. Staying members make Damage-now matter more than before, which enemy types (step 3) will split between Damage and Attack Speed.
+- **Revisit when:** the owner decides whether to retune (the first run's drop to wave 17 is the sharpest change), or enemy types land.

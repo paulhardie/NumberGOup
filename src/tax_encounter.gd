@@ -1,35 +1,43 @@
 class_name TaxEncounter
 extends RefCounted
 
-## A wave's members (D057). Each carries its share of the wave's HP and Hit and
-## walks in as part of a column: `arrive` is when it reaches the Number, in
-## seconds from the wave's start. Damage strikes the front standing member, and
-## any beyond what that member has left is lost, as it always was past a
-## wave's last HP. A member that reaches the Number lands its share of the Hit
-## once and passes (D037, per member).
+## A wave's members (D057), and any earlier members still at the Number
+## (D058). Each wave member carries its share of its wave's HP and Hit and
+## walks in as part of a column, reaching the Number at `arrive` seconds into
+## the wave's clock. There it stays and hits again every `interval` seconds
+## until beaten. Members still at the Number when the clock runs out carry into
+## the next wave, ahead of its column, so a build that cannot beat them is
+## worn down by the pile. Damage strikes the front living member, and any
+## beyond what that member has left is lost.
 const STANDING := 0
 const KILLED := 1
+## A member that landed and passed under D057's first rule. Kept so a save from
+## that build still reads; nothing new enters this state.
 const LANDED := 2
+const AT_NUMBER := 3
 
 var tier_id: int = 1
 var wave: int = 1
+## This wave's own HP and Hit in total, not counting members carried in.
 var max_liability := ScientificNumber.new()
-## What is still standing: the HP of members neither beaten nor passed.
-## Setting it spreads the new total over the standing members, front first,
-## so a caller that thinks of the wave as one HP pool still reads true.
+## What is still alive: every member walking in or at the Number, carried ones
+## included. Setting it spreads the new total over the living members, front
+## first, so a caller that thinks of the wave as one HP pool still reads true.
 var remaining_liability: ScientificNumber:
 	get:
 		return _remaining
 	set(value):
-		_set_standing_total(value)
+		_set_living_total(value)
 var _remaining := ScientificNumber.new()
-## HP that walked past with members that landed, which was never cleared.
-var passed_liability := ScientificNumber.new()
 var collection := ScientificNumber.new()
 var reward: int = 0
 var is_boss: bool = false
-## Each is {max, hp, share, arrive, state}, front first. `share` is the part of
-## the wave's HP and Hit the member carries.
+## Each is {max, hp, share, arrive, state, wave, wave_hit, next_hit,
+## interval, landed}, front first: members carried in, then this wave's in
+## arrival order. `share` is the part of its wave's HP and Hit the member
+## carries, `wave_hit` its wave's whole Hit (Guard and Armor work on that, then
+## the share lands), `next_hit` when it next hits on this wave's clock, and
+## `landed` whether it has reached the Number.
 var members: Array = []
 
 func _init(
@@ -39,7 +47,8 @@ func _init(
 	collection_amount: ScientificNumber = null,
 	reward_amount: int = 0,
 	boss: bool = false,
-	arrivals: Array = []
+	arrivals: Array = [],
+	hit_interval: float = TaxBalanceProfile.WAVE_INTERVAL_SECONDS
 ) -> void:
 	tier_id = encounter_tier
 	wave = encounter_wave
@@ -53,8 +62,19 @@ func _init(
 	var share := 1.0 / float(times.size())
 	for arrive in times:
 		var hp := max_liability.multiply_scalar(share)
-		members.append({"max": hp, "hp": hp.copy(), "share": share, "arrive": float(arrive), "state": STANDING})
+		members.append({
+			"max": hp, "hp": hp.copy(), "share": share, "arrive": float(arrive), "state": STANDING,
+			"wave": wave, "wave_hit": collection.copy(), "next_hit": float(arrive),
+			"interval": hit_interval, "landed": false,
+		})
 	_sum_remaining()
+
+static func is_alive(member: Dictionary) -> bool:
+	var state := int(member.state)
+	return state == STANDING or state == AT_NUMBER
+
+func is_own(member: Dictionary) -> bool:
+	return int(member.get("wave", wave)) == wave
 
 func apply_compliance(amount: ScientificNumber, multiplier: float = 1.0) -> ScientificNumber:
 	if is_cleared() or amount.is_zero() or multiplier <= 0.0:
@@ -69,51 +89,111 @@ func apply_compliance(amount: ScientificNumber, multiplier: float = 1.0) -> Scie
 	_sum_remaining()
 	return applied
 
-## The standing member nearest the Number, or -1 when none stands.
+## The living member nearest the Number, or -1 when none lives. Members at the
+## Number sit ahead of those still walking, carried ones first.
 func front_index() -> int:
 	for index in range(members.size()):
-		if int(members[index].state) == STANDING:
+		if is_alive(members[index]) and int(members[index].state) == AT_NUMBER:
+			return index
+	for index in range(members.size()):
+		if is_alive(members[index]):
 			return index
 	return -1
 
-## The front member if its arrival time has come, or -1. Members arrive in
-## order, so no standing member behind the front can be due before it.
+## The living member whose next hit is soonest, if it is due by `elapsed`
+## seconds on this wave's clock, or -1.
 func due_index(elapsed: float) -> int:
-	var index := front_index()
-	if index >= 0 and float(members[index].arrive) <= elapsed:
-		return index
-	return -1
+	var due := -1
+	for index in range(members.size()):
+		var member: Dictionary = members[index]
+		if is_alive(member) and float(member.next_hit) <= elapsed and (due < 0 or float(member.next_hit) < float(members[due].next_hit)):
+			due = index
+	return due
 
-## The member reaches the Number: its HP leaves the wave uncleared.
-func land(index: int) -> void:
+## The member hits: it is at the Number from now on and hits again after its
+## interval.
+func hit(index: int) -> void:
 	var member: Dictionary = members[index]
-	if int(member.state) != STANDING:
+	if not is_alive(member):
 		return
-	passed_liability = passed_liability.add(member.hp)
-	member.state = LANDED
+	member.state = AT_NUMBER
+	member.landed = true
+	member.next_hit = float(member.next_hit) + float(member.interval)
+
+## Moves every living member's clock back by `seconds`, when this wave's clock
+## wraps (a boss wave) or they carry into the next wave's.
+func shift_clock(seconds: float) -> void:
+	for member in members:
+		member.next_hit = float(member.next_hit) - seconds
+
+## The members still alive, for the next wave to carry in.
+func living_members() -> Array:
+	return members.filter(func(member): return is_alive(member))
+
+## Puts members carried from earlier waves at the front of this one.
+func carry_in(carried: Array) -> void:
+	if carried.is_empty():
+		return
+	members = carried + members
 	_sum_remaining()
 
-## HP not cleared: what stands plus what walked past.
+## HP not yet cleared, carried members included. A member reaching or hitting
+## the Number keeps its HP, so only damage moves this.
 func uncleared() -> ScientificNumber:
-	return _remaining.add(passed_liability)
+	return _remaining
+
+## This wave's own HP not cleared: its living members plus any that left
+## under the old pass rule.
+func own_uncleared() -> ScientificNumber:
+	var total := ScientificNumber.new()
+	for member in members:
+		if is_own(member) and (is_alive(member) or int(member.state) == LANDED):
+			total = total.add(member.hp)
+	return total
+
+func own_alive_count() -> int:
+	return members.filter(func(member): return is_own(member) and is_alive(member)).size()
+
+## How many of this wave's members have reached the Number.
+func landed_count() -> int:
+	return members.filter(func(member): return is_own(member) and bool(member.get("landed", false))).size()
+
+func standing_count() -> int:
+	return members.filter(func(member): return is_alive(member)).size()
+
+func at_number_count() -> int:
+	return members.filter(func(member): return is_alive(member) and int(member.state) == AT_NUMBER).size()
+
+## True when nothing lives, this wave's members or carried ones.
+func is_cleared() -> bool:
+	return remaining_liability.is_zero()
+
+## True when every one of this wave's members is beaten, whether or not it
+## reached the Number first (D058): a member at the Number is still a fight.
+func is_beaten() -> bool:
+	return own_alive_count() == 0
 
 ## Takes the state of `old`, the same wave on an older balance profile, member
-## for member: each keeps its share of its HP and whether it was beaten or has
-## landed, so a resumed run never lands a member twice. False when the groups
-## do not match, for the caller to fall back to the cleared share.
+## for member: each keeps its share of its HP, its state and its clock, and
+## carried members come across as they were, so a resumed run never lands a
+## member twice. False when this wave's groups do not match, for the caller to
+## fall back to the cleared share.
 func carry_from(old) -> bool:
-	if old == null or old.members.size() != members.size() or members.is_empty():
+	if old == null:
 		return false
-	passed_liability = ScientificNumber.new()
+	var own_old: Array = old.members.filter(func(member): return int(member.get("wave", old.wave)) == old.wave)
+	if own_old.size() != members.size() or members.is_empty():
+		return false
 	for index in range(members.size()):
-		var was: Dictionary = old.members[index]
+		var was: Dictionary = own_old[index]
 		var member: Dictionary = members[index]
 		member.hp = member.max.multiply_scalar(_ratio(was.hp, was.max))
 		member.state = int(was.state)
+		member.landed = bool(was.get("landed", false)) or int(was.state) == LANDED
+		member.next_hit = float(was.get("next_hit", member.arrive))
 		if int(member.state) == KILLED:
 			member.hp = ScientificNumber.new()
-		elif int(member.state) == LANDED:
-			passed_liability = passed_liability.add(member.hp)
+	members = old.members.filter(func(member): return int(member.get("wave", old.wave)) != old.wave) + members
 	_sum_remaining()
 	return true
 
@@ -122,40 +202,26 @@ static func _ratio(part: ScientificNumber, whole: ScientificNumber) -> float:
 		return 0.0
 	return clampf(part.mantissa / whole.mantissa * pow(10.0, part.exponent - whole.exponent), 0.0, 1.0)
 
-func landed_count() -> int:
-	return members.filter(func(member): return int(member.state) == LANDED).size()
-
-func standing_count() -> int:
-	return members.filter(func(member): return int(member.state) == STANDING).size()
-
-## True when nothing of the wave stands, whether beaten or passed.
-func is_cleared() -> bool:
-	return remaining_liability.is_zero()
-
-## True when every member was beaten and none reached the Number.
-func is_beaten() -> bool:
-	return is_cleared() and landed_count() == 0
-
 ## Takes a share of the wave off front first, for a run resumed on a newer
 ## balance profile that keeps the share of the wave it had cleared.
 func set_remaining(target: ScientificNumber) -> void:
-	_set_standing_total(target)
+	_set_living_total(target)
 
-func _set_standing_total(target: ScientificNumber) -> void:
+func _set_living_total(target: ScientificNumber) -> void:
 	if target.compare_to(_remaining) > 0:
-		# More than stands: share the total evenly over the standing members.
-		var standing := members.filter(func(member): return int(member.state) == STANDING)
-		for member in standing:
-			var even := target.multiply_scalar(1.0 / float(standing.size()))
+		# More than lives: share the total evenly over the living members.
+		var living := living_members()
+		for member in living:
+			var even := target.multiply_scalar(1.0 / float(living.size()))
 			member.hp = even if even.compare_to(member.max) < 0 else member.max.copy()
 		_sum_remaining()
 		return
 	var to_clear := _remaining.subtract(target)
-	for member in members:
-		if to_clear.is_zero():
+	while not to_clear.is_zero():
+		var index := front_index()
+		if index < 0:
 			break
-		if int(member.state) != STANDING:
-			continue
+		var member: Dictionary = members[index]
 		var taken: ScientificNumber = to_clear if to_clear.compare_to(member.hp) < 0 else member.hp.copy()
 		member.hp = member.hp.subtract(taken)
 		to_clear = to_clear.subtract(taken)
@@ -166,7 +232,7 @@ func _set_standing_total(target: ScientificNumber) -> void:
 func _sum_remaining() -> void:
 	var total := ScientificNumber.new()
 	for member in members:
-		if int(member.state) == STANDING:
+		if is_alive(member):
 			total = total.add(member.hp)
 	_remaining = total
 
@@ -179,13 +245,17 @@ func to_dict() -> Dictionary:
 			"share": member.share,
 			"arrive": member.arrive,
 			"state": member.state,
+			"wave": member.wave,
+			"wave_hit": member.wave_hit.to_dict(),
+			"next_hit": member.next_hit,
+			"interval": member.interval,
+			"landed": member.landed,
 		})
 	return {
 		"tier_id": tier_id,
 		"wave": wave,
 		"max_liability": max_liability.to_dict(),
 		"remaining_liability": remaining_liability.to_dict(),
-		"passed_liability": passed_liability.to_dict(),
 		"collection": collection.to_dict(),
 		"reward": reward,
 		"is_boss": is_boss,
@@ -202,29 +272,33 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 		bool(data.get("is_boss", false))
 	)
 	var saved_members: Variant = data.get("members", null)
-	if saved_members is Array and not saved_members.is_empty():
+	var had_members: bool = saved_members is Array and not saved_members.is_empty()
+	if had_members:
 		encounter.members = []
 		for saved in saved_members:
 			if not (saved is Dictionary and saved.get("hp") is Dictionary and saved.get("max") is Dictionary):
 				continue
+			var arrive := clampf(float(saved.get("arrive", TaxBalanceProfile.WAVE_INTERVAL_SECONDS)), 0.0, TaxBalanceProfile.WAVE_INTERVAL_SECONDS)
+			var state := clampi(int(saved.get("state", STANDING)), STANDING, AT_NUMBER)
+			var wave_hit: Variant = saved.get("wave_hit", null)
 			encounter.members.append({
 				"max": ScientificNumber.from_dict(saved.get("max", {})),
 				"hp": ScientificNumber.from_dict(saved.get("hp", {})),
 				"share": clampf(float(saved.get("share", 1.0)), 0.0, 1.0),
-				"arrive": clampf(float(saved.get("arrive", TaxBalanceProfile.WAVE_INTERVAL_SECONDS)), 0.0, TaxBalanceProfile.WAVE_INTERVAL_SECONDS),
-				"state": clampi(int(saved.get("state", STANDING)), STANDING, LANDED),
+				"arrive": arrive,
+				"state": state,
+				"wave": int(saved.get("wave", encounter.wave)),
+				"wave_hit": ScientificNumber.from_dict(wave_hit) if wave_hit is Dictionary else encounter.collection.copy(),
+				"next_hit": float(saved.get("next_hit", arrive)),
+				"interval": maxf(0.5, float(saved.get("interval", TaxBalanceProfile.WAVE_INTERVAL_SECONDS))),
+				"landed": bool(saved.get("landed", state == LANDED or state == AT_NUMBER)),
 			})
-		encounter.passed_liability = ScientificNumber.from_dict(data.get("passed_liability", {}))
 		encounter._sum_remaining()
-	# No member that parsed: never a beaten wave for free. It comes back as one
-	# member with what the wave had left, as a pre-group save does.
-	if encounter.members.is_empty():
+	# No member that parsed, or a wave saved before groups (V9 and older): one
+	# member with what the wave had left, never a beaten wave for free.
+	if encounter.members.is_empty() or not had_members:
 		encounter = (load("res://src/tax_encounter.gd") as GDScript).new(
 			encounter.tier_id, encounter.wave, encounter.max_liability, encounter.collection, encounter.reward, encounter.is_boss
 		)
-		encounter.set_remaining(ScientificNumber.from_dict(data.get("remaining_liability", data.get("max_liability", {}))))
-	elif not (saved_members is Array and not saved_members.is_empty()):
-		# A wave saved before groups (V9 and older) is one member with what it
-		# had left.
 		encounter.set_remaining(ScientificNumber.from_dict(data.get("remaining_liability", data.get("max_liability", {}))))
 	return encounter
