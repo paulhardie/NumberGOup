@@ -385,7 +385,9 @@ func _member_hit(index: int) -> SimulationEvent:
 		landed = ScientificNumber.new()
 		brace_spent = true
 	var number_before_hit := number.copy()
-	var wave_hp_left: ScientificNumber = active_encounter.own_uncleared()
+	# Everything Attack left alive, the pile included: a pile that ends the
+	# run is HP Attack did not clear.
+	var wave_hp_left: ScientificNumber = active_encounter.uncleared()
 	number = number.subtract(landed)
 	active_encounter.hit(index)
 	# Thorns (D038): the combined share is capped (D023) so a hit can never be
@@ -559,16 +561,16 @@ func _effective_hit(base: ScientificNumber) -> ScientificNumber:
 ## Armor then takes off, and what lands. Each part is the same pipeline stopped
 ## earlier, so the parts always add up to what lands. The next Hit is the
 ## front member's share of its wave's (D057).
-func get_hit_breakdown() -> Dictionary:
+func get_hit_breakdown(member_index: int = -1) -> Dictionary:
 	if active_encounter == null:
 		return {"raw": ScientificNumber.new(), "guard": ScientificNumber.new(), "armor": ScientificNumber.new(), "final": ScientificNumber.new()}
-	var front: int = active_encounter.front_index()
+	var front: int = member_index if member_index >= 0 else active_encounter.front_index()
 	var base: ScientificNumber = active_encounter.members[front].wave_hit if front >= 0 else active_encounter.collection
 	var modifiers := _collection_modifiers(base)
 	var raw := RuleModifierPipelineClass.apply(base, "collection", modifiers.filter(func(modifier): return not ["guard", "armor"].has(str(modifier.get("source", "")))))
 	var after_guard := RuleModifierPipelineClass.apply(base, "collection", modifiers.filter(func(modifier): return str(modifier.get("source", "")) != "armor"))
 	var final := RuleModifierPipelineClass.apply(base, "collection", modifiers)
-	var share := next_hit_share()
+	var share: float = float(active_encounter.members[front].share) if front >= 0 else 1.0
 	return {"raw": raw.multiply_scalar(share), "guard": raw.subtract(after_guard).multiply_scalar(share), "armor": after_guard.subtract(final).multiply_scalar(share), "final": final.multiply_scalar(share)}
 
 ## The share of its wave's Hit the front member carries: a third of wave 1's,
@@ -1587,6 +1589,17 @@ func _rebuild_encounter_on_current_profile() -> void:
 					break
 				rebuilt.hit(overdue)
 		rebuilt.carry_in(active_encounter.living_members().filter(func(member): return not active_encounter.is_own(member)))
+	# Carried members are rebuilt on today's curve too, keeping the share of
+	# their HP they had left, so no old-profile Hit lands (D040).
+	for member in rebuilt.members:
+		if rebuilt.is_own(member):
+			continue
+		var remaining_share := TaxEncounterClass._ratio(member.hp, member.max)
+		var liability := RuleModifierPipelineClass.apply(balance_profile.liability_for_wave(selected_tier, int(member.wave)), "liability", active_rule_modifiers)
+		member.max = liability.multiply_scalar(float(member.share))
+		member.hp = member.max.multiply_scalar(remaining_share)
+		member.wave_hit = balance_profile.collection_for_wave(selected_tier, int(member.wave))
+	rebuilt._sum_remaining()
 	active_encounter = rebuilt
 
 func _seconds_since(data: Dictionary) -> float:

@@ -910,7 +910,8 @@ func _test_tier_one_opening() -> void:
 	var hit := stuck.get_effective_collection()
 	var event := stuck._resolve_wave_boundary()
 	_expect(event.type == "tax_collection" and absf(event.amount.log10() - hit.multiply_scalar(1.0 / 3.0).log10()) < 0.000001, "each member should land its third of the Hit")
-	_expect(stuck.number.compare_to(before.subtract(hit)) < 0 and not stuck.number.is_zero(), "the Hit and the pile's repeat hits should cost Number, not the run")
+	# Three arrivals plus the front member's repeat at 11 seconds: four thirds.
+	_expect(absf(before.subtract(stuck.number).log10() - hit.multiply_scalar(4.0 / 3.0).log10()) < 0.000001 and not stuck.number.is_zero(), "the Hit and the front member's repeat should cost Number, not the run")
 	_expect(stuck.active_encounter.at_number_count() == 3, "the unbeaten members should stay at the Number into the next wave")
 	_expect(stuck.wave == 2 and stuck.coins == 0 and stuck.get_tier_best(1) == 0, "the missed wave should move on unpaid and unrecorded")
 	# The first boss stands and fights like every boss.
@@ -2917,6 +2918,33 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	state.active_encounter.apply_compliance(ScientificNumber.from_float(0.5))
 	_expect(state.active_encounter.members[0].hp.compare_to(front_before.subtract(ScientificNumber.from_float(0.5))) == 0, "damage should strike the carried member at the Number first")
 
+	# A pile saves and resumes exactly, and a run resumed on an older profile
+	# keeps its pile where it was, on today's curve.
+	var save_path := "res://.number_go_up_test_save.json"
+	state.save_path = save_path
+	_expect(state.save(), "a run with a pile should save")
+	var resumed := GameState.new()
+	resumed.save_path = save_path
+	resumed.load()
+	_expect(resumed.active_encounter.at_number_count() == state.active_encounter.at_number_count() and resumed.active_encounter.members[0].wave == 1, "the pile should resume in front")
+	for step in range(80):
+		state._advance_waves(0.25)
+		resumed._advance_waves(0.25)
+	_expect(resumed.number.compare_to(state.number) == 0 and resumed.wave == state.wave, "a resumed pile should play out exactly as the saved one")
+	_expect(resumed.save(), "the resumed pile should save")
+	var older := _read_json(save_path)
+	older.balance_profile_id = "tax-foundation-v10"
+	_write_json(save_path, older)
+	var rebuilt := GameState.new()
+	rebuilt.save_path = save_path
+	rebuilt.load()
+	var carried_hits: Array = rebuilt.active_encounter.members.filter(func(member): return not rebuilt.active_encounter.is_own(member)).map(func(member): return member.wave_hit.compare_to(rebuilt.balance_profile.collection_for_wave(1, int(member.wave))) == 0)
+	_expect(not carried_hits.is_empty() and not carried_hits.has(false) and rebuilt.active_encounter.at_number_count() == resumed.active_encounter.at_number_count(), "a rebuilt pile should keep its members at the Number, on today's Hit")
+	var rebuilt_before := rebuilt.number.copy()
+	rebuilt._advance_waves(0.01)
+	_expect(rebuilt.number.compare_to(rebuilt_before) == 0, "a rebuilt pile should not land an extra hit on load")
+	rebuilt.clear_save()
+
 	# Left alone, the pile grows, and so do the hits it lands each clock.
 	var pile := GameState.new()
 	pile.start_run(1, 72)
@@ -2948,7 +2976,9 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	for step in range(61):
 		late._advance_waves(0.25)
 	_expect(late.wave == 2, "the fixture should carry wave 1's members into wave 2")
-	late._advance_waves(0.25)
+	for step in range(27):
+		late._advance_waves(0.25)
+	_expect(late.wave == 2 and late.active_encounter.landed_count() >= 1, "the fixture should have one of wave 2's own members at the Number")
 	_beat_wave(late)
 	var late_events: Array = []
 	for step in range(12):

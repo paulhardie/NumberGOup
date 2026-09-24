@@ -281,16 +281,27 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 			var arrive := clampf(float(saved.get("arrive", TaxBalanceProfile.WAVE_INTERVAL_SECONDS)), 0.0, TaxBalanceProfile.WAVE_INTERVAL_SECONDS)
 			var state := clampi(int(saved.get("state", STANDING)), STANDING, AT_NUMBER)
 			var wave_hit: Variant = saved.get("wave_hit", null)
+			var member_wave := int(saved.get("wave", encounter.wave))
+			# A member saved before D058 had no interval: a boss keeps its 15
+			# seconds, anything else takes today's.
+			var default_interval: float = TaxBalanceProfile.WAVE_INTERVAL_SECONDS if encounter.is_boss and member_wave == encounter.wave else TaxBalanceProfile.DEFAULT_MEMBER_HIT_SECONDS
+			var interval := maxf(0.5, float(saved.get("interval", default_interval)))
+			# A damaged clock must neither fire a burst of catch-up hits nor
+			# never fire again.
+			var next_hit := float(saved.get("next_hit", arrive))
+			if not is_finite(next_hit):
+				next_hit = arrive
+			next_hit = clampf(next_hit, 0.0, TaxBalanceProfile.WAVE_INTERVAL_SECONDS + interval)
 			encounter.members.append({
 				"max": ScientificNumber.from_dict(saved.get("max", {})),
 				"hp": ScientificNumber.from_dict(saved.get("hp", {})),
 				"share": clampf(float(saved.get("share", 1.0)), 0.0, 1.0),
 				"arrive": arrive,
 				"state": state,
-				"wave": int(saved.get("wave", encounter.wave)),
+				"wave": member_wave,
 				"wave_hit": ScientificNumber.from_dict(wave_hit) if wave_hit is Dictionary else encounter.collection.copy(),
-				"next_hit": float(saved.get("next_hit", arrive)),
-				"interval": maxf(0.5, float(saved.get("interval", TaxBalanceProfile.WAVE_INTERVAL_SECONDS))),
+				"next_hit": next_hit,
+				"interval": interval,
 				"landed": bool(saved.get("landed", state == LANDED or state == AT_NUMBER)),
 			})
 		encounter._sum_remaining()

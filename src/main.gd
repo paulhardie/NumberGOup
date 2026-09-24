@@ -141,6 +141,9 @@ var enemy_travel := 0.0
 ## the wave walks behind it as smaller numbers, one node per member, reused.
 var enemy_front := -1
 var enemy_followers: Array = []
+## How many members at the Number are drawn round it, three columns a side of
+## three rows (D058); the rest are counted in the live number's caption.
+const MAX_PILE_DRAWN := 18
 ## Where across the arena's top edge the wave entered, as a share of its width.
 var enemy_entry := 0.5
 var stage_glow: TextureRect
@@ -348,6 +351,7 @@ func _process(delta: float) -> void:
 	# While a wave stands, what production does shows as damage coming off the
 	# wave (D051); the Number's own "+" floats are for the moments between waves.
 	var fighting := hp_encounter != null
+	var pile_bite := ScientificNumber.new()
 	for event in events:
 		if event.is_critical:
 			if not fighting:
@@ -358,12 +362,10 @@ func _process(delta: float) -> void:
 			if not event.amount.is_zero() and not fighting:
 				passive_float_accumulator = passive_float_accumulator.add(event.amount)
 		elif event.type == "pile_hit":
-			# A member at the Number hitting again (D058): a small bite, not the
-			# arrival's full beat, since a pile can bite several times a second.
-			if not event.amount.is_zero():
-				_spawn_floating_text("-" + _stat_number(event.amount), DANGER, _stage_float_point(), 13)
-				_flash_number(DANGER, 0.2)
-				_shake_stage(1.5)
+			# Members at the Number hitting again (D058): one small bite a frame
+			# for all of them, not the arrival's full beat, since a pile can bite
+			# several times a second.
+			pile_bite = pile_bite.add(event.amount)
 		elif event.type == "tax_collection" or event.type == "boss_collection":
 			var boss_hit: bool = event.type == "boss_collection"
 			var hit_colour: Color = BOSS_DANGER if boss_hit else DANGER
@@ -401,7 +403,12 @@ func _process(delta: float) -> void:
 			var boss_clear: bool = event.type == "boss_clear"
 			# A wave beaten after the 2.5-second beat is replaced in the same
 			# step, so its body shatters here rather than waiting to be seen.
-			_shatter_enemy(boss_clear, boss_clear or hp_encounter == null or hp_encounter.landed_count() == 0)
+			# Only when the live number was one of the beaten wave's own; a pile
+			# member still at the Number is not beaten. "No hit" only if nothing
+			# of it, or of the pile, reached the Number.
+			var shown_own: bool = hp_encounter == null or enemy_front < 0 or enemy_front >= hp_encounter.members.size() or hp_encounter.is_own(hp_encounter.members[enemy_front])
+			if shown_own:
+				_shatter_enemy(boss_clear, boss_clear or hp_encounter == null or (hp_encounter.landed_count() == 0 and hp_encounter.living_members().is_empty()))
 			var clear_colour: Color = CRITICAL if boss_clear else ACCENT
 			_pulse_stage_impact(clear_colour)
 			_pop_label(wave_label, 1.18 if boss_clear else 1.08)
@@ -431,6 +438,10 @@ func _process(delta: float) -> void:
 			_snap_number_display()
 			state.save()
 			passive_float_accumulator = ScientificNumber.new()
+	if not pile_bite.is_zero():
+		_spawn_floating_text("-" + _stat_number(pile_bite), DANGER, _stage_float_point(), 13)
+		_flash_number(DANGER, 0.2)
+		_shake_stage(1.5)
 	passive_float_elapsed += delta
 	if passive_float_elapsed >= PASSIVE_FLOAT_INTERVAL:
 		passive_float_elapsed = 0.0
@@ -3556,12 +3567,20 @@ func _update_wave_enemy(delta: float) -> void:
 		_clear_arena()
 		return
 	var front: int = encounter.front_index()
-	# A front member beaten while the rest of its wave stands breaks apart where
-	# it was, and the next member becomes the live number (D057).
-	if encounter == enemy_encounter and wave_enemy.visible and enemy_front >= 0 and front != enemy_front and enemy_front < encounter.members.size() and int(encounter.members[enemy_front].state) == TaxEncounterClass.KILLED:
+	# The live number is the front member, except on a boss wave, where the boss
+	# stays the live number even behind a pile (D058); damage still strikes the
+	# front, and the motes fly there.
+	var display := front
+	if encounter.is_boss:
+		for index in range(encounter.members.size()):
+			if encounter.is_own(encounter.members[index]) and TaxEncounterClass.is_alive(encounter.members[index]):
+				display = index
+	# The live member beaten while the rest stand breaks apart where it was,
+	# and the next becomes the live number (D057).
+	if encounter == enemy_encounter and wave_enemy.visible and enemy_front >= 0 and display != enemy_front and enemy_front < encounter.members.size() and int(encounter.members[enemy_front].state) == TaxEncounterClass.KILLED:
 		_flush_shot_pops()
 		_enemy_beat(WaveEnemyClass.Beat.SHATTER, TEXT)
-	enemy_front = front
+	enemy_front = display
 	if encounter != enemy_encounter or not wave_enemy.visible:
 		_flush_shot_pops()
 		enemy_encounter = encounter
@@ -3574,7 +3593,7 @@ func _update_wave_enemy(delta: float) -> void:
 			create_tween().tween_property(wave_enemy, "modulate:a", 1.0, 0.3)
 	# Reduce Motion stops movement, not information (MOTION_SYSTEM rule 1): the
 	# number holds at the top edge and its caption keeps the time.
-	var member: Dictionary = encounter.members[front]
+	var member: Dictionary = encounter.members[display]
 	if enemy_latched or int(member.state) == TaxEncounterClass.AT_NUMBER:
 		enemy_travel = 1.0
 	elif state.settings.reduce_motion:
@@ -3585,12 +3604,12 @@ func _update_wave_enemy(delta: float) -> void:
 	var tint: Color = BOSS_COLOUR if boss else TEXT.lerp(WARNING, smoothstep(0.5, 1.0, enemy_travel))
 	# The front member shows its own HP, less nothing the motes in flight have
 	# yet to deliver; motes only ever fly at the front.
-	var shown: ScientificNumber = member.hp.add(arena_fx.in_flight())
+	var shown: ScientificNumber = member.hp.add(arena_fx.in_flight()) if display == front else member.hp
 	if shown.compare_to(member.max) > 0:
 		shown = member.max
 	# The wave shows its raw Hit; the player's defences come off at contact, in
 	# front of them (D052), so a Hit that shrinks reads as getting stronger.
-	var caption: String = "hits " + state.get_hit_breakdown().raw.format_value()
+	var caption: String = "hits " + state.get_hit_breakdown(display).raw.format_value()
 	var behind: int = encounter.standing_count() - 1
 	var at_number: bool = int(member.state) == TaxEncounterClass.AT_NUMBER
 	if enemy_latched or at_number or state.settings.reduce_motion:
@@ -3600,25 +3619,30 @@ func _update_wave_enemy(delta: float) -> void:
 	wave_enemy.show_value(_stat_number(shown), tint, 30 if boss else 18, caption, BOSS_COLOUR if boss else MUTED_TEXT)
 	var path := _enemy_path()
 	var point: Vector2 = path[0].lerp(path[1], enemy_travel)
-	_place_followers(encounter, front, path)
+	var front_point: Variant = _place_followers(encounter, display, front, path)
 	wave_enemy.centre_on(point)
-	arena_fx.target = wave_enemy.value_centre()
+	arena_fx.target = front_point if front_point is Vector2 else wave_enemy.value_centre()
 	arena_fx.trail_from = path[0]
 	arena_fx.trail_to = point
 	arena_fx.trail_colour = Color(tint, 0.22) if enemy_travel > 0.02 and not enemy_latched else Color.TRANSPARENT
 
 ## The members behind the front walk in as smaller, quieter numbers (D057),
 ## fanned across the top edge and converging on the Number. Under Reduce Motion
-## they are not drawn; the front's caption counts them instead.
-func _place_followers(encounter, front: int, path: Array) -> void:
+## they are not drawn; the front's caption counts them instead. Returns where
+## the front member is drawn when it is not the live number, for the motes.
+func _place_followers(encounter, display: int, front: int, path: Array) -> Variant:
 	if state.settings.reduce_motion:
 		_hide_followers(0)
-		return
+		return null
 	var shown := 0
 	var at_number := 0
+	var front_point: Variant = null
 	for index in range(encounter.members.size()):
 		var member: Dictionary = encounter.members[index]
-		if index == front or not TaxEncounterClass.is_alive(member):
+		if index == display or not TaxEncounterClass.is_alive(member):
+			continue
+		# Past three columns a side the pile is not drawn; the caption counts it.
+		if int(member.state) == TaxEncounterClass.AT_NUMBER and at_number >= MAX_PILE_DRAWN:
 			continue
 		if shown >= enemy_followers.size():
 			var follower := WaveEnemyClass.new(number_font)
@@ -3641,6 +3665,8 @@ func _place_followers(encounter, front: int, path: Array) -> void:
 			node.show_value(_stat_number(member.hp), Color(DANGER, 0.8), 13)
 			node.centre_on(Vector2(x, centre.y + (float(row) - 1.0) * 22.0))
 			node.visible = true
+			if index == front:
+				front_point = node.value_centre()
 			shown += 1
 			at_number += 1
 			continue
@@ -3651,8 +3677,11 @@ func _place_followers(encounter, front: int, path: Array) -> void:
 		node.show_value(_stat_number(member.hp), Color(TEXT.lerp(WARNING, smoothstep(0.5, 1.0, progress)), 0.55), 13)
 		node.centre_on(start.lerp(path[1], progress))
 		node.visible = true
+		if index == front:
+			front_point = node.value_centre()
 		shown += 1
 	_hide_followers(shown)
+	return front_point
 
 func _hide_followers(from: int) -> void:
 	for index in range(from, enemy_followers.size()):
@@ -3784,7 +3813,8 @@ func _pop_damage(amount: ScientificNumber, crit: bool, tap: bool) -> void:
 	if not wave_enemy.visible:
 		return
 	var text := ("CRIT -" if crit else "-") + _stat_number(amount)
-	var point := wave_enemy.value_centre() + stage_root.position + Vector2(randf_range(-16.0, 16.0), -14.0)
+	# Where the motes land: the live number, or the pile member in front (D058).
+	var point := arena_fx.target + stage_root.position + Vector2(randf_range(-16.0, 16.0), -14.0)
 	_spawn_floating_text(text, CRITICAL if crit else ACCENT, point, 15 if tap or crit else 12)
 
 ## One mote per shot (D054). What the step took off the wave is measured, so
