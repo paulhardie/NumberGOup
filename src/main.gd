@@ -3504,14 +3504,11 @@ func _update_wave_enemy(delta: float) -> void:
 			pop_crit = pop_crit or landed.crit
 	pop_elapsed += delta
 	if pop_elapsed >= MOTE_INTERVAL:
-		if not pop_damage.is_zero():
-			_pop_damage(pop_damage, pop_crit, false)
-		pop_damage = ScientificNumber.new()
-		pop_crit = false
-		pop_elapsed = 0.0
+		_flush_shot_pops()
 	var encounter: Variant = state.active_encounter
 	var standing: bool = state.in_run and encounter != null and not encounter.max_liability.is_zero() and not encounter.is_cleared()
 	if not standing:
+		_flush_shot_pops()
 		# Beaten inside the 2.5-second beat: the wave is still on screen.
 		if encounter == enemy_encounter and state.in_run and encounter != null:
 			_shatter_enemy(encounter.is_boss)
@@ -3520,6 +3517,7 @@ func _update_wave_enemy(delta: float) -> void:
 		_clear_arena()
 		return
 	if encounter != enemy_encounter or not wave_enemy.visible:
+		_flush_shot_pops()
 		enemy_encounter = encounter
 		enemy_latched = false
 		enemy_entry = _enemy_entry(state.wave)
@@ -3646,6 +3644,7 @@ func _enemy_entry(wave: int) -> float:
 func _shatter_enemy(boss: bool) -> void:
 	if wave_enemy == null or not wave_enemy.visible:
 		return
+	_flush_shot_pops()
 	_enemy_beat(WaveEnemyClass.Beat.SHATTER, BOSS_COLOUR if boss else TEXT)
 	_spawn_floating_text("BEATEN · NO HIT", ACCENT, wave_enemy.value_centre() + stage_root.position)
 	wave_enemy.visible = false
@@ -3724,6 +3723,15 @@ func _gather_passive_damage(dealt: ScientificNumber, crit: bool, delta: float) -
 		mote_damage = ScientificNumber.new()
 		mote_crit = false
 		mote_elapsed = 0.0
+
+## Shows the shots' folded "-X" now (D055), on the wave it hit, so the killing
+## blow's damage still rises before the wave shatters or gives way.
+func _flush_shot_pops() -> void:
+	if not pop_damage.is_zero():
+		_pop_damage(pop_damage, pop_crit, false)
+	pop_damage = ScientificNumber.new()
+	pop_crit = false
+	pop_elapsed = 0.0
 
 ## Plays a beat on a copy of the wave's number where it is now, so the live one
 ## is free to fade in as the next wave or stay on the Number as a boss. A

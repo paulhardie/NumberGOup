@@ -2120,7 +2120,7 @@ func _test_cash_flows_at_the_priced_income() -> void:
 		state._produce_tick()
 	var seconds := float(ticks) / state._tick_rate()
 	var expected := state.get_rig_income_rate() * seconds
-	_expect(state._tick_rate() > 1.5, "the fixture should tick faster than once a second")
+	_expect(state._tick_rate() > TaxBalanceProfile.BASE_SHOTS_PER_SECOND * 1.5, "the fixture should shoot well above the base rate")
 	_expect(absf(state.cash.log10() - log(expected) / log(10.0)) < 0.0001, "Cash should flow at the Rig's priced income per second")
 	var outside := GameState.new()
 	outside._produce_tick()
