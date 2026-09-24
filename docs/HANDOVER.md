@@ -1,24 +1,18 @@
 # Handover
 
-**Last updated:** 24 September 2026, by Claude, handing to Codex. Branch `claude/game-changes-review-fbili3` (head `Fix D058 review findings` plus this handover) carries **D056–D059: a wave is a group of enemies that stay at the Number and pile up, with a gentler opening to wave 30**. It is pushed and **not merged**; no PR is open. D044–D055 and the class-cache fix are merged to `main` (PRs #48–#54).
+**Last updated:** 24 September 2026, by Codex, handing back to Claude. Branch `claude/game-changes-review-fbili3` carries **D056–D059 and the independent D059 review**. The review repaired the arena probe but found an unresolved saved-run compatibility issue. The branch is **not merged**, and no PR is open (checked with `gh pr list`). D044–D055 and the class-cache fix are merged to `main` (PRs #48–#54). The owner's playable checkout remains on `main`; review work is in `/private/tmp/ngu-d059-review`.
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
 
-## For the next agent (Codex): start here
+## For the next agent (Claude): start here
 
-1. **Read [`AGENTS.md`](../AGENTS.md) first.** It is the working agreement for every agent: UK English, lead with the result, bold every decision, economy and saves are high risk, never touch the owner's real save, never commit to `main`, opening or merging a PR is the owner's call.
-2. **Check out the branch and bring it up to date:** `git fetch --all --prune`, `git checkout claude/game-changes-review-fbili3`, then `git status -sb`. If `main` has moved, merge it in (a merge commit, not a rebase).
-3. **Prove the baseline before changing anything:**
-   - `bash run_tests.sh` must print `PASS: economy tests`. The "Exponent too high" warning comes from a deliberately corrupt save in a test, not a failure.
-   - `bash run_godot.sh --headless --path . --quit` must print no errors.
-   - `bash run_godot.sh --path . -s res://tools/arena_probe.gd` must print `ARENA PROBE PASS`.
-   - `run_godot.sh` defaults to the owner's Mac Godot (`/Users/paulhardie/Downloads/Godot.app`); anywhere else, set `GODOT` to a 4.7.2 binary. On headless Linux, wrap windowed tools in `xvfb-run -a -s "-screen 0 1024x1100x24"`.
-   - If classes are "not found", the `.godot` cache is stale: `bash run_godot.sh --headless --path . --import`.
-4. **Read the decisions this branch adds:** `grep -n "^## D05[5-9]" docs/DECISIONS.md`, then read D056 to D059 in full. The group build plan is in [`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md#proposal-a-wave-becomes-a-group--24-september-2026).
-5. **Your first task is the independent review of D059** (the last commit touching `src/`): it is an economy change, and `AGENTS.md` requires a review before merge. Review `git diff` of that commit against D059 in `DECISIONS.md`, fix what you find, and re-run the checks. After that, the arena pass (next step 2) is unblocked only if the owner confirms it.
+1. Read [`AGENTS.md`](../AGENTS.md), D056–D059 in [`DECISIONS.md`](DECISIONS.md), and the D059 implementation commit `e934e91`. Fetch and check the branch against `origin` before new work. Do not switch the owner's playable `main` checkout to this branch.
+2. **D059 has one unresolved review blocker:** a V10 active run saved under D058 has the same `tax-foundation-v11` profile ID as D059. The load path keeps an opening member's `AT_NUMBER` state and positive repeat interval, so it can continue piling after D059. Recommend a narrow load conversion: members from ordinary waves 1–30 that already hit leave with their HP uncleared; those still approaching get a zero repeat interval; members from earlier opening waves do not carry forward. Preserve Number and already-paid Hits. Add old-save and current-save round-trip tests. Automatic approval review rejected this proposed edit as an unapproved high-risk save/encounter mutation. **Get the owner's explicit approval before making that change.**
+3. Once approved and repaired, run `bash run_tests.sh`, `bash run_godot.sh --headless --path . --quit`, and `bash run_godot.sh --path . -s res://tools/arena_probe.gd`. Use `run_godot.sh` for every Godot run; it isolates `user://` from the real save. A fresh worktree may need `bash run_godot.sh --headless --path . --import` before tests. Check for a running Godot game before editing scripts, as `AGENTS.md` requires.
+4. Keep the arena layout pass separate. Its overlap, narrow caption and rising pop issues remain for the owner to confirm after D059 is safe to play. Do not open or merge a PR without the owner asking.
 
 ## Where the game is
 
-`main` plus this branch plays like this (Godot 4.7.2, balance profile `tax-foundation-v11`, save V10; nothing below has been checked on a phone or in motion):
+`main` plus this branch plays like this on a fresh run (Godot 4.7.2, balance profile `tax-foundation-v11`, save V10; nothing below has been checked on a phone or in motion). **A D058 active save can retain the old early pile after loading; see the review blocker above.**
 
 - **Waves are groups (D057).** An ordinary wave is 3 enemies at wave 1, one more every 11 waves, at most 20; a boss is one. They share the wave's HP and Hit evenly and walk in as a column: the front reaches the Number at 6 seconds, the last at 15. Shots and taps strike the front living enemy, and damage past its HP is lost.
 - **Enemies stay (D058), after a gentler opening (D059).** An enemy that reaches the Number lands its share of the Hit (after Guard and Armor on the whole Hit). To wave 30 it then leaves. From wave 31 it stays and hits again, every 15 seconds at first, easing to every 5 seconds (`MEMBER_HIT_SECONDS`) by wave 50, until beaten. The 15-second clock keeps going: an ordinary wave with an enemy alive at 15 seconds passes, paying Coins for the share cleared, and its survivors carry into the next wave, in front. That growing pile is the ramp. A wave counts as beaten once all its own enemies are dead, even after landing. Bosses hold their wave until beaten and hit every 15 seconds. Brace blocks every hit until the clock ends; Thorns returns part of each hit to the enemy in front.
@@ -42,25 +36,28 @@
 
 ## Open decisions for the owner
 
-1. **Decided: soften the opening only (D059), built.** To wave 30 enemies hit once and leave; from wave 31 they stay, easing from every 15 seconds to every 5 by wave 50. The measured D058 interval sweep is in D058's evidence. **Left for the owner:** whether the switch at wave 31 feels like a wall in play.
-2. **Open the PR for this branch?** Everything is green; D056–D058 are reviewed, D059 is not yet; the owner has not played it.
-3. **Tapping and the Damage/Attack Speed split** (step 4 of the group plan): a tap fires a shot worth a share of current Damage, taps past about five a second count half; targets idle 100%, one tap a second +15–20%, three +40–50%, a cap near double. High risk: economy.
-4. **Enemy types** (step 3): Fast (2× speed) and Tank (5× HP, half damage, slow) partway through Tier 1, Ranged later. This is what makes Damage and Attack Speed different choices.
-5. **Save clash:** unmerged branch `codex/prestige-run-summary` adds its own save version; this branch takes V10, so that one must become V11.
-6. **Still open from before:** the D047 pacing alternative; coin gates and the Tower parity plan ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md)); Research Focus being lopsided; the tier unlock wave (100); Coins per minute above balance target 2; sizing Labs, Cards and Ultimates past a maxed Workshop; Bounty, Finisher, Streak, Payback and Auto Tap.
+1. **Approve the D059 saved-run repair?** Recommend yes: otherwise a D058 V10 save can keep repeat Hits in the opening even though a fresh D059 run cannot. The trade-off is a deliberate change to an already-active run's enemy states on load; its Number and prior Hits would be retained. Automatic approval review rejected the unapproved edit, so no save handling was changed.
+2. **Play and open a PR for this branch?** Recommend play only after decision 1 is implemented and verified. D056–D058 are reviewed; D059's independent review has this blocker. The owner has not played D059, and no PR is open.
+3. **Does the wave-31 switch feel like a wall?** Recommend deciding after play: the simulator shows the early run recovering, while the ramp starts abruptly at wave 31 despite the repeat interval easing to five seconds by wave 50.
+4. **Tapping and the Damage/Attack Speed split** (step 4 of the group plan): a tap fires a shot worth a share of current Damage, taps past about five a second count half; targets idle 100%, one tap a second +15–20%, three +40–50%, a cap near double. Recommend measuring the tap sweep and career before building; economy risk is high.
+5. **Enemy types** (step 3): Fast (2× speed) and Tank (5× HP, half damage, slow) partway through Tier 1, Ranged later. Recommend after the arena pass so each type can be read; this makes Damage and Attack Speed different choices.
+6. **Save clash:** unmerged branch `codex/prestige-run-summary` adds its own save version; this branch takes V10, so that one must become V11. Recommend resolving at integration, without altering either branch during D059 review.
+7. **Still open from before:** the D047 pacing alternative; coin gates and the Tower parity plan ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md)); Research Focus being lopsided; the tier unlock wave (100); Coins per minute above balance target 2; sizing Labs, Cards and Ultimates past a maxed Workshop; Bounty, Finisher, Streak, Payback and Auto Tap.
 
 ## Next steps, in order
 
-1. **Agent (Codex), first:** the independent review of D059, as in "start here" step 5. **Done when:** findings are fixed or answered, `bash run_tests.sh`, the headless boot and `tools/arena_probe.gd` pass, and the review's outcome is added to D059. **Owner:** play the branch, then decide whether to open the PR.
-2. **Agent, if the owner confirms:** the arena pass (group step 2). It fixes:
+1. **Owner:** approve or decline the D059 saved-run conversion. **Agent (Claude), if approved:** implement the narrow conversion and old-save fixture, then independently review the final diff. **Done when:** a D058 V10 opening save resumes under D059 without repeat Hits or a carried early pile, a current D059 save resumes exactly, the economy suite, headless boot and arena probe pass, and D059's review entry records the result. High risk: saves and encounter resolution.
+2. **Owner:** play D059 after step 1 and decide whether to open its PR. **Done when:** the wave-31 switch, Hits and early Coin pacing feel acceptable in a real game; no local automated check proves that feel. No PR or merge has been requested.
+3. **Agent, if the owner confirms:** the arena pass (group step 2). It fixes:
    - members overlapping near the top edge as a wave enters (stagger their start heights or fade them in one by one);
    - the front caption clipping on a narrow screen ("· 9 mor");
    - "-X" pops rising into the header line while a wave is at the top edge.
    Low–medium risk. Verify with `tools/capture_ui.gd` at four sizes and `tools/arena_probe.gd`.
-3. **Owner:** decide enemy types (decision 4), then tapping (decision 3). Each is its own decision and build.
+4. **Owner:** decide enemy types, then tapping. Each is its own decision and build after D059 is settled.
 
 ## How to measure
 
+- **This review actually ran:** `bash run_tests.sh` → `PASS: economy tests` (the suite prints no test count; its deliberate corrupt-save fixture prints an `Exponent too high` warning); headless boot → exit 0 with no errors; `tools/arena_probe.gd` → `ARENA PROBE PASS` after its fixture and waits were corrected. The windowed probe printed a shader-cache warning but completed; its approach, boss and pile PNGs were inspected. `bash run_balance.sh` completed: seed 7 fresh wave 20/86 Coins, early wave 30/273 Coins, and the simulator's rank-100 Attack build wave 156/9,327 Coins. These single-seed results do not replace D059's six-seed figures. The career simulator was **not** rerun, and neither motion by touch nor a phone was checked.
 - **Quick balance check:** `bash run_balance.sh`, compared with a run on the previous commit. It takes about five minutes. "Hits" now count every member landing and pile hit, so they do not compare with figures from before D057.
 - **Across seeds:** write a throwaway `tools/_something.gd` that preloads `res://tools/balance_simulator.gd` for its build constants (`FIRST_RUN_SPEND`, `EARLY`, `MID`, `ATTACK_MAX`, `ARMOR`). For seeds 1–6 or 1–12: start a run, then loop `tap()` and two `advance(0.25)` calls until death, and average the waves reached. Delete it afterwards. The hit interval can be swept by setting `state.balance_profile.MEMBER_HIT_SECONDS`, which is a var for this purpose.
 - **Pacing:** `tools/career_simulator.gd -- --spend focused --careers today_rig --runs 30 --run-cap-minutes 180` takes about 20 minutes. Compare waves against hours with the figures above. Run the previous commit the same way from a separate `git worktree`, not by swapping files.
@@ -69,6 +66,8 @@
 
 ## Known issues and risks
 
+- **D059 save blocker:** D058 V10 saves at waves 1–30 can retain repeating `AT_NUMBER` members because both builds write `tax-foundation-v11`. This was found by tracing save/load and encounter state; the conversion was not run or tested. Automatic approval review rejected the proposed save/encounter edit as an unapproved high-risk compatibility mutation. Ask the owner for explicit approval before that repair.
+- **Arena probe:** its D058 comparison failed two frame-timing checks on this Mac. D059 initially failed those and four more because the opening fixture assumed staying members. Its fixture now tests staying members first, switches to D059 for wave 12, and waits elapsed time for the two landing checks; it passes. This is a probe repair, not a gameplay fix. The screenshot of a large pile still shows overlapping numbers and captions, covered by the planned arena pass.
 - **Groups and the pile have only been checked in tests, the arena probe and screenshots**, not in motion or by touch. A big pile bites several times a second (folded into one pop a frame).
 - **Save V10** will not load in an older build. A save written by D057's commits (hit once and pass) loads its passed members as gone.
 - **The balance simulator's "max" builds** stop at rank 100; `-- --maxed-workshop` measures the real maximum.
@@ -79,11 +78,11 @@
 
 ## Handing back to Claude
 
-When you stop, leave the repository able to answer the next session's questions without this conversation.
+The next decision is the saved-run repair above. Keep this handover as the current state, and leave the repository able to answer the next session's questions without this conversation.
 
 1. **Replace this page. Never append to it.** Keep its shape: who is handing to whom and when; the branch and what is on it (merged or not, PR number); where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; and this section, addressed back to Claude.
-2. **Record every choice the owner accepted** as the next `D0NN` entry in [`DECISIONS.md`](DECISIONS.md) (D059 onwards). Each entry needs the owner's words, context, the decision, the evidence (the figures you measured and how), the consequences, and when to revisit. Update any document the change makes stale in the same commit: [`GAME_INVARIANTS.md`](GAME_INVARIANTS.md), [`MOTION_SYSTEM.md`](MOTION_SYSTEM.md), [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md), [`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md).
-3. **Say plainly what ran and what did not.** Test counts, probe results, balance and career figures before and after, and anything you could not check (in motion, on a phone). Do not mark anything done that did not run.
+2. **Record any new choice the owner accepts** as the next `D0NN` entry in [`DECISIONS.md`](DECISIONS.md) (D060 onwards). D059 already records the accepted opening and this review's unresolved finding. Each new entry needs the owner's words, context, the decision, the evidence (the figures measured and how), the consequences, and when to revisit. Update any document the change makes stale in the same commit: [`GAME_INVARIANTS.md`](GAME_INVARIANTS.md), [`MOTION_SYSTEM.md`](MOTION_SYSTEM.md), [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md), [`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md).
+3. **Say plainly what ran and what did not.** Give test counts only if the suite prints them; report probe results, balance and career figures that were actually measured, and anything not checked (in motion, on a phone). Do not mark the save fix done until it is authorised, implemented and tested.
 4. **Commit on a branch, never `main`, and push it.** Use this branch while its PR is unmerged; once it merges, start a fresh branch from `main`. Match the existing commit style: a short imperative subject and a body saying what the player will notice and why. Do not open or merge a PR unless the owner asks.
 5. **Tell the owner,** in the chat, the branch name, the head commit and the one decision you need from them next.
 6. **Leave no scratch files** (`tools/_*.gd`, save files, screenshots) in the repository.

@@ -599,12 +599,13 @@ Rules:
 
 ## D059 — A gentler opening: to wave 30 enemies hit once and leave
 
-- **Status:** Accepted (2026-09-24) on owner direction ("do that then"), taking the recommendation to soften only the opening after D058. Implemented (2026-09-24). **Not yet independently reviewed**; that is the next agent's first task.
+- **Status:** Accepted (2026-09-24) on owner direction ("do that then"), taking the recommendation to soften only the opening after D058. Implemented (2026-09-24). **Independent review found a save compatibility blocker; D059 is not ready to merge.**
 - **Context:** D058's pile ended a focused player's first run at wave 17 (29 before). A longer hit interval alone could not fix it: the first runs die at the wave 20 boss, where members carried in keep hitting and soak up damage while the boss holds the clock.
 - **Decision:**
   1. **To wave 30 (`OPENING_HIT_WAVES`), a member that reaches the Number hits once and leaves** (D057's rule). A wave with one through passes unbeaten and pays for the share cleared. No pile forms.
   2. **From wave 31, members stay (D058),** hitting every 15 seconds at first and easing to `MEMBER_HIT_SECONDS` (5) by wave 50 (`OPENING_EASED_BY`), in `TaxBalanceProfile.member_hit_seconds`.
   3. A member that left keeps its HP as uncleared, so the arena never shows it as damage, and the run-over Attack gap counts it.
 - **Evidence (six seeds, two taps a second, no run Upgrades; D058 → D059):** fresh 17 → 22, first spend 23 → 30, early 30 → 37; mid 56, Attack maxed 158 and with Armor 165 unchanged. A focused career buying run Upgrades: first run wave 29 with 239 Coins (before groups 28 with 232; D058 17), about wave 100 at 1.4 hours (1.44 before groups).
+- **Review (Codex, 2026-09-24):** a D058 V10 run saved during waves 1–30 retains `tax-foundation-v11`, which D059 also uses. The loader therefore preserves any `AT_NUMBER` member and its positive repeat interval. It can keep hitting and carry into later waves despite D059's one-Hit opening rule. The review recommends converting those saved opening members on load while keeping already-paid Hits and uncleared HP. Automatic approval review rejected that save/encounter edit as an unapproved high-risk compatibility mutation, so it has not been made. The arena probe's first fixture was updated to test staying members separately from D059's passing opening, and its two frame-timing checks now wait for elapsed time; the probe passes. Economy tests and headless boot pass; a seed-7 balance run completed, but the career and six-seed figures above were not re-measured in this review.
 - **Consequences:** the first hour plays much as it did before groups, and the ramp starts once a player has a Workshop. Time to max the Workshop and balance targets 5, 7 and 8 still need re-measuring against D058–D059.
 - **Revisit when:** enemy types arrive, or play shows the switch at wave 31 is felt as a wall.

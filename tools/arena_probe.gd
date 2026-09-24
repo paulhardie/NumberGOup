@@ -46,6 +46,10 @@ func _init() -> void:
 	var st = main.state
 	st.highest_number = ScientificNumber.from_float(250000)
 	st.settings["reduce_motion"] = false
+	# Keep the long approach and shatter checks on the staying-member rule;
+	# the D059 opening pass is exercised below at wave 12.
+	st.balance_profile.OPENING_HIT_WAVES = 0
+	st.balance_profile.OPENING_EASED_BY = 0
 	st.start_run(1, 3)
 	st.number = ScientificNumber.from_float(5000)
 	main._refresh_all()
@@ -123,7 +127,7 @@ func _init() -> void:
 	st.active_encounter = st._make_encounter(10)
 	st.number = ScientificNumber.from_float(1.0e9)
 	st.wave_accumulator = 14.9
-	await _frames(12)
+	await create_timer(0.25).timeout
 	_check(main.enemy_latched, "a boss Hit lands and latches")
 	await _shot("3_slam")
 	await create_timer(0.5).timeout
@@ -131,6 +135,8 @@ func _init() -> void:
 	_check(main.wave_enemy.caption.contains(" in "), "a latched boss counts down to its next Hit: " + main.wave_enemy.caption)
 	await _shot("4_latched")
 	# An ordinary missed wave slams once and the next wave comes in.
+	st.balance_profile.OPENING_HIT_WAVES = 30
+	st.balance_profile.OPENING_EASED_BY = 50
 	st.wave = 12
 	st.active_encounter = st._make_encounter(12)
 	st.wave_accumulator = 14.95
@@ -213,7 +219,7 @@ func _init() -> void:
 	main.arena_fx.clear_motes()
 	main.pop_damage = ScientificNumber.new()
 	var member_hp: ScientificNumber = st.active_encounter.members[0].max
-	await _frames(8)
+	await create_timer(0.25).timeout
 	var carried: ScientificNumber = main.arena_fx.in_flight().add(main.pop_damage)
 	_check(st.active_encounter.landed_count() == 1 and carried.compare_to(member_hp.multiply_scalar(0.5)) < 0, "a landing member's HP is not shown as damage: %s of %s" % [carried.format_value(), member_hp.format_value()])
 	await create_timer(1.0).timeout
