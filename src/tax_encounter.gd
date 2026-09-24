@@ -38,7 +38,8 @@ var is_boss: bool = false
 ## member carries, `wave_hit` its wave's whole Hit, `next_hit` when it next
 ## hits on this wave's clock, `landed` whether it has reached the Number,
 ## `boss` whether it is a boss (which may be carried into later waves, D063),
-## and `hits` how many times it has hit, which heats up its next hit.
+## `hits` how many times it has hit, which heats up its next hit, and `unpaid`
+## the share of its passed wave's reward still owed when it is beaten.
 var members: Array = []
 
 func _init(
@@ -66,7 +67,7 @@ func _init(
 		members.append({
 			"max": hp, "hp": hp.copy(), "share": share, "arrive": float(arrive), "state": STANDING,
 			"wave": wave, "wave_hit": collection.copy(), "next_hit": float(arrive),
-			"interval": hit_interval, "landed": false, "boss": boss, "hits": 0,
+			"interval": hit_interval, "landed": false, "boss": boss, "hits": 0, "unpaid": 0.0,
 		})
 	_sum_remaining()
 
@@ -279,6 +280,7 @@ func to_dict() -> Dictionary:
 			"landed": member.landed,
 			"boss": member.get("boss", false),
 			"hits": member.get("hits", 0),
+			"unpaid": member.get("unpaid", 0.0),
 		})
 	return {
 		"tier_id": tier_id,
@@ -342,7 +344,9 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 				"interval": interval,
 				"landed": landed,
 				"boss": bool(saved.get("boss", encounter.is_boss and member_wave == encounter.wave)),
-				"hits": maxi(0, int(saved.get("hits", 1 if landed else 0))),
+				# Far past any real run's count, and short of overflowing 1.04^n.
+				"hits": clampi(int(saved.get("hits", 1 if landed else 0)), 0, 10000),
+				"unpaid": clampf(float(saved.get("unpaid", 0.0)), 0.0, 1.0),
 			})
 		encounter._sum_remaining()
 	# No member that parsed, or a wave saved before groups (V9 and older): one

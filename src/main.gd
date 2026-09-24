@@ -410,7 +410,7 @@ func _process(delta: float) -> void:
 					# A boss stays and hits again (D037); members stay too (D058), and
 					# their countdown is on the wave's number.
 					if boss_hit:
-						_show_toast("BOSS HITS AGAIN IN " + str(int(_boss_interval())) + "s", hit_colour)
+						_show_toast("BOSS HITS AGAIN IN " + str(ceili(_boss_interval())) + "s", hit_colour)
 				else:
 					_show_hit_ledger(landing_parts, event.amount, hit_colour)
 				_snap_number_display()
@@ -2829,7 +2829,8 @@ func _refresh_boss_notice() -> void:
 	var boss_coming := false
 	if state.in_run:
 		var encounter: Variant = state.active_encounter
-		boss = encounter != null and encounter.is_boss
+		# A boss wave, or a boss still standing after its wave passed (D063).
+		boss = encounter != null and (encounter.is_boss or encounter.boss_index() >= 0)
 		if not boss:
 			var until_boss := _waves_until_boss(state.wave)
 			if until_boss > 0:
