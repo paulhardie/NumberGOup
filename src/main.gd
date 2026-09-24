@@ -330,13 +330,17 @@ func _process(delta: float) -> void:
 	# Gems land with a wave's clear (D030); a boss's toast carries them, and a
 	# checkpoint that is not a boss wave gets a toast of its own.
 	var gem_gain := state.gems - gems_before
+	# While a wave stands, what production does shows as damage coming off the
+	# wave (D051); the Number's own "+" floats are for the moments between waves.
+	var fighting := hp_encounter != null
 	for event in events:
 		if event.is_critical:
-			_spawn_floating_text(_output_float_text(event.amount, true), CRITICAL, _stage_float_point())
+			if not fighting:
+				_spawn_floating_text(_output_float_text(event.amount, true), CRITICAL, _stage_float_point())
 			_pulse_number(1.06)
 			_flash_number(CRITICAL)
 		elif event.type == "tick":
-			if not event.amount.is_zero():
+			if not event.amount.is_zero() and not fighting:
 				passive_float_accumulator = passive_float_accumulator.add(event.amount)
 		elif event.type == "tax_collection" or event.type == "boss_collection":
 			var boss_hit: bool = event.type == "boss_collection"
@@ -2420,17 +2424,19 @@ func _tap_number() -> void:
 	var spawn_pos := floating_text_layer.get_local_mouse_position()
 	if not Rect2(Vector2.ZERO, floating_text_layer.size).has_point(spawn_pos):
 		spawn_pos = _stage_float_point()
+	# A tap that still has a wave to chew through sends it a mote at once, and
+	# its damage comes off the wave as the mote lands, so the player sees the
+	# wave take the hit. Otherwise the gain floats up from the tap, as before.
+	var struck: bool = hp_encounter != null and state.active_encounter == hp_encounter and state.is_wave_standing()
+	if struck:
+		_fire_mote(hp_before.subtract(hp_encounter.remaining_liability), event.is_critical, true)
+	else:
+		_spawn_floating_text(_output_float_text(event.amount, event.is_critical), CRITICAL if event.is_critical else ACCENT, spawn_pos)
 	if event.is_critical:
-		_spawn_floating_text(_output_float_text(event.amount, true), CRITICAL, spawn_pos)
 		_pulse_number(1.09)
 		_flash_number(CRITICAL)
 	else:
-		_spawn_floating_text(_output_float_text(event.amount, false), ACCENT, spawn_pos)
 		_pulse_number(1.035)
-	# A tap that still has a wave to chew through sends it a mote at once, so the
-	# player sees the wave take the hit, not only their own Number rise.
-	if hp_encounter != null and state.active_encounter == hp_encounter and state.is_wave_standing():
-		_fire_mote(hp_before.subtract(hp_encounter.remaining_liability), event.is_critical)
 	if state.settings.haptics:
 		Input.vibrate_handheld(8)
 	audio_feedback.play_feedback(event.is_critical, bool(state.settings.muted))
@@ -2461,10 +2467,10 @@ func _on_brace_pressed() -> void:
 
 ## The core per-tap "juice": a short line of text that rises from the tap
 ## point and fades, replacing a single static feedback label.
-func _spawn_floating_text(text: String, colour: Color, local_pos: Vector2) -> void:
+func _spawn_floating_text(text: String, colour: Color, local_pos: Vector2, font_size: int = 15) -> void:
 	if floating_text_layer == null:
 		return
-	var label := _make_label(text, 15, HORIZONTAL_ALIGNMENT_CENTER, colour)
+	var label := _make_label(text, font_size, HORIZONTAL_ALIGNMENT_CENTER, colour)
 	label.position = local_pos - Vector2(24, 10)
 	floating_text_layer.add_child(label)
 	if bool(state.settings.reduce_motion):
@@ -3464,7 +3470,8 @@ func _update_stage_colour() -> void:
 func _update_wave_enemy(delta: float) -> void:
 	if wave_enemy == null:
 		return
-	arena_fx.step(delta)
+	for landed in arena_fx.step(delta):
+		_pop_damage(landed.amount, landed.crit, landed.tap)
 	var encounter: Variant = state.active_encounter
 	var standing: bool = state.in_run and encounter != null and not encounter.max_liability.is_zero() and not encounter.is_cleared()
 	if not standing:
@@ -3495,7 +3502,9 @@ func _update_wave_enemy(delta: float) -> void:
 		enemy_travel = clock
 	var boss: bool = encounter.is_boss
 	var tint: Color = BOSS_COLOUR if boss else TEXT.lerp(WARNING, smoothstep(0.5, 1.0, enemy_travel))
-	var shown: ScientificNumber = encounter.remaining_liability.add(arena_fx.in_flight()).add(mote_damage)
+	var shown: ScientificNumber = encounter.remaining_liability.add(arena_fx.in_flight())
+	if not state.settings.reduce_motion:
+		shown = shown.add(mote_damage)
 	if shown.compare_to(encounter.max_liability) > 0:
 		shown = encounter.max_liability
 	# The wave shows its raw Hit; the player's defences come off at contact, in
@@ -3615,17 +3624,31 @@ func _enemy_landed(colour: Color, slam: bool = true) -> void:
 ## Sends the wave damage just dealt from the Number to the wave's number as a
 ## mote (D051). The damage is already dealt; the mote only decides when the
 ## shown HP catches up.
-func _fire_mote(amount: ScientificNumber, crit: bool) -> void:
-	if amount.is_zero() or state.settings.reduce_motion or not wave_enemy.visible:
+func _fire_mote(amount: ScientificNumber, crit: bool, tap: bool = false) -> void:
+	if amount.is_zero() or not wave_enemy.visible:
+		return
+	# Reduce Motion has no motes, so the damage comes off the wave at once.
+	if state.settings.reduce_motion:
+		_pop_damage(amount, crit, tap)
 		return
 	var number_box := number_label.get_global_rect()
 	var from := Vector2(number_box.get_center().x, number_box.position.y) - stage_root.global_position
-	arena_fx.fire(from, amount, crit)
+	arena_fx.fire(from, amount, crit, tap)
+
+## The damage a mote carried, coming off the wave as it lands (D051): a tap's
+## or a crit's at full size, the passive stream smaller. Each lands a little to
+## one side or the other so a stream does not stack into one smear.
+func _pop_damage(amount: ScientificNumber, crit: bool, tap: bool) -> void:
+	if not wave_enemy.visible:
+		return
+	var text := ("CRIT -" if crit else "-") + _stat_number(amount)
+	var point := wave_enemy.value_centre() + stage_root.position + Vector2(randf_range(-16.0, 16.0), -14.0)
+	_spawn_floating_text(text, CRITICAL if crit else ACCENT, point, 15 if tap or crit else 12)
 
 ## Passive damage goes out as one mote every MOTE_INTERVAL, carrying what built
 ## up, so a deep Tick Speed reads as a steady stream rather than a firehose.
 func _gather_passive_damage(dealt: ScientificNumber, crit: bool, delta: float) -> void:
-	if state.settings.reduce_motion or not wave_enemy.visible:
+	if not wave_enemy.visible:
 		mote_damage = ScientificNumber.new()
 		return
 	mote_damage = mote_damage.add(dealt)

@@ -20,17 +20,17 @@ var target := Vector2.ZERO
 var trail_from := Vector2.ZERO
 var trail_to := Vector2.ZERO
 var trail_colour := Color.TRANSPARENT
-## Each mote is {from, t (0..1), amount, crit}; each bite {at, age}.
+## Each mote is {from, t (0..1), amount, crit, tap}; each bite {at, age}.
 var _motes: Array = []
 var _bites: Array = []
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-func fire(from: Vector2, amount: ScientificNumber, crit: bool) -> void:
+func fire(from: Vector2, amount: ScientificNumber, crit: bool, tap: bool = false) -> void:
 	if amount.is_zero():
 		return
-	_motes.append({"from": from, "t": 0.0, "amount": amount, "crit": crit})
+	_motes.append({"from": from, "t": 0.0, "amount": amount, "crit": crit, "tap": tap})
 
 ## Drops every mote in flight, for a wave that is gone or a run that ended.
 func clear_motes() -> void:
@@ -44,7 +44,9 @@ func in_flight() -> ScientificNumber:
 		total = total.add(mote.amount)
 	return total
 
-func step(delta: float) -> void:
+## Advances every mote and bite, and returns the motes that landed this step,
+## so main.gd can show their damage coming off the wave.
+func step(delta: float) -> Array:
 	for mote in _motes:
 		mote.t += delta / FLIGHT
 	var landed := _motes.filter(func(mote): return mote.t >= 1.0)
@@ -55,6 +57,7 @@ func step(delta: float) -> void:
 		bite.age += delta
 	_bites = _bites.filter(func(bite): return bite.age < BITE_SECONDS)
 	queue_redraw()
+	return landed
 
 func _point(mote: Dictionary, t: float) -> Vector2:
 	# Eased out, so a mote leaves the Number briskly and settles into the wave.

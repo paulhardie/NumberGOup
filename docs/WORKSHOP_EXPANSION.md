@@ -158,6 +158,28 @@ Not taken: **Coins / Wave**. Waves already pay Coins by wave number, Coin Bonus 
 | Wave queue | The next two or three waves exist, show their HP, and can take damage early; saved with the encounter | Volley, Reach, Mine Blast | High: encounter state, saves |
 | Difficulty counter | Wave HP and Hit each have a level that usually rises with the wave but can stall; Coins, milestones and records still follow the wave number. The enemy-growth candidate in [`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md) needs the same counter | Stall HP, Stall Hit | High: encounter state, saves, every balance measurement |
 
+### Proposal: a wave becomes a group — 24 September 2026
+
+**Status:** proposed on owner direction ("yeah write that down for us to look at"), for after one enemy per wave has settled and the wave's position has become a rule (slowing bosses). Nothing here is decided or built.
+
+**The idea.** Since D050–D051 a wave is one number falling to the Number over its 15-second clock. A group splits that wave into a few numbers: the same wave, the same totals, arriving one after another. It is what gives area damage, chains, targeting and slowing something to choose between; with one enemy, "hits several" and "hits one hard" are the same upgrade.
+
+**The rules it would need:**
+
+1. **Same totals.** A wave's HP and Hit divide across its members (2–5, growing slowly with wave and tier). Keeping the totals is what keeps today's HP and Hit curves, the balance targets and the 150-hour calibration roughly valid.
+2. **Staggered arrival inside the clock.** Members arrive through the 15 seconds, the last at 15, each landing its share of the Hit. A member beaten before it arrives lands nothing, so D037's "beat it before it hits" holds per member.
+3. **Damage goes to the front member first** (the one nearest contact). Single-target damage then overkills and wastes some, which is the gap area damage fills.
+4. **Bosses stay single.** They are the fight that stays (D037, D051). Escorts could come later.
+5. **Guard is the trap.** Guard takes a flat amount off every Hit, so splitting one 4,000 Hit into four 1,000 Hits would let an 800 Guard take 80% instead of 20%. Options: (a) Guard applies to the group's combined Hit and each member's share of it is taken off pro rata; (b) Guard is divided by the number of members. **Recommended: (a)**, because a group then costs a player exactly what the single wave did, and Guard keeps meaning what it says.
+6. **Coins for the share cleared** (D037) become the sum of the members beaten or damaged.
+7. **Owner direction (24 September 2026):** bosses cannot be pushed back by any force, only slowed. Knockback (build step 4) would act on ordinary members only.
+
+**What it needs:** the wave's position as a rule first; encounter state becomes a list of members (a new save version); member placement and arrival order from the wave number rather than the run's random stream, so a saved run resumes identically; the balance and career simulators taught front-first targeting and staggered Hits, then every balance target re-measured.
+
+**How it meets the wave queue** (the table above): the queue lets the *next* waves be damaged early; a group splits the *current* one. They can share one primitive, an encounter that holds several bodies, which is the reason to decide them together.
+
+**Open questions:** how many members per wave and tier; the arrival pattern (even, bunched, random from the wave number); whether a tap can pick its target or always strikes the front; how the Hit's working at contact (D052) reads for a member's share.
+
 ### How this meets the earlier proposals
 
 | Earlier proposal | Now |
@@ -183,6 +205,7 @@ Not taken: **Coins / Wave**. Waves already pay Coins by wave number, Coin Bonus 
 3. **Each new mechanic,** separately, as for the earlier rows.
 4. **The three primitives**: the movable Hit timer, the wave queue and the difficulty counter.
 5. **Burst → Frenzy and Double Tick → Volley**: carry ranks across or refund.
+6. **A wave becomes a group** (proposed above): same totals, staggered arrival, front-first damage, and Guard on the group's combined Hit.
 
 ### Build order
 
