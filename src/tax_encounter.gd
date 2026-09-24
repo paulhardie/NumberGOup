@@ -102,6 +102,19 @@ func apply_compliance(amount: ScientificNumber, multiplier: float = 1.0) -> Scie
 	_sum_remaining()
 	return applied
 
+## Deals `amount` to one member, such as Thorns to the enemy that hit (D064),
+## and returns what came off; nothing beyond its HP, and nothing if it is gone.
+func damage_member(index: int, amount: ScientificNumber) -> ScientificNumber:
+	if index < 0 or index >= members.size() or not is_alive(members[index]) or amount.is_zero():
+		return ScientificNumber.new()
+	var member: Dictionary = members[index]
+	var applied: ScientificNumber = amount if amount.compare_to(member.hp) < 0 else member.hp.copy()
+	member.hp = member.hp.subtract(applied)
+	if member.hp.is_zero():
+		member.state = KILLED
+	_sum_remaining()
+	return applied
+
 ## The living member nearest the Number, or -1 when none lives. Members at the
 ## Number sit ahead of those still walking, carried ones first.
 func front_index() -> int:

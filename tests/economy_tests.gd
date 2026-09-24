@@ -351,7 +351,7 @@ func _test_every_ladder_reaches_its_d047_maximum() -> void:
 	_expect(is_equal_approx(state._effect_sum("starting_number_flat"), 1500.0), "Cushion should cap at 1,500 Number")
 	_expect(state._burst_interval() == 6, "Burst should still bottom out at every sixth tick")
 	_expect(is_equal_approx(state._effect_sum("siphon_share"), 0.25), "Leech should keep a quarter of the damage dealt")
-	_expect(is_equal_approx(state._effect_sum("recoil_share"), 1.0), "Thorns should cap at the whole hit")
+	_expect(is_equal_approx(state._effect_sum("recoil_share"), 0.99), "Thorns should cap at 99% of an enemy's maximum HP, as The Tower's does")
 	_expect(is_equal_approx(state.get_brace_cost_percent(), GameState.BRACE_COST_FLOOR), "Brace Cost should cap at its floor")
 	_expect(is_equal_approx(state._effect_sum("second_wind_share"), 0.3), "Second Wind should cap at 30% of the run's peak")
 	_expect(is_equal_approx(state._effect_sum("boss_damage"), 1.0), "Boss Damage should keep double damage against bosses")
@@ -1321,8 +1321,8 @@ func _test_leech_feeds_on_a_standing_boss() -> void:
 	_expect(state.number.compare_to(ScientificNumber.from_float(1205)) == 0, "only the 60 the boss absorbed should be leeched")
 
 func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
-	# D038: Thorns (the `recoil` row) deals a share of every hit to the boss
-	# that landed it, or to the wave that replaces a missed ordinary wave.
+	# D064: Thorns (the `recoil` row) deals the enemy that hit a share of its own
+	# maximum HP, half on a boss, as The Tower's does.
 	var state := GameState.new()
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	state.purchased = {"recoil": 100}
@@ -1331,12 +1331,13 @@ func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
 	state.wave = 20
 	state.active_encounter = state._make_encounter(20)
 	state.active_encounter.remaining_liability = ScientificNumber.from_float(1e8)
-	var hit := state.get_effective_collection()
-	var before: ScientificNumber = state.active_encounter.remaining_liability.copy()
+	var boss_max: ScientificNumber = state.active_encounter.members[0].max.copy()
+	var before: ScientificNumber = state.active_encounter.members[0].hp.copy()
 	var event := state._resolve_wave_boundary()
 	_expect(event.type == "boss_collection" and state.wave == 21, "an unbeaten boss should hit and join the pile (D063)")
 	var thorned_boss: Dictionary = state.active_encounter.members[state.active_encounter.boss_index()]
-	_expect(thorned_boss.hp.compare_to(before.subtract(hit.multiply_scalar(0.5))) == 0, "half the hit should be dealt back to the boss")
+	var boss_thorns := boss_max.multiply_scalar(state._effect_sum("recoil_share") * state.balance_profile.BOSS_THORNS_SHARE)
+	_expect(absf(before.subtract(thorned_boss.hp).log10() - boss_thorns.log10()) < 1.0e-9, "a boss should take half of Thorns' share of its maximum HP")
 
 	# An ordinary wave's members stay at the Number (D058), so Thorns returns
 	# each hit to them, and the wave that replaces a missed one arrives whole.
@@ -1351,16 +1352,51 @@ func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
 			pile_hp = pile_hp.add(member.hp)
 	_expect(pile_hp.compare_to(wave_hp) < 0 and state.active_encounter.own_uncleared().compare_to(state.active_encounter.max_liability) == 0, "Thorns should land on the members at the Number, and the next wave arrive whole")
 
-	var pile_before := pile_hp.copy()
-	var number_before_brace := state.number.copy()
-	_expect(state.brace(), "Brace should be available against an active wave")
-	var spent := number_before_brace.subtract(state.number)
-	state._resolve_wave_boundary()
-	var pile_after := ScientificNumber.new()
-	for member in state.active_encounter.members:
-		if int(member.wave) == 21 and TaxEncounter.is_alive(member):
-			pile_after = pile_after.add(member.hp)
-	_expect(state.wave == 23 and pile_after.compare_to(pile_before) == 0 and number_before_brace.subtract(spent).compare_to(state.number) == 0, "a Brace should block every hit of its clock, so no Thorns are dealt")
+	# The contact still happens, so Thorns still bites through a Brace (D064).
+	# Wave 51's enemies stay after hitting, so the pile shows what Thorns took.
+	var braced := GameState.new()
+	braced.purchased = {"recoil": 100}
+	braced.start_run(1, 43)
+	braced.number = ScientificNumber.from_float(1e9)
+	braced.wave = 51
+	braced.active_encounter = braced._make_encounter(51)
+	var braced_wave_hp: ScientificNumber = braced.active_encounter.max_liability.copy()
+	_expect(braced.brace(), "Brace should be available against an active wave")
+	var after_brace := braced.number.copy()
+	braced._resolve_wave_boundary()
+	var braced_pile := ScientificNumber.new()
+	for member in braced.active_encounter.members:
+		if not braced.active_encounter.is_own(member):
+			braced_pile = braced_pile.add(member.hp)
+	_expect(braced.wave == 52 and braced.number.compare_to(after_brace) == 0 and not braced_pile.is_zero() and braced_pile.compare_to(braced_wave_hp) < 0, "a Brace should block every hit of its clock while Thorns still bites")
+
+	# Guard taking every hit to nothing still leaves the contact, so Thorns
+	# still bites: The Tower's Tier 1 turtle (D064).
+	var turtle := GameState.new()
+	turtle.purchased = {"recoil": 100, "guard": 5000}
+	turtle.start_run(1, 44)
+	turtle.number = ScientificNumber.from_float(1000)
+	turtle.wave = 51
+	turtle.active_encounter = turtle._make_encounter(51)
+	var turtle_front_max: ScientificNumber = turtle.active_encounter.members[0].max.copy()
+	for step in range(25):
+		turtle._advance_waves(0.25)
+	var turtle_front: Dictionary = turtle.active_encounter.members[0]
+	_expect(turtle.number.compare_to(ScientificNumber.from_float(1000)) >= 0 and bool(turtle_front.landed), "Guard should take the first hit to nothing")
+	_expect(absf(turtle_front_max.subtract(turtle_front.hp).log10() - turtle_front_max.multiply_scalar(turtle._effect_sum("recoil_share")).log10()) < 1.0e-9, "Thorns should still bite when Guard takes the hit to nothing")
+
+	# At 99%, an opening enemy that hits after taking any damage dies to Thorns
+	# before it can leave, so its wave can still be beaten.
+	var opener := GameState.new()
+	opener.purchased = {"recoil": 200}
+	opener.start_run(1, 45)
+	opener.number = ScientificNumber.from_float(1e6)
+	for member in opener.active_encounter.members:
+		member.hp = member.max.multiply_scalar(0.5)
+	opener.active_encounter._sum_remaining()
+	for step in range(64):
+		opener._advance_waves(0.25)
+	_expect(opener.wave == 2 and opener.get_tier_best(1) == 1, "opening enemies Thorns kills as they hit should leave their wave beaten")
 
 func _test_brace_cost_falls_to_its_floor() -> void:
 	var state := GameState.new()
@@ -2675,15 +2711,16 @@ func _test_defensive_ceilings_bound_the_combined_effects() -> void:
 	state._add_number(ScientificNumber.from_float(100))
 	_expect(state.number.compare_to(ScientificNumber.from_float(100.0 * (1.0 + state.balance_profile.SIPHON_CEILING))) == 0, "Leech should add exactly the capped share")
 
-	# Thorns: a hit can never be returned more than once over.
+	# Thorns: never more than the ceiling's share of an enemy's maximum HP,
+	# halved on a boss (D064).
 	_expect(state._effect_sum("recoil_share") > state.balance_profile.RECOIL_CEILING, "the fixture should stack Thorns past its ceiling")
-	var liability_before: ScientificNumber = state.active_encounter.remaining_liability.copy()
-	var hit := state.get_effective_collection()
+	var ceiling_boss_max: ScientificNumber = state.active_encounter.members[0].max.copy()
+	var liability_before: ScientificNumber = state.active_encounter.members[0].hp.copy()
 	state.number = ScientificNumber.new(1.0, 40)
 	state._resolve_wave_boundary()
-	# The boss joins the next wave's pile (D063); its own HP shows what came back.
+	# The boss joins the next wave's pile (D063); its own HP shows what came off.
 	var dealt := liability_before.subtract(state.active_encounter.members[state.active_encounter.boss_index()].hp)
-	_expect(dealt.compare_to(hit) == 0, "Thorns should deal back exactly the hit, never more")
+	_expect(absf(dealt.log10() - ceiling_boss_max.multiply_scalar(state.balance_profile.RECOIL_CEILING * state.balance_profile.BOSS_THORNS_SHARE).log10()) < 1.0e-9, "Thorns should stop at its ceiling's share of a boss's maximum HP")
 
 ## D057: a wave is a group whose members share its HP and Hit evenly, three
 ## at first and one more every eleven waves to twenty, and a boss is one.
@@ -2810,14 +2847,13 @@ func _test_group_brace_guard_and_thorns() -> void:
 	thorny.wave = 31
 	thorny.active_encounter = thorny._make_encounter(31)
 	var standing_before: ScientificNumber = thorny.active_encounter.remaining_liability.copy()
-	var landing := thorny.get_effective_collection().multiply_scalar(thorny.active_encounter.members[0].share)
 	var front_hp: ScientificNumber = thorny.active_encounter.members[0].hp.copy()
+	var thorns: ScientificNumber = thorny.active_encounter.members[0].max.multiply_scalar(minf(thorny._effect_sum("recoil_share"), thorny.balance_profile.RECOIL_CEILING))
 	for step in range(25):
 		thorny._advance_waves(0.25)
-	var thorns := landing.multiply_scalar(minf(thorny._effect_sum("recoil_share"), thorny.balance_profile.RECOIL_CEILING))
-	# The member that landed stays at the Number (D058), in front, and takes it.
+	# The member that hit takes a share of its own maximum HP (D064).
 	var expected_left := standing_before.subtract(thorns if thorns.compare_to(front_hp) < 0 else front_hp)
-	_expect(thorny.active_encounter.landed_count() == 1 and absf(thorny.active_encounter.remaining_liability.log10() - expected_left.log10()) < 0.000001, "Thorns should return a share of the landing to the member at the Number")
+	_expect(thorny.active_encounter.landed_count() == 1 and absf(thorny.active_encounter.remaining_liability.log10() - expected_left.log10()) < 0.000001, "Thorns should deal the enemy that hit a share of its own maximum HP")
 
 ## D057: V10 keeps each member's HP and state, so a run saved mid-wave resumes
 ## exactly; a V9 run resumes its wave as a group, keeping the share cleared.

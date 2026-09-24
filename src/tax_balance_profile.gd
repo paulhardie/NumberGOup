@@ -303,6 +303,8 @@ func rig_effect_multiplier(category: String, upgrade_id: String) -> float:
 const COLLECTION_RESISTANCE_CEILING := 0.75
 const SIPHON_CEILING := 0.5
 const RECOIL_CEILING := 1.0
+## Bosses take half of Thorns, as The Tower's do (D064).
+const BOSS_THORNS_SHARE := 0.5
 
 ## One rank costs `k` times RIG_PRICE_SECONDS of the given income at the first
 ## rank and grows from there (D039). Past that, a row's Workshop and run ranks

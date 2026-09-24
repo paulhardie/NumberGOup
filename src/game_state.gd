@@ -390,8 +390,8 @@ func _resolve_wave_boundary() -> SimulationEvent:
 ## up 4% for every hit it has already landed, then Armor and Guard on that one
 ## enemy's hit, as The Tower's defences work (D063). Its first hit is its
 ## arrival; after that it stays and hits again every interval. A Brace blocks
-## every hit until the wave's clock ends. Thorns returns part of each hit to
-## whatever stands in front.
+## every hit until the wave's clock ends. Thorns deals the enemy that hit a
+## share of its own maximum HP, as The Tower's does (D064).
 func _member_hit(index: int) -> SimulationEvent:
 	var member: Dictionary = active_encounter.members[index]
 	var first := not bool(member.landed)
@@ -405,14 +405,17 @@ func _member_hit(index: int) -> SimulationEvent:
 	# run is HP Attack did not clear.
 	var wave_hp_left: ScientificNumber = active_encounter.uncleared()
 	number = number.subtract(landed)
-	active_encounter.hit(index)
-	# Thorns (D038): the combined share is capped (D023) so a hit can never be
-	# returned more than once over. The member that hit is still there to take it.
+	# Thorns (D064): every hit deals the enemy that made it a share of its own
+	# maximum HP, half on a boss, whatever Guard or a Brace took off the hit,
+	# because the contact still happened. It lands before an opening enemy can
+	# leave. The combined share is capped (D023).
+	member.landed = true
 	var thorns_share := minf(_effect_sum("recoil_share"), balance_profile.RECOIL_CEILING)
-	if thorns_share > 0.0 and not landed.is_zero():
-		var thorned: int = active_encounter.front_index()
-		active_encounter.apply_compliance(landed.multiply_scalar(thorns_share))
-		_settle_beaten(thorned)
+	if thorns_share > 0.0:
+		var boss_share: float = balance_profile.BOSS_THORNS_SHARE if boss_hit else 1.0
+		active_encounter.damage_member(index, member.max.multiply_scalar(thorns_share * boss_share))
+		_settle_beaten(index)
+	active_encounter.hit(index)
 	if number.is_zero():
 		if not _try_second_wind():
 			return _wave_death(wave, landed, boss_hit, number_before_hit, wave_hp_left)

@@ -127,7 +127,7 @@ Attack is today's Output, Speed and Chance bays, nearly unchanged. Boss Damage i
 | --- | --- | --- | --- |
 | Armor | Every hit is X% smaller | 100 | hits 40% smaller |
 | Leech (`siphon`, D038) | While a boss stands, X% of the damage you deal it is added to your Number again | 100 | 25% of damage dealt to bosses |
-| Thorns (`recoil`, D038) | X% of every hit you take is dealt to the wave in front of you | 100 | half of every hit |
+| Thorns (`recoil`, D038, D064) | Each enemy that hits you takes X% of its own maximum HP, bosses half, even when Guard or a Brace stops the hit | 200 | 99% (since D064) |
 | Cushion | Start every run with X Number, scaled by the tier | 50 | 500 × the tier's pressure |
 | Brace Cost | Brace costs less than 30% of your Number | 60 | 15%, its floor |
 | Second Wind | Once per run, a hit that would end the run leaves you X% of your peak Number this run instead | 50 | a quarter of the peak |
@@ -136,7 +136,7 @@ Each works on a different part of being stuck:
 
 - Armor shrinks each hit.
 - Leech refills you during a boss fight.
-- Thorns turns being hit into progress on the boss, or the next wave.
+- Thorns turns being hit into progress: each enemy that touches you loses a share of its own health, which with Guard is Tier 1's turtle, as in The Tower (D064).
 - Cushion gives you an opening buffer.
 - Brace Cost improves the manual block.
 - Second Wind forgives one mistake.
