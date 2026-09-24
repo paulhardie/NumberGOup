@@ -5,7 +5,7 @@
 
 ## For the next agent: start here
 
-1. Read [`AGENTS.md`](../AGENTS.md), D056–D065 in [`DECISIONS.md`](DECISIONS.md), and [The Tower's Tier 1, wave by wave](TOWER_SCALING_FOUNDATION.md#tier-1-wave-by-wave-against-ours--24-september-2026). Fetch and check the branch against `origin` before new work. Don't switch the owner's playable `main` checkout.
+1. Read [`AGENTS.md`](../AGENTS.md), D056–D065 in [`DECISIONS.md`](DECISIONS.md), and [The Tower's Tier 1, wave by wave](TOWER_SCALING_FOUNDATION.md#tier-1-wave-by-wave-against-ours--24-september-2026); for Workshop rows, prices and unlock order, [`TOWER_WORKSHOP_REFERENCE.md`](TOWER_WORKSHOP_REFERENCE.md). Fetch and check the branch against `origin` before new work. Don't switch the owner's playable `main` checkout.
 2. **Standing owner rule (D063): "If in doubt, copy the way the tower does it", shaped to a game of numbers.** D009 still keeps copied constants out: copy The Tower's rules and structure, and fit our own coefficients to its shape.
 3. **This branch so far:** D063 (enemies tank more than they hit, bosses are walls that hit like one enemy, The Tower's defence order, 4% heat-up, late kills still pay), D064 (Thorns is a share of the attacker's maximum HP), then the pile made cheap to run, then D065: many enemies a wave, each with full health, on a 35-second wave.
 4. **Next, by the owner's ordering of "tower-ifying":** enemy types and pay per kill, then distance (reach and crowd control), then the arena layout pass, which D065's crowds have made urgent.
@@ -29,7 +29,8 @@ This branch plays like this on a fresh run (Godot 4.7.2, profile `tax-foundation
 2. **Should waves be fixed length, as The Tower's are?** Today a strong build strikes enemies before they arrive and moves on 2.5 seconds after beating the wave (D037), so maxed builds run about 24 seconds a wave. Recommend settling it inside the distance step, where arrival becomes a place and unarrived enemies can't be hit; changing D037 on its own would slow strong runs further without the rest of the Tower's shape.
 3. **Is the opening now too harsh?** A fresh run dies at wave 19 and a career takes 4.3 hours to wave 100. Recommend the owner plays a fresh run before anyone retunes; enemy types (fast, tank, ranged) will move it again.
 4. **Merge this branch?** It carries D063–D065 and save V11, so a merge moves the owner's real save to V11 on first load (a V10 copy is kept). Recommend a PR once the owner has played it.
-5. **Later:** the Workshop set proposed in the audit is superseded by rule 2; the D047 pacing alternative, coin gates, Research Focus, Labs/Cards/Ultimates sizing and the unmerged `codex/prestige-run-summary` (which must move past save V11) remain open.
+5. **Workshop pricing and unlocks (from the wiki tables).** The Tower's row prices rise with roughly the square of the level (cheap early, flattening), where ours compound 4.2% a rank; and its rows unlock with Coins in a fixed order, where ours unlock by Workshop level. Recommend folding both into the distance step's Coin-gated unlocks rather than repricing now, since enemy types will move Coin income first.
+6. **Later:** the Workshop set proposed in the audit is superseded by rule 2; the D047 pacing alternative, coin gates, Research Focus, Labs/Cards/Ultimates sizing and the unmerged `codex/prestige-run-summary` (which must move past save V11) remain open.
 
 ## Next steps, in order
 
