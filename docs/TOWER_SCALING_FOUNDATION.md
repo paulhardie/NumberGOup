@@ -157,6 +157,12 @@ Other Tier 1 facts from the same source: a boss comes every 10 waves with 20 tim
 
 **What a fresh Tower save starts with** (owner's new save, 24 September 2026): Damage 3, Attack Speed 1.00, Critical Chance 1%, Critical Factor ×1.20, Health 5 and Health Regen 0/sec. Damage, Attack Speed, Health and Health Regen cost 30 Coins a rank and the two crit rows 50. Range unlocks for 50 Coins and the next Defense set for 75. So a wave-1 enemy dies to one shot and takes five hits to kill the tower. The owner sees basic enemies pay $1 Cash and no Coins, with Coins coming from fast enemies and tougher. The SDK's coin model instead pays every kill `wave × type weight` (basic 1, fast and ranged 2, tank 4). Take the owner's play as the evidence for the current game.
 
+**What the owner's game shows (24 September 2026, Tier 1, a new save), which outranks the SDK where they differ:**
+
+- **Wave 22 Wave Info:** basic Health 63.11 and Attack 15.90; tank 315.56 (5×) and boss 1.26K (20×), both at the same 15.90 Attack; mix 85% basic, 7% fast, 6% tank, 2% ranged; Wave Timer 26 s, Wave Cooldown 9 s; Active Enemies 16 (spawn rate 15). The SDK matches the Attack (its 15 is 15.90 floored) and the multipliers, but its health is about 10% higher (69.64), its mix is 91/3/3/3, and its model counts about 3 enemies a wave. **The Tower sends far more enemies per wave than the SDK's model says,** which makes its wave totals several times the table above.
+- **Battle report at wave 22:** 12 m 33 s game time (about 34 s a wave), 7 m 49 s real time at ×1.5 speed, 1.46K Coins (11.25K an hour), and 16.94K damage, all from projectiles.
+- **Wave 21, mid-run build:** Damage 93, Health 118, Health Regen 1.29/s, Defense 2%, **Defense Absolute 19.76 against an enemy Attack of 14.75**, and Thorn 4%. The owner: "def absolute on tier 1 is the first 'yeah, I've stopped dying quickly' moment". Flat defence taken off each enemy's hit outgrows early enemy damage, so the swarm stops hurting and the danger moves to reaching the next wall.
+
 **What this says about our curve:**
 
 1. **Wave HP matches through about wave 60, then falls behind, then overshoots.** Our LIABILITY_SCALE of 4 stands in for The Tower's three to four enemies, so the opening matches. The Tower then adds enemies faster than we do and multiplies its HP by them, where we divide ours: its wave holds 2.3 times our HP at wave 100 and 3.5 times at 200. From about wave 500 our milestone chain (×1.08 every 10 waves compounding) passes its compound chain, and at wave 1,000 we are 27 times higher.
