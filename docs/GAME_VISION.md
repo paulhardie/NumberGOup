@@ -101,4 +101,5 @@ The foundation is locked when:
 
 - Is voluntary Prestige distinct enough from death, in both reward policy and player intent?
 - Does the long-term tree branch by Workshop category, by tier, or by encounter pattern?
+- What may money buy? The owner intends to monetise fairly, to compete with The Tower, once the game is in better shape (24 September 2026); until that is decided the local-save, no-store scope above stands. [`HANDOVER.md`](HANDOVER.md) holds the parked recommendation.
 - At what point does a second automation axis (choosing, not just ordering) become earned depth rather than solved busywork?
