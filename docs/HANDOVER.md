@@ -1,11 +1,11 @@
 # Handover
 
-**Last updated:** 24 September 2026, after building D055 (2.5 shots a second before any Attack Speed, each smaller, the same damage a second) on branch `claude/game-changes-review-fbili3`, not merged. D044–D054 and the class-cache fix are merged to `main` (PRs #48–#53).
+**Last updated:** 24 September 2026, after recording D056 (a wave becomes a group of enemies: accepted, not built) with The Tower's ramp and a four-step build plan. D044–D055 and the class-cache fix are merged to `main` (PRs #48–#54).
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
 
 ## Where the game is
 
-`main` plus the D055 branch plays like this (seed 7 simulator figures, Godot 4.7.2, balance profile `tax-foundation-v10`; nothing below has been checked on a phone):
+`main` plays like this (seed 7 simulator figures, Godot 4.7.2, balance profile `tax-foundation-v10`; nothing below has been checked on a phone):
 
 - **The core loop (D037, D038):** everything you produce is Number and also damages the wave. A beaten wave gives way to the next after 2.5 seconds. A missed ordinary wave hits once and moves on, paying Coins for the share you cleared. Bosses, every 10th wave, stay and hit every 15 seconds until you beat them. Guard cuts the Hit by a flat amount before Armor's percentage.
 - **The Workshop (D047, named in shots by D054):** Tap Damage and Damage (per shot, 0.03 a rank at 2.5 shots a second since D055) run to 6,000 ranks and Guard to 5,000, on The Tower's Damage and Defense Absolute curves; ranks 1–100 keep their old values and prices. Attack Speed (from 2.5 shots a second to 14.9), Crit Chance (80%), Crit Damage (×16.2 over 150), Multishot and Armor (50% over 125), Thorns (100% over 200), Second Wind (30%), Coin Bonus (×2.5 over 300) and Cushion (150 ranks) reach Tower-like maxima. No tier bands. Each row keeps its old prices to its old cap; past it a deep-row rank costs 1.00075× the last and an extended capped row 1.02×. The whole Workshop costs 37.0 million Coins.
@@ -34,8 +34,8 @@
 
 ## Open decisions for the owner
 
-1. **Play-test and merge branch `claude/game-changes-review-fbili3`** (D055: 2.5 shots a second, each smaller). Economy-touching but measured neutral: same damage a second, same waves and Coins over twelve seeds.
-2. **Groups, in principle** ([proposal](WORKSHOP_EXPANSION.md#proposal-a-wave-becomes-a-group--24-september-2026)). With one enemy, Damage and Attack Speed are the same purchase; a group (same totals split across members, front-first damage) is what gives speed its job (less overkill) and Multishot and area damage theirs. The owner tied the Attack Speed rework to this call. Agent's recommendation: yes, after slowing bosses.
+1. **Play-test D055 (merged):** 2.5 shots a second, each smaller, the same damage a second; measured neutral over twelve seeds, not yet felt in motion.
+2. **Groups: accepted (D056); one call before building step 1.** When a member reaches the Number, does it hit once and pass (D037, today's balance) or stay and keep hitting, as in The Tower (more pressure; means a retune)? Agent's recommendation: hit once and pass for step 1. The Tower ramp and the four-step build plan are in [`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md#proposal-a-wave-becomes-a-group--24-september-2026).
 3. **Step 2 of the shots rework: how much tapping should add, and the damage/speed split.** Today tapping is most of a fresh run's damage (two taps a second about triples it; 0 taps reaches about wave 19, 2 a second 29, 6 a second 40) but only about a fifth by rank 100, and run Cash assumes one tap a second whether or not you tap. The proposal: a tap fires a shot worth a share of current Damage (Tap Damage becomes that share), taps past about five a second count half, and target idle 100%, one tap a second about +15–20%, three about +40–50%, a cap near double. High risk: economy; measure with the balance simulator's taps-a-second sweep and the career simulator before building.
 4. **When position becomes a rule:** slowing bosses (not pushing them), and range or several bodies for area damage.
 5. **The early-game pacing change.** D047's bigger Attack Speed and Crit steps halve the focused player's time to wave 100. Built as approved. The alternative keeps today's per-rank steps and adds ranks instead (Attack Speed 196, Crit Chance 320, Crit Damage 284 ranks), which keeps the first hours as they were and moves the extra power later.
@@ -49,7 +49,7 @@
 
 ## Next steps, in order
 
-1. **Owner:** play D055 and merge it or ask for changes; decide groups in principle (decision 2) and the tapping proposal (decision 3). **Agent:** measure it first (taps-a-second sweep, career simulator), then build it as its own decision. High risk: economy.
+1. **Owner:** play D055; answer decision 2 (a member hits once or stays). **Agent:** then build group step 1, the engine: members with the wave's totals, staggered arrival, front-first damage, save V10, simulators taught, balance re-measured and retuned. High risk: encounter, saves, economy. The tapping proposal (decision 3) follows in step 4.
 2. **Agent:** draw Labs, Cards, Milestones and Stats on the design canvas in the Instrument look and build them; they only have the new palette and fonts so far. Low–medium risk.
 3. **Owner:** decide the pacing alternative (decision 5). **Agent:** if the alternative is chosen, it is a data change in `data/workshop/upgrades.json` plus a price recalibration. Medium risk.
 4. **Owner:** decide coin gates; then **agent:** build them as the parity plan's step 1 with save V10. High risk: saves, economy.
