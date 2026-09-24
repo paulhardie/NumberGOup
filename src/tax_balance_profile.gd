@@ -6,7 +6,7 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v10"
+const PROFILE_ID := "tax-foundation-v11"
 const WAVE_INTERVAL_SECONDS := 15.0
 const BOSS_WAVE_INTERVAL := 10
 ## A beaten wave stays on screen at least this long before the next arrives
@@ -55,6 +55,42 @@ const BASE_DAMAGE_PER_SECOND := 1.0
 ## against it, so raising it means more, smaller shots at the same damage per
 ## second: a fresh run shows a stream of motes rather than one a second.
 const BASE_SHOTS_PER_SECOND := 2.5
+## A wave is a group (D057): its HP and Hit are shared evenly between its
+## members, so more members means weaker ones, not a harder wave. The Tower
+## sends about four slow enemies to its first waves and about twelve by wave
+## 100; ours starts at three and gains one every WAVES_PER_EXTRA_MEMBER waves,
+## capped so a phone can still show them. A boss is always one.
+const FIRST_WAVE_MEMBERS := 3
+const WAVES_PER_EXTRA_MEMBER := 11
+const MAX_WAVE_MEMBERS := 20
+## Members walk in as a column: the front one reaches the Number this many
+## seconds into the wave and the last at the end of the clock, evenly spaced.
+## With damage striking the front member first, a steady output clears every
+## member in time exactly when it would have cleared the whole wave in 15
+## seconds, so the split alone does not move a wave's difficulty.
+const FIRST_ARRIVAL_SECONDS := 6.0
+## A member that reaches the Number stays and hits again this often until
+## beaten (D058). A boss keeps the 15-second clock. Mutable so the balance
+## tools can sweep it.
+const DEFAULT_MEMBER_HIT_SECONDS := 5.0
+var MEMBER_HIT_SECONDS := DEFAULT_MEMBER_HIT_SECONDS
+## The opening is gentler (D059): to wave OPENING_HIT_WAVES a member that
+## reaches the Number hits once and leaves (D057's rule), so a new player
+## banks Cash before any pile forms. After that members stay, hitting every
+## OPENING_HIT_SECONDS at first and easing to MEMBER_HIT_SECONDS by wave
+## OPENING_EASED_BY. Zero means "hits once and passes".
+const OPENING_HIT_SECONDS := 15.0
+## Mutable so tests of the staying rule can start past the opening.
+var OPENING_HIT_WAVES := 30
+var OPENING_EASED_BY := 50
+
+func member_hit_seconds(wave: int) -> float:
+	if wave <= OPENING_HIT_WAVES:
+		return 0.0
+	if wave >= OPENING_EASED_BY or OPENING_EASED_BY <= OPENING_HIT_WAVES:
+		return MEMBER_HIT_SECONDS
+	var eased := float(wave - OPENING_HIT_WAVES) / float(OPENING_EASED_BY - OPENING_HIT_WAVES)
+	return lerpf(OPENING_HIT_SECONDS, MEMBER_HIT_SECONDS, eased)
 
 var tiers: Array = []
 
@@ -79,6 +115,18 @@ func has_tier(tier_id: int) -> bool:
 		if tier.id == tier_id:
 			return true
 	return false
+
+func members_for_wave(wave: int) -> int:
+	if is_boss_wave(wave):
+		return 1
+	return mini(MAX_WAVE_MEMBERS, FIRST_WAVE_MEMBERS + (maxi(1, wave) - 1) / WAVES_PER_EXTRA_MEMBER)
+
+## When member `index` (0 is the front) of `count` reaches the Number, in
+## seconds from the wave's start.
+func member_arrival(index: int, count: int) -> float:
+	if count <= 1:
+		return WAVE_INTERVAL_SECONDS
+	return FIRST_ARRIVAL_SECONDS + (WAVE_INTERVAL_SECONDS - FIRST_ARRIVAL_SECONDS) * float(index) / float(count - 1)
 
 func is_boss_wave(wave: int) -> bool:
 	return wave > 0 and wave % BOSS_WAVE_INTERVAL == 0

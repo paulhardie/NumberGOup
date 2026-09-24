@@ -229,6 +229,7 @@ bash run_balance.sh
 bash run_godot.sh --headless --path . -s res://tools/career_simulator.gd
 bash run_godot.sh --headless --path . --quit
 bash run_godot.sh --path . -s res://tools/capture_ui.gd
+bash run_godot.sh --path . -s res://tools/arena_probe.gd
 ```
 
 - All of these use the Godot in `/Users/paulhardie/Downloads/Godot.app`; set `GODOT` to point them at another binary.
@@ -237,6 +238,7 @@ bash run_godot.sh --path . -s res://tools/capture_ui.gd
 - `tools/career_simulator.gd` plays a fresh save run after run, spending Coins between runs, and compares today's rules with the proposed coin gates and other run rank worths; `-- --runs N`, `-- --spend even|focused`, `-- --layout plan|tower`, `-- --ladder NAME` and `-- --careers a,b` narrow it. It is a measurement tool, not a gate.
 - The headless project run catches parse and scene-build errors in `main.gd` and the UI classes.
 - CI runs the same baseline on every pull request and push to `main` (`.github/workflows/verify.yml`), with its Godot version pinned to match the development build — update the pin when upgrading Godot. `main` requires a pull request with a passing "Economy tests and headless boot" check.
+- `tools/arena_probe.gd` plays the run arena through its beats in a real window (groups walking in, motes, clears, slams, the Hit's working, the pile at the Number, a boss behind a pile, Reduce Motion), prints `ARENA PROBE PASS` or the failed checks, and writes screenshots to `user://arena_probe`. It saves to a throwaway file. On headless Linux wrap it in `xvfb-run -a -s "-screen 0 1024x1100x24"`.
 - The capture tool opens briefly and writes hub/hub_played/milestones/run/run_standing/boss/workshop/knowledge/labs/cards/lost/drawer PNGs at four window sizes to `user://ui_capture` for visual review, and prints the folder it wrote to; inspect them, never assert pixel equality. It saves to a throwaway file, never the real save.
 - Tests write `res://.number_go_up_test_save.json` (and, since D028, its `.bak`, migration and moved-aside copies) and clear them; a leftover file is a bug in the test, not content.
 - `opencode.json` disables the GDScript language server for agents that read it. Godot's LSP is TCP and only runs while the editor is open, which hangs clients that expect stdio; the [`opencode-godot-lsp`](https://github.com/MasuRii/opencode-godot-lsp) bridge is the way to turn it back on.

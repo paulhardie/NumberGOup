@@ -13,6 +13,7 @@ const SaveDataV6Class = preload("res://src/save_data_v6.gd")
 const SaveDataV7Class = preload("res://src/save_data_v7.gd")
 const SaveDataV8Class = preload("res://src/save_data_v8.gd")
 const SaveDataV9Class = preload("res://src/save_data_v9.gd")
+const SaveDataV10Class = preload("res://src/save_data_v10.gd")
 const GameDataClass = preload("res://src/game_data.gd")
 
 const SAVE_PATH := "user://number_go_up_save.json"
@@ -101,6 +102,10 @@ var wave_accumulator := 0.0
 var coins := 0
 var highest_wave := 1
 var braced := false
+## True once a Brace has blocked a hit in the current wave's clock (D057,
+## D058), so the Brace is used up when that clock ends rather than on the
+## first member.
+var brace_spent := false
 ## The run's own peak, which Second Wind restores a share of. Distinct from
 ## highest_number, which is permanent and drives dock unlocks.
 var run_peak_number := ScientificNumber.new()
@@ -272,6 +277,7 @@ func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	wave = 1
 	wave_accumulator = 0.0
 	braced = false
+	brace_spent = false
 	run_seed = seed_override if seed_override >= 0 else int(Time.get_ticks_usec()) ^ int(Time.get_unix_time_from_system())
 	rng.seed = run_seed
 	active_encounter = _make_encounter(wave)
@@ -319,71 +325,103 @@ func _advance_waves(delta: float) -> Array[SimulationEvent]:
 	var safe_delta := minf(delta, 0.25)
 	run_elapsed += safe_delta
 	wave_accumulator += safe_delta
-	var safety := 0
-	while safety < 10 and in_run:
-		# A beaten wave gives way to the next as soon as it has been on screen
-		# for the minimum beat (D037), so mastered waves cost seconds, not the
-		# whole timer. Output is already Number, so nothing is lost by moving on.
-		if active_encounter != null and active_encounter.is_cleared() and wave_accumulator >= balance_profile.MIN_WAVE_SECONDS:
-			wave_accumulator = 0.0
-			events.append(_complete_current_wave())
-		elif wave_accumulator >= WAVE_INTERVAL_SECONDS:
-			wave_accumulator -= WAVE_INTERVAL_SECONDS
-			var wave_event := _resolve_wave_boundary()
-			if wave_event != null:
-				events.append(wave_event)
-		else:
-			break
-		safety += 1
+	_run_wave_clock(events)
 	return events
 
-func _resolve_wave_boundary() -> SimulationEvent:
-	if active_encounter == null:
-		active_encounter = _make_encounter(wave)
-	if active_encounter.is_cleared():
-		return _complete_current_wave()
-	var collection := get_effective_collection()
-	if braced:
-		collection = ScientificNumber.new()
-		braced = false
-	# The buffer the hit is about to test, kept for the run-over screen's
-	# Defense gap: subtraction floors at zero, so the Number that died is gone
-	# by the time _wave_death builds the summary.
-	var number_before_hit := number.copy()
-	# Attack's gap is what the wave had left when the timer ran out. Read it
-	# before Thorns returns part of the hit, so the screen credits Attack only
-	# with Attack's own damage.
-	var wave_hp_left: ScientificNumber = active_encounter.remaining_liability.copy()
-	number = number.subtract(collection)
-	# Thorns (D038) deals a share of every hit to the wave in front of you. A
-	# braced boundary deals none, because no hit landed. The combined share is
-	# capped (D023) so a hit can never be returned more than once over.
-	var thorns_share := minf(_effect_sum("recoil_share"), balance_profile.RECOIL_CEILING)
-	var thorns := collection.multiply_scalar(thorns_share) if thorns_share > 0.0 else ScientificNumber.new()
-	if active_encounter.is_boss and not thorns.is_zero():
-		active_encounter.apply_compliance(thorns)
-	var hit_event: SimulationEvent
-	if number.is_zero():
-		var rescued := _try_second_wind()
-		if not rescued:
-			return _wave_death(wave, collection, active_encounter.is_boss, number_before_hit, wave_hp_left)
-		hit_event = SimulationEvent.new("second_wind", number.copy())
-	else:
-		hit_event = SimulationEvent.new("boss_collection" if active_encounter.is_boss else "tax_collection", collection)
-	# Bosses stay until beaten and hit again every timer: they are the fights
-	# (D037). Every other wave lands its hit once and gives way to the next,
-	# and Thorns lands on the wave that replaces it.
-	if not active_encounter.is_boss:
-		_pass_missed_wave()
-		if not thorns.is_zero():
-			active_encounter.apply_compliance(thorns)
-	return hit_event
+## Plays the wave clock up to `wave_accumulator`. Every living member hits on
+## its own clock: once when it reaches the Number, then every interval while it
+## stays (D058). A wave whose own members are all beaten gives way to the next
+## after the minimum beat (D037); one still standing when its clock runs out
+## passes, as does an opening wave whose members hit and left (D059). Whatever
+## still lives at the Number carries into the next wave,
+## so a build that cannot beat them is worn down by the pile. A boss holds the
+## clock until beaten (D037), its clock wrapping every 15 seconds.
+func _run_wave_clock(events: Array[SimulationEvent]) -> void:
+	var safety := 0
+	while safety < 200 and in_run:
+		safety += 1
+		if active_encounter == null:
+			active_encounter = _make_encounter(wave)
+		var due: int = active_encounter.due_index(wave_accumulator)
+		if due >= 0:
+			events.append(_member_hit(due))
+			continue
+		if active_encounter.own_alive_count() == 0 and wave_accumulator >= balance_profile.MIN_WAVE_SECONDS:
+			active_encounter.shift_clock(wave_accumulator)
+			wave_accumulator = 0.0
+			_end_brace_window()
+			# Nothing of the wave left: beaten, unless an opening member hit
+			# and left (D059), which passes it as a missed wave.
+			if active_encounter.is_beaten():
+				events.append(_complete_current_wave(active_encounter.living_members()))
+			else:
+				_pass_missed_wave(active_encounter.living_members())
+		elif wave_accumulator >= WAVE_INTERVAL_SECONDS:
+			wave_accumulator -= WAVE_INTERVAL_SECONDS
+			active_encounter.shift_clock(WAVE_INTERVAL_SECONDS)
+			_end_brace_window()
+			if not active_encounter.is_boss:
+				_pass_missed_wave(active_encounter.living_members())
+		else:
+			break
 
-## An ordinary wave that outlasts its timer moves on (D037). It pays Coins for
-## the share of it that was cleared, floored like Coin Bonus so a one-Coin
-## wave pays only when beaten. It was not beaten, so it sets no record
-## and pays no Gems; its checkpoint pays when a later wave is beaten.
-func _pass_missed_wave() -> void:
+## Plays the clock to the end of the active wave's 15 seconds and returns what
+## happened there: the last Hit or clear, not a hit from the pile.
+func _resolve_wave_boundary() -> SimulationEvent:
+	var events: Array[SimulationEvent] = []
+	wave_accumulator = maxf(wave_accumulator, WAVE_INTERVAL_SECONDS)
+	_run_wave_clock(events)
+	var found: SimulationEvent = null
+	for event in events:
+		if event.type != "pile_hit":
+			found = event
+	return found
+
+## A member hits the Number (D057, D058): its share of its wave's Hit, after
+## Guard and Armor on that whole Hit, so a group costs what the single wave
+## did. Its first hit is its arrival; after that it stays and hits again every
+## interval. A Brace blocks every hit until the wave's clock ends. Thorns
+## returns part of each hit to whatever stands in front.
+func _member_hit(index: int) -> SimulationEvent:
+	var member: Dictionary = active_encounter.members[index]
+	var first := not bool(member.landed)
+	var boss_hit: bool = active_encounter.is_boss and active_encounter.is_own(member)
+	var landed := _effective_hit(member.wave_hit).multiply_scalar(float(member.share))
+	if braced:
+		landed = ScientificNumber.new()
+		brace_spent = true
+	var number_before_hit := number.copy()
+	# Everything Attack left alive, the pile included: a pile that ends the
+	# run is HP Attack did not clear.
+	var wave_hp_left: ScientificNumber = active_encounter.uncleared()
+	number = number.subtract(landed)
+	active_encounter.hit(index)
+	# Thorns (D038): the combined share is capped (D023) so a hit can never be
+	# returned more than once over. The member that hit is still there to take it.
+	var thorns_share := minf(_effect_sum("recoil_share"), balance_profile.RECOIL_CEILING)
+	if thorns_share > 0.0 and not landed.is_zero():
+		active_encounter.apply_compliance(landed.multiply_scalar(thorns_share))
+	if number.is_zero():
+		if not _try_second_wind():
+			return _wave_death(wave, landed, boss_hit, number_before_hit, wave_hp_left)
+		return SimulationEvent.new("second_wind", number.copy())
+	if boss_hit:
+		return SimulationEvent.new("boss_collection", landed)
+	return SimulationEvent.new("tax_collection" if first else "pile_hit", landed)
+
+## A Brace covers the wave's clock it was raised in. Spent on any hit, it ends
+## with that clock; never tested, it carries on, as before.
+func _end_brace_window() -> void:
+	if brace_spent:
+		braced = false
+	brace_spent = false
+
+## An ordinary wave still standing when its clock runs out passes (D037). It
+## pays Coins for the share of it that was cleared, floored like Coin Bonus so
+## a one-Coin wave pays only when beaten. It was not beaten, so it sets no
+## record and pays no Gems; its checkpoint pays when a later wave is beaten.
+## Its members still at the Number stay there, ahead of the next wave (D058).
+func _pass_missed_wave(carried: Array = []) -> void:
 	var share := get_wave_cleared_share()
 	var coin_gain := floori(float(active_encounter.reward) * share * (1.0 + _effect_sum("coin_bonus")) + 0.000001)
 	coins += coin_gain
@@ -391,16 +429,20 @@ func _pass_missed_wave() -> void:
 	_add_cash(ScientificNumber.from_float(balance_profile.wave_cash(wave) * share))
 	wave += 1
 	active_encounter = _make_encounter(wave)
+	active_encounter.carry_in(carried)
 
-## How much of the active wave's HP has been cleared, from 0 to 1.
+## How much of the active wave's own HP has been cleared, from 0 to 1. Members
+## carried in from earlier waves are not counted (D058).
 func get_wave_cleared_share() -> float:
-	if active_encounter == null or active_encounter.max_liability.is_zero() or active_encounter.is_cleared():
+	if active_encounter == null or active_encounter.max_liability.is_zero():
 		return 1.0
-	if active_encounter.remaining_liability.compare_to(active_encounter.max_liability) >= 0:
+	var remaining: ScientificNumber = active_encounter.own_uncleared()
+	if remaining.is_zero():
+		return 1.0
+	if remaining.compare_to(active_encounter.max_liability) >= 0:
 		return 0.0
 	# A plain ratio of mantissas, not logarithms, so 20 left of 100 is exactly
 	# 0.8 and a floored Coin count never comes out one short.
-	var remaining: ScientificNumber = active_encounter.remaining_liability
 	var full: ScientificNumber = active_encounter.max_liability
 	var left := remaining.mantissa / full.mantissa * pow(10.0, remaining.exponent - full.exponent)
 	return clampf(1.0 - left, 0.0, 1.0)
@@ -421,7 +463,7 @@ func _try_second_wind() -> bool:
 	number = restored
 	return true
 
-func _complete_current_wave() -> SimulationEvent:
+func _complete_current_wave(carried: Array = []) -> SimulationEvent:
 	var completed_wave := wave
 	var completed_boss: bool = bool(active_encounter.is_boss)
 	var coin_gain: int = int(active_encounter.reward)
@@ -463,6 +505,7 @@ func _complete_current_wave() -> SimulationEvent:
 	_add_cash(ScientificNumber.from_float(balance_profile.wave_cash(completed_wave)))
 	wave += 1
 	active_encounter = _make_encounter(wave)
+	active_encounter.carry_in(carried)
 	if completed_wave == TIER_UNLOCK_WAVE and previous_best < TIER_UNLOCK_WAVE and balance_profile.has_tier(selected_tier + 1):
 		return SimulationEvent.new("tier_unlock", ScientificNumber.from_float(float(selected_tier + 1)))
 	return SimulationEvent.new("boss_clear" if completed_boss else "wave_clear", ScientificNumber.from_float(float(coin_gain)))
@@ -473,13 +516,19 @@ func _make_encounter(target_wave: int):
 		"liability",
 		active_rule_modifiers
 	)
+	var count := balance_profile.members_for_wave(target_wave)
+	var arrivals: Array = []
+	for index in range(count):
+		arrivals.append(balance_profile.member_arrival(index, count))
 	return TaxEncounterClass.new(
 		selected_tier,
 		target_wave,
 		liability,
 		balance_profile.collection_for_wave(selected_tier, target_wave),
 		balance_profile.reward_for_wave(selected_tier, target_wave),
-		balance_profile.is_boss_wave(target_wave)
+		balance_profile.is_boss_wave(target_wave),
+		arrivals,
+		WAVE_INTERVAL_SECONDS if balance_profile.is_boss_wave(target_wave) else balance_profile.member_hit_seconds(target_wave)
 	)
 
 func _wave_death(reached: int, hit: ScientificNumber, boss: bool, number_before_hit: ScientificNumber, wave_hp_left: ScientificNumber) -> SimulationEvent:
@@ -507,27 +556,42 @@ func _wave_death(reached: int, hit: ScientificNumber, boss: bool, number_before_
 func get_effective_collection() -> ScientificNumber:
 	if active_encounter == null:
 		return ScientificNumber.new()
-	return RuleModifierPipelineClass.apply(active_encounter.collection, "collection", _collection_modifiers())
+	return _effective_hit(active_encounter.collection)
 
-## The Hit as it is worked out at contact (D052): the wave's Hit after any
-## rule that changes it but before the player's defences, what Guard takes off,
-## what Armor then takes off, and what lands. Each part is the same pipeline
-## stopped earlier, so the parts always add up to get_effective_collection().
-func get_hit_breakdown() -> Dictionary:
+## A wave's whole Hit after the run's rules, Guard and Armor.
+func _effective_hit(base: ScientificNumber) -> ScientificNumber:
+	return RuleModifierPipelineClass.apply(base, "collection", _collection_modifiers(base))
+
+## The next Hit as it is worked out at contact (D052): the Hit after any rule
+## that changes it but before the player's defences, what Guard takes off, what
+## Armor then takes off, and what lands. Each part is the same pipeline stopped
+## earlier, so the parts always add up to what lands. The next Hit is the
+## front member's share of its wave's (D057).
+func get_hit_breakdown(member_index: int = -1) -> Dictionary:
 	if active_encounter == null:
 		return {"raw": ScientificNumber.new(), "guard": ScientificNumber.new(), "armor": ScientificNumber.new(), "final": ScientificNumber.new()}
-	var modifiers := _collection_modifiers()
-	var base: ScientificNumber = active_encounter.collection
+	var front: int = member_index if member_index >= 0 else active_encounter.front_index()
+	var base: ScientificNumber = active_encounter.members[front].wave_hit if front >= 0 else active_encounter.collection
+	var modifiers := _collection_modifiers(base)
 	var raw := RuleModifierPipelineClass.apply(base, "collection", modifiers.filter(func(modifier): return not ["guard", "armor"].has(str(modifier.get("source", "")))))
 	var after_guard := RuleModifierPipelineClass.apply(base, "collection", modifiers.filter(func(modifier): return str(modifier.get("source", "")) != "armor"))
 	var final := RuleModifierPipelineClass.apply(base, "collection", modifiers)
-	return {"raw": raw, "guard": raw.subtract(after_guard), "armor": after_guard.subtract(final), "final": final}
+	var share: float = float(active_encounter.members[front].share) if front >= 0 else 1.0
+	return {"raw": raw.multiply_scalar(share), "guard": raw.subtract(after_guard).multiply_scalar(share), "armor": after_guard.subtract(final).multiply_scalar(share), "final": final.multiply_scalar(share)}
+
+## The share of its wave's Hit the front member carries: a third of wave 1's,
+## all of a boss's.
+func next_hit_share() -> float:
+	if active_encounter == null:
+		return 1.0
+	var front: int = active_encounter.front_index()
+	return float(active_encounter.members[front].share) if front >= 0 else 1.0
 
 ## Every modifier the Hit passes through, in one list: the run's rules, then
 ## Guard, then Armor. The pipeline decides the order by stage.
-func _collection_modifiers() -> Array:
+func _collection_modifiers(base: ScientificNumber = null) -> Array:
 	var modifiers := active_rule_modifiers.duplicate(true)
-	var base_hit: ScientificNumber = active_encounter.collection
+	var base_hit: ScientificNumber = base if base != null else active_encounter.collection
 	var resistance := clampf(_effect_sum("collection_resistance"), 0.0, balance_profile.COLLECTION_RESISTANCE_CEILING)
 	var guard_stat := _effect_sum("guard_flat")
 
@@ -1184,6 +1248,7 @@ func _reset_run_state() -> void:
 	wave = 1
 	wave_accumulator = 0.0
 	braced = false
+	brace_spent = false
 	run_peak_number = ScientificNumber.new()
 	second_wind_used = false
 	rig_ranks = {}
@@ -1234,7 +1299,7 @@ func save() -> bool:
 	var file := FileAccess.open(temp, FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify(SaveDataV9Class.make(self), "", true, true))
+	file.store_string(JSON.stringify(SaveDataV10Class.make(self), "", true, true))
 	var write_error := file.get_error()
 	file.close()
 	if write_error != OK:
@@ -1280,7 +1345,7 @@ func _read_save(path: String) -> Dictionary:
 		return {"status": READ_UNREADABLE}
 	var data: Dictionary = json.data
 	var version := int(data.get("version", 0)) if (data.get("version") is int or data.get("version") is float) else 0
-	if version > SaveDataV9Class.VERSION:
+	if version > SaveDataV10Class.VERSION:
 		return {"status": READ_NEWER}
 	var known := (
 		SaveDataV2.is_legacy_v1(data)
@@ -1292,8 +1357,9 @@ func _read_save(path: String) -> Dictionary:
 		or SaveDataV7Class.is_valid(data)
 		or SaveDataV8Class.is_valid(data)
 		or SaveDataV9Class.is_valid(data)
+		or SaveDataV10Class.is_valid(data)
 	)
-	if not known or SaveDataV9Class.problem(data) != "":
+	if not known or SaveDataV10Class.problem(data) != "":
 		return {"status": READ_UNREADABLE}
 	return {"status": READ_OK, "data": data}
 
@@ -1316,14 +1382,17 @@ func _load_parsed(data: Dictionary, source_path: String) -> OfflineAward:
 			return _migrate_v7(data, source_path)
 		8:
 			return _migrate_v8(data, source_path)
+		9:
+			return _migrate_v9(data, source_path)
 	return _load_current(data)
 
-## V5 through V9 share every key and meaning. V6 declared the fields added to
+## V5 through V10 share every key and meaning. V6 declared the fields added to
 ## V5 after it shipped and added the run's tick phase and crit chain, which a
 ## V5 save resumes without, as it always did; V7 added the Lab slot count, which
 ## an older save reads as the two slots every player then had; V8 added the
 ## run's Gems and marks that milestones paid at the old rate were topped up;
-## V9 declared the run's Cash and marks saves whose deep rows may pass rank 100.
+## V9 declared the run's Cash and marks saves whose deep rows may pass rank 100;
+## V10 keeps a wave's members, which a V9 run resumes as one member (D057).
 func _load_current(data: Dictionary) -> OfflineAward:
 	_load_common_fields(data)
 	_load_tier_progress(data)
@@ -1348,6 +1417,11 @@ func _migrate_v7(data: Dictionary, source_path: String) -> OfflineAward:
 func _migrate_v8(data: Dictionary, source_path: String) -> OfflineAward:
 	var award := _load_current(data)
 	_save_migrated_state(8, source_path)
+	return award
+
+func _migrate_v9(data: Dictionary, source_path: String) -> OfflineAward:
+	var award := _load_current(data)
+	_save_migrated_state(9, source_path)
 	return award
 
 ## V4 kept the Workshop in four bays, with the Armor rank in a field of its own.
@@ -1444,8 +1518,9 @@ func _normalise_tier_record(record: Dictionary) -> void:
 				claimed.append(claimed_wave)
 	record.milestones_claimed = claimed
 
-## A saved active run resumes with identical remaining Liability and identical
-## RNG state (D006). A save taken between runs restores a clean run instead.
+## A current-rules active save resumes with identical remaining Liability and
+## RNG state (D006). Older encounter rules are reconciled below (D060). A save
+## taken between runs restores a clean run instead.
 func _restore_saved_run(data: Dictionary) -> void:
 	wave = maxi(1, int(data.get("wave", 1)))
 	wave_accumulator = clampf(float(data.get("wave_accumulator", 0.0)), 0.0, WAVE_INTERVAL_SECONDS)
@@ -1457,6 +1532,7 @@ func _restore_saved_run(data: Dictionary) -> void:
 	run_elapsed = maxf(0.0, float(data.get("run_elapsed", 0.0)))
 	run_seed = str(data.get("run_seed", "0")).to_int()
 	braced = bool(data.get("braced", false))
+	brace_spent = bool(data.get("brace_spent", false)) and in_run
 	# Added after V5 shipped; a save without them resumes with an unspent Second
 	# Wind and its peak re-established from the Number it restores.
 	var saved_peak: Variant = data.get("run_peak_number", null)
@@ -1475,6 +1551,7 @@ func _restore_saved_run(data: Dictionary) -> void:
 		active_encounter = TaxEncounterClass.from_dict(encounter_data) if encounter_data is Dictionary else _make_encounter(wave)
 		if str(data.get("balance_profile_id", "")) != balance_profile.PROFILE_ID:
 			_rebuild_encounter_on_current_profile()
+		_reconcile_opening_members_on_load()
 		# Added after V5 shipped, like the run peak: a save without Rig ranks
 		# resumes with none, and malformed ranks read as none rather than crash.
 		var saved_rig: Variant = data.get("rig_ranks", {})
@@ -1495,6 +1572,39 @@ func _restore_saved_run(data: Dictionary) -> void:
 	# mid-run leaves it for the run's end (D031).
 	_settle_labs()
 
+## D058 and D059 share V10 and the same HP/Hit profile. An older active save
+## can therefore contain repeating members from the gentler opening and the
+## old five-second interval in the eased waves. Keep Number and uncleared HP.
+func _reconcile_opening_members_on_load() -> void:
+	if active_encounter == null:
+		return
+	var retained: Array = []
+	for member in active_encounter.members:
+		var member_wave := int(member.wave)
+		if balance_profile.is_boss_wave(member_wave):
+			retained.append(member)
+			continue
+		var interval := balance_profile.member_hit_seconds(member_wave)
+		if interval > 0.0:
+			var saved_interval := float(member.interval)
+			if not is_equal_approx(saved_interval, interval):
+				# A member already at the Number keeps the time since its last
+				# Hit when the D058 repeat clock becomes D059's eased clock.
+				if int(member.state) == TaxEncounterClass.AT_NUMBER:
+					member.next_hit = float(member.next_hit) + interval - saved_interval
+				member.interval = interval
+			retained.append(member)
+			continue
+		# A member from an earlier opening wave would already have left.
+		if member_wave != wave:
+			continue
+		member.interval = 0.0
+		if int(member.state) == TaxEncounterClass.AT_NUMBER:
+			member.state = TaxEncounterClass.LANDED
+		retained.append(member)
+	active_encounter.members = retained
+	active_encounter._sum_remaining()
+
 ## A run saved under an older balance profile resumes on the current one
 ## (D040). The Hit an old profile read at load time, such as the retired wave
 ## 21-25 ramp, was never stored, so keeping the old encounter could land a far
@@ -1505,7 +1615,32 @@ func _rebuild_encounter_on_current_profile() -> void:
 		return
 	var cleared := get_wave_cleared_share()
 	var rebuilt = _make_encounter(wave)
-	rebuilt.remaining_liability = rebuilt.max_liability.multiply_scalar(1.0 - cleared)
+	# Member for member where the group matches (D057), so a member that has
+	# hit never hits again early; otherwise by the share cleared. If members had
+	# already landed, every one whose hits are overdue is moved on to its next
+	# hit without dealing it; a pre-group wave had landed nothing, so its
+	# overdue members land as the rules say. Members carried in from earlier
+	# waves come across either way (D058).
+	if not rebuilt.carry_from(active_encounter):
+		rebuilt.set_remaining(rebuilt.max_liability.multiply_scalar(1.0 - cleared))
+		if active_encounter.landed_count() > 0:
+			while true:
+				var overdue: int = rebuilt.due_index(wave_accumulator)
+				if overdue < 0:
+					break
+				rebuilt.hit(overdue)
+		rebuilt.carry_in(active_encounter.living_members().filter(func(member): return not active_encounter.is_own(member)))
+	# Carried members are rebuilt on today's curve too, keeping the share of
+	# their HP they had left, so no old-profile Hit lands (D040).
+	for member in rebuilt.members:
+		if rebuilt.is_own(member):
+			continue
+		var remaining_share := TaxEncounterClass._ratio(member.hp, member.max)
+		var liability := RuleModifierPipelineClass.apply(balance_profile.liability_for_wave(selected_tier, int(member.wave)), "liability", active_rule_modifiers)
+		member.max = liability.multiply_scalar(float(member.share))
+		member.hp = member.max.multiply_scalar(remaining_share)
+		member.wave_hit = balance_profile.collection_for_wave(selected_tier, int(member.wave))
+	rebuilt._sum_remaining()
 	active_encounter = rebuilt
 
 func _seconds_since(data: Dictionary) -> float:
@@ -1686,7 +1821,7 @@ func _save_migrated_state(from_version: int, source_path: String) -> void:
 func clear_save() -> void:
 	for path in [save_path, _backup_path(), _temp_path()]:
 		_remove_if_present(path)
-	for version in range(1, SaveDataV9Class.VERSION):
+	for version in range(1, SaveDataV10Class.VERSION):
 		_remove_if_present(_migration_backup_path(version))
 	var folder := save_path.get_base_dir()
 	var quarantine_prefix := save_path.get_file().get_basename() + QUARANTINE_INFIX

@@ -162,7 +162,7 @@ Not taken: **Coins / Wave**. Waves already pay Coins by wave number, Coin Bonus 
 
 ### Proposal: a wave becomes a group — 24 September 2026
 
-**Status:** proposed on owner direction ("yeah write that down for us to look at"), for after one enemy per wave has settled and the wave's position has become a rule (slowing bosses). Nothing here is decided or built.
+**Status:** **accepted in principle (D056, 24 September 2026):** "Yeah multiple enemies is the play … That change alone gives us MASSIVE options for gameplay, progression, upgrade ideas, workshop". Not built. The owner also dropped the earlier "after slowing bosses" ordering by choosing now; the build plan is below.
 
 **The idea.** Since D050–D051 a wave is one number falling to the Number over its 15-second clock. A group splits that wave into a few numbers: the same wave, the same totals, arriving one after another. It is what gives area damage, chains, targeting and slowing something to choose between; with one enemy, "hits several" and "hits one hard" are the same upgrade.
 
@@ -179,6 +179,27 @@ Not taken: **Coins / Wave**. Waves already pay Coins by wave number, Coin Bonus 
 **What it needs:** the wave's position as a rule first; encounter state becomes a list of members (a new save version); member placement and arrival order from the wave number rather than the run's random stream, so a saved run resumes identically; the balance and career simulators taught front-first targeting and staggered Hits, then every balance target re-measured.
 
 **How it meets the wave queue** (the table above): the queue lets the *next* waves be damaged early; a group splits the *current* one. They can share one primitive, an encounter that holds several bodies, which is the reason to decide them together.
+
+**How The Tower ramps (researched 24 September 2026)**, from TheTowerSDK's v29 reconstruction (unofficial, version-sensitive; [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md) sets the source rules):
+
+| Wave | Enemies per wave (Tier 1) | What changes |
+| --- | --- | --- |
+| 1–27 | about 4 | Basic enemies at base speed. Each has the wave's full HP and damage, and the tower's range kills them before they arrive |
+| 100 | about 12 | Speed is flat to wave 100, then grows 0.03% a wave, with steps at 141, 678 and 3,500 |
+| 500 | about 70 | |
+| 1,000 | about 140 | Past 1,000 the count grows slowly (37 → 56 spawn attempts by wave 6,500) |
+
+- **Enemies trickle in** across a 26-second wave (one spawn roll every 0.125 s), then a cooldown of 9 s at most (4 s with Wave Accelerator). The wave number moves on with the clock whether or not enemies are dead.
+- **Tier 1's mix** is about 91% Basic and 3% each Fast (2.1× speed, same HP), Tank (5× HP, half damage, a third of the speed) and Ranged (attacks from range). Higher tiers weight the specials up. Bosses have 20× HP.
+- **Why the first waves are free:** four slow, weak enemies against a tower that out-ranges them. The player banks Cash untouched and spends it before the pressure starts, which is the opening the owner asked for.
+- **What we should not copy:** a Tower enemy carries the wave's whole HP, so the count multiplies the total. Ours keeps the totals (rule 1), so the count divides it. The shape of the ramp is what transfers, not the numbers.
+
+**The build, in order** (each step its own decision, measured before the next):
+
+1. **The group engine** (high risk: encounter, saves, balance). **Built as D057 (24 September 2026)**; members now stay at the Number and keep hitting, and survivors carry into the next wave (D058). A wave is 3 members at wave 1, rising towards 12 at wave 100 on The Tower's shape, capped at about 20 on screen, with bosses single. Members arrive through the clock (the last at 15 s) and take damage front-first, and overkill is wasted. Guard applies to the combined Hit (rule 5). This needs save V10, with an old save's active wave becoming one member, and both simulators taught the stagger. Expect the balance to move: early members land before 15 s, and overkill costs damage. Re-measure every target and retune the curves until a no-upgrade Tier 1 run still clears its first few waves unhit.
+2. **The arena** (low–medium risk). Several numbers on screen, motes to the front member, a pop per member, and the Hit's working per landing.
+3. **Enemy types** (medium risk). Fast and Tank join partway through Tier 1, Ranged later. This is what splits Damage from Attack Speed: swarms reward speed, tanks reward damage.
+4. **The Damage/Attack Speed rebalance and taps as shots** (high risk: economy), then **the new rows** groups make possible: spread, bounce, area, targeting and slowing.
 
 **Open questions:** how many members per wave and tier; the arrival pattern (even, bunched, random from the wave number); whether a tap can pick its target or always strikes the front; how the Hit's working at contact (D052) reads for a member's share.
 

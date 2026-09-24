@@ -30,6 +30,8 @@ func _capture_size(window_size: Vector2i, label: String) -> void:
 	await _capture_state(window_size, label, "milestones", false)
 	await _capture_state(window_size, label, "run", false)
 	await _capture_state(window_size, label, "run_standing", false)
+	await _capture_state(window_size, label, "run_feedback", false)
+	await _capture_state(window_size, label, "run_crit", false)
 	await _capture_state(window_size, label, "boss", false)
 	await _capture_state(window_size, label, "workshop", false)
 	await _capture_state(window_size, label, "knowledge", false)
@@ -57,14 +59,16 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 		"more_critical": 2,
 	}
 	state.settings["reduce_motion"] = true
-	if state_name == "run" or state_name == "run_standing" or state_name == "boss":
+	if state_name == "run" or state_name == "run_standing" or state_name == "run_feedback" or state_name == "run_crit" or state_name == "boss":
 		# The wave's body only travels with Reduce Motion off (D050).
 		state.settings["reduce_motion"] = false
 		state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 		state.start_run(2, 99)
 		state.number = ScientificNumber.from_float(238500)
 		state.wave = 27
-		state.wave_accumulator = 7.5
+		# Before the group's front member lands at 6 seconds (D057), so the
+		# capture shows the whole group walking in.
+		state.wave_accumulator = 4.5
 		state.run_coins_earned = 640
 		state.active_encounter = state._make_encounter(27)
 		if state_name == "boss":
@@ -74,7 +78,8 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 			state.active_encounter = state._make_encounter(30)
 			state.active_encounter.apply_compliance(state.active_encounter.max_liability.multiply_scalar(0.4))
 		elif state_name == "run_standing":
-			state.active_encounter.apply_compliance(state.active_encounter.max_liability.multiply_scalar(0.55))
+			# Over half the wave cleared, front first, across its members.
+			state.active_encounter.remaining_liability = state.active_encounter.max_liability.multiply_scalar(0.45)
 		else:
 			state.active_encounter.apply_compliance(ScientificNumber.from_float(55900))
 	elif state_name == "hub_played" or state_name == "milestones":
@@ -116,6 +121,12 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 	main._refresh_all()
 	# Let the tab slide/fade finish so captures show the resting state.
 	await create_timer(0.4).timeout
+	if state_name == "run_feedback" or state_name == "run_crit":
+		main._pop_damage(ScientificNumber.from_float(24.0), state_name == "run_crit", false)
+		if state_name == "run_feedback":
+			main._record_hit_readout(ScientificNumber.from_float(12.0))
+		await process_frame
+		await process_frame
 	_save_frame(window_size, label, state_name)
 	main.queue_free()
 	await process_frame

@@ -240,7 +240,7 @@ func _core_case(label: String, tier: int, ranks: Dictionary, labs: Dictionary, c
 			if first_visible < 0.0:
 				first_visible = seconds
 		for event in events:
-			if first_hit < 0.0 and event.type in ["tax_collection", "boss_collection", "wave_death"]:
+			if first_hit < 0.0 and event.type in ["tax_collection", "pile_hit", "boss_collection", "wave_death"]:
 				first_hit = seconds
 		if rig_policy != "hoard" and state.in_run and _rig_can_spend(state):
 			if tier == 1 and state.wave <= 20 and state.rig_ranks_bought() < 2:
@@ -315,7 +315,7 @@ func _simulate_build(label: String, tier: int, ranks: Dictionary, rig_policy: St
 				rig_bought += bought
 				rig_purchases.append([seconds, bought])
 		for event in events:
-			if event.type in ["tax_collection", "boss_collection", "wave_death"]:
+			if event.type in ["tax_collection", "pile_hit", "boss_collection", "wave_death"]:
 				hits += 1
 		if state.number.compare_to(peak) > 0:
 			peak = state.number.copy()
@@ -409,7 +409,7 @@ func _simulate_hit_sweep() -> void:
 					state.tap()
 				var number_before: ScientificNumber = state.number.copy()
 				for event in state.advance(OPENING_STEP):
-					if first_hit < 0.0 and event.type in ["tax_collection", "boss_collection", "wave_death"]:
+					if first_hit < 0.0 and event.type in ["tax_collection", "pile_hit", "boss_collection", "wave_death"]:
 						first_hit = seconds
 				seconds += OPENING_STEP
 				if first_hit < 0.0 and state.number.compare_to(number_before) < 0:
@@ -546,7 +546,7 @@ func _simulate_opening() -> void:
 					tap_clock -= 1.0 / rate
 					state.tap()
 			for event in events:
-				var landed: bool = event.type in ["tax_collection", "boss_collection", "second_wind"] and not event.amount.is_zero()
+				var landed: bool = event.type in ["tax_collection", "pile_hit", "boss_collection", "second_wind"] and not event.amount.is_zero()
 				if landed or event.type == "wave_death":
 					hits += 1
 					if seconds <= 60.0:
