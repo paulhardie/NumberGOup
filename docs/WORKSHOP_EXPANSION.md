@@ -5,6 +5,73 @@
 **Ladders:** rank depth, cost curves and stat curves for every row, with JSON and tables, are in [`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md).
 **Depends on:** the core-rule change below, which is itself proposed. [`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md) covers the tier ladder and the percentage Boosts (the Rig) this document assumes.
 
+## Workshop audit against groups and the pile — proposed, 24 September 2026
+
+**Status:** proposed, and nothing here is accepted or built. This is the first step of the owner's priority: redo the Workshop for fighting multiple enemies before any more balance work. It audits every row as the game plays now (D057–D059: damage strikes only the front enemy, damage beyond its HP is lost, and from wave 31 survivors stay and carry into the next wave), then proposes the smallest set of changes. It supersedes nothing below; the older proposals remain candidates.
+
+### What the measurements say
+
+A throwaway probe (deleted afterwards) played six seeds per build at two taps a second with no run Upgrades, recording each run's end wave, where each Hit came from, and how much damage came off enemies compared with what was fired. The candidate changes were then built as switches in a scratch copy of the game and measured the same way. Its baselines run slightly below the handover's six-seed table (fresh 20 against 22, mid 50 against 56, rank-100 Attack 156 against 158) because of an unexplained difference in method, so compare figures only within this section.
+
+1. **The pile is what ends runs.** From the mid build onwards, 64–77% of all the Hit that lands comes from enemies at the Number hitting again, not from first contact. A rank-100 Attack build dies at wave 156 with about 35 enemies at the Number.
+2. **Wasted overkill doesn't matter.** Overkill loses 1.5% of damage to wave 30, 4.5% at mid, 9.5% at rank-100 Attack and 30% with every Attack ladder maxed. But letting every point of excess carry on to the next enemy moves the end wave by at most one (mid 50 → 50, rank-100 Attack 155.8 → 156.7, full Attack ladders 709.3 → 709.8). The waste happens on waves the build already crushes.
+3. **So splitting the same damage across enemies changes nothing.** Against the pile, only damage that grows with the number of enemies helps. Attack Speed against Damage, and "hits two" against "hits one twice", are still the same purchase until enemy types exist (D056 step 3).
+4. **Today, exactly one row grows with the pile: Thorns, and it dominates.** At rank-100 Attack, Thorns at 50% adds 23 waves and at 100% adds 34, and the pile at death falls from 35 to none. Maxed Armor adds 4. With every Attack ladder maxed, Thorns adds 53 waves and Armor 10. In a maxed Workshop, Thorns deals about twice as much damage as every shot and tap together.
+
+| Row worth at rank-100 Attack (wave 156) | End wave |
+| --- | --- |
+| without Crit Chain | 120 (−36) |
+| without Multishot | 148 (−8) |
+| without Burst | 150 (−6) |
+| without Boss Damage | 152 (−4) |
+| plus Leech maxed | 157 (+1) |
+| plus Armor at rank 100 | 160 (+4) |
+| plus Thorns at 50% | 179 (+23) |
+| plus Thorns at 100% | 190 (+34) |
+
+### Every row, against one enemy, a group and a boss
+
+| Row | What it does now against groups | Verdict |
+| --- | --- | --- |
+| Tap Damage, Damage, Auto Crank, Damage Multiplier | Front enemy only. Neutral: the same total damage whichever enemy takes it | Keep. The single-target backbone |
+| Attack Speed | The same purchase as Damage; smaller shots waste less overkill, worth under a wave | Keep. Its own job arrives with enemy types (swarms), not a row change |
+| Multishot | Fires two visible shots, but both land on the front enemy as one doubled amount | **Change:** the second shot strikes the next enemy in line. Measured neutral, so it's a readability change: the player sees Multishot hit two enemies |
+| Burst | Every Nth shot doubles, on the front enemy | **Change:** Burst's shot also strikes every other enemy at the Number. This gives Attack a pile answer |
+| Crit Chance, Crit Damage | Front enemy; neutral | Keep |
+| Crit Chain | Neutral against groups, but by far the strongest Attack row (36 waves) | Keep; flagged as a balance outlier. Rebuilding it as "a crit's overkill carries on" was tested and loses the 36 waves for nothing |
+| Boss Damage | Also boosts damage to the pile carried into a boss wave, which is worth about 2.6 of its 4 waves | **Fix:** only against the boss itself |
+| Armor | Takes a share off every Hit, the pile's included | Keep; now weak beside Thorns |
+| Guard | Taken off the whole wave's Hit, then shared, so the pile pays what one enemy would | Keep |
+| Thorns | Returns part of every Hit to the front enemy, so it grows with the pile | **Retune** (decision below); it's the Defense pile answer, but too strong |
+| Leech | Boss-only, worth about a wave; also leaks onto the pile in boss waves | **Fix** the leak alongside Boss Damage. Extending it to every enemy at the Number measured +0.2 waves, so it needs a new job, which isn't part of this set |
+| Cushion, Second Wind, Brace Cost | Don't depend on groups; Brace already blocks the pile's Hits | Keep |
+| Discount, Coin Bonus, Knowledge Bonus | Don't depend on groups | Keep |
+
+**Run Upgrades** sell the same 21 rows at twice a Workshop rank's worth (D044), so every change above carries into the run automatically. Burst's run ranks count one for one. One consequence: 100 run ranks of Thorns reach its 100% ceiling, so buying Thorns mid-run is probably the strongest run play, yet both simulators buy it nearly last, and the career figures likely understate what an informed player reaches.
+
+### The proposed set
+
+| # | Change | Measured (end wave) | Risk |
+| --- | --- | --- | --- |
+| 1 | **Burst splashes the pile:** every Nth shot still hits double, and also strikes every other enemy at the Number for the shot's plain amount. Opening members never stay, so to wave 30 it plays as today | rank-100 Attack 156 → 175 (pile at death 35 → 12); full Attack ladders 709 → 737; with Thorns at 100%, 190 → 196 | High: economy. It needs a splash-share dial and tuning, because Burst's six ranks cost about 2,000 Coins in total |
+| 2 | **Multishot's second shot strikes the next enemy in line**, the same enemy against a boss alone | 156 → 156, 709 → 710 | Medium: presentation, with no balance effect |
+| 3 | **Boss Damage and Leech apply only to the boss,** not the pile in front of it | 156 → 153, 709 → 708 | Medium: a small nerf that fixes the rows' own wording |
+| 4 | **Thorns retuned** once 1 is measured; see the decision below | At 50%: +23 waves against 100%'s +34 | High: economy, and it weakens ranks the owner already holds |
+
+All four keep every row's id, ranks, caps and prices, so no save shape changes and there is no save V11. Owned ranks keep their count; only what a rank does changes (the descriptions in `data/workshop/upgrades.json` with it). Splash damage, like Thorns, would come off enemies without adding Number.
+
+Not in this set, and why:
+
+- **Anything that holds enemies back before they reach the Number** (slow, knockback). It's The Tower's main Defense answer to crowds, but it needs a movable arrival time, a new encounter primitive: a real foundation gap for D056 step 4, not a row change.
+- **A new job for Leech.** Nothing cheap tested well.
+- **Pay for beating the pile.** A carried enemy beaten later pays nothing, because its wave already paid for the share cleared when it passed. It's an economy rule, not a row, so it needs its own decision.
+
+### Decisions this needs
+
+1. **Accept the set's direction:** Burst as Attack's pile answer, Multishot hitting a second enemy, and Boss Damage and Leech fixed to the boss. *Recommended:* yes. It's the smallest change that gives Attack a group job, and the only one that measured a real gain.
+2. **How strong should Thorns be?** *Recommended:* build 1 first, then set Thorns and Burst's splash together so neither alone beats Armor plus the other. A starting point is Thorns' ceiling halved to 50%. The trade-off is that the owner's Thorns ranks lose half their effect.
+3. **Balance target 5** (the cheapest build reaching wave 100 needs Defense) already fails since D047, and Burst's splash strengthens Attack-only builds further. Restate it with the redesign's measurements rather than tune the waves for it.
+
 ## Tower parity plan and coin gates — proposed, 23 September 2026
 
 **Status:** proposed on owner direction, 23 September 2026: carry The Tower's Workshop over as far as it makes sense, and "hide some behind coin gates similar to the tower … so players don't get everything immediately at the start." Nothing here is accepted or built. "The Rig" below means run Upgrades (D045), whose ranks now stop at a row's max rank and are worth two Workshop ranks (D044). Each gate, row and foundation piece needs its decision in [`DECISIONS.md`](DECISIONS.md) first. Where this plan overlaps the earlier 28-row plan below, this plan is the newer proposal; the [reconciliation](#how-this-meets-the-earlier-proposals) says which earlier rows survive.
