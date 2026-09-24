@@ -41,6 +41,7 @@ bash run_godot.sh --path . -s res://tools/capture_ui.gd
 
 - `run_tests.sh` runs the whole headless economy suite. A green count printed alongside errors is not a pass, and the script enforces it: any `SCRIPT ERROR`, parse error or `ERROR:` line fails the run, because a runtime error aborts only the test it happens in and the suite still prints PASS. A stale `.godot` class cache shows up the same way; `bash run_godot.sh --headless --path . --import` refreshes it.
 - The headless project run imports and parses every script and builds the main scene; it catches UI-script and scene errors the suite does not load.
+- **A new script is loaded by path where it is used** (`const FooClass = preload("res://src/foo.gd")`), as `GameState` does for its collaborators, not by its global `class_name`. The owner's play folder keeps the editor's class cache across pulls, and a cache that predates the new script fails to parse whatever names it, so the game opens to a blank window (it did after D051 added `ArenaFx`). CI and the headless run import fresh, so they cannot catch this; the check is reading the diff for a new `class_name` used by name elsewhere.
 - `run_balance.sh` is a measurement tool, not a gate.
 - The capture tool renders the main screens at four window sizes into `user://ui_capture`. Inspect the PNGs; never assert pixel equality.
 - Documentation-only changes do not need the suite. They still need path, link, scope and contradiction checks against the current repository.
