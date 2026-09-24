@@ -7,7 +7,7 @@
 
 ## Workshop audit against groups and the pile — proposed, 24 September 2026
 
-**Status:** proposed, and nothing here is accepted or built. This is the first step of the owner's priority: redo the Workshop for fighting multiple enemies before any more balance work. It audits every row as the game plays now (D057–D059: damage strikes only the front enemy, damage beyond its HP is lost, and from wave 31 survivors stay and carry into the next wave), then proposes the smallest set of changes. It supersedes nothing below; the older proposals remain candidates.
+**Status:** proposed; **superseded in part by D063** (24 September 2026). The owner's standing rule is now "if in doubt, copy the way the tower does it", so the invented set below (Burst splash, Multishot to a second enemy) should give way to The Tower's own group rows (Multishot targets, Bounce Shot, Orbs, Knockback) once enemies can be held back; the Boss Damage and Leech fix is built in D063. The measurements still stand. This is the first step of the owner's priority: redo the Workshop for fighting multiple enemies before any more balance work. It audits every row as the game plays now (D057–D059: damage strikes only the front enemy, damage beyond its HP is lost, and from wave 31 survivors stay and carry into the next wave), then proposes the smallest set of changes. It supersedes nothing below; the older proposals remain candidates.
 
 ### What the measurements say
 
