@@ -1,6 +1,6 @@
 # Make the wave contest feel like combat
 
-**Status:** Direction accepted in D041; presentation and playtest plan proposed, not implemented. The enemy-growth idea below is a candidate, not a rule or a balance decision.
+**Status:** Direction accepted in D041. D049 split the ring into Wave cleared and time to the Hit, and D050 draws each wave as a body that reaches the Number when its Hit lands, with distinct clear, Hit and boss beats. The fresh-player playtest below has not run. The enemy-growth idea below is a candidate, not a rule or a balance decision.
 **Owns:** The next playable proof of the run's moment-to-moment feel. [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md) owns the wave rule and player vocabulary; [`GAME_INVARIANTS.md`](GAME_INVARIANTS.md) owns behaviour; [`MOTION_SYSTEM.md`](MOTION_SYSTEM.md) owns motion and reduce-motion conventions.
 
 ## The question to settle before expanding progression

@@ -117,6 +117,7 @@ Combat here is two abstract axes: production damages the wave's Liability, and t
 | `second_wind` | Critical flash, stage impact and a boss-weight rattle. | Colour only. |
 | `wave_death` | The run-over sheet counts Coins and Knowledge up from zero and each lands with a pop. | Totals appear at their final value. |
 | Hit blocked by Brace | Accent flash, a light ring pop, no movement. | Ring pop skipped. |
+| The wave's body (D050) | A pill with the wave's HP travels from the ring's edge to the Number on the wave clock. A clean clear shatters it (0.6 s) with a "BEATEN · NO HIT" float; a Hit slams a copy into the Number (0.43 s); after a boss's Hit it eases back to the edge. | The body holds at the edge; no shatter or slam. |
 
 **Sound is not covered yet.** `AudioFeedback` ships tick and critical samples only; a Collection-hit sample and a wave-clear sample would follow the same map when they exist.
 

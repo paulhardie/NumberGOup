@@ -20,6 +20,7 @@
 
 - During a run, every unit produced is added to Number and also damages the active wave's remaining Liability (D037). Liability floors at zero, and lifetime production counts each unit once.
 - A beaten wave gives way to the next once it has been on screen for the profile's minimum beat (2.5 seconds), never before (D037).
+- The wave's body on screen (D050) is presentation: its place is the wave clock, it reaches the Number exactly when the Hit lands, and nothing about it feeds back into a rule or the run's random stream.
 - A run rank (run Upgrades, D045) costs `k` × 5 seconds of the player's steady income (passive rate plus one tap a second, without the boss bonus) × 1.4 per rank of that row already owned (D039), less Discount, never below a tenth of that price. A harder wave never raises a run price by itself, and a bulk press costs exactly what the same ranks cost bought singly, including a press of Discount itself.
 - Tap Damage and Damage per Second run to 6,000 ranks and Guard to 5,000 (D047). Ranks 1–100 keep their step, so an owned rank never loses value; past 100 a rank is worth more along the row's depth curve, and never less than the rank before it. A row keeps its old prices up to its old cap, and past it each rank costs the row's deep growth more than the last. A Workshop multi-buy quotes exactly the ranks and price that single presses would.
 - A row's Workshop ranks and run ranks together never pass its max rank, and one run rank is worth two Workshop ranks, except Burst's, which is one step (D044).
