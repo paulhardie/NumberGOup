@@ -33,9 +33,11 @@ Tier 1 runs one difficulty curve from wave 1 (D040): Wave HP grows a little fast
 
 Workshop upgrades are bought with Coins between runs and permanently raise the baseline used by every later attempt. Starting a run resets Number to that baseline; death, retreat, and Prestige never remove Workshop ranks. Number production only happens during an active run, so neither waiting at the hub nor going offline can bank a risk-free head start.
 
-Between runs the battle hub (D048) shows the Coin bonus, the tier selector with its best wave, Milestones and BATTLE, and the bottom bar holds Battle, Workshop, Cards, Labs and More, with a seat held for Ultimate Weapons. Labs queue permanent, timed Coin research; Cards are pulled with Gems and only equipped Cards add their effects to a run. Both can be inspected during a run, but spending and loadout changes happen between runs.
+Between runs the battle hub (D048) shows the tier's best wave on a ring marked with its milestones, the tier selector, the last run, Milestones, the Coin bonus and BATTLE, and the bottom bar holds Battle, Workshop, Cards, Labs and More, with a seat held for Ultimate Weapons. Labs queue permanent, timed Coin research; Cards are pulled with Gems and only equipped Cards add their effects to a run. Both can be inspected during a run, but spending and loadout changes happen between runs.
 
 Retreat ends and resets a run—it cannot pause Tax while Number keeps growing. Active runs freeze exactly while the app is away. Save schema V9 preserves the permanent Workshop (whose deep rows run past rank 100, D047), Labs (with their slots), Cards, Gems, the active encounter with its Cash, and deterministic RNG state, with V1–V8 migration. A save the game cannot read, or one from a newer version, is never written over (D028).
+
+The look (D049) is deliberately minimal: a near-black ground, Geist for words and Geist Mono for every number (both bundled under the SIL Open Font License in `assets/fonts/`), one accent for good and one warning for bad, with gold and blue kept to the Coin and Gem icons.
 
 The broader inspiration and system roles are mapped in [`docs/TOWER_SYSTEMS_REFERENCE.md`](docs/TOWER_SYSTEMS_REFERENCE.md). The researched scaling rationale, source links, data contracts, and later-system boundaries are in [`docs/TOWER_SCALING_FOUNDATION.md`](docs/TOWER_SCALING_FOUNDATION.md).
 
