@@ -165,6 +165,24 @@ Other Tier 1 facts from the same source: a boss comes every 10 waves with 20 tim
 
 **Enemy types and Coins (owner's reference table, 24 September 2026, attributed to Tower Hub):** base Coins per kill are basic 0, fast 2, ranged 3, tank 4, boss 5 and protector 1; basic enemies pay Coins only through the Critical Coin card or coin masteries. That matches the owner's play (basics pay $1 Cash and no Coins). The SDK instead gives basic 1 and ranged 2. **The table's health multipliers are contradicted by the owner's wave 22 screen and the SDK,** which agree on fast 1×, ranged 1×, tank 5× and protector 0.6×, where the table says 0.5×, 0.5×, 4× and about 2×; use the screen. Bosses come every 10 waves, don't die on impact, and resist one-shot effects; protectors project a damage-reduction aura and cancel instant kills. Ranged, vampire and ray enemies attack from outside the tower (projectile, draining beam, charged burst). Every enemy's repeated hits heat up by 4% compounding (SDK `ENEMY_HEAT_UP_MULTIPLIER_PER_HIT`).
 
+**Tier 1 research (owner-supplied, 24 September 2026, a summary of community sources: Reddit, Game Vault's turtle-build guide, note.com), checked against the SDK where it can be:**
+
+- **Confirmed by the SDK:**
+  - **Thorns deals a share of the attacking enemy's maximum health on every hit it lands, and bosses take half.** The SDK's breakpoints (`THORNS_KILL_BREAKPOINTS`: 21% kills in 5 hits, 26% in 4, 34% in 3, 51% in 2; 67% for bosses) match the research's table.
+  - Defense % comes off before Defense Absolute, and a hit can reach zero.
+  - Each hit an enemy lands makes its next one 4% stronger, compounding.
+  - A wave is 26 seconds of spawning and 9 seconds of cooldown, and Wave Accelerator shortens only the cooldown.
+  - Enemies per wave keep growing until wave 6,500 (the SDK's spawn chart runs to 56 at wave 6,500), or wave 3,250 with Wave Accelerator mastery.
+- **Plausible, but not verified here:**
+  - **Tier 1's intended strategy is a turtle.** Defense Absolute outgrows ordinary enemy damage for a very long time, so direct hits land for zero. Thorns kills whatever stands at the tower. Heat-up is what eventually breaks through. The research says Thorns still fires when Defense Absolute takes a hit to zero, because the contact still counts.
+  - The Workshop's caps are Thorns 99% and Defense % 49.5%, with a global Defense % cap of 98%.
+  - A new player needs about an hour at 1× speed to reach wave 100. The stated 5× game speed is about 4× in real time.
+  - Early on, Coins come from a per-wave payout; later, from per-kill multipliers.
+  - Recovery Packages add an overheal shield of up to 16.5× maximum health. Free Upgrades are shared among every unlocked stat, so unlocking weak stats dilutes them.
+  - Enemy Level Skip stalls enemy growth.
+  - Vampires drain health from range, bypass Thorns and halt Lifesteal.
+- **Wrong or unsupported:** "enemy health scales logarithmically" (it grows polynomially with milestone and compound steps). Its Ultimate Weapon, tournament and lab advice is about later systems, and not evidence for Tier 1 balance.
+
 **What this says about our curve:**
 
 1. **Wave HP matches through about wave 60, then falls behind, then overshoots.** Our LIABILITY_SCALE of 4 stands in for The Tower's three to four enemies, so the opening matches. The Tower then adds enemies faster than we do and multiplies its HP by them, where we divide ours: its wave holds 2.3 times our HP at wave 100 and 3.5 times at 200. From about wave 500 our milestone chain (×1.08 every 10 waves compounding) passes its compound chain, and at wave 1,000 we are 27 times higher.
