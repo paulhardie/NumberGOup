@@ -243,7 +243,7 @@ func _test_workshop_price_onramp() -> void:
 	_expect(state.purchase_ranks("stronger_tap", 12) == 12, "a first run should fund twelve Tap Damage ranks")
 	_expect(state.purchase_ranks("generator", 6) == 6, "a first run should also fund six Damage ranks")
 	_expect(state.purchase(GameState.ARMOR_ID) and state.coins == 1, "a first run should still afford an Armor rank with one Coin left")
-	_expect(state.start_run(1, 7) and state._tap_base() > 1.5 and state._passive_base() > 0.4, "the next run should feel the permanent Attack purchases")
+	_expect(state.start_run(1, 7) and state._tap_base() > 1.5 and state._passive_base() * state._tick_rate() > 0.4, "the next run should feel the permanent Attack purchases")
 
 ## The card face is derived from the row's own effect, so it cannot drift from
 ## what the rank actually does.
@@ -269,10 +269,12 @@ func _test_stat_values_read_the_row_effect() -> void:
 	_expect(is_equal_approx(float(state.stat_display(tap, 1).value), 1.05), "one rank should move the card face, not round away")
 	var burst: Dictionary = state.stat_display(state.get_definition("burst_relay"), 2)
 	_expect(str(burst.unit) == "rank" and is_equal_approx(float(burst.value), 2.0), "a row with no declared effect should fall back to its rank")
-	# D054: the Attack Speed row carries the one-shot-a-second base, so it reads
-	# as shots a second; the card stacked on it is still a multiplier.
-	var speed: Dictionary = state.stat_display(state.get_definition("faster_cadence"), 100)
-	_expect(str(speed.unit) == "per_second" and absf(float(speed.value) - 5.95) < 0.01, "Attack Speed should read as about 5.95 shots a second at rank 100")
+	# D054, D055: the Attack Speed row carries the base shots a second, so it
+	# reads as shots a second; the card stacked on it is still a multiplier.
+	var speed_row := state.get_definition("faster_cadence")
+	_expect(str(state.stat_display(speed_row, 0).unit) == "per_second" and is_equal_approx(float(state.stat_display(speed_row, 0).value), 2.5), "Attack Speed should read as 2.5 shots a second before any rank (D055)")
+	var speed: Dictionary = state.stat_display(speed_row, 100)
+	_expect(absf(float(speed.value) - 14.87) < 0.01, "Attack Speed should read as about 14.87 shots a second at rank 100")
 	_expect(str(state.card_stat_display("card_attack_speed", 1).unit) == "multiplier", "the Attack Speed card should still read as a multiplier")
 
 ## D054: Multishot fires the same shot twice. The tick lands as one amount,
@@ -298,6 +300,13 @@ func _test_multishot_marks_two_shots() -> void:
 	plain.start_run(1, 5)
 	for tick in range(40):
 		_expect(plain._produce_tick().hits == 1, "without Multishot every tick should be one shot")
+	# D055: a fresh run fires 2.5 shots a second before any Attack Speed.
+	var fresh := _funded_state()
+	fresh.start_run(1, 5)
+	var shots := 0
+	for step in range(40):
+		shots += fresh.advance(0.1).filter(func(event): return event.type == "tick").size()
+	_expect(shots == 10, "a fresh run should fire 10 shots in 4 seconds: %d" % shots)
 
 ## D047: the deep rows keep today's value for ranks 1-100, so every rank a
 ## player owns keeps its worth, and past 100 follow their depth curves.
@@ -305,7 +314,10 @@ func _test_deepened_ladders_keep_their_old_maxima() -> void:
 	var state := _funded_state()
 	state.purchased = {"stronger_tap": 100, "generator": 100, "guard": 100, "automation_core": 50}
 	_expect(is_equal_approx(state._tap_base(), 6.0), "Tap Damage at rank 100 should still be six")
-	_expect(is_equal_approx(state._passive_base(), 12.5), "Damage at 100 plus Auto Crank should still be 12.5")
+	_expect(is_equal_approx(state._passive_base(), 5.0), "Damage at 100 plus Auto Crank should be 5 a shot (D055)")
+	# D055 shares the old per-second damage across 2.5 times the shots, so the
+	# damage a second is what it was: 12.5 a tick at 1 a second, plus the base.
+	_expect(is_equal_approx(state.get_rate_per_second().mantissa * pow(10.0, state.get_rate_per_second().exponent), 12.5 + state.balance_profile.BASE_DAMAGE_PER_SECOND), "more, smaller shots should keep the damage a second (D055)")
 	_expect(is_equal_approx(state._effect_sum("guard_flat"), 100.0), "Guard at rank 100 should still take 100 off")
 
 ## D047: every row's value at its cap. The deep rows follow their depth curves
@@ -318,10 +330,10 @@ func _test_every_ladder_reaches_its_d047_maximum() -> void:
 			state.purchased[definition.id] = definition.max_rank
 	_expect(state.get_definition("stronger_tap").max_rank == 6000 and state.get_definition("generator").max_rank == 6000 and state.get_definition("guard").max_rank == 5000, "Tap Damage and Damage should run to 6,000 ranks and Guard to 5,000")
 	_expect(is_equal_approx(state._tap_base(), 1.0 + 0.05 * 100.0 * 67500.0), "Tap Damage should cap at 67,500 times its rank-100 bonus")
-	_expect(is_equal_approx(state._passive_base(), 0.075 * 100.0 * 67500.0 + 5.0), "Damage should cap at 67,500 times its rank-100 bonus, plus Auto Crank")
+	_expect(is_equal_approx(state._passive_base(), 0.03 * 100.0 * 67500.0 + 2.0), "Damage should cap at 67,500 times its rank-100 bonus, plus Auto Crank")
 	_expect(is_equal_approx(state._effect_sum("guard_flat"), 100.0 * 79000.0), "Guard should cap at 79,000 times its rank-100 reduction")
 	_expect(is_equal_approx(state._base_output_multiplier(), pow(1.15, 3)), "Damage Multiplier should keep its cap")
-	_expect(absf(state._tick_rate() - 5.95) < 0.01, "Attack Speed should cap at about x5.95")
+	_expect(absf(state._tick_rate() - 2.5 * 5.95) < 0.02, "Attack Speed should cap at x5.95 on its 2.5-a-second base")
 	_expect(is_equal_approx(state._critical_chance(), 0.8), "Crit Chance should cap at 80%")
 	_expect(absf(state._critical_multiplier() - 16.2) < 0.01, "Crit Damage should cap at about x16.2")
 	_expect(is_equal_approx(state._chain_reaction_step(), 0.3), "Crit Chain should keep its 30% per link")

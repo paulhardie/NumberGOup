@@ -543,3 +543,16 @@ Rules:
   5. Burst's and the Attack Speed card's descriptions say shots.
 - **Consequences:** Presentation only: no effect key, value, price, save field or rule changed, and the economy suite passes unchanged apart from its messages. At rank 100 the arena sends about six motes a second, twelve with Multishot at its cap, and each lands as its own "-X". The fixed base damage (1 a second) is still spread across however many shots there are, so the Damage row starts at 0 while a fresh player still deals damage; step 2 decides whether that floor becomes damage per shot.
 - **Revisit when:** step 2 (the damage and speed rebalance, and how much tapping should add) is decided, or the pops at full Attack Speed and Multishot read as clutter in play.
+
+## D055 — More, smaller shots: 2.5 a second before any Attack Speed
+
+- **Status:** Accepted (2026-09-24) on owner direction ("yeah I think attack speed needs changed"), approving the base-speed step on its own, ahead of the group decision. Implemented (2026-09-24).
+- **Context:** D054 sent one mote per shot, and a fresh run fired one shot a second, so the stream was thinner than the 0.33 s batch it replaced. With one enemy, Damage and Attack Speed are the same purchase (damage a second is their product); what Attack Speed is *for* waits on the group proposal ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md#proposal-a-wave-becomes-a-group--24-september-2026)).
+- **Decision:**
+  1. **A run fires 2.5 shots a second before any Attack Speed** (`TaxBalanceProfile.BASE_SHOTS_PER_SECOND`). Attack Speed multiplies that as before: 14.9 a second at rank 100.
+  2. **Damage per shot is divided by 2.5 to match:** Damage is 0.03 a rank (was 0.075) and Auto Crank 0.04 (was 0.1), so damage a second, Cash, run Upgrade prices and every balance figure are unchanged. The fixed floor stays 1 a second, shared across the shots.
+  3. **Passive "-X" pops fold into one every 0.33 s,** since a pop per shot would be twenty a second at full speed; each shot keeps its own mote, and a tap's pop still rises at once.
+  4. The Stats sheet counts SHOTS and CRITICAL SHOTS.
+- **Evidence:** the balance simulator's curve is identical, and its build matrix moves within one seed's noise. Over twelve seeds per build, old and new rules give the same mean wave (first spend 20.0 / 20.0, early 30.0 / 30.0, mid 60.0 / 60.0, attack max 199.6 / 199.4, attack max with Armor 209.4 / 210.0) and Coins within 1%. Crits, Multishot and Burst roll per shot, so their average is unchanged and their spread narrower.
+- **Consequences:** a Damage rank reads smaller (0.03 a shot) while buying the same damage a second, so the Damage row and the Attack Speed row are only comparable through the rate under the Number. An owned rank keeps its worth a second. A run saved on the old rules resumes on the new ones; its leftover tick phase can fire one extra shot on load. Momentum, which stacks per shot, would build 2.5× faster, but no row grants it.
+- **Revisit when:** the group decision gives Damage and Attack Speed separate jobs (overkill, spread), which is when their values and prices should be rebalanced against each other.

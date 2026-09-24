@@ -65,9 +65,9 @@ const STAT_DISPLAY := {
 	"tap_flat": {"unit": "flat", "base": 1.0, "op": "add"},
 	"passive_flat": {"unit": "flat", "base": 0.0, "op": "add"},
 	"base_output_multiplier": {"unit": "multiplier", "base": 1.0, "op": "mul"},
-	# The Workshop row carries the one-shot-a-second base, so it reads as a
-	# rate (D054); a card on top of it is still a multiplier.
-	"tick_rate": {"unit": "multiplier", "row_unit": "per_second", "base": 1.0, "op": "mul"},
+	# The Workshop row carries the base shots a second, so it reads as a rate
+	# from that base (D054, D055); a card on top of it is still a multiplier.
+	"tick_rate": {"unit": "multiplier", "row_unit": "per_second", "row_base": TaxBalanceProfile.BASE_SHOTS_PER_SECOND, "base": 1.0, "op": "mul"},
 	"double_tick_chance": {"unit": "percent", "base": 0.0, "op": "add"},
 	"critical_chance": {"unit": "percent", "base": 0.0, "op": "add"},
 	"critical_multiplier_add": {"unit": "multiplier", "base": 2.0, "op": "add"},
@@ -1132,7 +1132,7 @@ func stat_display(definition: UpgradeDefinition, rank: int) -> Dictionary:
 			continue
 		var shape: Dictionary = STAT_DISPLAY[effect_name]
 		var step := float(definition.effects[effect_name])
-		var value: float = float(shape.base)
+		var value: float = float(shape.get("row_base", shape.base))
 		if str(shape.op) == "mul":
 			value *= pow(step, units)
 		else:
@@ -1764,7 +1764,7 @@ func _base_output_per_tick() -> float:
 	return balance_profile.BASE_DAMAGE_PER_SECOND / _tick_rate()
 
 func _tick_rate() -> float:
-	return _effect_product("tick_rate", 1.0)
+	return balance_profile.BASE_SHOTS_PER_SECOND * _effect_product("tick_rate", 1.0)
 
 ## Everything that scales produced damage, including the boss-only bonus. Taps,
 ## ticks and the displayed rate all read it, so a boss wave cannot show one

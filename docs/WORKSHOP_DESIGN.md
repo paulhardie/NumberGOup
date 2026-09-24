@@ -113,7 +113,7 @@ Player-facing text never calls the Number "health". It says "If a hit takes your
 | Crit Chain | Each crit strengthens the next | `chain_reaction` |
 | Boss Damage | More damage against boss waves, ×2 at its cap | 100 ranks |
 
-Since D054 the Number fires shots: Damage is per shot, Attack Speed is shots a second, and a Multishot is a shot that fires twice. Older notes below say Damage per Second, Tick Speed and Double Tick for the same rows.
+Since D054 the Number fires shots: Damage is per shot, Attack Speed is shots a second, and a Multishot is a shot that fires twice. Older notes below say Damage per Second, Tick Speed and Double Tick for the same rows. Since D055 a run fires 2.5 shots a second before any Attack Speed, and Damage and Auto Crank ranks are 2.5 times smaller a shot, the same damage a second; per-rank figures below that predate it are the old per-tick values.
 
 Attack is today's Output, Speed and Chance bays, nearly unchanged. Boss Damage is the one new stat (step 4b): a targeted choice for players whose runs end on bosses, and worth +6 waves on its own at the cap.
 

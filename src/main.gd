@@ -68,8 +68,9 @@ const LONG_PRESS_SECONDS := 0.45
 const RUN_STAGE_TOP := 56.0
 ## Where the Number sits in the run arena, as a share of its height (D051).
 const NUMBER_HEIGHT_SHARE := 0.72
-## Under Reduce Motion, passive damage comes off the wave this often as one
-## number, carrying what built up since the last, rather than once a shot.
+## Passive damage rises off the wave as one "-X" this often, carrying what
+## landed since the last: at full Attack Speed a pop per shot would be twenty a
+## second (D055). Under Reduce Motion the damage itself waits this long too.
 const MOTE_INTERVAL := 0.33
 ## How far behind the first a Multishot's second shot leaves (D054).
 const MULTISHOT_GAP := 0.08
@@ -128,6 +129,10 @@ var enemy_latched := false
 var mote_damage := ScientificNumber.new()
 var mote_elapsed := 0.0
 var mote_crit := false
+## Shot damage landed on the wave since its last "-X" (D055).
+var pop_damage := ScientificNumber.new()
+var pop_elapsed := 0.0
+var pop_crit := false
 ## Where along its path the body is drawn, 0 at the arena's top edge and 1 at
 ## the Number. It is the wave clock.
 var enemy_travel := 0.0
@@ -3310,8 +3315,8 @@ func _populate_stats_grid() -> void:
 		["HIGHEST NUMBER", state.highest_number.format_value()],
 		["THIS RUN GENERATED", state.lifetime_generated.format_value()],
 		["TAPS", str(int(state.statistics.taps))],
-		["TICKS", str(int(state.statistics.ticks))],
-		["CRITICAL TICKS", str(int(state.statistics.critical_ticks))],
+		["SHOTS", str(int(state.statistics.ticks))],
+		["CRITICAL SHOTS", str(int(state.statistics.critical_ticks))],
 		["COINS SPENT", str(int(state.statistics.get("coins_spent", 0)))],
 	]
 	for entry in entries:
@@ -3490,8 +3495,20 @@ func _update_stage_colour() -> void:
 func _update_wave_enemy(delta: float) -> void:
 	if wave_enemy == null:
 		return
+	# A tap's damage rises at once; shots fold into one "-X" per interval.
 	for landed in arena_fx.step(delta):
-		_pop_damage(landed.amount, landed.crit, landed.tap)
+		if landed.tap:
+			_pop_damage(landed.amount, landed.crit, true)
+		else:
+			pop_damage = pop_damage.add(landed.amount)
+			pop_crit = pop_crit or landed.crit
+	pop_elapsed += delta
+	if pop_elapsed >= MOTE_INTERVAL:
+		if not pop_damage.is_zero():
+			_pop_damage(pop_damage, pop_crit, false)
+		pop_damage = ScientificNumber.new()
+		pop_crit = false
+		pop_elapsed = 0.0
 	var encounter: Variant = state.active_encounter
 	var standing: bool = state.in_run and encounter != null and not encounter.max_liability.is_zero() and not encounter.is_cleared()
 	if not standing:
@@ -3591,6 +3608,9 @@ func _clear_arena() -> void:
 	mote_damage = ScientificNumber.new()
 	mote_elapsed = 0.0
 	mote_crit = false
+	pop_damage = ScientificNumber.new()
+	pop_elapsed = 0.0
+	pop_crit = false
 
 ## Where the wave's number starts and stops, in the arena's space: from the top
 ## edge at the wave's entry point, straight towards the Number, stopping where
