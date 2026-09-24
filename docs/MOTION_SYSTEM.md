@@ -107,7 +107,7 @@ Combat here is two abstract axes: production damages the wave's Liability, and t
 
 | Event | What the player sees and feels | Reduce Motion |
 | --- | --- | --- |
-| A tap with Liability left | A mote leaves the Number for the wave at once and the Number pulses; as it lands (0.32 s) the wave's HP drops and its damage rises off the wave as "-X". Passive damage goes as one mote every 0.33 s with a smaller "-X". Between waves a tap's gain floats up as "+X", as before. | No motes; the HP drops and the "-X" shows on the wave at once. Number pulse skipped. |
+| A tap with Liability left | A mote leaves the Number for the wave at once and the Number pulses; as it lands (0.32 s) the wave's HP drops and its damage rises off the wave as "-X". Passive damage goes as one mote per shot with a smaller "-X"; a Multishot sends two, the second 0.08 s behind (D054). Between waves a tap's gain floats up as "+X", as before. | No motes; the HP drops and the "-X" shows on the wave at once, passive damage as one "-X" every 0.33 s. Number pulse skipped. |
 | Passive ticks | The arc advances only. A strike per tick would strobe, so ticks deliberately have no separate hit. | Unchanged. |
 | `tax_collection` | The Hit's working over the Number (D052): the raw Hit, then what Guard and Armor took off, then what landed, a line every 0.15 s, held 0.8 s and faded. Number flash, stage impact flash, a light stage rattle (3.5 px) and a short haptic. An unreduced Hit is one line. | Working and colour only. |
 | `boss_collection` | The same at boss weight: a 9 px rattle, a longer flash, a stronger haptic. | Float and colour only. |

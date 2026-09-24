@@ -20,17 +20,20 @@ var target := Vector2.ZERO
 var trail_from := Vector2.ZERO
 var trail_to := Vector2.ZERO
 var trail_colour := Color.TRANSPARENT
-## Each mote is {from, t (0..1), amount, crit, tap}; each bite {at, age}.
+## Each mote is {from, t (0..1, below 0 while it waits to leave), amount,
+## crit, tap}; each bite {at, age}.
 var _motes: Array = []
 var _bites: Array = []
 
 func _init() -> void:
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
 
-func fire(from: Vector2, amount: ScientificNumber, crit: bool, tap: bool = false) -> void:
+## `delay` holds a mote at the Number for that many seconds first, so a
+## Multishot's second shot follows the first rather than hiding under it.
+func fire(from: Vector2, amount: ScientificNumber, crit: bool, tap: bool = false, delay: float = 0.0) -> void:
 	if amount.is_zero():
 		return
-	_motes.append({"from": from, "t": 0.0, "amount": amount, "crit": crit, "tap": tap})
+	_motes.append({"from": from, "t": -delay / FLIGHT, "amount": amount, "crit": crit, "tap": tap})
 
 ## Drops every mote in flight, for a wave that is gone or a run that ended.
 func clear_motes() -> void:
@@ -68,6 +71,8 @@ func _draw() -> void:
 	if trail_colour.a > 0.0:
 		draw_polyline_colors(PackedVector2Array([trail_from, trail_to]), PackedColorArray([Color(trail_colour, 0.0), trail_colour]), 1.0, true)
 	for mote in _motes:
+		if mote.t < 0.0:
+			continue
 		var colour: Color = critical if mote.crit else accent
 		var radius := 2.6 if mote.crit else 2.1
 		draw_circle(_point(mote, mote.t), radius, Color(colour, 0.9))

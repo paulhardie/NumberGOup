@@ -75,7 +75,7 @@ func definitions_for_rarity(rarity: String) -> Array[Definition]:
 func _make_definitions() -> Array[Definition]:
 	return [
 		Definition.new("card_damage", "DAMAGE", "All damage ×1.025 per level.", COMMON, {"base_output_multiplier": 1.025}),
-		Definition.new("card_attack_speed", "ATTACK SPEED", "Ticks come ×1.02 faster per level.", COMMON, {"tick_rate": 1.02}),
+		Definition.new("card_attack_speed", "ATTACK SPEED", "Shots come ×1.02 faster per level.", COMMON, {"tick_rate": 1.02}),
 		Definition.new("card_coins", "COINS", "+1% Coins from every wave beaten, per level.", COMMON, {"coin_bonus": 0.01}),
 		Definition.new("card_critical_chance", "CRITICAL CHANCE", "+0.5% critical chance per level.", COMMON, {"critical_chance": 0.005}),
 		Definition.new("card_health", "HEALTH", "Begin every run with 5 extra Number per level.", RARE, {"starting_number_flat": 5.0}),

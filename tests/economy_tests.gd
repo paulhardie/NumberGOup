@@ -14,6 +14,7 @@ func _init() -> void:
 	_test_stat_values_read_the_row_effect()
 	_test_deepened_ladders_keep_their_old_maxima()
 	_test_every_ladder_reaches_its_d047_maximum()
+	_test_multishot_marks_two_shots()
 	_test_workshop_effects()
 	_test_burst_and_positive_chance()
 	_test_permanent_baseline_and_starting_reserve()
@@ -119,10 +120,10 @@ func _test_category_gates_and_rank_caps() -> void:
 			_expect(ProgressionTaxonomy.WORKSHOP_CATEGORIES.has(definition.workshop_category), "every Workshop row needs one of the four categories: " + definition.id)
 	_expect(state.is_unlocked(state.get_definition("stronger_tap")), "Tap Damage should be available at Workshop level zero")
 	_expect(state.is_unlocked(state.get_definition(GameState.ARMOR_ID)), "Armor should be available from the start, as Shield Matrix was")
-	_expect(not state.is_unlocked(state.get_definition("faster_cadence")), "Tick Speed should wait for its Workshop level")
+	_expect(not state.is_unlocked(state.get_definition("faster_cadence")), "Attack Speed should wait for its Workshop level")
 	_expect(state.purchase("stronger_tap"), "Tap Damage rank one should purchase")
 	_expect(state.purchase_ranks("stronger_tap", 11) == 11, "eleven more Tap Damage ranks should purchase")
-	_expect(state.is_unlocked(state.get_definition("faster_cadence")), "Tick Speed should open at Workshop level 12")
+	_expect(state.is_unlocked(state.get_definition("faster_cadence")), "Attack Speed should open at Workshop level 12")
 	_expect(not state.is_unlocked(state.get_definition("more_critical")), "Crit Chance should still be shut at Workshop level 12")
 	state.purchased.stronger_tap = 30
 	_expect(state.is_unlocked(state.get_definition("more_critical")), "Crit Chance should open at Workshop level 30")
@@ -240,7 +241,7 @@ func _test_workshop_price_onramp() -> void:
 	_expect(category_totals[ProgressionTaxonomy.ATTACK] == 22415267 and category_totals[ProgressionTaxonomy.DEFENSE] == 12297232 and category_totals[ProgressionTaxonomy.UTILITY] == 2305008, "the full Workshop should keep the authored category prices")
 	state.coins = 48
 	_expect(state.purchase_ranks("stronger_tap", 12) == 12, "a first run should fund twelve Tap Damage ranks")
-	_expect(state.purchase_ranks("generator", 6) == 6, "a first run should also fund six Damage Per Second ranks")
+	_expect(state.purchase_ranks("generator", 6) == 6, "a first run should also fund six Damage ranks")
 	_expect(state.purchase(GameState.ARMOR_ID) and state.coins == 1, "a first run should still afford an Armor rank with one Coin left")
 	_expect(state.start_run(1, 7) and state._tap_base() > 1.5 and state._passive_base() > 0.4, "the next run should feel the permanent Attack purchases")
 
@@ -268,6 +269,35 @@ func _test_stat_values_read_the_row_effect() -> void:
 	_expect(is_equal_approx(float(state.stat_display(tap, 1).value), 1.05), "one rank should move the card face, not round away")
 	var burst: Dictionary = state.stat_display(state.get_definition("burst_relay"), 2)
 	_expect(str(burst.unit) == "rank" and is_equal_approx(float(burst.value), 2.0), "a row with no declared effect should fall back to its rank")
+	# D054: the Attack Speed row carries the one-shot-a-second base, so it reads
+	# as shots a second; the card stacked on it is still a multiplier.
+	var speed: Dictionary = state.stat_display(state.get_definition("faster_cadence"), 100)
+	_expect(str(speed.unit) == "per_second" and absf(float(speed.value) - 5.95) < 0.01, "Attack Speed should read as about 5.95 shots a second at rank 100")
+	_expect(str(state.card_stat_display("card_attack_speed", 1).unit) == "multiplier", "the Attack Speed card should still read as a multiplier")
+
+## D054: Multishot fires the same shot twice. The tick lands as one amount,
+## twice the plain shot, and the event says it was two shots so the arena can
+## show both.
+func _test_multishot_marks_two_shots() -> void:
+	var state := _funded_state()
+	state.purchased = {"generator": 20, "faster_echo": 125}
+	state.start_run(1, 5)
+	state.rng.seed = 5
+	var single := ScientificNumber.new()
+	var double := ScientificNumber.new()
+	for tick in range(40):
+		var event := state._produce_tick()
+		_expect(event.hits == 1 or event.hits == 2, "a shot event should carry one or two shots")
+		if event.hits == 1:
+			single = event.amount
+		else:
+			double = event.amount
+	_expect(not single.is_zero() and double.compare_to(single.multiply_scalar(2.0)) == 0, "a Multishot tick should deal exactly two shots' damage")
+	var plain := _funded_state()
+	plain.purchased = {"generator": 20}
+	plain.start_run(1, 5)
+	for tick in range(40):
+		_expect(plain._produce_tick().hits == 1, "without Multishot every tick should be one shot")
 
 ## D047: the deep rows keep today's value for ranks 1-100, so every rank a
 ## player owns keeps its worth, and past 100 follow their depth curves.
@@ -275,7 +305,7 @@ func _test_deepened_ladders_keep_their_old_maxima() -> void:
 	var state := _funded_state()
 	state.purchased = {"stronger_tap": 100, "generator": 100, "guard": 100, "automation_core": 50}
 	_expect(is_equal_approx(state._tap_base(), 6.0), "Tap Damage at rank 100 should still be six")
-	_expect(is_equal_approx(state._passive_base(), 12.5), "Damage per Second at 100 plus Auto Crank should still be 12.5")
+	_expect(is_equal_approx(state._passive_base(), 12.5), "Damage at 100 plus Auto Crank should still be 12.5")
 	_expect(is_equal_approx(state._effect_sum("guard_flat"), 100.0), "Guard at rank 100 should still take 100 off")
 
 ## D047: every row's value at its cap. The deep rows follow their depth curves
@@ -286,16 +316,16 @@ func _test_every_ladder_reaches_its_d047_maximum() -> void:
 	for definition in state.definitions:
 		if definition.category == ProgressionTaxonomy.WORKSHOP:
 			state.purchased[definition.id] = definition.max_rank
-	_expect(state.get_definition("stronger_tap").max_rank == 6000 and state.get_definition("generator").max_rank == 6000 and state.get_definition("guard").max_rank == 5000, "Tap Damage and Damage per Second should run to 6,000 ranks and Guard to 5,000")
+	_expect(state.get_definition("stronger_tap").max_rank == 6000 and state.get_definition("generator").max_rank == 6000 and state.get_definition("guard").max_rank == 5000, "Tap Damage and Damage should run to 6,000 ranks and Guard to 5,000")
 	_expect(is_equal_approx(state._tap_base(), 1.0 + 0.05 * 100.0 * 67500.0), "Tap Damage should cap at 67,500 times its rank-100 bonus")
-	_expect(is_equal_approx(state._passive_base(), 0.075 * 100.0 * 67500.0 + 5.0), "Damage per Second should cap at 67,500 times its rank-100 bonus, plus Auto Crank")
+	_expect(is_equal_approx(state._passive_base(), 0.075 * 100.0 * 67500.0 + 5.0), "Damage should cap at 67,500 times its rank-100 bonus, plus Auto Crank")
 	_expect(is_equal_approx(state._effect_sum("guard_flat"), 100.0 * 79000.0), "Guard should cap at 79,000 times its rank-100 reduction")
 	_expect(is_equal_approx(state._base_output_multiplier(), pow(1.15, 3)), "Damage Multiplier should keep its cap")
-	_expect(absf(state._tick_rate() - 5.95) < 0.01, "Tick Speed should cap at about x5.95")
+	_expect(absf(state._tick_rate() - 5.95) < 0.01, "Attack Speed should cap at about x5.95")
 	_expect(is_equal_approx(state._critical_chance(), 0.8), "Crit Chance should cap at 80%")
 	_expect(absf(state._critical_multiplier() - 16.2) < 0.01, "Crit Damage should cap at about x16.2")
 	_expect(is_equal_approx(state._chain_reaction_step(), 0.3), "Crit Chain should keep its 30% per link")
-	_expect(is_equal_approx(state._effect_sum("double_tick_chance"), 0.5), "Double Tick should cap at 50%")
+	_expect(is_equal_approx(state._effect_sum("double_tick_chance"), 0.5), "Multishot should cap at 50%")
 	_expect(is_equal_approx(state._effect_sum("cost_discount"), 0.15), "Discount should keep its 15%")
 	_expect(is_equal_approx(state._effect_sum("collection_resistance"), 0.5), "Armor should cap at 50%")
 	_expect(is_equal_approx(state._effect_sum("starting_number_flat"), 1500.0), "Cushion should cap at 1,500 Number")
@@ -336,7 +366,7 @@ func _test_workshop_effects() -> void:
 	state.start_run(1, 11)
 	var event := state.tap()
 	_expect(event.amount.compare_to(ScientificNumber.from_float(3.45)) == 0, "Tap Damage and Damage Multiplier should affect taps")
-	# Damage per Second x Multiplier x Tick Speed, plus the flat output every run has (D033).
+	# Damage x Multiplier x Attack Speed, plus the flat output every run has (D033).
 	var rate := state.get_rate_per_second()
 	var expected_rate: float = 3.0 * pow(1.00701257, 20) * pow(1.01799, 20) + state.balance_profile.BASE_DAMAGE_PER_SECOND
 	_expect(absf(rate.mantissa * pow(10.0, rate.exponent) - expected_rate) < 0.0001, "Workshop output and speed should affect rate")
@@ -767,7 +797,7 @@ func _test_first_run_funds_permanent_workshop() -> void:
 	var tap_price := state.get_workshop_coin_cost(state.get_definition("stronger_tap"))
 	var dps_price := state.get_workshop_coin_cost(state.get_definition("generator"))
 	_expect(state.purchase("stronger_tap"), "first-run Coins should buy a permanent Tap Damage rank")
-	_expect(state.purchase("generator"), "first-run Coins should also buy the first Damage Per Second rank")
+	_expect(state.purchase("generator"), "first-run Coins should also buy the first Damage rank")
 	_expect(state.coins == before - tap_price - dps_price, "first Workshop purchases should spend Coins, not Number")
 	# A deepened ladder (D019) should turn the first run into a visible stack of
 	# ranks rather than the two the five-rank ladders allowed.

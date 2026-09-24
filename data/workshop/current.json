@@ -2519,8 +2519,8 @@
     },
     {
       "id": "generator",
-      "name": "DAMAGE PER SECOND",
-      "description": "Desk Dynamo. +0.075 base damage every second per rank to rank 100; past that, each rank adds more (up to +506,000 at rank 6,000).",
+      "name": "DAMAGE",
+      "description": "Desk Dynamo. +0.075 damage per shot per rank to rank 100; past that, each rank adds more (up to +506,000 at rank 6,000).",
       "category": "attack",
       "opens_at_workshop_level": 0,
       "max_rank": 6000,
@@ -5413,15 +5413,15 @@
     },
     {
       "id": "faster_cadence",
-      "name": "TICK SPEED",
-      "description": "Tick Wheel. Ticks come ×1.018 faster per rank (×5.95 at rank 100).",
+      "name": "ATTACK SPEED",
+      "description": "Trigger Wheel. Shots come ×1.018 faster per rank (5.95 a second at rank 100).",
       "category": "attack",
       "opens_at_workshop_level": 12,
       "max_rank": 100,
       "effects_per_rank": {
         "tick_rate": 1.01799
       },
-      "unit": "multiplier",
+      "unit": "per_second",
       "value_at_rank_0": 1.0,
       "value_at_max": 5.947729,
       "cost_base": 3.26,
@@ -6038,8 +6038,8 @@
     },
     {
       "id": "faster_echo",
-      "name": "DOUBLE TICK",
-      "description": "+0.4% chance a tick counts twice per rank.",
+      "name": "MULTISHOT",
+      "description": "+0.4% chance a shot fires twice per rank.",
       "category": "attack",
       "opens_at_workshop_level": 12,
       "max_rank": 125,
@@ -6814,7 +6814,7 @@
     {
       "id": "burst_relay",
       "name": "BURST",
-      "description": "Burst Relay. Every 11th tick counts double, one tick sooner per rank, down to every 6th.",
+      "description": "Burst Relay. Every 11th shot hits double, one shot sooner per rank, down to every 6th.",
       "category": "attack",
       "opens_at_workshop_level": 12,
       "max_rank": 6,
@@ -8806,7 +8806,7 @@
     {
       "id": "automation_core",
       "name": "AUTO CRANK",
-      "description": "+0.1 base damage every second per rank.",
+      "description": "+0.1 damage per shot per rank.",
       "category": "attack",
       "opens_at_workshop_level": 60,
       "max_rank": 50,
@@ -20048,7 +20048,7 @@
     {
       "id": "card_attack_speed",
       "name": "ATTACK SPEED",
-      "description": "Ticks come ×1.02 faster per level.",
+      "description": "Shots come ×1.02 faster per level.",
       "rarity": "common",
       "max_level": 7,
       "effects_per_level": {

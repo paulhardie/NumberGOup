@@ -65,7 +65,9 @@ const STAT_DISPLAY := {
 	"tap_flat": {"unit": "flat", "base": 1.0, "op": "add"},
 	"passive_flat": {"unit": "flat", "base": 0.0, "op": "add"},
 	"base_output_multiplier": {"unit": "multiplier", "base": 1.0, "op": "mul"},
-	"tick_rate": {"unit": "multiplier", "base": 1.0, "op": "mul"},
+	# The Workshop row carries the one-shot-a-second base, so it reads as a
+	# rate (D054); a card on top of it is still a multiplier.
+	"tick_rate": {"unit": "multiplier", "row_unit": "per_second", "base": 1.0, "op": "mul"},
 	"double_tick_chance": {"unit": "percent", "base": 0.0, "op": "add"},
 	"critical_chance": {"unit": "percent", "base": 0.0, "op": "add"},
 	"critical_multiplier_add": {"unit": "multiplier", "base": 2.0, "op": "add"},
@@ -212,18 +214,24 @@ func _produce_tick() -> SimulationEvent:
 		critical_chain += 1
 	else:
 		critical_chain = 0
+	# Multishot (D054): the second shot is the same hit again, so the tick
+	# still lands as one amount and only the event says it was two shots.
+	var hits := 1
 	if rng.randf() < _effect_sum("double_tick_chance"):
 		amount = amount.multiply_scalar(2.0)
+		hits = 2
 	var burst_interval := _burst_interval()
 	if burst_interval > 0 and workshop.tick_count % burst_interval == 0:
 		amount = amount.multiply_scalar(2.0)
 	_add_number(amount)
 	if in_run:
 		# Cash flows at the income Rig prices are quoted in (D042), shared across
-		# the ticks in a second. Anything else lets Tick Speed or Momentum raise
-		# every price without raising what pays for it.
+		# the ticks in a second. Anything else lets Attack Speed or Momentum
+		# raise every price without raising what pays for it.
 		_add_cash(ScientificNumber.from_float(get_rig_income_rate() / _tick_rate()))
-	return SimulationEvent.new("tick", amount, is_critical)
+	var event := SimulationEvent.new("tick", amount, is_critical)
+	event.hits = hits
+	return event
 
 ## True while the active wave still has HP to clear. Output is Number either
 ## way (D037); this only says whether it is also striking a wave.
@@ -1129,7 +1137,7 @@ func stat_display(definition: UpgradeDefinition, rank: int) -> Dictionary:
 			value *= pow(step, units)
 		else:
 			value += step * units
-		return {"value": value, "unit": str(shape.unit)}
+		return {"value": value, "unit": str(shape.get("row_unit", shape.unit))}
 	return {"value": float(rank), "unit": "rank"}
 
 func can_purchase_insight() -> bool:
