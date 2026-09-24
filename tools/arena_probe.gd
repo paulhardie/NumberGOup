@@ -75,8 +75,8 @@ func _init() -> void:
 	await _shot("1b_mote")
 	await create_timer(0.45).timeout
 	_check(not main.arena_fx._motes.has(tap_motes[0]) and main.wave_enemy.text != shown_before, "the HP drops once the mote lands: " + main.wave_enemy.text)
-	var popped: Array = main.floating_text_layer.get_children().filter(func(label): return label is Label and label.text.begins_with("-") and label.global_position.y < main.number_label.global_position.y)
-	_check(popped.size() >= 1, "a tap's damage comes off the wave, above the Number")
+	var popped: Array = main.floating_text_layer.get_children().filter(func(label): return label is Label and label.text.begins_with("-"))
+	_check(main.damage_readout.visible and main.damage_readout.text.begins_with("-") and popped.is_empty(), "a tap updates one fixed damage readout beside the wave")
 	main._tap_number()
 	await create_timer(0.36).timeout
 	await _shot("1c_damage_pops")
@@ -150,6 +150,7 @@ func _init() -> void:
 	st.number = ScientificNumber.from_float(1.0e9)
 	await _frames(3)
 	var raw_text: String = st.get_hit_breakdown().raw.format_value()
+	var reduced_parts: Dictionary = st.get_hit_breakdown()
 	_check(main.wave_enemy.caption == "hits " + raw_text and st.get_hit_breakdown().raw.compare_to(st.get_effective_collection().multiply_scalar(st.next_hit_share())) > 0, "the caption shows the raw Hit: " + main.wave_enemy.caption)
 	st.wave_accumulator = 14.95
 	await create_timer(0.75).timeout
@@ -159,6 +160,11 @@ func _init() -> void:
 			ledger_lines = maxi(ledger_lines, child.get_child_count())
 	_check(ledger_lines == 4, "a reduced Hit plays raw, guard, armor and result: %d lines" % ledger_lines)
 	await _shot("5_ledger")
+	var previous_ledger = main.active_hit_ledger
+	main._show_hit_ledger(reduced_parts, reduced_parts.final, main.DANGER)
+	await _frames(2)
+	var live_ledgers: Array = main.stage_root.get_children().filter(func(child): return child is VBoxContainer and child != main.number_col and not child.is_queued_for_deletion())
+	_check(main.active_hit_ledger != previous_ledger and live_ledgers.size() == 1, "close reduced Hits replace their working instead of stacking columns")
 	# Second Wind: an ordinary wave's forgiven Hit keeps its own colour and
 	# still shows its working.
 	await create_timer(2.5).timeout
@@ -196,7 +202,7 @@ func _init() -> void:
 		peak = maxi(peak, main.arena_fx._motes.size())
 	await _shot("1d_stream")
 	_check(st.statistics.ticks - ticks_before >= 2 and peak >= 1, "live shots leave as motes: %d ticks, peak %d" % [st.statistics.ticks - ticks_before, peak])
-	# D055: at 14.9 shots a second the passive "-X" folds to one per 0.33 s.
+	# D061: even at 14.9 shots a second, damage updates one label in place.
 	var seen := {}
 	for label in main.floating_text_layer.get_children():
 		seen[label] = true
@@ -206,7 +212,7 @@ func _init() -> void:
 	for label in main.floating_text_layer.get_children():
 		if label is Label and not seen.has(label) and (label.text.begins_with("-") or label.text.begins_with("CRIT -")):
 			pops += 1
-	_check(st.statistics.ticks - shots_before >= 12 and pops <= 4, "fourteen shots a second fold into a few pops: %d shots, %d pops" % [st.statistics.ticks - shots_before, pops])
+	_check(st.statistics.ticks - shots_before >= 12 and pops == 0 and main.damage_readout.visible, "fourteen shots a second update one fixed readout: %d shots, %d pops" % [st.statistics.ticks - shots_before, pops])
 	st.purchased.erase("faster_cadence")
 	st.purchased.erase("generator")
 	# D057: a member reaching the Number carries its HP past; that is not
@@ -223,15 +229,11 @@ func _init() -> void:
 	var carried: ScientificNumber = main.arena_fx.in_flight().add(main.pop_damage)
 	_check(st.active_encounter.landed_count() == 1 and carried.compare_to(member_hp.multiply_scalar(0.5)) < 0, "a landing member's HP is not shown as damage: %s of %s" % [carried.format_value(), member_hp.format_value()])
 	await create_timer(1.0).timeout
-	# D055: shot damage still waiting to pop rises before the wave shatters.
+	# Damage waiting to be shown enters the fixed readout before the shatter.
 	main.pop_damage = ScientificNumber.from_float(7777.0)
 	main.pop_crit = false
-	var before_clear := {}
-	for label in main.floating_text_layer.get_children():
-		before_clear[label] = true
 	main._shatter_enemy(false)
-	var flushed: Array = main.floating_text_layer.get_children().filter(func(label): return not before_clear.has(label) and label is Label and label.text.begins_with("-"))
-	_check(flushed.size() == 1 and main.pop_damage.is_zero(), "the pending shot pop rises before the shatter: %s" % str(flushed.map(func(label): return label.text)))
+	_check(main.damage_readout.visible and main.damage_readout.text == "-" + main._stat_number(ScientificNumber.from_float(7777.0)) and main.pop_damage.is_zero(), "pending shot damage reaches the readout before the shatter: " + main.damage_readout.text)
 	await create_timer(1.0).timeout
 	# D058: a pile at the Number while the next wave walks in.
 	st.wave = 57
@@ -240,6 +242,11 @@ func _init() -> void:
 	st.wave_accumulator = 14.5
 	await create_timer(3.0).timeout
 	_check(st.wave == 58 and _followers(main) >= st.active_encounter.at_number_count() - 1, "the pile is drawn round the Number: %d" % _followers(main))
+	main.hit_readout_elapsed = main.COMBAT_READOUT_WINDOW
+	main._record_hit_readout(ScientificNumber.from_float(4.0))
+	main._record_hit_readout(ScientificNumber.from_float(6.0))
+	await process_frame
+	_check(main.hit_readout.visible and main.hit_readout.text == "HIT -10" and main.hit_readout.get_global_rect().position.y >= main.number_col.get_global_rect().end.y, "close pile Hits share one readout below the Number: " + main.hit_readout.text)
 	await _shot("7_pile")
 	# D058 review: behind a pile, a boss stays the live number.
 	var pile: Array = st.active_encounter.living_members().filter(func(m): return int(m.state) == TaxEncounter.AT_NUMBER)
@@ -255,6 +262,8 @@ func _init() -> void:
 	st.settings["reduce_motion"] = true
 	st.wave_accumulator = 9.0
 	await _frames(3)
+	main._pop_damage(ScientificNumber.from_float(5.0), true, true)
+	_check(main.damage_readout.visible and main.damage_readout.text.begins_with("CRIT -"), "Reduce Motion still shows critical damage in the fixed readout")
 	var rm_front: Dictionary = st.active_encounter.members[main.enemy_front]
 	_check(main.wave_enemy.visible and main.enemy_travel == (1.0 if int(rm_front.state) == TaxEncounter.AT_NUMBER else 0.0), "with Reduce Motion a walking front holds at the edge")
 	_beat(st)
@@ -262,7 +271,7 @@ func _init() -> void:
 	_check(_ghosts(main, WaveEnemy.Beat.SHATTER) == 0, "with Reduce Motion no shatter plays")
 	st.end_run()
 	await _frames(2)
-	_check(not main.wave_enemy.visible, "no body between runs")
+	_check(not main.wave_enemy.visible and not main.damage_readout.visible and not main.hit_readout.visible, "no enemy or combat readout between runs")
 	st.clear_save()
 	print("ARENA PROBE ", "PASS" if fails == 0 else "FAIL %d" % fails, "  screenshots in ", ProjectSettings.globalize_path(OUT))
 	quit()

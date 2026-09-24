@@ -30,6 +30,7 @@ func _capture_size(window_size: Vector2i, label: String) -> void:
 	await _capture_state(window_size, label, "milestones", false)
 	await _capture_state(window_size, label, "run", false)
 	await _capture_state(window_size, label, "run_standing", false)
+	await _capture_state(window_size, label, "run_feedback", false)
 	await _capture_state(window_size, label, "boss", false)
 	await _capture_state(window_size, label, "workshop", false)
 	await _capture_state(window_size, label, "knowledge", false)
@@ -57,7 +58,7 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 		"more_critical": 2,
 	}
 	state.settings["reduce_motion"] = true
-	if state_name == "run" or state_name == "run_standing" or state_name == "boss":
+	if state_name == "run" or state_name == "run_standing" or state_name == "run_feedback" or state_name == "boss":
 		# The wave's body only travels with Reduce Motion off (D050).
 		state.settings["reduce_motion"] = false
 		state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
@@ -119,6 +120,11 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 	main._refresh_all()
 	# Let the tab slide/fade finish so captures show the resting state.
 	await create_timer(0.4).timeout
+	if state_name == "run_feedback":
+		main._pop_damage(ScientificNumber.from_float(24.0), false, false)
+		main._record_hit_readout(ScientificNumber.from_float(12.0))
+		await process_frame
+		await process_frame
 	_save_frame(window_size, label, state_name)
 	main.queue_free()
 	await process_frame

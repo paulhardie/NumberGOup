@@ -69,10 +69,12 @@ const LONG_PRESS_SECONDS := 0.45
 const RUN_STAGE_TOP := 56.0
 ## Where the Number sits in the run arena, as a share of its height (D051).
 const NUMBER_HEIGHT_SHARE := 0.72
-## Passive damage rises off the wave as one "-X" this often, carrying what
-## landed since the last: at full Attack Speed a pop per shot would be twenty a
-## second (D055). Under Reduce Motion the damage itself waits this long too.
+## Passive shot damage is collected this often; under Reduce Motion its shown
+## HP also waits for that collection (D055).
 const MOTE_INTERVAL := 0.33
+## A single readout keeps a short total beside each side of the fight (D061).
+const COMBAT_READOUT_WINDOW := 0.5
+const COMBAT_READOUT_HOLD := 0.8
 ## How far behind the first a Multishot's second shot leaves (D054).
 const MULTISHOT_GAP := 0.08
 const RUN_SHEET_MIN := 150.0
@@ -117,6 +119,21 @@ var gems_label: Label
 var gems_button: Button
 var floating_text_layer: Control
 var arena_fx: ArenaFxClass
+var damage_readout: Label
+var hit_readout: Label
+var damage_readout_encounter: Variant = null
+var damage_readout_target := Vector2.ZERO
+var damage_readout_total := ScientificNumber.new()
+var damage_readout_elapsed := COMBAT_READOUT_WINDOW
+var damage_readout_idle := COMBAT_READOUT_HOLD
+var damage_readout_crit := false
+var damage_readout_tap := false
+var hit_readout_total := ScientificNumber.new()
+var hit_readout_elapsed := COMBAT_READOUT_WINDOW
+var hit_readout_idle := COMBAT_READOUT_HOLD
+var hit_readout_boss := false
+var active_hit_ledger: VBoxContainer
+var active_hit_ledger_tween: Tween
 ## The box the Number and its rate sit centred in, moved by the layout.
 var number_frame: CenterContainer
 ## The wave as a body closing on the Number over its clock (D050).
@@ -130,7 +147,7 @@ var enemy_latched := false
 var mote_damage := ScientificNumber.new()
 var mote_elapsed := 0.0
 var mote_crit := false
-## Shot damage landed on the wave since its last "-X" (D055).
+## Shot damage landed on the wave since the last readout update (D055, D061).
 var pop_damage := ScientificNumber.new()
 var pop_elapsed := 0.0
 var pop_crit := false
@@ -362,9 +379,7 @@ func _process(delta: float) -> void:
 			if not event.amount.is_zero() and not fighting:
 				passive_float_accumulator = passive_float_accumulator.add(event.amount)
 		elif event.type == "pile_hit":
-			# Members at the Number hitting again (D058): one small bite a frame
-			# for all of them, not the arrival's full beat, since a pile can bite
-			# several times a second.
+			# Members at the Number can bite several times in one frame (D058).
 			pile_bite = pile_bite.add(event.amount)
 		elif event.type == "tax_collection" or event.type == "boss_collection":
 			var boss_hit: bool = event.type == "boss_collection"
@@ -386,7 +401,7 @@ func _process(delta: float) -> void:
 					_show_hit_ledger(landing_parts, event.amount, hit_colour)
 			else:
 				if landing_parts.is_empty():
-					_spawn_floating_text("-" + _stat_number(event.amount) + " NUMBER", hit_colour, _stage_float_point())
+					_record_hit_readout(event.amount, boss_hit)
 					# A boss stays and hits again (D037); members stay too (D058), and
 					# their countdown is on the wave's number.
 					if boss_hit:
@@ -439,7 +454,7 @@ func _process(delta: float) -> void:
 			state.save()
 			passive_float_accumulator = ScientificNumber.new()
 	if not pile_bite.is_zero():
-		_spawn_floating_text("-" + _stat_number(pile_bite), DANGER, _stage_float_point(), 13)
+		_record_hit_readout(pile_bite)
 		_flash_number(DANGER, 0.2)
 		_shake_stage(1.5)
 	passive_float_elapsed += delta
@@ -458,6 +473,7 @@ func _process(delta: float) -> void:
 		# its HP (D057) is not mistaken for damage dealt.
 		_send_shots(events, hp_before.subtract(hp_encounter.uncleared()), delta)
 	_update_wave_enemy(delta)
+	_update_combat_readouts(delta)
 	save_elapsed += delta
 	refresh_elapsed += delta
 	drawer_elapsed += delta
@@ -699,6 +715,15 @@ func _build_stage(parent: Control) -> void:
 	wave_enemy = WaveEnemyClass.new(number_font)
 	wave_enemy.visible = false
 	stage.add_child(wave_enemy)
+
+	damage_readout = _make_number_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, ACCENT)
+	damage_readout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	damage_readout.visible = false
+	stage.add_child(damage_readout)
+	hit_readout = _make_number_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, DANGER)
+	hit_readout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hit_readout.visible = false
+	stage.add_child(hit_readout)
 
 ## The battle hub between runs (D048), in the Instrument look (D049): the
 ## currencies across the top, a ring of the highest wave against the next goal
@@ -3687,24 +3712,28 @@ func _hide_followers(from: int) -> void:
 	for index in range(from, enemy_followers.size()):
 		enemy_followers[index].visible = false
 
-## The Hit worked out in front of the player at contact (D052): the wave's raw
-## Hit, what Guard and then Armor took off, and what landed, each line
-## appearing in turn over the Number. It only fades, so it plays the same under
-## Reduce Motion. A Hit nothing reduced is one line, as before.
+## The Hit worked out in front of the player at contact (D052). An unreduced
+## Hit uses the fixed readout; a reduced one keeps its working in a single
+## reusable spot, so quick arrivals do not stack several columns of numbers.
 func _show_hit_ledger(parts: Dictionary, landed: ScientificNumber, colour: Color) -> void:
+	if active_hit_ledger_tween != null and active_hit_ledger_tween.is_valid():
+		active_hit_ledger_tween.kill()
+	if is_instance_valid(active_hit_ledger):
+		active_hit_ledger.queue_free()
+	active_hit_ledger = null
 	var blocked := landed.is_zero()
-	var lines: Array = []
 	if parts.guard.is_zero() and parts.armor.is_zero() and not blocked:
-		lines.append(["-" + _stat_number(landed), colour, 16])
-	else:
-		lines.append([_stat_number(parts.raw), colour, 16])
-		if not parts.guard.is_zero():
-			lines.append(["-" + _stat_number(parts.guard) + " guard", ACCENT, 12])
-		if not parts.armor.is_zero():
-			lines.append(["-" + _stat_number(parts.armor) + " armor", ACCENT, 12])
-		if blocked:
-			lines.append(["braced", ACCENT, 12])
-		lines.append(["= " + ("0" if blocked else "-" + _stat_number(landed)), ACCENT if blocked else colour, 16])
+		_record_hit_readout(landed, colour == BOSS_DANGER)
+		return
+	var lines: Array = []
+	lines.append([_stat_number(parts.raw), colour, 16])
+	if not parts.guard.is_zero():
+		lines.append(["-" + _stat_number(parts.guard) + " guard", ACCENT, 12])
+	if not parts.armor.is_zero():
+		lines.append(["-" + _stat_number(parts.armor) + " armor", ACCENT, 12])
+	if blocked:
+		lines.append(["braced", ACCENT, 12])
+	lines.append(["= " + ("0" if blocked else "-" + _stat_number(landed)), ACCENT if blocked else colour, 16])
 	var column := VBoxContainer.new()
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -3716,11 +3745,13 @@ func _show_hit_ledger(parts: Dictionary, landed: ScientificNumber, colour: Color
 		column.add_child(label)
 		labels.append(label)
 	stage_root.add_child(column)
+	active_hit_ledger = column
 	var box := column.get_combined_minimum_size()
 	var number_top := number_label.get_global_rect().position.y - stage_root.global_position.y
 	column.size = box
 	column.position = Vector2((stage_root.size.x - box.x) / 2.0, maxf(number_top - box.y - 6.0, 0.0))
 	var tween := create_tween()
+	active_hit_ledger_tween = tween
 	# After the wave's number has swollen into the Number, the working follows.
 	tween.tween_interval(0.2)
 	for label in labels:
@@ -3728,7 +3759,12 @@ func _show_hit_ledger(parts: Dictionary, landed: ScientificNumber, colour: Color
 		tween.tween_interval(0.07)
 	tween.tween_interval(0.8)
 	tween.tween_property(column, "modulate:a", 0.0, 0.35)
-	tween.tween_callback(column.queue_free)
+	tween.tween_callback(func():
+		if is_instance_valid(column):
+			column.queue_free()
+		if active_hit_ledger == column:
+			active_hit_ledger = null
+	)
 
 ## Drops the motes and the trail, for a wave that is gone or a new one.
 func _clear_arena() -> void:
@@ -3806,16 +3842,75 @@ func _fire_mote(amount: ScientificNumber, crit: bool, tap: bool = false, delay: 
 	var from := Vector2(number_box.get_center().x, number_box.position.y) - stage_root.global_position
 	arena_fx.fire(from, amount, crit, tap, delay)
 
-## The damage a mote carried, coming off the wave as it lands (D051): a tap's
-## or a crit's at full size, the passive stream smaller. Each lands a little to
-## one side or the other so a stream does not stack into one smear.
+## A mote still decides when the shown HP falls (D051). Its damage now updates
+## one readout beside the struck member instead of launching another number.
 func _pop_damage(amount: ScientificNumber, crit: bool, tap: bool) -> void:
-	if not wave_enemy.visible:
+	if not wave_enemy.visible or amount.is_zero():
 		return
-	var text := ("CRIT -" if crit else "-") + _stat_number(amount)
-	# Where the motes land: the live number, or the pile member in front (D058).
-	var point := arena_fx.target + stage_root.position + Vector2(randf_range(-16.0, 16.0), -14.0)
-	_spawn_floating_text(text, CRITICAL if crit else ACCENT, point, 15 if tap or crit else 12)
+	if damage_readout_elapsed >= COMBAT_READOUT_WINDOW:
+		damage_readout_total = ScientificNumber.new()
+		damage_readout_crit = false
+		damage_readout_tap = false
+		damage_readout_elapsed = 0.0
+	damage_readout_total = damage_readout_total.add(amount)
+	damage_readout_crit = damage_readout_crit or crit
+	damage_readout_tap = damage_readout_tap or tap
+	damage_readout.text = ("CRIT -" if damage_readout_crit else "-") + _stat_number(damage_readout_total)
+	damage_readout.add_theme_color_override("font_color", CRITICAL if damage_readout_crit else ACCENT)
+	damage_readout.add_theme_font_size_override("font_size", 15 if damage_readout_crit or damage_readout_tap else 13)
+	damage_readout.visible = true
+	damage_readout_idle = 0.0
+	damage_readout_target = arena_fx.target
+	damage_readout_encounter = enemy_encounter
+
+## Repeat Hits and unreduced arrivals share one red total at the Number.
+## This changes only presentation; the Number has already lost each Hit.
+func _record_hit_readout(amount: ScientificNumber, boss: bool = false) -> void:
+	if amount.is_zero():
+		return
+	if hit_readout_elapsed >= COMBAT_READOUT_WINDOW:
+		hit_readout_total = ScientificNumber.new()
+		hit_readout_boss = false
+		hit_readout_elapsed = 0.0
+	hit_readout_total = hit_readout_total.add(amount)
+	hit_readout_boss = hit_readout_boss or boss
+	hit_readout.text = "HIT -" + _stat_number(hit_readout_total)
+	hit_readout.add_theme_color_override("font_color", BOSS_DANGER if hit_readout_boss else DANGER)
+	hit_readout.visible = true
+	hit_readout_idle = 0.0
+
+func _update_combat_readouts(delta: float) -> void:
+	damage_readout_elapsed += delta
+	hit_readout_elapsed += delta
+	damage_readout_idle += delta
+	hit_readout_idle += delta
+	if not state.in_run or damage_readout_idle >= COMBAT_READOUT_HOLD:
+		damage_readout.visible = false
+	if not state.in_run or hit_readout_idle >= COMBAT_READOUT_HOLD:
+		hit_readout.visible = false
+	if damage_readout.visible:
+		# Follow only the member this total belongs to. After a clear, leave it
+		# at the old contact point rather than jumping to the next wave.
+		if damage_readout_encounter == enemy_encounter and wave_enemy.visible:
+			damage_readout_target = arena_fx.target
+		var box := damage_readout.get_combined_minimum_size()
+		damage_readout.size = box
+		var x := damage_readout_target.x + 48.0 if damage_readout_target.x < stage_root.size.x / 2.0 else damage_readout_target.x - box.x - 48.0
+		var y := damage_readout_target.y - box.y / 2.0
+		damage_readout.position = Vector2(
+			clampf(x, 6.0, maxf(6.0, stage_root.size.x - box.x - 6.0)),
+			clampf(y, 6.0, maxf(6.0, stage_root.size.y - box.y - 6.0))
+		)
+	if hit_readout.visible:
+		var box := hit_readout.get_combined_minimum_size()
+		hit_readout.size = box
+		# The gap below TAP is empty even when the pile flanks the Number.
+		var x := (stage_root.size.x - box.x) / 2.0
+		var y := number_col.get_global_rect().end.y - stage_root.global_position.y + 8.0
+		hit_readout.position = Vector2(
+			clampf(x, 6.0, maxf(6.0, stage_root.size.x - box.x - 6.0)),
+			clampf(y, 6.0, maxf(6.0, stage_root.size.y - box.y - 6.0))
+		)
 
 ## One mote per shot (D054). What the step took off the wave is measured, so
 ## it already counts the wave's own modifiers and anything that is not a shot;
@@ -3857,8 +3952,7 @@ func _gather_passive_damage(dealt: ScientificNumber, crit: bool, delta: float) -
 		mote_crit = false
 		mote_elapsed = 0.0
 
-## Shows the shots' folded "-X" now (D055), on the wave it hit, so the killing
-## blow's damage still rises before the wave shatters or gives way.
+## Flushes damage to the fixed readout before a wave shatters or gives way.
 func _flush_shot_pops() -> void:
 	if not pop_damage.is_zero():
 		_pop_damage(pop_damage, pop_crit, false)
