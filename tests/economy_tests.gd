@@ -34,6 +34,7 @@ func _init() -> void:
 	_test_group_saves_and_resumes()
 	_test_members_stay_and_the_pile_grows()
 	_test_opening_members_pass()
+	_test_d058_opening_save_reconciles()
 	_test_output_is_number_and_strikes_the_wave()
 	_test_repeated_taps_count_once()
 	_test_missed_waves_move_on_and_bosses_stay()
@@ -3035,6 +3036,120 @@ func _test_opening_members_pass() -> void:
 	for step in range(26):
 		state._advance_waves(0.25)
 	_expect(state.active_encounter.at_number_count() == 1, "from wave 31 a member that reaches the Number should stay")
+
+## D060: a V10 active save from before the D059 opening rule may contain a
+## repeating member from an early wave, despite having the same profile ID.
+func _test_d058_opening_save_reconciles() -> void:
+	var save_path := "res://.number_go_up_test_save.json"
+	var old := GameState.new()
+	old.save_path = save_path
+	old.start_run(1, 82)
+	old.number = ScientificNumber.from_float(1e6)
+	old.coins = 123
+	old.cash = ScientificNumber.from_float(456)
+	old.wave = 2
+	old.wave_accumulator = 6.25
+	old.active_encounter = old._make_encounter(2)
+	for member in old.active_encounter.members:
+		member.interval = 5.0
+	var own_front: Dictionary = old.active_encounter.members[0]
+	own_front.state = TaxEncounter.AT_NUMBER
+	own_front.landed = true
+	own_front.next_hit = 11.0
+	var carried: Dictionary = old._make_encounter(1).members[0]
+	carried.state = TaxEncounter.AT_NUMBER
+	carried.landed = true
+	carried.interval = 5.0
+	carried.next_hit = 7.0
+	old.active_encounter.carry_in([carried])
+	var number_before: ScientificNumber = old.number.copy()
+	var own_hp_before: ScientificNumber = old.active_encounter.own_uncleared()
+	_expect(old.save(), "a D058-shaped V10 opening run should save")
+	var saved := _read_json(save_path)
+	_expect(int(saved.version) == SaveDataV10.VERSION and str(saved.balance_profile_id) == old.balance_profile.PROFILE_ID, "the old fixture should have D059's save version and profile ID")
+	var resumed := GameState.new()
+	resumed.save_path = save_path
+	resumed.load()
+	_expect(resumed.load_status == GameState.LOAD_OK and resumed.wave == 2, "the old V10 opening run should load")
+	_expect(resumed.active_encounter.members.size() == 3 and resumed.active_encounter.members.all(func(member): return int(member.wave) == 2), "members carried from an opening wave should leave on load")
+	_expect(int(resumed.active_encounter.members[0].state) == TaxEncounter.LANDED and resumed.active_encounter.members.all(func(member): return float(member.interval) == 0.0), "the old opening member should have hit once and approaching members should pass")
+	_expect(resumed.number.compare_to(number_before) == 0 and resumed.active_encounter.own_uncleared().compare_to(own_hp_before) == 0 and resumed.coins == 123 and resumed.cash.compare_to(ScientificNumber.from_float(456)) == 0, "conversion should keep Number, Coins, Cash and this wave's uncleared HP")
+	for step in range(3):
+		resumed._advance_waves(0.25)
+	_expect(resumed.number.compare_to(number_before) == 0, "a converted opening member should not hit again")
+	_expect(resumed.save(), "the converted opening run should save in D059 form")
+	var current := GameState.new()
+	current.save_path = save_path
+	current.load()
+	_expect(current.active_encounter.to_dict() == resumed.active_encounter.to_dict() and current.number.compare_to(resumed.number) == 0, "the converted D059 encounter should round-trip exactly")
+	resumed.clear_save()
+
+	var later := GameState.new()
+	later.save_path = save_path
+	later.start_run(1, 83)
+	later.number = ScientificNumber.from_float(1e9)
+	later.wave = 31
+	later.wave_accumulator = 6.25
+	later.active_encounter = later._make_encounter(31)
+	var eased_front: Dictionary = later.active_encounter.members[0]
+	eased_front.state = TaxEncounter.AT_NUMBER
+	eased_front.landed = true
+	eased_front.interval = 5.0
+	eased_front.next_hit = 11.0
+	var early: Dictionary = later._make_encounter(29).members[0]
+	early.state = TaxEncounter.AT_NUMBER
+	early.landed = true
+	early.interval = 5.0
+	later.active_encounter.carry_in([early])
+	_expect(later.save(), "a D058-shaped later run with an opening pile should save")
+	var later_resumed := GameState.new()
+	later_resumed.save_path = save_path
+	later_resumed.load()
+	_expect(later_resumed.active_encounter.members.all(func(member): return int(member.wave) == 31) and later_resumed.active_encounter.at_number_count() == 1, "an early carried member should leave, while wave 31's own member stays")
+	_expect(is_equal_approx(float(later_resumed.active_encounter.members[0].interval), 14.5) and is_equal_approx(float(later_resumed.active_encounter.members[0].next_hit), 20.5), "a D058 member at wave 31 should adopt D059's eased interval and next Hit")
+	var premature_hits := 0
+	for step in range(20):
+		premature_hits += later_resumed._advance_waves(0.25).filter(func(event): return event.type == "pile_hit").size()
+	_expect(premature_hits == 0, "a converted wave-31 member should not repeat on D058's old five-second clock")
+	_expect(later_resumed.save(), "the converted eased wave should save")
+	var later_roundtrip := GameState.new()
+	later_roundtrip.save_path = save_path
+	later_roundtrip.load()
+	_expect(later_roundtrip.active_encounter.to_dict() == later_resumed.active_encounter.to_dict(), "the eased interval and next Hit should round-trip exactly")
+	later_roundtrip.clear_save()
+
+	var boss := GameState.new()
+	boss.save_path = save_path
+	boss.start_run(1, 85)
+	boss.wave = 30
+	boss.active_encounter = boss._make_encounter(30)
+	boss.active_encounter.members[0].state = TaxEncounter.AT_NUMBER
+	boss.active_encounter.members[0].landed = true
+	boss.active_encounter.members[0].next_hit = 15.0
+	_expect(boss.save(), "an early boss encounter should save")
+	var boss_resumed := GameState.new()
+	boss_resumed.save_path = save_path
+	boss_resumed.load()
+	_expect(boss_resumed.active_encounter.to_dict() == boss.active_encounter.to_dict(), "the wave-30 boss should keep its repeat interval and state")
+	boss_resumed.clear_save()
+
+	var fresh := GameState.new()
+	fresh.save_path = save_path
+	fresh.start_run(1, 84)
+	fresh.number = ScientificNumber.from_float(1e6)
+	for step in range(25):
+		fresh._advance_waves(0.25)
+	_expect(int(fresh.active_encounter.members[0].state) == TaxEncounter.LANDED, "the D059 fixture should have a member that hit once and left")
+	_expect(fresh.save(), "a current D059 opening run should save")
+	var fresh_resumed := GameState.new()
+	fresh_resumed.save_path = save_path
+	fresh_resumed.load()
+	_expect(fresh_resumed.active_encounter.to_dict() == fresh.active_encounter.to_dict() and fresh_resumed.number.compare_to(fresh.number) == 0, "a current D059 opening encounter should load exactly")
+	for step in range(40):
+		fresh._advance_waves(0.25)
+		fresh_resumed._advance_waves(0.25)
+	_expect(fresh_resumed.wave == fresh.wave and fresh_resumed.number.compare_to(fresh.number) == 0 and fresh_resumed.coins == fresh.coins, "a current D059 opening run should continue identically after load")
+	fresh_resumed.clear_save()
 
 ## Plays the wave clock in quarter seconds until an event of `type` happens,
 ## for up to `seconds`, and returns it (null if none).

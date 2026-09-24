@@ -332,7 +332,8 @@ func _advance_waves(delta: float) -> Array[SimulationEvent]:
 ## its own clock: once when it reaches the Number, then every interval while it
 ## stays (D058). A wave whose own members are all beaten gives way to the next
 ## after the minimum beat (D037); one still standing when its clock runs out
-## passes, and whatever still lives at the Number carries into the next wave,
+## passes, as does an opening wave whose members hit and left (D059). Whatever
+## still lives at the Number carries into the next wave,
 ## so a build that cannot beat them is worn down by the pile. A boss holds the
 ## clock until beaten (D037), its clock wrapping every 15 seconds.
 func _run_wave_clock(events: Array[SimulationEvent]) -> void:
@@ -1517,8 +1518,9 @@ func _normalise_tier_record(record: Dictionary) -> void:
 				claimed.append(claimed_wave)
 	record.milestones_claimed = claimed
 
-## A saved active run resumes with identical remaining Liability and identical
-## RNG state (D006). A save taken between runs restores a clean run instead.
+## A current-rules active save resumes with identical remaining Liability and
+## RNG state (D006). Older encounter rules are reconciled below (D060). A save
+## taken between runs restores a clean run instead.
 func _restore_saved_run(data: Dictionary) -> void:
 	wave = maxi(1, int(data.get("wave", 1)))
 	wave_accumulator = clampf(float(data.get("wave_accumulator", 0.0)), 0.0, WAVE_INTERVAL_SECONDS)
@@ -1549,6 +1551,7 @@ func _restore_saved_run(data: Dictionary) -> void:
 		active_encounter = TaxEncounterClass.from_dict(encounter_data) if encounter_data is Dictionary else _make_encounter(wave)
 		if str(data.get("balance_profile_id", "")) != balance_profile.PROFILE_ID:
 			_rebuild_encounter_on_current_profile()
+		_reconcile_opening_members_on_load()
 		# Added after V5 shipped, like the run peak: a save without Rig ranks
 		# resumes with none, and malformed ranks read as none rather than crash.
 		var saved_rig: Variant = data.get("rig_ranks", {})
@@ -1568,6 +1571,39 @@ func _restore_saved_run(data: Dictionary) -> void:
 	# A save taken between runs settles research finished since; one taken
 	# mid-run leaves it for the run's end (D031).
 	_settle_labs()
+
+## D058 and D059 share V10 and the same HP/Hit profile. An older active save
+## can therefore contain repeating members from the gentler opening and the
+## old five-second interval in the eased waves. Keep Number and uncleared HP.
+func _reconcile_opening_members_on_load() -> void:
+	if active_encounter == null:
+		return
+	var retained: Array = []
+	for member in active_encounter.members:
+		var member_wave := int(member.wave)
+		if balance_profile.is_boss_wave(member_wave):
+			retained.append(member)
+			continue
+		var interval := balance_profile.member_hit_seconds(member_wave)
+		if interval > 0.0:
+			var saved_interval := float(member.interval)
+			if not is_equal_approx(saved_interval, interval):
+				# A member already at the Number keeps the time since its last
+				# Hit when the D058 repeat clock becomes D059's eased clock.
+				if int(member.state) == TaxEncounterClass.AT_NUMBER:
+					member.next_hit = float(member.next_hit) + interval - saved_interval
+				member.interval = interval
+			retained.append(member)
+			continue
+		# A member from an earlier opening wave would already have left.
+		if member_wave != wave:
+			continue
+		member.interval = 0.0
+		if int(member.state) == TaxEncounterClass.AT_NUMBER:
+			member.state = TaxEncounterClass.LANDED
+		retained.append(member)
+	active_encounter.members = retained
+	active_encounter._sum_remaining()
 
 ## A run saved under an older balance profile resumes on the current one
 ## (D040). The Hit an old profile read at load time, such as the retired wave

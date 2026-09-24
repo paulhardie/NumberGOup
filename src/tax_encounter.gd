@@ -4,15 +4,15 @@ extends RefCounted
 ## A wave's members (D057), and any earlier members still at the Number
 ## (D058). Each wave member carries its share of its wave's HP and Hit and
 ## walks in as part of a column, reaching the Number at `arrive` seconds into
-## the wave's clock. There it stays and hits again every `interval` seconds
-## until beaten. Members still at the Number when the clock runs out carry into
-## the next wave, ahead of its column, so a build that cannot beat them is
-## worn down by the pile. Damage strikes the front living member, and any
-## beyond what that member has left is lost.
+## the wave's clock. Opening members hit once and leave (D059); later members
+## stay and hit again every `interval` seconds until beaten. Members still at
+## the Number when the clock runs out carry into the next wave, ahead of its
+## column, so a build that cannot beat them is worn down by the pile. Damage
+## strikes the front living member, and any beyond its HP is lost.
 const STANDING := 0
 const KILLED := 1
-## A member that landed and passed under D057's first rule. Kept so a save from
-## that build still reads; nothing new enters this state.
+## A member that landed and passed, as in D057 and the D059 opening. Its HP
+## remains uncleared, but it cannot hit again.
 const LANDED := 2
 const AT_NUMBER := 3
 
