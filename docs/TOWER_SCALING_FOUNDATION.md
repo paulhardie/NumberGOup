@@ -134,6 +134,36 @@ wave body × milestone steps × compound growth × explicit tier table × modifi
 
 The exact Tower constants should remain research evidence, not become Number Go Up's identity.
 
+## Tier 1, wave by wave, against ours — 24 September 2026
+
+Computed from TheTowerSDK 0.11.0 (npm, released 13 September 2026): `computeWaveBaseHealthRaw` and `computeWaveBaseDamage` for a basic enemy (the game floors health; wave 1's 2.35 shows as 2), and `killsPerWaveFromSpawnContext` for enemies per wave, with no Wave Accelerator and no Enemy Balance. The enemy counts are the SDK's spawn model, not a counted run. "Our" columns are today's profile (`tax-foundation-v11`): wave HP and Hit shared evenly across the wave's members. The ratio columns (an enemy's health divided by its damage) are the scale-free comparison: they don't depend on how big the player's numbers are.
+
+| Wave | Tower enemy HP | Tower enemy damage | Tower HP ÷ damage | Tower enemies | Tower wave HP (all enemies) | Our enemy HP | Our enemy Hit | Our HP ÷ Hit | Our enemies | Our wave HP |
+| ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 2.35 | 1 | 2.4 | 3.3 | 7.6 | 3.1 | 0.84 | 3.7 | 3 | 9.4 |
+| 10 | 18 | 4 | 4.6 | 3.3 | 60 | 23 | 9.2 | 2.5 | 3 | 70 |
+| 20 | 59 | 13 | 4.6 | 3.3 | 193 | 55 | 26 | 2.1 | 4 | 219 |
+| 30 | 143 | 28 | 5.1 | 3.3 | 466 | 96 | 49 | 2.0 | 5 | 481 |
+| 50 | 477 | 81 | 5.9 | 3.3 | 1,552 | 251 | 136 | 1.9 | 7 | 1,759 |
+| 75 | 1,546 | 197 | 7.8 | 6.5 | 10,051 | 507 | 281 | 1.8 | 9 | 4,562 |
+| 100 | 4,365 | 402 | 10.9 | 9.8 | 42,556 | 1,541 | 865 | 1.8 | 12 | 18,492 |
+| 150 | 17,185 | 1,103 | 15.6 | 16.3 | 279,262 | 4,686 | 2,649 | 1.8 | 16 | 74,969 |
+| 200 | 54,839 | 2,423 | 22.6 | 22.8 | 1.25e6 | 18,024 | 10,197 | 1.8 | 20 | 360,471 |
+| 300 | 323,610 | 7,737 | 41.8 | 32.5 | 1.05e7 | 196,475 | 110,827 | 1.8 | 20 | 3.93e6 |
+| 500 | 4.53e6 | 38,941 | 116 | 58.5 | 2.65e8 | 1.25e7 | 7.02e6 | 1.8 | 20 | 2.51e8 |
+| 1,000 | 7.42e8 | 482,947 | 1,537 | 120 | 8.92e10 | 1.20e11 | 6.61e10 | 1.8 | 20 | 2.40e12 |
+
+Other Tier 1 facts from the same source: a boss comes every 10 waves with 20 times a basic enemy's health and **the same damage as a basic**; a wave's combat lasts 26 seconds with about 8.7 seconds between waves; the mix is 91% basic and 3% each fast, tank and ranged at every wave; tank is 5× health and half damage, and ray is double damage. The SDK has no enemy attack interval.
+
+**What a fresh Tower save starts with** (owner's new save, 24 September 2026): Damage 3, Attack Speed 1.00, Critical Chance 1%, Critical Factor ×1.20, Health 5 and Health Regen 0/sec. Damage, Attack Speed, Health and Health Regen cost 30 Coins a rank and the two crit rows 50. Range unlocks for 50 Coins and the next Defense set for 75. So a wave-1 enemy dies to one shot and takes five hits to kill the tower. The owner sees basic enemies pay $1 Cash and no Coins, with Coins coming from fast enemies and tougher. The SDK's coin model instead pays every kill `wave × type weight` (basic 1, fast and ranged 2, tank 4). Take the owner's play as the evidence for the current game.
+
+**What this says about our curve:**
+
+1. **Wave HP matches through about wave 60, then falls behind, then overshoots.** Our LIABILITY_SCALE of 4 stands in for The Tower's three to four enemies, so the opening matches. The Tower then adds enemies faster than we do and multiplies its HP by them, where we divide ours: its wave holds 2.3 times our HP at wave 100 and 3.5 times at 200. From about wave 500 our milestone chain (×1.08 every 10 waves compounding) passes its compound chain, and at wave 1,000 we are 27 times higher.
+2. **Our enemies hit far harder than The Tower's, relative to their health, and the gap widens.** The Tower's enemies get tankier relative to their damage every wave (health ÷ damage goes from 2.4 at wave 1 to 11 at 100, 42 at 300 and over 1,500 at 1,000), so its long run is a damage wall. Ours holds at 1.8 from wave 60 onwards, so Defense demand keeps pace with Attack demand forever. At wave 100 our enemy has about a third of a Tower enemy's health and twice its damage; at 200, a third and four times.
+3. **Our bosses hit like a whole wave.** A Tower boss is a wall of health that hits like one basic. Ours carries three times the wave's HP and 1.5 times its whole Hit, which is about 18 enemies' worth of Hit at wave 100.
+4. **The pile makes point 2 matter more.** Since D058, enemies at the Number keep hitting, and they land most of the damage from mid builds on (the [Workshop audit](WORKSHOP_EXPANSION.md#workshop-audit-against-groups-and-the-pile--proposed-24-september-2026)). A Hit curve on The Tower's shape would shrink each pile hit rather than the pile itself.
+
 ## Campaign tier reference
 
 The SDK's current campaign tables expose the following pressure and coin-reward multipliers. This table is a calibration reference, not a recommendation to ship all 24 tiers now.
