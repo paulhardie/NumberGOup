@@ -636,3 +636,35 @@ Rules:
 - **Evidence:** The headless boot and arena probe passed after the change; the probe checks that a critical damage readout has no word, uses the red colour and the heavier font under Reduce Motion. `tools/capture_ui.gd` rendered critical readouts at 320×568, 390×844, 540×960 and 768×1024; all four were inspected. The economy suite passed on the final source. No phone, touch play or CI check was done.
 - **Consequences:** Crits are quicker to scan and take less space. Red now denotes both critical damage dealt and boss danger; their positions and accompanying effects carry the distinction.
 - **Revisit when:** owner play shows that critical damage and boss Hits are too easy to confuse, or the arena layout pass changes either readout's position.
+
+## D063 — Follow The Tower's shape: enemies tank more than they hit, and bosses are walls
+
+- **Status:** Accepted direction (2026-09-24) on owner direction: "Yes follow the towers shape", then "in terms of design, follow the towers directive, shaped to our game of numbers", and "If in doubt, copy the way the tower does it". Prototyped and measured in a scratch copy; **not built**.
+- **Context:** Set against The Tower's Tier 1 ([`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md#tier-1-wave-by-wave-against-ours--24-september-2026)), our wave HP matched to about wave 60, but our enemies hit far harder relative to their health: an enemy's health divided by its damage holds at 1.8 from wave 60 in ours, and climbs from 2.4 at wave 1 to 11 at wave 100 and beyond 1,000 by wave 1,000 in The Tower. Our bosses hit for 1.5 times a whole wave's Hit, where The Tower's hit like one basic enemy. The owner's own Tower save showed flat Defense Absolute outgrowing early enemy damage as the "I've stopped dying quickly" moment.
+- **Decision:**
+  1. **Enemy Hits follow The Tower's shape:** each wave's enemies grow tankier relative to their damage, on a curve of our own fitted to The Tower's ratio (D009 keeps the coefficients ours).
+  2. **A boss is a wall of health that hits like one ordinary enemy of its wave.**
+  3. **Standing rule:** where a design question is in doubt, copy how The Tower does it, shaped to a game of numbers. D009 still keeps copied constants out; rules and structure may follow The Tower directly.
+  4. Under rule 3, two rules change with the Hit, because the measurement shows the first can't work without them:
+     - **Waves keep coming while a boss stands,** as in The Tower. A boss unbeaten at the end of its clock passes and stays in the pile, hitting on its own clock. This supersedes D037's boss that holds its wave. Without it, a boss that hits like one enemy can't end a run: builds with Armor or Thorns sat at a boss for the whole 90-minute measurement.
+     - **Defence works as The Tower's does:** Armor (Defense %) comes off first, then Guard (Defense Absolute) comes off each enemy's own Hit as a flat amount, and a Hit can reach zero. This supersedes D057's Guard on the whole wave's Hit, the 10% Hit floor, and D052's Guard-then-Armor working.
+- **Evidence** (six seeds, two taps a second, no run Upgrades, 90-minute cap; the exact Tower ratio stood in for our fitted curve):
+
+  | Build | Today | Tower Hit, boss hits like one enemy | + waves keep coming | + Tower defence |
+  | --- | --- | --- | --- | --- |
+  | Fresh | 20 | 36 | 32 | 32 |
+  | First spend | 20 | 38 | 34 | 34 |
+  | Early | 30 | 40 | 38 | 38 |
+  | Early + Guard 40 | 34 | — | 40 | **61** |
+  | Mid | 50 | 60 | 55 | 55 |
+  | Mid + Armor 100 | 55 | 68 | 58 | 58 |
+  | Mid + Guard 100 | 50 | — | 58 | **109** |
+  | Rank-100 Attack | 156 | 210 | 170 | 170 |
+  | + Armor 100 | 160 | 229, never ends | 180 | 180 |
+  | + Guard 100 | 156 | — | 170 | 177 |
+  | + Thorns at 100% | 190 | 250, never ends | 202 | 202 |
+  | Every Attack ladder maxed | 709 | 760, never ends | not finished | not finished |
+
+  With every change in, all measured runs end, and the pile lands 87–96% of the Hit from mid builds on. Guard on each enemy's Hit is the moment the owner described: it takes an early build from wave 38 to 61 and a mid build from 55 to 109. Armor adds 1–10 waves.
+- **Consequences:** the late game becomes a wall of numbers to clear, not a wall of Hits to absorb; Defense matters most early and against the pile's swarm. Balance target 5 (wave 100 needs Defense) and the Workshop's Guard, Armor and Thorns values need restating. A carried boss joins the pile, so Boss Damage, Leech and the arena's "boss stays the live number" need to follow the boss member rather than the wave. The deep-build runs slowed badly as the pile reached hundreds of enemies, so a pile's cost per frame needs checking in the real game. Needs a new balance profile, with an active run rebuilt on it, and the invariants in [`GAME_INVARIANTS.md`](GAME_INVARIANTS.md) rewritten.
+- **Revisit when:** built and measured with the fitted curve, or owner play finds the swarm or the walls wrong.
