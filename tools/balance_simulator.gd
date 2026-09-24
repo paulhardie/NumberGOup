@@ -14,7 +14,7 @@ const ATTACK_MAX := {
 }
 const UTILITY_MAX := {"smarter_efficiency": 60, "coin_bonus": 100, "knowledge_bonus": 50}
 ## The same fractions of each ladder the shallow builds held: mid was Output and
-## Damage Multiplier maxed with Tick Speed at three fifths; early was two fifths
+## Damage Multiplier maxed with Attack Speed at three fifths; early was two fifths
 ## of the two opening rows.
 const MID := {"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 60}
 const EARLY := {"stronger_tap": 40, "generator": 40}

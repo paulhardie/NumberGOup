@@ -114,6 +114,8 @@ func _shown(value: float, unit: String) -> String:
 			return str(snappedf(value * 100.0, 0.01)) + "%"
 		"multiplier":
 			return "×" + str(snappedf(value, 0.0001))
+		"per_second":
+			return str(snappedf(value, 0.0001)) + "/s"
 		"rank":
 			return "rank " + str(int(value))
 	return "+" + str(snappedf(value, 0.001))

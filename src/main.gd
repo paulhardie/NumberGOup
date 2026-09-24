@@ -68,9 +68,11 @@ const LONG_PRESS_SECONDS := 0.45
 const RUN_STAGE_TOP := 56.0
 ## Where the Number sits in the run arena, as a share of its height (D051).
 const NUMBER_HEIGHT_SHARE := 0.72
-## Passive damage leaves the Number as one mote this often, carrying what built
-## up since the last, so a deep Tick Speed is a stream, not a firehose.
+## Under Reduce Motion, passive damage comes off the wave this often as one
+## number, carrying what built up since the last, rather than once a shot.
 const MOTE_INTERVAL := 0.33
+## How far behind the first a Multishot's second shot leaves (D054).
+const MULTISHOT_GAP := 0.08
 const RUN_SHEET_MIN := 150.0
 const RUN_SHEET_MAX := 262.0
 const RUN_SHEET_SHARE := 0.31
@@ -85,7 +87,7 @@ const HUB_RING_SIZE := 232.0
 ## These were the Labs and Cards dock gates before D016 moved them inside.
 const RESEARCH_UNLOCK := 1000.0
 ## Non-critical passive ticks are batched into one float rather than one per
-## tick: at a deepened Tick Speed, dozens of ticks land per second, and a
+## tick: at a deepened Attack Speed, dozens of ticks land per second, and a
 ## label per tick would be noise (pillar 1) and a node-churn cost, not signal.
 const PASSIVE_FLOAT_INTERVAL := 0.45
 
@@ -415,10 +417,9 @@ func _process(delta: float) -> void:
 	_refresh_number_display()
 	_update_stage_colour()
 	# Whatever this step took off the wave that is still standing leaves the
-	# Number as a mote (D051); a crit tick makes that mote a bright one.
+	# Number as motes (D051), one per shot (D054).
 	if hp_encounter != null and state.active_encounter == hp_encounter and state.is_wave_standing():
-		var crit_tick := events.any(func(event): return event.is_critical)
-		_gather_passive_damage(hp_before.subtract(hp_encounter.remaining_liability), crit_tick, delta)
+		_send_shots(events, hp_before.subtract(hp_encounter.remaining_liability), delta)
 	_update_wave_enemy(delta)
 	save_elapsed += delta
 	refresh_elapsed += delta
@@ -3235,6 +3236,8 @@ func _stat_value_text(definition: UpgradeDefinition, rank: int) -> String:
 			return "%.2f%%" % (value * 100.0)
 		"multiplier":
 			return "×%.2f" % value
+		"per_second":
+			return "%.2f/s" % value
 		"flat":
 			# The Number formatter rounds to whole units, which would hide a
 			# rank worth 0.05. Small stat values need their decimals.
@@ -3641,7 +3644,7 @@ func _enemy_landed(colour: Color, slam: bool = true) -> void:
 ## Sends the wave damage just dealt from the Number to the wave's number as a
 ## mote (D051). The damage is already dealt; the mote only decides when the
 ## shown HP catches up.
-func _fire_mote(amount: ScientificNumber, crit: bool, tap: bool = false) -> void:
+func _fire_mote(amount: ScientificNumber, crit: bool, tap: bool = false, delay: float = 0.0) -> void:
 	if amount.is_zero() or not wave_enemy.visible:
 		return
 	# Reduce Motion has no motes, so the damage comes off the wave at once.
@@ -3650,7 +3653,7 @@ func _fire_mote(amount: ScientificNumber, crit: bool, tap: bool = false) -> void
 		return
 	var number_box := number_label.get_global_rect()
 	var from := Vector2(number_box.get_center().x, number_box.position.y) - stage_root.global_position
-	arena_fx.fire(from, amount, crit, tap)
+	arena_fx.fire(from, amount, crit, tap, delay)
 
 ## The damage a mote carried, coming off the wave as it lands (D051): a tap's
 ## or a crit's at full size, the passive stream smaller. Each lands a little to
@@ -3662,8 +3665,33 @@ func _pop_damage(amount: ScientificNumber, crit: bool, tap: bool) -> void:
 	var point := wave_enemy.value_centre() + stage_root.position + Vector2(randf_range(-16.0, 16.0), -14.0)
 	_spawn_floating_text(text, CRITICAL if crit else ACCENT, point, 15 if tap or crit else 12)
 
-## Passive damage goes out as one mote every MOTE_INTERVAL, carrying what built
-## up, so a deep Tick Speed reads as a steady stream rather than a firehose.
+## One mote per shot (D054). What the step took off the wave is measured, so
+## it already counts the wave's own modifiers and anything that is not a shot;
+## it is shared across the step's shots by what each dealt, and a Multishot's
+## two shots each carry half. Damage with no shot behind it (Thorns) still
+## leaves as one mote.
+func _send_shots(events: Array[SimulationEvent], dealt: ScientificNumber, delta: float) -> void:
+	var shots := events.filter(func(event): return event.type == "tick" and not event.amount.is_zero())
+	if state.settings.reduce_motion:
+		_gather_passive_damage(dealt, shots.any(func(event): return event.is_critical), delta)
+		return
+	if dealt.is_zero() or not wave_enemy.visible:
+		return
+	if shots.is_empty():
+		_fire_mote(dealt, false)
+		return
+	var total := ScientificNumber.new()
+	for shot in shots:
+		total = total.add(shot.amount)
+	for shot in shots:
+		var share: ScientificNumber = dealt if shots.size() == 1 else dealt.multiply_scalar(pow(10.0, shot.amount.log10() - total.log10()))
+		if shot.hits > 1:
+			share = share.multiply_scalar(1.0 / shot.hits)
+		for index in range(shot.hits):
+			_fire_mote(share, shot.is_critical, false, MULTISHOT_GAP * index)
+
+## Under Reduce Motion, passive damage comes off the wave as one number every
+## MOTE_INTERVAL, carrying what built up, rather than a pop per shot.
 func _gather_passive_damage(dealt: ScientificNumber, crit: bool, delta: float) -> void:
 	if not wave_enemy.visible:
 		mote_damage = ScientificNumber.new()

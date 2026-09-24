@@ -103,15 +103,17 @@ Player-facing text never calls the Number "health". It says "If a hit takes your
 | Stat | Does | Source |
 | --- | --- | --- |
 | Tap Damage | More damage per tap | `stronger_tap` |
-| Damage per Second | More base damage every second | `generator`, `automation_core` |
+| Damage | More damage per shot | `generator`, `automation_core` |
 | Damage Multiplier | All damage ×1.15 per rank | `generator_two` |
-| Tick Speed | Ticks come faster | `faster_cadence` |
-| Double Tick | Chance a tick counts twice | `faster_echo` |
-| Burst | Every Nth tick counts double | `burst_relay` |
+| Attack Speed | More shots a second | `faster_cadence` |
+| Multishot | Chance a shot fires twice | `faster_echo` |
+| Burst | Every Nth shot hits double | `burst_relay` |
 | Crit Chance | More critical hits | `more_critical` |
 | Crit Damage | Bigger critical hits | `magnitude_coil` |
 | Crit Chain | Each crit strengthens the next | `chain_reaction` |
 | Boss Damage | More damage against boss waves, ×2 at its cap | 100 ranks |
+
+Since D054 the Number fires shots: Damage is per shot, Attack Speed is shots a second, and a Multishot is a shot that fires twice. Older notes below say Damage per Second, Tick Speed and Double Tick for the same rows.
 
 Attack is today's Output, Speed and Chance bays, nearly unchanged. Boss Damage is the one new stat (step 4b): a targeted choice for players whose runs end on bosses, and worth +6 waves on its own at the cap.
 

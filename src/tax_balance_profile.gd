@@ -174,7 +174,7 @@ const RIG_COST_K := {
 ## Swept at 1.3-1.6 (D039): 1.4 keeps the climb gentle while top builds still
 ## stop buying before a run turns endless. At a fresh start six ranks of a row
 ## that does not raise income cost 10, 14, 20, 27, 38, 54; a row that does,
-## such as Damage per Second, climbs a little faster (10, 16, 24, 37, 56).
+## such as Damage, climbs a little faster (10, 16, 24, 37, 56).
 ## Mutable so the balance simulator can sweep it.
 var RIG_COST_GROWTH := {
 	"attack": 1.4,

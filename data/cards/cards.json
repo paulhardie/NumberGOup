@@ -20,7 +20,7 @@
     {
       "id": "card_attack_speed",
       "title": "ATTACK SPEED",
-      "description": "Ticks come \u00d71.02 faster per level.",
+      "description": "Shots come \u00d71.02 faster per level.",
       "rarity": "common",
       "effects": {
         "tick_rate": 1.02

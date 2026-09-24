@@ -86,6 +86,8 @@ Its rules, read from that table:
 
 ### Attack
 
+*Since D054 the rows written here as Damage per Second, Tick Speed and Double Tick are called Damage, Attack Speed and Multishot. Multishot is today's Double Tick shown as two shots; the Volley proposal below would still replace it.*
+
 Free at the start: **Tap Damage, Damage per Second, Tick Speed, Crit Chance, Crit Damage.** Crit is free, as in The Tower (owner direction, 23 September 2026).
 
 | Gate | Opens | Tower row(s) | What it does here | Needs |

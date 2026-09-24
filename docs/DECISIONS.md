@@ -530,3 +530,16 @@ Rules:
 - **Consequences:** The arena gains about 28 px. Presentation only. The hub and the run-over sheet still show the banked Coins and Knowledge.
 - **Revisit when:** Gems gain an in-run use (their chip then becomes that door), or a new run-scoped currency needs a place in the header.
 
+
+## D054 — The Workshop speaks in shots: Damage, Attack Speed and Multishot
+
+- **Status:** Accepted (2026-09-24) on owner direction: "Will need to revisit the workshop though, as now we are effectively shooting things. And things like damage per second need tweaked. Attack speed also needs reworked", then "Yeah happy for the rename." Implemented (2026-09-24). Step 1 of two; the rebalance is step 2 and not decided.
+- **Context:** Since D051 the Number visibly fires motes at the wave, but the Workshop still talked in ticks and seconds. "Damage per Second" was really damage per tick, "Tick Speed" was shots a second shown as a bare multiplier, and "Double Tick" doubled one tick's damage with nothing on screen to show it. Passive damage left as one mote every 0.33 s whatever the tick rate, so Attack Speed changed nothing you could see.
+- **Decision:**
+  1. **Damage per Second becomes Damage:** damage per shot. Auto Crank's description says per shot too; the two rows stay separate.
+  2. **Tick Speed becomes Attack Speed,** and its Workshop row reads as shots a second ("5.95/s" at rank 100), because the row carries the one-shot-a-second base. The Attack Speed card, which stacks on top, still reads as a multiplier.
+  3. **Double Tick becomes Multishot:** a shot that fires twice. The tick still lands as one amount; its event carries `hits = 2` and the arena sends two motes, the second 0.08 s behind.
+  4. **One mote per shot.** The step's measured damage to the wave is shared across its shots by what each dealt, so the motes still add up to exactly what the wave lost. Damage with no shot behind it (Thorns) leaves as one mote. Under Reduce Motion passive damage still comes off as one number every 0.33 s.
+  5. Burst's and the Attack Speed card's descriptions say shots.
+- **Consequences:** Presentation only: no effect key, value, price, save field or rule changed, and the economy suite passes unchanged apart from its messages. At rank 100 the arena sends about six motes a second, twelve with Multishot at its cap, and each lands as its own "-X". The fixed base damage (1 a second) is still spread across however many shots there are, so the Damage row starts at 0 while a fresh player still deals damage; step 2 decides whether that floor becomes damage per shot.
+- **Revisit when:** step 2 (the damage and speed rebalance, and how much tapping should add) is decided, or the pops at full Attack Speed and Multishot read as clutter in play.
