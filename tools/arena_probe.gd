@@ -122,15 +122,20 @@ func _init() -> void:
 	_check(_ghosts(main, WaveEnemy.Beat.SHATTER) == 1 and not main.wave_enemy.visible, "a wave beaten early shatters once and stays gone")
 	await create_timer(2.6).timeout
 	_check(main.wave_enemy.visible and _ghosts(main, WaveEnemy.Beat.SHATTER) == 0, "after the beat the next wave shows")
-	# A boss that is not beaten hits at 15 seconds and stays at the Number, the
-	# live number, while the next wave comes in behind it (D063).
+	# A boss that is not beaten reaches the Number at 15 seconds and stays
+	# there, the live number, while the next wave comes in behind it at 35
+	# (D063, D065).
 	st.wave = 10
 	st.active_encounter = st._make_encounter(10)
 	st.number = ScientificNumber.from_float(1.0e9)
 	st.wave_accumulator = 14.9
 	await create_timer(0.25).timeout
+	var boss_in_wave: int = st.active_encounter.boss_index()
+	_check(st.wave == 10 and boss_in_wave >= 0 and int(st.active_encounter.members[boss_in_wave].state) == TaxEncounter.AT_NUMBER, "a boss Hit lands at 15 seconds and the boss stays")
+	st.wave_accumulator = 34.9
+	await create_timer(0.25).timeout
 	var landed_boss: int = st.active_encounter.boss_index()
-	_check(st.wave == 11 and landed_boss >= 0 and int(st.active_encounter.members[landed_boss].state) == TaxEncounter.AT_NUMBER, "a boss Hit lands and the boss stays as the next wave comes")
+	_check(st.wave == 11 and landed_boss >= 0 and int(st.active_encounter.members[landed_boss].state) == TaxEncounter.AT_NUMBER, "the boss stays as the next wave comes")
 	await _shot("3_slam")
 	await create_timer(0.5).timeout
 	_check(main.wave_enemy.visible and main.enemy_front == st.active_encounter.boss_index() and main.enemy_travel == 1.0 and main.wave_enemy.modulate.a > 0.99 and st.wave_accumulator < 2.0, "the boss stays on the Number, the live number, after its Hit: %f" % main.enemy_travel)
@@ -141,7 +146,7 @@ func _init() -> void:
 	st.balance_profile.OPENING_EASED_BY = 50
 	st.wave = 12
 	st.active_encounter = st._make_encounter(12)
-	st.wave_accumulator = 14.95
+	st.wave_accumulator = 34.95
 	await _frames(12)
 	_check(st.wave == 13 and main.wave_enemy.visible and st.active_encounter.at_number_count() == 0 and main.enemy_travel < 0.1, "an opening wave that is missed slams and the next arrives (D059)")
 	# With Guard and Armor, the wave shows its raw Hit and the working plays at contact.
@@ -243,7 +248,7 @@ func _init() -> void:
 	st.wave = 57
 	st.active_encounter = st._make_encounter(57)
 	st.number = ScientificNumber.from_float(1.0e12)
-	st.wave_accumulator = 14.5
+	st.wave_accumulator = 34.5
 	await create_timer(3.0).timeout
 	_check(st.wave == 58 and _followers(main) >= st.active_encounter.at_number_count() - 1, "the pile is drawn round the Number: %d" % _followers(main))
 	main.hit_readout_elapsed = main.COMBAT_READOUT_WINDOW
@@ -260,8 +265,8 @@ func _init() -> void:
 	st.active_encounter = boss_wave
 	st.wave_accumulator = 2.0
 	await _frames(3)
-	var boss_index: int = st.active_encounter.members.size() - 1
-	_check(main.enemy_front == boss_index and main.wave_enemy.font_size == 30 and st.active_encounter.front_index() < boss_index, "a boss stays the live number behind a pile")
+	var boss_index: int = st.active_encounter.boss_index()
+	_check(boss_index >= 0 and main.enemy_front == boss_index and main.wave_enemy.font_size == 30 and st.active_encounter.front_index() < boss_index, "a boss stays the live number behind a pile")
 	await _shot("8_boss_pile")
 	st.settings["reduce_motion"] = true
 	st.wave_accumulator = 9.0
@@ -269,7 +274,7 @@ func _init() -> void:
 	main._pop_damage(ScientificNumber.from_float(5.0), true, true)
 	_check(main.damage_readout.visible and main.damage_readout.text.begins_with("-") and not main.damage_readout.text.contains("CRIT") and main.damage_readout.get_theme_color("font_color") == main.CRIT_COLOUR and main.damage_readout.get_theme_font("font") == main.number_font_semibold, "Reduce Motion shows a critical as red, heavier damage text without a word")
 	var rm_front: Dictionary = st.active_encounter.members[main.enemy_front]
-	_check(main.wave_enemy.visible and main.enemy_travel == (1.0 if int(rm_front.state) == TaxEncounter.AT_NUMBER else 0.0), "with Reduce Motion a walking front holds at the edge")
+	_check(main.wave_enemy.visible and main.enemy_travel == (1.0 if int(rm_front.state) == TaxEncounter.AT_NUMBER else 0.0), "with Reduce Motion a walking front holds at the edge: %f" % main.enemy_travel)
 	_beat(st)
 	await _frames(2)
 	_check(_ghosts(main, WaveEnemy.Beat.SHATTER) == 0, "with Reduce Motion no shatter plays")

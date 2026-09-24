@@ -59,7 +59,10 @@ func _init(
 	reward_amount: int = 0,
 	boss: bool = false,
 	arrivals: Array = [],
-	hit_interval: float = TaxBalanceProfile.WAVE_INTERVAL_SECONDS
+	hit_interval: float = TaxBalanceProfile.WAVE_INTERVAL_SECONDS,
+	weights: Array = [],
+	boss_interval: float = 0.0,
+	boss_hit: ScientificNumber = null
 ) -> void:
 	tier_id = encounter_tier
 	wave = encounter_wave
@@ -70,13 +73,30 @@ func _init(
 	# One member arriving at the end of the clock is the wave as it was before
 	# groups, which is also how an older save's active wave comes back.
 	var times: Array = arrivals if not arrivals.is_empty() else [TaxBalanceProfile.WAVE_INTERVAL_SECONDS]
-	var share := 1.0 / float(times.size())
-	for arrive in times:
+	# Each member's share of the wave's HP and Hit follows its weight (D065): an
+	# ordinary enemy is one, a boss carries many enemies' HP. Without weights
+	# the members share evenly and all take the wave's boss flag, as before.
+	var total := 0.0
+	for index in range(times.size()):
+		total += float(weights[index]) if index < weights.size() else 1.0
+	for index in range(times.size()):
+		var arrive: float = float(times[index])
+		var weight: float = float(weights[index]) if index < weights.size() else 1.0
+		var share: float = weight / total
 		var hp := max_liability.multiply_scalar(share)
+		var is_boss_member: bool = boss if weights.is_empty() else weight > 1.0
+		var member_hit: ScientificNumber = collection.copy()
+		var member_interval := hit_interval
+		if is_boss_member and not weights.is_empty():
+			if boss_hit != null:
+				member_hit = boss_hit.copy()
+			if boss_interval > 0.0:
+				member_interval = boss_interval
 		members.append({
-			"max": hp, "hp": hp.copy(), "share": share, "arrive": float(arrive), "state": STANDING,
-			"wave": wave, "wave_hit": collection.copy(), "next_hit": float(arrive),
-			"interval": hit_interval, "landed": false, "boss": boss, "hits": 0, "unpaid": 0.0,
+			"max": hp, "hp": hp.copy(), "share": share, "arrive": arrive, "state": STANDING,
+			"wave": wave, "wave_hit": member_hit, "next_hit": arrive,
+			"interval": member_interval, "landed": false, "boss": is_boss_member, "hits": 0, "unpaid": 0.0,
+			"weight": weight, "of": total,
 		})
 	_sum_remaining()
 
@@ -367,6 +387,10 @@ func to_dict() -> Dictionary:
 			"boss": member.get("boss", false),
 			"hits": member.get("hits", 0),
 			"unpaid": member.get("unpaid", 0.0),
+			# The share is saved as the two whole numbers it comes from, so it
+			# reads back exactly: 1/43 does not survive JSON bit for bit (D065).
+			"weight": member.get("weight", 0.0),
+			"of": member.get("of", 0.0),
 		})
 	return {
 		"tier_id": tier_id,
@@ -401,7 +425,7 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 			var member_wave := int(saved.get("wave", encounter.wave))
 			# A member saved before D058 had no interval: a boss keeps its 15
 			# seconds, anything else takes today's.
-			var default_interval: float = TaxBalanceProfile.WAVE_INTERVAL_SECONDS if encounter.is_boss and member_wave == encounter.wave else TaxBalanceProfile.DEFAULT_MEMBER_HIT_SECONDS
+			var default_interval: float = TaxBalanceProfile.OPENING_HIT_SECONDS if encounter.is_boss and member_wave == encounter.wave else TaxBalanceProfile.DEFAULT_MEMBER_HIT_SECONDS
 			var interval := float(saved.get("interval", default_interval))
 			# Zero is an opening member that passes (D059); anything else is a
 			# real interval, never shorter than half a second.
@@ -418,10 +442,15 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 			var landed := bool(saved.get("landed", state == LANDED or state == AT_NUMBER))
 			# Saved before D063: a boss was always its own wave's, and a member
 			# that had landed had hit at least once.
+			var weight := float(saved.get("weight", 0.0))
+			var of := float(saved.get("of", 0.0))
+			var share := weight / of if weight > 0.0 and of >= weight else clampf(float(saved.get("share", 1.0)), 0.0, 1.0)
 			encounter.members.append({
 				"max": ScientificNumber.from_dict(saved.get("max", {})),
 				"hp": ScientificNumber.from_dict(saved.get("hp", {})),
-				"share": clampf(float(saved.get("share", 1.0)), 0.0, 1.0),
+				"share": share,
+				"weight": weight if weight > 0.0 and of >= weight else 0.0,
+				"of": of if weight > 0.0 and of >= weight else 0.0,
 				"arrive": arrive,
 				"state": state,
 				"wave": member_wave,

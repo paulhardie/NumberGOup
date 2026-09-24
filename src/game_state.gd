@@ -44,7 +44,7 @@ const PRESTIGE_KNOWLEDGE_SCALE := 4.0
 
 ## Public aliases retained for UI/tests. The authored balance lives in
 ## TaxBalanceProfile rather than being mixed into the state machine.
-const WAVE_INTERVAL_SECONDS := 15.0
+const WAVE_INTERVAL_SECONDS := TaxBalanceProfile.WAVE_INTERVAL_SECONDS
 const FREE_WAVES := 20
 const BOSS_WAVE_INTERVAL := 10
 const TIER_UNLOCK_WAVE := 100
@@ -111,6 +111,10 @@ var brace_spent := false
 ## highest_number, which is permanent and drives dock unlocks.
 var run_peak_number := ScientificNumber.new()
 var second_wind_used := false
+## The part of a Coin owed but not yet paid by enemies beaten after their
+## wave passed (D065): a wave's reward split across many enemies is under a
+## Coin each, and flooring each kill would lose it all.
+var coin_fraction := 0.0
 ## Rig ranks are run-scoped like the Cash that buys them (D015, D042): they
 ## stack with `purchased` for this run only and die with every ending.
 var rig_ranks: Dictionary = {}
@@ -272,6 +276,7 @@ func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	cash = ScientificNumber.from_float(balance_profile.starting_cash(get_rig_income_rate()))
 	run_cash_earned = cash.copy()
 	second_wind_used = false
+	coin_fraction = 0.0
 	rig_ranks = {}
 	lifetime_generated = ScientificNumber.new()
 	workshop.tick_count = 0
@@ -445,7 +450,9 @@ func _settle_beaten(index: int) -> void:
 		return
 	member.unpaid = 0.0
 	var member_wave := int(member.wave)
-	var coin_gain := floori(float(balance_profile.reward_for_wave(selected_tier, member_wave)) * unpaid * (1.0 + _effect_sum("coin_bonus")) + 0.000001)
+	var owed := float(balance_profile.reward_for_wave(selected_tier, member_wave)) * unpaid * (1.0 + _effect_sum("coin_bonus")) + coin_fraction
+	var coin_gain := floori(owed + 0.000001)
+	coin_fraction = maxf(0.0, owed - float(coin_gain))
 	coins += coin_gain
 	run_coins_earned += coin_gain
 	_add_cash(ScientificNumber.from_float(balance_profile.wave_cash(member_wave) * unpaid))
@@ -576,10 +583,8 @@ func _make_encounter(target_wave: int):
 		"liability",
 		active_rule_modifiers
 	)
-	var count := balance_profile.members_for_wave(target_wave)
-	var arrivals: Array = []
-	for index in range(count):
-		arrivals.append(balance_profile.member_arrival(index, count))
+	# Many enemies, each with the full enemy HP, and a boss wave's boss among
+	# them carrying twenty enemies' worth (D065).
 	return TaxEncounterClass.new(
 		selected_tier,
 		target_wave,
@@ -587,8 +592,11 @@ func _make_encounter(target_wave: int):
 		balance_profile.collection_for_wave(selected_tier, target_wave),
 		balance_profile.reward_for_wave(selected_tier, target_wave),
 		balance_profile.is_boss_wave(target_wave),
-		arrivals,
-		balance_profile.boss_hit_seconds(target_wave) if balance_profile.is_boss_wave(target_wave) else balance_profile.member_hit_seconds(target_wave)
+		balance_profile.member_arrivals(target_wave),
+		balance_profile.member_hit_seconds(target_wave),
+		balance_profile.member_weights(target_wave),
+		balance_profile.boss_hit_seconds(target_wave),
+		balance_profile.boss_wave_hit(selected_tier, target_wave)
 	)
 
 func _wave_death(reached: int, hit: ScientificNumber, boss: bool, number_before_hit: ScientificNumber, wave_hp_left: ScientificNumber) -> SimulationEvent:
@@ -1304,6 +1312,7 @@ func _reset_run_state() -> void:
 	brace_spent = false
 	run_peak_number = ScientificNumber.new()
 	second_wind_used = false
+	coin_fraction = 0.0
 	rig_ranks = {}
 	cash = ScientificNumber.new()
 	run_cash_earned = ScientificNumber.new()
@@ -1602,6 +1611,7 @@ func _restore_saved_run(data: Dictionary) -> void:
 	var saved_peak: Variant = data.get("run_peak_number", null)
 	run_peak_number = ScientificNumber.from_dict(saved_peak) if saved_peak is Dictionary else number.copy()
 	second_wind_used = bool(data.get("second_wind_used", false))
+	coin_fraction = clampf(float(data.get("coin_fraction", 0.0)), 0.0, 1.0) if in_run else 0.0
 	# V6 keeps the tick phase and crit chain, so the outputs after a reload are
 	# the ones the saved run would have produced (D006). Older saves resume at
 	# a fresh phase and an unbroken chain, as they always did.
@@ -1645,7 +1655,7 @@ func _reconcile_opening_members_on_load() -> void:
 	var retained: Array = []
 	for member in active_encounter.members:
 		var member_wave := int(member.wave)
-		if balance_profile.is_boss_wave(member_wave):
+		if bool(member.get("boss", false)):
 			retained.append(member)
 			continue
 		var interval := balance_profile.member_hit_seconds(member_wave)
@@ -1696,14 +1706,21 @@ func _rebuild_encounter_on_current_profile() -> void:
 		rebuilt.carry_in(active_encounter.living_members().filter(func(member): return not active_encounter.is_own(member)))
 	# Carried members are rebuilt on today's curve too, keeping the share of
 	# their HP they had left, so no old-profile Hit lands (D040).
+	# Their share is today's too (D065): one enemy's weight in its wave, or a
+	# boss's, which also takes its Hit as one enemy's.
 	for member in rebuilt.members:
 		if rebuilt.is_own(member):
 			continue
+		var member_wave := int(member.wave)
+		var boss := bool(member.get("boss", false))
 		var remaining_share := TaxEncounterClass._ratio(member.hp, member.max)
-		var liability := RuleModifierPipelineClass.apply(balance_profile.liability_for_wave(selected_tier, int(member.wave)), "liability", active_rule_modifiers)
+		var liability := RuleModifierPipelineClass.apply(balance_profile.liability_for_wave(selected_tier, member_wave), "liability", active_rule_modifiers)
+		member.weight = balance_profile.BOSS_HP_WEIGHT if boss else 1.0
+		member.of = balance_profile.wave_weight(member_wave)
+		member.share = float(member.weight) / float(member.of)
 		member.max = liability.multiply_scalar(float(member.share))
 		member.hp = member.max.multiply_scalar(remaining_share)
-		member.wave_hit = balance_profile.collection_for_wave(selected_tier, int(member.wave))
+		member.wave_hit = balance_profile.boss_wave_hit(selected_tier, member_wave) if boss else balance_profile.collection_for_wave(selected_tier, member_wave)
 	rebuilt._sum_remaining()
 	active_encounter = rebuilt
 

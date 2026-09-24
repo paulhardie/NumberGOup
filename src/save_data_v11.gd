@@ -7,8 +7,11 @@ const SaveDataV10Class = preload("res://src/save_data_v10.gd")
 ## `boss`, whether it is a boss (which can now be carried into later waves),
 ## `hits`, how many hits it has landed (each heats up the next by 4%), and
 ## `unpaid`, the share of its passed wave's reward an enemy still owes when
-## it is beaten. A V10 build would read a carried boss as an ordinary enemy and lose
-## its heat, so it refuses a V11 save instead (D028). A V10 save loads through
+## it is beaten; each member's `weight` and its wave's total (`of`), from which
+## its share is read back exactly (D065); and the run's `coin_fraction`, the part of a Coin those
+## payments owed but have not yet paid (D065). A V10 build would read a
+## carried boss as an ordinary enemy and lose its heat, so it refuses a V11
+## save instead (D028). A V10 save loads through
 ## the same reader: a boss is its own wave's, a member that landed has hit
 ## once, and nothing is owed.
 const VERSION := 11
@@ -16,6 +19,7 @@ const VERSION := 11
 static func make(state) -> Dictionary:
 	var data: Dictionary = SaveDataV10Class.make(state)
 	data.version = VERSION
+	data.coin_fraction = state.coin_fraction
 	return data
 
 static func is_valid(data: Variant) -> bool:

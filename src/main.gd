@@ -3847,7 +3847,9 @@ func _shatter_enemy(boss: bool, clean: bool = true) -> void:
 func _enemy_landed(colour: Color, slam: bool = true) -> void:
 	if slam:
 		_enemy_beat(WaveEnemyClass.Beat.SLAM, colour)
-	if enemy_encounter != null and state.active_encounter == enemy_encounter and enemy_encounter.is_boss:
+	# Only the boss itself latches: a boss wave's ordinary enemies land first
+	# (D065) while the boss is still walking in.
+	if enemy_encounter != null and state.active_encounter == enemy_encounter and enemy_encounter.is_boss_member(enemy_front) and int(enemy_encounter.members[enemy_front].state) == TaxEncounterClass.AT_NUMBER:
 		enemy_latched = true
 
 ## Sends the wave damage just dealt from the Number to the wave's number as a

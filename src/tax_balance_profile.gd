@@ -6,8 +6,12 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v12"
-const WAVE_INTERVAL_SECONDS := 15.0
+const PROFILE_ID := "tax-foundation-v13"
+## The Tower's wave (D065): 26 seconds in which enemies spawn, then a 9-second
+## gap, 35 in all. A wave beaten early still gives way after MIN_WAVE_SECONDS
+## (D037).
+const WAVE_INTERVAL_SECONDS := 35.0
+const SPAWN_SECONDS := 26.0
 const BOSS_WAVE_INTERVAL := 10
 ## A beaten wave stays on screen at least this long before the next arrives
 ## (D037), so a clear still registers when the build outclasses the wave.
@@ -25,11 +29,14 @@ const MILESTONE_GEM_SCALE := 2.0
 const BOSS_WAVE_GEMS := 1
 
 ## Tier 1's difficulty curve: one set of rules from wave 1, with no
-## warm-up splice. Wave HP rises a little faster than wave squared, which
+## warm-up splice. Since D065 this is one enemy's HP, not a wave's: a wave is
+## many enemies, each with the full amount, as The Tower's are. Wave HP rises a little faster than wave squared, which
 ## matches how Workshop damage grows with Coins spent: each investment level
 ## (early, mid, maxed) has a natural wave it stops at. Every tenth wave steps
 ## up by the milestone factors. Higher tiers multiply the same curve (D002).
-const LIABILITY_SCALE := 4.0
+## One enemy's HP is this times the curve's body. At 1 it tracks The Tower's
+## basic enemy: 64.5 at wave 22 against the 63.11 the owner's Wave Info shows.
+const LIABILITY_SCALE := 1.0
 ## A multiplier on every Hit, 1 by default. Since D063 the Hit follows the
 ## wave's HP through HIT_RATIO rather than its own curve; this stays so the
 ## balance simulator can sweep the Hit's size (`-- --hit-sweep`).
@@ -53,7 +60,9 @@ const HEAT_UP_PER_HIT := 1.04
 ## Every wave pays this times its number in Coins, times the tier's reward
 ## multiplier, from wave 1 (D040).
 const WAVE_REWARD_SCALE := 0.65
-const BOSS_LIABILITY_MULTIPLIER := 3.0
+## A boss carries this many enemies' HP (The Tower's 20) and hits like one
+## (D063, D065).
+const BOSS_HP_WEIGHT := 20.0
 const BOSS_REWARD_MULTIPLIER := 5.0
 ## A beaten wave pays this much Cash plus CASH_PER_WAVE times its number, times
 ## BOSS_CASH_MULTIPLIER on a boss (D042). It is flat rather than income-scaled,
@@ -68,20 +77,24 @@ const BASE_DAMAGE_PER_SECOND := 1.0
 ## against it, so raising it means more, smaller shots at the same damage per
 ## second: a fresh run shows a stream of motes rather than one a second.
 const BASE_SHOTS_PER_SECOND := 2.5
-## A wave is a group (D057): its HP and Hit are shared evenly between its
-## members, so more members means weaker ones, not a harder wave. The Tower
-## sends about four slow enemies to its first waves and about twelve by wave
-## 100; ours starts at three and gains one every WAVES_PER_EXTRA_MEMBER waves,
-## capped so a phone can still show them. A boss is always one.
-const FIRST_WAVE_MEMBERS := 3
-const WAVES_PER_EXTRA_MEMBER := 11
-const MAX_WAVE_MEMBERS := 20
-## Members walk in as a column: the front one reaches the Number this many
-## seconds into the wave and the last at the end of the clock, evenly spaced.
-## With damage striking the front member first, a steady output clears every
-## member in time exactly when it would have cleared the whole wave in 15
-## seconds, so the split alone does not move a wave's difficulty.
+## How many enemies an ordinary wave sends (D065), each with the full enemy
+## HP, as The Tower's do. FIRST_WAVE_MEMBERS is an estimate from the owner's
+## wave 22 battle report (roughly 20 to 30 a wave early on; the SDK only
+## calibrates from wave 600), kept as one setting to correct when The Tower's
+## Stats tab gives the real count. Past that, our own fit to TheTowerSDK's
+## spawn model: about 143 at wave 1,000, then slower growth to a cap near
+## The Tower's wave 6,500 density. Mutable so the tools can sweep it.
+var FIRST_WAVE_MEMBERS := 20
+const MEMBERS_PER_WAVE := 0.123
+const DEEP_MEMBERS_FROM := 1000
+const DEEP_MEMBERS_PER_WAVE := 0.0145
+const MAX_WAVE_MEMBERS := 220
+## Members walk in as a column: the first reaches the Number this many
+## seconds into the wave and the last SPAWN_SECONDS later, evenly spaced, as
+## The Tower's spawn through its 26 seconds.
 const FIRST_ARRIVAL_SECONDS := 6.0
+## A boss sets off with its wave and walks slower, reaching the Number here.
+const BOSS_ARRIVAL_SECONDS := 15.0
 ## A member that reaches the Number stays and hits again this often until
 ## beaten (D058). A boss keeps the 15-second clock. Mutable so the balance
 ## tools can sweep it.
@@ -129,29 +142,68 @@ func has_tier(tier_id: int) -> bool:
 			return true
 	return false
 
+## Every member of a wave: its ordinary enemies, and a boss wave's boss too.
 func members_for_wave(wave: int) -> int:
-	if is_boss_wave(wave):
-		return 1
-	return ordinary_members(wave)
+	return ordinary_members(wave) + (1 if is_boss_wave(wave) else 0)
 
-## How many enemies an ordinary wave at `wave` has, boss wave or not: a boss
-## hits like one of them (D063).
+## How many ordinary enemies a wave at `wave` has, boss wave or not (D065).
 func ordinary_members(wave: int) -> int:
-	return mini(MAX_WAVE_MEMBERS, FIRST_WAVE_MEMBERS + (maxi(1, wave) - 1) / WAVES_PER_EXTRA_MEMBER)
+	var w := maxi(1, wave)
+	var count := FIRST_WAVE_MEMBERS + floori(MEMBERS_PER_WAVE * float(mini(w, DEEP_MEMBERS_FROM) - 1))
+	if w > DEEP_MEMBERS_FROM:
+		count += floori(DEEP_MEMBERS_PER_WAVE * float(w - DEEP_MEMBERS_FROM))
+	return clampi(count, 1, MAX_WAVE_MEMBERS)
+
+## How many enemies' worth of HP the whole wave carries: one per ordinary
+## enemy, and BOSS_HP_WEIGHT more on a boss wave.
+func wave_weight(wave: int) -> float:
+	return float(ordinary_members(wave)) + (BOSS_HP_WEIGHT if is_boss_wave(wave) else 0.0)
+
+## Each member's HP weight, front first in arrival order, and where the boss
+## stands among them (-1 on an ordinary wave).
+func member_weights(wave: int) -> Array:
+	var weights: Array = []
+	for index in range(ordinary_members(wave)):
+		weights.append(1.0)
+	if is_boss_wave(wave):
+		weights.insert(boss_position(wave), BOSS_HP_WEIGHT)
+	return weights
+
+## The boss's place in its wave's column: after every ordinary enemy that
+## reaches the Number before BOSS_ARRIVAL_SECONDS.
+func boss_position(wave: int) -> int:
+	var count := ordinary_members(wave)
+	var position := 0
+	while position < count and member_arrival(position, count) <= BOSS_ARRIVAL_SECONDS:
+		position += 1
+	return position
 
 ## How often a boss hits once it reaches the Number: as often as the enemies
 ## that stay at its wave (D063), and every 15 seconds through the opening,
 ## where ordinary enemies hit once and leave but a boss stays.
 func boss_hit_seconds(wave: int) -> float:
 	var interval := member_hit_seconds(wave)
-	return interval if interval > 0.0 else WAVE_INTERVAL_SECONDS
+	return interval if interval > 0.0 else OPENING_HIT_SECONDS
 
-## When member `index` (0 is the front) of `count` reaches the Number, in
-## seconds from the wave's start.
+## When ordinary member `index` (0 is the front) of `count` reaches the
+## Number, in seconds from the wave's start (D065).
 func member_arrival(index: int, count: int) -> float:
 	if count <= 1:
-		return WAVE_INTERVAL_SECONDS
-	return FIRST_ARRIVAL_SECONDS + (WAVE_INTERVAL_SECONDS - FIRST_ARRIVAL_SECONDS) * float(index) / float(count - 1)
+		return FIRST_ARRIVAL_SECONDS
+	# Snapped to 1/64 of a second, which a saved run stores and reads back
+	# exactly; 26/19 of a second does not survive JSON bit for bit, and a
+	# resumed run must play out identically (law 6).
+	return snappedf(FIRST_ARRIVAL_SECONDS + SPAWN_SECONDS * float(index) / float(count - 1), 1.0 / 64.0)
+
+## Every member's arrival, front first, the boss's included.
+func member_arrivals(wave: int) -> Array:
+	var count := ordinary_members(wave)
+	var arrivals: Array = []
+	for index in range(count):
+		arrivals.append(member_arrival(index, count))
+	if is_boss_wave(wave):
+		arrivals.insert(boss_position(wave), BOSS_ARRIVAL_SECONDS)
+	return arrivals
 
 func is_boss_wave(wave: int) -> bool:
 	return wave > 0 and wave % BOSS_WAVE_INTERVAL == 0
@@ -165,9 +217,9 @@ func starting_number(tier_id: int) -> float:
 func starting_cash(income_per_second: float) -> float:
 	return RIG_PRICE_SECONDS * maxf(income_per_second, BASE_DAMAGE_PER_SECOND) * 2.5
 
-## An ordinary wave's HP on the Tier 1 scale, in log10 so deep waves stay
-## finite: 4 x (0.05 w^2.13 + 0.8 w + 1.5), x1.08 every 10 waves, x1.2 every
-## 50 and x1.5 every 100.
+## One enemy's HP on the Tier 1 scale, in log10 so deep waves stay finite:
+## 0.05 w^2.13 + 0.8 w + 1.5, x1.08 every 10 waves, x1.2 every 50 and x1.5
+## every 100.
 func _wave_hp_log10(wave: int) -> float:
 	var w := float(maxi(1, wave))
 	var body := 0.05 * pow(w, 2.13) + 0.8 * w + 1.5
@@ -178,12 +230,12 @@ func _wave_hp_log10(wave: int) -> float:
 	) / log(10.0)
 	return log(LIABILITY_SCALE * body) / log(10.0) + milestone_log
 
+## A wave's whole HP: one enemy's times every enemy's worth it carries (D065).
 func liability_for_wave(tier_id: int, wave: int) -> ScientificNumber:
 	var tier: Variant = get_tier(tier_id)
-	var boss_multiplier := BOSS_LIABILITY_MULTIPLIER if is_boss_wave(wave) else 1.0
-	return _from_log10(_wave_hp_log10(wave) + log(tier.liability_multiplier * boss_multiplier) / log(10.0))
+	return _from_log10(_wave_hp_log10(wave) + log(tier.liability_multiplier * wave_weight(wave)) / log(10.0))
 
-## log10 of how many times its Hit an ordinary wave's HP is (D063).
+## log10 of how many times its Hit an enemy's HP is (D063).
 func hit_ratio_log10(wave: int) -> float:
 	var w := float(maxi(1, wave))
 	var early := minf(w, 100.0)
@@ -192,17 +244,22 @@ func hit_ratio_log10(wave: int) -> float:
 		ratio_log += DEEP_RATIO_POWER * log(w / 100.0) / log(10.0) + DEEP_RATIO_GROWTH * (w - 100.0)
 	return ratio_log
 
-## An ordinary wave's Hit on the Tier 1 scale: its HP divided by the ratio,
-## so the milestone steps move both together. Scales to wave 5,000 and beyond.
+## One enemy's Hit on the Tier 1 scale: its HP divided by the ratio, so the
+## milestone steps move both together. Scales to wave 5,000 and beyond.
 func _wave_hit_log10(wave: int) -> float:
 	return _wave_hp_log10(wave) - hit_ratio_log10(wave) + log(COLLECTION_SCALE) / log(10.0)
 
-## A boss is a wall of HP that hits like one ordinary enemy of its wave (D063),
-## so its Hit is the ordinary wave's shared by that wave's enemy count.
+## A wave's whole Hit, weighted like its HP, so each member's share of it is
+## what that member carries (D065). A boss's share is its HP weight, so it
+## takes its Hit from `boss_wave_hit` instead and hits like one enemy (D063).
 func collection_for_wave(tier_id: int, wave: int) -> ScientificNumber:
 	var tier: Variant = get_tier(tier_id)
-	var boss_multiplier := 1.0 / float(ordinary_members(wave)) if is_boss_wave(wave) else 1.0
-	return _from_log10(_wave_hit_log10(wave) + log(tier.collection_multiplier * boss_multiplier) / log(10.0))
+	return _from_log10(_wave_hit_log10(wave) + log(tier.collection_multiplier * wave_weight(wave)) / log(10.0))
+
+## The whole Hit a boss member's share is taken from, so the Hit it lands is
+## one enemy's.
+func boss_wave_hit(tier_id: int, wave: int) -> ScientificNumber:
+	return collection_for_wave(tier_id, wave).multiply_scalar(1.0 / BOSS_HP_WEIGHT)
 
 ## Every tier shares the same wave base, which keeps the 1.8x/2.6x reward
 ## ratios honest at equal waves.

@@ -880,9 +880,19 @@ func _test_tier_one_opening() -> void:
 		var anchor_ratio := pow(10.0, profile.hit_ratio_log10(int(anchor[0])))
 		_expect(absf(anchor_ratio / float(anchor[1]) - 1.0) < 0.05, "the ratio should sit on The Tower's shape at wave %d: %f" % [int(anchor[0]), anchor_ratio])
 	_expect(profile.collection_for_wave(2, 21).compare_to(profile.collection_for_wave(1, 21).multiply_scalar(20.0)) == 0, "Tier 2 should multiply the same Hit curve by 20")
-	var boss_hp := profile.liability_for_wave(1, 10)
+	# D065: a boss wave sends its ordinary enemies and a boss, which carries
+	# twenty enemies' HP and hits like one (D063).
+	var boss_run := GameState.new()
+	boss_run.start_run(1, 3)
+	boss_run.wave = 10
+	boss_run.active_encounter = boss_run._make_encounter(10)
+	var boss_at: int = boss_run.active_encounter.boss_index()
+	var boss_member: Dictionary = boss_run.active_encounter.members[boss_at]
+	var one_enemy_hp_10 := profile._from_log10(profile._wave_hp_log10(10))
 	var ordinary_hit_10 := profile._from_log10(profile._wave_hit_log10(10))
-	_expect(absf(profile.collection_for_wave(1, 10).log10() - ordinary_hit_10.multiply_scalar(1.0 / float(profile.ordinary_members(10))).log10()) < 0.000001 and not boss_hp.is_zero(), "a boss should hit like one ordinary enemy of its wave (D063)")
+	_expect(boss_run.active_encounter.members.size() == profile.ordinary_members(10) + 1 and boss_run.active_encounter.members.filter(func(member): return bool(member.boss)).size() == 1, "a boss wave should send its ordinary enemies and one boss")
+	_expect(absf(boss_member.max.log10() - one_enemy_hp_10.multiply_scalar(profile.BOSS_HP_WEIGHT).log10()) < 0.000001, "a boss should carry twenty enemies' HP")
+	_expect(absf(boss_member.wave_hit.multiply_scalar(float(boss_member.share)).log10() - ordinary_hit_10.log10()) < 0.000001, "a boss should hit like one ordinary enemy of its wave (D063)")
 	_expect(profile.reward_for_wave(1, 1) == 1 and profile.reward_for_wave(1, 21) == 14 and profile.reward_for_wave(1, 10) == roundi(10 * profile.WAVE_REWARD_SCALE * profile.BOSS_REWARD_MULTIPLIER), "Coins should follow 0.65 x the wave from wave 1, x5 on a boss")
 	# Doing nothing still ends, and earns clearly less than a player tapping
 	# once a second.
@@ -917,8 +927,9 @@ func _test_tier_one_opening() -> void:
 	stuck.start_run(1, 3)
 	var before: ScientificNumber = stuck.number.copy()
 	var hit := stuck.get_effective_collection()
+	var one_share: float = stuck.active_encounter.members[0].share
 	var event := stuck._resolve_wave_boundary()
-	_expect(event.type == "tax_collection" and absf(event.amount.log10() - hit.multiply_scalar(1.0 / 3.0).log10()) < 0.000001, "each member should land its third of the Hit")
+	_expect(event.type == "tax_collection" and absf(event.amount.log10() - hit.multiply_scalar(one_share).log10()) < 0.000001, "each member should land its share of the Hit")
 	# In the opening (D059) each member hits once and leaves: the whole Hit, once.
 	_expect(absf(before.subtract(stuck.number).log10() - hit.log10()) < 0.000001 and not stuck.number.is_zero(), "an opening wave should cost its Hit once, not the run")
 	_expect(stuck.active_encounter.at_number_count() == 0, "opening members should not stay at the Number")
@@ -962,7 +973,9 @@ func _test_tier_pressure_and_curve_gates() -> void:
 	var state := GameState.new()
 	var profile = state.balance_profile
 	# D040: Tier 1's one curve starts small at wave 1 and keeps rising.
-	_expect(profile.liability_for_wave(1, 1).compare_to(ScientificNumber.from_float(10.0)) < 0 and not profile.liability_for_wave(1, 1).is_zero(), "Tier 1 wave 1 should be a small wave")
+	# D065: many enemies, each small at first.
+	var wave_one := profile.liability_for_wave(1, 1)
+	_expect(wave_one.multiply_scalar(1.0 / profile.wave_weight(1)).compare_to(ScientificNumber.from_float(3.0)) < 0 and wave_one.compare_to(ScientificNumber.from_float(60.0)) < 0 and not wave_one.is_zero(), "Tier 1 wave 1 should be small enemies in a small wave")
 	_expect(profile.liability_for_wave(1, 19).compare_to(profile.liability_for_wave(1, 21)) < 0 and profile.collection_for_wave(1, 19).compare_to(profile.collection_for_wave(1, 21)) < 0, "Tier 1 should keep rising through wave 21")
 	var tier1_liability := profile.liability_for_wave(1, 21)
 	var tier2_liability := profile.liability_for_wave(2, 21)
@@ -1001,7 +1014,7 @@ func _test_output_is_number_and_strikes_the_wave() -> void:
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	_expect(state.start_run(2, 21), "Tier 2 run should start after unlock")
 	state.number = ScientificNumber.from_float(1000)
-	state.active_encounter.remaining_liability = ScientificNumber.from_float(50)
+	_one_enemy(state, ScientificNumber.from_float(50))
 	var lifetime_before: ScientificNumber = state.lifetime_generated.copy()
 
 	# D037: every unit is Number and also counts against the wave.
@@ -1030,7 +1043,7 @@ func _test_output_is_number_and_strikes_the_wave() -> void:
 	_expect(state.lifetime_generated.compare_to(zero_lifetime) == 0, "zero output should not count as production")
 
 	state.number = ScientificNumber.new()
-	state.active_encounter.remaining_liability = ScientificNumber.new(5.0, 300)
+	_one_enemy(state, ScientificNumber.new(5.0, 300))
 	state._add_number(ScientificNumber.new(7.0, 300))
 	_expect(state.active_encounter.is_cleared() and state.number.compare_to(ScientificNumber.new(7.0, 300)) == 0, "Number should stay exact at very large values")
 
@@ -1070,14 +1083,21 @@ func _test_missed_waves_move_on_and_bosses_stay() -> void:
 	state.active_encounter.remaining_liability = state.active_encounter.max_liability.multiply_scalar(0.4)
 	var reward: int = state.active_encounter.reward
 	var hit := state.get_effective_collection()
+	# Front-first, so the members beaten are the front ones; each still
+	# standing lands its full share, however damaged (D057).
+	var standing_share := 0.0
+	var standing := 0
+	for member in state.active_encounter.members:
+		if TaxEncounter.is_alive(member):
+			standing_share += float(member.share)
+			standing += 1
 	var event := state._resolve_wave_boundary()
 	_expect(event.type == "tax_collection" and state.wave == 32, "a missed ordinary wave should hit and move on")
-	# Three of its five members were beaten, so only the other two land.
-	_expect(absf(ScientificNumber.from_float(1e9).subtract(state.number).log10() - hit.multiply_scalar(0.4).log10()) < 0.000001, "only the members left standing should land, each its share")
+	_expect(absf(ScientificNumber.from_float(1e9).subtract(state.number).log10() - hit.multiply_scalar(standing_share).log10()) < 0.000001, "only the members left standing should land, each its share")
 	_expect(reward > 10 and state.coins == floori(float(reward) * 0.6), "a missed wave should pay Coins for the share cleared")
 	_expect(state.get_tier_best(2) == 0, "a missed wave should set no record")
 	_expect(state.active_encounter.own_uncleared().compare_to(state.active_encounter.max_liability) == 0, "the next wave should arrive whole")
-	_expect(state.active_encounter.at_number_count() == 2 and state.active_encounter.front_index() == 0, "the missed wave's two members should stay at the Number, in front")
+	_expect(state.active_encounter.at_number_count() == standing and state.active_encounter.front_index() == 0, "the missed wave's standing members should stay at the Number, in front")
 
 	# D063: waves keep coming while a boss stands. An unbeaten boss hits and
 	# joins the pile in front of the next wave, keeping the damage dealt.
@@ -1178,7 +1198,8 @@ func _test_mid_wave_save_resumes_identically() -> void:
 	var restored := GameState.new()
 	restored.save_path = save_path
 	restored.load()
-	for tap_index in range(80):
+	# A wave is many enemies now (D065), so it takes more taps to beat.
+	for tap_index in range(600):
 		original.tap()
 		restored.tap()
 	_expect(original.active_encounter.is_cleared(), "continued tapping should carry the wave past its clear point")
@@ -1242,6 +1263,7 @@ func _test_collection_is_absolute() -> void:
 	small.start_run(2, 4)
 	small.number = ScientificNumber.from_float(5000)
 	var expected := small.get_effective_collection()
+	var one_share: float = small.active_encounter.members[0].share
 	var small_event := small._resolve_wave_boundary()
 	var large := GameState.new()
 	large.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
@@ -1249,7 +1271,7 @@ func _test_collection_is_absolute() -> void:
 	large.number = ScientificNumber.from_float(500000000)
 	var large_event := large._resolve_wave_boundary()
 	_expect(small_event.type == "tax_collection" and large_event.type == "tax_collection", "uncleared encounters should collect")
-	_expect(small_event.amount.compare_to(large_event.amount) == 0 and absf(small_event.amount.log10() - expected.multiply_scalar(1.0 / 3.0).log10()) < 0.000001, "Collection must be the same absolute value at every player Number")
+	_expect(small_event.amount.compare_to(large_event.amount) == 0 and absf(small_event.amount.log10() - expected.multiply_scalar(one_share).log10()) < 0.000001, "Collection must be the same absolute value at every player Number")
 
 func _test_boss_axes_and_rewards() -> void:
 	var profile = GameState.new().balance_profile
@@ -1258,8 +1280,9 @@ func _test_boss_axes_and_rewards() -> void:
 	var normal_collection := profile.collection_for_wave(2, 29)
 	var boss_collection := profile.collection_for_wave(2, 30)
 	_expect(boss_liability.compare_to(normal_liability) > 0, "boss liability should exceed the preceding normal wave")
-	var one_enemy_30 := profile._from_log10(profile._wave_hit_log10(30)).multiply_scalar(20.0 / float(profile.ordinary_members(30)))
-	_expect(absf(boss_collection.log10() - one_enemy_30.log10()) < 0.000001 and boss_collection.compare_to(normal_collection) < 0, "a boss should be a wall of HP that hits like one enemy, not a whole wave (D063)")
+	var one_enemy_30 := profile._from_log10(profile._wave_hit_log10(30)).multiply_scalar(20.0)
+	var boss_lands := profile.boss_wave_hit(2, 30).multiply_scalar(profile.BOSS_HP_WEIGHT / profile.wave_weight(30))
+	_expect(absf(boss_lands.log10() - one_enemy_30.log10()) < 0.000001 and boss_lands.compare_to(normal_collection) < 0 and boss_collection.compare_to(normal_collection) > 0, "a boss should be a wall of HP that hits like one enemy, not a whole wave (D063)")
 	_expect(profile.reward_for_wave(2, 30) > profile.reward_for_wave(2, 29), "boss waves should grant a larger independent reward")
 
 func _test_brace_blocks_next_collection() -> void:
@@ -1306,13 +1329,13 @@ func _test_leech_feeds_on_a_standing_boss() -> void:
 	state.purchased = {"siphon": 100}
 	_expect(state.start_run(2, 41), "Tier 2 run should start after unlock")
 	state.number = ScientificNumber.from_float(1000)
-	state.active_encounter.remaining_liability = ScientificNumber.from_float(100)
+	_one_enemy(state, ScientificNumber.from_float(100))
 	state._add_number(ScientificNumber.from_float(40))
 	_expect(state.number.compare_to(ScientificNumber.from_float(1040)) == 0, "Leech should not feed on an ordinary wave")
 
+	# A lone boss, so the damage reaches it rather than the enemies in front.
 	state.wave = 20
-	state.active_encounter = state._make_encounter(20)
-	state.active_encounter.remaining_liability = ScientificNumber.from_float(100)
+	_one_enemy(state, ScientificNumber.from_float(100))
 	state._add_number(ScientificNumber.from_float(40))
 	_expect(state.active_encounter.remaining_liability.compare_to(ScientificNumber.from_float(60)) == 0, "Leech must not change the damage the boss takes")
 	_expect(state.number.compare_to(ScientificNumber.from_float(1090)) == 0, "a quarter of the 40 dealt to the boss should be added again")
@@ -1330,14 +1353,16 @@ func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
 	state.number = ScientificNumber.from_float(1e9)
 	state.wave = 20
 	state.active_encounter = state._make_encounter(20)
-	state.active_encounter.remaining_liability = ScientificNumber.from_float(1e8)
-	var boss_max: ScientificNumber = state.active_encounter.members[0].max.copy()
-	var before: ScientificNumber = state.active_encounter.members[0].hp.copy()
-	var event := state._resolve_wave_boundary()
-	_expect(event.type == "boss_collection" and state.wave == 21, "an unbeaten boss should hit and join the pile (D063)")
+	var boss_at_start: int = state.active_encounter.boss_index()
+	var boss_max: ScientificNumber = state.active_encounter.members[boss_at_start].max.copy()
+	var before: ScientificNumber = state.active_encounter.members[boss_at_start].hp.copy()
+	state._resolve_wave_boundary()
+	_expect(state.wave == 21 and state.active_encounter.boss_index() >= 0, "an unbeaten boss should hit and join the pile (D063)")
 	var thorned_boss: Dictionary = state.active_encounter.members[state.active_encounter.boss_index()]
 	var boss_thorns := boss_max.multiply_scalar(state._effect_sum("recoil_share") * state.balance_profile.BOSS_THORNS_SHARE)
-	_expect(absf(before.subtract(thorned_boss.hp).log10() - boss_thorns.log10()) < 1.0e-9, "a boss should take half of Thorns' share of its maximum HP")
+	# Through the opening a boss hits every 15 seconds: at 15 and 30 before its
+	# wave passes at 35 (D065), taking Thorns each time.
+	_expect(absf(before.subtract(thorned_boss.hp).log10() - boss_thorns.multiply_scalar(2.0).log10()) < 1.0e-9, "a boss should take half of Thorns' share of its maximum HP each time it hits")
 
 	# An ordinary wave's members stay at the Number (D058), so Thorns returns
 	# each hit to them, and the wave that replaces a missed one arrives whole.
@@ -1394,7 +1419,8 @@ func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
 	for member in opener.active_encounter.members:
 		member.hp = member.max.multiply_scalar(0.5)
 	opener.active_encounter._sum_remaining()
-	for step in range(64):
+	# The last of wave 1's enemies arrives at 32 seconds (D065).
+	for step in range(132):
 		opener._advance_waves(0.25)
 	_expect(opener.wave == 2 and opener.get_tier_best(1) == 1, "opening enemies Thorns kills as they hit should leave their wave beaten")
 
@@ -1465,9 +1491,10 @@ func _test_boss_damage_applies_only_to_bosses() -> void:
 	state.active_encounter = state._make_encounter(9)
 	_expect(not state.active_encounter.is_boss, "wave nine should not be a boss")
 	var plain := state.tap()
+	# A lone boss in front, so the tap strikes the boss itself (D063).
 	state.wave = 10
-	state.active_encounter = state._make_encounter(10)
-	_expect(state.active_encounter.is_boss, "wave ten should be a boss")
+	_one_enemy(state, state.balance_profile.liability_for_wave(2, 10))
+	_expect(state.active_encounter.is_boss and state.active_encounter.boss_index() == 0, "wave ten should be a boss")
 	var against_boss := state.tap()
 	_expect(against_boss.amount.compare_to(plain.amount.multiply_scalar(2.0)) == 0, "a maxed Boss Damage should double what a tap deals to a boss")
 	var boss_rate := state.get_rate_per_second()
@@ -1771,7 +1798,7 @@ func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	boss_run.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	boss_run.start_run(2, 71)
 	boss_run.wave = 10
-	boss_run.active_encounter = boss_run._make_encounter(10)
+	_one_enemy(boss_run, boss_run.balance_profile.liability_for_wave(2, 10))
 	_expect(boss_run.active_encounter.is_boss, "wave ten should be a boss")
 	boss_run.number = ScientificNumber.from_float(1)
 	_expect(boss_run._resolve_wave_boundary().type == "wave_death", "a boss hit that empties Number should end the run")
@@ -1816,8 +1843,8 @@ func _test_run_gates_the_wave_clock() -> void:
 	_expect(state.wave == 1, "wave clock must not advance outside an active run")
 	_expect(state.start_run(1, 10), "starting a run should succeed")
 	_expect(not state.start_run(1, 10), "starting while already active should fail")
-	_advance_seconds(state, 20.0)
-	_expect(state.wave == 2, "a cleared grace wave should advance after 15 seconds")
+	_advance_seconds(state, GameState.WAVE_INTERVAL_SECONDS + 1.0)
+	_expect(state.wave == 2, "an opening wave should advance when its 35-second clock runs out (D065)")
 
 func _test_retreat_ends_and_resets_run() -> void:
 	var state := GameState.new()
@@ -2697,8 +2724,9 @@ func _test_defensive_ceilings_bound_the_combined_effects() -> void:
 	state.start_run(1, 13)
 	state.purchased = {GameState.ARMOR_ID: 250, "siphon": 300, "recoil": 300}
 	_expect(state._effect_sum("collection_resistance") > state.balance_profile.COLLECTION_RESISTANCE_CEILING, "the fixture should stack Armor past its ceiling")
+	# A lone boss, so Leech and Thorns reach it rather than enemies in front.
 	state.wave = 30
-	state.active_encounter = state._make_encounter(30)
+	_one_enemy(state, state.balance_profile.liability_for_wave(1, 30))
 	var base: ScientificNumber = state.active_encounter.collection.copy()
 	var effective := state.get_effective_collection()
 	_expect(effective.compare_to(base.multiply_scalar(1.0 - state.balance_profile.COLLECTION_RESISTANCE_CEILING)) == 0, "a hit should never fall below the combined Armor ceiling")
@@ -2722,34 +2750,39 @@ func _test_defensive_ceilings_bound_the_combined_effects() -> void:
 	var dealt := liability_before.subtract(state.active_encounter.members[state.active_encounter.boss_index()].hp)
 	_expect(absf(dealt.log10() - ceiling_boss_max.multiply_scalar(state.balance_profile.RECOIL_CEILING * state.balance_profile.BOSS_THORNS_SHARE).log10()) < 1.0e-9, "Thorns should stop at its ceiling's share of a boss's maximum HP")
 
-## D057: a wave is a group whose members share its HP and Hit evenly, three
-## at first and one more every eleven waves to twenty, and a boss is one.
-## Members walk in as a column, the front arriving at 6 seconds and the last at
-## 15.
+## D057, D065: a wave is a group of many enemies, each with the full enemy
+## HP, as The Tower's are: 20 at wave 1, about 142 by wave 1,000, capped at
+## 220. A boss wave adds a boss carrying twenty enemies' HP. Members walk in as
+## a column, the front arriving at 6 seconds and the last 26 seconds later.
 func _test_a_wave_is_a_group() -> void:
 	var profile := TaxBalanceProfile.new()
-	_expect(profile.members_for_wave(1) == 3 and profile.members_for_wave(11) == 3 and profile.members_for_wave(12) == 4, "a wave should start as three members and gain one at wave 12")
-	_expect(profile.members_for_wave(100) == 1 and profile.members_for_wave(101) == 12, "a boss should be one; wave 101 should be twelve")
-	_expect(profile.members_for_wave(501) == 20 and profile.members_for_wave(5001) == 20, "a wave should stop at twenty members")
-	_expect(is_equal_approx(profile.member_arrival(0, 3), 6.0) and is_equal_approx(profile.member_arrival(1, 3), 10.5) and is_equal_approx(profile.member_arrival(2, 3), 15.0), "three members should arrive at 6, 10.5 and 15 seconds")
-	_expect(is_equal_approx(profile.member_arrival(0, 1), 15.0), "a lone member should arrive at the end of the clock")
+	_expect(profile.members_for_wave(1) == 20 and profile.members_for_wave(9) == 20 and profile.members_for_wave(101) == 32, "a wave should start as twenty enemies and grow with the wave")
+	_expect(profile.members_for_wave(100) == profile.ordinary_members(100) + 1 and profile.member_weights(100).count(profile.BOSS_HP_WEIGHT) == 1, "a boss wave should add one boss to its enemies")
+	_expect(profile.members_for_wave(999) == 142 and profile.members_for_wave(10001) == profile.MAX_WAVE_MEMBERS, "the count should reach about 142 at wave 1,000 and stop at its cap")
+	_expect(is_equal_approx(profile.member_arrival(0, 20), 6.0) and is_equal_approx(profile.member_arrival(19, 20), 32.0) and is_equal_approx(profile.member_arrival(0, 1), 6.0), "enemies should arrive from 6 seconds through the next 26")
+	_expect(profile.member_arrivals(10).has(profile.BOSS_ARRIVAL_SECONDS) and _sorted(profile.member_arrivals(10)), "a boss should walk in among its wave in arrival order")
 	var state := GameState.new()
 	state.start_run(1, 51)
 	var encounter = state.active_encounter
+	var count: int = encounter.members.size()
 	var total := ScientificNumber.new()
 	for member in encounter.members:
 		total = total.add(member.max)
-		_expect(is_equal_approx(float(member.share), 1.0 / 3.0), "each member should carry a third of the wave")
+		_expect(is_equal_approx(float(member.share), 1.0 / float(count)), "each enemy should carry an equal share of an ordinary wave")
 	_expect(absf(total.log10() - encounter.max_liability.log10()) < 0.000001, "the members' HP should add up to the wave's")
-	_expect(is_equal_approx(state.next_hit_share(), 1.0 / 3.0) and state.get_hit_breakdown().final.compare_to(state.get_effective_collection().multiply_scalar(1.0 / 3.0)) == 0, "the next Hit shown should be the front member's share")
+	_expect(absf(encounter.members[0].max.log10() - profile._from_log10(profile._wave_hp_log10(1)).log10()) < 0.000001, "each enemy should carry the full enemy HP (D065)")
+	_expect(is_equal_approx(state.next_hit_share(), 1.0 / float(count)) and state.get_hit_breakdown().final.compare_to(state.get_effective_collection().multiply_scalar(1.0 / float(count))) == 0, "the next Hit shown should be the front member's share")
 	# Damage strikes the front member, and what passes its HP is lost.
 	var front_hp: ScientificNumber = encounter.members[0].hp.copy()
 	var applied: ScientificNumber = encounter.apply_compliance(front_hp.multiply_scalar(2.0))
 	_expect(applied.compare_to(front_hp) == 0 and encounter.members[0].hp.is_zero() and encounter.members[1].hp.compare_to(encounter.members[1].max) == 0, "a blow should stop at the front member")
-	_expect(encounter.front_index() == 1 and encounter.standing_count() == 2, "the next member should become the front")
-	state.wave = 10
-	state.active_encounter = state._make_encounter(10)
-	_expect(state.active_encounter.members.size() == 1 and state.active_encounter.is_boss, "a boss should be a single member")
+	_expect(encounter.front_index() == 1 and encounter.standing_count() == count - 1, "the next member should become the front")
+
+func _sorted(values: Array) -> bool:
+	for index in range(1, values.size()):
+		if float(values[index]) < float(values[index - 1]):
+			return false
+	return true
 
 ## D057: each member left standing reaches the Number at its arrival time and
 ## lands its share of the Hit. A wave with a member still standing when its
@@ -2758,7 +2791,8 @@ func _test_group_members_land_one_by_one() -> void:
 	var state := GameState.new()
 	state.start_run(1, 52)
 	state.number = ScientificNumber.from_float(1e6)
-	var share_hit := state.get_effective_collection().multiply_scalar(1.0 / 3.0)
+	var count: int = state.active_encounter.members.size()
+	var share_hit := state.get_effective_collection().multiply_scalar(1.0 / float(count))
 	var start := state.number.copy()
 	var events := state._advance_waves(0.25)
 	for step in range(22):
@@ -2767,12 +2801,12 @@ func _test_group_members_land_one_by_one() -> void:
 	_expect(hits.size() == 0 and state.number.compare_to(start) == 0, "nothing should land before the front member arrives at 6 seconds")
 	events = state._advance_waves(0.25)
 	hits = events.filter(func(event): return event.type == "tax_collection")
-	_expect(hits.size() == 1 and hits[0].amount.compare_to(share_hit) == 0, "the front member should land a third of the Hit at 6 seconds")
-	_expect(state.number.compare_to(start.subtract(share_hit)) == 0 and state.active_encounter.landed_count() == 1 and state.wave == 1, "one landing should cost a third and the wave should stand on")
+	_expect(hits.size() == 1 and hits[0].amount.compare_to(share_hit) == 0, "the front member should land its share of the Hit at 6 seconds")
+	_expect(state.number.compare_to(start.subtract(share_hit)) == 0 and state.active_encounter.landed_count() == 1 and state.wave == 1, "one landing should cost its share and the wave should stand on")
 	var landed := 1
-	for step in range(40):
+	for step in range(120):
 		landed += state._advance_waves(0.25).filter(func(event): return event.type == "tax_collection").size()
-	_expect(landed == 3 and state.wave == 2, "all three members should land by 15 seconds and the wave should pass")
+	_expect(landed == count and state.wave == 2, "every member should land by 32 seconds and the wave should pass at 35")
 	_expect(int(state.get_tier_record(1).highest_wave) == 0, "a passed wave should set no record")
 
 	# Beat the front two in time: only the last lands, and the wave pays for
@@ -2783,14 +2817,15 @@ func _test_group_members_land_one_by_one() -> void:
 	partial.wave = 7
 	partial.active_encounter = partial._make_encounter(7)
 	var reward: int = partial.active_encounter.reward
+	var partial_count: int = partial.active_encounter.members.size()
 	var coins_before := partial.coins
 	for kill in range(2):
 		partial.active_encounter.apply_compliance(partial.active_encounter.members[kill].hp)
 	var partial_hits := 0
-	for step in range(61):
+	for step in range(141):
 		partial_hits += partial._advance_waves(0.25).filter(func(event): return event.type == "tax_collection").size()
-	_expect(partial_hits == 1 and partial.wave == 8, "with two beaten, only the last should land and the wave should pass")
-	_expect(partial.coins - coins_before == floori(float(reward) * 2.0 / 3.0 + 0.000001), "a passed wave should pay for the two thirds it cleared")
+	_expect(partial_hits == partial_count - 2 and partial.wave == 8, "with two beaten, only the rest should land and the wave should pass")
+	_expect(partial.coins - coins_before == floori(float(reward) * 2.0 / float(partial_count) + 0.000001), "a passed wave should pay for the share it cleared")
 
 	# Beat every member in time: no landing, and the wave is beaten.
 	var clean := GameState.new()
@@ -2823,8 +2858,9 @@ func _test_group_brace_guard_and_thorns() -> void:
 	var after_brace := braced.number.copy()
 	for step in range(43):
 		braced._advance_waves(0.25)
-	_expect(braced.wave == 1 and braced.active_encounter.landed_count() == 2 and braced.number.compare_to(after_brace) == 0, "a Brace should block the first two members")
-	for step in range(18):
+	# By 10.75 seconds the first four of wave 1's twenty have arrived (D065).
+	_expect(braced.wave == 1 and braced.active_encounter.landed_count() == 4 and braced.number.compare_to(after_brace) == 0, "a Brace should block the first four members")
+	for step in range(98):
 		braced._advance_waves(0.25)
 	_expect(braced.wave == 2 and braced.number.compare_to(after_brace) == 0 and not braced.braced, "a Brace should block every member and be spent when the wave ends")
 
@@ -2970,7 +3006,7 @@ func _test_tower_shaped_bosses_and_heat_up() -> void:
 	state.start_run(1, 91)
 	state.number = ScientificNumber.from_float(1e12)
 	state.wave = 20
-	state.active_encounter = state._make_encounter(20)
+	state.active_encounter = _lone_boss(state, 20)
 	_expect(state._boss_damage_multiplier() > 1.0, "Boss Damage should work on a boss in its own wave")
 	state._resolve_wave_boundary()
 	var boss_at: int = state.active_encounter.boss_index()
@@ -2997,12 +3033,14 @@ func _test_tower_shaped_bosses_and_heat_up() -> void:
 	carried.start_run(1, 92)
 	carried.number = ScientificNumber.from_float(1e12)
 	carried.wave = 10
-	carried.active_encounter = carried._make_encounter(10)
+	carried.active_encounter = _lone_boss(carried, 10)
 	carried._resolve_wave_boundary()
 	var boss: Dictionary = carried.active_encounter.members[carried.active_encounter.boss_index()]
-	_expect(int(boss.hits) == 1 and is_equal_approx(float(boss.interval), carried.balance_profile.MEMBER_HIT_SECONDS), "the boss should have hit once and keep its wave's clock")
+	# It reaches the Number at 15 seconds and hits every 5 through its wave's
+	# boundary at 35: at 15, 20, 25, 30 and 35.
+	_expect(int(boss.hits) == 5 and is_equal_approx(float(boss.interval), carried.balance_profile.MEMBER_HIT_SECONDS), "the boss should have hit on its wave's clock and keep it")
 	var heated: ScientificNumber = carried.get_hit_breakdown(carried.active_encounter.boss_index()).raw
-	_expect(absf(heated.log10() - boss.wave_hit.multiply_scalar(carried.balance_profile.HEAT_UP_PER_HIT).log10()) < 1.0e-9, "the boss's next hit should be heated up 4%")
+	_expect(absf(heated.log10() - boss.wave_hit.multiply_scalar(float(boss.share) * pow(carried.balance_profile.HEAT_UP_PER_HIT, 5.0)).log10()) < 1.0e-9, "the boss's next hit should be heated up 4% a hit")
 
 	# The carried boss and its heat survive a save and load exactly.
 	var save_path := "res://.number_go_up_test_save.json"
@@ -3014,13 +3052,13 @@ func _test_tower_shaped_bosses_and_heat_up() -> void:
 	loaded.save_path = save_path
 	loaded.load()
 	var loaded_boss_at: int = loaded.active_encounter.boss_index()
-	_expect(loaded_boss_at >= 0 and int(loaded.active_encounter.members[loaded_boss_at].hits) == 1 and loaded.active_encounter.members[loaded_boss_at].hp.compare_to(boss.hp) == 0, "the carried boss should load with its HP and heat")
+	_expect(loaded_boss_at >= 0 and int(loaded.active_encounter.members[loaded_boss_at].hits) == int(boss.hits) and loaded.active_encounter.members[loaded_boss_at].hp.compare_to(boss.hp) == 0, "the carried boss should load with its HP and heat")
 	loaded.clear_save()
 
 	# A member saved before D063 has no marker or count: a boss is its own
 	# wave's, and a member that has landed has hit once. No older save could
 	# hold a carried boss, so members of an ordinary wave load as ordinary.
-	var own_boss: Dictionary = carried._make_encounter(10).to_dict()
+	var own_boss: Dictionary = _lone_boss(carried, 10).to_dict()
 	var mixed: Dictionary = carried.active_encounter.to_dict()
 	for fixture in [own_boss, mixed]:
 		for member in fixture.members:
@@ -3040,7 +3078,7 @@ func _test_tower_shaped_bosses_and_heat_up() -> void:
 	owed.start_run(1, 94)
 	owed.number = ScientificNumber.from_float(1e12)
 	owed.wave = 20
-	owed.active_encounter = owed._make_encounter(20)
+	owed.active_encounter = _lone_boss(owed, 20)
 	owed._resolve_wave_boundary()
 	var coins_after_pass := owed.coins
 	var gems_after_pass := owed.gems
@@ -3067,9 +3105,24 @@ func _test_tower_shaped_bosses_and_heat_up() -> void:
 	pile_pay._resolve_wave_boundary()
 	var paid_at_pass := pile_pay.coins
 	_expect(paid_at_pass == floori(float(pile_reward) * 0.6 + 0.000001), "the passing wave should pay for the share cleared")
-	for kill in range(2):
+	# Each of the carried enemies owes under a Coin (D065); the fraction carries
+	# over, so beating them all pays the rest of the wave's reward.
+	var carried_count := 0
+	for member in pile_pay.active_encounter.members:
+		if not pile_pay.active_encounter.is_own(member):
+			carried_count += 1
+	for kill in range(carried_count):
 		pile_pay._add_number(pile_pay.active_encounter.members[pile_pay.active_encounter.front_index()].hp.copy())
-	_expect(pile_pay.coins == paid_at_pass + 2 * floori(float(pile_reward) * 0.2 + 0.000001), "each carried enemy beaten later should pay its fifth of the wave's Coins: %d" % pile_pay.coins)
+	_expect(carried_count > 2 and pile_pay.coins == pile_reward, "the carried enemies beaten later should pay the rest of their wave's Coins between them: %d of %d" % [pile_pay.coins, pile_reward])
+	# The part of a Coin still owed survives a save (D065).
+	pile_pay.coin_fraction = 0.625
+	pile_pay.save_path = "res://.number_go_up_test_save.json"
+	_expect(pile_pay.save(), "a run owing part of a Coin should save")
+	var fraction_loaded := GameState.new()
+	fraction_loaded.save_path = pile_pay.save_path
+	fraction_loaded.load()
+	_expect(is_equal_approx(fraction_loaded.coin_fraction, 0.625), "the part of a Coin owed should load with the run")
+	fraction_loaded.clear_save()
 
 	# A V10 save migrates to V11, keeping a copy, and resumes its boss wave.
 	var v10_path := "res://.number_go_up_test_save.json"
@@ -3112,9 +3165,12 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	var state := GameState.new()
 	state.balance_profile.OPENING_HIT_WAVES = 0
 	state.balance_profile.OPENING_EASED_BY = 0
+	state.balance_profile.FIRST_WAVE_MEMBERS = 3
 	state.start_run(1, 71)
 	state.number = ScientificNumber.from_float(1e9)
 	var interval: float = state.balance_profile.MEMBER_HIT_SECONDS
+	# Three enemies a wave keep the pile's arithmetic readable; they arrive at
+	# 6, 19 and 32 seconds of the 35-second wave (D065).
 	var share_hit := state.get_effective_collection().multiply_scalar(1.0 / 3.0)
 	var first_hits: Array = []
 	var repeats: Array = []
@@ -3128,8 +3184,8 @@ func _test_members_stay_and_the_pile_grows() -> void:
 				_expect(absf(event.amount.log10() - share_hit.multiply_scalar(state.balance_profile.HEAT_UP_PER_HIT).log10()) < 1.0e-9, "a repeat hit should be the member's share heated up 4% (D063)")
 		clock += 0.25
 	# Times are the clock at the start of the step the hit fell in.
-	_expect(first_hits.size() == 2 and repeats.size() == 1 and absf(float(repeats[0]) + 0.25 - (6.0 + interval)) < 0.01, "the front member should hit again one interval after it lands: %s" % str(repeats))
-	for step in range(2):
+	_expect(first_hits.size() == 1 and repeats.size() == 1 and absf(float(repeats[0]) + 0.25 - (6.0 + interval)) < 0.01, "the front member should hit again one interval after it lands: %s" % str(repeats))
+	for step in range(82):
 		state._advance_waves(0.25)
 	_expect(state.wave == 2 and state.active_encounter.at_number_count() == 3 and state.active_encounter.front_index() == 0 and not state.active_encounter.is_own(state.active_encounter.members[0]), "unbeaten members should carry into the next wave, in front")
 	var front_before: ScientificNumber = state.active_encounter.members[0].hp.copy()
@@ -3144,6 +3200,7 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	var resumed := GameState.new()
 	resumed.balance_profile.OPENING_HIT_WAVES = 0
 	resumed.balance_profile.OPENING_EASED_BY = 0
+	resumed.balance_profile.FIRST_WAVE_MEMBERS = 3
 	resumed.save_path = save_path
 	resumed.load()
 	_expect(resumed.active_encounter.at_number_count() == state.active_encounter.at_number_count() and resumed.active_encounter.members[0].wave == 1, "the pile should resume in front")
@@ -3158,6 +3215,7 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	var rebuilt := GameState.new()
 	rebuilt.balance_profile.OPENING_HIT_WAVES = 0
 	rebuilt.balance_profile.OPENING_EASED_BY = 0
+	rebuilt.balance_profile.FIRST_WAVE_MEMBERS = 3
 	rebuilt.save_path = save_path
 	rebuilt.load()
 	var carried_hits: Array = rebuilt.active_encounter.members.filter(func(member): return not rebuilt.active_encounter.is_own(member)).map(func(member): return member.wave_hit.compare_to(rebuilt.balance_profile.collection_for_wave(1, int(member.wave))) == 0)
@@ -3171,12 +3229,13 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	var pile := GameState.new()
 	pile.balance_profile.OPENING_HIT_WAVES = 0
 	pile.balance_profile.OPENING_EASED_BY = 0
+	pile.balance_profile.FIRST_WAVE_MEMBERS = 3
 	pile.start_run(1, 72)
 	pile.number = ScientificNumber.from_float(1e12)
 	var hits_per_clock: Array = []
 	for clock_index in range(4):
 		var count := 0
-		for step in range(60):
+		for step in range(140):
 			count += pile._advance_waves(0.25).filter(func(event): return event.type == "tax_collection" or event.type == "pile_hit").size()
 		hits_per_clock.append(count)
 	_expect(hits_per_clock[3] > hits_per_clock[1] and hits_per_clock[1] > hits_per_clock[0], "an unbeaten pile should hit more often clock on clock: %s" % str(hits_per_clock))
@@ -3191,17 +3250,20 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	boss.wave = 10
 	boss.active_encounter = boss._make_encounter(10)
 	var boss_hits := 0
-	for step in range(125):
+	for step in range(150):
 		boss_hits += boss._advance_waves(0.25).filter(func(event): return event.type == "boss_collection").size()
-	_expect(boss.wave == 12 and boss_hits == 4, "a boss should let waves come and hit every %.0f seconds: wave %d, %d hits" % [boss.balance_profile.MEMBER_HIT_SECONDS, boss.wave, boss_hits])
+	# At 15, 20, 25, 30 and 35 seconds, when its wave passes; its next is 5
+	# seconds into wave 11.
+	_expect(boss.wave == 11 and boss_hits == 5 and boss.active_encounter.boss_index() >= 0, "a boss should let waves come and hit every %.0f seconds: wave %d, %d hits" % [boss.balance_profile.MEMBER_HIT_SECONDS, boss.wave, boss_hits])
 
 	# Beaten after landing: the wave still counts as beaten.
 	var late := GameState.new()
 	late.balance_profile.OPENING_HIT_WAVES = 0
 	late.balance_profile.OPENING_EASED_BY = 0
+	late.balance_profile.FIRST_WAVE_MEMBERS = 3
 	late.start_run(1, 74)
 	late.number = ScientificNumber.from_float(1e6)
-	for step in range(61):
+	for step in range(141):
 		late._advance_waves(0.25)
 	_expect(late.wave == 2, "the fixture should carry wave 1's members into wave 2")
 	for step in range(27):
@@ -3217,13 +3279,14 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	var braced := GameState.new()
 	braced.balance_profile.OPENING_HIT_WAVES = 0
 	braced.balance_profile.OPENING_EASED_BY = 0
+	braced.balance_profile.FIRST_WAVE_MEMBERS = 3
 	braced.start_run(1, 75)
 	braced.number = ScientificNumber.from_float(1e6)
-	for step in range(61):
+	for step in range(141):
 		braced._advance_waves(0.25)
 	_expect(braced.brace(), "a Brace should be raised against the pile")
 	var after_brace := braced.number.copy()
-	for step in range(58):
+	for step in range(138):
 		braced._advance_waves(0.25)
 	_expect(braced.number.compare_to(after_brace) == 0 and braced.braced, "a Brace should block every hit until its clock ends")
 	for step in range(2):
@@ -3241,11 +3304,13 @@ func _test_opening_members_pass() -> void:
 	state.start_run(1, 81)
 	state.number = ScientificNumber.from_float(1e6)
 	var hits := 0
-	for step in range(61):
+	var opening_count: int = state.active_encounter.members.size()
+	for step in range(141):
 		hits += state._advance_waves(0.25).filter(func(event): return event.type == "tax_collection" or event.type == "pile_hit").size()
-	_expect(hits == 3 and state.wave == 2 and state.active_encounter.living_members().size() == state.active_encounter.members.size(), "an opening wave's three members should each hit once and leave nothing behind")
+	_expect(hits == opening_count and state.wave == 2 and state.active_encounter.living_members().size() == state.active_encounter.members.size(), "an opening wave's enemies should each hit once and leave nothing behind")
 	_expect(int(state.get_tier_record(1).highest_wave) == 0, "an opening wave with a member through should not count as beaten")
 	state.wave = 31
+	state.wave_accumulator = 0.0
 	state.active_encounter = state._make_encounter(31)
 	for step in range(26):
 		state._advance_waves(0.25)
@@ -3264,6 +3329,7 @@ func _test_d058_opening_save_reconciles() -> void:
 	old.wave = 2
 	old.wave_accumulator = 6.25
 	old.active_encounter = old._make_encounter(2)
+	var own_count: int = old.active_encounter.members.size()
 	for member in old.active_encounter.members:
 		member.interval = 5.0
 	var own_front: Dictionary = old.active_encounter.members[0]
@@ -3285,7 +3351,7 @@ func _test_d058_opening_save_reconciles() -> void:
 	resumed.save_path = save_path
 	resumed.load()
 	_expect(resumed.load_status == GameState.LOAD_OK and resumed.wave == 2, "the old V10 opening run should load")
-	_expect(resumed.active_encounter.members.size() == 3 and resumed.active_encounter.members.all(func(member): return int(member.wave) == 2), "members carried from an opening wave should leave on load")
+	_expect(resumed.active_encounter.members.size() == own_count and resumed.active_encounter.members.all(func(member): return int(member.wave) == 2), "members carried from an opening wave should leave on load")
 	_expect(int(resumed.active_encounter.members[0].state) == TaxEncounter.LANDED and resumed.active_encounter.members.all(func(member): return float(member.interval) == 0.0), "the old opening member should have hit once and approaching members should pass")
 	_expect(resumed.number.compare_to(number_before) == 0 and resumed.active_encounter.own_uncleared().compare_to(own_hp_before) == 0 and resumed.coins == 123 and resumed.cash.compare_to(ScientificNumber.from_float(456)) == 0, "conversion should keep Number, Coins, Cash and this wave's uncleared HP")
 	for step in range(3):
@@ -3337,9 +3403,10 @@ func _test_d058_opening_save_reconciles() -> void:
 	boss.start_run(1, 85)
 	boss.wave = 30
 	boss.active_encounter = boss._make_encounter(30)
-	boss.active_encounter.members[0].state = TaxEncounter.AT_NUMBER
-	boss.active_encounter.members[0].landed = true
-	boss.active_encounter.members[0].next_hit = 15.0
+	var early_boss: Dictionary = boss.active_encounter.members[boss.active_encounter.boss_index()]
+	early_boss.state = TaxEncounter.AT_NUMBER
+	early_boss.landed = true
+	early_boss.next_hit = 15.0
 	_expect(boss.save(), "an early boss encounter should save")
 	var boss_resumed := GameState.new()
 	boss_resumed.save_path = save_path
@@ -3378,6 +3445,21 @@ func _play_until(state: GameState, type: String, seconds: float = 30.0) -> Simul
 
 ## Beats every member of the active wave with exactly its HP, front first, so
 ## the Number gains what the whole wave had, as one blow used to (D057).
+## A wave of one enemy with `hp` HP, for tests about output and Number rather
+## than groups: with many enemies (D065), damage past the front one is lost.
+func _one_enemy(state: GameState, hp: ScientificNumber) -> void:
+	var profile = state.balance_profile
+	state.active_encounter = TaxEncounter.new(state.selected_tier, state.wave, hp, profile.collection_for_wave(state.selected_tier, state.wave), profile.reward_for_wave(state.selected_tier, state.wave), profile.is_boss_wave(state.wave))
+
+## A boss wave that is only its boss: twenty enemies' HP, one enemy's Hit, on
+## its wave's clock (D063, D065). For tests of boss rules, where the enemies a
+## real boss wave sends would otherwise stand in front of it.
+func _lone_boss(state: GameState, boss_wave: int) -> TaxEncounter:
+	var profile = state.balance_profile
+	var enemy_hp: ScientificNumber = profile.liability_for_wave(state.selected_tier, boss_wave).multiply_scalar(1.0 / profile.wave_weight(boss_wave))
+	var enemy_hit: ScientificNumber = profile.collection_for_wave(state.selected_tier, boss_wave).multiply_scalar(1.0 / profile.wave_weight(boss_wave))
+	return TaxEncounter.new(state.selected_tier, boss_wave, enemy_hp.multiply_scalar(profile.BOSS_HP_WEIGHT), enemy_hit, profile.reward_for_wave(state.selected_tier, boss_wave), true, [profile.BOSS_ARRIVAL_SECONDS], profile.boss_hit_seconds(boss_wave))
+
 func _beat_wave(state: GameState) -> void:
 	while not state.active_encounter.is_cleared():
 		var front: int = state.active_encounter.front_index()
