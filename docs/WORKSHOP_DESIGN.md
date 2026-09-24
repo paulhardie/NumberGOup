@@ -579,7 +579,7 @@ The wider matrix also exposes an independent Rig problem. At two taps a second u
 Wave 21 used to be a splice: waves 1–20 ran a separate warm-up formula, then HP nearly tripled and Hits doubled every wave for five waves. [D040](DECISIONS.md) runs one set of rules from wave 1:
 - Wave HP follows the existing curve from 9 HP at wave 1.
 - A Hit is 20% of its wave's HP at wave 1, rising to 60% by wave 30.
-- Bosses are ×3 HP and ×1.5 Hit.
+- Bosses are ×3 HP and ×1.5 Hit. *(Superseded by D063: a boss hits like one ordinary enemy, and waves keep coming while it stands.)*
 - Coins are 0.65 × the wave.
 
 Seed 7, two taps a second unless noted, `tax-foundation-v7`:

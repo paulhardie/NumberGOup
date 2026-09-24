@@ -33,11 +33,13 @@ var collection := ScientificNumber.new()
 var reward: int = 0
 var is_boss: bool = false
 ## Each is {max, hp, share, arrive, state, wave, wave_hit, next_hit,
-## interval, landed}, front first: members carried in, then this wave's in
-## arrival order. `share` is the part of its wave's HP and Hit the member
-## carries, `wave_hit` its wave's whole Hit (Guard and Armor work on that, then
-## the share lands), `next_hit` when it next hits on this wave's clock, and
-## `landed` whether it has reached the Number.
+## interval, landed, boss, hits}, front first: members carried in, then this
+## wave's in arrival order. `share` is the part of its wave's HP and Hit the
+## member carries, `wave_hit` its wave's whole Hit, `next_hit` when it next
+## hits on this wave's clock, `landed` whether it has reached the Number,
+## `boss` whether it is a boss (which may be carried into later waves, D063),
+## `hits` how many times it has hit, which heats up its next hit, and `unpaid`
+## the share of its passed wave's reward still owed when it is beaten.
 var members: Array = []
 
 func _init(
@@ -65,7 +67,7 @@ func _init(
 		members.append({
 			"max": hp, "hp": hp.copy(), "share": share, "arrive": float(arrive), "state": STANDING,
 			"wave": wave, "wave_hit": collection.copy(), "next_hit": float(arrive),
-			"interval": hit_interval, "landed": false,
+			"interval": hit_interval, "landed": false, "boss": boss, "hits": 0, "unpaid": 0.0,
 		})
 	_sum_remaining()
 
@@ -75,6 +77,17 @@ static func is_alive(member: Dictionary) -> bool:
 
 func is_own(member: Dictionary) -> bool:
 	return int(member.get("wave", wave)) == wave
+
+## Whether the member at `index` is a boss, this wave's or one carried in.
+func is_boss_member(index: int) -> bool:
+	return index >= 0 and index < members.size() and bool(members[index].get("boss", false))
+
+## The living boss nearest the Number, or -1.
+func boss_index() -> int:
+	for index in range(members.size()):
+		if is_alive(members[index]) and is_boss_member(index):
+			return index
+	return -1
 
 func apply_compliance(amount: ScientificNumber, multiplier: float = 1.0) -> ScientificNumber:
 	if is_cleared() or amount.is_zero() or multiplier <= 0.0:
@@ -117,6 +130,7 @@ func hit(index: int) -> void:
 	if not is_alive(member):
 		return
 	member.landed = true
+	member.hits = int(member.get("hits", 0)) + 1
 	# An opening member (interval 0, D059) hits once and leaves, uncleared.
 	if float(member.interval) <= 0.0:
 		member.state = LANDED
@@ -204,6 +218,7 @@ func carry_from(old) -> bool:
 		member.state = int(was.state)
 		member.landed = bool(was.get("landed", false)) or int(was.state) == LANDED
 		member.next_hit = float(was.get("next_hit", member.arrive))
+		member.hits = int(was.get("hits", 1 if member.landed else 0))
 		if int(member.state) == KILLED:
 			member.hp = ScientificNumber.new()
 	members = old.members.filter(func(member): return int(member.get("wave", old.wave)) != old.wave) + members
@@ -263,6 +278,9 @@ func to_dict() -> Dictionary:
 			"next_hit": member.next_hit,
 			"interval": member.interval,
 			"landed": member.landed,
+			"boss": member.get("boss", false),
+			"hits": member.get("hits", 0),
+			"unpaid": member.get("unpaid", 0.0),
 		})
 	return {
 		"tier_id": tier_id,
@@ -311,6 +329,9 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 			if not is_finite(next_hit):
 				next_hit = arrive
 			next_hit = clampf(next_hit, 0.0, TaxBalanceProfile.WAVE_INTERVAL_SECONDS + interval)
+			var landed := bool(saved.get("landed", state == LANDED or state == AT_NUMBER))
+			# Saved before D063: a boss was always its own wave's, and a member
+			# that had landed had hit at least once.
 			encounter.members.append({
 				"max": ScientificNumber.from_dict(saved.get("max", {})),
 				"hp": ScientificNumber.from_dict(saved.get("hp", {})),
@@ -321,7 +342,11 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 				"wave_hit": ScientificNumber.from_dict(wave_hit) if wave_hit is Dictionary else encounter.collection.copy(),
 				"next_hit": next_hit,
 				"interval": interval,
-				"landed": bool(saved.get("landed", state == LANDED or state == AT_NUMBER)),
+				"landed": landed,
+				"boss": bool(saved.get("boss", encounter.is_boss and member_wave == encounter.wave)),
+				# Far past any real run's count, and short of overflowing 1.04^n.
+				"hits": clampi(int(saved.get("hits", 1 if landed else 0)), 0, 10000),
+				"unpaid": clampf(float(saved.get("unpaid", 0.0)), 0.0, 1.0),
 			})
 		encounter._sum_remaining()
 	# No member that parsed, or a wave saved before groups (V9 and older): one

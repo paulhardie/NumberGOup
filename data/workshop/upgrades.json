@@ -260,7 +260,7 @@
     {
       "id": "boss_damage",
       "title": "BOSS DAMAGE",
-      "description": "+1% damage against boss waves per rank.",
+      "description": "+1% damage against bosses per rank, even after their wave has passed.",
       "category": "workshop",
       "workshop_category": "attack",
       "progression_type": "protocol",

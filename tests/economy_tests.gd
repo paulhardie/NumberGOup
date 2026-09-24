@@ -33,6 +33,7 @@ func _init() -> void:
 	_test_group_brace_guard_and_thorns()
 	_test_group_saves_and_resumes()
 	_test_members_stay_and_the_pile_grows()
+	_test_tower_shaped_bosses_and_heat_up()
 	_test_opening_members_pass()
 	_test_d058_opening_save_reconciles()
 	_test_output_is_number_and_strikes_the_wave()
@@ -469,7 +470,7 @@ func _test_save_round_trip_and_legacy_migration() -> void:
 	v4_source.tap()
 	var v4_remaining: ScientificNumber = v4_source.active_encounter.remaining_liability.copy()
 	var v4_rng_state := v4_source.rng.state
-	var v4: Dictionary = SaveDataV10.make(v4_source)
+	var v4: Dictionary = SaveDataV11.make(v4_source)
 	v4.version = 4
 	v4.purchased = {"stronger_tap": 2, "generator": 1}
 	v4.tax_resistance_rank = 3
@@ -499,7 +500,7 @@ func _test_save_round_trip_and_legacy_migration() -> void:
 	rewritten.save_path = save_path
 	rewritten.load()
 	_expect(rewritten.get_owned(GameState.ARMOR_ID) == 3 and rewritten.focus_path == ProgressionTaxonomy.ATTACK, "migration should rewrite the save in the current shape immediately")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV10.VERSION, "the rewritten save should carry the current version")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV11.VERSION, "the rewritten save should carry the current version")
 	var kept_v4 := "res://.number_go_up_test_save.v4-backup.json"
 	_expect(int(_read_json(kept_v4).get("version", 0)) == 4, "migration should keep the V4 file it read, unchanged, beside the new save")
 	rewritten.clear_save()
@@ -605,8 +606,8 @@ func _test_bad_saves_are_never_written_over() -> void:
 	writer.clear_save()
 
 	# A save from a newer build is left byte for byte, and saving pauses.
-	var future: Dictionary = SaveDataV10.make(_funded_state())
-	future.version = SaveDataV10.VERSION + 1
+	var future: Dictionary = SaveDataV11.make(_funded_state())
+	future.version = SaveDataV11.VERSION + 1
 	_write_json(save_path, future)
 	var future_text := FileAccess.get_file_as_string(save_path)
 	var older_build := GameState.new()
@@ -621,8 +622,8 @@ func _test_bad_saves_are_never_written_over() -> void:
 	# A live save that cannot be read is moved aside, and the backup loads.
 	var good := _funded_state()
 	good.coins = 999
-	_write_json(backup_path, SaveDataV10.make(good))
-	var torn := JSON.stringify(SaveDataV10.make(_funded_state()))
+	_write_json(backup_path, SaveDataV11.make(good))
+	var torn := JSON.stringify(SaveDataV11.make(_funded_state()))
 	_write_text(save_path, torn.substr(0, torn.length() / 2))
 	var recovered := GameState.new()
 	recovered.save_path = save_path
@@ -636,16 +637,16 @@ func _test_bad_saves_are_never_written_over() -> void:
 
 	# With no backup to fall back to, the game starts fresh and says so, and
 	# the unreadable save is still kept.
-	var typed_wrong: Dictionary = SaveDataV10.make(_funded_state())
+	var typed_wrong: Dictionary = SaveDataV11.make(_funded_state())
 	typed_wrong.purchased = "not a dictionary"
 	# Cash is read only while a run is saved, so the bad value sits in one.
-	var cash_wrong: Dictionary = SaveDataV10.make(_funded_state())
+	var cash_wrong: Dictionary = SaveDataV11.make(_funded_state())
 	cash_wrong.in_run = true
 	cash_wrong.cash = "not a number"
-	var earned_wrong: Dictionary = SaveDataV10.make(_funded_state())
+	var earned_wrong: Dictionary = SaveDataV11.make(_funded_state())
 	earned_wrong.in_run = true
 	earned_wrong.run_cash_earned = {"exponent": 0, "mantissa": "lots"}
-	var not_finite := JSON.stringify(SaveDataV10.make(_funded_state())).replace('"highest":{"exponent":0,"mantissa":0.0}', '"highest":{"exponent":0,"mantissa":1e999}')
+	var not_finite := JSON.stringify(SaveDataV11.make(_funded_state())).replace('"highest":{"exponent":0,"mantissa":0.0}', '"highest":{"exponent":0,"mantissa":1e999}')
 	for unreadable in [JSON.stringify(typed_wrong), JSON.stringify(cash_wrong), JSON.stringify(earned_wrong), not_finite, "{", ""]:
 		_write_text(save_path, unreadable)
 		var fresh := GameState.new()
@@ -657,7 +658,7 @@ func _test_bad_saves_are_never_written_over() -> void:
 
 	# A live save that vanished between the two renames of a save still has its
 	# backup.
-	_write_json(backup_path, SaveDataV10.make(good))
+	_write_json(backup_path, SaveDataV11.make(good))
 	var interrupted := GameState.new()
 	interrupted.save_path = save_path
 	interrupted.load()
@@ -688,7 +689,7 @@ func _test_v5_saves_migrate_without_loss() -> void:
 	source.rig_ranks = {"stronger_tap": 2}
 	for tap_index in range(4):
 		source.tap()
-	var v5: Dictionary = SaveDataV10.make(source)
+	var v5: Dictionary = SaveDataV11.make(source)
 	v5.version = 5
 	v5.erase("tick_accumulator")
 	v5.erase("critical_chain")
@@ -719,7 +720,7 @@ func _test_v5_saves_migrate_without_loss() -> void:
 	_expect(migrated.get_tier_record(1).milestones_claimed == [10, 20, 25, 30, 40, 50, 60, 75, 90, 100], "V5 records should survive migration, with every passed checkpoint claimed")
 	_expect(migrated.in_run and migrated.rig_owned("stronger_tap") == 2 and migrated.rng.state == source.rng.state, "a V5 live run should survive migration")
 	_expect(migrated.lab_slots_total() == LabResearch.LEGACY_SLOTS, "a V5 save should keep the two Lab slots every player then had")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV10.VERSION, "a V5 save should be rewritten in the current shape at once")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV11.VERSION, "a V5 save should be rewritten in the current shape at once")
 	_expect(int(_read_json("res://.number_go_up_test_save.v5-backup.json").get("version", 0)) == 5, "the V5 file should be kept beside the new save")
 	migrated.clear_save()
 	_expect(_leftover_save_files().is_empty(), "the V5 migration check should leave no file behind")
@@ -864,18 +865,24 @@ func _test_tier_one_opening() -> void:
 			_expect(hit_growth > 1.0 and hit_growth < 1.6, "the Hit should rise smoothly from wave " + str(previous) + " to " + str(check_wave))
 		previous = check_wave
 	_expect(profile.liability_for_wave(1, 21).compare_to(profile.liability_for_wave(1, 19)) > 0 and pow(10.0, profile.liability_for_wave(1, 21).log10() - profile.liability_for_wave(1, 19).log10()) < 1.4, "wave 21 should no longer jump")
-	# D043: the Hit has its own curve, scale x (0.08 w^2.10 + 0.4 w + 1), with
-	# the same milestone steps as Wave HP, rather than a share of the wave's HP.
-	# D046 sets the scale to 1.7.
-	for check_wave in [1, 21, 49, 101, 999, 5001]:
-		var w := float(check_wave)
-		var steps := pow(1.08, check_wave / 10) * pow(1.2, check_wave / 50) * pow(1.5, check_wave / 100)
-		var expected := 1.7 * (0.08 * pow(w, 2.10) + 0.4 * w + 1.0) * steps
-		_expect(absf(profile.collection_for_wave(1, check_wave).log10() - log(expected) / log(10.0)) < 0.000001, "an ordinary Hit should follow the D043 curve (wave " + str(check_wave) + ")")
+	# D063: the Hit is the wave's HP divided by a ratio on The Tower's shape,
+	# which grows with the wave: about 2.4 at wave 1, 11 at 100, 118 at 500 and
+	# 1,480 at 1,000, so enemies grow tankier than they hit.
+	var previous_ratio := 0.0
+	for check_wave in [1, 21, 49, 99, 101, 499, 501, 999, 1001, 5001]:
+		var hp_log := profile.liability_for_wave(1, check_wave).log10()
+		var hit_log := profile.collection_for_wave(1, check_wave).log10()
+		var ratio := pow(10.0, hp_log - hit_log)
+		_expect(absf(hp_log - hit_log - profile.hit_ratio_log10(check_wave)) < 0.000001, "an ordinary Hit should be the wave's HP over the D063 ratio (wave " + str(check_wave) + ")")
+		_expect(ratio >= previous_ratio, "enemies should never grow less tanky relative to their Hit (wave " + str(check_wave) + ")")
+		previous_ratio = ratio
+	for anchor in [[1, 2.4], [100, 11.0], [500, 118.0], [1000, 1480.0]]:
+		var anchor_ratio := pow(10.0, profile.hit_ratio_log10(int(anchor[0])))
+		_expect(absf(anchor_ratio / float(anchor[1]) - 1.0) < 0.05, "the ratio should sit on The Tower's shape at wave %d: %f" % [int(anchor[0]), anchor_ratio])
 	_expect(profile.collection_for_wave(2, 21).compare_to(profile.collection_for_wave(1, 21).multiply_scalar(20.0)) == 0, "Tier 2 should multiply the same Hit curve by 20")
 	var boss_hp := profile.liability_for_wave(1, 10)
 	var ordinary_hit_10 := profile._from_log10(profile._wave_hit_log10(10))
-	_expect(profile.collection_for_wave(1, 10).compare_to(ordinary_hit_10.multiply_scalar(profile.BOSS_COLLECTION_MULTIPLIER)) == 0 and not boss_hp.is_zero(), "a boss's Hit should be 1.5 times an ordinary Hit at its wave")
+	_expect(absf(profile.collection_for_wave(1, 10).log10() - ordinary_hit_10.multiply_scalar(1.0 / float(profile.ordinary_members(10))).log10()) < 0.000001 and not boss_hp.is_zero(), "a boss should hit like one ordinary enemy of its wave (D063)")
 	_expect(profile.reward_for_wave(1, 1) == 1 and profile.reward_for_wave(1, 21) == 14 and profile.reward_for_wave(1, 10) == roundi(10 * profile.WAVE_REWARD_SCALE * profile.BOSS_REWARD_MULTIPLIER), "Coins should follow 0.65 x the wave from wave 1, x5 on a boss")
 	# Doing nothing still ends, and earns clearly less than a player tapping
 	# once a second.
@@ -916,12 +923,13 @@ func _test_tier_one_opening() -> void:
 	_expect(absf(before.subtract(stuck.number).log10() - hit.log10()) < 0.000001 and not stuck.number.is_zero(), "an opening wave should cost its Hit once, not the run")
 	_expect(stuck.active_encounter.at_number_count() == 0, "opening members should not stay at the Number")
 	_expect(stuck.wave == 2 and stuck.coins == 0 and stuck.get_tier_best(1) == 0, "the missed wave should move on unpaid and unrecorded")
-	# The first boss stands and fights like every boss.
+	# The first boss stays and fights like every boss, but waves keep coming
+	# (D063): it joins the next wave's pile.
 	stuck.wave = 10
 	stuck.active_encounter = stuck._make_encounter(10)
 	stuck.number = ScientificNumber.new(1.0, 9)
 	stuck._resolve_wave_boundary()
-	_expect(stuck.wave == 10, "the wave 10 boss should stay until beaten")
+	_expect(stuck.wave == 11 and stuck.active_encounter.boss_index() >= 0, "the wave 10 boss should stay at the Number while the next wave comes")
 
 	# D039: a fresh run's first Rig ranks cost a few seconds of its income in Cash, and
 	# repeated purchases climb gently rather than jumping to a wave's HP.
@@ -1071,7 +1079,8 @@ func _test_missed_waves_move_on_and_bosses_stay() -> void:
 	_expect(state.active_encounter.own_uncleared().compare_to(state.active_encounter.max_liability) == 0, "the next wave should arrive whole")
 	_expect(state.active_encounter.at_number_count() == 2 and state.active_encounter.front_index() == 0, "the missed wave's two members should stay at the Number, in front")
 
-	# A boss stays until beaten, keeps the damage dealt and hits again.
+	# D063: waves keep coming while a boss stands. An unbeaten boss hits and
+	# joins the pile in front of the next wave, keeping the damage dealt.
 	var boss := GameState.new()
 	boss.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	boss.start_run(2, 25)
@@ -1081,13 +1090,15 @@ func _test_missed_waves_move_on_and_bosses_stay() -> void:
 	var boss_hp: ScientificNumber = boss.active_encounter.max_liability.copy()
 	boss._add_number(ScientificNumber.from_float(40))
 	event = boss._resolve_wave_boundary()
-	_expect(event.type == "boss_collection" and boss.wave == 30, "a boss still standing at its boundary should hit and stay")
-	_expect(boss.active_encounter.remaining_liability.compare_to(boss_hp.subtract(ScientificNumber.from_float(40.0 * boss._boss_damage_multiplier()))) <= 0, "a standing boss should keep the damage already dealt")
-	event = boss._resolve_wave_boundary()
-	_expect(event.type == "boss_collection" and boss.wave == 30, "a standing boss should hit again at the next boundary")
+	_expect(event.type == "boss_collection" and boss.wave == 31, "a boss still standing at its boundary should hit and let the next wave come")
+	var carried_boss: int = boss.active_encounter.boss_index()
+	_expect(carried_boss == 0 and boss.active_encounter.front_index() == 0, "the boss should stay at the Number, in front of the next wave")
+	_expect(boss.active_encounter.members[carried_boss].hp.compare_to(boss_hp.subtract(ScientificNumber.from_float(40.0 * boss._boss_damage_multiplier()))) <= 0, "a standing boss should keep the damage already dealt")
+	boss._add_number(boss.active_encounter.members[carried_boss].hp.copy())
+	_expect(boss.active_encounter.boss_index() < 0 and boss.get_tier_best(2) == 0, "a boss beaten after its wave passed should not count its wave as beaten")
 	_beat_wave(boss)
 	_advance_seconds(boss, boss.balance_profile.MIN_WAVE_SECONDS)
-	_expect(boss.wave == 31 and boss.get_tier_best(2) == 30, "beating the boss should advance and count")
+	_expect(boss.wave == 32 and boss.get_tier_best(2) == 31, "beating the next wave should advance and count")
 
 func _test_missed_checkpoint_pays_when_passed() -> void:
 	# D037 with D030: wave 25 is an ordinary checkpoint. Missing it claims
@@ -1247,7 +1258,8 @@ func _test_boss_axes_and_rewards() -> void:
 	var normal_collection := profile.collection_for_wave(2, 29)
 	var boss_collection := profile.collection_for_wave(2, 30)
 	_expect(boss_liability.compare_to(normal_liability) > 0, "boss liability should exceed the preceding normal wave")
-	_expect(boss_collection.compare_to(normal_collection) > 0, "boss collection should exceed the preceding normal wave")
+	var one_enemy_30 := profile._from_log10(profile._wave_hit_log10(30)).multiply_scalar(20.0 / float(profile.ordinary_members(30)))
+	_expect(absf(boss_collection.log10() - one_enemy_30.log10()) < 0.000001 and boss_collection.compare_to(normal_collection) < 0, "a boss should be a wall of HP that hits like one enemy, not a whole wave (D063)")
 	_expect(profile.reward_for_wave(2, 30) > profile.reward_for_wave(2, 29), "boss waves should grant a larger independent reward")
 
 func _test_brace_blocks_next_collection() -> void:
@@ -1322,8 +1334,9 @@ func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
 	var hit := state.get_effective_collection()
 	var before: ScientificNumber = state.active_encounter.remaining_liability.copy()
 	var event := state._resolve_wave_boundary()
-	_expect(event.type == "boss_collection" and state.wave == 20, "an unbeaten boss should hit and stay")
-	_expect(state.active_encounter.remaining_liability.compare_to(before.subtract(hit.multiply_scalar(0.5))) == 0, "half the hit should be dealt back to the boss")
+	_expect(event.type == "boss_collection" and state.wave == 21, "an unbeaten boss should hit and join the pile (D063)")
+	var thorned_boss: Dictionary = state.active_encounter.members[state.active_encounter.boss_index()]
+	_expect(thorned_boss.hp.compare_to(before.subtract(hit.multiply_scalar(0.5))) == 0, "half the hit should be dealt back to the boss")
 
 	# An ordinary wave's members stay at the Number (D058), so Thorns returns
 	# each hit to them, and the wave that replaces a missed one arrives whole.
@@ -1487,36 +1500,36 @@ func _test_armor_ceiling_bounds_armor_not_other_rules() -> void:
 	state.active_rule_modifiers = [{"source": "test_rule", "target": "collection", "stage": "multiplicative", "value": 0.2}]
 	_expect(state.get_effective_collection().compare_to(base.multiply_scalar(0.25 * 0.2)) == 0, "a separate rule that shrinks hits should still apply past Armor's ceiling")
 
-## Guard (Defense Absolute): flat Hit reduction, priced in the tier's Hit pressure,
-## floored so a Hit never drops below 10% of its size after Guard and Armor together.
+## Guard (Defense Absolute): a flat amount off each enemy's hit, priced in the
+## tier's Hit pressure, after Armor and down to nothing, as in The Tower (D063).
 func _test_guard_flat_reduction_and_floor() -> void:
 	var state := GameState.new()
 	state.start_run(1, 4)
+	state.wave = 40
+	state.active_encounter = state._make_encounter(40)
 	var base_hit: ScientificNumber = state.active_encounter.collection.copy()
 	_expect(state.get_effective_collection().compare_to(base_hit) == 0, "with no Guard or Armor, hit should match base")
 
-	# 10 ranks of Guard on Tier 1 (flat reduction of 10):
+	# 10 ranks of Guard on Tier 1 take exactly 10 off.
 	state.purchased = {"guard": 10}
-	var hit_with_guard := state.get_effective_collection()
-	var expected_hit := base_hit.subtract(ScientificNumber.from_float(10.0))
-	var min_floor := base_hit.multiply_scalar(0.10)
-	if expected_hit.compare_to(min_floor) < 0:
-		expected_hit = min_floor
-	_expect(hit_with_guard.compare_to(expected_hit) == 0, "10 ranks of Guard should reduce hit by 10 or floor at 10%")
+	_expect(state.get_effective_collection().compare_to(base_hit.subtract(ScientificNumber.from_float(10.0))) == 0, "10 ranks of Guard should take exactly 10 off a hit")
 
-	# 100 ranks of Guard on wave 1 (Hit is small, e.g. ~1.8): floored to exactly 10%
+	# Guard larger than the hit takes it to nothing: no floor (D063).
 	state.purchased = {"guard": 100}
-	var floored_hit := state.get_effective_collection()
-	_expect(floored_hit.compare_to(base_hit.multiply_scalar(0.10)) == 0, "100 Guard on a small hit should floor at exactly 10% of base hit")
+	var wave_one := GameState.new()
+	wave_one.purchased = {"guard": 100}
+	wave_one.start_run(1, 4)
+	_expect(wave_one.get_effective_collection().is_zero(), "Guard larger than a hit should take it to nothing")
 
-	# Guard + Armor together (100 Guard + 100 Armor = 40% resistance):
-	state.purchased = {"guard": 100, GameState.ARMOR_ID: 100}
-	var guarded_and_armored := state.get_effective_collection()
-	_expect(guarded_and_armored.compare_to(base_hit.multiply_scalar(0.10)) == 0, "Guard and Armor combined should never reduce hit below 10%")
+	# Armor comes off first, then Guard: 60 Armor ranks (24%) and 10 Guard.
+	state.purchased = {"guard": 10, GameState.ARMOR_ID: 60}
+	var armor_first := base_hit.multiply_scalar(1.0 - state._effect_sum("collection_resistance")).subtract(ScientificNumber.from_float(10.0))
+	_expect(absf(state.get_effective_collection().log10() - armor_first.log10()) < 1.0e-9, "Armor should come off before Guard")
 
-	# External rules can still reduce hits past the 10% floor (D023):
+	# A rule that shrinks hits comes off before Guard too.
+	state.purchased = {"guard": 10}
 	state.active_rule_modifiers = [{"source": "test_perk", "target": "collection", "stage": "multiplicative", "value": 0.5}]
-	_expect(state.get_effective_collection().compare_to(base_hit.multiply_scalar(0.10 * 0.5)) == 0, "external rule modifiers should still apply past Guard's floor")
+	_expect(absf(state.get_effective_collection().log10() - base_hit.multiply_scalar(0.5).subtract(ScientificNumber.from_float(10.0)).log10()) < 1.0e-9, "a rule that shrinks hits should apply before Guard")
 	state.active_rule_modifiers = []
 
 	# The Hit shown on the wave is its raw size; its defences come off at contact
@@ -1527,28 +1540,32 @@ func _test_guard_flat_reduction_and_floor() -> void:
 	_expect(bare_parts.guard.is_zero() and bare_parts.armor.is_zero() and bare_parts.raw.compare_to(bare_parts.final) == 0, "with no defences the raw Hit is the Hit that lands")
 	bare.wave = 40
 	bare.active_encounter = bare._make_encounter(40)
-	for mix in [{"guard": 30}, {GameState.ARMOR_ID: 60}, {"guard": 30, GameState.ARMOR_ID: 60}]:
+	var front_member: Dictionary = bare.active_encounter.members[bare.active_encounter.front_index()]
+	for mix in [{"guard": 3}, {GameState.ARMOR_ID: 60}, {"guard": 3, GameState.ARMOR_ID: 60}]:
 		bare.purchased = mix
 		for rules in [[], [{"source": "test_perk", "target": "collection", "stage": "multiplicative", "value": 0.5}]]:
 			bare.active_rule_modifiers = rules
 			var parts := bare.get_hit_breakdown()
-			var rebuilt: ScientificNumber = parts.raw.subtract(parts.guard).subtract(parts.armor)
-			_expect(absf(rebuilt.log10() - parts.final.log10()) < 1.0e-9 and parts.final.compare_to(bare.get_effective_collection()) == 0, "a Hit's parts should add up to the Hit that lands: %s" % str(mix))
-	bare.purchased = {"guard": 30, GameState.ARMOR_ID: 60}
+			var rebuilt: ScientificNumber = parts.raw.subtract(parts.armor).subtract(parts.guard)
+			var lands: ScientificNumber = bare._effective_hit(bare._member_raw_hit(front_member))
+			_expect(not parts.final.is_zero() and absf(rebuilt.log10() - parts.final.log10()) < 1.0e-9 and parts.final.compare_to(lands) == 0, "a Hit's parts should add up to the Hit that lands: %s" % str(mix))
+	bare.purchased = {"guard": 3, GameState.ARMOR_ID: 60}
 	bare.active_rule_modifiers = []
 	var both := bare.get_hit_breakdown()
 	_expect(not both.guard.is_zero() and not both.armor.is_zero(), "Guard and Armor should each show what they took off")
 
-	# Tier scaling: On Tier 2 (collection_multiplier = 20.0), 10 Guard reduces by 200:
-	state.purchased = {"guard": 10}
-	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
-	state.start_run(2, 4)
-	var t2_base_hit: ScientificNumber = state.active_encounter.collection.copy()
+	# Tier scaling: On Tier 2 (collection_multiplier = 20.0), 10 Guard reduces by 200.
+	# A fresh state, since start_run refuses while a run is already going.
+	var tier_two := GameState.new()
+	tier_two.purchased = {"guard": 10}
+	tier_two.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	_expect(tier_two.start_run(2, 4), "the Tier 2 fixture should start")
+	tier_two.wave = 40
+	tier_two.active_encounter = tier_two._make_encounter(40)
+	var t2_base_hit: ScientificNumber = tier_two.active_encounter.collection.copy()
 	var t2_expected := t2_base_hit.subtract(ScientificNumber.from_float(200.0))
-	var t2_floor := t2_base_hit.multiply_scalar(0.10)
-	if t2_expected.compare_to(t2_floor) < 0:
-		t2_expected = t2_floor
-	var t2_hit := state.get_effective_collection()
+	var t2_hit := tier_two.get_effective_collection()
+	_expect(not t2_expected.is_zero(), "the Tier 2 fixture's Hit should outweigh 200 Guard")
 	_expect(t2_hit.compare_to(t2_expected) == 0, "Guard should scale by Tier 2's collection multiplier")
 
 	# Save/load round-trip preserves Guard:
@@ -1634,7 +1651,7 @@ func _test_v8_save_migrates_to_v9() -> void:
 	source.purchased = {"stronger_tap": 100, "generator": 40}
 	source.start_run(1, 31)
 	source.cash = ScientificNumber.from_float(1234.0)
-	var v8: Dictionary = SaveDataV10.make(source)
+	var v8: Dictionary = SaveDataV11.make(source)
 	v8.version = 8
 	_write_json(save_path, v8)
 	var loaded := GameState.new()
@@ -1642,7 +1659,7 @@ func _test_v8_save_migrates_to_v9() -> void:
 	loaded.load()
 	_expect(loaded.get_owned("stronger_tap") == 100 and loaded.get_owned("generator") == 40, "a V8 save should keep every Workshop rank")
 	_expect(loaded.in_run and loaded.cash.compare_to(ScientificNumber.from_float(1234.0)) == 0, "a V8 save should keep its run's Cash")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV10.VERSION, "a V8 save should be rewritten in the current version at once")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV11.VERSION, "a V8 save should be rewritten in the current version at once")
 	_expect(int(_read_json("res://.number_go_up_test_save.v8-backup.json").get("version", 0)) == 8, "the V8 file should be kept beside the new save")
 	loaded.clear_save()
 
@@ -1660,7 +1677,7 @@ func _test_v8_save_migrates_to_v9() -> void:
 ## cap takes effect; a rank under a retired id is kept but counts for nothing.
 func _test_loaded_ranks_stay_within_their_caps() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
-	var data: Dictionary = SaveDataV10.make(GameState.new())
+	var data: Dictionary = SaveDataV11.make(GameState.new())
 	data.purchased = {"stronger_tap": 90000, "generator": -4, "retired_row": 30}
 	data.knowledge_purchased = {"insight": 3}
 	data.lab_ranks = {"lab_damage": 900, "retired_line": 2}
@@ -1828,7 +1845,7 @@ func _test_claimed_milestones_survive_a_reload() -> void:
 
 	# A save written before the fix can hold the same wave twice, plus junk;
 	# it collapses to each real wave once.
-	var damaged: Dictionary = SaveDataV10.make(GameState.new())
+	var damaged: Dictionary = SaveDataV11.make(GameState.new())
 	damaged.tier_records["1"] = {"highest_wave": 30, "best_time": 0.0, "milestones_claimed": [10, 10.0, "junk", -3, 25]}
 	damaged.tier_records["9"] = "a tier this build does not know"
 	_write_json(save_path, damaged)
@@ -1884,7 +1901,7 @@ func _test_boss_waves_and_checkpoints_pay_gems() -> void:
 func _test_passed_checkpoints_are_paid_on_load() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
 	var profile = GameState.new().balance_profile
-	var passed: Dictionary = SaveDataV10.make(GameState.new())
+	var passed: Dictionary = SaveDataV11.make(GameState.new())
 	passed.tier_records["1"] = {"highest_wave": 60, "best_time": 0.0, "milestones_claimed": [10, 25, 50]}
 	_write_json(save_path, passed)
 	var loaded := GameState.new()
@@ -1901,7 +1918,7 @@ func _test_passed_checkpoints_are_paid_on_load() -> void:
 	_expect(again.gems == owed and again.milestone_gems_caught_up == 0, "a second load should pay nothing more")
 	again.clear_save()
 
-	var old: Dictionary = SaveDataV10.make(GameState.new())
+	var old: Dictionary = SaveDataV11.make(GameState.new())
 	old.version = 7
 	old.erase("run_gems_earned")
 	old.gems = 2
@@ -1912,7 +1929,7 @@ func _test_passed_checkpoints_are_paid_on_load() -> void:
 	topped.load()
 	var top_up: int = (profile.milestone_gems(1, 10) - GameState.PRE_V8_MILESTONE_GEMS) + (profile.milestone_gems(1, 25) - GameState.PRE_V8_MILESTONE_GEMS)
 	_expect(topped.gems == 2 + top_up, "a pre-V8 save should have its old one-Gem Coin checkpoints topped up")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV10.VERSION, "the topped-up save should be rewritten in the current version at once")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV11.VERSION, "the topped-up save should be rewritten in the current version at once")
 	var reread := GameState.new()
 	reread.save_path = save_path
 	reread.load()
@@ -1934,6 +1951,16 @@ func _test_modifier_pipeline_order() -> void:
 	]
 	var result := RuleModifierPipelineClass.apply(ScientificNumber.from_float(100), "collection", modifiers)
 	_expect(result.compare_to(ScientificNumber.from_float(80)) == 0, "modifier order should be flat, additive, multiplicative, then caps")
+	# D063: a last flat reduction (Guard) comes off after every percentage and
+	# before the caps: (100 x 0.5) - 20 = 30, where before the percentage it
+	# would give 40, and a cap of 25 then holds rather than leaving 5.
+	var last: Array = [
+		{"target": "collection", "stage": "flat_reduce_last", "amount": ScientificNumber.from_float(20).to_dict()},
+		{"target": "collection", "stage": "multiplicative", "value": 0.5},
+	]
+	_expect(RuleModifierPipelineClass.apply(ScientificNumber.from_float(100), "collection", last).compare_to(ScientificNumber.from_float(30)) == 0, "a last flat reduction should come off after the percentages")
+	last.append({"target": "collection", "stage": "cap_max", "amount": ScientificNumber.from_float(25).to_dict()})
+	_expect(RuleModifierPipelineClass.apply(ScientificNumber.from_float(100), "collection", last).compare_to(ScientificNumber.from_float(25)) == 0, "the caps should come after a last flat reduction")
 
 func _test_deterministic_run_seed() -> void:
 	var left := GameState.new()
@@ -2232,7 +2259,7 @@ func _test_rig_save_round_trip() -> void:
 	var pre_rig := GameState.new()
 	pre_rig.save_path = save_path
 	pre_rig.start_run(1, 5)
-	var legacy: Dictionary = SaveDataV10.make(pre_rig)
+	var legacy: Dictionary = SaveDataV11.make(pre_rig)
 	legacy.erase("rig_ranks")
 	legacy.erase("cash")
 	_write_json(save_path, legacy)
@@ -2326,7 +2353,7 @@ func _test_lab_slots_open_with_gems() -> void:
 	restored.clear_save()
 
 	# A V6 save predates bought slots: it keeps two, and becomes V7 at once.
-	var v6: Dictionary = SaveDataV10.make(_funded_state())
+	var v6: Dictionary = SaveDataV11.make(_funded_state())
 	v6.version = 6
 	v6.erase("lab_slots")
 	_write_json(save_path, v6)
@@ -2334,10 +2361,10 @@ func _test_lab_slots_open_with_gems() -> void:
 	migrated.save_path = save_path
 	migrated.load()
 	_expect(migrated.lab_slots_total() == LabResearch.LEGACY_SLOTS, "a V6 save should keep its two Lab slots")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV10.VERSION and int(_read_json("res://.number_go_up_test_save.v6-backup.json").get("version", 0)) == 6, "a V6 save should be rewritten in the current version, with the V6 file kept")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV11.VERSION and int(_read_json("res://.number_go_up_test_save.v6-backup.json").get("version", 0)) == 6, "a V6 save should be rewritten in the current version, with the V6 file kept")
 	migrated.clear_save()
 	for stored in [99, -3, 0]:
-		var odd: Dictionary = SaveDataV10.make(_funded_state())
+		var odd: Dictionary = SaveDataV11.make(_funded_state())
 		odd.lab_slots = stored
 		_write_json(save_path, odd)
 		var clamped := GameState.new()
@@ -2447,7 +2474,7 @@ func _test_lab_save_round_trip() -> void:
 
 	# A save written before Labs existed resumes with none, and a malformed
 	# Labs block reads as empty rather than crashing.
-	var legacy: Dictionary = SaveDataV10.make(_funded_state())
+	var legacy: Dictionary = SaveDataV11.make(_funded_state())
 	legacy.erase("lab_ranks")
 	legacy.erase("lab_active")
 	_write_json(save_path, legacy)
@@ -2571,7 +2598,7 @@ func _test_card_save_round_trip() -> void:
 
 	# A save written before Cards existed resumes with none, and a malformed
 	# block reads as empty rather than crashing.
-	var legacy: Dictionary = SaveDataV10.make(_funded_state())
+	var legacy: Dictionary = SaveDataV11.make(_funded_state())
 	legacy.erase("gems")
 	legacy.erase("card_ranks")
 	legacy.erase("card_active")
@@ -2654,7 +2681,8 @@ func _test_defensive_ceilings_bound_the_combined_effects() -> void:
 	var hit := state.get_effective_collection()
 	state.number = ScientificNumber.new(1.0, 40)
 	state._resolve_wave_boundary()
-	var dealt := liability_before.subtract(state.active_encounter.remaining_liability)
+	# The boss joins the next wave's pile (D063); its own HP shows what came back.
+	var dealt := liability_before.subtract(state.active_encounter.members[state.active_encounter.boss_index()].hp)
 	_expect(dealt.compare_to(hit) == 0, "Thorns should deal back exactly the hit, never more")
 
 ## D057: a wave is a group whose members share its HP and Hit evenly, three
@@ -2769,11 +2797,11 @@ func _test_group_brace_guard_and_thorns() -> void:
 	guarded.number = ScientificNumber.from_float(1e6)
 	guarded.wave = 31
 	guarded.active_encounter = guarded._make_encounter(31)
-	var whole := guarded.get_effective_collection()
+	var own_hit: ScientificNumber = guarded.active_encounter.collection.multiply_scalar(guarded.active_encounter.members[0].share)
 	var before := guarded.number.copy()
 	for step in range(25):
 		guarded._advance_waves(0.25)
-	_expect(before.subtract(guarded.number).compare_to(whole.multiply_scalar(guarded.active_encounter.members[0].share)) == 0, "a member should land its share of the Hit after Guard on the whole Hit")
+	_expect(before.subtract(guarded.number).compare_to(own_hit.subtract(ScientificNumber.from_float(3.0))) == 0, "a member should land its own share of the Hit less Guard (D063)")
 
 	var thorny := GameState.new()
 	thorny.purchased = {"recoil": 100}
@@ -2808,7 +2836,7 @@ func _test_group_saves_and_resumes() -> void:
 	_expect(source.active_encounter.landed_count() >= 1 and source.active_encounter.members[0].state == TaxEncounter.KILLED, "the fixture should have a beaten member and a landed one")
 	_expect(source.save(), "a mid-wave group should save")
 	var saved := _read_json(save_path)
-	_expect(int(saved.version) == SaveDataV10.VERSION and saved.active_encounter.members.size() == source.active_encounter.members.size(), "V10 should write every member")
+	_expect(int(saved.version) == SaveDataV11.VERSION and saved.active_encounter.members.size() == source.active_encounter.members.size(), "V10 should write every member")
 	var resumed := GameState.new()
 	resumed.save_path = save_path
 	resumed.load()
@@ -2830,7 +2858,7 @@ func _test_group_saves_and_resumes() -> void:
 	old.start_run(1, 60)
 	old.wave = 31
 	old.active_encounter = old._make_encounter(31)
-	var v9: Dictionary = SaveDataV10.make(old)
+	var v9: Dictionary = SaveDataV11.make(old)
 	v9.version = 9
 	v9.erase("brace_spent")
 	v9.balance_profile_id = "tax-foundation-v10"
@@ -2843,7 +2871,7 @@ func _test_group_saves_and_resumes() -> void:
 	migrated.load()
 	_expect(migrated.in_run and migrated.wave == 31 and migrated.active_encounter.members.size() == migrated.balance_profile.members_for_wave(31), "a V9 run should resume its wave as a group")
 	_expect(absf(migrated.get_wave_cleared_share() - 0.6) < 0.0001 and migrated.active_encounter.front_index() > 0, "a V9 wave should keep the share it had cleared, taken off the front")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV10.VERSION and int(_read_json("res://.number_go_up_test_save.v9-backup.json").get("version", 0)) == 9, "a V9 save should be rewritten as V10, with the V9 file kept")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV11.VERSION and int(_read_json("res://.number_go_up_test_save.v9-backup.json").get("version", 0)) == 9, "a V9 save should be rewritten as V10, with the V9 file kept")
 	migrated.clear_save()
 
 	# A run saved on an older balance profile keeps each member's state, so a
@@ -2871,7 +2899,7 @@ func _test_group_saves_and_resumes() -> void:
 	rebuilt.clear_save()
 
 	for bad_members in ["three", [1, 2, 3], [{"hp": 5, "max": {}}]]:
-		var malformed: Dictionary = SaveDataV10.make(GameState.new())
+		var malformed: Dictionary = SaveDataV11.make(GameState.new())
 		malformed.active_encounter = {"members": bad_members}
 		_write_json(save_path, malformed)
 		var turned_away := GameState.new()
@@ -2880,7 +2908,7 @@ func _test_group_saves_and_resumes() -> void:
 		_expect(turned_away.load_status == GameState.LOAD_UNREADABLE, "a save with malformed members should be refused whole: %s" % str(bad_members))
 		turned_away.clear_save()
 
-	var damaged: Dictionary = SaveDataV10.make(GameState.new())
+	var damaged: Dictionary = SaveDataV11.make(GameState.new())
 	damaged.active_encounter = {"members": "three"}
 	_write_json(save_path, damaged)
 	var refused := GameState.new()
@@ -2894,6 +2922,156 @@ func _test_group_saves_and_resumes() -> void:
 ## into the next wave, in front, so an unbeaten pile grows wave on wave. A boss
 ## holds the clock and hits every 15 seconds. A member beaten after landing
 ## still counts towards beating its wave, and a Brace covers the whole clock.
+## D063: a boss is a wall that joins the pile when its wave passes, Boss Damage
+## and Leech follow the boss itself rather than whatever stands in front of it,
+## heat-up and the boss marker survive a save, and older saves load with safe
+## defaults.
+func _test_tower_shaped_bosses_and_heat_up() -> void:
+	var state := GameState.new()
+	state.balance_profile.OPENING_HIT_WAVES = 0
+	state.balance_profile.OPENING_EASED_BY = 0
+	state.purchased = {"boss_damage": 100, "siphon": 100}
+	state.start_run(1, 91)
+	state.number = ScientificNumber.from_float(1e12)
+	state.wave = 20
+	state.active_encounter = state._make_encounter(20)
+	_expect(state._boss_damage_multiplier() > 1.0, "Boss Damage should work on a boss in its own wave")
+	state._resolve_wave_boundary()
+	var boss_at: int = state.active_encounter.boss_index()
+	_expect(state.wave == 21 and boss_at == 0, "the unbeaten boss should lead the next wave's pile")
+	_expect(state._boss_damage_multiplier() > 1.0, "Boss Damage should follow the boss into the next wave")
+	# Leech feeds on damage to the boss itself.
+	state.number = ScientificNumber.from_float(1000)
+	state._add_number(ScientificNumber.from_float(100))
+	_expect(state.number.compare_to(ScientificNumber.from_float(1125)) == 0, "Leech should feed on the carried boss")
+	state.number = ScientificNumber.from_float(1e12)
+	# With the boss beaten, what stands in front is ordinary: neither applies.
+	state._add_number(state.active_encounter.members[boss_at].hp.copy())
+	state.active_encounter.members[1].state = TaxEncounter.AT_NUMBER
+	_expect(state.active_encounter.boss_index() < 0 and is_equal_approx(state._boss_damage_multiplier(), 1.0), "Boss Damage should not work on the pile once the boss is beaten")
+	state.number = ScientificNumber.from_float(1000)
+	state._add_number(ScientificNumber.from_float(1))
+	_expect(state.number.compare_to(ScientificNumber.from_float(1001)) == 0, "Leech should not feed on ordinary enemies")
+
+	# A boss standing in front of an ordinary wave hits like one of its enemies,
+	# heated up for the hits it has landed.
+	var carried := GameState.new()
+	carried.balance_profile.OPENING_HIT_WAVES = 0
+	carried.balance_profile.OPENING_EASED_BY = 0
+	carried.start_run(1, 92)
+	carried.number = ScientificNumber.from_float(1e12)
+	carried.wave = 10
+	carried.active_encounter = carried._make_encounter(10)
+	carried._resolve_wave_boundary()
+	var boss: Dictionary = carried.active_encounter.members[carried.active_encounter.boss_index()]
+	_expect(int(boss.hits) == 1 and is_equal_approx(float(boss.interval), carried.balance_profile.MEMBER_HIT_SECONDS), "the boss should have hit once and keep its wave's clock")
+	var heated: ScientificNumber = carried.get_hit_breakdown(carried.active_encounter.boss_index()).raw
+	_expect(absf(heated.log10() - boss.wave_hit.multiply_scalar(carried.balance_profile.HEAT_UP_PER_HIT).log10()) < 1.0e-9, "the boss's next hit should be heated up 4%")
+
+	# The carried boss and its heat survive a save and load exactly.
+	var save_path := "res://.number_go_up_test_save.json"
+	carried.save_path = save_path
+	_expect(carried.save(), "a run with a carried boss should save")
+	var loaded := GameState.new()
+	loaded.balance_profile.OPENING_HIT_WAVES = 0
+	loaded.balance_profile.OPENING_EASED_BY = 0
+	loaded.save_path = save_path
+	loaded.load()
+	var loaded_boss_at: int = loaded.active_encounter.boss_index()
+	_expect(loaded_boss_at >= 0 and int(loaded.active_encounter.members[loaded_boss_at].hits) == 1 and loaded.active_encounter.members[loaded_boss_at].hp.compare_to(boss.hp) == 0, "the carried boss should load with its HP and heat")
+	loaded.clear_save()
+
+	# A member saved before D063 has no marker or count: a boss is its own
+	# wave's, and a member that has landed has hit once. No older save could
+	# hold a carried boss, so members of an ordinary wave load as ordinary.
+	var own_boss: Dictionary = carried._make_encounter(10).to_dict()
+	var mixed: Dictionary = carried.active_encounter.to_dict()
+	for fixture in [own_boss, mixed]:
+		for member in fixture.members:
+			member.erase("boss")
+			member.erase("hits")
+			member.erase("unpaid")
+	var restored_boss = TaxEncounter.from_dict(own_boss)
+	_expect(restored_boss.boss_index() == 0 and restored_boss.members.size() == 1 and int(restored_boss.members[0].hits) == 0, "an older boss wave should load its boss, not yet having hit")
+	var restored_mixed = TaxEncounter.from_dict(mixed)
+	_expect(restored_mixed.boss_index() < 0 and restored_mixed.members.all(func(member): return int(member.hits) == (1 if bool(member.landed) else 0)), "an older ordinary wave should load no boss and one hit per landed member")
+
+	# A boss beaten after its wave passed pays what its wave still owed: the
+	# rest of its Coins, its Cash and its Gem, and says so (D063).
+	var owed := GameState.new()
+	owed.balance_profile.OPENING_HIT_WAVES = 0
+	owed.balance_profile.OPENING_EASED_BY = 0
+	owed.start_run(1, 94)
+	owed.number = ScientificNumber.from_float(1e12)
+	owed.wave = 20
+	owed.active_encounter = owed._make_encounter(20)
+	owed._resolve_wave_boundary()
+	var coins_after_pass := owed.coins
+	var gems_after_pass := owed.gems
+	var owed_at: int = owed.active_encounter.boss_index()
+	_expect(coins_after_pass == 0 and is_equal_approx(float(owed.active_encounter.members[owed_at].unpaid), 1.0), "a boss passed untouched should owe its whole reward")
+	owed._add_number(owed.active_encounter.members[owed_at].hp.copy())
+	var cleared_events: Array = owed.advance(0.0).filter(func(event): return event.type == "boss_clear")
+	_expect(owed.coins == owed.balance_profile.reward_for_wave(1, 20) and owed.gems == gems_after_pass + owed.balance_profile.wave_gems(20), "the beaten boss should pay its wave's Coins and Gem")
+	_expect(cleared_events.size() == 1 and owed.get_tier_best(1) == 0, "the beaten boss should announce itself once and set no record")
+	owed._add_number(ScientificNumber.from_float(1))
+	_expect(owed.coins == owed.balance_profile.reward_for_wave(1, 20), "a beaten boss should pay once")
+
+	# Ordinary enemies carried in the pile pay their share of their wave's
+	# Coins when beaten later, as The Tower pays on the kill (D063).
+	var pile_pay := GameState.new()
+	pile_pay.balance_profile.OPENING_HIT_WAVES = 0
+	pile_pay.balance_profile.OPENING_EASED_BY = 0
+	pile_pay.start_run(1, 96)
+	pile_pay.number = ScientificNumber.from_float(1e12)
+	pile_pay.wave = 31
+	pile_pay.active_encounter = pile_pay._make_encounter(31)
+	pile_pay.active_encounter.remaining_liability = pile_pay.active_encounter.max_liability.multiply_scalar(0.4)
+	var pile_reward: int = pile_pay.active_encounter.reward
+	pile_pay._resolve_wave_boundary()
+	var paid_at_pass := pile_pay.coins
+	_expect(paid_at_pass == floori(float(pile_reward) * 0.6 + 0.000001), "the passing wave should pay for the share cleared")
+	for kill in range(2):
+		pile_pay._add_number(pile_pay.active_encounter.members[pile_pay.active_encounter.front_index()].hp.copy())
+	_expect(pile_pay.coins == paid_at_pass + 2 * floori(float(pile_reward) * 0.2 + 0.000001), "each carried enemy beaten later should pay its fifth of the wave's Coins: %d" % pile_pay.coins)
+
+	# A V10 save migrates to V11, keeping a copy, and resumes its boss wave.
+	var v10_path := "res://.number_go_up_test_save.json"
+	var v10 := GameState.new()
+	v10.start_run(1, 95)
+	v10.wave = 10
+	v10.active_encounter = v10._make_encounter(10)
+	v10.save_path = v10_path
+	var v10_data: Dictionary = SaveDataV11.make(v10)
+	v10_data.version = 10
+	for member in v10_data.active_encounter.members:
+		member.erase("boss")
+		member.erase("hits")
+		member.erase("unpaid")
+	_write_json(v10_path, v10_data)
+	var migrated := GameState.new()
+	migrated.save_path = v10_path
+	migrated.load()
+	_expect(migrated.load_status == GameState.LOAD_OK and migrated.in_run and migrated.active_encounter.boss_index() == 0, "a V10 boss wave should resume with its boss")
+	_expect(int(_read_json(v10_path).get("version", 0)) == SaveDataV11.VERSION and FileAccess.file_exists(migrated._migration_backup_path(10)), "a V10 save should be rewritten as V11 and kept as a copy")
+	migrated.clear_save()
+
+	# Tier 2 opens with the first beaten wave past 100 when the wave 100 boss
+	# was passed rather than beaten.
+	var gate := GameState.new()
+	gate.start_run(1, 93)
+	gate.number = ScientificNumber.from_float(1e30)
+	gate.wave = 100
+	gate.active_encounter = gate._make_encounter(100)
+	gate._resolve_wave_boundary()
+	_expect(gate.wave == 101 and not gate.is_tier_unlocked(2), "passing the wave 100 boss should not open Tier 2 by itself")
+	_beat_wave(gate)
+	var opened := false
+	for step in range(12):
+		for event in gate.advance(0.25):
+			opened = opened or event.type == "tier_unlock"
+	_expect(opened and gate.is_tier_unlocked(2), "beating wave 101 should open Tier 2 and say so")
+
 func _test_members_stay_and_the_pile_grows() -> void:
 	var state := GameState.new()
 	state.balance_profile.OPENING_HIT_WAVES = 0
@@ -2911,7 +3089,7 @@ func _test_members_stay_and_the_pile_grows() -> void:
 				first_hits.append(clock)
 			elif event.type == "pile_hit":
 				repeats.append(clock)
-				_expect(event.amount.compare_to(share_hit) == 0, "a repeat hit should be the member's share again")
+				_expect(absf(event.amount.log10() - share_hit.multiply_scalar(state.balance_profile.HEAT_UP_PER_HIT).log10()) < 1.0e-9, "a repeat hit should be the member's share heated up 4% (D063)")
 		clock += 0.25
 	# Times are the clock at the start of the step the hit fell in.
 	_expect(first_hits.size() == 2 and repeats.size() == 1 and absf(float(repeats[0]) + 0.25 - (6.0 + interval)) < 0.01, "the front member should hit again one interval after it lands: %s" % str(repeats))
@@ -2967,8 +3145,8 @@ func _test_members_stay_and_the_pile_grows() -> void:
 		hits_per_clock.append(count)
 	_expect(hits_per_clock[3] > hits_per_clock[1] and hits_per_clock[1] > hits_per_clock[0], "an unbeaten pile should hit more often clock on clock: %s" % str(hits_per_clock))
 
-	# A boss holds the clock and hits every 15 seconds while members it did
-	# not bring keep hitting on their own interval.
+	# D063: a boss lets waves keep coming. It reaches the Number at 15 seconds,
+	# hits, joins the next wave's pile and hits again on its wave's clock.
 	var boss := GameState.new()
 	boss.balance_profile.OPENING_HIT_WAVES = 0
 	boss.balance_profile.OPENING_EASED_BY = 0
@@ -2979,7 +3157,7 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	var boss_hits := 0
 	for step in range(125):
 		boss_hits += boss._advance_waves(0.25).filter(func(event): return event.type == "boss_collection").size()
-	_expect(boss.wave == 10 and boss_hits == 2, "a boss should hold its wave and hit every 15 seconds: %d" % boss_hits)
+	_expect(boss.wave == 12 and boss_hits == 4, "a boss should let waves come and hit every %.0f seconds: wave %d, %d hits" % [boss.balance_profile.MEMBER_HIT_SECONDS, boss.wave, boss_hits])
 
 	# Beaten after landing: the wave still counts as beaten.
 	var late := GameState.new()
@@ -3066,7 +3244,7 @@ func _test_d058_opening_save_reconciles() -> void:
 	var own_hp_before: ScientificNumber = old.active_encounter.own_uncleared()
 	_expect(old.save(), "a D058-shaped V10 opening run should save")
 	var saved := _read_json(save_path)
-	_expect(int(saved.version) == SaveDataV10.VERSION and str(saved.balance_profile_id) == old.balance_profile.PROFILE_ID, "the old fixture should have D059's save version and profile ID")
+	_expect(int(saved.version) == SaveDataV11.VERSION and str(saved.balance_profile_id) == old.balance_profile.PROFILE_ID, "the old fixture should have D059's save version and profile ID")
 	var resumed := GameState.new()
 	resumed.save_path = save_path
 	resumed.load()

@@ -14,6 +14,7 @@ const SaveDataV7Class = preload("res://src/save_data_v7.gd")
 const SaveDataV8Class = preload("res://src/save_data_v8.gd")
 const SaveDataV9Class = preload("res://src/save_data_v9.gd")
 const SaveDataV10Class = preload("res://src/save_data_v10.gd")
+const SaveDataV11Class = preload("res://src/save_data_v11.gd")
 const GameDataClass = preload("res://src/game_data.gd")
 
 const SAVE_PATH := "user://number_go_up_save.json"
@@ -113,6 +114,9 @@ var second_wind_used := false
 ## Rig ranks are run-scoped like the Cash that buys them (D015, D042): they
 ## stack with `purchased` for this run only and die with every ending.
 var rig_ranks: Dictionary = {}
+## Events raised outside a step, such as a boss beaten by a tap after its wave
+## passed (D063), reported with the next step's.
+var pending_events: Array[SimulationEvent] = []
 ## Per-row running price totals for Workshop quotes (see _price_totals).
 var _price_total_cache: Dictionary = {}
 ## In-run currency (The Tower Cash): earned during a run and spent on in-run
@@ -196,6 +200,9 @@ func advance(delta: float) -> Array[SimulationEvent]:
 	var events: Array[SimulationEvent] = []
 	if not in_run:
 		return events
+	# A boss beaten by a tap since the last step (D063) reports here.
+	events.append_array(pending_events)
+	pending_events.clear()
 	tick_accumulator += minf(delta, 0.25)
 	var interval := 1.0 / _tick_rate()
 	var safety := 0
@@ -204,6 +211,8 @@ func advance(delta: float) -> Array[SimulationEvent]:
 		events.append(_produce_tick())
 		safety += 1
 	events.append_array(_advance_waves(delta))
+	events.append_array(pending_events)
+	pending_events.clear()
 	return events
 
 func _produce_tick() -> SimulationEvent:
@@ -334,8 +343,9 @@ func _advance_waves(delta: float) -> Array[SimulationEvent]:
 ## after the minimum beat (D037); one still standing when its clock runs out
 ## passes, as does an opening wave whose members hit and left (D059). Whatever
 ## still lives at the Number carries into the next wave,
-## so a build that cannot beat them is worn down by the pile. A boss holds the
-## clock until beaten (D037), its clock wrapping every 15 seconds.
+## so a build that cannot beat them is worn down by the pile. Waves keep
+## coming while a boss stands, as The Tower's do (D063): an unbeaten boss
+## joins the pile.
 func _run_wave_clock(events: Array[SimulationEvent]) -> void:
 	var safety := 0
 	while safety < 200 and in_run:
@@ -360,8 +370,7 @@ func _run_wave_clock(events: Array[SimulationEvent]) -> void:
 			wave_accumulator -= WAVE_INTERVAL_SECONDS
 			active_encounter.shift_clock(WAVE_INTERVAL_SECONDS)
 			_end_brace_window()
-			if not active_encounter.is_boss:
-				_pass_missed_wave(active_encounter.living_members())
+			_pass_missed_wave(active_encounter.living_members())
 		else:
 			break
 
@@ -377,16 +386,17 @@ func _resolve_wave_boundary() -> SimulationEvent:
 			found = event
 	return found
 
-## A member hits the Number (D057, D058): its share of its wave's Hit, after
-## Guard and Armor on that whole Hit, so a group costs what the single wave
-## did. Its first hit is its arrival; after that it stays and hits again every
-## interval. A Brace blocks every hit until the wave's clock ends. Thorns
-## returns part of each hit to whatever stands in front.
+## A member hits the Number (D057, D058): its share of its wave's Hit, heated
+## up 4% for every hit it has already landed, then Armor and Guard on that one
+## enemy's hit, as The Tower's defences work (D063). Its first hit is its
+## arrival; after that it stays and hits again every interval. A Brace blocks
+## every hit until the wave's clock ends. Thorns returns part of each hit to
+## whatever stands in front.
 func _member_hit(index: int) -> SimulationEvent:
 	var member: Dictionary = active_encounter.members[index]
 	var first := not bool(member.landed)
-	var boss_hit: bool = active_encounter.is_boss and active_encounter.is_own(member)
-	var landed := _effective_hit(member.wave_hit).multiply_scalar(float(member.share))
+	var boss_hit: bool = active_encounter.is_boss_member(index)
+	var landed := _effective_hit(_member_raw_hit(member))
 	if braced:
 		landed = ScientificNumber.new()
 		brace_spent = true
@@ -400,7 +410,9 @@ func _member_hit(index: int) -> SimulationEvent:
 	# returned more than once over. The member that hit is still there to take it.
 	var thorns_share := minf(_effect_sum("recoil_share"), balance_profile.RECOIL_CEILING)
 	if thorns_share > 0.0 and not landed.is_zero():
+		var thorned: int = active_encounter.front_index()
 		active_encounter.apply_compliance(landed.multiply_scalar(thorns_share))
+		_settle_beaten(thorned)
 	if number.is_zero():
 		if not _try_second_wind():
 			return _wave_death(wave, landed, boss_hit, number_before_hit, wave_hp_left)
@@ -408,6 +420,34 @@ func _member_hit(index: int) -> SimulationEvent:
 	if boss_hit:
 		return SimulationEvent.new("boss_collection", landed)
 	return SimulationEvent.new("tax_collection" if first else "pile_hit", landed)
+
+## An enemy beaten after its wave passed (D063) pays what its wave still owed
+## for it: its share of the wave's Coins and Cash, as The Tower pays on the
+## kill, and a boss its Gem too. It sets no record, now or when it passed.
+func _settle_beaten(index: int) -> void:
+	if index < 0 or index >= active_encounter.members.size():
+		return
+	var member: Dictionary = active_encounter.members[index]
+	var unpaid := float(member.get("unpaid", 0.0))
+	if unpaid <= 0.0 or int(member.state) != TaxEncounterClass.KILLED:
+		return
+	member.unpaid = 0.0
+	var member_wave := int(member.wave)
+	var coin_gain := floori(float(balance_profile.reward_for_wave(selected_tier, member_wave)) * unpaid * (1.0 + _effect_sum("coin_bonus")) + 0.000001)
+	coins += coin_gain
+	run_coins_earned += coin_gain
+	_add_cash(ScientificNumber.from_float(balance_profile.wave_cash(member_wave) * unpaid))
+	if bool(member.get("boss", false)):
+		var gem_gain := balance_profile.wave_gems(member_wave)
+		gems += gem_gain
+		run_gems_earned += gem_gain
+		pending_events.append(SimulationEvent.new("boss_clear", ScientificNumber.from_float(float(coin_gain))))
+
+## One enemy's hit before any defence: its share of its wave's Hit, times 4%
+## for every hit it has already landed (D063).
+func _member_raw_hit(member: Dictionary) -> ScientificNumber:
+	var heat := pow(balance_profile.HEAT_UP_PER_HIT, float(int(member.get("hits", 0))))
+	return member.wave_hit.multiply_scalar(float(member.share) * heat)
 
 ## A Brace covers the wave's clock it was raised in. Spent on any hit, it ends
 ## with that clock; never tested, it carries on, as before.
@@ -423,6 +463,12 @@ func _end_brace_window() -> void:
 ## Its members still at the Number stay there, ahead of the next wave (D058).
 func _pass_missed_wave(carried: Array = []) -> void:
 	var share := get_wave_cleared_share()
+	# Every enemy that stays owes its part of its wave's reward when it is
+	# beaten later, as The Tower pays on the kill (D063): its HP's share of
+	# the wave's, which is the share the wave did not pay for now.
+	for member in carried:
+		if active_encounter.is_own(member) and not active_encounter.max_liability.is_zero():
+			member.unpaid = TaxEncounterClass._ratio(member.hp, active_encounter.max_liability)
 	var coin_gain := floori(float(active_encounter.reward) * share * (1.0 + _effect_sum("coin_bonus")) + 0.000001)
 	coins += coin_gain
 	run_coins_earned += coin_gain
@@ -506,7 +552,9 @@ func _complete_current_wave(carried: Array = []) -> SimulationEvent:
 	wave += 1
 	active_encounter = _make_encounter(wave)
 	active_encounter.carry_in(carried)
-	if completed_wave == TIER_UNLOCK_WAVE and previous_best < TIER_UNLOCK_WAVE and balance_profile.has_tier(selected_tier + 1):
+	# Since D063 the wave 100 boss can be passed and beaten later, so the tier
+	# opens with the first beaten wave at or past it.
+	if completed_wave >= TIER_UNLOCK_WAVE and previous_best < TIER_UNLOCK_WAVE and balance_profile.has_tier(selected_tier + 1):
 		return SimulationEvent.new("tier_unlock", ScientificNumber.from_float(float(selected_tier + 1)))
 	return SimulationEvent.new("boss_clear" if completed_boss else "wave_clear", ScientificNumber.from_float(float(coin_gain)))
 
@@ -528,7 +576,7 @@ func _make_encounter(target_wave: int):
 		balance_profile.reward_for_wave(selected_tier, target_wave),
 		balance_profile.is_boss_wave(target_wave),
 		arrivals,
-		WAVE_INTERVAL_SECONDS if balance_profile.is_boss_wave(target_wave) else balance_profile.member_hit_seconds(target_wave)
+		balance_profile.boss_hit_seconds(target_wave) if balance_profile.is_boss_wave(target_wave) else balance_profile.member_hit_seconds(target_wave)
 	)
 
 func _wave_death(reached: int, hit: ScientificNumber, boss: bool, number_before_hit: ScientificNumber, wave_hp_left: ScientificNumber) -> SimulationEvent:
@@ -562,22 +610,21 @@ func get_effective_collection() -> ScientificNumber:
 func _effective_hit(base: ScientificNumber) -> ScientificNumber:
 	return RuleModifierPipelineClass.apply(base, "collection", _collection_modifiers(base))
 
-## The next Hit as it is worked out at contact (D052): the Hit after any rule
-## that changes it but before the player's defences, what Guard takes off, what
-## Armor then takes off, and what lands. Each part is the same pipeline stopped
-## earlier, so the parts always add up to what lands. The next Hit is the
-## front member's share of its wave's (D057).
+## The next Hit as it is worked out at contact (D052): one enemy's hit after
+## any rule that changes it but before the player's defences, what Armor takes
+## off, what Guard then takes off (The Tower's order, D063), and what lands.
+## Each part is the same pipeline stopped earlier, so the parts always add up
+## to what lands. The next Hit is the front member's, heated up (D063).
 func get_hit_breakdown(member_index: int = -1) -> Dictionary:
 	if active_encounter == null:
 		return {"raw": ScientificNumber.new(), "guard": ScientificNumber.new(), "armor": ScientificNumber.new(), "final": ScientificNumber.new()}
 	var front: int = member_index if member_index >= 0 else active_encounter.front_index()
-	var base: ScientificNumber = active_encounter.members[front].wave_hit if front >= 0 else active_encounter.collection
+	var base: ScientificNumber = _member_raw_hit(active_encounter.members[front]) if front >= 0 else active_encounter.collection
 	var modifiers := _collection_modifiers(base)
 	var raw := RuleModifierPipelineClass.apply(base, "collection", modifiers.filter(func(modifier): return not ["guard", "armor"].has(str(modifier.get("source", "")))))
-	var after_guard := RuleModifierPipelineClass.apply(base, "collection", modifiers.filter(func(modifier): return str(modifier.get("source", "")) != "armor"))
+	var after_armor := RuleModifierPipelineClass.apply(base, "collection", modifiers.filter(func(modifier): return str(modifier.get("source", "")) != "guard"))
 	var final := RuleModifierPipelineClass.apply(base, "collection", modifiers)
-	var share: float = float(active_encounter.members[front].share) if front >= 0 else 1.0
-	return {"raw": raw.multiply_scalar(share), "guard": raw.subtract(after_guard).multiply_scalar(share), "armor": after_guard.subtract(final).multiply_scalar(share), "final": final.multiply_scalar(share)}
+	return {"raw": raw, "armor": raw.subtract(after_armor), "guard": after_armor.subtract(final), "final": final}
 
 ## The share of its wave's Hit the front member carries: a third of wave 1's,
 ## all of a boss's.
@@ -588,30 +635,23 @@ func next_hit_share() -> float:
 	return float(active_encounter.members[front].share) if front >= 0 else 1.0
 
 ## Every modifier the Hit passes through, in one list: the run's rules, then
-## Guard, then Armor. The pipeline decides the order by stage.
-func _collection_modifiers(base: ScientificNumber = null) -> Array:
+## Armor, then Guard. The pipeline decides the order by stage.
+func _collection_modifiers(_base: ScientificNumber = null) -> Array:
 	var modifiers := active_rule_modifiers.duplicate(true)
-	var base_hit: ScientificNumber = base if base != null else active_encounter.collection
 	var resistance := clampf(_effect_sum("collection_resistance"), 0.0, balance_profile.COLLECTION_RESISTANCE_CEILING)
 	var guard_stat := _effect_sum("guard_flat")
 
-	# Guard (Defense Absolute): flat reduction on every Hit, priced in the tier's
-	# Hit pressure. A Hit never drops below 10% of its size after Guard and Armor
-	# together (WORKSHOP_EXPANSION). Following D023, the 10% floor bounds the defensive
-	# reduction itself so external rules can still shrink hits beyond it.
-	if guard_stat > 0.0 and not base_hit.is_zero():
+	# Guard (Defense Absolute): a flat amount off each enemy's hit after Armor,
+	# priced in the tier's Hit pressure. As in The Tower (D063), it can take a
+	# hit to nothing.
+	if guard_stat > 0.0:
 		var tier_multiplier: float = balance_profile.get_tier(selected_tier).collection_multiplier
-		var raw_guard := ScientificNumber.from_float(guard_stat * tier_multiplier)
-		var max_guard_factor := maxf(0.0, 1.0 - (balance_profile.HIT_FLOOR_PERCENT / (1.0 - resistance)))
-		var max_guard := base_hit.multiply_scalar(max_guard_factor)
-		var effective_guard := raw_guard if raw_guard.compare_to(max_guard) < 0 else max_guard
-		if not effective_guard.is_zero():
-			modifiers.append({
-				"source": "guard",
-				"target": "collection",
-				"stage": "flat_reduce",
-				"amount": effective_guard.to_dict(),
-			})
+		modifiers.append({
+			"source": "guard",
+			"target": "collection",
+			"stage": "flat_reduce_last",
+			"amount": ScientificNumber.from_float(guard_stat * tier_multiplier).to_dict(),
+		})
 
 	# The combined ceiling (D023): Workshop, Rig, Lab and Card Armor stack, and
 	# without a limit a run could stop taking hits entirely. The ceiling bounds
@@ -1238,6 +1278,7 @@ func prestige() -> int:
 ## Shared by voluntary Prestige and run endings. Workshop ranks are permanent;
 ## only run Number and transient combat state are cleared.
 func _reset_run_state() -> void:
+	pending_events.clear()
 	number = ScientificNumber.new()
 	lifetime_generated = ScientificNumber.new()
 	workshop.tick_count = 0
@@ -1299,7 +1340,7 @@ func save() -> bool:
 	var file := FileAccess.open(temp, FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify(SaveDataV10Class.make(self), "", true, true))
+	file.store_string(JSON.stringify(SaveDataV11Class.make(self), "", true, true))
 	var write_error := file.get_error()
 	file.close()
 	if write_error != OK:
@@ -1345,7 +1386,7 @@ func _read_save(path: String) -> Dictionary:
 		return {"status": READ_UNREADABLE}
 	var data: Dictionary = json.data
 	var version := int(data.get("version", 0)) if (data.get("version") is int or data.get("version") is float) else 0
-	if version > SaveDataV10Class.VERSION:
+	if version > SaveDataV11Class.VERSION:
 		return {"status": READ_NEWER}
 	var known := (
 		SaveDataV2.is_legacy_v1(data)
@@ -1358,8 +1399,9 @@ func _read_save(path: String) -> Dictionary:
 		or SaveDataV8Class.is_valid(data)
 		or SaveDataV9Class.is_valid(data)
 		or SaveDataV10Class.is_valid(data)
+		or SaveDataV11Class.is_valid(data)
 	)
-	if not known or SaveDataV10Class.problem(data) != "":
+	if not known or SaveDataV11Class.problem(data) != "":
 		return {"status": READ_UNREADABLE}
 	return {"status": READ_OK, "data": data}
 
@@ -1384,15 +1426,20 @@ func _load_parsed(data: Dictionary, source_path: String) -> OfflineAward:
 			return _migrate_v8(data, source_path)
 		9:
 			return _migrate_v9(data, source_path)
+		10:
+			return _migrate_v10(data, source_path)
 	return _load_current(data)
 
-## V5 through V10 share every key and meaning. V6 declared the fields added to
+## V5 through V11 share every key and meaning. V6 declared the fields added to
 ## V5 after it shipped and added the run's tick phase and crit chain, which a
 ## V5 save resumes without, as it always did; V7 added the Lab slot count, which
 ## an older save reads as the two slots every player then had; V8 added the
 ## run's Gems and marks that milestones paid at the old rate were topped up;
 ## V9 declared the run's Cash and marks saves whose deep rows may pass rank 100;
-## V10 keeps a wave's members, which a V9 run resumes as one member (D057).
+## V10 keeps a wave's members, which a V9 run resumes as one member (D057);
+## V11 marks each member's boss, hits and unpaid reward (D063), which a V10
+## run resumes with its bosses in their own wave, one hit per landed member
+## and nothing owed.
 func _load_current(data: Dictionary) -> OfflineAward:
 	_load_common_fields(data)
 	_load_tier_progress(data)
@@ -1422,6 +1469,11 @@ func _migrate_v8(data: Dictionary, source_path: String) -> OfflineAward:
 func _migrate_v9(data: Dictionary, source_path: String) -> OfflineAward:
 	var award := _load_current(data)
 	_save_migrated_state(9, source_path)
+	return award
+
+func _migrate_v10(data: Dictionary, source_path: String) -> OfflineAward:
+	var award := _load_current(data)
+	_save_migrated_state(10, source_path)
 	return award
 
 ## V4 kept the Workshop in four bays, with the Armor rank in a field of its own.
@@ -1821,7 +1873,7 @@ func _save_migrated_state(from_version: int, source_path: String) -> void:
 func clear_save() -> void:
 	for path in [save_path, _backup_path(), _temp_path()]:
 		_remove_if_present(path)
-	for version in range(1, SaveDataV10Class.VERSION):
+	for version in range(1, SaveDataV11Class.VERSION):
 		_remove_if_present(_migration_backup_path(version))
 	var folder := save_path.get_base_dir()
 	var quarantine_prefix := save_path.get_file().get_basename() + QUARANTINE_INFIX
@@ -1862,13 +1914,17 @@ func _add_number(amount: ScientificNumber) -> void:
 	lifetime_generated = lifetime_generated.add(amount)
 	var banked := amount
 	if in_run and active_encounter != null:
+		var struck: int = active_encounter.front_index()
+		var struck_boss: bool = active_encounter.is_boss_member(struck)
 		var into_wave: ScientificNumber = active_encounter.apply_compliance(amount)
 		# Leech (D038) feeds on a boss that stands and fights: a share of the
-		# damage it takes is added to the Number a second time. The combined
-		# share is capped (D023) so Rig ranks cannot stack it without limit.
+		# damage the boss itself takes, not the pile in front of it, is added to
+		# the Number a second time. The combined share is capped (D023) so Rig
+		# ranks cannot stack it without limit.
 		var leech := minf(_effect_sum("siphon_share"), balance_profile.SIPHON_CEILING)
-		if leech > 0.0 and active_encounter.is_boss and not into_wave.is_zero():
+		if leech > 0.0 and struck_boss and not into_wave.is_zero():
 			banked = banked.add(into_wave.multiply_scalar(leech))
+		_settle_beaten(struck)
 	number = number.add(banked)
 	if number.compare_to(highest_number) > 0:
 		highest_number = number.copy()
@@ -1907,8 +1963,10 @@ func _tick_rate() -> float:
 func _damage_multiplier() -> float:
 	return _base_output_multiplier() * _boss_damage_multiplier()
 
+## Boss Damage works on the boss itself, this wave's or one carried in, and
+## not on the pile in front of it.
 func _boss_damage_multiplier() -> float:
-	if active_encounter == null or not active_encounter.is_boss:
+	if active_encounter == null or not active_encounter.is_boss_member(active_encounter.front_index()):
 		return 1.0
 	return 1.0 + _effect_sum("boss_damage")
 

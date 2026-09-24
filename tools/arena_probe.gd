@@ -122,16 +122,18 @@ func _init() -> void:
 	_check(_ghosts(main, WaveEnemy.Beat.SHATTER) == 1 and not main.wave_enemy.visible, "a wave beaten early shatters once and stays gone")
 	await create_timer(2.6).timeout
 	_check(main.wave_enemy.visible and _ghosts(main, WaveEnemy.Beat.SHATTER) == 0, "after the beat the next wave shows")
-	# A boss that is not beaten hits at 15 seconds and is knocked back.
+	# A boss that is not beaten hits at 15 seconds and stays at the Number, the
+	# live number, while the next wave comes in behind it (D063).
 	st.wave = 10
 	st.active_encounter = st._make_encounter(10)
 	st.number = ScientificNumber.from_float(1.0e9)
 	st.wave_accumulator = 14.9
 	await create_timer(0.25).timeout
-	_check(main.enemy_latched, "a boss Hit lands and latches")
+	var landed_boss: int = st.active_encounter.boss_index()
+	_check(st.wave == 11 and landed_boss >= 0 and int(st.active_encounter.members[landed_boss].state) == TaxEncounter.AT_NUMBER, "a boss Hit lands and the boss stays as the next wave comes")
 	await _shot("3_slam")
 	await create_timer(0.5).timeout
-	_check(main.wave_enemy.visible and main.enemy_latched and main.enemy_travel == 1.0 and st.wave_accumulator < 2.0, "the boss stays on the Number after its Hit: %f" % main.enemy_travel)
+	_check(main.wave_enemy.visible and main.enemy_front == st.active_encounter.boss_index() and main.enemy_travel == 1.0 and main.wave_enemy.modulate.a > 0.99 and st.wave_accumulator < 2.0, "the boss stays on the Number, the live number, after its Hit: %f" % main.enemy_travel)
 	_check(main.wave_enemy.caption.contains(" in "), "a latched boss counts down to its next Hit: " + main.wave_enemy.caption)
 	await _shot("4_latched")
 	# An ordinary missed wave slams once and the next wave comes in.
@@ -168,7 +170,9 @@ func _init() -> void:
 	# Second Wind: an ordinary wave's forgiven Hit keeps its own colour and
 	# still shows its working.
 	await create_timer(2.5).timeout
-	st.purchased = {"guard": 30, GameState.ARMOR_ID: 60, "second_wind": 20}
+	# Guard comes off each enemy's hit since D063, so a small Guard keeps
+	# this Hit reduced but real.
+	st.purchased = {"guard": 3, GameState.ARMOR_ID: 60, "second_wind": 20}
 	st.second_wind_used = false
 	st.wave = 17
 	st.active_encounter = st._make_encounter(17)
