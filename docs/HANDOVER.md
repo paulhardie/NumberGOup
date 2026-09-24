@@ -1,41 +1,48 @@
 # Handover
 
-**Last updated:** 24 September 2026, after building D057 (a wave is a group of 3 to 20 members sharing its HP and Hit; save V10) and D058 (members stay at the Number and hit every 5 seconds; survivors carry into the next wave, so an unbeaten pile is the ramp) on branch `claude/game-changes-review-fbili3`, not merged. D044–D055 and the class-cache fix are merged to `main` (PRs #48–#54).
+**Last updated:** 24 September 2026, by Claude, handing to Codex. Branch `claude/game-changes-review-fbili3` (head `Fix D058 review findings` plus this handover) carries **D056–D058: a wave is a group of enemies that stay at the Number and pile up**. It is pushed and **not merged**; no PR is open. D044–D055 and the class-cache fix are merged to `main` (PRs #48–#54).
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
+
+## For the next agent (Codex): start here
+
+1. **Read [`AGENTS.md`](../AGENTS.md) first.** It is the working agreement for every agent: UK English, lead with the result, bold every decision, economy and saves are high risk, never touch the owner's real save, never commit to `main`, opening or merging a PR is the owner's call.
+2. **Check out the branch and bring it up to date:** `git fetch --all --prune`, `git checkout claude/game-changes-review-fbili3`, then `git status -sb`. If `main` has moved, merge it in (a merge commit, not a rebase).
+3. **Prove the baseline before changing anything:**
+   - `bash run_tests.sh` must print `PASS: economy tests`. The "Exponent too high" warning comes from a deliberately corrupt save in a test, not a failure.
+   - `bash run_godot.sh --headless --path . --quit` must print no errors.
+   - `bash run_godot.sh --path . -s res://tools/arena_probe.gd` must print `ARENA PROBE PASS`.
+   - `run_godot.sh` defaults to the owner's Mac Godot (`/Users/paulhardie/Downloads/Godot.app`); anywhere else, set `GODOT` to a 4.7.2 binary. On headless Linux, wrap windowed tools in `xvfb-run -a -s "-screen 0 1024x1100x24"`.
+   - If classes are "not found", the `.godot` cache is stale: `bash run_godot.sh --headless --path . --import`.
+4. **Read the decisions this branch adds:** `grep -n "^## D05[5-8]" docs/DECISIONS.md`, then read D056, D057 and D058 in full. The group build plan is in [`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md#proposal-a-wave-becomes-a-group--24-september-2026).
+5. **Do not start the retune (decision 1 below) until the owner answers it.** It is a balance call with a real trade-off. If the owner has not answered, the only unblocked work is the arena pass (next step 2), and only if the owner confirms it.
 
 ## Where the game is
 
-`main` plus the D057 branch plays like this (seed 7 simulator figures, Godot 4.7.2, balance profile `tax-foundation-v10`; nothing below has been checked on a phone):
+`main` plus this branch plays like this (Godot 4.7.2, balance profile `tax-foundation-v11`, save V10; nothing below has been checked on a phone or in motion):
 
-- **The core loop (D037, D038):** everything you produce is Number and also damages the wave. A beaten wave gives way to the next after 2.5 seconds. A missed ordinary wave hits once and moves on, paying Coins for the share you cleared. Bosses, every 10th wave, stay and hit every 15 seconds until you beat them. Guard cuts the Hit by a flat amount before Armor's percentage.
-- **The Workshop (D047, named in shots by D054):** Tap Damage and Damage (per shot, 0.03 a rank at 2.5 shots a second since D055) run to 6,000 ranks and Guard to 5,000, on The Tower's Damage and Defense Absolute curves; ranks 1–100 keep their old values and prices. Attack Speed (from 2.5 shots a second to 14.9), Crit Chance (80%), Crit Damage (×16.2 over 150), Multishot and Armor (50% over 125), Thorns (100% over 200), Second Wind (30%), Coin Bonus (×2.5 over 300) and Cushion (150 ranks) reach Tower-like maxima. No tier bands. Each row keeps its old prices to its old cap; past it a deep-row rank costs 1.00075× the last and an extended capped row 1.02×. The whole Workshop costs 37.0 million Coins.
-- **The run arena (D050, D051):** no rings. Everything between the wave line and the Upgrades sheet is the arena; the Number sits low in it with Brace in the lower-left corner. Each wave is its own HP number with a small "hits X" caption, falling from the top edge to the Number on the 15-second clock and arriving as the Hit lands. Taps and every shot fly to it as faint motes, a Multishot as two (D054); as each lands its shown HP drops, and the damage rises off it as "-X", shots folded into one every 0.33 s (D055). A clean clear scatters its digits ("BEATEN · NO HIT"); a Hit swells it into the Number. Bosses are red and larger and, once they reach the Number, stay on it and hit every 15 seconds with a countdown in their caption. Presentation only; with Reduce Motion the number holds at the top edge and no motes play. The caption shows the wave's raw Hit; at contact the working plays over the Number (raw, −guard, −armor, = what landed; D052).
-- **The look (D049):** minimal and number-first: a near-black ground, borderless surfaces, Geist for words and Geist Mono for every number (bundled, OFL), gold Coin and blue Gem icons. The base canvas is now 390 × 844, so phones draw it at the designed size. The approved design lives on a canvas: https://claude.ai/artifact/8pB4uLUkva6kbnBRZ3PBXv (row "Instrument · refined").
-- **Between runs (D048, restyled by D049):** Coins, Gems and Knowledge across the top; a ring of the tier's highest wave against the next goal (the next tier's gate, else the next milestone) with a dot per milestone; ‹ TIER › with its rewards; the last run; Milestones, Total Coin bonus, Knowledge and Stats as a list; BATTLE. The bottom bar is Battle · Workshop · Cards · Ultimates · Labs · More; Cards and Labs (D024, D027) open their sheets above the bar. Ultimates is a SOON seat; Modules, Perks and Challenge runs are one "coming later" line.
-- **The run screen (D032, D049, D051, D053):** one header line (WAVE n, then "T2 · BOSS IN 3" small; this run's Coins, Gems and RETREAT on the right; Knowledge only between runs), then the arena, then the Upgrades sheet (its header the Cash alone) on the category strip. In-run toasts sit beside Brace, and a Hit whose working plays gets none.
-- **Run Upgrades (the Rig in code; D042, D044, D045):** during a run all 21 Workshop rows can be raised with run-only Cash; Number is never spent on them.
-  - A row's Workshop ranks and run ranks together stop at its max rank. A run rank is worth two Workshop ranks (Burst's is one step); on a deep row that is two ranks further along the depth curve.
-  - Cash flows at the priced income (passive rate plus one tap a second, whether or not you tap). A beaten wave adds 10 + 5 × the wave, ×3 on a boss; a missed wave adds the share it cleared. A run starts with 12.5 seconds of its opening income.
-  - Prices: about 5 seconds of income, ×1.4 per run rank of that row. Discount lowers them.
-- **Difficulty (D043, D046):** Wave HP = 4 × (0.05 w^2.13 + 0.8 w + 1.5) and the Hit = 1.7 × (0.08 w^2.10 + 0.4 w + 1), both with the milestone steps. Bosses are ×3 HP and ×1.5 Hit. Tiers 2 and 3 multiply by 20 and 60. Milestones run from wave 10 to 5,000.
-- **Where builds land (two taps a second):**
+- **Waves are groups (D057).** An ordinary wave is 3 enemies at wave 1, one more every 11 waves, at most 20; a boss is one. They share the wave's HP and Hit evenly and walk in as a column: the front reaches the Number at 6 seconds, the last at 15. Shots and taps strike the front living enemy, and damage past its HP is lost.
+- **Enemies stay (D058).** An enemy that reaches the Number lands its share of the Hit (after Guard and Armor on the whole Hit), then stays and hits again every 5 seconds (`MEMBER_HIT_SECONDS`) until beaten. The 15-second clock keeps going: an ordinary wave with an enemy alive at 15 seconds passes, paying Coins for the share cleared, and its survivors carry into the next wave, in front. That growing pile is the ramp. A wave counts as beaten once all its own enemies are dead, even after landing. Bosses hold their wave until beaten and hit every 15 seconds. Brace blocks every hit until the clock ends; Thorns returns part of each hit to the enemy in front.
+- **The arena:** the front enemy is the live number, with "hits X" and a countdown once it is at the Number. The others walk in smaller behind it, and those at the Number flank it in red, three rows a side, 18 drawn at most. A boss stays the live number even behind a pile. Motes fly at the front enemy; shots' "-X" folds into one pop every 0.33 s; pile hits fold into one small red pop a frame.
+- **Shots (D054, D055):** Damage is per shot and Attack Speed is shots a second, 2.5 before any ranks and 14.9 at rank 100. Multishot fires two visible shots. One mote per shot.
+- **The Workshop (D047):** Tap Damage and Damage run to 6,000 ranks and Guard to 5,000; the whole Workshop costs 37.0 million Coins. Run Upgrades (the Rig in code) sell every row for run-only Cash (D042, D044, D045).
+- **Difficulty (D043, D046):** Wave HP = 4 × (0.05 w^2.13 + 0.8 w + 1.5) and Hit = 1.7 × (0.08 w^2.10 + 0.4 w + 1), with milestone steps; bosses ×3 HP and ×1.5 Hit; Tiers 2 and 3 ×20 and ×60.
+- **Where builds land now** (six seeds, two taps a second, no run Upgrades, 5-second hit interval):
 
-  | Build | Not buying run ranks | Buying run ranks |
+  | Build | Before groups | D058 |
   | --- | --- | --- |
-  | Fresh | wave 20, 86 Coins | wave 28, 213 Coins |
-  | Early Workshop | wave 30 | wave 40 |
-  | Mid Workshop | wave 60 | wave 80 |
-  | Attack rows at rank 100 | wave 200 | wave 212 |
-  | Every row at rank 100 | wave 220 | wave 252 |
-  | Everything maxed | wave 830 (Tier 2: 660, Tier 3: 608) | — |
+  | Fresh (no Workshop) | 20 | 17 |
+  | First 48-Coin spend | 20 | 23 |
+  | Early Workshop | 30 | 30 |
+  | Mid Workshop | 60 | 56 |
+  | Attack rows at rank 100 | 200 | 158 |
+  | Attack rows + Armor | 210 | 165 |
 
-- **Careers (`tools/career_simulator.gd`, runs capped at 3 hours):** the focused player (cheapest rank in Attack, Defense after a stalled run) buying run ranks reaches wave 100 in **1.4 hours (it was 2.8 before D047)** and maxes the Workshop in **149.9 hours**. Without run ranks the focused player takes 2.3 hours to wave 100 and 164 to max. An even spender (one rank of each row in turn) maxes sooner, in 107.6 hours with run ranks and 111.4 without, because it buys Coin Bonus early; the 150-hour target is the focused player's.
-- **Balance targets ([`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md)):** 5 fails again since D047 (Attack alone at rank 100 reaches wave 200) and needs restating against the deep rows, as do 7 and 8; the owner chose not to retune the waves for the Workshop alone. 2 still fails by design since D037.
+- **A focused career buying run Upgrades** (`tools/career_simulator.gd -- --spend focused --careers today_rig --run-cap-minutes 180`): the first run reaches wave 17 (29 before D058), wave 100 at 1.46 hours, wave 200 at about 4.2 hours, wave 300 at about 7.1 hours (6.2 before). **Time to max the Workshop has not been re-measured since D057**; the 150-hour figure is from before groups.
+- **The look and screens (D048, D049, D053):** unchanged from `main`. The design canvas is https://claude.ai/artifact/8pB4uLUkva6kbnBRZ3PBXv.
 
 ## Open decisions for the owner
 
-1. **Play-test D055 (merged):** 2.5 shots a second, each smaller, the same damage a second; measured neutral over twelve seeds, not yet felt in motion.
-2. **Retune after D058, or accept?** Staying members end runs sooner: fresh 20 → 17 waves, mid 60 → 56, Attack maxed 200 → 158; a focused career's first run reaches wave 17 instead of 29, and wave 300 takes about 7.1 hours instead of 6.2. The hit interval barely moves it (six seeds, waves reached):
+1. **Retune after D058, or accept?** Runs end sooner, and the first run most of all (wave 17 instead of 29). The hit interval barely moves it (waves reached, six seeds):
 
    | Interval | Fresh | Mid | Attack maxed | + Armor |
    | --- | --- | --- | --- | --- |
@@ -45,44 +52,52 @@
    | 10 s | 19 | 59 | 165 | 176 |
    | 15 s | 20 | 60 | 170 | 181 |
 
-   Options: accept (the ramp is the point), soften the opening only (for example a longer interval for the first waves), or lower the Hit scale. Agent's recommendation: fix the opening only, so the first run again reaches the high 20s, and leave the deep game's ramp.
-3. **Step 2 of the shots rework: how much tapping should add, and the damage/speed split.** Today tapping is most of a fresh run's damage (two taps a second about triples it; 0 taps reaches about wave 19, 2 a second 29, 6 a second 40) but only about a fifth by rank 100, and run Cash assumes one tap a second whether or not you tap. The proposal: a tap fires a shot worth a share of current Damage (Tap Damage becomes that share), taps past about five a second count half, and target idle 100%, one tap a second about +15–20%, three about +40–50%, a cap near double. High risk: economy; measure with the balance simulator's taps-a-second sweep and the career simulator before building.
-4. **When position becomes a rule:** slowing bosses (not pushing them), and range or several bodies for area damage.
-5. **The early-game pacing change.** D047's bigger Attack Speed and Crit steps halve the focused player's time to wave 100. Built as approved. The alternative keeps today's per-rank steps and adds ranks instead (Attack Speed 196, Crit Chance 320, Crit Damage 284 ranks), which keeps the first hours as they were and moves the extra power later.
-6. **Research Focus is lopsided.** Its 25% off one category was balanced on equal category totals; Attack now costs 22.4 million, Defense 12.3 million, Utility 2.3 million, and Coin Bonus is nearly all of Utility. Options: give Research Focus a per-category effect, or deepen Utility's prices.
-7. **Save V9 clash:** unmerged branch `codex/prestige-run-summary` (persisted run summaries) also adds `src/save_data_v9.gd`. This branch now takes V9 for D047; that branch must rebase onto it and become V10.
-8. **The Tower parity plan and coin gates** ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md#tower-parity-plan-and-coin-gates--proposed-23-september-2026)): the gate model, the measured ladder, Crit free from the start, the starter rows, run Upgrades selling only unlocked rows, each new mechanic, and three primitives (movable Hit timer, wave queue, difficulty counter). Gates would add `workshop_unlocks`, so they need their own save version after V9.
-9. **Past a maxed Workshop:** wave 5,000's Wave HP is about 10^40 against the maxed Workshop's 10^11; Labs, Cards, Ultimate Weapons and higher tiers are meant to close it (owner direction), and none are sized yet.
-10. **Tier unlock wave:** still 100 (`TIER_UNLOCK_WAVE`), which a focused player now reaches in 1.4 hours.
-11. **Coins per minute (balance target 2):** above target since D037. Accept and restate, or bring Coins down.
-12. **Still open from before:** Bounty, Finisher, Streak, Payback and Auto Tap; the Tiers 1–10 proposal ([`TIER_BALANCE_PROPOSAL.md`](TIER_BALANCE_PROPOSAL.md)); the play-folder sync rule on branch `claude/sync-play-checkout`; enemy-growth suppression ([`COMBAT_FEEL_PLAN.md`](COMBAT_FEEL_PLAN.md)).
+   Most of the cost is the pile itself, especially enemies still hitting while a boss holds the clock. Options: accept; soften only the opening; or lower the Hit scale. **Claude's recommendation: soften the opening only**, so a first run gets back to the high 20s and the player banks Cash before pressure starts (the owner's description of The Tower), and keep the deep-game ramp.
+2. **Open the PR for this branch?** Everything is green and reviewed; the owner has not played it yet.
+3. **Tapping and the Damage/Attack Speed split** (step 4 of the group plan): a tap fires a shot worth a share of current Damage, taps past about five a second count half; targets idle 100%, one tap a second +15–20%, three +40–50%, a cap near double. High risk: economy.
+4. **Enemy types** (step 3): Fast (2× speed) and Tank (5× HP, half damage, slow) partway through Tier 1, Ranged later. This is what makes Damage and Attack Speed different choices.
+5. **Save clash:** unmerged branch `codex/prestige-run-summary` adds its own save version; this branch takes V10, so that one must become V11.
+6. **Still open from before:** the D047 pacing alternative; coin gates and the Tower parity plan ([`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md)); Research Focus being lopsided; the tier unlock wave (100); Coins per minute above balance target 2; sizing Labs, Cards and Ultimates past a maxed Workshop; Bounty, Finisher, Streak, Payback and Auto Tap.
 
 ## Next steps, in order
 
-1. **Owner:** play D057 and D058 and decide decision 2 (retune or accept). **Agent:** on a decision, tune and re-measure with the balance and career simulators. High risk: economy.
-2. **Agent:** draw Labs, Cards, Milestones and Stats on the design canvas in the Instrument look and build them; they only have the new palette and fonts so far. Low–medium risk.
-3. **Owner:** decide the pacing alternative (decision 5). **Agent:** if the alternative is chosen, it is a data change in `data/workshop/upgrades.json` plus a price recalibration. Medium risk.
-4. **Owner:** decide coin gates; then **agent:** build them as the parity plan's step 1 with save V10. High risk: saves, economy.
-5. **Agent:** the ordered player-stat pipeline (parity plan step 2), which almost every new row needs. Medium–high risk: touches every stat.
+1. **Owner:** play the branch and answer decision 1. **Agent (on "soften the opening"):** tune only the early waves, then re-measure. Suggested levers, in order of preference:
+   - a longer hit interval for the first waves (for example 10 seconds to wave 20, easing to 5 by wave 40), as a profile function that `_make_encounter` reads instead of the constant;
+   - fewer members early (2 at first);
+   - a gentler early Hit.
+   **Done when:** a fresh run with two taps a second and no Workshop reaches the high 20s again; the career's first run reaches at least wave 25; mid and Attack maxed builds stay within two waves of today's D058 figures; all tests and the arena probe pass; the change is recorded as a new decision. High risk: economy. Needs an independent review of the diff.
+2. **Agent, if the owner confirms:** the arena pass (group step 2). It fixes:
+   - members overlapping near the top edge as a wave enters (stagger their start heights or fade them in one by one);
+   - the front caption clipping on a narrow screen ("· 9 mor");
+   - "-X" pops rising into the header line while a wave is at the top edge.
+   Low–medium risk. Verify with `tools/capture_ui.gd` at four sizes and `tools/arena_probe.gd`.
+3. **Owner:** decide enemy types (decision 4), then tapping (decision 3). Each is its own decision and build.
+
+## How to measure
+
+- **Quick balance check:** `bash run_balance.sh`, compared with a run on the previous commit. It takes about five minutes. "Hits" now count every member landing and pile hit, so they do not compare with figures from before D057.
+- **Across seeds:** write a throwaway `tools/_something.gd` that preloads `res://tools/balance_simulator.gd` for its build constants (`FIRST_RUN_SPEND`, `EARLY`, `MID`, `ATTACK_MAX`, `ARMOR`). For seeds 1–6 or 1–12: start a run, then loop `tap()` and two `advance(0.25)` calls until death, and average the waves reached. Delete it afterwards. The hit interval can be swept by setting `state.balance_profile.MEMBER_HIT_SECONDS`, which is a var for this purpose.
+- **Pacing:** `tools/career_simulator.gd -- --spend focused --careers today_rig --runs 30 --run-cap-minutes 180` takes about 20 minutes. Compare waves against hours with the figures above. Run the previous commit the same way from a separate `git worktree`, not by swapping files.
+- **Arena:** `tools/arena_probe.gd` (checks and screenshots) and `tools/capture_ui.gd` (twelve screens at four sizes). Look at the PNGs; never assert pixel equality.
+- **Never kill processes with `pkill -f`** in a shared shell; it can kill the shell. Kill by PID.
 
 ## Known issues and risks
 
-- **Groups (D057, D058) were checked in the economy tests, a scripted arena run and screenshots, not in motion or by touch.** As a new wave enters, its members overlap near the top edge for a moment; the front member's caption can clip on a narrow screen ("· 9 mor"). A big pile bites several times a second. Save V10: a V10 save will not load in an older build.
-- **One mote per shot (D054, D055) was checked in a scripted run and screenshots, not in motion.** At full Attack Speed and Multishot about 22 motes a second fly; the shots' "-X" folds to three a second. While a wave is at the top edge its pops can still rise into the header line.
-- **The arena (D051) was checked in screenshots and a scripted run through each beat, not by touch or in motion.** On a 320 × 568 phone the wave's path is about 100 px (250 px at 390 × 844). Long toasts such as a boss Hit's run wider than a small phone and clip at the edges. `RingArc`'s inner ring has no user since D051.
-- **D049 has only been checked in screenshots** (`tools/capture_ui.gd` at four sizes, all twelve screens), not by touch on a phone or in a web export. The larger canvas makes every screen about 1.4× bigger on a phone; the untouched sheets (Labs, Cards, Knowledge, Stats) have not been re-laid-out for that and are worth a look. Workshop rows and Upgrades tiles now open their detail only on a hold, so a player who never holds will not find descriptions.
-- **Rank counts in the stat detail popup read without thousands separators** ("RANK 3100 / 6000"); the Workshop list now shows "Rank 3,100 / 6,000".
-- **Lab research is unreachable past about rank 20.** Each rank takes 1.55× longer and costs 1.7× more. Needs its own pass with the Gem economy.
-- **The balance simulator's "max" builds** (`ATTACK_MAX` and friends in `tools/balance_simulator.gd`) still stop at the old caps, so "attack max" there now means rank 100; `-- --maxed-workshop` measures the real maximum.
-- **The wave 100 boss** doubles in one step: the ×1.5 milestone lands on the boss's ×3. It's the tier gate, left as is.
-- **Cash counts a tap a second even when you're idle**, so an idle player buying run ranks keeps pace with a light tapper.
-- **`run_cash_earned` is saved but nothing reads it**, and `tools/balance_simulator.gd` still carries the unused `_rig_reserve`.
-- **Independent review of D047 (two passes):** no blockers. Fixed from it: prices now switch at each row's old cap rather than rank 100 (Cushion had become 27% of Defense), the depth curves run in straight lines so no rank is worth less than the one before, the price cache compares the discount exactly, and V9 refuses a save with malformed Cash. Left open: **the Crit Chance card adds nothing once Workshop Crit Chance is maxed** (80% is also the ceiling), and Coin Bonus's last ranks (45,143 Coins) are the dearest in the Workshop.
+- **Groups and the pile have only been checked in tests, the arena probe and screenshots**, not in motion or by touch. A big pile bites several times a second (folded into one pop a frame).
+- **Save V10** will not load in an older build. A save written by D057's commits (hit once and pass) loads its passed members as gone.
+- **The balance simulator's "max" builds** stop at rank 100; `-- --maxed-workshop` measures the real maximum.
+- **Balance targets 5, 7 and 8** need restating against D058's figures; target 2 (Coins per minute) still fails by design since D037.
+- **The wave 100 boss** doubles in one step (the ×1.5 milestone on the boss's ×3); it is the tier gate, left as is.
+- **Cash counts a tap a second even when idle**; `run_cash_earned` is saved but unread; the Crit Chance card adds nothing once Workshop Crit Chance is maxed; Lab research is unreachable past about rank 20; the stat detail popup's rank counts lack thousands separators.
+- **After a pull that adds a script,** a blank grey window means a stale editor cache: quit Godot, delete `~/NumberGOup-main/.godot`, reopen. New scripts must be loaded by `preload` path in `main.gd` (see `docs/QUALITY_GATES.md`).
 
-## Working notes
+## Handing back to Claude
 
-- **After a pull that adds a script, a blank grey game window means a stale editor cache**: quit Godot, delete `~/NumberGOup-main/.godot`, reopen. `main.gd` now loads its newer scripts by path so this should not recur; new scripts should follow suit (`docs/QUALITY_GATES.md`).
-- **The owner plays from `~/NumberGOup-main`.** It must end on merged `main`. When a game is running from it, work in a separate worktree.
-- **Every economy change** needs `bash run_tests.sh`, `bash run_balance.sh` before and after, the career simulator for anything that changes pacing, and an independent review of the diff ([`QUALITY_GATES.md`](QUALITY_GATES.md)).
-- **Recalibrating Workshop prices:** `tools/career_simulator.gd -- --spend focused --careers today_rig --runs 600 --run-cap-minutes 180 --deep-growth G` (and `--capped-growth`) runs a career to max; each takes about 15 minutes here.
-- **`tools/export_workshop.gd`** regenerates `data/workshop/current.*` from the live game. Rerun it after any catalogue or profile change.
+When you stop, leave the repository able to answer the next session's questions without this conversation.
+
+1. **Replace this page. Never append to it.** Keep its shape: who is handing to whom and when; the branch and what is on it (merged or not, PR number); where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; and this section, addressed back to Claude.
+2. **Record every choice the owner accepted** as the next `D0NN` entry in [`DECISIONS.md`](DECISIONS.md) (D059 onwards). Each entry needs the owner's words, context, the decision, the evidence (the figures you measured and how), the consequences, and when to revisit. Update any document the change makes stale in the same commit: [`GAME_INVARIANTS.md`](GAME_INVARIANTS.md), [`MOTION_SYSTEM.md`](MOTION_SYSTEM.md), [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md), [`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md).
+3. **Say plainly what ran and what did not.** Test counts, probe results, balance and career figures before and after, and anything you could not check (in motion, on a phone). Do not mark anything done that did not run.
+4. **Commit on a branch, never `main`, and push it.** Use this branch while its PR is unmerged; once it merges, start a fresh branch from `main`. Match the existing commit style: a short imperative subject and a body saying what the player will notice and why. Do not open or merge a PR unless the owner asks.
+5. **Tell the owner,** in the chat, the branch name, the head commit and the one decision you need from them next.
+6. **Leave no scratch files** (`tools/_*.gd`, save files, screenshots) in the repository.
