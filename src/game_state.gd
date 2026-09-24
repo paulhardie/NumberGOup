@@ -428,7 +428,7 @@ func _member_hit(index: int) -> SimulationEvent:
 	if thorns_share > 0.0:
 		var boss_share: float = balance_profile.BOSS_THORNS_SHARE if boss_hit else 1.0
 		active_encounter.damage_member(index, member.max.multiply_scalar(thorns_share * boss_share))
-		_settle_beaten(index)
+		_pay_kills()
 	active_encounter.hit(index)
 	if number.is_zero():
 		if not _try_second_wind():
@@ -438,35 +438,51 @@ func _member_hit(index: int) -> SimulationEvent:
 		return SimulationEvent.new("boss_collection", landed)
 	return SimulationEvent.new("tax_collection" if first else "pile_hit", landed)
 
-## An enemy beaten after its wave passed (D063) pays what its wave still owed
-## for it: its share of the wave's Coins and Cash, as The Tower pays on the
-## kill, and a boss its Gem too. It sets no record, now or when it passed.
-func _settle_beaten(index: int) -> void:
-	if index < 0 or index >= active_encounter.members.size():
+## Every kill pays when it happens, as The Tower's do (D066): Coins by its
+## type (basics none, the rarer types more), lifted by Coin Bonus, with any
+## part of a Coin carried to the next kill; Cash by its share of its wave's HP;
+## and a boss its Gem, with the "boss beaten" moment when it falls after its
+## wave passed (its own wave's clear tells that story otherwise).
+func _pay_kills() -> void:
+	if active_encounter == null:
 		return
-	var member: Dictionary = active_encounter.members[index]
-	var unpaid := float(member.get("unpaid", 0.0))
-	if unpaid <= 0.0 or int(member.state) != TaxEncounterClass.KILLED:
-		return
-	member.unpaid = 0.0
-	var member_wave := int(member.wave)
-	var owed := float(balance_profile.reward_for_wave(selected_tier, member_wave)) * unpaid * (1.0 + _effect_sum("coin_bonus")) + coin_fraction
+	for member in active_encounter.take_kills():
+		if bool(member.get("paid", false)):
+			continue
+		member.paid = true
+		var member_wave := int(member.wave)
+		var coin_gain := _pay_coins(balance_profile.kill_coins(selected_tier, member_wave, str(member.get("kind", "basic"))))
+		if active_encounter.is_own(member):
+			active_encounter.paid_coins += coin_gain
+		_add_cash(ScientificNumber.from_float(balance_profile.kill_cash(member_wave, float(member.get("weight", 1.0)), float(member.get("of", 1.0)))))
+		if bool(member.get("boss", false)):
+			var gem_gain := balance_profile.wave_gems(member_wave)
+			gems += gem_gain
+			run_gems_earned += gem_gain
+			if not active_encounter.is_own(member):
+				pending_events.append(SimulationEvent.new("boss_clear", ScientificNumber.from_float(float(coin_gain))))
+
+## Pays `amount` Coins lifted by Coin Bonus, keeping any part of a Coin for
+## the next payment, and returns the whole Coins paid.
+func _pay_coins(amount: float) -> int:
+	var owed := amount * (1.0 + _effect_sum("coin_bonus")) + coin_fraction
 	var coin_gain := floori(owed + 0.000001)
 	coin_fraction = maxf(0.0, owed - float(coin_gain))
 	coins += coin_gain
 	run_coins_earned += coin_gain
-	_add_cash(ScientificNumber.from_float(balance_profile.wave_cash(member_wave) * unpaid))
-	if bool(member.get("boss", false)):
-		var gem_gain := balance_profile.wave_gems(member_wave)
-		gems += gem_gain
-		run_gems_earned += gem_gain
-		pending_events.append(SimulationEvent.new("boss_clear", ScientificNumber.from_float(float(coin_gain))))
+	return coin_gain
+
+## Every wave pays its Coins per Wave as it ends, beaten or passed (D066).
+func _pay_wave_end() -> int:
+	var paid := _pay_coins(balance_profile.wave_end_coins(selected_tier, wave))
+	active_encounter.paid_coins += paid
+	return paid
 
 ## One enemy's hit before any defence: its share of its wave's Hit, times 4%
 ## for every hit it has already landed (D063).
 func _member_raw_hit(member: Dictionary) -> ScientificNumber:
 	var heat := pow(balance_profile.HEAT_UP_PER_HIT, float(int(member.get("hits", 0))))
-	return member.wave_hit.multiply_scalar(float(member.share) * heat)
+	return member.wave_hit.multiply_scalar(TaxEncounterClass.hit_part(member) * heat)
 
 ## A Brace covers the wave's clock it was raised in. Spent on any hit, it ends
 ## with that clock; never tested, it carries on, as before.
@@ -475,23 +491,14 @@ func _end_brace_window() -> void:
 		braced = false
 	brace_spent = false
 
-## An ordinary wave still standing when its clock runs out passes (D037). It
-## pays Coins for the share of it that was cleared, floored like Coin Bonus so
-## a one-Coin wave pays only when beaten. It was not beaten, so it sets no
-## record and pays no Gems; its checkpoint pays when a later wave is beaten.
-## Its members still at the Number stay there, ahead of the next wave (D058).
+## An ordinary wave still standing when its clock runs out passes (D037). Its
+## kills have already paid (D066); it was not beaten, so it sets no record and
+## pays no Gems, and its checkpoint pays when a later wave is beaten. Its
+## members still alive stay, ahead of the next wave (D058), and pay when they
+## are beaten.
 func _pass_missed_wave(carried: Array = []) -> void:
-	var share := get_wave_cleared_share()
-	# Every enemy that stays owes its part of its wave's reward when it is
-	# beaten later, as The Tower pays on the kill (D063): its HP's share of
-	# the wave's, which is the share the wave did not pay for now.
-	for member in carried:
-		if active_encounter.is_own(member) and not active_encounter.max_liability.is_zero():
-			member.unpaid = TaxEncounterClass._ratio(member.hp, active_encounter.max_liability)
-	var coin_gain := floori(float(active_encounter.reward) * share * (1.0 + _effect_sum("coin_bonus")) + 0.000001)
-	coins += coin_gain
-	run_coins_earned += coin_gain
-	_add_cash(ScientificNumber.from_float(balance_profile.wave_cash(wave) * share))
+	_pay_kills()
+	_pay_wave_end()
 	wave += 1
 	active_encounter = _make_encounter(wave)
 	active_encounter.carry_in(carried)
@@ -531,14 +538,19 @@ func _try_second_wind() -> bool:
 func _complete_current_wave(carried: Array = []) -> SimulationEvent:
 	var completed_wave := wave
 	var completed_boss: bool = bool(active_encounter.is_boss)
-	var coin_gain: int = int(active_encounter.reward)
+	_pay_kills()
+	_pay_wave_end()
+	# Its kills have paid their Coins, Cash and a boss's Gem (D066); a beaten
+	# wave adds its checkpoints.
+	var kill_coins: int = active_encounter.paid_coins
+	var coin_gain := 0
 	var record := get_tier_record(selected_tier).duplicate(true)
 	var previous_best := int(record.get("highest_wave", 0))
 	record.highest_wave = maxi(previous_best, completed_wave)
 	var claimed: Array = record.get("milestones_claimed", [])
-	# Gems (D030): every boss wave pays a little, every run, and each tier's
-	# checkpoints pay a lot, once per tier record.
-	var gem_gain := balance_profile.wave_gems(completed_wave)
+	# Gems (D030): each tier's checkpoints pay a lot, once per tier record; a
+	# boss's own Gem paid when it fell (D066).
+	var gem_gain := 0
 	# Every checkpoint the record has now passed pays, not only this wave's:
 	# a missed ordinary checkpoint (D037) pays once a later wave is beaten, the
 	# same rule the load-time catch-up applies, so a run and a reload agree.
@@ -567,7 +579,7 @@ func _complete_current_wave(carried: Array = []) -> SimulationEvent:
 	coin_gain = floori(float(coin_gain) * (1.0 + _effect_sum("coin_bonus")))
 	coins += coin_gain
 	run_coins_earned += coin_gain
-	_add_cash(ScientificNumber.from_float(balance_profile.wave_cash(completed_wave)))
+	coin_gain += kill_coins
 	wave += 1
 	active_encounter = _make_encounter(wave)
 	active_encounter.carry_in(carried)
@@ -579,24 +591,25 @@ func _complete_current_wave(carried: Array = []) -> SimulationEvent:
 
 func _make_encounter(target_wave: int):
 	var liability := RuleModifierPipelineClass.apply(
-		balance_profile.liability_for_wave(selected_tier, target_wave),
+		balance_profile.liability_for_wave(selected_tier, target_wave, run_seed),
 		"liability",
 		active_rule_modifiers
 	)
-	# Many enemies, each with the full enemy HP, and a boss wave's boss among
-	# them carrying twenty enemies' worth (D065).
+	# Many enemies, each with the full enemy HP (D065), of types drawn for this
+	# run and wave, a tank carrying five enemies' worth and a boss twenty (D066).
+	var roster: Array = balance_profile.wave_roster(target_wave, run_seed)
 	return TaxEncounterClass.new(
 		selected_tier,
 		target_wave,
 		liability,
-		balance_profile.collection_for_wave(selected_tier, target_wave),
+		balance_profile.collection_for_wave(selected_tier, target_wave, run_seed),
 		balance_profile.reward_for_wave(selected_tier, target_wave),
 		balance_profile.is_boss_wave(target_wave),
-		balance_profile.member_arrivals(target_wave),
+		roster.map(func(entry): return float(entry.arrive)),
 		balance_profile.member_hit_seconds(target_wave),
-		balance_profile.member_weights(target_wave),
+		roster.map(func(entry): return float(balance_profile.ENEMY_HP_WEIGHT[entry.kind])),
 		balance_profile.boss_hit_seconds(target_wave),
-		balance_profile.boss_wave_hit(selected_tier, target_wave)
+		roster.map(func(entry): return str(entry.kind))
 	)
 
 func _wave_death(reached: int, hit: ScientificNumber, boss: bool, number_before_hit: ScientificNumber, wave_hp_left: ScientificNumber) -> SimulationEvent:
@@ -646,13 +659,12 @@ func get_hit_breakdown(member_index: int = -1) -> Dictionary:
 	var final := RuleModifierPipelineClass.apply(base, "collection", modifiers)
 	return {"raw": raw, "armor": raw.subtract(after_armor), "guard": after_armor.subtract(final), "final": final}
 
-## The share of its wave's Hit the front member carries: a third of wave 1's,
-## all of a boss's.
+## The part of its wave's Hit the front member lands: one enemy's (D066).
 func next_hit_share() -> float:
 	if active_encounter == null:
 		return 1.0
 	var front: int = active_encounter.front_index()
-	return float(active_encounter.members[front].share) if front >= 0 else 1.0
+	return TaxEncounterClass.hit_part(active_encounter.members[front]) if front >= 0 else 1.0
 
 ## Every modifier the Hit passes through, in one list: the run's rules, then
 ## Armor, then Guard. The pipeline decides the order by stage.
@@ -1458,9 +1470,10 @@ func _load_parsed(data: Dictionary, source_path: String) -> OfflineAward:
 ## run's Gems and marks that milestones paid at the old rate were topped up;
 ## V9 declared the run's Cash and marks saves whose deep rows may pass rank 100;
 ## V10 keeps a wave's members, which a V9 run resumes as one member (D057);
-## V11 marks each member's boss, hits and unpaid reward (D063), which a V10
-## run resumes with its bosses in their own wave, one hit per landed member
-## and nothing owed.
+## V11 marks each member's boss and hits (D063), weight (D065), kind and
+## whether its kill has paid (D066), which a V10 run resumes with its bosses
+## in their own wave, one hit per landed member, basic enemies, and its dead
+## already paid.
 func _load_current(data: Dictionary) -> OfflineAward:
 	_load_common_fields(data)
 	_load_tier_progress(data)
@@ -1706,21 +1719,20 @@ func _rebuild_encounter_on_current_profile() -> void:
 		rebuilt.carry_in(active_encounter.living_members().filter(func(member): return not active_encounter.is_own(member)))
 	# Carried members are rebuilt on today's curve too, keeping the share of
 	# their HP they had left, so no old-profile Hit lands (D040).
-	# Their share is today's too (D065): one enemy's weight in its wave, or a
-	# boss's, which also takes its Hit as one enemy's.
+	# Their share is today's too (D065): their type's weight in their wave's
+	# roster for this run (D066), each still landing one enemy's Hit.
 	for member in rebuilt.members:
 		if rebuilt.is_own(member):
 			continue
 		var member_wave := int(member.wave)
-		var boss := bool(member.get("boss", false))
 		var remaining_share := TaxEncounterClass._ratio(member.hp, member.max)
-		var liability := RuleModifierPipelineClass.apply(balance_profile.liability_for_wave(selected_tier, member_wave), "liability", active_rule_modifiers)
-		member.weight = balance_profile.BOSS_HP_WEIGHT if boss else 1.0
-		member.of = balance_profile.wave_weight(member_wave)
+		var liability := RuleModifierPipelineClass.apply(balance_profile.liability_for_wave(selected_tier, member_wave, run_seed), "liability", active_rule_modifiers)
+		member.weight = float(balance_profile.ENEMY_HP_WEIGHT[str(member.get("kind", "basic"))])
+		member.of = balance_profile.wave_weight(member_wave, run_seed)
 		member.share = float(member.weight) / float(member.of)
 		member.max = liability.multiply_scalar(float(member.share))
 		member.hp = member.max.multiply_scalar(remaining_share)
-		member.wave_hit = balance_profile.boss_wave_hit(selected_tier, member_wave) if boss else balance_profile.collection_for_wave(selected_tier, member_wave)
+		member.wave_hit = balance_profile.collection_for_wave(selected_tier, member_wave, run_seed)
 	rebuilt._sum_remaining()
 	active_encounter = rebuilt
 
@@ -1953,7 +1965,7 @@ func _add_number(amount: ScientificNumber) -> void:
 		var leech := minf(_effect_sum("siphon_share"), balance_profile.SIPHON_CEILING)
 		if leech > 0.0 and struck_boss and not into_wave.is_zero():
 			banked = banked.add(into_wave.multiply_scalar(leech))
-		_settle_beaten(struck)
+		_pay_kills()
 	number = number.add(banked)
 	if number.compare_to(highest_number) > 0:
 		highest_number = number.copy()

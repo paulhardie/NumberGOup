@@ -122,16 +122,16 @@ func _init() -> void:
 	_check(_ghosts(main, WaveEnemy.Beat.SHATTER) == 1 and not main.wave_enemy.visible, "a wave beaten early shatters once and stays gone")
 	await create_timer(2.6).timeout
 	_check(main.wave_enemy.visible and _ghosts(main, WaveEnemy.Beat.SHATTER) == 0, "after the beat the next wave shows")
-	# A boss that is not beaten reaches the Number at 15 seconds and stays
+	# A boss that is not beaten reaches the Number at 18 seconds and stays
 	# there, the live number, while the next wave comes in behind it at 35
-	# (D063, D065).
+	# (D063, D065, D066).
 	st.wave = 10
 	st.active_encounter = st._make_encounter(10)
 	st.number = ScientificNumber.from_float(1.0e9)
-	st.wave_accumulator = 14.9
+	st.wave_accumulator = st.balance_profile.BOSS_ARRIVAL_SECONDS - 0.1
 	await create_timer(0.25).timeout
 	var boss_in_wave: int = st.active_encounter.boss_index()
-	_check(st.wave == 10 and boss_in_wave >= 0 and int(st.active_encounter.members[boss_in_wave].state) == TaxEncounter.AT_NUMBER, "a boss Hit lands at 15 seconds and the boss stays")
+	_check(st.wave == 10 and boss_in_wave >= 0 and int(st.active_encounter.members[boss_in_wave].state) == TaxEncounter.AT_NUMBER, "a boss Hit lands at 18 seconds and the boss stays")
 	st.wave_accumulator = 34.9
 	await create_timer(0.25).timeout
 	var landed_boss: int = st.active_encounter.boss_index()
@@ -158,7 +158,7 @@ func _init() -> void:
 	await _frames(3)
 	var raw_text: String = st.get_hit_breakdown().raw.format_value()
 	var reduced_parts: Dictionary = st.get_hit_breakdown()
-	_check(main.wave_enemy.caption == "hits " + raw_text and st.get_hit_breakdown().raw.compare_to(st.get_effective_collection().multiply_scalar(st.next_hit_share())) > 0, "the caption shows the raw Hit: " + main.wave_enemy.caption)
+	_check(main.wave_enemy.caption.begins_with("hits " + raw_text) and st.get_hit_breakdown().raw.compare_to(st.get_effective_collection().multiply_scalar(st.next_hit_share())) > 0, "the caption shows the raw Hit: " + main.wave_enemy.caption)
 	st.wave_accumulator = 14.95
 	await create_timer(0.75).timeout
 	var ledger_lines := 0

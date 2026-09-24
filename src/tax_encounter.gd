@@ -42,14 +42,20 @@ var collection := ScientificNumber.new()
 var reward: int = 0
 var is_boss: bool = false
 ## Each is {max, hp, share, arrive, state, wave, wave_hit, next_hit,
-## interval, landed, boss, hits}, front first: members carried in, then this
-## wave's in arrival order. `share` is the part of its wave's HP and Hit the
-## member carries, `wave_hit` its wave's whole Hit, `next_hit` when it next
-## hits on this wave's clock, `landed` whether it has reached the Number,
-## `boss` whether it is a boss (which may be carried into later waves, D063),
-## `hits` how many times it has hit, which heats up its next hit, and `unpaid`
-## the share of its passed wave's reward still owed when it is beaten.
+## interval, landed, boss, hits, kind, paid, weight, of}, front first: members
+## carried in, then this wave's in arrival order. `weight` over `of` is the
+## part of its wave's HP the member carries, and `share` that ratio; every
+## member lands one enemy's Hit, `wave_hit` over `of`, whatever its HP (D066).
+## `next_hit` is when it next hits on this wave's clock, `landed` whether it
+## has reached the Number, `boss` whether it is a boss (which may be carried
+## into later waves, D063), `hits` how many times it has hit, which heats up
+## its next hit, `kind` its enemy type, and `paid` whether its kill has paid.
 var members: Array = []
+## Members killed since the last call to take_kills(), for the caller to pay.
+var _kills: Array = []
+## Coins this wave's own kills have paid, for its clear to report. Not saved:
+## a resumed wave reports only what it pays after resuming.
+var paid_coins: int = 0
 
 func _init(
 	encounter_tier: int = 1,
@@ -62,7 +68,7 @@ func _init(
 	hit_interval: float = TaxBalanceProfile.WAVE_INTERVAL_SECONDS,
 	weights: Array = [],
 	boss_interval: float = 0.0,
-	boss_hit: ScientificNumber = null
+	kinds: Array = []
 ) -> void:
 	tier_id = encounter_tier
 	wave = encounter_wave
@@ -73,9 +79,9 @@ func _init(
 	# One member arriving at the end of the clock is the wave as it was before
 	# groups, which is also how an older save's active wave comes back.
 	var times: Array = arrivals if not arrivals.is_empty() else [TaxBalanceProfile.WAVE_INTERVAL_SECONDS]
-	# Each member's share of the wave's HP and Hit follows its weight (D065): an
-	# ordinary enemy is one, a boss carries many enemies' HP. Without weights
-	# the members share evenly and all take the wave's boss flag, as before.
+	# Each member's share of the wave's HP follows its weight (D065): an
+	# ordinary enemy is one, a tank five, a boss twenty (D066). Without weights
+	# the members share evenly and all take the wave's boss flag.
 	var total := 0.0
 	for index in range(times.size()):
 		total += float(weights[index]) if index < weights.size() else 1.0
@@ -84,19 +90,16 @@ func _init(
 		var weight: float = float(weights[index]) if index < weights.size() else 1.0
 		var share: float = weight / total
 		var hp := max_liability.multiply_scalar(share)
-		var is_boss_member: bool = boss if weights.is_empty() else weight > 1.0
-		var member_hit: ScientificNumber = collection.copy()
+		var kind: String = str(kinds[index]) if index < kinds.size() else ("boss" if boss and weights.is_empty() else "basic")
+		var is_boss_member: bool = kind == "boss"
 		var member_interval := hit_interval
-		if is_boss_member and not weights.is_empty():
-			if boss_hit != null:
-				member_hit = boss_hit.copy()
-			if boss_interval > 0.0:
-				member_interval = boss_interval
+		if is_boss_member and boss_interval > 0.0:
+			member_interval = boss_interval
 		members.append({
 			"max": hp, "hp": hp.copy(), "share": share, "arrive": arrive, "state": STANDING,
-			"wave": wave, "wave_hit": member_hit, "next_hit": arrive,
-			"interval": member_interval, "landed": false, "boss": is_boss_member, "hits": 0, "unpaid": 0.0,
-			"weight": weight, "of": total,
+			"wave": wave, "wave_hit": collection.copy(), "next_hit": arrive,
+			"interval": member_interval, "landed": false, "boss": is_boss_member, "hits": 0,
+			"kind": kind, "paid": false, "weight": weight, "of": total,
 		})
 	_sum_remaining()
 
@@ -145,9 +148,23 @@ func _take(member: Dictionary, applied: ScientificNumber) -> void:
 	member.hp = member.hp.subtract(applied)
 	if member.hp.is_zero():
 		member.state = KILLED
+		_kills.append(member)
 		_sum_remaining()
 	else:
 		_remaining = _remaining.subtract(applied)
+
+## The members killed by damage since the last call, each once, so the caller
+## can pay for them (D066).
+func take_kills() -> Array:
+	var killed := _kills
+	_kills = []
+	return killed
+
+## How much of its wave's whole Hit a member lands: one enemy's, whatever HP
+## it carries (D066). A member saved without weights lands its share.
+static func hit_part(member: Dictionary) -> float:
+	var of := float(member.get("of", 0.0))
+	return 1.0 / of if of > 0.0 else float(member.share)
 
 ## The living member nearest the Number, or -1 when none lives. Members at the
 ## Number sit ahead of those still walking, carried ones first.
@@ -337,6 +354,7 @@ func _set_living_total(target: ScientificNumber) -> void:
 		to_clear = to_clear.subtract(taken)
 		if member.hp.is_zero():
 			member.state = KILLED
+			_kills.append(member)
 	_sum_remaining()
 
 ## Recounts what lives and its HP. Summed as plain floats scaled to the
@@ -386,7 +404,8 @@ func to_dict() -> Dictionary:
 			"landed": member.landed,
 			"boss": member.get("boss", false),
 			"hits": member.get("hits", 0),
-			"unpaid": member.get("unpaid", 0.0),
+			"kind": member.get("kind", "basic"),
+			"paid": member.get("paid", false),
 			# The share is saved as the two whole numbers it comes from, so it
 			# reads back exactly: 1/43 does not survive JSON bit for bit (D065).
 			"weight": member.get("weight", 0.0),
@@ -402,6 +421,9 @@ func to_dict() -> Dictionary:
 		"is_boss": is_boss,
 		"members": saved_members,
 	}
+
+static func _known_kind(kind: String) -> String:
+	return kind if TaxBalanceProfile.ENEMY_HP_WEIGHT.has(kind) else "basic"
 
 static func from_dict(data: Dictionary) -> TaxEncounter:
 	var encounter = (load("res://src/tax_encounter.gd") as GDScript).new(
@@ -419,7 +441,8 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 		for saved in saved_members:
 			if not (saved is Dictionary and saved.get("hp") is Dictionary and saved.get("max") is Dictionary):
 				continue
-			var arrive := clampf(float(saved.get("arrive", TaxBalanceProfile.WAVE_INTERVAL_SECONDS)), 0.0, TaxBalanceProfile.WAVE_INTERVAL_SECONDS)
+			# A slow enemy set off late arrives after its wave's clock ends (D066).
+			var arrive := clampf(float(saved.get("arrive", TaxBalanceProfile.WAVE_INTERVAL_SECONDS)), 0.0, TaxBalanceProfile.latest_arrival())
 			var state := clampi(int(saved.get("state", STANDING)), STANDING, AT_NUMBER)
 			var wave_hit: Variant = saved.get("wave_hit", null)
 			var member_wave := int(saved.get("wave", encounter.wave))
@@ -438,13 +461,17 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 			var next_hit := float(saved.get("next_hit", arrive))
 			if not is_finite(next_hit):
 				next_hit = arrive
-			next_hit = clampf(next_hit, 0.0, TaxBalanceProfile.WAVE_INTERVAL_SECONDS + interval)
+			next_hit = clampf(next_hit, 0.0, maxf(TaxBalanceProfile.WAVE_INTERVAL_SECONDS + interval, arrive))
 			var landed := bool(saved.get("landed", state == LANDED or state == AT_NUMBER))
 			# Saved before D063: a boss was always its own wave's, and a member
 			# that had landed had hit at least once.
 			var weight := float(saved.get("weight", 0.0))
 			var of := float(saved.get("of", 0.0))
 			var share := weight / of if weight > 0.0 and of >= weight else clampf(float(saved.get("share", 1.0)), 0.0, 1.0)
+			var boss := bool(saved.get("boss", encounter.is_boss and member_wave == encounter.wave))
+			# Saved before D066: a boss or a basic enemy, and one already killed
+			# was paid under the rules of its day. The kind decides the boss.
+			var kind := _known_kind(str(saved.get("kind", "boss" if boss else "basic")))
 			encounter.members.append({
 				"max": ScientificNumber.from_dict(saved.get("max", {})),
 				"hp": ScientificNumber.from_dict(saved.get("hp", {})),
@@ -458,10 +485,11 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 				"next_hit": next_hit,
 				"interval": interval,
 				"landed": landed,
-				"boss": bool(saved.get("boss", encounter.is_boss and member_wave == encounter.wave)),
+				"boss": kind == "boss",
 				# Far past any real run's count, and short of overflowing 1.04^n.
 				"hits": clampi(int(saved.get("hits", 1 if landed else 0)), 0, 10000),
-				"unpaid": clampf(float(saved.get("unpaid", 0.0)), 0.0, 1.0),
+				"kind": kind,
+				"paid": bool(saved.get("paid", state == KILLED)),
 			})
 		encounter._sum_remaining()
 	# No member that parsed, or a wave saved before groups (V9 and older): one

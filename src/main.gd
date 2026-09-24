@@ -3638,7 +3638,8 @@ func _update_wave_enemy(delta: float) -> void:
 	else:
 		enemy_travel = _member_progress(member)
 	var boss: bool = encounter.is_boss_member(display)
-	var tint: Color = BOSS_COLOUR if boss else TEXT.lerp(WARNING, smoothstep(0.5, 1.0, enemy_travel))
+	var kind: String = str(member.get("kind", "basic"))
+	var tint: Color = BOSS_COLOUR if boss else _kind_tint(kind, TEXT.lerp(WARNING, smoothstep(0.5, 1.0, enemy_travel)))
 	# The front member shows its own HP, less nothing the motes in flight have
 	# yet to deliver; motes only ever fly at the front.
 	var shown: ScientificNumber = member.hp.add(arena_fx.in_flight()) if display == front else member.hp
@@ -3647,13 +3648,16 @@ func _update_wave_enemy(delta: float) -> void:
 	# The wave shows its raw Hit; the player's defences come off at contact, in
 	# front of them (D052), so a Hit that shrinks reads as getting stronger.
 	var caption: String = "hits " + state.get_hit_breakdown(display).raw.format_value()
+	# The rarer types say what they are (D066); a basic is the default.
+	if not boss and kind != "basic":
+		caption += " · " + kind
 	var behind: int = encounter.standing_count() - 1
 	var at_number: bool = int(member.state) == TaxEncounterClass.AT_NUMBER
 	if enemy_latched or at_number or state.settings.reduce_motion:
 		caption += " in " + str(maxi(0, ceili(float(member.next_hit) - state.wave_accumulator))) + "s"
 		if behind > 0:
 			caption += " · " + str(behind) + " more"
-	wave_enemy.show_value(_stat_number(shown), tint, 30 if boss else 18, caption, BOSS_COLOUR if boss else MUTED_TEXT)
+	wave_enemy.show_value(_stat_number(shown), tint, 30 if boss else _kind_size(kind, 18), caption, BOSS_COLOUR if boss else MUTED_TEXT)
 	var path := _enemy_path()
 	var point: Vector2 = path[0].lerp(path[1], enemy_travel)
 	var front_point: Variant = _place_followers(encounter, display, front, path)
@@ -3711,7 +3715,8 @@ func _place_followers(encounter, display: int, front: int, path: Array) -> Varia
 		# random stream.
 		var spread := (fposmod(float(index) * 0.618034, 1.0) - 0.5) * minf(stage_root.size.x * 0.8, 300.0)
 		var start: Vector2 = path[0] + Vector2(spread, 0.0)
-		node.show_value(_stat_number(member.hp), Color(TEXT.lerp(WARNING, smoothstep(0.5, 1.0, progress)), 0.55), 13)
+		var follower_kind: String = str(member.get("kind", "basic"))
+		node.show_value(_stat_number(member.hp), Color(_kind_tint(follower_kind, TEXT.lerp(WARNING, smoothstep(0.5, 1.0, progress))), 0.55), _kind_size(follower_kind, 13))
 		node.centre_on(start.lerp(path[1], progress))
 		node.visible = true
 		if index == front:
@@ -3719,6 +3724,15 @@ func _place_followers(encounter, display: int, front: int, path: Array) -> Varia
 		shown += 1
 	_hide_followers(shown)
 	return front_point
+
+## The enemy types that pay Coins (D066) lean towards the Coin colour, so the
+## ones worth killing stand out of a crowd of basics.
+func _kind_tint(kind: String, base: Color) -> Color:
+	return base.lerp(COIN_COLOUR, 0.6) if kind == "fast" or kind == "tank" or kind == "ranged" else base
+
+## A tank carries five enemies' HP and is drawn larger.
+func _kind_size(kind: String, base: int) -> int:
+	return base + 4 if kind == "tank" else base
 
 func _hide_followers(from: int) -> void:
 	for index in range(from, enemy_followers.size()):

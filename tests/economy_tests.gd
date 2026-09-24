@@ -29,6 +29,8 @@ func _init() -> void:
 	_test_tier_one_opening()
 	_test_production_clears_liability()
 	_test_a_wave_is_a_group()
+	_test_enemy_types_and_pay_per_kill()
+	_test_saved_numbers_read_back_exactly()
 	_test_group_members_land_one_by_one()
 	_test_group_brace_guard_and_thorns()
 	_test_group_saves_and_resumes()
@@ -646,7 +648,11 @@ func _test_bad_saves_are_never_written_over() -> void:
 	var earned_wrong: Dictionary = SaveDataV11.make(_funded_state())
 	earned_wrong.in_run = true
 	earned_wrong.run_cash_earned = {"exponent": 0, "mantissa": "lots"}
-	var not_finite := JSON.stringify(SaveDataV11.make(_funded_state())).replace('"highest":{"exponent":0,"mantissa":0.0}', '"highest":{"exponent":0,"mantissa":1e999}')
+	# A plain highest block, without the exact bits every saved number now
+	# carries, so the text to corrupt is known.
+	var finite_data: Dictionary = SaveDataV11.make(_funded_state())
+	finite_data.highest = {"exponent": 0, "mantissa": 0.0}
+	var not_finite := JSON.stringify(finite_data).replace('"highest":{"exponent":0,"mantissa":0.0}', '"highest":{"exponent":0,"mantissa":1e999}')
 	for unreadable in [JSON.stringify(typed_wrong), JSON.stringify(cash_wrong), JSON.stringify(earned_wrong), not_finite, "{", ""]:
 		_write_text(save_path, unreadable)
 		var fresh := GameState.new()
@@ -804,13 +810,13 @@ func _test_first_run_funds_permanent_workshop() -> void:
 	var state := GameState.new()
 	_expect(state.start_run(1, 7), "the first run should start without prior Workshop ranks")
 	var profile = state.balance_profile
-	var expected := profile.milestone_bonus(1, 10)
+	var expected: int = profile.milestone_bonus(1, 10) + _roster_kill_coins(state, 7, 1, 20)
 	for completed_wave in range(1, 21):
-		expected += profile.reward_for_wave(1, completed_wave)
 		state.active_encounter.remaining_liability = ScientificNumber.new()
 		state._resolve_wave_boundary()
-	# D040: every wave pays 0.65 x its number from wave 1 (bosses x5), plus the
-	# wave 10 checkpoint bonus, so a first run to wave 20 funds real ranks.
+	# D066: every kill pays by its type (on average what D040's 0.65 x the
+	# wave, bosses x5, paid), plus the wave 10 checkpoint bonus, so a first run
+	# to wave 20 funds real ranks.
 	_expect(state.coins == expected and state.coins > 100, "clearing Tier 1 to wave 20 should pay every wave's Coins and the wave 10 bonus")
 	state.end_run()
 	var before := state.coins
@@ -845,26 +851,26 @@ func _test_tier_one_opening() -> void:
 	tier_two.start_run(2, 3)
 	_expect(tier_two.number.is_zero(), "Tier 2 should start with no extra Number")
 
-	# One curve from wave 1: below wave 100, no ordinary wave's HP or Hit is
-	# ever more than 1.6 times the ordinary wave before it (the Hit climbs
-	# fastest early, as its share grows). The wave-21 spike D040 removed was
-	# 3x HP and 30x Hit in five waves. Milestone steps land on boss waves, so
-	# neighbours are compared across them; wave 100's x1.5 step is the tier
-	# gate and is deliberate.
+	# One curve from wave 1: below wave 100, no ordinary enemy's HP or Hit is
+	# ever more than 1.6 times the one a wave before it. The wave-21 spike D040
+	# removed was 3x HP and 30x Hit in five waves. Milestone steps land on boss
+	# waves, so neighbours are compared across them; wave 100's x1.5 step is
+	# the tier gate and is deliberate. A whole wave's HP also moves with how
+	# many tanks it draws (D066), so the curve is one enemy's.
 	var previous := 0
 	for check_wave in range(1, 101):
 		if profile.is_boss_wave(check_wave):
 			continue
-		var hp := profile.liability_for_wave(1, check_wave)
-		var hit := profile.collection_for_wave(1, check_wave)
+		var hp := profile.enemy_liability(1, check_wave)
+		var hit := profile.enemy_collection(1, check_wave)
 		_expect(hit.compare_to(ScientificNumber.new()) > 0, "an ordinary Hit should be positive (wave " + str(check_wave) + ")")
 		if previous > 0 and check_wave < 100:
-			var growth := pow(10.0, hp.log10() - profile.liability_for_wave(1, previous).log10())
-			var hit_growth := pow(10.0, hit.log10() - profile.collection_for_wave(1, previous).log10())
+			var growth := pow(10.0, hp.log10() - profile.enemy_liability(1, previous).log10())
+			var hit_growth := pow(10.0, hit.log10() - profile.enemy_collection(1, previous).log10())
 			_expect(growth > 1.0 and growth < 1.6, "Wave HP should rise smoothly from wave " + str(previous) + " to " + str(check_wave))
 			_expect(hit_growth > 1.0 and hit_growth < 1.6, "the Hit should rise smoothly from wave " + str(previous) + " to " + str(check_wave))
 		previous = check_wave
-	_expect(profile.liability_for_wave(1, 21).compare_to(profile.liability_for_wave(1, 19)) > 0 and pow(10.0, profile.liability_for_wave(1, 21).log10() - profile.liability_for_wave(1, 19).log10()) < 1.4, "wave 21 should no longer jump")
+	_expect(profile.enemy_liability(1, 21).compare_to(profile.enemy_liability(1, 19)) > 0 and pow(10.0, profile.enemy_liability(1, 21).log10() - profile.enemy_liability(1, 19).log10()) < 1.4, "wave 21 should no longer jump")
 	# D063: the Hit is the wave's HP divided by a ratio on The Tower's shape,
 	# which grows with the wave: about 2.4 at wave 1, 11 at 100, 118 at 500 and
 	# 1,480 at 1,000, so enemies grow tankier than they hit.
@@ -892,7 +898,7 @@ func _test_tier_one_opening() -> void:
 	var ordinary_hit_10 := profile._from_log10(profile._wave_hit_log10(10))
 	_expect(boss_run.active_encounter.members.size() == profile.ordinary_members(10) + 1 and boss_run.active_encounter.members.filter(func(member): return bool(member.boss)).size() == 1, "a boss wave should send its ordinary enemies and one boss")
 	_expect(absf(boss_member.max.log10() - one_enemy_hp_10.multiply_scalar(profile.BOSS_HP_WEIGHT).log10()) < 0.000001, "a boss should carry twenty enemies' HP")
-	_expect(absf(boss_member.wave_hit.multiply_scalar(float(boss_member.share)).log10() - ordinary_hit_10.log10()) < 0.000001, "a boss should hit like one ordinary enemy of its wave (D063)")
+	_expect(absf(boss_member.wave_hit.multiply_scalar(TaxEncounter.hit_part(boss_member)).log10() - ordinary_hit_10.log10()) < 0.000001, "a boss should hit like one ordinary enemy of its wave (D063)")
 	_expect(profile.reward_for_wave(1, 1) == 1 and profile.reward_for_wave(1, 21) == 14 and profile.reward_for_wave(1, 10) == roundi(10 * profile.WAVE_REWARD_SCALE * profile.BOSS_REWARD_MULTIPLIER), "Coins should follow 0.65 x the wave from wave 1, x5 on a boss")
 	# Doing nothing still ends, and earns clearly less than a player tapping
 	# once a second.
@@ -917,7 +923,7 @@ func _test_tier_one_opening() -> void:
 	armored.start_run(1, 3)
 	armored.wave = 21
 	armored.active_encounter = armored._make_encounter(21)
-	_expect(armored.get_effective_collection().compare_to(profile.collection_for_wave(1, 21).multiply_scalar(0.996)) == 0, "Armor should reduce Tier 1's Hit")
+	_expect(armored.get_effective_collection().compare_to(profile.collection_for_wave(1, 21, armored.run_seed).multiply_scalar(0.996)) == 0, "Armor should reduce Tier 1's Hit")
 	_expect(tier_two.get_effective_collection().compare_to(tier_two.active_encounter.collection) == 0, "Tier 2's opening hit should be its base")
 
 	# An unbeaten wave's members land and stay (D058); at the end of its clock
@@ -927,11 +933,13 @@ func _test_tier_one_opening() -> void:
 	stuck.start_run(1, 3)
 	var before: ScientificNumber = stuck.number.copy()
 	var hit := stuck.get_effective_collection()
-	var one_share: float = stuck.active_encounter.members[0].share
+	var one_share: float = TaxEncounter.hit_part(stuck.active_encounter.members[0])
+	var sent: int = stuck.active_encounter.members.size()
 	var event := stuck._resolve_wave_boundary()
-	_expect(event.type == "tax_collection" and absf(event.amount.log10() - hit.multiply_scalar(one_share).log10()) < 0.000001, "each member should land its share of the Hit")
-	# In the opening (D059) each member hits once and leaves: the whole Hit, once.
-	_expect(absf(before.subtract(stuck.number).log10() - hit.log10()) < 0.000001 and not stuck.number.is_zero(), "an opening wave should cost its Hit once, not the run")
+	_expect(event.type == "tax_collection" and absf(event.amount.log10() - hit.multiply_scalar(one_share).log10()) < 0.000001, "each member should land one enemy's Hit")
+	# In the opening (D059) each member hits once and leaves: one enemy's Hit
+	# each, once, whatever HP its type carries (D066).
+	_expect(absf(before.subtract(stuck.number).log10() - hit.multiply_scalar(one_share * float(sent)).log10()) < 0.000001 and not stuck.number.is_zero(), "an opening wave should cost its Hit once, not the run")
 	_expect(stuck.active_encounter.at_number_count() == 0, "opening members should not stay at the Number")
 	_expect(stuck.wave == 2 and stuck.coins == 0 and stuck.get_tier_best(1) == 0, "the missed wave should move on unpaid and unrecorded")
 	# The first boss stays and fights like every boss, but waves keep coming
@@ -976,7 +984,7 @@ func _test_tier_pressure_and_curve_gates() -> void:
 	# D065: many enemies, each small at first.
 	var wave_one := profile.liability_for_wave(1, 1)
 	_expect(wave_one.multiply_scalar(1.0 / profile.wave_weight(1)).compare_to(ScientificNumber.from_float(3.0)) < 0 and wave_one.compare_to(ScientificNumber.from_float(60.0)) < 0 and not wave_one.is_zero(), "Tier 1 wave 1 should be small enemies in a small wave")
-	_expect(profile.liability_for_wave(1, 19).compare_to(profile.liability_for_wave(1, 21)) < 0 and profile.collection_for_wave(1, 19).compare_to(profile.collection_for_wave(1, 21)) < 0, "Tier 1 should keep rising through wave 21")
+	_expect(profile.enemy_liability(1, 19).compare_to(profile.enemy_liability(1, 21)) < 0 and profile.enemy_collection(1, 19).compare_to(profile.enemy_collection(1, 21)) < 0, "Tier 1 should keep rising through wave 21")
 	var tier1_liability := profile.liability_for_wave(1, 21)
 	var tier2_liability := profile.liability_for_wave(2, 21)
 	var tier1_collection := profile.collection_for_wave(1, 21)
@@ -1081,7 +1089,7 @@ func _test_missed_waves_move_on_and_bosses_stay() -> void:
 	state.active_encounter = state._make_encounter(31)
 	state.number = ScientificNumber.from_float(1e9)
 	state.active_encounter.remaining_liability = state.active_encounter.max_liability.multiply_scalar(0.4)
-	var reward: int = state.active_encounter.reward
+	var owed := _kill_coins_owed(state, state.balance_profile.wave_end_coins(2, 31))
 	var hit := state.get_effective_collection()
 	# Front-first, so the members beaten are the front ones; each still
 	# standing lands its full share, however damaged (D057).
@@ -1089,12 +1097,12 @@ func _test_missed_waves_move_on_and_bosses_stay() -> void:
 	var standing := 0
 	for member in state.active_encounter.members:
 		if TaxEncounter.is_alive(member):
-			standing_share += float(member.share)
+			standing_share += TaxEncounter.hit_part(member)
 			standing += 1
 	var event := state._resolve_wave_boundary()
 	_expect(event.type == "tax_collection" and state.wave == 32, "a missed ordinary wave should hit and move on")
-	_expect(absf(ScientificNumber.from_float(1e9).subtract(state.number).log10() - hit.multiply_scalar(standing_share).log10()) < 0.000001, "only the members left standing should land, each its share")
-	_expect(reward > 10 and state.coins == floori(float(reward) * 0.6), "a missed wave should pay Coins for the share cleared")
+	_expect(absf(ScientificNumber.from_float(1e9).subtract(state.number).log10() - hit.multiply_scalar(standing_share).log10()) < 0.000001, "only the members left standing should land, each one enemy's Hit")
+	_expect(owed > 0 and state.coins == owed, "a missed wave's kills should have paid their Coins, and its end its Coins per Wave (D066)")
 	_expect(state.get_tier_best(2) == 0, "a missed wave should set no record")
 	_expect(state.active_encounter.own_uncleared().compare_to(state.active_encounter.max_liability) == 0, "the next wave should arrive whole")
 	_expect(state.active_encounter.at_number_count() == standing and state.active_encounter.front_index() == 0, "the missed wave's standing members should stay at the Number, in front")
@@ -1149,11 +1157,12 @@ func _test_beaten_wave_gives_way_after_the_minimum_beat() -> void:
 	var state := GameState.new()
 	state.start_run(1, 26)
 	_beat_wave(state)
+	var wave_one_coins := _kill_coins_owed(state, state.balance_profile.wave_end_coins(1, 1))
 	_expect(state.active_encounter.is_cleared() and state.wave == 1, "a cleared wave should hold until the minimum beat")
 	var events := state.advance(0.25)
 	_expect(state.wave == 1, "the next wave should not arrive before the minimum beat")
 	_advance_seconds(state, state.balance_profile.MIN_WAVE_SECONDS)
-	_expect(state.wave == 2 and state.coins == 1, "the next wave should arrive once the beat has passed, paying the cleared wave")
+	_expect(state.wave == 2 and state.coins == wave_one_coins, "the next wave should arrive once the beat has passed, its kills paid")
 	_expect(state.wave_accumulator < state.balance_profile.MIN_WAVE_SECONDS, "the new wave's timer should start fresh")
 	_expect(state.balance_profile.MIN_WAVE_SECONDS < GameState.WAVE_INTERVAL_SECONDS, "the minimum beat should be shorter than the timer")
 	var cleared_event := false
@@ -1171,11 +1180,11 @@ func _test_beaten_wave_gives_way_after_the_minimum_beat() -> void:
 	clocked.number = ScientificNumber.from_float(1e9)
 	var hp: ScientificNumber = clocked.active_encounter.max_liability.copy()
 	clocked.active_encounter.remaining_liability = hp.multiply_scalar(0.2)
-	var reward: int = clocked.active_encounter.reward
+	var clocked_owed := _kill_coins_owed(clocked, clocked.balance_profile.wave_end_coins(2, 31))
 	_advance_seconds(clocked, GameState.WAVE_INTERVAL_SECONDS - 0.5)
 	_expect(clocked.wave == 31, "a standing wave should not move on before its timer")
 	_advance_seconds(clocked, 0.5)
-	_expect(clocked.wave == 32 and clocked.coins == floori(float(reward) * 0.8 + 0.000001), "at 15 seconds a standing ordinary wave should hit, pay its share and move on")
+	_expect(clocked.wave == 32 and clocked.coins == clocked_owed, "at 35 seconds a standing ordinary wave should hit and move on, its kills paid")
 
 	# 20 left of 100 is exactly 0.8 cleared: the share must not round down a Coin.
 	var exact := GameState.new()
@@ -1218,7 +1227,7 @@ func _test_mid_wave_save_resumes_identically() -> void:
 	opening.active_encounter.collection = opening.active_encounter.collection.multiply_scalar(2.0)
 	opening.number = ScientificNumber.from_float(1000.0)
 	var opening_hit: ScientificNumber = opening.get_effective_collection()
-	_expect(opening_hit.compare_to(opening.balance_profile.collection_for_wave(1, 21).multiply_scalar(2.0)) == 0, "a saved larger base hit should be the Hit that lands")
+	_expect(opening_hit.compare_to(opening.balance_profile.collection_for_wave(1, 21, opening.run_seed).multiply_scalar(2.0)) == 0, "a saved larger base hit should be the Hit that lands")
 	_expect(opening.save(), "a mid-run Tier 1 wave should save")
 	var opening_restored := GameState.new()
 	opening_restored.save_path = save_path
@@ -1253,7 +1262,7 @@ func _test_mid_wave_save_resumes_identically() -> void:
 	migrated.save_path = save_path
 	migrated.load()
 	_expect(migrated.in_run and migrated.wave == 21, "an old-profile run should resume at its wave")
-	_expect(migrated.get_effective_collection().compare_to(migrated.balance_profile.collection_for_wave(1, 21)) == 0, "an old-profile wave should hit with today's Hit, not its stored one")
+	_expect(migrated.get_effective_collection().compare_to(migrated.balance_profile.collection_for_wave(1, 21, migrated.run_seed)) == 0, "an old-profile wave should hit with today's Hit, not its stored one")
 	_expect(absf(migrated.get_wave_cleared_share() - 0.3) < 0.0001, "an old-profile wave should keep the share of HP already cleared")
 	migrated.clear_save()
 
@@ -1263,7 +1272,7 @@ func _test_collection_is_absolute() -> void:
 	small.start_run(2, 4)
 	small.number = ScientificNumber.from_float(5000)
 	var expected := small.get_effective_collection()
-	var one_share: float = small.active_encounter.members[0].share
+	var one_share: float = TaxEncounter.hit_part(small.active_encounter.members[0])
 	var small_event := small._resolve_wave_boundary()
 	var large := GameState.new()
 	large.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
@@ -1281,9 +1290,9 @@ func _test_boss_axes_and_rewards() -> void:
 	var boss_collection := profile.collection_for_wave(2, 30)
 	_expect(boss_liability.compare_to(normal_liability) > 0, "boss liability should exceed the preceding normal wave")
 	var one_enemy_30 := profile._from_log10(profile._wave_hit_log10(30)).multiply_scalar(20.0)
-	var boss_lands := profile.boss_wave_hit(2, 30).multiply_scalar(profile.BOSS_HP_WEIGHT / profile.wave_weight(30))
-	_expect(absf(boss_lands.log10() - one_enemy_30.log10()) < 0.000001 and boss_lands.compare_to(normal_collection) < 0 and boss_collection.compare_to(normal_collection) > 0, "a boss should be a wall of HP that hits like one enemy, not a whole wave (D063)")
-	_expect(profile.reward_for_wave(2, 30) > profile.reward_for_wave(2, 29), "boss waves should grant a larger independent reward")
+	var boss_lands: ScientificNumber = profile.collection_for_wave(2, 30).multiply_scalar(1.0 / profile.wave_weight(30))
+	_expect(absf(boss_lands.log10() - one_enemy_30.log10()) < 0.000001 and absf(profile.enemy_collection(2, 30).log10() - one_enemy_30.log10()) < 0.000001 and boss_lands.compare_to(normal_collection) < 0 and boss_collection.compare_to(normal_collection) > 0, "a boss should be a wall of HP that hits like one enemy, not a whole wave (D063)")
+	_expect(profile.kill_coins(2, 30, "boss") > profile.kill_coins(2, 30, "tank") and profile.kill_coins(2, 30, "basic") == 0.0, "a boss kill should pay the most Coins and a basic none (D066)")
 
 func _test_brace_blocks_next_collection() -> void:
 	var state := GameState.new()
@@ -1413,6 +1422,9 @@ func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
 	# At 99%, an opening enemy that hits after taking any damage dies to Thorns
 	# before it can leave, so its wave can still be beaten.
 	var opener := GameState.new()
+	# Basic enemies, which all arrive inside the wave; a late tank arrives
+	# after it (D066).
+	opener.balance_profile.ENEMY_MIX = {"basic": 1.0}
 	opener.purchased = {"recoil": 200}
 	opener.start_run(1, 45)
 	opener.number = ScientificNumber.from_float(1e6)
@@ -1527,17 +1539,18 @@ func _test_coin_and_knowledge_bonuses_lift_what_a_run_pays() -> void:
 		rich.active_encounter.remaining_liability = ScientificNumber.new()
 		rich._resolve_wave_boundary()
 	_expect(rich.coins > base_coins, "Coin Bonus should lift what beaten waves pay")
-	# Floored per wave, so the bonus lands just under the stated half again and
-	# never over it. That direction is the contract.
-	_expect(rich.coins <= int(float(base_coins) * 1.5), "Coin Bonus must never pay more than it states")
+	# Each kill's part of a Coin carries to the next (D066), so the bonus lands
+	# within a Coin or two of the stated half again, never a whole wave over.
+	_expect(rich.coins <= int(float(base_coins) * 1.5) + 2, "Coin Bonus must never pay more than it states")
 	_expect(rich.coins >= int(float(base_coins) * 1.45), "Coin Bonus should land within rounding of its stated half again")
 
 	var grace := GameState.new()
 	grace.purchased = {"coin_bonus": 100}
 	grace.start_run(1, 52)
 	grace.active_encounter.remaining_liability = ScientificNumber.new()
+	var grace_owed := _kill_coins_owed(grace)
 	grace._resolve_wave_boundary()
-	_expect(grace.coins == 1, "a one-Coin grace wave cannot carry a percentage, and must not round up into two")
+	_expect(grace.coins == grace_owed and grace.coin_fraction < 1.0, "Coin Bonus on kills worth parts of a Coin should carry the parts, not round them away (D066)")
 
 	var learner := GameState.new()
 	learner.lifetime_generated = ScientificNumber.from_float(GameState.PRESTIGE_TEASER_UNLOCK * 1000000.0)
@@ -1809,6 +1822,8 @@ func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 	# hit. The Attack gap must still be what Attack itself left: Recoil's return
 	# is Defense's damage, and crediting it to Attack would mispoint the screen.
 	var recoil_death := GameState.new()
+	# Basic enemies, so the last one left arrives inside the wave (D066).
+	recoil_death.balance_profile.ENEMY_MIX = {"basic": 1.0}
 	recoil_death.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	recoil_death.purchased = {"recoil": 100}
 	recoil_death.start_run(2, 73)
@@ -1824,6 +1839,8 @@ func _test_wave_death_resets_run_but_keeps_meta_progress() -> void:
 
 	# A hit exactly equal to the Number is still a death, with no Defense gap.
 	var exact_death := GameState.new()
+	# Basic enemies, whose hits add up to the wave's Hit (D066).
+	exact_death.balance_profile.ENEMY_MIX = {"basic": 1.0}
 	exact_death.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	exact_death.start_run(2, 74)
 	exact_death.number = exact_death.get_effective_collection()
@@ -1887,9 +1904,7 @@ func _test_claimed_milestones_survive_a_reload() -> void:
 	_clear_waves_through(first, 10)
 	first.end_run()
 	var first_gems: int = first.balance_profile.milestone_gems(1, 10) + first.balance_profile.BOSS_WAVE_GEMS
-	var wave_coins := 0
-	for paid_wave in range(1, 11):
-		wave_coins += first.balance_profile.reward_for_wave(1, paid_wave)
+	var wave_coins := _roster_kill_coins(first, 5, 1, 10)
 	var bonus: int = first.balance_profile.milestone_bonus(1, 10)
 	_expect(first.coins == wave_coins + bonus and first.gems == first_gems, "the first wave-10 clear should pay its waves' Coins, the milestone bonus, and the checkpoint's and the boss wave's Gems")
 	_expect(first.save(), "the milestone save should write")
@@ -2238,6 +2253,8 @@ func _test_cash_flows_at_the_priced_income() -> void:
 	var state := GameState.new()
 	state.purchased = {"generator": 50, "faster_cadence": 60}
 	state.start_run(1, 21)
+	# One enemy too big to beat, so no kill pays Cash into the measure (D066).
+	_one_enemy(state, ScientificNumber.new(1.0, 30))
 	state.cash = ScientificNumber.new()
 	var ticks := 200
 	for tick in range(ticks):
@@ -2257,7 +2274,8 @@ func _test_cash_flows_at_the_priced_income() -> void:
 	var before: ScientificNumber = clearing.cash.copy()
 	clearing.active_encounter.remaining_liability = ScientificNumber.new()
 	clearing._complete_current_wave()
-	_expect(clearing.cash.compare_to(before.add(ScientificNumber.from_float(profile.wave_cash(1)))) == 0, "beating wave 1 should pay its Cash")
+	# Each kill pays its HP's share (D066); together, the wave's Cash.
+	_expect(absf(clearing.cash.log10() - before.add(ScientificNumber.from_float(profile.wave_cash(1))).log10()) < 1.0e-9, "beating wave 1 should pay its Cash")
 	_expect(clearing.run_cash_earned.compare_to(clearing.cash) == 0, "Cash earned should count the wave's Cash")
 
 ## Cushion is starting Number, and an in-run rank arrives after the start, so
@@ -2762,6 +2780,8 @@ func _test_a_wave_is_a_group() -> void:
 	_expect(is_equal_approx(profile.member_arrival(0, 20), 6.0) and is_equal_approx(profile.member_arrival(19, 20), 32.0) and is_equal_approx(profile.member_arrival(0, 1), 6.0), "enemies should arrive from 6 seconds through the next 26")
 	_expect(profile.member_arrivals(10).has(profile.BOSS_ARRIVAL_SECONDS) and _sorted(profile.member_arrivals(10)), "a boss should walk in among its wave in arrival order")
 	var state := GameState.new()
+	# Basic enemies only, so every share is equal; types are D066's test.
+	state.balance_profile.ENEMY_MIX = {"basic": 1.0}
 	state.start_run(1, 51)
 	var encounter = state.active_encounter
 	var count: int = encounter.members.size()
@@ -2778,6 +2798,127 @@ func _test_a_wave_is_a_group() -> void:
 	_expect(applied.compare_to(front_hp) == 0 and encounter.members[0].hp.is_zero() and encounter.members[1].hp.compare_to(encounter.members[1].max) == 0, "a blow should stop at the front member")
 	_expect(encounter.front_index() == 1 and encounter.standing_count() == count - 1, "the next member should become the front")
 
+## D066: The Tower's enemy types. A wave's roster is drawn from the run's seed
+## and the wave: the same run replays the same waves, another run differs.
+## A tank carries five enemies' HP and a boss twenty, but every type hits like
+## one enemy. Fast enemies overtake; slow ones can arrive after the wave's
+## clock. Every kill pays when it happens: Coins by type (basics none), Cash by
+## HP; every wave's end pays its Coins per Wave.
+func _test_enemy_types_and_pay_per_kill() -> void:
+	var profile := TaxBalanceProfile.new()
+	var roster: Array = profile.wave_roster(12, 99)
+	_expect(roster == profile.wave_roster(12, 99), "the same run and wave should draw the same roster")
+	var differs := false
+	for other_seed in range(100, 110):
+		differs = differs or profile.wave_roster(12, other_seed).map(func(entry): return entry.kind) != roster.map(func(entry): return entry.kind)
+	_expect(differs, "other runs should draw other rosters")
+	_expect(_sorted(roster.map(func(entry): return entry.arrive)), "a roster should be in arrival order")
+	var counts := {"basic": 0, "fast": 0, "tank": 0, "ranged": 0}
+	var total := 0
+	for draw_wave in range(1, 400):
+		for entry in profile.wave_roster(draw_wave, 7):
+			if entry.kind != "boss":
+				counts[entry.kind] += 1
+				total += 1
+	for kind in counts:
+		var share := float(counts[kind]) / float(total)
+		_expect(absf(share - float(profile.ENEMY_MIX[kind])) < 0.01, "%s should spawn about %d%% of the time: %f" % [kind, roundi(100.0 * float(profile.ENEMY_MIX[kind])), share])
+	var boss_roster: Array = profile.wave_roster(10, 3)
+	var bosses: Array = boss_roster.filter(func(entry): return entry.kind == "boss")
+	_expect(bosses.size() == 1 and is_equal_approx(float(bosses[0].arrive), profile.BOSS_ARRIVAL_SECONDS), "a boss wave's boss should set off at the start and arrive at 18 seconds")
+	_expect(is_equal_approx(profile.latest_arrival(), 44.0), "the slowest enemy set off last should arrive at 44 seconds")
+
+	var state := GameState.new()
+	state.start_run(1, 61)
+	state.number = ScientificNumber.from_float(1e9)
+	state.wave = 21
+	state.active_encounter = state._make_encounter(21)
+	var encounter: TaxEncounter = state.active_encounter
+	var enemy_hp: ScientificNumber = profile.enemy_liability(1, 21)
+	var enemy_hit: ScientificNumber = profile.enemy_collection(1, 21)
+	var weights := 0.0
+	for member in encounter.members:
+		weights += float(member.weight)
+		_expect(absf(member.max.log10() - enemy_hp.multiply_scalar(float(profile.ENEMY_HP_WEIGHT[member.kind])).log10()) < 0.000001, "a %s should carry %d enemies' HP" % [member.kind, int(profile.ENEMY_HP_WEIGHT[member.kind])])
+		_expect(absf(state._member_raw_hit(member).log10() - enemy_hit.log10()) < 0.000001, "a %s should hit like one enemy" % member.kind)
+	_expect(is_equal_approx(weights, profile.wave_weight(21, 61)) and absf(encounter.max_liability.log10() - enemy_hp.multiply_scalar(weights).log10()) < 0.000001, "a wave's HP should be its roster's")
+
+	# Kills pay by type as they happen.
+	var kinds_paid := {}
+	for index in range(encounter.members.size()):
+		var member: Dictionary = encounter.members[index]
+		if kinds_paid.has(member.kind):
+			continue
+		kinds_paid[member.kind] = true
+		var coins_before := state.coins
+		var fraction_before := state.coin_fraction
+		var cash_before: ScientificNumber = state.cash.copy()
+		encounter.damage_member(index, member.hp.copy())
+		state._pay_kills()
+		var paid: float = float(state.coins - coins_before) + state.coin_fraction - fraction_before
+		_expect(absf(paid - profile.kill_coins(1, 21, member.kind)) < 0.000001, "a %s kill should pay its Coins: %f" % [member.kind, paid])
+		_expect(absf(state.cash.subtract(cash_before).log10() - log(profile.wave_cash(21) * float(member.weight) / weights) / log(10.0)) < 0.000001, "a %s kill should pay its HP's share of the wave's Cash" % member.kind)
+		_expect(bool(member.paid), "a paid kill should be marked")
+	_expect(is_zero_approx(profile.kill_coins(1, 21, "basic")) and profile.kill_coins(1, 21, "fast") < profile.kill_coins(1, 21, "ranged") and profile.kill_coins(1, 21, "ranged") < profile.kill_coins(1, 21, "tank") and profile.kill_coins(1, 21, "tank") < profile.kill_coins(1, 21, "boss"), "Coins per kill should run basic 0, then fast, ranged, tank and boss")
+	# On average a run's Coins match what the waves paid before types: a boss
+	# cycle's kills and wave ends make up ten waves' old reward.
+	var cycle := 0.0
+	var old_cycle := 0.0
+	for cycle_wave in range(21, 31):
+		old_cycle += float(profile.reward_for_wave(1, cycle_wave))
+		cycle += profile.wave_end_coins(1, cycle_wave)
+		var ordinary := float(profile.ordinary_members(cycle_wave))
+		for kind in profile.ENEMY_MIX:
+			cycle += ordinary * float(profile.ENEMY_MIX[kind]) * profile.kill_coins(1, cycle_wave, kind)
+		if profile.is_boss_wave(cycle_wave):
+			cycle += profile.kill_coins(1, cycle_wave, "boss")
+	_expect(absf(cycle / old_cycle - 1.0) < 0.05, "a boss cycle should pay about what it paid before types: %f of %f" % [cycle, old_cycle])
+
+	# A tank set off late arrives after its wave's clock, is carried, and a
+	# saved run keeps its arrival and type.
+	var late := GameState.new()
+	late.balance_profile.ENEMY_MIX = {"tank": 1.0}
+	late.start_run(1, 62)
+	late.number = ScientificNumber.from_float(1e9)
+	var last: Dictionary = late.active_encounter.members[late.active_encounter.members.size() - 1]
+	_expect(last.kind == "tank" and is_equal_approx(float(last.arrive), 44.0), "the last tank should arrive at 44 seconds")
+	var save_path := "res://.number_go_up_test_save.json"
+	late.save_path = save_path
+	_expect(late.save(), "a wave with late tanks should save")
+	var restored := GameState.new()
+	restored.balance_profile.ENEMY_MIX = {"tank": 1.0}
+	restored.save_path = save_path
+	restored.load()
+	var restored_last: Dictionary = restored.active_encounter.members[restored.active_encounter.members.size() - 1]
+	_expect(restored_last.kind == "tank" and is_equal_approx(float(restored_last.arrive), 44.0) and is_equal_approx(float(restored_last.next_hit), 44.0) and not bool(restored_last.paid), "a late tank should load with its type and arrival")
+	for step in range(141):
+		late._advance_waves(0.25)
+		restored._advance_waves(0.25)
+	_expect(late.wave == 2 and late.active_encounter.members.any(func(member): return member.kind == "tank" and not late.active_encounter.is_own(member)), "tanks still walking when the wave ends should carry into the next")
+	_expect(restored.wave == late.wave and restored.number.compare_to(late.number) == 0 and restored.coins == late.coins, "the restored run should play out the same")
+	restored.clear_save()
+
+## Saved numbers read back bit for bit (law 6): Godot's JSON reader misreads
+## about one mantissa in thirteen, so each number carries its exact bits too.
+## The readable mantissa stays the authority.
+func _test_saved_numbers_read_back_exactly() -> void:
+	var mixer := RandomNumberGenerator.new()
+	mixer.seed = 5
+	var mismatches := 0
+	for trial in range(2000):
+		var value := ScientificNumber.new(mixer.randf_range(1.0, 10.0), mixer.randi_range(-10, 400))
+		var back := ScientificNumber.from_dict(JSON.parse_string(JSON.stringify(value.to_dict(), "", true, true)))
+		if back.mantissa != value.mantissa or back.exponent != value.exponent:
+			mismatches += 1
+	_expect(mismatches == 0, "every saved number should read back exactly: %d did not" % mismatches)
+	var older := ScientificNumber.from_dict({"mantissa": 2.5, "exponent": 3})
+	_expect(older.mantissa == 2.5 and older.exponent == 3, "a number saved without bits should read as before")
+	var edited: Dictionary = ScientificNumber.new(2.5, 3).to_dict()
+	edited.mantissa = 7.25
+	_expect(ScientificNumber.from_dict(edited).mantissa == 7.25, "bits that disagree with the mantissa should be ignored")
+	edited.bits = "not hex at all!!"
+	_expect(ScientificNumber.from_dict(edited).mantissa == 7.25, "unreadable bits should be ignored")
+
 func _sorted(values: Array) -> bool:
 	for index in range(1, values.size()):
 		if float(values[index]) < float(values[index - 1]):
@@ -2789,6 +2930,7 @@ func _sorted(values: Array) -> bool:
 ## clock runs out is passed, not beaten, and pays for the share it cleared.
 func _test_group_members_land_one_by_one() -> void:
 	var state := GameState.new()
+	state.balance_profile.ENEMY_MIX = {"basic": 1.0}
 	state.start_run(1, 52)
 	state.number = ScientificNumber.from_float(1e6)
 	var count: int = state.active_encounter.members.size()
@@ -2812,11 +2954,11 @@ func _test_group_members_land_one_by_one() -> void:
 	# Beat the front two in time: only the last lands, and the wave pays for
 	# the two thirds it cleared.
 	var partial := GameState.new()
+	partial.balance_profile.ENEMY_MIX = {"basic": 1.0}
 	partial.start_run(1, 53)
 	partial.number = ScientificNumber.from_float(1e6)
 	partial.wave = 7
 	partial.active_encounter = partial._make_encounter(7)
-	var reward: int = partial.active_encounter.reward
 	var partial_count: int = partial.active_encounter.members.size()
 	var coins_before := partial.coins
 	for kill in range(2):
@@ -2825,7 +2967,7 @@ func _test_group_members_land_one_by_one() -> void:
 	for step in range(141):
 		partial_hits += partial._advance_waves(0.25).filter(func(event): return event.type == "tax_collection").size()
 	_expect(partial_hits == partial_count - 2 and partial.wave == 8, "with two beaten, only the rest should land and the wave should pass")
-	_expect(partial.coins - coins_before == floori(float(reward) * 2.0 / float(partial_count) + 0.000001), "a passed wave should pay for the share it cleared")
+	_expect(partial.coins == coins_before + floori(partial.balance_profile.wave_end_coins(1, 7) + 0.000001), "basic kills should pay no Coins, and a passed wave its Coins per Wave (D066)")
 
 	# Beat every member in time: no landing, and the wave is beaten.
 	var clean := GameState.new()
@@ -2865,12 +3007,14 @@ func _test_group_brace_guard_and_thorns() -> void:
 	_expect(braced.wave == 2 and braced.number.compare_to(after_brace) == 0 and not braced.braced, "a Brace should block every member and be spent when the wave ends")
 
 	var guarded := GameState.new()
+	# Basic enemies, so only the front one lands by 6.25 seconds (D066).
+	guarded.balance_profile.ENEMY_MIX = {"basic": 1.0}
 	guarded.purchased = {"guard": 3}
 	guarded.start_run(1, 57)
 	guarded.number = ScientificNumber.from_float(1e6)
 	guarded.wave = 31
 	guarded.active_encounter = guarded._make_encounter(31)
-	var own_hit: ScientificNumber = guarded.active_encounter.collection.multiply_scalar(guarded.active_encounter.members[0].share)
+	var own_hit: ScientificNumber = guarded.active_encounter.collection.multiply_scalar(TaxEncounter.hit_part(guarded.active_encounter.members[0]))
 	var before := guarded.number.copy()
 	for step in range(25):
 		guarded._advance_waves(0.25)
@@ -3036,11 +3180,11 @@ func _test_tower_shaped_bosses_and_heat_up() -> void:
 	carried.active_encounter = _lone_boss(carried, 10)
 	carried._resolve_wave_boundary()
 	var boss: Dictionary = carried.active_encounter.members[carried.active_encounter.boss_index()]
-	# It reaches the Number at 15 seconds and hits every 5 through its wave's
-	# boundary at 35: at 15, 20, 25, 30 and 35.
-	_expect(int(boss.hits) == 5 and is_equal_approx(float(boss.interval), carried.balance_profile.MEMBER_HIT_SECONDS), "the boss should have hit on its wave's clock and keep it")
+	# It reaches the Number at 18 seconds (D066) and hits every 5 through its
+	# wave's boundary at 35: at 18, 23, 28 and 33.
+	_expect(int(boss.hits) == 4 and is_equal_approx(float(boss.interval), carried.balance_profile.MEMBER_HIT_SECONDS), "the boss should have hit on its wave's clock and keep it")
 	var heated: ScientificNumber = carried.get_hit_breakdown(carried.active_encounter.boss_index()).raw
-	_expect(absf(heated.log10() - boss.wave_hit.multiply_scalar(float(boss.share) * pow(carried.balance_profile.HEAT_UP_PER_HIT, 5.0)).log10()) < 1.0e-9, "the boss's next hit should be heated up 4% a hit")
+	_expect(absf(heated.log10() - boss.wave_hit.multiply_scalar(TaxEncounter.hit_part(boss) * pow(carried.balance_profile.HEAT_UP_PER_HIT, 4.0)).log10()) < 1.0e-9, "the boss's next hit should be heated up 4% a hit")
 
 	# The carried boss and its heat survive a save and load exactly.
 	var save_path := "res://.number_go_up_test_save.json"
@@ -3064,7 +3208,8 @@ func _test_tower_shaped_bosses_and_heat_up() -> void:
 		for member in fixture.members:
 			member.erase("boss")
 			member.erase("hits")
-			member.erase("unpaid")
+			member.erase("kind")
+			member.erase("paid")
 	var restored_boss = TaxEncounter.from_dict(own_boss)
 	_expect(restored_boss.boss_index() == 0 and restored_boss.members.size() == 1 and int(restored_boss.members[0].hits) == 0, "an older boss wave should load its boss, not yet having hit")
 	var restored_mixed = TaxEncounter.from_dict(mixed)
@@ -3083,13 +3228,15 @@ func _test_tower_shaped_bosses_and_heat_up() -> void:
 	var coins_after_pass := owed.coins
 	var gems_after_pass := owed.gems
 	var owed_at: int = owed.active_encounter.boss_index()
-	_expect(coins_after_pass == 0 and is_equal_approx(float(owed.active_encounter.members[owed_at].unpaid), 1.0), "a boss passed untouched should owe its whole reward")
+	var wave_end_20: float = owed.balance_profile.wave_end_coins(1, 20)
+	var boss_coins := floori(wave_end_20 + owed.balance_profile.kill_coins(1, 20, "boss") + 0.000001)
+	_expect(coins_after_pass == floori(wave_end_20 + 0.000001) and not bool(owed.active_encounter.members[owed_at].paid) and boss_coins > coins_after_pass, "a boss passed untouched should not have paid yet, only its wave's end")
 	owed._add_number(owed.active_encounter.members[owed_at].hp.copy())
 	var cleared_events: Array = owed.advance(0.0).filter(func(event): return event.type == "boss_clear")
-	_expect(owed.coins == owed.balance_profile.reward_for_wave(1, 20) and owed.gems == gems_after_pass + owed.balance_profile.wave_gems(20), "the beaten boss should pay its wave's Coins and Gem")
+	_expect(owed.coins == boss_coins and owed.gems == gems_after_pass + owed.balance_profile.wave_gems(20), "the beaten boss should pay its kill's Coins and its Gem (D066)")
 	_expect(cleared_events.size() == 1 and owed.get_tier_best(1) == 0, "the beaten boss should announce itself once and set no record")
 	owed._add_number(ScientificNumber.from_float(1))
-	_expect(owed.coins == owed.balance_profile.reward_for_wave(1, 20), "a beaten boss should pay once")
+	_expect(owed.coins == boss_coins, "a beaten boss should pay once")
 
 	# Ordinary enemies carried in the pile pay their share of their wave's
 	# Coins when beaten later, as The Tower pays on the kill (D063).
@@ -3101,19 +3248,20 @@ func _test_tower_shaped_bosses_and_heat_up() -> void:
 	pile_pay.wave = 31
 	pile_pay.active_encounter = pile_pay._make_encounter(31)
 	pile_pay.active_encounter.remaining_liability = pile_pay.active_encounter.max_liability.multiply_scalar(0.4)
-	var pile_reward: int = pile_pay.active_encounter.reward
+	var pile_reward: int = _roster_kill_coins(pile_pay, 96, 31, 31)
+	var owed_at_pass := _kill_coins_owed(pile_pay, pile_pay.balance_profile.wave_end_coins(1, 31))
 	pile_pay._resolve_wave_boundary()
 	var paid_at_pass := pile_pay.coins
-	_expect(paid_at_pass == floori(float(pile_reward) * 0.6 + 0.000001), "the passing wave should pay for the share cleared")
-	# Each of the carried enemies owes under a Coin (D065); the fraction carries
-	# over, so beating them all pays the rest of the wave's reward.
+	_expect(paid_at_pass == owed_at_pass, "the passing wave's kills should have paid (D066)")
+	# Each kill's part of a Coin carries over, so beating the carried enemies
+	# pays the rest of what the whole wave is worth.
 	var carried_count := 0
 	for member in pile_pay.active_encounter.members:
 		if not pile_pay.active_encounter.is_own(member):
 			carried_count += 1
 	for kill in range(carried_count):
 		pile_pay._add_number(pile_pay.active_encounter.members[pile_pay.active_encounter.front_index()].hp.copy())
-	_expect(carried_count > 2 and pile_pay.coins == pile_reward, "the carried enemies beaten later should pay the rest of their wave's Coins between them: %d of %d" % [pile_pay.coins, pile_reward])
+	_expect(carried_count > 2 and pile_pay.coins == pile_reward, "the carried enemies beaten later should pay the rest of their wave's kill Coins: %d of %d" % [pile_pay.coins, pile_reward])
 	# The part of a Coin still owed survives a save (D065).
 	pile_pay.coin_fraction = 0.625
 	pile_pay.save_path = "res://.number_go_up_test_save.json"
@@ -3136,7 +3284,8 @@ func _test_tower_shaped_bosses_and_heat_up() -> void:
 	for member in v10_data.active_encounter.members:
 		member.erase("boss")
 		member.erase("hits")
-		member.erase("unpaid")
+		member.erase("kind")
+		member.erase("paid")
 	_write_json(v10_path, v10_data)
 	var migrated := GameState.new()
 	migrated.save_path = v10_path
@@ -3252,9 +3401,9 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	var boss_hits := 0
 	for step in range(150):
 		boss_hits += boss._advance_waves(0.25).filter(func(event): return event.type == "boss_collection").size()
-	# At 15, 20, 25, 30 and 35 seconds, when its wave passes; its next is 5
-	# seconds into wave 11.
-	_expect(boss.wave == 11 and boss_hits == 5 and boss.active_encounter.boss_index() >= 0, "a boss should let waves come and hit every %.0f seconds: wave %d, %d hits" % [boss.balance_profile.MEMBER_HIT_SECONDS, boss.wave, boss_hits])
+	# At 18 seconds (D066), then 23, 28 and 33; its next is 3 seconds into
+	# wave 11.
+	_expect(boss.wave == 11 and boss_hits == 4 and boss.active_encounter.boss_index() >= 0, "a boss should let waves come and hit every %.0f seconds: wave %d, %d hits" % [boss.balance_profile.MEMBER_HIT_SECONDS, boss.wave, boss_hits])
 
 	# Beaten after landing: the wave still counts as beaten.
 	var late := GameState.new()
@@ -3459,6 +3608,26 @@ func _lone_boss(state: GameState, boss_wave: int) -> TaxEncounter:
 	var enemy_hp: ScientificNumber = profile.liability_for_wave(state.selected_tier, boss_wave).multiply_scalar(1.0 / profile.wave_weight(boss_wave))
 	var enemy_hit: ScientificNumber = profile.collection_for_wave(state.selected_tier, boss_wave).multiply_scalar(1.0 / profile.wave_weight(boss_wave))
 	return TaxEncounter.new(state.selected_tier, boss_wave, enemy_hp.multiply_scalar(profile.BOSS_HP_WEIGHT), enemy_hit, profile.reward_for_wave(state.selected_tier, boss_wave), true, [profile.BOSS_ARRIVAL_SECONDS], profile.boss_hit_seconds(boss_wave))
+
+## The Coins the active wave's killed members pay in all (D066), paid yet or
+## not, plus `extra` Coins before Coin Bonus: each kill its type's worth,
+## lifted by Coin Bonus, summed before the whole Coins are paid.
+func _kill_coins_owed(state: GameState, extra: float = 0.0) -> int:
+	var owed := 0.0
+	for member in state.active_encounter.members:
+		if int(member.state) == TaxEncounter.KILLED:
+			owed += state.balance_profile.kill_coins(state.selected_tier, int(member.wave), str(member.kind))
+	return floori((owed + extra) * (1.0 + state._effect_sum("coin_bonus")) + 0.000001)
+
+## The Coins waves `from` to `to` pay when every enemy is killed, for a run
+## with this seed and no Coin Bonus (D066): each kill, and each wave's end.
+func _roster_kill_coins(state: GameState, seed: int, from: int, to: int) -> int:
+	var owed := 0.0
+	for roster_wave in range(from, to + 1):
+		owed += state.balance_profile.wave_end_coins(state.selected_tier, roster_wave)
+		for entry in state.balance_profile.wave_roster(roster_wave, seed):
+			owed += state.balance_profile.kill_coins(state.selected_tier, roster_wave, str(entry.kind))
+	return floori(owed + 0.000001)
 
 func _beat_wave(state: GameState) -> void:
 	while not state.active_encounter.is_cleared():
