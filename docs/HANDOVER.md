@@ -1,6 +1,6 @@
 # Handover
 
-**Last updated:** 24 September 2026, by Claude, handing to Codex. Branch `claude/game-changes-review-fbili3` (head `Fix D058 review findings` plus this handover) carries **D056–D058: a wave is a group of enemies that stay at the Number and pile up**. It is pushed and **not merged**; no PR is open. D044–D055 and the class-cache fix are merged to `main` (PRs #48–#54).
+**Last updated:** 24 September 2026, by Claude, handing to Codex. Branch `claude/game-changes-review-fbili3` (head `Fix D058 review findings` plus this handover) carries **D056–D059: a wave is a group of enemies that stay at the Number and pile up, with a gentler opening to wave 30**. It is pushed and **not merged**; no PR is open. D044–D055 and the class-cache fix are merged to `main` (PRs #48–#54).
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
 
 ## For the next agent (Codex): start here
@@ -13,47 +13,37 @@
    - `bash run_godot.sh --path . -s res://tools/arena_probe.gd` must print `ARENA PROBE PASS`.
    - `run_godot.sh` defaults to the owner's Mac Godot (`/Users/paulhardie/Downloads/Godot.app`); anywhere else, set `GODOT` to a 4.7.2 binary. On headless Linux, wrap windowed tools in `xvfb-run -a -s "-screen 0 1024x1100x24"`.
    - If classes are "not found", the `.godot` cache is stale: `bash run_godot.sh --headless --path . --import`.
-4. **Read the decisions this branch adds:** `grep -n "^## D05[5-8]" docs/DECISIONS.md`, then read D056, D057 and D058 in full. The group build plan is in [`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md#proposal-a-wave-becomes-a-group--24-september-2026).
-5. **Do not start the retune (decision 1 below) until the owner answers it.** It is a balance call with a real trade-off. If the owner has not answered, the only unblocked work is the arena pass (next step 2), and only if the owner confirms it.
+4. **Read the decisions this branch adds:** `grep -n "^## D05[5-9]" docs/DECISIONS.md`, then read D056 to D059 in full. The group build plan is in [`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md#proposal-a-wave-becomes-a-group--24-september-2026).
+5. **Your first task is the independent review of D059** (the last commit touching `src/`): it is an economy change, and `AGENTS.md` requires a review before merge. Review `git diff` of that commit against D059 in `DECISIONS.md`, fix what you find, and re-run the checks. After that, the arena pass (next step 2) is unblocked only if the owner confirms it.
 
 ## Where the game is
 
 `main` plus this branch plays like this (Godot 4.7.2, balance profile `tax-foundation-v11`, save V10; nothing below has been checked on a phone or in motion):
 
 - **Waves are groups (D057).** An ordinary wave is 3 enemies at wave 1, one more every 11 waves, at most 20; a boss is one. They share the wave's HP and Hit evenly and walk in as a column: the front reaches the Number at 6 seconds, the last at 15. Shots and taps strike the front living enemy, and damage past its HP is lost.
-- **Enemies stay (D058).** An enemy that reaches the Number lands its share of the Hit (after Guard and Armor on the whole Hit), then stays and hits again every 5 seconds (`MEMBER_HIT_SECONDS`) until beaten. The 15-second clock keeps going: an ordinary wave with an enemy alive at 15 seconds passes, paying Coins for the share cleared, and its survivors carry into the next wave, in front. That growing pile is the ramp. A wave counts as beaten once all its own enemies are dead, even after landing. Bosses hold their wave until beaten and hit every 15 seconds. Brace blocks every hit until the clock ends; Thorns returns part of each hit to the enemy in front.
+- **Enemies stay (D058), after a gentler opening (D059).** An enemy that reaches the Number lands its share of the Hit (after Guard and Armor on the whole Hit). To wave 30 it then leaves. From wave 31 it stays and hits again, every 15 seconds at first, easing to every 5 seconds (`MEMBER_HIT_SECONDS`) by wave 50, until beaten. The 15-second clock keeps going: an ordinary wave with an enemy alive at 15 seconds passes, paying Coins for the share cleared, and its survivors carry into the next wave, in front. That growing pile is the ramp. A wave counts as beaten once all its own enemies are dead, even after landing. Bosses hold their wave until beaten and hit every 15 seconds. Brace blocks every hit until the clock ends; Thorns returns part of each hit to the enemy in front.
 - **The arena:** the front enemy is the live number, with "hits X" and a countdown once it is at the Number. The others walk in smaller behind it, and those at the Number flank it in red, three rows a side, 18 drawn at most. A boss stays the live number even behind a pile. Motes fly at the front enemy; shots' "-X" folds into one pop every 0.33 s; pile hits fold into one small red pop a frame.
 - **Shots (D054, D055):** Damage is per shot and Attack Speed is shots a second, 2.5 before any ranks and 14.9 at rank 100. Multishot fires two visible shots. One mote per shot.
 - **The Workshop (D047):** Tap Damage and Damage run to 6,000 ranks and Guard to 5,000; the whole Workshop costs 37.0 million Coins. Run Upgrades (the Rig in code) sell every row for run-only Cash (D042, D044, D045).
 - **Difficulty (D043, D046):** Wave HP = 4 × (0.05 w^2.13 + 0.8 w + 1.5) and Hit = 1.7 × (0.08 w^2.10 + 0.4 w + 1), with milestone steps; bosses ×3 HP and ×1.5 Hit; Tiers 2 and 3 ×20 and ×60.
-- **Where builds land now** (six seeds, two taps a second, no run Upgrades, 5-second hit interval):
+- **Where builds land now** (six seeds, two taps a second, no run Upgrades):
 
-  | Build | Before groups | D058 |
-  | --- | --- | --- |
-  | Fresh (no Workshop) | 20 | 17 |
-  | First 48-Coin spend | 20 | 23 |
-  | Early Workshop | 30 | 30 |
-  | Mid Workshop | 60 | 56 |
-  | Attack rows at rank 100 | 200 | 158 |
-  | Attack rows + Armor | 210 | 165 |
+  | Build | Before groups | D058 | D059 (now) |
+  | --- | --- | --- | --- |
+  | Fresh (no Workshop) | 20 | 17 | 22 |
+  | First 48-Coin spend | 20 | 23 | 30 |
+  | Early Workshop | 30 | 30 | 37 |
+  | Mid Workshop | 60 | 56 | 56 |
+  | Attack rows at rank 100 | 200 | 158 | 158 |
+  | Attack rows + Armor | 210 | 165 | 165 |
 
-- **A focused career buying run Upgrades** (`tools/career_simulator.gd -- --spend focused --careers today_rig --run-cap-minutes 180`): the first run reaches wave 17 (29 before D058), wave 100 at 1.46 hours, wave 200 at about 4.2 hours, wave 300 at about 7.1 hours (6.2 before). **Time to max the Workshop has not been re-measured since D057**; the 150-hour figure is from before groups.
+- **A focused career buying run Upgrades** (`tools/career_simulator.gd -- --spend focused --careers today_rig --run-cap-minutes 180`), eight runs measured under D059: first run wave 29 with 239 Coins (28 and 232 before groups), then 36, 40, 48, 54, 64, 77 and 97 by 1.38 hours. Past that, the D058 figures are the latest: wave 200 at about 4.2 hours and wave 300 at about 7.1 (6.2 before). **Time to max the Workshop has not been re-measured since D057**; the 150-hour figure is from before groups.
 - **The look and screens (D048, D049, D053):** unchanged from `main`. The design canvas is https://claude.ai/artifact/8pB4uLUkva6kbnBRZ3PBXv.
 
 ## Open decisions for the owner
 
-1. **Retune after D058, or accept?** Runs end sooner, and the first run most of all (wave 17 instead of 29). The hit interval barely moves it (waves reached, six seeds):
-
-   | Interval | Fresh | Mid | Attack maxed | + Armor |
-   | --- | --- | --- | --- | --- |
-   | 3 s | 16 | 55 | 155 | 159 |
-   | 5 s (built) | 17 | 56 | 158 | 165 |
-   | 7.5 s | 18 | 58 | 160 | 170 |
-   | 10 s | 19 | 59 | 165 | 176 |
-   | 15 s | 20 | 60 | 170 | 181 |
-
-   Most of the cost is the pile itself, especially enemies still hitting while a boss holds the clock. Options: accept; soften only the opening; or lower the Hit scale. **Claude's recommendation: soften the opening only**, so a first run gets back to the high 20s and the player banks Cash before pressure starts (the owner's description of The Tower), and keep the deep-game ramp.
-2. **Open the PR for this branch?** Everything is green and reviewed; the owner has not played it yet.
+1. **Decided: soften the opening only (D059), built.** To wave 30 enemies hit once and leave; from wave 31 they stay, easing from every 15 seconds to every 5 by wave 50. The measured D058 interval sweep is in D058's evidence. **Left for the owner:** whether the switch at wave 31 feels like a wall in play.
+2. **Open the PR for this branch?** Everything is green; D056–D058 are reviewed, D059 is not yet; the owner has not played it.
 3. **Tapping and the Damage/Attack Speed split** (step 4 of the group plan): a tap fires a shot worth a share of current Damage, taps past about five a second count half; targets idle 100%, one tap a second +15–20%, three +40–50%, a cap near double. High risk: economy.
 4. **Enemy types** (step 3): Fast (2× speed) and Tank (5× HP, half damage, slow) partway through Tier 1, Ranged later. This is what makes Damage and Attack Speed different choices.
 5. **Save clash:** unmerged branch `codex/prestige-run-summary` adds its own save version; this branch takes V10, so that one must become V11.
@@ -61,11 +51,7 @@
 
 ## Next steps, in order
 
-1. **Owner:** play the branch and answer decision 1. **Agent (on "soften the opening"):** tune only the early waves, then re-measure. Suggested levers, in order of preference:
-   - a longer hit interval for the first waves (for example 10 seconds to wave 20, easing to 5 by wave 40), as a profile function that `_make_encounter` reads instead of the constant;
-   - fewer members early (2 at first);
-   - a gentler early Hit.
-   **Done when:** a fresh run with two taps a second and no Workshop reaches the high 20s again; the career's first run reaches at least wave 25; mid and Attack maxed builds stay within two waves of today's D058 figures; all tests and the arena probe pass; the change is recorded as a new decision. High risk: economy. Needs an independent review of the diff.
+1. **Agent (Codex), first:** the independent review of D059, as in "start here" step 5. **Done when:** findings are fixed or answered, `bash run_tests.sh`, the headless boot and `tools/arena_probe.gd` pass, and the review's outcome is added to D059. **Owner:** play the branch, then decide whether to open the PR.
 2. **Agent, if the owner confirms:** the arena pass (group step 2). It fixes:
    - members overlapping near the top edge as a wave enters (stagger their start heights or fade them in one by one);
    - the front caption clipping on a narrow screen ("· 9 mor");

@@ -135,7 +135,7 @@ func _init() -> void:
 	st.active_encounter = st._make_encounter(12)
 	st.wave_accumulator = 14.95
 	await _frames(12)
-	_check(st.wave == 13 and main.wave_enemy.visible and st.active_encounter.at_number_count() >= 1 and main.enemy_travel == 1.0, "a missed wave slams and its members stay at the Number into the next (D058)")
+	_check(st.wave == 13 and main.wave_enemy.visible and st.active_encounter.at_number_count() == 0 and main.enemy_travel < 0.1, "an opening wave that is missed slams and the next arrives (D059)")
 	# With Guard and Armor, the wave shows its raw Hit and the working plays at contact.
 	await create_timer(2.5).timeout
 	st.purchased = {"guard": 30, GameState.ARMOR_ID: 60}
@@ -228,18 +228,18 @@ func _init() -> void:
 	_check(flushed.size() == 1 and main.pop_damage.is_zero(), "the pending shot pop rises before the shatter: %s" % str(flushed.map(func(label): return label.text)))
 	await create_timer(1.0).timeout
 	# D058: a pile at the Number while the next wave walks in.
-	st.wave = 27
-	st.active_encounter = st._make_encounter(27)
+	st.wave = 57
+	st.active_encounter = st._make_encounter(57)
 	st.number = ScientificNumber.from_float(1.0e12)
 	st.wave_accumulator = 14.5
 	await create_timer(3.0).timeout
-	_check(st.wave == 28 and _followers(main) >= st.active_encounter.at_number_count() - 1, "the pile is drawn round the Number: %d" % _followers(main))
+	_check(st.wave == 58 and _followers(main) >= st.active_encounter.at_number_count() - 1, "the pile is drawn round the Number: %d" % _followers(main))
 	await _shot("7_pile")
 	# D058 review: behind a pile, a boss stays the live number.
 	var pile: Array = st.active_encounter.living_members().filter(func(m): return int(m.state) == TaxEncounter.AT_NUMBER)
-	var boss_wave = st._make_encounter(30)
+	var boss_wave = st._make_encounter(60)
 	boss_wave.carry_in(pile)
-	st.wave = 30
+	st.wave = 60
 	st.active_encounter = boss_wave
 	st.wave_accumulator = 2.0
 	await _frames(3)

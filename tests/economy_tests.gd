@@ -33,6 +33,7 @@ func _init() -> void:
 	_test_group_brace_guard_and_thorns()
 	_test_group_saves_and_resumes()
 	_test_members_stay_and_the_pile_grows()
+	_test_opening_members_pass()
 	_test_output_is_number_and_strikes_the_wave()
 	_test_repeated_taps_count_once()
 	_test_missed_waves_move_on_and_bosses_stay()
@@ -910,9 +911,9 @@ func _test_tier_one_opening() -> void:
 	var hit := stuck.get_effective_collection()
 	var event := stuck._resolve_wave_boundary()
 	_expect(event.type == "tax_collection" and absf(event.amount.log10() - hit.multiply_scalar(1.0 / 3.0).log10()) < 0.000001, "each member should land its third of the Hit")
-	# Three arrivals plus the front member's repeat at 11 seconds: four thirds.
-	_expect(absf(before.subtract(stuck.number).log10() - hit.multiply_scalar(4.0 / 3.0).log10()) < 0.000001 and not stuck.number.is_zero(), "the Hit and the front member's repeat should cost Number, not the run")
-	_expect(stuck.active_encounter.at_number_count() == 3, "the unbeaten members should stay at the Number into the next wave")
+	# In the opening (D059) each member hits once and leaves: the whole Hit, once.
+	_expect(absf(before.subtract(stuck.number).log10() - hit.log10()) < 0.000001 and not stuck.number.is_zero(), "an opening wave should cost its Hit once, not the run")
+	_expect(stuck.active_encounter.at_number_count() == 0, "opening members should not stay at the Number")
 	_expect(stuck.wave == 2 and stuck.coins == 0 and stuck.get_tier_best(1) == 0, "the missed wave should move on unpaid and unrecorded")
 	# The first boss stands and fights like every boss.
 	stuck.wave = 10
@@ -2894,6 +2895,8 @@ func _test_group_saves_and_resumes() -> void:
 ## still counts towards beating its wave, and a Brace covers the whole clock.
 func _test_members_stay_and_the_pile_grows() -> void:
 	var state := GameState.new()
+	state.balance_profile.OPENING_HIT_WAVES = 0
+	state.balance_profile.OPENING_EASED_BY = 0
 	state.start_run(1, 71)
 	state.number = ScientificNumber.from_float(1e9)
 	var interval: float = state.balance_profile.MEMBER_HIT_SECONDS
@@ -2924,6 +2927,8 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	state.save_path = save_path
 	_expect(state.save(), "a run with a pile should save")
 	var resumed := GameState.new()
+	resumed.balance_profile.OPENING_HIT_WAVES = 0
+	resumed.balance_profile.OPENING_EASED_BY = 0
 	resumed.save_path = save_path
 	resumed.load()
 	_expect(resumed.active_encounter.at_number_count() == state.active_encounter.at_number_count() and resumed.active_encounter.members[0].wave == 1, "the pile should resume in front")
@@ -2936,6 +2941,8 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	older.balance_profile_id = "tax-foundation-v10"
 	_write_json(save_path, older)
 	var rebuilt := GameState.new()
+	rebuilt.balance_profile.OPENING_HIT_WAVES = 0
+	rebuilt.balance_profile.OPENING_EASED_BY = 0
 	rebuilt.save_path = save_path
 	rebuilt.load()
 	var carried_hits: Array = rebuilt.active_encounter.members.filter(func(member): return not rebuilt.active_encounter.is_own(member)).map(func(member): return member.wave_hit.compare_to(rebuilt.balance_profile.collection_for_wave(1, int(member.wave))) == 0)
@@ -2947,6 +2954,8 @@ func _test_members_stay_and_the_pile_grows() -> void:
 
 	# Left alone, the pile grows, and so do the hits it lands each clock.
 	var pile := GameState.new()
+	pile.balance_profile.OPENING_HIT_WAVES = 0
+	pile.balance_profile.OPENING_EASED_BY = 0
 	pile.start_run(1, 72)
 	pile.number = ScientificNumber.from_float(1e12)
 	var hits_per_clock: Array = []
@@ -2960,6 +2969,8 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	# A boss holds the clock and hits every 15 seconds while members it did
 	# not bring keep hitting on their own interval.
 	var boss := GameState.new()
+	boss.balance_profile.OPENING_HIT_WAVES = 0
+	boss.balance_profile.OPENING_EASED_BY = 0
 	boss.start_run(1, 73)
 	boss.number = ScientificNumber.from_float(1e12)
 	boss.wave = 10
@@ -2971,6 +2982,8 @@ func _test_members_stay_and_the_pile_grows() -> void:
 
 	# Beaten after landing: the wave still counts as beaten.
 	var late := GameState.new()
+	late.balance_profile.OPENING_HIT_WAVES = 0
+	late.balance_profile.OPENING_EASED_BY = 0
 	late.start_run(1, 74)
 	late.number = ScientificNumber.from_float(1e6)
 	for step in range(61):
@@ -2987,6 +3000,8 @@ func _test_members_stay_and_the_pile_grows() -> void:
 
 	# A Brace blocks every hit of the clock it was raised in, the pile's too.
 	var braced := GameState.new()
+	braced.balance_profile.OPENING_HIT_WAVES = 0
+	braced.balance_profile.OPENING_EASED_BY = 0
 	braced.start_run(1, 75)
 	braced.number = ScientificNumber.from_float(1e6)
 	for step in range(61):
@@ -2999,6 +3014,27 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	for step in range(2):
 		braced._advance_waves(0.25)
 	_expect(not braced.braced, "a spent Brace should end with its clock")
+
+## D059: to wave 30 a member that reaches the Number hits once and leaves,
+## and a wave with one through passes unbeaten; from wave 31 members stay,
+## hitting every 15 seconds and easing to MEMBER_HIT_SECONDS by wave 50.
+func _test_opening_members_pass() -> void:
+	var profile := TaxBalanceProfile.new()
+	_expect(profile.member_hit_seconds(1) == 0.0 and profile.member_hit_seconds(30) == 0.0, "opening members should hit once and pass")
+	_expect(is_equal_approx(profile.member_hit_seconds(31), 14.5) and is_equal_approx(profile.member_hit_seconds(40), 10.0) and is_equal_approx(profile.member_hit_seconds(50), profile.MEMBER_HIT_SECONDS), "after the opening the interval should ease from 15 seconds to the member interval by wave 50")
+	var state := GameState.new()
+	state.start_run(1, 81)
+	state.number = ScientificNumber.from_float(1e6)
+	var hits := 0
+	for step in range(61):
+		hits += state._advance_waves(0.25).filter(func(event): return event.type == "tax_collection" or event.type == "pile_hit").size()
+	_expect(hits == 3 and state.wave == 2 and state.active_encounter.living_members().size() == state.active_encounter.members.size(), "an opening wave's three members should each hit once and leave nothing behind")
+	_expect(int(state.get_tier_record(1).highest_wave) == 0, "an opening wave with a member through should not count as beaten")
+	state.wave = 31
+	state.active_encounter = state._make_encounter(31)
+	for step in range(26):
+		state._advance_waves(0.25)
+	_expect(state.active_encounter.at_number_count() == 1, "from wave 31 a member that reaches the Number should stay")
 
 ## Plays the wave clock in quarter seconds until an event of `type` happens,
 ## for up to `seconds`, and returns it (null if none).

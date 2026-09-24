@@ -74,6 +74,23 @@ const FIRST_ARRIVAL_SECONDS := 6.0
 ## tools can sweep it.
 const DEFAULT_MEMBER_HIT_SECONDS := 5.0
 var MEMBER_HIT_SECONDS := DEFAULT_MEMBER_HIT_SECONDS
+## The opening is gentler (D059): to wave OPENING_HIT_WAVES a member that
+## reaches the Number hits once and leaves (D057's rule), so a new player
+## banks Cash before any pile forms. After that members stay, hitting every
+## OPENING_HIT_SECONDS at first and easing to MEMBER_HIT_SECONDS by wave
+## OPENING_EASED_BY. Zero means "hits once and passes".
+const OPENING_HIT_SECONDS := 15.0
+## Mutable so tests of the staying rule can start past the opening.
+var OPENING_HIT_WAVES := 30
+var OPENING_EASED_BY := 50
+
+func member_hit_seconds(wave: int) -> float:
+	if wave <= OPENING_HIT_WAVES:
+		return 0.0
+	if wave >= OPENING_EASED_BY or OPENING_EASED_BY <= OPENING_HIT_WAVES:
+		return MEMBER_HIT_SECONDS
+	var eased := float(wave - OPENING_HIT_WAVES) / float(OPENING_EASED_BY - OPENING_HIT_WAVES)
+	return lerpf(OPENING_HIT_SECONDS, MEMBER_HIT_SECONDS, eased)
 
 var tiers: Array = []
 

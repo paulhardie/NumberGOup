@@ -349,7 +349,12 @@ func _run_wave_clock(events: Array[SimulationEvent]) -> void:
 			active_encounter.shift_clock(wave_accumulator)
 			wave_accumulator = 0.0
 			_end_brace_window()
-			events.append(_complete_current_wave(active_encounter.living_members()))
+			# Nothing of the wave left: beaten, unless an opening member hit
+			# and left (D059), which passes it as a missed wave.
+			if active_encounter.is_beaten():
+				events.append(_complete_current_wave(active_encounter.living_members()))
+			else:
+				_pass_missed_wave(active_encounter.living_members())
 		elif wave_accumulator >= WAVE_INTERVAL_SECONDS:
 			wave_accumulator -= WAVE_INTERVAL_SECONDS
 			active_encounter.shift_clock(WAVE_INTERVAL_SECONDS)
@@ -522,7 +527,7 @@ func _make_encounter(target_wave: int):
 		balance_profile.reward_for_wave(selected_tier, target_wave),
 		balance_profile.is_boss_wave(target_wave),
 		arrivals,
-		WAVE_INTERVAL_SECONDS if balance_profile.is_boss_wave(target_wave) else balance_profile.MEMBER_HIT_SECONDS
+		WAVE_INTERVAL_SECONDS if balance_profile.is_boss_wave(target_wave) else balance_profile.member_hit_seconds(target_wave)
 	)
 
 func _wave_death(reached: int, hit: ScientificNumber, boss: bool, number_before_hit: ScientificNumber, wave_hp_left: ScientificNumber) -> SimulationEvent:

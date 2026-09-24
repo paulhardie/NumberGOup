@@ -116,8 +116,13 @@ func hit(index: int) -> void:
 	var member: Dictionary = members[index]
 	if not is_alive(member):
 		return
-	member.state = AT_NUMBER
 	member.landed = true
+	# An opening member (interval 0, D059) hits once and leaves, uncleared.
+	if float(member.interval) <= 0.0:
+		member.state = LANDED
+		_sum_remaining()
+		return
+	member.state = AT_NUMBER
 	member.next_hit = float(member.next_hit) + float(member.interval)
 
 ## Moves every living member's clock back by `seconds`, when this wave's clock
@@ -137,10 +142,15 @@ func carry_in(carried: Array) -> void:
 	members = carried + members
 	_sum_remaining()
 
-## HP not yet cleared, carried members included. A member reaching or hitting
-## the Number keeps its HP, so only damage moves this.
+## HP not yet cleared, carried members included, and the HP of opening members
+## that hit and left (D059). A member reaching, hitting or leaving the Number
+## keeps its HP here, so only damage moves this.
 func uncleared() -> ScientificNumber:
-	return _remaining
+	var total := _remaining
+	for member in members:
+		if int(member.state) == LANDED:
+			total = total.add(member.hp)
+	return total
 
 ## This wave's own HP not cleared: its living members plus any that left
 ## under the old pass rule.
@@ -171,7 +181,10 @@ func is_cleared() -> bool:
 ## True when every one of this wave's members is beaten, whether or not it
 ## reached the Number first (D058): a member at the Number is still a fight.
 func is_beaten() -> bool:
-	return own_alive_count() == 0
+	if own_alive_count() > 0:
+		return false
+	# An opening member that hit and left was never beaten (D059).
+	return not members.any(func(member): return is_own(member) and int(member.state) == LANDED)
 
 ## Takes the state of `old`, the same wave on an older balance profile, member
 ## for member: each keeps its share of its HP, its state and its clock, and
@@ -285,7 +298,13 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 			# A member saved before D058 had no interval: a boss keeps its 15
 			# seconds, anything else takes today's.
 			var default_interval: float = TaxBalanceProfile.WAVE_INTERVAL_SECONDS if encounter.is_boss and member_wave == encounter.wave else TaxBalanceProfile.DEFAULT_MEMBER_HIT_SECONDS
-			var interval := maxf(0.5, float(saved.get("interval", default_interval)))
+			var interval := float(saved.get("interval", default_interval))
+			# Zero is an opening member that passes (D059); anything else is a
+			# real interval, never shorter than half a second.
+			if not is_finite(interval) or interval < 0.0:
+				interval = default_interval
+			elif interval > 0.0:
+				interval = maxf(0.5, interval)
 			# A damaged clock must neither fire a burst of catch-up hits nor
 			# never fire again.
 			var next_hit := float(saved.get("next_hit", arrive))

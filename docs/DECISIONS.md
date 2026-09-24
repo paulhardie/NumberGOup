@@ -596,3 +596,15 @@ Rules:
 - **Review (independent, before merge):** no blockers. Fixed: a boss hidden behind a pile (the boss now stays the live number; motes still fly at the front), pile members from an older profile keeping their old Hit (they are rebuilt on today's curve), a damaged saved clock firing a burst of hits, a D057-branch save's members hitting every 15 seconds, pile hits folded to one pop a frame, at most 18 pile members drawn, and the clear's shatter only on the wave's own member. The run-over Attack gap now counts the pile. The balance simulator counts pile hits.
 - **Consequences:** runs end sooner and the late game is slower; the 150-hour calibration and balance targets 5, 7 and 8 need re-measuring. Staying members make Damage-now matter more than before, which enemy types (step 3) will split between Damage and Attack Speed.
 - **Revisit when:** the owner decides whether to retune (the first run's drop to wave 17 is the sharpest change), or enemy types land.
+
+## D059 — A gentler opening: to wave 30 enemies hit once and leave
+
+- **Status:** Accepted (2026-09-24) on owner direction ("do that then"), taking the recommendation to soften only the opening after D058. Implemented (2026-09-24). **Not yet independently reviewed**; that is the next agent's first task.
+- **Context:** D058's pile ended a focused player's first run at wave 17 (29 before). A longer hit interval alone could not fix it: the first runs die at the wave 20 boss, where members carried in keep hitting and soak up damage while the boss holds the clock.
+- **Decision:**
+  1. **To wave 30 (`OPENING_HIT_WAVES`), a member that reaches the Number hits once and leaves** (D057's rule). A wave with one through passes unbeaten and pays for the share cleared. No pile forms.
+  2. **From wave 31, members stay (D058),** hitting every 15 seconds at first and easing to `MEMBER_HIT_SECONDS` (5) by wave 50 (`OPENING_EASED_BY`), in `TaxBalanceProfile.member_hit_seconds`.
+  3. A member that left keeps its HP as uncleared, so the arena never shows it as damage, and the run-over Attack gap counts it.
+- **Evidence (six seeds, two taps a second, no run Upgrades; D058 → D059):** fresh 17 → 22, first spend 23 → 30, early 30 → 37; mid 56, Attack maxed 158 and with Armor 165 unchanged. A focused career buying run Upgrades: first run wave 29 with 239 Coins (before groups 28 with 232; D058 17), about wave 100 at 1.4 hours (1.44 before groups).
+- **Consequences:** the first hour plays much as it did before groups, and the ramp starts once a player has a Workshop. Time to max the Workshop and balance targets 5, 7 and 8 still need re-measuring against D058–D059.
+- **Revisit when:** enemy types arrive, or play shows the switch at wave 31 is felt as a wall.
