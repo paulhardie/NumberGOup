@@ -516,3 +516,17 @@ Rules:
 - **Consequences:** The player no longer sees the exact Hit before contact, by choice. No rule, balance or save change. The breakdown only fades (no movement), so it plays the same under Reduce Motion.
 - **Revisit when:** a new defence layer (Labs or Cards beyond Armor, a Perk) wants its own line, or players are found Bracing blind because they cannot judge the Hit.
 
+## D053 — One header line in a run, and less repeated text
+
+- **Status:** Accepted (2026-09-24) on owner direction, reviewing the run screen for what could merge: "Leave gems, remove knowledge. Later on you will be able to use gems in a run so they need to be accessible. For number 3, just change it to 'Tap'. The rest is all good!" Implemented (2026-09-24).
+- **Context:** The run spent about 84 px above the arena on two lines (currencies with Retreat, then WAVE · TIER · BOSS IN n), and several labels repeated what the arena now shows (D051, D052).
+- **Decision:**
+  1. **One header line:** WAVE n on the left, then the tier and any boss countdown small and muted ("T2 · BOSS IN 3", warm while a boss is coming); this run's Coins ("+640"), Gems and RETREAT on the right. On a boss wave "WAVE n" turns red and no BOSS WAVE label shows, since the red number in the arena says it.
+  2. **Knowledge leaves the run screen:** it only changes when a run ends. **Gems stay:** in-run uses for them are planned.
+  3. **Coins in a run are this run's earnings,** since the bank cannot be spent until the run ends.
+  4. **The hint under the Number is "TAP".**
+  5. **The Upgrades sheet's header is the Cash alone;** the category is the lit tab below it.
+  6. **Toasts:** a Hit whose working plays over the Number (D052) gets no toast; without it, a Hit's toast is two or three words. In a run, toasts sit in the free corner beside Brace, since the arena's head is where waves enter.
+- **Consequences:** The arena gains about 28 px. Presentation only. The hub and the run-over sheet still show the banked Coins and Knowledge.
+- **Revisit when:** Gems gain an in-run use (their chip then becomes that door), or a new run-scoped currency needs a place in the header.
+

@@ -59,7 +59,7 @@ const LONG_PRESS_SECONDS := 0.45
 ## the wave line with the hit and Brace row under it, and the Upgrades sheet
 ## sits on the category strip at the foot. Whatever height is left stays empty
 ## between them, held for systems that will want the upper half later.
-const RUN_STAGE_TOP := 84.0
+const RUN_STAGE_TOP := 56.0
 ## Where the Number sits in the run arena, as a share of its height (D051).
 const NUMBER_HEIGHT_SHARE := 0.72
 ## Passive damage leaves the Number as one mote this often, carrying what built
@@ -193,9 +193,8 @@ var toast_label: Label
 var toast_tween: Tween
 
 var wave_label: Label
-var tier_button: Button
-var boss_label: Label
-var boss_separator: Label
+## The tier and the boss countdown, small beside the wave (D053).
+var wave_detail_label: Label
 ## The row under the stage: a key for the ring's two arcs, and Brace.
 var brace_button: Button
 var brace_cost_label: Label
@@ -203,7 +202,6 @@ var run_button: Button
 
 var rig_panel: Control
 var rig_detail: VBoxContainer
-var rig_category_header: Label
 var rig_cash_label: Label
 var rig_multiplier_label: Label
 var rig_tab_buttons: Dictionary = {}
@@ -260,7 +258,6 @@ var knowledge_sheet: Control
 var knowledge_research_header: Control
 var knowledge_insight_header: Control
 var coins_button: Button
-var knowledge_button: Button
 
 ## The Labs sheet (D024): real research, distinct from the Knowledge sheet
 ## above. Opened from its seat on the bottom bar (D048).
@@ -347,18 +344,21 @@ func _process(delta: float) -> void:
 			var hit_colour: Color = BOSS_DANGER if boss_hit else DANGER
 			# With the Hit's working to show, the working is the landing beat.
 			_enemy_landed(ACCENT if event.amount.is_zero() else hit_colour, hit_parts.is_empty())
+			# The Hit's working over the Number says what the toast used to (D053),
+			# so the toast only speaks when there is no working to show.
 			if event.amount.is_zero():
-				_show_toast("HIT BLOCKED · 0 NUMBER LOST", ACCENT)
 				_flash_number(ACCENT)
-				if not hit_parts.is_empty():
+				if hit_parts.is_empty():
+					_show_toast("HIT BLOCKED", ACCENT)
+				else:
 					_show_hit_ledger(hit_parts, event.amount, hit_colour)
 			else:
 				if hit_parts.is_empty():
 					_spawn_floating_text("-" + _stat_number(event.amount) + " NUMBER", hit_colour, _stage_float_point())
+					# D037: an ordinary wave hits once and passes; a boss stays and hits again.
+					_show_toast("BOSS HITS AGAIN IN " + str(int(GameState.WAVE_INTERVAL_SECONDS)) + "s" if boss_hit else "WAVE PASSED", hit_colour)
 				else:
 					_show_hit_ledger(hit_parts, event.amount, hit_colour)
-				# D037: an ordinary wave hits once and passes; a boss stays and hits again.
-				_show_toast(("BOSS HIT · HITS AGAIN IN " + str(int(GameState.WAVE_INTERVAL_SECONDS)) + "s" if boss_hit else "WAVE PASSED") + " · -" + _stat_number(event.amount) + " NUMBER · " + state.number.format_value() + " LEFT", hit_colour)
 				_snap_number_display()
 				_flash_number(hit_colour, 0.5 if boss_hit else 0.35)
 				_pulse_stage_impact(hit_colour)
@@ -504,8 +504,8 @@ func _build_number_screen(parent: Control) -> void:
 	number_button.pressed.connect(_tap_number)
 	screen.add_child(number_button)
 
-	_build_currency_stack(screen)
 	_build_wave_line(screen)
+	_build_currency_stack(wave_line)
 	_build_stage(screen)
 	_build_hub(screen)
 	_build_run_controls(screen)
@@ -523,23 +523,19 @@ func _build_number_screen(parent: Control) -> void:
 func _build_currency_stack(parent: Control) -> void:
 	var stack := HBoxContainer.new()
 	currency_stack = stack
-	stack.set_anchors_and_offsets_preset(Control.PRESET_TOP_LEFT)
-	stack.offset_left = 12
-	stack.offset_top = 8
 	stack.add_theme_constant_override("separation", 0)
 	parent.add_child(stack)
+	# In a run the Coins are what this run has earned, since the bank cannot be
+	# spent until it ends. Gems stay, for the in-run uses planned for them.
+	# Knowledge only changes when a run ends, so the run screen leaves it out.
 	coins_button = _make_currency_row(stack, IconGlyph.Kind.GOLD_COIN, COIN_COLOUR, 12.0, 12, MUTED_TEXT)
 	coins_label = coins_button.get_meta("value_label")
-	coins_button.tooltip_text = "Open the Workshop"
+	coins_button.tooltip_text = "Coins earned this run"
 	coins_button.pressed.connect(func(): _on_dock_tab_selected("workshop"))
 	gems_button = _make_currency_row(stack, IconGlyph.Kind.GEM, GEM_COLOUR, 12.0, 12, MUTED_TEXT)
 	gems_label = gems_button.get_meta("value_label")
 	gems_button.tooltip_text = "Pull a Card"
 	gems_button.pressed.connect(_open_card_collection_sheet)
-	knowledge_button = _make_currency_row(stack, IconGlyph.Kind.BOOK, MUTED_TEXT, 12.0, 12, MUTED_TEXT)
-	knowledge_label = knowledge_button.get_meta("value_label")
-	knowledge_button.tooltip_text = "Spend Knowledge"
-	knowledge_button.pressed.connect(_open_knowledge_sheet)
 
 ## A currency's icon and amount, pressable as the door to its spend. Tall
 ## enough for a thumb even where the text is small.
@@ -580,30 +576,23 @@ func _build_wave_line(parent: Control) -> void:
 	var line := HBoxContainer.new()
 	wave_line = line
 	line.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	line.offset_top = 54
-	line.offset_bottom = 74
-	line.alignment = BoxContainer.ALIGNMENT_CENTER
-	line.add_theme_constant_override("separation", 10)
+	line.offset_left = 16
+	line.offset_right = -96
+	line.offset_top = 8
+	line.offset_bottom = 52
+	line.add_theme_constant_override("separation", 8)
 	parent.add_child(line)
 
 	wave_label = _make_tracked_label("WAVE 1", 12, TEXT)
 	line.add_child(wave_label)
-	line.add_child(_make_tracked_label("·", 12, LINE.lightened(0.15)))
-	tier_button = Button.new()
-	tier_button.flat = true
-	tier_button.focus_mode = Control.FOCUS_NONE
-	tier_button.add_theme_font_override("font", _tracked_font())
-	tier_button.add_theme_font_size_override("font_size", 12)
-	tier_button.add_theme_constant_override("outline_size", 0)
-	tier_button.add_theme_color_override("font_color", MUTED_TEXT)
-	tier_button.add_theme_color_override("font_hover_color", ACCENT)
-	tier_button.add_theme_color_override("font_pressed_color", ACCENT)
-	tier_button.add_theme_color_override("font_disabled_color", MUTED_TEXT)
-	line.add_child(tier_button)
-	boss_separator = _make_tracked_label("·", 12, LINE.lightened(0.15))
-	line.add_child(boss_separator)
-	boss_label = _make_tracked_label("", 12, WARNING)
-	line.add_child(boss_label)
+	# The tier cannot change during a run and the boss countdown is a heads-up,
+	# so both sit small and muted beside the wave (D053).
+	wave_detail_label = _make_tracked_label("", 10, MUTED_TEXT)
+	line.add_child(wave_detail_label)
+	var spacer := Control.new()
+	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	spacer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	line.add_child(spacer)
 
 ## The run arena (D051): everything between the wave line and the Upgrades
 ## sheet. The Number sits low in it, near the thumb, and each wave drops in
@@ -873,7 +862,7 @@ func _build_run_controls(parent: Control) -> void:
 	parent.add_child(run_button)
 
 	# Under the Number, where the tap lands, for a player who has not found it.
-	tap_hint = _make_tracked_label("TAP TO PRODUCE", 10, FAINT_TEXT)
+	tap_hint = _make_tracked_label("TAP", 10, FAINT_TEXT)
 	tap_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	tap_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	number_col.add_child(tap_hint)
@@ -911,9 +900,6 @@ func _build_rig_panel(parent: Control) -> void:
 	var category_row := HBoxContainer.new()
 	category_row.add_theme_constant_override("separation", 10)
 	content.add_child(category_row)
-	rig_category_header = _make_label("", 15, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
-	rig_category_header.add_theme_font_override("font", ui_font_medium)
-	category_row.add_child(rig_category_header)
 	rig_cash_label = _make_number_label("", 12, HORIZONTAL_ALIGNMENT_LEFT, ACCENT)
 	rig_cash_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	category_row.add_child(rig_cash_label)
@@ -1099,8 +1085,9 @@ func _refresh_rig() -> void:
 	if not ProgressionTaxonomy.WORKSHOP_CATEGORIES.has(category):
 		category = ProgressionTaxonomy.ATTACK
 		state.workshop.selected_category = category
-	rig_category_header.text = ProgressionTaxonomy.category_name(category).capitalize()
-	rig_cash_label.text = state.cash.format_value() + " Cash · this run"
+	# The category is the lit tab just below, and the sheet only exists in a
+	# run, so the header is the Cash alone (D053).
+	rig_cash_label.text = state.cash.format_value() + " Cash"
 	rig_multiplier_label.text = _buy_step_label(category)
 	for tab_category in ProgressionTaxonomy.WORKSHOP_CATEGORIES:
 		var active: bool = category == tab_category
@@ -2489,9 +2476,8 @@ func _refresh_all() -> void:
 	rate_label.visible = true
 	var rate := _stat_number(state.get_rate_per_second())
 	rate_label.text = ("+" if state.in_run else "STARTING +") + rate + " / sec"
-	tap_hint.text = "TAP TO PRODUCE" if state.in_run else "START A RUN TO PRODUCE"
-	coins_label.text = _coins(state.coins)
-	knowledge_label.text = str(state.knowledge)
+	tap_hint.text = "TAP"
+	coins_label.text = "+" + _coins(state.run_coins_earned)
 	gems_label.text = str(state.gems)
 	_refresh_run_bar()
 	_refresh_rig()
@@ -2551,7 +2537,7 @@ func _apply_screen_layout() -> void:
 		stage_glow.offset_bottom = number_centre + 150.0
 		_place(rig_panel, 1.0, -(sheet_height + CATEGORY_STRIP_HEIGHT), 1.0, 0.0)
 		run_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-		run_button.offset_left = -130
+		run_button.offset_left = -92
 		run_button.offset_right = -12
 		run_button.offset_top = 8
 		run_button.offset_bottom = 52
@@ -2602,8 +2588,6 @@ func _stage_float_point() -> Vector2:
 func _refresh_run_bar() -> void:
 	_apply_screen_layout()
 	wave_label.text = "WAVE " + str(state.wave) if state.in_run else "NOT RUNNING"
-	tier_button.text = "TIER " + str(state.selected_tier)
-	tier_button.disabled = state.in_run
 	_refresh_boss_notice()
 	if rig_panel != null:
 		rig_panel.visible = state.in_run
@@ -2751,21 +2735,24 @@ func _step_tier(direction: int) -> void:
 
 ## The boss warning is the only thing besides a landing hit allowed to use the
 ## warning colour, so it keeps its weight.
+## The wave's detail beside it (D053): the tier, and a boss countdown a few
+## waves out, warm while one is coming. On a boss wave the wave itself turns
+## red; the red number in the arena already says boss, so no label does.
 func _refresh_boss_notice() -> void:
-	var text := ""
+	var detail := "T" + str(state.selected_tier)
+	var boss := false
+	var boss_coming := false
 	if state.in_run:
 		var encounter: Variant = state.active_encounter
-		if encounter != null and encounter.is_boss:
-			text = "BOSS WAVE"
-		else:
+		boss = encounter != null and encounter.is_boss
+		if not boss:
 			var until_boss := _waves_until_boss(state.wave)
 			if until_boss > 0:
-				text = "BOSS IN " + str(until_boss)
-	boss_label.text = text
-	# A boss on the field is red (D051); one still waves away stays a warning.
-	boss_label.add_theme_color_override("font_color", BOSS_COLOUR if text == "BOSS WAVE" else WARNING)
-	boss_label.visible = text != ""
-	boss_separator.visible = text != ""
+				boss_coming = true
+				detail += " · BOSS IN " + str(until_boss)
+	wave_detail_label.text = detail
+	wave_detail_label.add_theme_color_override("font_color", WARNING if boss_coming else MUTED_TEXT)
+	wave_label.add_theme_color_override("font_color", BOSS_COLOUR if boss else TEXT)
 
 ## Boss waves land every tenth wave; the profile owns that rule, this only
 ## reads it so the HUD can warn a few waves out.
@@ -3337,14 +3324,31 @@ func _clear_local_save() -> void:
 	_refresh_all()
 
 func _show_toast(text: String, colour: Color) -> void:
-	# In a run the foot of the arena holds Brace and the Number (D051), so the
-	# toast reads at its head, under the wave line.
+	# In a run the arena's head is where each wave enters (D051), so the toast
+	# reads in the free corner beside Brace, wrapping onto a second line on a
+	# narrow phone (D053). Elsewhere it sits above the screen's main controls.
 	var in_arena := current_tab == "number" and state.in_run
-	toast_wrap.anchor_top = 0.0 if in_arena else 1.0
-	toast_wrap.anchor_bottom = toast_wrap.anchor_top
-	var bottom := RUN_STAGE_TOP + 30.0 if in_arena else _toast_bottom()
-	toast_wrap.offset_top = bottom - 28.0
-	toast_wrap.offset_bottom = bottom
+	toast_wrap.anchor_left = 0.0
+	toast_wrap.anchor_right = 1.0
+	if in_arena:
+		toast_wrap.anchor_top = 0.0
+		toast_wrap.anchor_bottom = 0.0
+		toast_wrap.offset_left = brace_button.position.x + brace_button.size.x + 12.0
+		toast_wrap.offset_right = -16.0
+		toast_wrap.offset_top = brace_button.position.y
+		toast_wrap.offset_bottom = brace_button.position.y + brace_button.size.y
+		toast_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		toast_label.custom_minimum_size.x = maxf(size.x - toast_wrap.offset_left - 16.0, 0.0)
+	else:
+		var bottom := _toast_bottom()
+		toast_wrap.anchor_top = 1.0
+		toast_wrap.anchor_bottom = 1.0
+		toast_wrap.offset_left = 0.0
+		toast_wrap.offset_right = 0.0
+		toast_wrap.offset_top = bottom - 28.0
+		toast_wrap.offset_bottom = bottom
+		toast_label.autowrap_mode = TextServer.AUTOWRAP_OFF
+		toast_label.custom_minimum_size.x = 0.0
 	toast_label.text = text
 	toast_label.add_theme_color_override("font_color", colour)
 	if toast_tween != null and toast_tween.is_valid():
