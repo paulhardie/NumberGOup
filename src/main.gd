@@ -101,6 +101,15 @@ var gems_label: Label
 var gems_button: Button
 var floating_text_layer: Control
 var ring: RingArc
+## The wave as a body closing on the Number over its clock (D050).
+var wave_enemy: WaveEnemy
+## The encounter the body is drawn for; a new one means a new wave arrived.
+var enemy_encounter: Variant = null
+## Where along its path the body is drawn, 0 at the ring's edge and 1 at the
+## Number. It follows the clock, but eases back after a boss's Hit rather than
+## jumping, so the knock-back reads.
+var enemy_travel := 0.0
+var enemy_angle := 0.0
 var stage_glow: TextureRect
 ## The ring's parent frame. Combat rattles move this rather than the number
 ## column: a container re-sorts its child whenever the number's width changes,
@@ -318,6 +327,7 @@ func _process(delta: float) -> void:
 		elif event.type == "tax_collection" or event.type == "boss_collection":
 			var boss_hit: bool = event.type == "boss_collection"
 			var hit_colour: Color = BOSS_DANGER if boss_hit else DANGER
+			_enemy_beat(WaveEnemy.Beat.SLAM, ACCENT if event.amount.is_zero() else hit_colour)
 			if event.amount.is_zero():
 				_show_toast("HIT BLOCKED · 0 NUMBER LOST", ACCENT)
 				_flash_number(ACCENT)
@@ -334,6 +344,9 @@ func _process(delta: float) -> void:
 					Input.vibrate_handheld(35 if boss_hit else 14)
 		elif event.type == "wave_clear" or event.type == "boss_clear":
 			var boss_clear: bool = event.type == "boss_clear"
+			# A wave beaten after the 2.5-second beat is replaced in the same
+			# step, so its body shatters here rather than waiting to be seen.
+			_shatter_enemy(boss_clear)
 			var clear_colour: Color = CRITICAL if boss_clear else ACCENT
 			_pulse_stage_impact(clear_colour)
 			_pulse_ring_hit(1.02 if boss_clear else 1.012)
@@ -347,6 +360,7 @@ func _process(delta: float) -> void:
 		elif event.type == "tier_unlock":
 			_show_toast("TIER " + event.amount.format_value() + " UNLOCKED", CRITICAL)
 		elif event.type == "second_wind":
+			_enemy_beat(WaveEnemy.Beat.SLAM, BOSS_DANGER)
 			_show_toast("SECOND WIND  ·  " + event.amount.format_value() + " LEFT", CRITICAL)
 			_flash_number(CRITICAL, 0.6)
 			_pulse_stage_impact(CRITICAL)
@@ -365,6 +379,7 @@ func _process(delta: float) -> void:
 	_advance_display_number(delta)
 	_refresh_number_display()
 	_update_stage_colour()
+	_update_wave_enemy(delta)
 	save_elapsed += delta
 	refresh_elapsed += delta
 	drawer_elapsed += delta
@@ -609,6 +624,10 @@ func _build_stage(parent: Control) -> void:
 	number_col.add_child(number_label)
 	rate_label = _make_number_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	number_col.add_child(rate_label)
+
+	wave_enemy = WaveEnemy.new(number_font)
+	wave_enemy.visible = false
+	stage.add_child(wave_enemy)
 
 ## The battle hub between runs (D048), in the Instrument look (D049): the
 ## currencies across the top, a ring of the highest wave against the next goal
@@ -3481,6 +3500,105 @@ func _update_stage_colour() -> void:
 		var beat := 0.5 + 0.5 * sin(float(Time.get_ticks_msec()) * BOSS_TELEGRAPH_BEAT_RATE)
 		alpha = lerpf(1.0, lerpf(0.6, 1.0, beat), phase)
 	stage_glow.modulate = Color(colour.r, colour.g, colour.b, alpha)
+
+## Moves the wave's body along its path (D050). Its place is the wave clock, so
+## it reaches the Number exactly when the Hit lands, 15 seconds in. It shows
+## the HP still standing and warms through the last half of its approach. A
+## wave that is beaten shatters where it was; a new wave fades in at the edge.
+func _update_wave_enemy(delta: float) -> void:
+	if wave_enemy == null:
+		return
+	var encounter: Variant = state.active_encounter
+	var standing: bool = state.in_run and encounter != null and not encounter.max_liability.is_zero() and not encounter.is_cleared()
+	if not standing:
+		# Beaten inside the 2.5-second beat: the wave is still on screen.
+		if encounter == enemy_encounter and state.in_run and encounter != null:
+			_shatter_enemy(encounter.is_boss)
+		wave_enemy.visible = false
+		enemy_encounter = encounter
+		return
+	# Reduce Motion stops movement, not information (MOTION_SYSTEM rule 1): the
+	# body holds at the ring's edge, and the inner ring and the key keep the time.
+	var target := 0.0 if state.settings.reduce_motion else clampf(state.wave_accumulator / GameState.WAVE_INTERVAL_SECONDS, 0.0, 1.0)
+	if encounter != enemy_encounter or not wave_enemy.visible:
+		enemy_encounter = encounter
+		enemy_angle = _enemy_angle(state.wave)
+		enemy_travel = target
+		wave_enemy.visible = true
+		if not state.settings.reduce_motion:
+			wave_enemy.modulate.a = 0.0
+			create_tween().tween_property(wave_enemy, "modulate:a", 1.0, 0.3)
+	elif target < enemy_travel and not state.settings.reduce_motion:
+		enemy_travel = lerpf(enemy_travel, target, clampf(delta * 7.0, 0.0, 1.0))
+	else:
+		enemy_travel = target
+	var boss: bool = encounter.is_boss
+	var tint: Color = WARNING if boss else TEXT.lerp(WARNING, smoothstep(0.5, 1.0, enemy_travel))
+	wave_enemy.show_value(_stat_number(encounter.remaining_liability), tint, 18 if boss else 15)
+	var path := _enemy_path()
+	wave_enemy.centre_on(path[0].lerp(path[1], enemy_travel))
+
+## Where the body starts and stops, in the stage's space: from just outside the
+## ring to the edge of the Number, along the wave's angle.
+func _enemy_path() -> Array:
+	var direction := Vector2(cos(enemy_angle), sin(enemy_angle))
+	# Just outside the ring, but never past the stage's own edge, where the wave
+	# line and the currencies sit.
+	var centre: Vector2 = stage_root.size / 2.0
+	var room := centre - wave_enemy.size / 2.0 - Vector2(4.0, 4.0)
+	var out := ring.radius() + 24.0
+	if absf(direction.x) > 0.001:
+		out = minf(out, room.x / absf(direction.x))
+	if absf(direction.y) > 0.001:
+		out = minf(out, room.y / absf(direction.y))
+	var start: Vector2 = centre + direction * out
+	var number_box := number_label.get_global_rect()
+	var target := number_box.get_center() - stage_root.global_position
+	var half := number_box.size / 2.0 + Vector2(wave_enemy.size.x / 2.0, 2.0)
+	var reach := INF
+	if absf(direction.x) > 0.001:
+		reach = half.x / absf(direction.x)
+	if absf(direction.y) > 0.001:
+		reach = minf(reach, half.y / absf(direction.y))
+	return [start, target + direction * reach]
+
+## Each wave comes in from one of the ring's upper corners, alternating sides,
+## at an angle that varies by wave. The corners have the room outside the ring,
+## and this never draws on the game's random stream, so it cannot change a run.
+func _enemy_angle(wave: int) -> float:
+	var spread := 25.0 + float((wave * 37) % 41)
+	return deg_to_rad(-90.0 + (spread if wave % 2 == 0 else -spread))
+
+## A clean clear: the body breaks apart where it stood, with the no-Hit beat
+## D041 asks for. Once only, since the body hides as it shatters.
+func _shatter_enemy(boss: bool) -> void:
+	if wave_enemy == null or not wave_enemy.visible:
+		return
+	_enemy_beat(WaveEnemy.Beat.SHATTER, WARNING if boss else TEXT)
+	_spawn_floating_text("BEATEN · NO HIT", ACCENT, wave_enemy.position + wave_enemy.size / 2.0 + stage_root.position)
+	wave_enemy.visible = false
+
+## Plays a beat on a copy of the body where it is now, so the live body is free
+## to fade in as the next wave or ease back after a boss's Hit. A shatter
+## breaks it apart; a slam swells it into the Number and fades.
+func _enemy_beat(kind: int, colour: Color) -> void:
+	if wave_enemy == null or not wave_enemy.visible or state.settings.reduce_motion:
+		return
+	var ghost := WaveEnemy.new(number_font)
+	ghost.beat = kind
+	stage_root.add_child(ghost)
+	ghost.show_value(wave_enemy.text, colour, wave_enemy.font_size)
+	var point := wave_enemy.position + wave_enemy.size / 2.0
+	if kind == WaveEnemy.Beat.SLAM:
+		point = _enemy_path()[1]
+	ghost.centre_on(point)
+	var tween := create_tween()
+	if kind == WaveEnemy.Beat.SLAM:
+		tween.tween_property(ghost, "scale", Vector2(1.35, 1.35), 0.08).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		tween.tween_property(ghost, "beat_progress", 1.0, 0.35)
+	else:
+		tween.tween_property(ghost, "beat_progress", 1.0, 0.6).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+	tween.tween_callback(ghost.queue_free)
 
 ## Accent to warning through hue rather than straight RGB, which would pass
 ## through a muddy olive on the way.

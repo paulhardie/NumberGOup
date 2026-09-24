@@ -58,6 +58,8 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 	}
 	state.settings["reduce_motion"] = true
 	if state_name == "run" or state_name == "run_standing" or state_name == "boss":
+		# The wave's body only travels with Reduce Motion off (D050).
+		state.settings["reduce_motion"] = false
 		state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 		state.start_run(2, 99)
 		state.number = ScientificNumber.from_float(238500)

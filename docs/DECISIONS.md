@@ -480,3 +480,16 @@ Rules:
   9. **Everywhere else:** Labs, Cards, Knowledge, Milestones and Stats keep their layouts in the new palette and fonts; they have not been designed yet. Toasts sit above the screen's main controls rather than over the stage.
 - **Consequences:** No save, economy or run-rule change. The Armor shortcut's dead code is gone (D048 had already hidden it). Holding is now the only way to open a Workshop row's detail, as it already was for a price. Every screen draws about 1.4× larger on a phone than before.
 - **Revisit when:** the owner refines the look, designs Labs, Cards and Milestones in it, or fills the space above the Upgrades sheet.
+
+## D050 — Each wave is a body that closes on the Number over its 15 seconds
+
+- **Status:** Accepted (2026-09-24) on owner direction: the wave's HP is "an actual set of HP that slowly heads towards the centre of the screen" and hits on impact, with "15 seconds being the time it takes for the enemy number to reach us in the middle". The 15 seconds stays for now; the owner will revisit it once there is something that moves, and may rework the rings if the two read badly together. Implemented (2026-09-24) as presentation only.
+- **Context:** D041 asked for the wave to feel like an opponent and for a clean clear, a Hit and a boss's repeat Hit to look different. D049 split the ring into Wave cleared and time to the Hit, but the wave itself was still only an arc.
+- **Decision:**
+  1. **A body:** each standing wave is a small pill showing its remaining HP (Geist Mono), which falls as it is damaged. It enters just outside the ring at one of the upper corners, alternating sides at an angle that varies by wave, and closes in a straight line on the Number. Its place is the wave clock, so it reaches the Number exactly when the Hit lands. An ordinary wave warms towards the warning colour through the second half of its approach; a boss is warning-coloured and larger throughout.
+  2. **Three beats:** a clean clear shatters the body where it stood, with "BEATEN · NO HIT"; a Hit slams a copy of it into the Number while the existing Hit feedback plays; after a boss's Hit the body eases back to the edge and comes again. The next wave's body fades in at the edge.
+  3. **Presentation only:** no rule, clock, balance or save change. The angle never draws on the run's random stream, so a run plays identically with or without it. `src/wave_enemy.gd` draws it and `main.gd` moves it.
+  4. **Reduce Motion:** the body holds at the ring's edge showing the HP and plays no beats (MOTION_SYSTEM rule 1); the inner ring and the key still carry the time.
+- **Consequences:** The empty band D049 kept above the Upgrades sheet stays empty; the approach runs inside the stage. The path is short on a small phone (from the ring's edge to the Number's), which is one reason the owner may rework the rings. Making the body's position real, so Knockback, slow or range can act on it, is a later rule decision, not part of this one.
+- **Revisit when:** the owner reworks the rings, the 15-second clock changes, or position becomes a rule (Knockback, several bodies per wave for area damage).
+
