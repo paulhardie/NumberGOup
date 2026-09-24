@@ -68,8 +68,9 @@ const LONG_PRESS_SECONDS := 0.45
 const RUN_STAGE_TOP := 56.0
 ## Where the Number sits in the run arena, as a share of its height (D051).
 const NUMBER_HEIGHT_SHARE := 0.72
-## Under Reduce Motion, passive damage comes off the wave this often as one
-## number, carrying what built up since the last, rather than once a shot.
+## Passive damage rises off the wave as one "-X" this often, carrying what
+## landed since the last: at full Attack Speed a pop per shot would be twenty a
+## second (D055). Under Reduce Motion the damage itself waits this long too.
 const MOTE_INTERVAL := 0.33
 ## How far behind the first a Multishot's second shot leaves (D054).
 const MULTISHOT_GAP := 0.08
@@ -128,6 +129,10 @@ var enemy_latched := false
 var mote_damage := ScientificNumber.new()
 var mote_elapsed := 0.0
 var mote_crit := false
+## Shot damage landed on the wave since its last "-X" (D055).
+var pop_damage := ScientificNumber.new()
+var pop_elapsed := 0.0
+var pop_crit := false
 ## Where along its path the body is drawn, 0 at the arena's top edge and 1 at
 ## the Number. It is the wave clock.
 var enemy_travel := 0.0
@@ -3310,8 +3315,8 @@ func _populate_stats_grid() -> void:
 		["HIGHEST NUMBER", state.highest_number.format_value()],
 		["THIS RUN GENERATED", state.lifetime_generated.format_value()],
 		["TAPS", str(int(state.statistics.taps))],
-		["TICKS", str(int(state.statistics.ticks))],
-		["CRITICAL TICKS", str(int(state.statistics.critical_ticks))],
+		["SHOTS", str(int(state.statistics.ticks))],
+		["CRITICAL SHOTS", str(int(state.statistics.critical_ticks))],
 		["COINS SPENT", str(int(state.statistics.get("coins_spent", 0)))],
 	]
 	for entry in entries:
@@ -3490,11 +3495,20 @@ func _update_stage_colour() -> void:
 func _update_wave_enemy(delta: float) -> void:
 	if wave_enemy == null:
 		return
+	# A tap's damage rises at once; shots fold into one "-X" per interval.
 	for landed in arena_fx.step(delta):
-		_pop_damage(landed.amount, landed.crit, landed.tap)
+		if landed.tap:
+			_pop_damage(landed.amount, landed.crit, true)
+		else:
+			pop_damage = pop_damage.add(landed.amount)
+			pop_crit = pop_crit or landed.crit
+	pop_elapsed += delta
+	if pop_elapsed >= MOTE_INTERVAL:
+		_flush_shot_pops()
 	var encounter: Variant = state.active_encounter
 	var standing: bool = state.in_run and encounter != null and not encounter.max_liability.is_zero() and not encounter.is_cleared()
 	if not standing:
+		_flush_shot_pops()
 		# Beaten inside the 2.5-second beat: the wave is still on screen.
 		if encounter == enemy_encounter and state.in_run and encounter != null:
 			_shatter_enemy(encounter.is_boss)
@@ -3503,6 +3517,7 @@ func _update_wave_enemy(delta: float) -> void:
 		_clear_arena()
 		return
 	if encounter != enemy_encounter or not wave_enemy.visible:
+		_flush_shot_pops()
 		enemy_encounter = encounter
 		enemy_latched = false
 		enemy_entry = _enemy_entry(state.wave)
@@ -3591,6 +3606,9 @@ func _clear_arena() -> void:
 	mote_damage = ScientificNumber.new()
 	mote_elapsed = 0.0
 	mote_crit = false
+	pop_damage = ScientificNumber.new()
+	pop_elapsed = 0.0
+	pop_crit = false
 
 ## Where the wave's number starts and stops, in the arena's space: from the top
 ## edge at the wave's entry point, straight towards the Number, stopping where
@@ -3626,6 +3644,7 @@ func _enemy_entry(wave: int) -> float:
 func _shatter_enemy(boss: bool) -> void:
 	if wave_enemy == null or not wave_enemy.visible:
 		return
+	_flush_shot_pops()
 	_enemy_beat(WaveEnemyClass.Beat.SHATTER, BOSS_COLOUR if boss else TEXT)
 	_spawn_floating_text("BEATEN · NO HIT", ACCENT, wave_enemy.value_centre() + stage_root.position)
 	wave_enemy.visible = false
@@ -3704,6 +3723,15 @@ func _gather_passive_damage(dealt: ScientificNumber, crit: bool, delta: float) -
 		mote_damage = ScientificNumber.new()
 		mote_crit = false
 		mote_elapsed = 0.0
+
+## Shows the shots' folded "-X" now (D055), on the wave it hit, so the killing
+## blow's damage still rises before the wave shatters or gives way.
+func _flush_shot_pops() -> void:
+	if not pop_damage.is_zero():
+		_pop_damage(pop_damage, pop_crit, false)
+	pop_damage = ScientificNumber.new()
+	pop_crit = false
+	pop_elapsed = 0.0
 
 ## Plays a beat on a copy of the wave's number where it is now, so the live one
 ## is free to fade in as the next wave or stay on the Number as a boss. A

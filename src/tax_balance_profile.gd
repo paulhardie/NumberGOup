@@ -51,6 +51,10 @@ const BOSS_CASH_MULTIPLIER := 3.0
 ## Output every run has from its first second, before any Workshop rank, which
 ## upgrades do not raise (D033).
 const BASE_DAMAGE_PER_SECOND := 1.0
+## Shots a second before any Attack Speed (D055). Damage per shot is priced
+## against it, so raising it means more, smaller shots at the same damage per
+## second: a fresh run shows a stream of motes rather than one a second.
+const BASE_SHOTS_PER_SECOND := 2.5
 
 var tiers: Array = []
 

@@ -9,6 +9,9 @@ data/workshop/current.json, which tools/export_workshop.gd generates from the
 live game, so an unchanged row can never drift from what ships.
 
 This is a design aid for a proposal. The game does not read these files yet.
+Its spec predates D055: its Damage values are per second at one shot a second,
+while current.json's Damage is per shot at 2.5 a second, so a rerun must scale
+current Damage by 2.5 before comparing the two.
 Run: python3 tools/workshop_ladders.py
 """
 import json
