@@ -1,14 +1,14 @@
 # Handover
 
-**Last updated:** 24 September 2026, by Codex, handing back to Claude. Branch `claude/game-changes-review-fbili3` carries **D056–D062, including the independent D059 review, its approved saved-run repair, quieter combat readouts and red critical numbers**. The branch is **not merged**, and no PR is open (checked with `gh pr list` during review). D044–D055 and the class-cache fix are merged to `main` (PRs #48–#54). The owner's playable checkout remains on `main`; review work is in `/private/tmp/ngu-d059-review`.
+**Last updated:** 24 September 2026, by Codex, handing back to Claude at the owner's request. Branch `claude/game-changes-review-fbili3` carries **D056–D062, including the independent D059 review, its approved saved-run repair, quieter combat readouts and red critical numbers**; the feature work ends at `c51f41c`. These changes are **not merged**, and there is no open PR for them (`gh pr list` checked on 24 September; older PRs from this branch are merged). D044–D055 and the class-cache fix are merged to `main` (PRs #48–#54). The owner's playable checkout is clean on `main`; review work is in `/private/tmp/ngu-d059-review`.
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
 
 ## For the next agent (Claude): start here
 
 1. Read [`AGENTS.md`](../AGENTS.md), D056–D062 in [`DECISIONS.md`](DECISIONS.md), and the D059 implementation commit `e934e91`. Fetch and check the branch against `origin` before new work. Do not switch the owner's playable `main` checkout to this branch.
-2. **The D059 saved-run blocker is resolved under D060.** The owner approved the repair ("sure go for it"). A D058-shaped V10 active save now enters D059's one-Hit opening, removes the old early pile, and adopts eased clocks from wave 31 while keeping earned progress and boss behaviour. Current D059 saves round-trip exactly. The economy suite, headless boot, arena probe and balance comparison passed; details are below.
-3. **D061–D062 quiet the combat numbers.** Damage now updates one readout beside the target, and routine incoming Hits one below TAP; close guarded Hits keep only the latest working column. Critical amounts are red and slightly heavier, without a word. The arena probe and four-size capture pass, but no phone or touch play has checked the feel.
-4. **The next owner decision is whether D059–D062 feel right in play and should go to a PR.** Ask about the wave-31 switch, Hits, early Coin pacing and readout legibility. Keep the remaining pile overlap and narrow caption pass separate. Do not open or merge a PR without the owner asking. Use `run_godot.sh` for every Godot run and check for a running Godot game before editing scripts.
+2. **What Codex covered:** independently reviewed D059 before merge. The review found a saved active D058 run could keep the old pile and Hit clocks while using D059's rules (`d971cab`). The owner approved the repair ("sure go for it"); D060 reconciles that old run on load (`d92b1c0`). A D058-shaped V10 fixture failed four assertions before the repair and passed afterwards. Earned progress and boss behaviour are preserved; current D059 saves round-trip exactly. The economy suite, headless boot, arena probe and balance comparison passed; details are below.
+3. **What the owner then requested:** D061 replaces routine flying damage and incoming Hit numbers with two fixed readouts (`09bacad`). D062 makes critical amounts heavier red without a word (`c51f41c`). The arena probe and four-size capture passed for each presentation change. No phone or touch play has checked their feel.
+4. **The next owner decision is whether D059–D062 feel right in play and should go to a PR.** Ask about the wave-31 switch, Hits, early Coin pacing and readout legibility. The owner has asked for this handover, not a PR. Keep the remaining pile overlap and narrow caption pass separate. Use `run_godot.sh` for every Godot run and check for a running Godot game before editing scripts.
 
 ## Where the game is
 
@@ -46,11 +46,11 @@
 ## Next steps, in order
 
 1. **Owner:** play D059 with D061–D062's readouts and decide whether to open its PR. **Done when:** the wave-31 switch, Hits, early Coin pacing and combat legibility feel acceptable in a real game; no local automated check proves that feel. Low technical risk, but a product decision. No PR or merge has been requested.
-2. **Agent, if the owner confirms:** the arena pass (group step 2). It fixes:
+2. **Agent, when the owner wants the next build:** the arena pass (group step 2). It fixes:
    - members overlapping near the top edge as a wave enters (stagger their start heights or fade them in one by one);
    - the front caption clipping on a narrow screen ("· 9 mor");
-   Low–medium risk. Verify with `tools/capture_ui.gd` at four sizes and `tools/arena_probe.gd`.
-3. **Owner:** decide enemy types, then tapping. Each is its own decision and build after D059 is settled.
+   **Done when:** both read clearly in the four-size `tools/capture_ui.gd` set and `tools/arena_probe.gd` still passes. Low–medium presentation risk.
+3. **Owner and agent:** decide enemy types (group step 3), then measure the proposed tap contribution and decide tapping (step 4). **Done when:** the owner has accepted each rule with measured effects before its separate build. Do this after D059 and the arena are settled; tapping changes the economy and needs its high-risk checks.
 
 ## How to measure
 
@@ -78,7 +78,7 @@
 
 ## Handing back to Claude
 
-The approved saved-run repair, quieter combat readouts and red critical numbers are complete. The next decision is whether D059–D062 feel right in play and should have a PR. Keep this handover as the current state, and leave the repository able to answer the next session's questions without this conversation.
+The independent D059 review, approved saved-run repair, quieter combat readouts and red critical numbers are complete through `c51f41c`. The next decision is whether D059–D062 feel right in play and should have a PR. After that, work through the arena, enemy types and tapping in the order above. Keep this handover as the current state, and leave the repository able to answer the next session's questions without this conversation.
 
 1. **Replace this page. Never append to it.** Keep its shape: who is handing to whom and when; the branch and what is on it (merged or not, PR number); where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; and this section, addressed back to Claude.
 2. **Record any new choice the owner accepts** as the next `D0NN` entry in [`DECISIONS.md`](DECISIONS.md) (D063 onwards). D059 records the opening, D060 the saved-run reconciliation, D061 the fixed combat readouts and D062 the critical style. Each new entry needs the owner's words, context, the decision, the evidence (the figures measured and how), the consequences, and when to revisit. Update any document the change makes stale in the same commit: [`GAME_INVARIANTS.md`](GAME_INVARIANTS.md), [`MOTION_SYSTEM.md`](MOTION_SYSTEM.md), [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md), [`WORKSHOP_EXPANSION.md`](WORKSHOP_EXPANSION.md).
