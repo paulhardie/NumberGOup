@@ -18,7 +18,9 @@ Open the project in Godot 4.7.2 and run `scenes/main.tscn` for the playable buil
 ## Web export
 
 `export_presets.cfg` defines a single-threaded, PWA-enabled Web export at `build/web/index.html`.
-Exported files must be served over HTTPS for browser persistence and PWA behavior to work reliably. No hosting configuration is included.
+Exported files must be served over HTTPS for browser persistence and PWA behavior to work reliably.
+
+`.github/workflows/web-preview.yml` builds that export on every pull request and push to `main` and publishes it to the Cloudflare Pages project `number-go-up`: a pull request gets a comment with a playable link, and `main` becomes the production site. Pages refuses files over 25 MiB and the engine is about 40 MB, so the workflow uploads `index.wasm` gzipped and `.github/web-preview/_worker.js` serves it back under its own name. The deploy needs two repository secrets, `CLOUDFLARE_API_TOKEN` (an account token with Cloudflare Pages: Edit) and `CLOUDFLARE_ACCOUNT_ID`; without them the build still runs and the deploy is skipped. A browser keeps its own save per link, separate from the desktop game's.
 
 ## Current game
 

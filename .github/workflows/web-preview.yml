@@ -1,0 +1,210 @@
+name: Web preview
+
+# Builds the Web export and publishes it to Cloudflare Pages: each pull request
+# gets a playable link in a comment, and main becomes the production site.
+# Needs the CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID repository secrets;
+# until they exist the build still runs and the deploy is skipped.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-preview-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: 4.7.2-stable
+  PAGES_PROJECT: number-go-up
+
+jobs:
+  build:
+    name: Web build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Install Godot
+        run: |
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}"
+          curl -fsSLO "${base}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          curl -fsSLO "${base}/SHA512-SUMS.txt"
+          expected="$(grep -F "  Godot_v${GODOT_VERSION}_linux.x86_64.zip" SHA512-SUMS.txt)"
+          test -n "${expected}" || { echo "checksum entry missing"; exit 1; }
+          printf '%s\n' "${expected}" | sha512sum -c -
+          unzip -q "Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          mv "Godot_v${GODOT_VERSION}_linux.x86_64" godot
+          chmod +x godot
+          echo "GODOT=${PWD}/godot" >> "$GITHUB_ENV"
+
+      # The full template bundle is around a gigabyte; only the single-threaded
+      # web template the preset uses is kept, and cached per Godot version.
+      - name: Cache web export template
+        id: template-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ runner.temp }}/web-template
+          key: godot-web-template-${{ env.GODOT_VERSION }}
+
+      - name: Download web export template
+        if: steps.template-cache.outputs.cache-hit != 'true'
+        run: |
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}"
+          bundle="Godot_v${GODOT_VERSION}_export_templates.tpz"
+          curl -fsSLO "${base}/${bundle}"
+          curl -fsSLO "${base}/SHA512-SUMS.txt"
+          expected="$(grep -F "  ${bundle}" SHA512-SUMS.txt)"
+          test -n "${expected}" || { echo "checksum entry missing"; exit 1; }
+          printf '%s\n' "${expected}" | sha512sum -c -
+          mkdir -p "${RUNNER_TEMP}/web-template"
+          unzip -q -j "${bundle}" templates/web_nothreads_release.zip templates/version.txt -d "${RUNNER_TEMP}/web-template"
+          rm "${bundle}"
+
+      # Godot looks for templates under its data folder, which XDG_DATA_HOME
+      # pins here whatever run_godot.sh does with HOME.
+      - name: Export for the web
+        env:
+          XDG_DATA_HOME: ${{ runner.temp }}/godot-data
+        run: |
+          templates="${XDG_DATA_HOME}/godot/export_templates/${GODOT_VERSION/-/.}"
+          mkdir -p "${templates}" build/web
+          cp "${RUNNER_TEMP}"/web-template/* "${templates}/"
+          bash run_godot.sh --headless --path . --import
+          output="$(bash run_godot.sh --headless --path . --export-release Web build/web/index.html 2>&1)" || { printf '%s\n' "$output"; exit 1; }
+          printf '%s\n' "$output" | tail -n 20
+          if printf '%s\n' "$output" | grep -E 'SCRIPT ERROR|Parse Error'; then
+            echo "::error::Godot reported script or parse errors during the web export"
+            exit 1
+          fi
+          test -f build/web/index.wasm || { echo "::error::Web export produced no index.wasm"; exit 1; }
+
+      # Cloudflare Pages refuses files over 25 MiB and the engine is larger, so
+      # it ships gzipped and _worker.js serves it back under its own name.
+      - name: Pack for Cloudflare Pages
+        run: |
+          gzip -9 build/web/index.wasm
+          cp .github/web-preview/_worker.js build/web/
+          limit=$((25 * 1024 * 1024))
+          for file in build/web/*; do
+            size="$(stat -c %s "$file")"
+            if [ "$size" -ge "$limit" ]; then
+              echo "::error::$(basename "$file") is ${size} bytes, over Cloudflare Pages' 25 MiB file limit"
+              exit 1
+            fi
+          done
+          ls -l build/web
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: web-build
+          path: build/web
+          retention-days: 7
+
+  # Kept apart from the build so the Cloudflare token never shares a job with
+  # the project's own code. Pull requests from forks get no secrets, so skip them.
+  deploy:
+    name: Deploy to Cloudflare Pages
+    needs: build
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      BRANCH: ${{ github.head_ref || github.ref_name }}
+      COMMIT: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Check Cloudflare secrets
+        id: secrets
+        run: |
+          if [ -z "${CLOUDFLARE_API_TOKEN}" ] || [ -z "${CLOUDFLARE_ACCOUNT_ID}" ]; then
+            echo "::notice::CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID is not set, so the web build was not deployed"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Wrangler 4 needs Node 22 or newer.
+      - if: steps.secrets.outputs.ready == 'true'
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - if: steps.secrets.outputs.ready == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          name: web-build
+          path: site
+
+      - name: Create the Pages project if it is missing
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          status="$(curl -s -o /dev/null -w '%{http_code}' \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/pages/projects/${PAGES_PROJECT}")"
+          case "$status" in
+            200) echo "Pages project ${PAGES_PROJECT} exists" ;;
+            404) npx --yes wrangler@4 pages project create "${PAGES_PROJECT}" --production-branch=main ;;
+            *) echo "::error::Cloudflare answered ${status} when looking up the Pages project; check the token's Pages permission and the account ID"; exit 1 ;;
+          esac
+
+      - name: Deploy
+        id: deploy
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          WRANGLER_OUTPUT_FILE_PATH: ${{ runner.temp }}/wrangler-output.json
+        run: |
+          npx --yes wrangler@4 pages deploy site \
+            --project-name="${PAGES_PROJECT}" \
+            --branch="${BRANCH}" \
+            --commit-hash="${COMMIT}" \
+            --commit-dirty=true
+          entry="$(jq -c 'select(.type == "pages-deploy-detailed")' "${WRANGLER_OUTPUT_FILE_PATH}" | tail -n 1)"
+          url="$(printf '%s' "$entry" | jq -r '.url // empty')"
+          alias="$(printf '%s' "$entry" | jq -r '.alias // empty')"
+          test -n "$url" || { echo "::error::Wrangler reported no deployment URL"; exit 1; }
+          echo "url=${url}" >> "$GITHUB_OUTPUT"
+          echo "alias=${alias:-$url}" >> "$GITHUB_OUTPUT"
+          {
+            echo "### Web build"
+            echo "- Branch link: ${alias:-$url}"
+            echo "- This commit: ${url}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # One comment per pull request, edited on each push rather than repeated.
+      - name: Comment the preview link
+        if: steps.secrets.outputs.ready == 'true' && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+          URL: ${{ steps.deploy.outputs.url }}
+          ALIAS: ${{ steps.deploy.outputs.alias }}
+        run: |
+          marker="<!-- ngu-web-preview -->"
+          body="$(printf '%s\n' \
+            "${marker}" \
+            "**Play this pull request in the browser:** ${ALIAS}" \
+            "" \
+            "- That link follows the pull request and keeps its browser save across pushes. If it still shows the previous build, reload once more." \
+            "- This exact commit (\`${COMMIT:0:7}\`), with a fresh save: ${URL}" \
+            "" \
+            "Browser saves are separate from the Mac game's save.")"
+          id="$(gh api "repos/${REPO}/issues/${PR}/comments" --paginate \
+            --jq ".[] | select(.user.login == \"github-actions[bot]\" and (.body | contains(\"${marker}\"))) | .id" | head -n 1)"
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/${REPO}/issues/comments/${id}" -f body="$body" > /dev/null
+          else
+            gh api -X POST "repos/${REPO}/issues/${PR}/comments" -f body="$body" > /dev/null
+          fi
