@@ -6,7 +6,8 @@ extends RefCounted
 ## (D042), which V8 carried without declaring and V9 checks, and Workshop
 ## ranks past a row's old cap (D047: the deep rows past 100 and the capped rows
 ## raised to Tower-like maxima), which a V8 build would clamp back and save.
-## Every other key keeps its V8 name and meaning.
+## Every other key keeps its V8 name and meaning. V10 now owns the written
+## shape and builds on `make` here, so V9 is otherwise a migration source.
 const VERSION := 9
 
 static func make(state) -> Dictionary:

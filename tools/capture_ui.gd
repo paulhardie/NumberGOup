@@ -64,7 +64,9 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 		state.start_run(2, 99)
 		state.number = ScientificNumber.from_float(238500)
 		state.wave = 27
-		state.wave_accumulator = 7.5
+		# Before the group's front member lands at 6 seconds (D057), so the
+		# capture shows the whole group walking in.
+		state.wave_accumulator = 4.5
 		state.run_coins_earned = 640
 		state.active_encounter = state._make_encounter(27)
 		if state_name == "boss":
@@ -74,7 +76,8 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 			state.active_encounter = state._make_encounter(30)
 			state.active_encounter.apply_compliance(state.active_encounter.max_liability.multiply_scalar(0.4))
 		elif state_name == "run_standing":
-			state.active_encounter.apply_compliance(state.active_encounter.max_liability.multiply_scalar(0.55))
+			# Over half the wave cleared, front first, across its members.
+			state.active_encounter.remaining_liability = state.active_encounter.max_liability.multiply_scalar(0.45)
 		else:
 			state.active_encounter.apply_compliance(ScientificNumber.from_float(55900))
 	elif state_name == "hub_played" or state_name == "milestones":

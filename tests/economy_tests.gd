@@ -28,6 +28,10 @@ func _init() -> void:
 	_test_tier_pressure_and_curve_gates()
 	_test_tier_one_opening()
 	_test_production_clears_liability()
+	_test_a_wave_is_a_group()
+	_test_group_members_land_one_by_one()
+	_test_group_brace_guard_and_thorns()
+	_test_group_saves_and_resumes()
 	_test_output_is_number_and_strikes_the_wave()
 	_test_repeated_taps_count_once()
 	_test_missed_waves_move_on_and_bosses_stay()
@@ -462,7 +466,7 @@ func _test_save_round_trip_and_legacy_migration() -> void:
 	v4_source.tap()
 	var v4_remaining: ScientificNumber = v4_source.active_encounter.remaining_liability.copy()
 	var v4_rng_state := v4_source.rng.state
-	var v4: Dictionary = SaveDataV9.make(v4_source)
+	var v4: Dictionary = SaveDataV10.make(v4_source)
 	v4.version = 4
 	v4.purchased = {"stronger_tap": 2, "generator": 1}
 	v4.tax_resistance_rank = 3
@@ -492,7 +496,7 @@ func _test_save_round_trip_and_legacy_migration() -> void:
 	rewritten.save_path = save_path
 	rewritten.load()
 	_expect(rewritten.get_owned(GameState.ARMOR_ID) == 3 and rewritten.focus_path == ProgressionTaxonomy.ATTACK, "migration should rewrite the save in the current shape immediately")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV9.VERSION, "the rewritten save should carry the current version")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV10.VERSION, "the rewritten save should carry the current version")
 	var kept_v4 := "res://.number_go_up_test_save.v4-backup.json"
 	_expect(int(_read_json(kept_v4).get("version", 0)) == 4, "migration should keep the V4 file it read, unchanged, beside the new save")
 	rewritten.clear_save()
@@ -598,8 +602,8 @@ func _test_bad_saves_are_never_written_over() -> void:
 	writer.clear_save()
 
 	# A save from a newer build is left byte for byte, and saving pauses.
-	var future: Dictionary = SaveDataV9.make(_funded_state())
-	future.version = SaveDataV9.VERSION + 1
+	var future: Dictionary = SaveDataV10.make(_funded_state())
+	future.version = SaveDataV10.VERSION + 1
 	_write_json(save_path, future)
 	var future_text := FileAccess.get_file_as_string(save_path)
 	var older_build := GameState.new()
@@ -614,8 +618,8 @@ func _test_bad_saves_are_never_written_over() -> void:
 	# A live save that cannot be read is moved aside, and the backup loads.
 	var good := _funded_state()
 	good.coins = 999
-	_write_json(backup_path, SaveDataV9.make(good))
-	var torn := JSON.stringify(SaveDataV9.make(_funded_state()))
+	_write_json(backup_path, SaveDataV10.make(good))
+	var torn := JSON.stringify(SaveDataV10.make(_funded_state()))
 	_write_text(save_path, torn.substr(0, torn.length() / 2))
 	var recovered := GameState.new()
 	recovered.save_path = save_path
@@ -629,16 +633,16 @@ func _test_bad_saves_are_never_written_over() -> void:
 
 	# With no backup to fall back to, the game starts fresh and says so, and
 	# the unreadable save is still kept.
-	var typed_wrong: Dictionary = SaveDataV9.make(_funded_state())
+	var typed_wrong: Dictionary = SaveDataV10.make(_funded_state())
 	typed_wrong.purchased = "not a dictionary"
 	# Cash is read only while a run is saved, so the bad value sits in one.
-	var cash_wrong: Dictionary = SaveDataV9.make(_funded_state())
+	var cash_wrong: Dictionary = SaveDataV10.make(_funded_state())
 	cash_wrong.in_run = true
 	cash_wrong.cash = "not a number"
-	var earned_wrong: Dictionary = SaveDataV9.make(_funded_state())
+	var earned_wrong: Dictionary = SaveDataV10.make(_funded_state())
 	earned_wrong.in_run = true
 	earned_wrong.run_cash_earned = {"exponent": 0, "mantissa": "lots"}
-	var not_finite := JSON.stringify(SaveDataV9.make(_funded_state())).replace('"highest":{"exponent":0,"mantissa":0.0}', '"highest":{"exponent":0,"mantissa":1e999}')
+	var not_finite := JSON.stringify(SaveDataV10.make(_funded_state())).replace('"highest":{"exponent":0,"mantissa":0.0}', '"highest":{"exponent":0,"mantissa":1e999}')
 	for unreadable in [JSON.stringify(typed_wrong), JSON.stringify(cash_wrong), JSON.stringify(earned_wrong), not_finite, "{", ""]:
 		_write_text(save_path, unreadable)
 		var fresh := GameState.new()
@@ -650,7 +654,7 @@ func _test_bad_saves_are_never_written_over() -> void:
 
 	# A live save that vanished between the two renames of a save still has its
 	# backup.
-	_write_json(backup_path, SaveDataV9.make(good))
+	_write_json(backup_path, SaveDataV10.make(good))
 	var interrupted := GameState.new()
 	interrupted.save_path = save_path
 	interrupted.load()
@@ -681,7 +685,7 @@ func _test_v5_saves_migrate_without_loss() -> void:
 	source.rig_ranks = {"stronger_tap": 2}
 	for tap_index in range(4):
 		source.tap()
-	var v5: Dictionary = SaveDataV9.make(source)
+	var v5: Dictionary = SaveDataV10.make(source)
 	v5.version = 5
 	v5.erase("tick_accumulator")
 	v5.erase("critical_chain")
@@ -712,7 +716,7 @@ func _test_v5_saves_migrate_without_loss() -> void:
 	_expect(migrated.get_tier_record(1).milestones_claimed == [10, 20, 25, 30, 40, 50, 60, 75, 90, 100], "V5 records should survive migration, with every passed checkpoint claimed")
 	_expect(migrated.in_run and migrated.rig_owned("stronger_tap") == 2 and migrated.rng.state == source.rng.state, "a V5 live run should survive migration")
 	_expect(migrated.lab_slots_total() == LabResearch.LEGACY_SLOTS, "a V5 save should keep the two Lab slots every player then had")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV9.VERSION, "a V5 save should be rewritten in the current shape at once")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV10.VERSION, "a V5 save should be rewritten in the current shape at once")
 	_expect(int(_read_json("res://.number_go_up_test_save.v5-backup.json").get("version", 0)) == 5, "the V5 file should be kept beside the new save")
 	migrated.clear_save()
 	_expect(_leftover_save_files().is_empty(), "the V5 migration check should leave no file behind")
@@ -969,6 +973,11 @@ func _test_production_clears_liability() -> void:
 	var tap := state.tap()
 	_expect(state.active_encounter.remaining_liability.compare_to(before.subtract(tap.amount)) == 0, "every produced unit should deal equal compliance damage")
 	state.active_encounter.apply_compliance(ScientificNumber.new(9.9, 300))
+	# D057: one blow beats only the front member; what it carried past that
+	# member's HP is lost, as it was past a whole wave's.
+	_expect(state.active_encounter.members[0].hp.is_zero() and state.active_encounter.standing_count() == state.active_encounter.members.size() - 1, "one blow should beat only the front member")
+	while not state.active_encounter.is_cleared():
+		state.active_encounter.apply_compliance(ScientificNumber.new(9.9, 300))
 	_expect(state.active_encounter.is_cleared(), "sufficient compliance should clear Liability without making it negative")
 	var event := state._resolve_wave_boundary()
 	_expect(event.type == "wave_clear" and state.wave == 2, "a cleared Liability should advance at the boundary")
@@ -994,10 +1003,12 @@ func _test_output_is_number_and_strikes_the_wave() -> void:
 	_expect(state.number.compare_to(ScientificNumber.from_float(1095)) == 0, "output after the wave is beaten should all become Number")
 	_expect(state.lifetime_generated.compare_to(lifetime_before.add(ScientificNumber.from_float(95))) == 0, "lifetime production should count each unit once")
 
+	state.active_encounter = state._make_encounter(state.wave)
 	state.active_encounter.remaining_liability = ScientificNumber.from_float(50)
 	state._add_number(ScientificNumber.from_float(80))
-	_expect(state.active_encounter.is_cleared() and state.number.compare_to(ScientificNumber.from_float(1175)) == 0, "an output past remaining Liability should bank in full")
+	_expect(state.active_encounter.members[0].hp.is_zero() and state.number.compare_to(ScientificNumber.from_float(1175)) == 0, "an output past the front member's HP should beat it and bank in full")
 
+	state.active_encounter = state._make_encounter(state.wave)
 	state.active_encounter.remaining_liability = ScientificNumber.from_float(50)
 	var zero_lifetime: ScientificNumber = state.lifetime_generated.copy()
 	state._add_number(ScientificNumber.new())
@@ -1066,7 +1077,7 @@ func _test_missed_waves_move_on_and_bosses_stay() -> void:
 	_expect(boss.active_encounter.remaining_liability.compare_to(boss_hp.subtract(ScientificNumber.from_float(40.0 * boss._boss_damage_multiplier()))) <= 0, "a standing boss should keep the damage already dealt")
 	event = boss._resolve_wave_boundary()
 	_expect(event.type == "boss_collection" and boss.wave == 30, "a standing boss should hit again at the next boundary")
-	boss._add_number(boss.active_encounter.remaining_liability)
+	_beat_wave(boss)
 	_advance_seconds(boss, boss.balance_profile.MIN_WAVE_SECONDS)
 	_expect(boss.wave == 31 and boss.get_tier_best(2) == 30, "beating the boss should advance and count")
 
@@ -1083,7 +1094,7 @@ func _test_missed_checkpoint_pays_when_passed() -> void:
 	var gems_before := state.gems
 	state._resolve_wave_boundary()
 	_expect(state.wave == 26 and not state.get_tier_record(1).milestones_claimed.has(25), "a missed checkpoint wave should claim nothing")
-	state._add_number(state.active_encounter.remaining_liability)
+	_beat_wave(state)
 	_advance_seconds(state, state.balance_profile.MIN_WAVE_SECONDS)
 	var bonus: int = state.balance_profile.milestone_bonus(1, 25)
 	_expect(state.get_tier_record(1).milestones_claimed.has(25), "beating a later wave should claim the passed checkpoint")
@@ -1098,7 +1109,7 @@ func _test_beaten_wave_gives_way_after_the_minimum_beat() -> void:
 	# the minimum beat so the clear registers, then the next wave arrives.
 	var state := GameState.new()
 	state.start_run(1, 26)
-	state._add_number(state.active_encounter.remaining_liability)
+	_beat_wave(state)
 	_expect(state.active_encounter.is_cleared() and state.wave == 1, "a cleared wave should hold until the minimum beat")
 	var events := state.advance(0.25)
 	_expect(state.wave == 1, "the next wave should not arrive before the minimum beat")
@@ -1191,6 +1202,9 @@ func _test_mid_wave_save_resumes_identically() -> void:
 	_expect(legacy.save(), "the legacy fixture should save")
 	var saved: Dictionary = JSON.parse_string(FileAccess.get_file_as_string(save_path))
 	saved.balance_profile_id = "tax-foundation-v6"
+	# A save from before groups (D057) had no members, only its wave's HP.
+	saved.active_encounter.erase("members")
+	saved.active_encounter.erase("passed_liability")
 	saved.active_encounter.max_liability = ScientificNumber.from_float(238.0).to_dict()
 	saved.active_encounter.remaining_liability = ScientificNumber.from_float(166.6).to_dict()
 	saved.active_encounter.collection = ScientificNumber.from_float(156.0).to_dict()
@@ -1602,7 +1616,7 @@ func _test_v8_save_migrates_to_v9() -> void:
 	source.purchased = {"stronger_tap": 100, "generator": 40}
 	source.start_run(1, 31)
 	source.cash = ScientificNumber.from_float(1234.0)
-	var v8: Dictionary = SaveDataV9.make(source)
+	var v8: Dictionary = SaveDataV10.make(source)
 	v8.version = 8
 	_write_json(save_path, v8)
 	var loaded := GameState.new()
@@ -1610,7 +1624,7 @@ func _test_v8_save_migrates_to_v9() -> void:
 	loaded.load()
 	_expect(loaded.get_owned("stronger_tap") == 100 and loaded.get_owned("generator") == 40, "a V8 save should keep every Workshop rank")
 	_expect(loaded.in_run and loaded.cash.compare_to(ScientificNumber.from_float(1234.0)) == 0, "a V8 save should keep its run's Cash")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV9.VERSION, "a V8 save should be rewritten as V9 at once")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV10.VERSION, "a V8 save should be rewritten in the current version at once")
 	_expect(int(_read_json("res://.number_go_up_test_save.v8-backup.json").get("version", 0)) == 8, "the V8 file should be kept beside the new save")
 	loaded.clear_save()
 
@@ -1621,14 +1635,14 @@ func _test_v8_save_migrates_to_v9() -> void:
 	var reloaded := GameState.new()
 	reloaded.save_path = save_path
 	reloaded.load()
-	_expect(reloaded.get_owned("stronger_tap") == 4321 and reloaded.get_owned("guard") == 2500, "deep ranks past 100 should round-trip in V9")
+	_expect(reloaded.get_owned("stronger_tap") == 4321 and reloaded.get_owned("guard") == 2500, "deep ranks past 100 should round-trip")
 	reloaded.clear_save()
 
 ## A save holding more ranks than a row allows loads at the cap, so a lowered
 ## cap takes effect; a rank under a retired id is kept but counts for nothing.
 func _test_loaded_ranks_stay_within_their_caps() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
-	var data: Dictionary = SaveDataV9.make(GameState.new())
+	var data: Dictionary = SaveDataV10.make(GameState.new())
 	data.purchased = {"stronger_tap": 90000, "generator": -4, "retired_row": 30}
 	data.knowledge_purchased = {"insight": 3}
 	data.lab_ranks = {"lab_damage": 900, "retired_line": 2}
@@ -1794,7 +1808,7 @@ func _test_claimed_milestones_survive_a_reload() -> void:
 
 	# A save written before the fix can hold the same wave twice, plus junk;
 	# it collapses to each real wave once.
-	var damaged: Dictionary = SaveDataV9.make(GameState.new())
+	var damaged: Dictionary = SaveDataV10.make(GameState.new())
 	damaged.tier_records["1"] = {"highest_wave": 30, "best_time": 0.0, "milestones_claimed": [10, 10.0, "junk", -3, 25]}
 	damaged.tier_records["9"] = "a tier this build does not know"
 	_write_json(save_path, damaged)
@@ -1850,7 +1864,7 @@ func _test_boss_waves_and_checkpoints_pay_gems() -> void:
 func _test_passed_checkpoints_are_paid_on_load() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
 	var profile = GameState.new().balance_profile
-	var passed: Dictionary = SaveDataV9.make(GameState.new())
+	var passed: Dictionary = SaveDataV10.make(GameState.new())
 	passed.tier_records["1"] = {"highest_wave": 60, "best_time": 0.0, "milestones_claimed": [10, 25, 50]}
 	_write_json(save_path, passed)
 	var loaded := GameState.new()
@@ -1867,7 +1881,7 @@ func _test_passed_checkpoints_are_paid_on_load() -> void:
 	_expect(again.gems == owed and again.milestone_gems_caught_up == 0, "a second load should pay nothing more")
 	again.clear_save()
 
-	var old: Dictionary = SaveDataV9.make(GameState.new())
+	var old: Dictionary = SaveDataV10.make(GameState.new())
 	old.version = 7
 	old.erase("run_gems_earned")
 	old.gems = 2
@@ -1878,7 +1892,7 @@ func _test_passed_checkpoints_are_paid_on_load() -> void:
 	topped.load()
 	var top_up: int = (profile.milestone_gems(1, 10) - GameState.PRE_V8_MILESTONE_GEMS) + (profile.milestone_gems(1, 25) - GameState.PRE_V8_MILESTONE_GEMS)
 	_expect(topped.gems == 2 + top_up, "a pre-V8 save should have its old one-Gem Coin checkpoints topped up")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV9.VERSION, "the topped-up save should be rewritten in the current version at once")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV10.VERSION, "the topped-up save should be rewritten in the current version at once")
 	var reread := GameState.new()
 	reread.save_path = save_path
 	reread.load()
@@ -2198,7 +2212,7 @@ func _test_rig_save_round_trip() -> void:
 	var pre_rig := GameState.new()
 	pre_rig.save_path = save_path
 	pre_rig.start_run(1, 5)
-	var legacy: Dictionary = SaveDataV9.make(pre_rig)
+	var legacy: Dictionary = SaveDataV10.make(pre_rig)
 	legacy.erase("rig_ranks")
 	legacy.erase("cash")
 	_write_json(save_path, legacy)
@@ -2292,7 +2306,7 @@ func _test_lab_slots_open_with_gems() -> void:
 	restored.clear_save()
 
 	# A V6 save predates bought slots: it keeps two, and becomes V7 at once.
-	var v6: Dictionary = SaveDataV9.make(_funded_state())
+	var v6: Dictionary = SaveDataV10.make(_funded_state())
 	v6.version = 6
 	v6.erase("lab_slots")
 	_write_json(save_path, v6)
@@ -2300,10 +2314,10 @@ func _test_lab_slots_open_with_gems() -> void:
 	migrated.save_path = save_path
 	migrated.load()
 	_expect(migrated.lab_slots_total() == LabResearch.LEGACY_SLOTS, "a V6 save should keep its two Lab slots")
-	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV9.VERSION and int(_read_json("res://.number_go_up_test_save.v6-backup.json").get("version", 0)) == 6, "a V6 save should be rewritten as V7, with the V6 file kept")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV10.VERSION and int(_read_json("res://.number_go_up_test_save.v6-backup.json").get("version", 0)) == 6, "a V6 save should be rewritten in the current version, with the V6 file kept")
 	migrated.clear_save()
 	for stored in [99, -3, 0]:
-		var odd: Dictionary = SaveDataV9.make(_funded_state())
+		var odd: Dictionary = SaveDataV10.make(_funded_state())
 		odd.lab_slots = stored
 		_write_json(save_path, odd)
 		var clamped := GameState.new()
@@ -2413,7 +2427,7 @@ func _test_lab_save_round_trip() -> void:
 
 	# A save written before Labs existed resumes with none, and a malformed
 	# Labs block reads as empty rather than crashing.
-	var legacy: Dictionary = SaveDataV9.make(_funded_state())
+	var legacy: Dictionary = SaveDataV10.make(_funded_state())
 	legacy.erase("lab_ranks")
 	legacy.erase("lab_active")
 	_write_json(save_path, legacy)
@@ -2537,7 +2551,7 @@ func _test_card_save_round_trip() -> void:
 
 	# A save written before Cards existed resumes with none, and a malformed
 	# block reads as empty rather than crashing.
-	var legacy: Dictionary = SaveDataV9.make(_funded_state())
+	var legacy: Dictionary = SaveDataV10.make(_funded_state())
 	legacy.erase("gems")
 	legacy.erase("card_ranks")
 	legacy.erase("card_active")
@@ -2622,6 +2636,210 @@ func _test_defensive_ceilings_bound_the_combined_effects() -> void:
 	state._resolve_wave_boundary()
 	var dealt := liability_before.subtract(state.active_encounter.remaining_liability)
 	_expect(dealt.compare_to(hit) == 0, "Thorns should deal back exactly the hit, never more")
+
+## D057: a wave is a group whose members share its HP and Hit evenly, three
+## at first and one more every eleven waves to twenty, and a boss is one.
+## Members walk in as a column, the front arriving at 6 seconds and the last at
+## 15.
+func _test_a_wave_is_a_group() -> void:
+	var profile := TaxBalanceProfile.new()
+	_expect(profile.members_for_wave(1) == 3 and profile.members_for_wave(11) == 3 and profile.members_for_wave(12) == 4, "a wave should start as three members and gain one at wave 12")
+	_expect(profile.members_for_wave(100) == 1 and profile.members_for_wave(101) == 12, "a boss should be one; wave 101 should be twelve")
+	_expect(profile.members_for_wave(501) == 20 and profile.members_for_wave(5001) == 20, "a wave should stop at twenty members")
+	_expect(is_equal_approx(profile.member_arrival(0, 3), 6.0) and is_equal_approx(profile.member_arrival(1, 3), 10.5) and is_equal_approx(profile.member_arrival(2, 3), 15.0), "three members should arrive at 6, 10.5 and 15 seconds")
+	_expect(is_equal_approx(profile.member_arrival(0, 1), 15.0), "a lone member should arrive at the end of the clock")
+	var state := GameState.new()
+	state.start_run(1, 51)
+	var encounter = state.active_encounter
+	var total := ScientificNumber.new()
+	for member in encounter.members:
+		total = total.add(member.max)
+		_expect(is_equal_approx(float(member.share), 1.0 / 3.0), "each member should carry a third of the wave")
+	_expect(absf(total.log10() - encounter.max_liability.log10()) < 0.000001, "the members' HP should add up to the wave's")
+	_expect(is_equal_approx(state.next_hit_share(), 1.0 / 3.0) and state.get_hit_breakdown().final.compare_to(state.get_effective_collection().multiply_scalar(1.0 / 3.0)) == 0, "the next Hit shown should be the front member's share")
+	# Damage strikes the front member, and what passes its HP is lost.
+	var front_hp: ScientificNumber = encounter.members[0].hp.copy()
+	var applied: ScientificNumber = encounter.apply_compliance(front_hp.multiply_scalar(2.0))
+	_expect(applied.compare_to(front_hp) == 0 and encounter.members[0].hp.is_zero() and encounter.members[1].hp.compare_to(encounter.members[1].max) == 0, "a blow should stop at the front member")
+	_expect(encounter.front_index() == 1 and encounter.standing_count() == 2, "the next member should become the front")
+	state.wave = 10
+	state.active_encounter = state._make_encounter(10)
+	_expect(state.active_encounter.members.size() == 1 and state.active_encounter.is_boss, "a boss should be a single member")
+
+## D057 with D037 per member: each member left standing reaches the Number at
+## its arrival time, lands its share of the Hit once and passes. A wave with a
+## member through is passed, not beaten, and pays for the share it cleared.
+func _test_group_members_land_one_by_one() -> void:
+	var state := GameState.new()
+	state.start_run(1, 52)
+	state.number = ScientificNumber.from_float(1e6)
+	var share_hit := state.get_effective_collection().multiply_scalar(1.0 / 3.0)
+	var start := state.number.copy()
+	var events := state._advance_waves(0.25)
+	for step in range(22):
+		events.append_array(state._advance_waves(0.25))
+	var hits := events.filter(func(event): return event.type == "tax_collection")
+	_expect(hits.size() == 0 and state.number.compare_to(start) == 0, "nothing should land before the front member arrives at 6 seconds")
+	events = state._advance_waves(0.25)
+	hits = events.filter(func(event): return event.type == "tax_collection")
+	_expect(hits.size() == 1 and hits[0].amount.compare_to(share_hit) == 0, "the front member should land a third of the Hit at 6 seconds")
+	_expect(state.number.compare_to(start.subtract(share_hit)) == 0 and state.active_encounter.landed_count() == 1 and state.wave == 1, "one landing should cost a third and the wave should stand on")
+	var landed := 1
+	for step in range(40):
+		landed += state._advance_waves(0.25).filter(func(event): return event.type == "tax_collection").size()
+	_expect(landed == 3 and state.wave == 2, "all three members should land by 15 seconds and the wave should pass")
+	_expect(int(state.get_tier_record(1).highest_wave) == 0, "a passed wave should set no record")
+
+	# Beat the front two in time: only the last lands, and the wave pays for
+	# the two thirds it cleared.
+	var partial := GameState.new()
+	partial.start_run(1, 53)
+	partial.number = ScientificNumber.from_float(1e6)
+	partial.wave = 7
+	partial.active_encounter = partial._make_encounter(7)
+	var reward: int = partial.active_encounter.reward
+	var coins_before := partial.coins
+	for kill in range(2):
+		partial.active_encounter.apply_compliance(partial.active_encounter.members[kill].hp)
+	var partial_hits := 0
+	for step in range(61):
+		partial_hits += partial._advance_waves(0.25).filter(func(event): return event.type == "tax_collection").size()
+	_expect(partial_hits == 1 and partial.wave == 8, "with two beaten, only the last should land and the wave should pass")
+	_expect(partial.coins - coins_before == floori(float(reward) * 2.0 / 3.0 + 0.000001), "a passed wave should pay for the two thirds it cleared")
+
+	# Beat every member in time: no landing, and the wave is beaten.
+	var clean := GameState.new()
+	clean.start_run(1, 54)
+	_beat_wave(clean)
+	var clean_events: Array = []
+	for step in range(12):
+		clean_events.append_array(clean._advance_waves(0.25))
+	_expect(clean.wave == 2 and clean_events.any(func(event): return event.type == "wave_clear") and clean.get_tier_record(1).highest_wave >= 1, "a wave beaten before any member lands should count as beaten")
+
+	# A landing that empties the Number ends the run, with that landing as the
+	# Hit that did it.
+	var fatal := GameState.new()
+	fatal.start_run(1, 55)
+	fatal.number = ScientificNumber.from_float(0.5)
+	var fatal_events: Array = []
+	for step in range(25):
+		fatal_events.append_array(fatal._advance_waves(0.25))
+	_expect(not fatal.in_run and fatal_events.any(func(event): return event.type == "wave_death") and fatal.last_run_summary.wave_reached == 1, "a landing that empties the Number should end the run")
+
+## D057: Brace blocks every member of the wave it was raised against and is
+## spent when that wave ends; Guard and Armor work on the whole Hit, so each
+## member lands its share of what the single wave would have; Thorns returns a
+## share of each landing to what still stands.
+func _test_group_brace_guard_and_thorns() -> void:
+	var braced := GameState.new()
+	braced.start_run(1, 56)
+	braced.number = ScientificNumber.from_float(1e6)
+	_expect(braced.brace(), "a Brace should be raised")
+	var after_brace := braced.number.copy()
+	for step in range(43):
+		braced._advance_waves(0.25)
+	_expect(braced.wave == 1 and braced.active_encounter.landed_count() == 2 and braced.number.compare_to(after_brace) == 0, "a Brace should block the first two members")
+	for step in range(18):
+		braced._advance_waves(0.25)
+	_expect(braced.wave == 2 and braced.number.compare_to(after_brace) == 0 and not braced.braced, "a Brace should block every member and be spent when the wave ends")
+
+	var guarded := GameState.new()
+	guarded.purchased = {"guard": 3}
+	guarded.start_run(1, 57)
+	guarded.number = ScientificNumber.from_float(1e6)
+	guarded.wave = 31
+	guarded.active_encounter = guarded._make_encounter(31)
+	var whole := guarded.get_effective_collection()
+	var before := guarded.number.copy()
+	for step in range(25):
+		guarded._advance_waves(0.25)
+	_expect(before.subtract(guarded.number).compare_to(whole.multiply_scalar(guarded.active_encounter.members[0].share)) == 0, "a member should land its share of the Hit after Guard on the whole Hit")
+
+	var thorny := GameState.new()
+	thorny.purchased = {"recoil": 100}
+	thorny.start_run(1, 58)
+	thorny.number = ScientificNumber.from_float(1e6)
+	thorny.wave = 31
+	thorny.active_encounter = thorny._make_encounter(31)
+	var standing_before: ScientificNumber = thorny.active_encounter.remaining_liability.copy()
+	var landing := thorny.get_effective_collection().multiply_scalar(thorny.active_encounter.members[0].share)
+	var front_hp: ScientificNumber = thorny.active_encounter.members[0].hp.copy()
+	for step in range(25):
+		thorny._advance_waves(0.25)
+	var thorns := landing.multiply_scalar(minf(thorny._effect_sum("recoil_share"), thorny.balance_profile.RECOIL_CEILING))
+	var expected_left := standing_before.subtract(front_hp).subtract(thorns if thorns.compare_to(thorny.active_encounter.members[1].max) < 0 else thorny.active_encounter.members[1].max)
+	_expect(thorny.active_encounter.landed_count() == 1 and absf(thorny.active_encounter.remaining_liability.log10() - expected_left.log10()) < 0.000001, "Thorns should return a share of the landing to the next member")
+
+## D057: V10 keeps each member's HP and state, so a run saved mid-wave resumes
+## exactly; a V9 run resumes its wave as a group, keeping the share cleared.
+func _test_group_saves_and_resumes() -> void:
+	var save_path := "res://.number_go_up_test_save.json"
+	var source := GameState.new()
+	source.save_path = save_path
+	source.start_run(1, 59)
+	source.number = ScientificNumber.from_float(1e6)
+	source.wave = 31
+	source.active_encounter = source._make_encounter(31)
+	source.active_encounter.apply_compliance(source.active_encounter.members[0].hp)
+	source.active_encounter.apply_compliance(source.active_encounter.members[1].hp.multiply_scalar(0.5))
+	for step in range(46):
+		source.advance(0.25)
+	_expect(source.active_encounter.landed_count() >= 1 and source.active_encounter.members[0].state == TaxEncounter.KILLED, "the fixture should have a beaten member and a landed one")
+	_expect(source.save(), "a mid-wave group should save")
+	var saved := _read_json(save_path)
+	_expect(int(saved.version) == SaveDataV10.VERSION and saved.active_encounter.members.size() == source.active_encounter.members.size(), "V10 should write every member")
+	var resumed := GameState.new()
+	resumed.save_path = save_path
+	resumed.load()
+	_expect(resumed.active_encounter.members.size() == source.active_encounter.members.size(), "every member should come back")
+	for index in range(source.active_encounter.members.size()):
+		var a: Dictionary = source.active_encounter.members[index]
+		var b: Dictionary = resumed.active_encounter.members[index]
+		_expect(int(a.state) == int(b.state) and a.hp.compare_to(b.hp) == 0 and is_equal_approx(float(a.arrive), float(b.arrive)), "member %d should resume exactly" % index)
+	_expect(resumed.active_encounter.passed_liability.compare_to(source.active_encounter.passed_liability) == 0, "the HP that walked past should resume")
+	for step in range(120):
+		source.advance(0.25)
+		resumed.advance(0.25)
+	_expect(resumed.wave == source.wave and resumed.number.compare_to(source.number) == 0 and resumed.coins == source.coins, "a resumed group should play out exactly as the saved one")
+	resumed.clear_save()
+
+	# A V9 run saved before groups: its wave was one pool of HP.
+	var old := GameState.new()
+	old.save_path = save_path
+	old.start_run(1, 60)
+	old.wave = 31
+	old.active_encounter = old._make_encounter(31)
+	var v9: Dictionary = SaveDataV10.make(old)
+	v9.version = 9
+	v9.erase("brace_spent")
+	v9.balance_profile_id = "tax-foundation-v10"
+	v9.active_encounter.erase("members")
+	v9.active_encounter.erase("passed_liability")
+	v9.active_encounter.remaining_liability = ScientificNumber.from_dict(v9.active_encounter.max_liability).multiply_scalar(0.4).to_dict()
+	_write_json(save_path, v9)
+	var migrated := GameState.new()
+	migrated.save_path = save_path
+	migrated.load()
+	_expect(migrated.in_run and migrated.wave == 31 and migrated.active_encounter.members.size() == migrated.balance_profile.members_for_wave(31), "a V9 run should resume its wave as a group")
+	_expect(absf(migrated.get_wave_cleared_share() - 0.6) < 0.0001 and migrated.active_encounter.front_index() > 0, "a V9 wave should keep the share it had cleared, taken off the front")
+	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV10.VERSION and int(_read_json("res://.number_go_up_test_save.v9-backup.json").get("version", 0)) == 9, "a V9 save should be rewritten as V10, with the V9 file kept")
+	migrated.clear_save()
+
+	var damaged: Dictionary = SaveDataV10.make(GameState.new())
+	damaged.active_encounter = {"members": "three"}
+	_write_json(save_path, damaged)
+	var refused := GameState.new()
+	refused.save_path = save_path
+	refused.load()
+	_expect(refused.load_status == GameState.LOAD_UNREADABLE, "a save whose members are not a list should be refused whole")
+	refused.clear_save()
+
+## Beats every member of the active wave with exactly its HP, front first, so
+## the Number gains what the whole wave had, as one blow used to (D057).
+func _beat_wave(state: GameState) -> void:
+	while not state.active_encounter.is_cleared():
+		var front: int = state.active_encounter.front_index()
+		state._add_number(state.active_encounter.members[front].hp)
 
 func _advance_seconds(state: GameState, seconds: float) -> void:
 	var elapsed := 0.0

@@ -13,6 +13,7 @@ const SaveDataV6Class = preload("res://src/save_data_v6.gd")
 const SaveDataV7Class = preload("res://src/save_data_v7.gd")
 const SaveDataV8Class = preload("res://src/save_data_v8.gd")
 const SaveDataV9Class = preload("res://src/save_data_v9.gd")
+const SaveDataV10Class = preload("res://src/save_data_v10.gd")
 const GameDataClass = preload("res://src/game_data.gd")
 
 const SAVE_PATH := "user://number_go_up_save.json"
@@ -101,6 +102,12 @@ var wave_accumulator := 0.0
 var coins := 0
 var highest_wave := 1
 var braced := false
+## True once a Brace has blocked a member of the current wave (D057), so the
+## Brace is used up when that wave ends rather than on the first member.
+var brace_spent := false
+## Thorns returned by a member's landing, held for a moment when nothing of
+## its wave still stands, and dealt to the wave that replaces it.
+var pending_thorns := ScientificNumber.new()
 ## The run's own peak, which Second Wind restores a share of. Distinct from
 ## highest_number, which is permanent and drives dock unlocks.
 var run_peak_number := ScientificNumber.new()
@@ -272,6 +279,8 @@ func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	wave = 1
 	wave_accumulator = 0.0
 	braced = false
+	brace_spent = false
+	pending_thorns = ScientificNumber.new()
 	run_seed = seed_override if seed_override >= 0 else int(Time.get_ticks_usec()) ^ int(Time.get_unix_time_from_system())
 	rng.seed = run_seed
 	active_encounter = _make_encounter(wave)
@@ -320,13 +329,28 @@ func _advance_waves(delta: float) -> Array[SimulationEvent]:
 	run_elapsed += safe_delta
 	wave_accumulator += safe_delta
 	var safety := 0
-	while safety < 10 and in_run:
-		# A beaten wave gives way to the next as soon as it has been on screen
-		# for the minimum beat (D037), so mastered waves cost seconds, not the
-		# whole timer. Output is already Number, so nothing is lost by moving on.
-		if active_encounter != null and active_encounter.is_cleared() and wave_accumulator >= balance_profile.MIN_WAVE_SECONDS:
-			wave_accumulator = 0.0
-			events.append(_complete_current_wave())
+	while safety < 40 and in_run:
+		safety += 1
+		if active_encounter == null:
+			active_encounter = _make_encounter(wave)
+		# An ordinary wave's members reach the Number one by one through the
+		# clock (D057), each landing its share of the Hit and passing.
+		if not active_encounter.is_boss:
+			var due: int = active_encounter.due_index(wave_accumulator)
+			if due >= 0:
+				events.append(_land_member(due))
+				continue
+		# A wave with nothing left standing gives way to the next as soon as it
+		# has been on screen for the minimum beat (D037), so mastered waves cost
+		# seconds, not the whole timer. Output is already Number, so nothing is
+		# lost by moving on. It counts as beaten only if no member got through.
+		if active_encounter.is_cleared() and wave_accumulator >= balance_profile.MIN_WAVE_SECONDS:
+			if active_encounter.is_beaten():
+				wave_accumulator = 0.0
+				events.append(_complete_current_wave())
+			else:
+				wave_accumulator = maxf(0.0, wave_accumulator - WAVE_INTERVAL_SECONDS)
+				_end_passed_wave()
 		elif wave_accumulator >= WAVE_INTERVAL_SECONDS:
 			wave_accumulator -= WAVE_INTERVAL_SECONDS
 			var wave_event := _resolve_wave_boundary()
@@ -334,8 +358,48 @@ func _advance_waves(delta: float) -> Array[SimulationEvent]:
 				events.append(wave_event)
 		else:
 			break
-		safety += 1
 	return events
+
+## A member of an ordinary wave reaches the Number (D057): it lands its share
+## of the wave's Hit, after Guard and Armor on the whole Hit (so a group costs
+## what the single wave did), and passes. Brace blocks every member of the
+## wave it was raised against. Thorns returns part of each landed share to
+## whatever of the wave still stands, or to the next wave.
+func _land_member(index: int) -> SimulationEvent:
+	var member: Dictionary = active_encounter.members[index]
+	var share := float(member.share)
+	var landed := get_effective_collection().multiply_scalar(share)
+	if braced:
+		landed = ScientificNumber.new()
+		brace_spent = true
+	var number_before_hit := number.copy()
+	var wave_hp_left: ScientificNumber = active_encounter.remaining_liability.copy()
+	number = number.subtract(landed)
+	active_encounter.land(index)
+	var thorns_share := minf(_effect_sum("recoil_share"), balance_profile.RECOIL_CEILING)
+	if thorns_share > 0.0 and not landed.is_zero():
+		pending_thorns = pending_thorns.add(landed.multiply_scalar(thorns_share))
+		if not active_encounter.is_cleared():
+			active_encounter.apply_compliance(pending_thorns)
+			pending_thorns = ScientificNumber.new()
+	if number.is_zero():
+		if not _try_second_wind():
+			pending_thorns = ScientificNumber.new()
+			return _wave_death(wave, landed, false, number_before_hit, wave_hp_left)
+		return SimulationEvent.new("second_wind", number.copy())
+	return SimulationEvent.new("tax_collection", landed)
+
+## An ordinary wave ends with at least one member through: it was not beaten,
+## so it pays for the share it cleared and gives way (D037). A Brace spent on
+## it is used up; one never tested carries to the next wave, as before.
+func _end_passed_wave() -> void:
+	if brace_spent:
+		braced = false
+	brace_spent = false
+	_pass_missed_wave()
+	if not pending_thorns.is_zero():
+		active_encounter.apply_compliance(pending_thorns)
+		pending_thorns = ScientificNumber.new()
 
 func _resolve_wave_boundary() -> SimulationEvent:
 	if active_encounter == null:
@@ -392,15 +456,18 @@ func _pass_missed_wave() -> void:
 	wave += 1
 	active_encounter = _make_encounter(wave)
 
-## How much of the active wave's HP has been cleared, from 0 to 1.
+## How much of the active wave's HP has been cleared, from 0 to 1. HP that
+## walked past with a member that landed was never cleared (D057).
 func get_wave_cleared_share() -> float:
-	if active_encounter == null or active_encounter.max_liability.is_zero() or active_encounter.is_cleared():
+	if active_encounter == null or active_encounter.max_liability.is_zero():
 		return 1.0
-	if active_encounter.remaining_liability.compare_to(active_encounter.max_liability) >= 0:
+	var remaining: ScientificNumber = active_encounter.remaining_liability.add(active_encounter.passed_liability)
+	if remaining.is_zero():
+		return 1.0
+	if remaining.compare_to(active_encounter.max_liability) >= 0:
 		return 0.0
 	# A plain ratio of mantissas, not logarithms, so 20 left of 100 is exactly
 	# 0.8 and a floored Coin count never comes out one short.
-	var remaining: ScientificNumber = active_encounter.remaining_liability
 	var full: ScientificNumber = active_encounter.max_liability
 	var left := remaining.mantissa / full.mantissa * pow(10.0, remaining.exponent - full.exponent)
 	return clampf(1.0 - left, 0.0, 1.0)
@@ -473,13 +540,18 @@ func _make_encounter(target_wave: int):
 		"liability",
 		active_rule_modifiers
 	)
+	var count := balance_profile.members_for_wave(target_wave)
+	var arrivals: Array = []
+	for index in range(count):
+		arrivals.append(balance_profile.member_arrival(index, count))
 	return TaxEncounterClass.new(
 		selected_tier,
 		target_wave,
 		liability,
 		balance_profile.collection_for_wave(selected_tier, target_wave),
 		balance_profile.reward_for_wave(selected_tier, target_wave),
-		balance_profile.is_boss_wave(target_wave)
+		balance_profile.is_boss_wave(target_wave),
+		arrivals
 	)
 
 func _wave_death(reached: int, hit: ScientificNumber, boss: bool, number_before_hit: ScientificNumber, wave_hp_left: ScientificNumber) -> SimulationEvent:
@@ -509,10 +581,11 @@ func get_effective_collection() -> ScientificNumber:
 		return ScientificNumber.new()
 	return RuleModifierPipelineClass.apply(active_encounter.collection, "collection", _collection_modifiers())
 
-## The Hit as it is worked out at contact (D052): the wave's Hit after any
-## rule that changes it but before the player's defences, what Guard takes off,
-## what Armor then takes off, and what lands. Each part is the same pipeline
-## stopped earlier, so the parts always add up to get_effective_collection().
+## The next Hit as it is worked out at contact (D052): the Hit after any rule
+## that changes it but before the player's defences, what Guard takes off, what
+## Armor then takes off, and what lands. Each part is the same pipeline stopped
+## earlier, so the parts always add up to what lands. On an ordinary wave the
+## next Hit is the front member's share of the wave's (D057).
 func get_hit_breakdown() -> Dictionary:
 	if active_encounter == null:
 		return {"raw": ScientificNumber.new(), "guard": ScientificNumber.new(), "armor": ScientificNumber.new(), "final": ScientificNumber.new()}
@@ -521,7 +594,16 @@ func get_hit_breakdown() -> Dictionary:
 	var raw := RuleModifierPipelineClass.apply(base, "collection", modifiers.filter(func(modifier): return not ["guard", "armor"].has(str(modifier.get("source", "")))))
 	var after_guard := RuleModifierPipelineClass.apply(base, "collection", modifiers.filter(func(modifier): return str(modifier.get("source", "")) != "armor"))
 	var final := RuleModifierPipelineClass.apply(base, "collection", modifiers)
-	return {"raw": raw, "guard": raw.subtract(after_guard), "armor": after_guard.subtract(final), "final": final}
+	var share := next_hit_share()
+	return {"raw": raw.multiply_scalar(share), "guard": raw.subtract(after_guard).multiply_scalar(share), "armor": after_guard.subtract(final).multiply_scalar(share), "final": final.multiply_scalar(share)}
+
+## The share of the wave's Hit the next landing carries: the front member's on
+## an ordinary wave, all of it on a boss.
+func next_hit_share() -> float:
+	if active_encounter == null or active_encounter.is_boss:
+		return 1.0
+	var front: int = active_encounter.front_index()
+	return float(active_encounter.members[front].share) if front >= 0 else 1.0
 
 ## Every modifier the Hit passes through, in one list: the run's rules, then
 ## Guard, then Armor. The pipeline decides the order by stage.
@@ -1184,6 +1266,8 @@ func _reset_run_state() -> void:
 	wave = 1
 	wave_accumulator = 0.0
 	braced = false
+	brace_spent = false
+	pending_thorns = ScientificNumber.new()
 	run_peak_number = ScientificNumber.new()
 	second_wind_used = false
 	rig_ranks = {}
@@ -1234,7 +1318,7 @@ func save() -> bool:
 	var file := FileAccess.open(temp, FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify(SaveDataV9Class.make(self), "", true, true))
+	file.store_string(JSON.stringify(SaveDataV10Class.make(self), "", true, true))
 	var write_error := file.get_error()
 	file.close()
 	if write_error != OK:
@@ -1280,7 +1364,7 @@ func _read_save(path: String) -> Dictionary:
 		return {"status": READ_UNREADABLE}
 	var data: Dictionary = json.data
 	var version := int(data.get("version", 0)) if (data.get("version") is int or data.get("version") is float) else 0
-	if version > SaveDataV9Class.VERSION:
+	if version > SaveDataV10Class.VERSION:
 		return {"status": READ_NEWER}
 	var known := (
 		SaveDataV2.is_legacy_v1(data)
@@ -1292,8 +1376,9 @@ func _read_save(path: String) -> Dictionary:
 		or SaveDataV7Class.is_valid(data)
 		or SaveDataV8Class.is_valid(data)
 		or SaveDataV9Class.is_valid(data)
+		or SaveDataV10Class.is_valid(data)
 	)
-	if not known or SaveDataV9Class.problem(data) != "":
+	if not known or SaveDataV10Class.problem(data) != "":
 		return {"status": READ_UNREADABLE}
 	return {"status": READ_OK, "data": data}
 
@@ -1316,14 +1401,17 @@ func _load_parsed(data: Dictionary, source_path: String) -> OfflineAward:
 			return _migrate_v7(data, source_path)
 		8:
 			return _migrate_v8(data, source_path)
+		9:
+			return _migrate_v9(data, source_path)
 	return _load_current(data)
 
-## V5 through V9 share every key and meaning. V6 declared the fields added to
+## V5 through V10 share every key and meaning. V6 declared the fields added to
 ## V5 after it shipped and added the run's tick phase and crit chain, which a
 ## V5 save resumes without, as it always did; V7 added the Lab slot count, which
 ## an older save reads as the two slots every player then had; V8 added the
 ## run's Gems and marks that milestones paid at the old rate were topped up;
-## V9 declared the run's Cash and marks saves whose deep rows may pass rank 100.
+## V9 declared the run's Cash and marks saves whose deep rows may pass rank 100;
+## V10 keeps a wave's members, which a V9 run resumes as one member (D057).
 func _load_current(data: Dictionary) -> OfflineAward:
 	_load_common_fields(data)
 	_load_tier_progress(data)
@@ -1348,6 +1436,11 @@ func _migrate_v7(data: Dictionary, source_path: String) -> OfflineAward:
 func _migrate_v8(data: Dictionary, source_path: String) -> OfflineAward:
 	var award := _load_current(data)
 	_save_migrated_state(8, source_path)
+	return award
+
+func _migrate_v9(data: Dictionary, source_path: String) -> OfflineAward:
+	var award := _load_current(data)
+	_save_migrated_state(9, source_path)
 	return award
 
 ## V4 kept the Workshop in four bays, with the Armor rank in a field of its own.
@@ -1457,6 +1550,7 @@ func _restore_saved_run(data: Dictionary) -> void:
 	run_elapsed = maxf(0.0, float(data.get("run_elapsed", 0.0)))
 	run_seed = str(data.get("run_seed", "0")).to_int()
 	braced = bool(data.get("braced", false))
+	brace_spent = bool(data.get("brace_spent", false)) and in_run
 	# Added after V5 shipped; a save without them resumes with an unspent Second
 	# Wind and its peak re-established from the Number it restores.
 	var saved_peak: Variant = data.get("run_peak_number", null)
@@ -1505,7 +1599,7 @@ func _rebuild_encounter_on_current_profile() -> void:
 		return
 	var cleared := get_wave_cleared_share()
 	var rebuilt = _make_encounter(wave)
-	rebuilt.remaining_liability = rebuilt.max_liability.multiply_scalar(1.0 - cleared)
+	rebuilt.set_remaining(rebuilt.max_liability.multiply_scalar(1.0 - cleared))
 	active_encounter = rebuilt
 
 func _seconds_since(data: Dictionary) -> float:
@@ -1686,7 +1780,7 @@ func _save_migrated_state(from_version: int, source_path: String) -> void:
 func clear_save() -> void:
 	for path in [save_path, _backup_path(), _temp_path()]:
 		_remove_if_present(path)
-	for version in range(1, SaveDataV9Class.VERSION):
+	for version in range(1, SaveDataV10Class.VERSION):
 		_remove_if_present(_migration_backup_path(version))
 	var folder := save_path.get_base_dir()
 	var quarantine_prefix := save_path.get_file().get_basename() + QUARANTINE_INFIX

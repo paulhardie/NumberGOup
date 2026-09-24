@@ -5,6 +5,7 @@ extends Control
 # predates them would otherwise fail to parse this file and start blank.
 const WaveEnemyClass = preload("res://src/wave_enemy.gd")
 const ArenaFxClass = preload("res://src/arena_fx.gd")
+const TaxEncounterClass = preload("res://src/tax_encounter.gd")
 
 const SAVE_INTERVAL_SECONDS := 20.0
 # The Instrument look (D049): a near-black ground, borderless surfaces a step
@@ -136,6 +137,10 @@ var pop_crit := false
 ## Where along its path the body is drawn, 0 at the arena's top edge and 1 at
 ## the Number. It is the wave clock.
 var enemy_travel := 0.0
+## The member of the wave the live number shows: its front (D057). The rest of
+## the wave walks behind it as smaller numbers, one node per member, reused.
+var enemy_front := -1
+var enemy_followers: Array = []
 ## Where across the arena's top edge the wave entered, as a share of its width.
 var enemy_entry := 0.5
 var stage_glow: TextureRect
@@ -3469,7 +3474,14 @@ func _stage_danger_progress() -> float:
 	var encounter: Variant = state.active_encounter
 	if encounter == null or encounter.max_liability.is_zero() or encounter.is_cleared():
 		return 0.0
-	return clampf(state.wave_accumulator / GameState.WAVE_INTERVAL_SECONDS, 0.0, 1.0)
+	# The next Hit is the front member's, so the heat follows its approach.
+	return _member_progress(encounter.members[encounter.front_index()])
+
+## How far a member has walked, 0 at the arena's top edge and 1 at the Number
+## (D057). Every member sets off together and reaches the Number at its own
+## arrival time, so the front one walks fastest and the column spreads out.
+func _member_progress(member: Dictionary) -> float:
+	return clampf(state.wave_accumulator / maxf(float(member.arrive), 0.001), 0.0, 1.0)
 
 ## The glow behind the Number warms as the Hit approaches, and throbs through
 ## the last seconds of a boss wave so the heaviest Hit is telegraphed before it
@@ -3509,13 +3521,23 @@ func _update_wave_enemy(delta: float) -> void:
 	var standing: bool = state.in_run and encounter != null and not encounter.max_liability.is_zero() and not encounter.is_cleared()
 	if not standing:
 		_flush_shot_pops()
-		# Beaten inside the 2.5-second beat: the wave is still on screen.
-		if encounter == enemy_encounter and state.in_run and encounter != null:
+		# Beaten inside the 2.5-second beat: the wave is still on screen. A wave
+		# whose last member landed has already slammed into the Number.
+		if encounter == enemy_encounter and state.in_run and encounter != null and encounter.is_beaten():
 			_shatter_enemy(encounter.is_boss)
 		wave_enemy.visible = false
 		enemy_encounter = encounter
+		enemy_front = -1
+		_hide_followers(0)
 		_clear_arena()
 		return
+	var front: int = encounter.front_index()
+	# A front member beaten while the rest of its wave stands breaks apart where
+	# it was, and the next member becomes the live number (D057).
+	if encounter == enemy_encounter and wave_enemy.visible and enemy_front >= 0 and front != enemy_front and enemy_front < encounter.members.size() and int(encounter.members[enemy_front].state) == TaxEncounterClass.KILLED:
+		_flush_shot_pops()
+		_enemy_beat(WaveEnemyClass.Beat.SHATTER, TEXT)
+	enemy_front = front
 	if encounter != enemy_encounter or not wave_enemy.visible:
 		_flush_shot_pops()
 		enemy_encounter = encounter
@@ -3528,33 +3550,72 @@ func _update_wave_enemy(delta: float) -> void:
 			create_tween().tween_property(wave_enemy, "modulate:a", 1.0, 0.3)
 	# Reduce Motion stops movement, not information (MOTION_SYSTEM rule 1): the
 	# number holds at the top edge and its caption keeps the time.
-	var clock := clampf(state.wave_accumulator / GameState.WAVE_INTERVAL_SECONDS, 0.0, 1.0)
+	var member: Dictionary = encounter.members[front]
 	if enemy_latched:
 		enemy_travel = 1.0
 	elif state.settings.reduce_motion:
 		enemy_travel = 0.0
 	else:
-		enemy_travel = clock
+		enemy_travel = _member_progress(member)
 	var boss: bool = encounter.is_boss
 	var tint: Color = BOSS_COLOUR if boss else TEXT.lerp(WARNING, smoothstep(0.5, 1.0, enemy_travel))
-	var shown: ScientificNumber = encounter.remaining_liability.add(arena_fx.in_flight())
-	if not state.settings.reduce_motion:
-		shown = shown.add(mote_damage)
-	if shown.compare_to(encounter.max_liability) > 0:
-		shown = encounter.max_liability
+	# The front member shows its own HP, less nothing the motes in flight have
+	# yet to deliver; motes only ever fly at the front.
+	var shown: ScientificNumber = member.hp.add(arena_fx.in_flight())
+	if shown.compare_to(member.max) > 0:
+		shown = member.max
 	# The wave shows its raw Hit; the player's defences come off at contact, in
 	# front of them (D052), so a Hit that shrinks reads as getting stronger.
 	var caption: String = "hits " + state.get_hit_breakdown().raw.format_value()
+	var behind: int = encounter.standing_count() - 1
 	if enemy_latched or state.settings.reduce_motion:
-		caption += " in " + str(maxi(0, ceili(GameState.WAVE_INTERVAL_SECONDS - state.wave_accumulator))) + "s"
+		var due: float = GameState.WAVE_INTERVAL_SECONDS if boss else float(member.arrive)
+		caption += " in " + str(maxi(0, ceili(due - state.wave_accumulator))) + "s"
+		if behind > 0:
+			caption += " · " + str(behind) + " more"
 	wave_enemy.show_value(_stat_number(shown), tint, 30 if boss else 18, caption, BOSS_COLOUR if boss else MUTED_TEXT)
 	var path := _enemy_path()
 	var point: Vector2 = path[0].lerp(path[1], enemy_travel)
+	_place_followers(encounter, front, path)
 	wave_enemy.centre_on(point)
 	arena_fx.target = wave_enemy.value_centre()
 	arena_fx.trail_from = path[0]
 	arena_fx.trail_to = point
 	arena_fx.trail_colour = Color(tint, 0.22) if enemy_travel > 0.02 and not enemy_latched else Color.TRANSPARENT
+
+## The members behind the front walk in as smaller, quieter numbers (D057),
+## fanned across the top edge and converging on the Number. Under Reduce Motion
+## they are not drawn; the front's caption counts them instead.
+func _place_followers(encounter, front: int, path: Array) -> void:
+	if state.settings.reduce_motion:
+		_hide_followers(0)
+		return
+	var shown := 0
+	for index in range(front + 1, encounter.members.size()):
+		var member: Dictionary = encounter.members[index]
+		if int(member.state) != TaxEncounterClass.STANDING:
+			continue
+		if shown >= enemy_followers.size():
+			var follower := WaveEnemyClass.new(number_font)
+			follower.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			wave_enemy.get_parent().add_child(follower)
+			wave_enemy.get_parent().move_child(follower, wave_enemy.get_index())
+			enemy_followers.append(follower)
+		var node = enemy_followers[shown]
+		var progress := _member_progress(member)
+		# A golden-ratio fan keeps neighbours apart without touching the run's
+		# random stream.
+		var spread := (fposmod(float(index) * 0.618034, 1.0) - 0.5) * minf(stage_root.size.x * 0.8, 300.0)
+		var start: Vector2 = path[0] + Vector2(spread, 0.0)
+		node.show_value(_stat_number(member.hp), Color(TEXT.lerp(WARNING, smoothstep(0.5, 1.0, progress)), 0.55), 13)
+		node.centre_on(start.lerp(path[1], progress))
+		node.visible = true
+		shown += 1
+	_hide_followers(shown)
+
+func _hide_followers(from: int) -> void:
+	for index in range(from, enemy_followers.size()):
+		enemy_followers[index].visible = false
 
 ## The Hit worked out in front of the player at contact (D052): the wave's raw
 ## Hit, what Guard and then Armor took off, and what landed, each line

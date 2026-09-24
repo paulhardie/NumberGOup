@@ -117,7 +117,7 @@ Combat here is two abstract axes: production damages the wave's Liability, and t
 | `second_wind` | Critical flash, stage impact and a boss-weight rattle. | Colour only. |
 | `wave_death` | The run-over sheet counts Coins and Knowledge up from zero and each lands with a pop. | Totals appear at their final value. |
 | Hit blocked by Brace | Accent flash, no movement. | Unchanged. |
-| The wave's number (D050, D051) | The wave's HP falls from the arena's top edge to the Number on the wave clock, with a faint trail. A clean clear scatters its digits (0.6 s) with a "BEATEN · NO HIT" float; a Hit swells a copy into the Number (0.43 s); a boss then stays on the Number, its caption counting to the next Hit. | The number holds at the top edge with its countdown; no scatter or slam. |
+| The wave's number (D050, D051, D057) | The wave's members set off together from the arena's top edge and reach the Number at their own arrival times, so the column spreads out: the front member large with its caption, the rest smaller and quieter, fanned across the edge. Motes fly at the front member. A beaten front member scatters where it stood and the next takes its place. The front member's HP falls to the Number with a faint trail. A clean clear scatters its digits (0.6 s) with a "BEATEN · NO HIT" float; a Hit swells a copy into the Number (0.43 s); a boss then stays on the Number, its caption counting to the next Hit. | The front member holds at the top edge with its countdown and a count of the members behind it; no followers, scatter or slam. |
 
 **Sound is not covered yet.** `AudioFeedback` ships tick and critical samples only; a Collection-hit sample and a wave-clear sample would follow the same map when they exist.
 
