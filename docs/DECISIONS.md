@@ -508,3 +508,11 @@ Rules:
 - **Consequences:** Presentation only: no rule, clock, balance, save or random-stream change. The path is about 250 px on a 390 × 844 phone and about 100 px on a 320 × 568 one. `src/arena_fx.gd` draws the trail and motes; `src/wave_enemy.gd` draws the number. `RingArc`'s inner ring is now unused (only the hub's ring remains).
 - **Revisit when:** the body's position becomes a rule (slow, range, several bodies for area damage), or the 15-second clock changes.
 
+## D052 — The wave shows its raw Hit; the player's defences come off in front of them at contact
+
+- **Status:** Accepted (2026-09-24) on owner direction: "Happy with the player not knowing at a glance … visually I guess would make the player feel, 'oh I should have died to that, I must be getting stronger'." Implemented (2026-09-24).
+- **Context:** Under D051 the wave's caption showed the Hit after Guard and Armor, so a defence upgrade only ever showed up as a smaller number, never as something it did. The rules already worked the Hit out at contact through one pipeline (flat, Guard's flat reduction, then multiplicative rules and Armor, then caps).
+- **Decision:** The wave's caption shows its raw Hit: after any rule that changes it, before the player's defences. At contact the working plays over the Number, one line at a time: the raw Hit, what Guard took off, what Armor took off, "braced" if Brace held, and what landed. A Hit nothing reduced stays one line. `GameState.get_hit_breakdown()` gives the parts by running the same pipeline stopped at each step, so they always add up to the Hit that lands; the screen does no arithmetic of its own. When the working plays it replaces D050's slam, since the raw Hit appearing where the wave landed already reads as its arrival.
+- **Consequences:** The player no longer sees the exact Hit before contact, by choice. No rule, balance or save change. The breakdown only fades (no movement), so it plays the same under Reduce Motion.
+- **Revisit when:** a new defence layer (Labs or Cards beyond Armor, a Perk) wants its own line, or players are found Bracing blind because they cannot judge the Hit.
+

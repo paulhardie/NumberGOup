@@ -323,6 +323,9 @@ func _process(delta: float) -> void:
 	var gems_before := state.gems
 	var hp_encounter: Variant = state.active_encounter if state.is_wave_standing() else null
 	var hp_before: ScientificNumber = hp_encounter.remaining_liability.copy() if hp_encounter != null else null
+	# The Hit as it stands before this step, so a wave that lands and is
+	# replaced in the same step can still show how its Hit was worked out.
+	var hit_parts: Dictionary = state.get_hit_breakdown() if hp_encounter != null else {}
 	var events := state.advance(delta)
 	# Gems land with a wave's clear (D030); a boss's toast carries them, and a
 	# checkpoint that is not a boss wave gets a toast of its own.
@@ -338,12 +341,18 @@ func _process(delta: float) -> void:
 		elif event.type == "tax_collection" or event.type == "boss_collection":
 			var boss_hit: bool = event.type == "boss_collection"
 			var hit_colour: Color = BOSS_DANGER if boss_hit else DANGER
-			_enemy_landed(ACCENT if event.amount.is_zero() else hit_colour)
+			# With the Hit's working to show, the working is the landing beat.
+			_enemy_landed(ACCENT if event.amount.is_zero() else hit_colour, hit_parts.is_empty())
 			if event.amount.is_zero():
 				_show_toast("HIT BLOCKED · 0 NUMBER LOST", ACCENT)
 				_flash_number(ACCENT)
+				if not hit_parts.is_empty():
+					_show_hit_ledger(hit_parts, event.amount, hit_colour)
 			else:
-				_spawn_floating_text("-" + _stat_number(event.amount) + " NUMBER", hit_colour, _stage_float_point())
+				if hit_parts.is_empty():
+					_spawn_floating_text("-" + _stat_number(event.amount) + " NUMBER", hit_colour, _stage_float_point())
+				else:
+					_show_hit_ledger(hit_parts, event.amount, hit_colour)
 				# D037: an ordinary wave hits once and passes; a boss stays and hits again.
 				_show_toast(("BOSS HIT · HITS AGAIN IN " + str(int(GameState.WAVE_INTERVAL_SECONDS)) + "s" if boss_hit else "WAVE PASSED") + " · -" + _stat_number(event.amount) + " NUMBER · " + state.number.format_value() + " LEFT", hit_colour)
 				_snap_number_display()
@@ -3489,7 +3498,9 @@ func _update_wave_enemy(delta: float) -> void:
 	var shown: ScientificNumber = encounter.remaining_liability.add(arena_fx.in_flight()).add(mote_damage)
 	if shown.compare_to(encounter.max_liability) > 0:
 		shown = encounter.max_liability
-	var caption := "hits " + state.get_effective_collection().format_value()
+	# The wave shows its raw Hit; the player's defences come off at contact, in
+	# front of them (D052), so a Hit that shrinks reads as getting stronger.
+	var caption: String = "hits " + state.get_hit_breakdown().raw.format_value()
 	if enemy_latched or state.settings.reduce_motion:
 		caption += " in " + str(maxi(0, ceili(GameState.WAVE_INTERVAL_SECONDS - state.wave_accumulator))) + "s"
 	wave_enemy.show_value(_stat_number(shown), tint, 30 if boss else 18, caption, BOSS_COLOUR if boss else MUTED_TEXT)
@@ -3500,6 +3511,49 @@ func _update_wave_enemy(delta: float) -> void:
 	arena_fx.trail_from = path[0]
 	arena_fx.trail_to = point
 	arena_fx.trail_colour = Color(tint, 0.22) if enemy_travel > 0.02 and not enemy_latched else Color.TRANSPARENT
+
+## The Hit worked out in front of the player at contact (D052): the wave's raw
+## Hit, what Guard and then Armor took off, and what landed, each line
+## appearing in turn over the Number. It only fades, so it plays the same under
+## Reduce Motion. A Hit nothing reduced is one line, as before.
+func _show_hit_ledger(parts: Dictionary, landed: ScientificNumber, colour: Color) -> void:
+	var blocked := landed.is_zero()
+	var lines: Array = []
+	if parts.guard.is_zero() and parts.armor.is_zero() and not blocked:
+		lines.append(["-" + _stat_number(landed), colour, 16])
+	else:
+		lines.append([_stat_number(parts.raw), colour, 16])
+		if not parts.guard.is_zero():
+			lines.append(["-" + _stat_number(parts.guard) + " guard", ACCENT, 12])
+		if not parts.armor.is_zero():
+			lines.append(["-" + _stat_number(parts.armor) + " armor", ACCENT, 12])
+		if blocked:
+			lines.append(["braced", ACCENT, 12])
+		lines.append(["= " + ("0" if blocked else "-" + _stat_number(landed)), ACCENT if blocked else colour, 16])
+	var column := VBoxContainer.new()
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", 1)
+	var labels: Array = []
+	for line in lines:
+		var label := _make_number_label(line[0], line[2], HORIZONTAL_ALIGNMENT_CENTER, line[1])
+		label.modulate.a = 0.0
+		column.add_child(label)
+		labels.append(label)
+	stage_root.add_child(column)
+	var box := column.get_combined_minimum_size()
+	var number_top := number_label.get_global_rect().position.y - stage_root.global_position.y
+	column.size = box
+	column.position = Vector2((stage_root.size.x - box.x) / 2.0, maxf(number_top - box.y - 6.0, 0.0))
+	var tween := create_tween()
+	# After the wave's number has swollen into the Number, the working follows.
+	tween.tween_interval(0.2)
+	for label in labels:
+		tween.tween_property(label, "modulate:a", 1.0, 0.08)
+		tween.tween_interval(0.07)
+	tween.tween_interval(0.8)
+	tween.tween_property(column, "modulate:a", 0.0, 0.35)
+	tween.tween_callback(column.queue_free)
 
 ## Drops the motes and the trail, for a wave that is gone or a new one.
 func _clear_arena() -> void:
@@ -3549,10 +3603,12 @@ func _shatter_enemy(boss: bool) -> void:
 	_clear_arena()
 
 ## The wave reached the Number and its Hit came off (or was blocked). An
-## ordinary wave swells into the Number and gives way to the next; a boss stays
-## on the Number and hits again every clock (D051): no force pushes it back.
-func _enemy_landed(colour: Color) -> void:
-	_enemy_beat(WaveEnemy.Beat.SLAM, colour)
+## ordinary wave gives way to the next; a boss stays on the Number and hits
+## again every clock (D051): no force pushes it back. Without the Hit's working
+## to show (D052), the wave's number swells into the Number instead.
+func _enemy_landed(colour: Color, slam: bool = true) -> void:
+	if slam:
+		_enemy_beat(WaveEnemy.Beat.SLAM, colour)
 	if enemy_encounter != null and state.active_encounter == enemy_encounter and enemy_encounter.is_boss:
 		enemy_latched = true
 

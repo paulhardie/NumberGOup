@@ -499,6 +499,25 @@ func _wave_death(reached: int, hit: ScientificNumber, boss: bool, number_before_
 func get_effective_collection() -> ScientificNumber:
 	if active_encounter == null:
 		return ScientificNumber.new()
+	return RuleModifierPipelineClass.apply(active_encounter.collection, "collection", _collection_modifiers())
+
+## The Hit as it is worked out at contact (D052): the wave's Hit after any
+## rule that changes it but before the player's defences, what Guard takes off,
+## what Armor then takes off, and what lands. Each part is the same pipeline
+## stopped earlier, so the parts always add up to get_effective_collection().
+func get_hit_breakdown() -> Dictionary:
+	if active_encounter == null:
+		return {"raw": ScientificNumber.new(), "guard": ScientificNumber.new(), "armor": ScientificNumber.new(), "final": ScientificNumber.new()}
+	var modifiers := _collection_modifiers()
+	var base: ScientificNumber = active_encounter.collection
+	var raw := RuleModifierPipelineClass.apply(base, "collection", modifiers.filter(func(modifier): return not ["guard", "armor"].has(str(modifier.get("source", "")))))
+	var after_guard := RuleModifierPipelineClass.apply(base, "collection", modifiers.filter(func(modifier): return str(modifier.get("source", "")) != "armor"))
+	var final := RuleModifierPipelineClass.apply(base, "collection", modifiers)
+	return {"raw": raw, "guard": raw.subtract(after_guard), "armor": after_guard.subtract(final), "final": final}
+
+## Every modifier the Hit passes through, in one list: the run's rules, then
+## Guard, then Armor. The pipeline decides the order by stage.
+func _collection_modifiers() -> Array:
 	var modifiers := active_rule_modifiers.duplicate(true)
 	var base_hit: ScientificNumber = active_encounter.collection
 	var resistance := clampf(_effect_sum("collection_resistance"), 0.0, balance_profile.COLLECTION_RESISTANCE_CEILING)
@@ -532,7 +551,7 @@ func get_effective_collection() -> ScientificNumber:
 		"stage": "multiplicative",
 		"value": 1.0 - resistance,
 	})
-	return RuleModifierPipelineClass.apply(active_encounter.collection, "collection", modifiers)
+	return modifiers
 
 func get_effective_liability() -> ScientificNumber:
 	if active_encounter == null:
