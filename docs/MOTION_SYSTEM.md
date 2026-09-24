@@ -17,7 +17,7 @@ Vendoring either library would add dead weight to a Godot project: they cannot d
 These describe what the game already does; new motion should stay inside them.
 
 1. **Reduce Motion is a hard gate for movement, not colour.** Translation and scale return early when `state.settings.reduce_motion` is set; colour fades may still run, because they carry no motion-sickness risk. `_pulse_number`, `_shake_number` and `_pulse_stage_impact` already obey this; `_flash_number` deliberately does not.
-2. **Severity is duration and size, never a new hue.** One accent for positive states, one warning for negative, with boss hits distinguished by a larger, longer motion than routine tax. Extra colours read as noise on this HUD. The one exception is the currency icons (D049): a gold coin and a blue gem say which currency, not good or bad, so those colours stay on the icons and never tint an amount.
+2. **Severity is duration and size, never a new hue.** One accent for positive states, one warning for negative, with boss hits distinguished by a larger, longer motion than routine tax. Extra colours read as noise on this HUD. The exceptions are the currency icons (D049): a gold coin and a blue gem say which currency, not good or bad, so those colours stay on the icons and never tint an amount; and bosses (D051), whose number, caption, label and Hit are red, so the fight that stays reads apart from the waves that pass.
 3. **Motion never blocks input and never moves what the player is reading.** A tween is feedback on top of an already-resolved state change, never a gate in front of one.
 4. **One animated voice on the Number.** The big Number may pulse, flash or shake, but only one of those at a time, and the resting colour is always restored.
 5. **Durations stay in the established bands.** Feedback (tap pulse, shake steps): 0.04–0.12 s. Transition (tab slide, toast fade): 0.15–0.5 s. Celebration (floating text, run-over beats): 0.35–1.2 s.
@@ -107,17 +107,17 @@ Combat here is two abstract axes: production damages the wave's Liability, and t
 
 | Event | What the player sees and feels | Reduce Motion |
 | --- | --- | --- |
-| A tap with Liability left | The ring takes the strike (quick scale pop) and the Number pulses. | Ring strike skipped; Number pulse skipped. |
+| A tap with Liability left | A mote leaves the Number for the wave at once and the Number pulses; the wave's HP drops as the mote lands (0.32 s). Passive damage goes as one mote every 0.33 s. | No motes; the HP drops at once. Number pulse skipped. |
 | Passive ticks | The arc advances only. A strike per tick would strobe, so ticks deliberately have no separate hit. | Unchanged. |
 | `tax_collection` | Damage float, Number flash, stage impact flash, a light stage rattle (3.5 px) and a short haptic. | Float and colour only. |
 | `boss_collection` | The same at boss weight: a 9 px rattle, a longer flash, a stronger haptic. | Float and colour only. |
 | Boss telegraph | Through the last 30% of a boss wave the stage glow throbs at ~1.3 Hz, deepening as the hit nears. | Unchanged: luminance, not movement. |
-| `wave_clear` | Accent stage flash, ring pop, wave label pop, and a coin pop when the wave paid. | Label text changes only. |
+| `wave_clear` | Accent stage flash, wave label pop, and a coin pop when the wave paid. | Label text changes only. |
 | `boss_clear` | `wave_clear` at CRITICAL weight, plus the existing toast. | Toast only. |
 | `second_wind` | Critical flash, stage impact and a boss-weight rattle. | Colour only. |
 | `wave_death` | The run-over sheet counts Coins and Knowledge up from zero and each lands with a pop. | Totals appear at their final value. |
-| Hit blocked by Brace | Accent flash, a light ring pop, no movement. | Ring pop skipped. |
-| The wave's body (D050) | A pill with the wave's HP travels from the ring's edge to the Number on the wave clock. A clean clear shatters it (0.6 s) with a "BEATEN · NO HIT" float; a Hit slams a copy into the Number (0.43 s); after a boss's Hit it eases back to the edge. | The body holds at the edge; no shatter or slam. |
+| Hit blocked by Brace | Accent flash, no movement. | Unchanged. |
+| The wave's number (D050, D051) | The wave's HP falls from the arena's top edge to the Number on the wave clock, with a faint trail. A clean clear scatters its digits (0.6 s) with a "BEATEN · NO HIT" float; a Hit swells a copy into the Number (0.43 s); a boss then stays on the Number, its caption counting to the next Hit. | The number holds at the top edge with its countdown; no scatter or slam. |
 
 **Sound is not covered yet.** `AudioFeedback` ships tick and critical samples only; a Collection-hit sample and a wave-clear sample would follow the same map when they exist.
 

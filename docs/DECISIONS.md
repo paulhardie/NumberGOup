@@ -483,7 +483,7 @@ Rules:
 
 ## D050 — Each wave is a body that closes on the Number over its 15 seconds
 
-- **Status:** Accepted (2026-09-24) on owner direction: the wave's HP is "an actual set of HP that slowly heads towards the centre of the screen" and hits on impact, with "15 seconds being the time it takes for the enemy number to reach us in the middle". The 15 seconds stays for now; the owner will revisit it once there is something that moves, and may rework the rings if the two read badly together. Implemented (2026-09-24) as presentation only.
+- **Status:** Its pill and boss knock-back are superseded by [D051](#d051--the-run-arena-no-rings-the-wave-as-a-number-motes-and-red-bosses-that-latch-on). Accepted (2026-09-24) on owner direction: the wave's HP is "an actual set of HP that slowly heads towards the centre of the screen" and hits on impact, with "15 seconds being the time it takes for the enemy number to reach us in the middle". The 15 seconds stays for now; the owner will revisit it once there is something that moves, and may rework the rings if the two read badly together. Implemented (2026-09-24) as presentation only.
 - **Context:** D041 asked for the wave to feel like an opponent and for a clean clear, a Hit and a boss's repeat Hit to look different. D049 split the ring into Wave cleared and time to the Hit, but the wave itself was still only an arc.
 - **Decision:**
   1. **A body:** each standing wave is a small pill showing its remaining HP (Geist Mono), which falls as it is damaged. It enters just outside the ring at one of the upper corners, alternating sides at an angle that varies by wave, and closes in a straight line on the Number. Its place is the wave clock, so it reaches the Number exactly when the Hit lands. An ordinary wave warms towards the warning colour through the second half of its approach; a boss is warning-coloured and larger throughout.
@@ -492,4 +492,19 @@ Rules:
   4. **Reduce Motion:** the body holds at the ring's edge showing the HP and plays no beats (MOTION_SYSTEM rule 1); the inner ring and the key still carry the time.
 - **Consequences:** The empty band D049 kept above the Upgrades sheet stays empty; the approach runs inside the stage. The path is short on a small phone (from the ring's edge to the Number's), which is one reason the owner may rework the rings. Making the body's position real, so Knockback, slow or range can act on it, is a later rule decision, not part of this one.
 - **Revisit when:** the owner reworks the rings, the 15-second clock changes, or position becomes a rule (Knockback, several bodies per wave for area damage).
+
+## D051 — The run arena: no rings, the wave as a number, motes, and red bosses that latch on
+
+- **Status:** Accepted (2026-09-24) on owner direction, choosing layout B from the Arena drafts on the design canvas (https://claude.ai/artifact/8pB4uLUkva6kbnBRZ3PBXv, row "Arena"): "B. Red for boss, with a larger font. Also bosses shouldn't be able to be pushed back by force, only slowed (which we can discuss later)." Implemented (2026-09-24). Supersedes D049 item 5's rings and key and D050's pill and boss knock-back; the rest of D050 stands.
+- **Context:** With the wave drawn as a body (D050), its path from the ring's edge to the Number was 60–80 px on a phone, and the two rings said again what the body already did: its HP and its time. The owner also wanted the player's damage visible as something gentle reaching the wave.
+- **Decision:**
+  1. **Arena:** the run's stage is everything between the wave line and the Upgrades sheet, including the band D049 kept empty. The rings and the key under them are gone. The Number sits low in the arena (72% of its height), clear of Brace, which moves to the arena's lower-left corner.
+  2. **The wave is a number:** its remaining HP in Geist Mono (18 px), with a small "hits X" caption, and no container. It enters at the arena's top edge at a point that varies by wave and falls straight towards the Number, leaving a faint trail, and reaches it when the Hit lands. A beaten wave scatters into its digits.
+  3. **Bosses are red and larger:** the boss's number (30 px), its caption, the BOSS WAVE label and boss Hit feedback use red `#E0625A`. This is the second exception to one accent and one warning (MOTION_SYSTEM rule 2), after the currency icons.
+  4. **Bosses latch on:** a boss that reaches the Number stays on it and hits again every clock; nothing pushes it back. Its caption then counts down to the next Hit, since its distance no longer can. Slowing bosses is a later rule decision.
+  5. **Motes:** each tap sends a mote from the Number to the wave at once; passive damage goes out as one mote every 0.33 s carrying what built up; a crit's mote is brighter. The damage is dealt in GameState as before, measured as the HP the wave actually lost; the wave's shown HP only catches up as each mote lands (0.32 s), and motes still in flight when a wave dies simply vanish.
+  6. **Reduce Motion:** the wave's number holds at the top edge with its countdown in the caption, and no motes, scatter or slam play.
+  7. **Toasts** in a run sit under the wave line, since Brace and the Number hold the arena's foot.
+- **Consequences:** Presentation only: no rule, clock, balance, save or random-stream change. The path is about 250 px on a 390 × 844 phone and about 100 px on a 320 × 568 one. `src/arena_fx.gd` draws the trail and motes; `src/wave_enemy.gd` draws the number. `RingArc`'s inner ring is now unused (only the hub's ring remains).
+- **Revisit when:** the body's position becomes a rule (slow, range, several bodies for area damage), or the 15-second clock changes.
 

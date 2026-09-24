@@ -27,6 +27,10 @@ const WARNING := Color("d68e5c")
 # currency, not good or bad, so they stay on the icons and never tint amounts.
 const COIN_COLOUR := Color("d4b04e")
 const GEM_COLOUR := Color("6aa6d6")
+# Bosses are red (D051, owner direction): their number, the BOSS WAVE label and
+# their Hit, so the fight that stays apart from the waves that pass reads at a
+# glance. The second exception to one accent and one warning.
+const BOSS_COLOUR := Color("e0625a")
 const UI_FONT_PATH := "res://assets/fonts/Geist.ttf"
 ## Every number on screen is monospaced, so a climbing value never jitters.
 const NUMBER_FONT_PATH := "res://assets/fonts/GeistMono.ttf"
@@ -34,7 +38,7 @@ const NUMBER_FONT_PATH := "res://assets/fonts/GeistMono.ttf"
 # brightens towards white instead of introducing a third colour.
 const CRITICAL := Color("f5f5f3")
 const DANGER := WARNING
-const BOSS_DANGER := WARNING
+const BOSS_DANGER := BOSS_COLOUR
 const WORKSHOP_ACCENT := ACCENT
 const LABS_ACCENT := ACCENT
 const CARDS_ACCENT := ACCENT
@@ -56,9 +60,11 @@ const LONG_PRESS_SECONDS := 0.45
 ## sits on the category strip at the foot. Whatever height is left stays empty
 ## between them, held for systems that will want the upper half later.
 const RUN_STAGE_TOP := 84.0
-const RUN_ENCOUNTER_ROW := 70.0
-const RUN_STAGE_MIN := 170.0
-const RUN_STAGE_MAX := 264.0
+## Where the Number sits in the run arena, as a share of its height (D051).
+const NUMBER_HEIGHT_SHARE := 0.72
+## Passive damage leaves the Number as one mote this often, carrying what built
+## up since the last, so a deep Tick Speed is a stream, not a firehose.
+const MOTE_INTERVAL := 0.33
 const RUN_SHEET_MIN := 150.0
 const RUN_SHEET_MAX := 262.0
 const RUN_SHEET_SHARE := 0.31
@@ -100,16 +106,25 @@ var knowledge_label: Label
 var gems_label: Label
 var gems_button: Button
 var floating_text_layer: Control
-var ring: RingArc
+var arena_fx: ArenaFx
+## The box the Number and its rate sit centred in, moved by the layout.
+var number_frame: CenterContainer
 ## The wave as a body closing on the Number over its clock (D050).
 var wave_enemy: WaveEnemy
 ## The encounter the body is drawn for; a new one means a new wave arrived.
 var enemy_encounter: Variant = null
-## Where along its path the body is drawn, 0 at the ring's edge and 1 at the
-## Number. It follows the clock, but eases back after a boss's Hit rather than
-## jumping, so the knock-back reads.
+## A boss that has reached the Number stays on it and hits again every clock
+## (D051): it cannot be knocked back, only (later) slowed.
+var enemy_latched := false
+## The wave HP dealt since the last passive mote left (D051).
+var mote_damage := ScientificNumber.new()
+var mote_elapsed := 0.0
+var mote_crit := false
+## Where along its path the body is drawn, 0 at the arena's top edge and 1 at
+## the Number. It is the wave clock.
 var enemy_travel := 0.0
-var enemy_angle := 0.0
+## Where across the arena's top edge the wave entered, as a share of its width.
+var enemy_entry := 0.5
 var stage_glow: TextureRect
 ## The ring's parent frame. Combat rattles move this rather than the number
 ## column: a container re-sorts its child whenever the number's width changes,
@@ -182,12 +197,6 @@ var tier_button: Button
 var boss_label: Label
 var boss_separator: Label
 ## The row under the stage: a key for the ring's two arcs, and Brace.
-var encounter_row: HBoxContainer
-var wave_key_swatch: ColorRect
-var wave_key_value: Label
-var hit_key_swatch: ColorRect
-var hit_key_label: Label
-var hit_key_value: Label
 var brace_button: Button
 var brace_cost_label: Label
 var run_button: Button
@@ -312,6 +321,8 @@ func _notification(what: int) -> void:
 
 func _process(delta: float) -> void:
 	var gems_before := state.gems
+	var hp_encounter: Variant = state.active_encounter if state.is_wave_standing() else null
+	var hp_before: ScientificNumber = hp_encounter.remaining_liability.copy() if hp_encounter != null else null
 	var events := state.advance(delta)
 	# Gems land with a wave's clear (D030); a boss's toast carries them, and a
 	# checkpoint that is not a boss wave gets a toast of its own.
@@ -327,11 +338,10 @@ func _process(delta: float) -> void:
 		elif event.type == "tax_collection" or event.type == "boss_collection":
 			var boss_hit: bool = event.type == "boss_collection"
 			var hit_colour: Color = BOSS_DANGER if boss_hit else DANGER
-			_enemy_beat(WaveEnemy.Beat.SLAM, ACCENT if event.amount.is_zero() else hit_colour)
+			_enemy_landed(ACCENT if event.amount.is_zero() else hit_colour)
 			if event.amount.is_zero():
 				_show_toast("HIT BLOCKED · 0 NUMBER LOST", ACCENT)
 				_flash_number(ACCENT)
-				_pulse_ring_hit(1.008)
 			else:
 				_spawn_floating_text("-" + _stat_number(event.amount) + " NUMBER", hit_colour, _stage_float_point())
 				# D037: an ordinary wave hits once and passes; a boss stays and hits again.
@@ -349,7 +359,6 @@ func _process(delta: float) -> void:
 			_shatter_enemy(boss_clear)
 			var clear_colour: Color = CRITICAL if boss_clear else ACCENT
 			_pulse_stage_impact(clear_colour)
-			_pulse_ring_hit(1.02 if boss_clear else 1.012)
 			_pop_label(wave_label, 1.18 if boss_clear else 1.08)
 			if not event.amount.is_zero():
 				_pop_label(coins_label, 1.15 if boss_clear else 1.08)
@@ -360,7 +369,7 @@ func _process(delta: float) -> void:
 		elif event.type == "tier_unlock":
 			_show_toast("TIER " + event.amount.format_value() + " UNLOCKED", CRITICAL)
 		elif event.type == "second_wind":
-			_enemy_beat(WaveEnemy.Beat.SLAM, BOSS_DANGER)
+			_enemy_landed(BOSS_DANGER)
 			_show_toast("SECOND WIND  ·  " + event.amount.format_value() + " LEFT", CRITICAL)
 			_flash_number(CRITICAL, 0.6)
 			_pulse_stage_impact(CRITICAL)
@@ -379,6 +388,11 @@ func _process(delta: float) -> void:
 	_advance_display_number(delta)
 	_refresh_number_display()
 	_update_stage_colour()
+	# Whatever this step took off the wave that is still standing leaves the
+	# Number as a mote (D051); a crit tick makes that mote a bright one.
+	if hp_encounter != null and state.active_encounter == hp_encounter and state.is_wave_standing():
+		var crit_tick := events.any(func(event): return event.is_critical)
+		_gather_passive_damage(hp_before.subtract(hp_encounter.remaining_liability), crit_tick, delta)
 	_update_wave_enemy(delta)
 	save_elapsed += delta
 	refresh_elapsed += delta
@@ -461,7 +475,7 @@ func _register_screen(tab_id: String, screen: Control) -> void:
 	tab_panels[tab_id] = screen
 
 ## The run screen, staged top to bottom: permanent currency, the run's state
-## line, the ring stage, then the run's own controls sitting above the tab bar.
+## line, the arena, then the run's own controls sitting above the tab bar.
 ## Every control is added after the tap target so it takes input first.
 func _build_number_screen(parent: Control) -> void:
 	var screen := Control.new()
@@ -578,12 +592,11 @@ func _build_wave_line(parent: Control) -> void:
 	boss_label = _make_tracked_label("", 12, WARNING)
 	line.add_child(boss_label)
 
-## The ring stage: the outer arc is how much of the wave is cleared and the
-## thin inner ring is the time left before its hit (D049), so both encounter
-## axes land in one read around the Number.
+## The run arena (D051): everything between the wave line and the Upgrades
+## sheet. The Number sits low in it, near the thumb, and each wave drops in
+## from the top edge towards it, so the wave's own number and its distance
+## carry what D049's two rings did.
 func _build_stage(parent: Control) -> void:
-	# A centring frame rather than a box: only the ring and the number draw in
-	# it, and the ring's own radius keeps them clear of the controls below.
 	var stage := Control.new()
 	stage.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.offset_top = 150
@@ -597,20 +610,25 @@ func _build_stage(parent: Control) -> void:
 	stage_glow = TextureRect.new()
 	stage_glow.texture = _make_radial_glow(Color.WHITE, 300, 0.08)
 	stage_glow.modulate = ACCENT
-	stage_glow.custom_minimum_size = Vector2(300, 300)
 	stage_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	stage_glow.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	stage_glow.anchor_left = 0.5
+	stage_glow.anchor_right = 0.5
+	stage_glow.offset_left = -150.0
+	stage_glow.offset_right = 150.0
 	stage.add_child(stage_glow)
 
-	ring = RingArc.new()
-	ring.radius_ratio = 0.47
-	ring.thickness = 3.0
-	ring.inner_thickness = 1.5
-	ring.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	stage.add_child(ring)
+	arena_fx = ArenaFx.new()
+	arena_fx.accent = ACCENT
+	arena_fx.critical = CRITICAL
+	arena_fx.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	stage.add_child(arena_fx)
 
+	# Centred on NUMBER_HEIGHT_SHARE of the arena's height: a box from twice
+	# that share less one down to the foot has its middle there.
+	# Placed by _apply_screen_layout, low in the arena and clear of Brace.
 	var centre := CenterContainer.new()
-	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	number_frame = centre
+	centre.anchor_right = 1.0
 	centre.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	stage.add_child(centre)
 	number_col = VBoxContainer.new()
@@ -822,50 +840,14 @@ func _make_tier_arrow(direction: int) -> Button:
 	button.pressed.connect(func(): _step_tier(direction))
 	return button
 
-## The run's own controls under the stage: a key for the ring's two arcs (how
-## much of the wave is cleared, and the hit with its countdown) beside Brace,
-## the answer to a hit the wave will land; and the way out.
+## The run's own controls: Brace, the answer to a Hit the wave will land, in
+## the arena's lower corner (D051); and the way out.
 func _build_run_controls(parent: Control) -> void:
-	encounter_row = HBoxContainer.new()
-	encounter_row.add_theme_constant_override("separation", 12)
-	parent.add_child(encounter_row)
-	var margin_left := _make_gap(0)
-	margin_left.custom_minimum_size = Vector2(8, 0)
-	encounter_row.add_child(margin_left)
-	var key := VBoxContainer.new()
-	key.alignment = BoxContainer.ALIGNMENT_CENTER
-	key.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	key.add_theme_constant_override("separation", 6)
-	key.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	encounter_row.add_child(key)
-	var wave_line_key := HBoxContainer.new()
-	wave_line_key.add_theme_constant_override("separation", 8)
-	key.add_child(wave_line_key)
-	wave_key_swatch = _make_key_swatch(3.0)
-	wave_line_key.add_child(wave_key_swatch.get_parent())
-	wave_line_key.add_child(_make_label("Wave", 13, HORIZONTAL_ALIGNMENT_LEFT, TEXT))
-	wave_key_value = _make_number_label("", 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
-	wave_line_key.add_child(wave_key_value)
-	var hit_line_key := HBoxContainer.new()
-	hit_line_key.add_theme_constant_override("separation", 8)
-	key.add_child(hit_line_key)
-	hit_key_swatch = _make_key_swatch(1.5)
-	hit_line_key.add_child(hit_key_swatch.get_parent())
-	hit_key_label = _make_label("", 13, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
-	hit_line_key.add_child(hit_key_label)
-	hit_key_value = _make_number_label("", 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT)
-	hit_line_key.add_child(hit_key_value)
-
 	brace_button = _make_pill_action("BRACE")
 	brace_button.tooltip_text = "Spend a share of Number to block the next hit. Brace Cost lowers the share."
 	brace_cost_label = brace_button.get_meta("cost_label")
 	brace_button.pressed.connect(_on_brace_pressed)
-	var brace_wrap := CenterContainer.new()
-	brace_wrap.add_child(brace_button)
-	encounter_row.add_child(brace_wrap)
-	var margin_right := _make_gap(0)
-	margin_right.custom_minimum_size = Vector2(8, 0)
-	encounter_row.add_child(margin_right)
+	parent.add_child(brace_button)
 
 	# Deliberately the quietest control on the screen: ending a run is
 	# destructive and rare, so it should never be the thing a thumb finds first.
@@ -883,15 +865,6 @@ func _build_run_controls(parent: Control) -> void:
 	tap_hint.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	number_col.add_child(tap_hint)
 
-## A short line in the key, drawn at the thickness of the ring it names.
-func _make_key_swatch(thickness: float) -> ColorRect:
-	var wrap := CenterContainer.new()
-	wrap.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var swatch := ColorRect.new()
-	swatch.custom_minimum_size = Vector2(14, thickness)
-	swatch.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	wrap.add_child(swatch)
-	return swatch
 
 ## The Upgrades sheet (the Rig in code; D042, D045): buy ranks with Cash during
 ## a run. A sheet resting on the category strip at the foot of the screen
@@ -2432,6 +2405,8 @@ func _tap_number() -> void:
 	if not state.in_run:
 		_show_toast("START A RUN TO PRODUCE NUMBER", MUTED_TEXT)
 		return
+	var hp_encounter: Variant = state.active_encounter if state.is_wave_standing() else null
+	var hp_before: ScientificNumber = hp_encounter.remaining_liability.copy() if hp_encounter != null else null
 	var event := state.tap()
 	var spawn_pos := floating_text_layer.get_local_mouse_position()
 	if not Rect2(Vector2.ZERO, floating_text_layer.size).has_point(spawn_pos):
@@ -2443,10 +2418,10 @@ func _tap_number() -> void:
 	else:
 		_spawn_floating_text(_output_float_text(event.amount, false), ACCENT, spawn_pos)
 		_pulse_number(1.035)
-	# A tap that still has Liability to chew through strikes the ring, so the
-	# player sees the wave take damage, not only their own Number rise.
-	if state.is_wave_standing():
-		_pulse_ring_hit(1.01 if event.is_critical else 1.006)
+	# A tap that still has a wave to chew through sends it a mote at once, so the
+	# player sees the wave take the hit, not only their own Number rise.
+	if hp_encounter != null and state.active_encounter == hp_encounter and state.is_wave_standing():
+		_fire_mote(hp_before.subtract(hp_encounter.remaining_liability), event.is_critical)
 	if state.settings.haptics:
 		Input.vibrate_handheld(8)
 	audio_feedback.play_feedback(event.is_critical, bool(state.settings.muted))
@@ -2540,18 +2515,25 @@ func _apply_screen_layout() -> void:
 	nav_dock.visible = not (state.in_run and current_tab == "number")
 	currency_stack.visible = state.in_run
 	wave_line.visible = state.in_run
-	encounter_row.visible = state.in_run
+	brace_button.visible = state.in_run
 	number_button.visible = state.in_run
 	if state.in_run:
 		var sheet_height := clampf(height * RUN_SHEET_SHARE, RUN_SHEET_MIN, RUN_SHEET_MAX)
 		var sheet_top := height - CATEGORY_STRIP_HEIGHT - sheet_height
-		var free := sheet_top - RUN_STAGE_TOP - RUN_ENCOUNTER_ROW
-		var stage_height := clampf(free, minf(RUN_STAGE_MIN, free), RUN_STAGE_MAX)
-		var stage_bottom := RUN_STAGE_TOP + stage_height
-		_place(stage_root, 0.0, RUN_STAGE_TOP, 0.0, stage_bottom)
-		_place(encounter_row, 0.0, stage_bottom + 10.0, 0.0, stage_bottom + RUN_ENCOUNTER_ROW - 10.0)
-		encounter_row.offset_left = 12.0
-		encounter_row.offset_right = -12.0
+		# The arena is everything between the wave line and the sheet (D051).
+		var arena_height := maxf(sheet_top - RUN_STAGE_TOP, 0.0)
+		_place(stage_root, 0.0, RUN_STAGE_TOP, 0.0, sheet_top)
+		var brace_size := brace_button.get_combined_minimum_size()
+		brace_button.position = Vector2(16.0, sheet_top - 14.0 - brace_size.y)
+		brace_button.size = brace_size
+		# Low in the arena, near the thumb, but never down onto Brace.
+		var number_height := number_col.get_combined_minimum_size().y
+		var number_centre := minf(arena_height * NUMBER_HEIGHT_SHARE, arena_height - 14.0 - brace_size.y - number_height / 2.0 - 8.0)
+		number_centre = maxf(number_centre, number_height / 2.0)
+		number_frame.offset_top = number_centre - number_height / 2.0
+		number_frame.offset_bottom = number_centre + number_height / 2.0
+		stage_glow.offset_top = number_centre - 150.0
+		stage_glow.offset_bottom = number_centre + 150.0
 		_place(rig_panel, 1.0, -(sheet_height + CATEGORY_STRIP_HEIGHT), 1.0, 0.0)
 		run_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 		run_button.offset_left = -130
@@ -2598,7 +2580,7 @@ func _place(control: Control, top_anchor: float, top: float, bottom_anchor: floa
 func _stage_float_point() -> Vector2:
 	if stage_root == null or not stage_root.visible:
 		return floating_text_layer.size * Vector2(0.5, 0.42)
-	return stage_root.position + stage_root.size * Vector2(0.5, 0.42)
+	return number_label.get_global_rect().get_center() - floating_text_layer.global_position - Vector2(0.0, 24.0)
 
 ## Shows the two independent checks the run turns on: the remaining Liability
 ## production must clear, and the Collection hit Number must survive.
@@ -2608,7 +2590,6 @@ func _refresh_run_bar() -> void:
 	tier_button.text = "TIER " + str(state.selected_tier)
 	tier_button.disabled = state.in_run
 	_refresh_boss_notice()
-	_refresh_encounter_line()
 	if rig_panel != null:
 		rig_panel.visible = state.in_run
 	if stage_root != null:
@@ -2766,6 +2747,8 @@ func _refresh_boss_notice() -> void:
 			if until_boss > 0:
 				text = "BOSS IN " + str(until_boss)
 	boss_label.text = text
+	# A boss on the field is red (D051); one still waves away stays a warning.
+	boss_label.add_theme_color_override("font_color", BOSS_COLOUR if text == "BOSS WAVE" else WARNING)
 	boss_label.visible = text != ""
 	boss_separator.visible = text != ""
 
@@ -2776,29 +2759,6 @@ func _waves_until_boss(current_wave: int) -> int:
 		if state.balance_profile.is_boss_wave(current_wave + ahead):
 			return ahead
 	return 0
-
-## The key under the stage: how much of the wave is cleared, and the hit with
-## its countdown, each beside a swatch of the ring it names (D049).
-func _refresh_encounter_line() -> void:
-	if not state.in_run:
-		return
-	var encounter: Variant = state.active_encounter
-	var boss: bool = encounter != null and encounter.is_boss
-	var wave_colour: Color = WARNING if boss else ACCENT
-	var time_colour: Color = WARNING if boss else MUTED_TEXT
-	wave_key_swatch.color = wave_colour
-	hit_key_swatch.color = time_colour
-	var cleared := _liability_cleared()
-	wave_key_value.text = str(int(floor(cleared * 100.0))) + "% cleared"
-	if encounter == null or encounter.max_liability.is_zero() or encounter.is_cleared():
-		hit_key_label.text = "Beaten"
-		hit_key_value.text = ""
-		hit_key_swatch.color = ACCENT
-		return
-	var seconds_left := maxi(0, ceili(GameState.WAVE_INTERVAL_SECONDS - state.wave_accumulator))
-	hit_key_label.text = "Boss hits" if boss else "Hit"
-	hit_key_value.text = state.get_effective_collection().format_value() + " in " + str(seconds_left) + "s"
-	hit_key_value.add_theme_color_override("font_color", time_colour)
 
 func _set_action_enabled(button: Button, enabled: bool) -> void:
 	var verb: Label = button.get_meta("verb_label")
@@ -3362,7 +3322,12 @@ func _clear_local_save() -> void:
 	_refresh_all()
 
 func _show_toast(text: String, colour: Color) -> void:
-	var bottom := _toast_bottom()
+	# In a run the foot of the arena holds Brace and the Number (D051), so the
+	# toast reads at its head, under the wave line.
+	var in_arena := current_tab == "number" and state.in_run
+	toast_wrap.anchor_top = 0.0 if in_arena else 1.0
+	toast_wrap.anchor_bottom = toast_wrap.anchor_top
+	var bottom := RUN_STAGE_TOP + 30.0 if in_arena else _toast_bottom()
 	toast_wrap.offset_top = bottom - 28.0
 	toast_wrap.offset_bottom = bottom
 	toast_label.text = text
@@ -3375,8 +3340,6 @@ func _show_toast(text: String, colour: Color) -> void:
 	toast_tween.tween_property(toast_panel, "modulate:a", 0.0, 0.5)
 
 func _toast_bottom() -> float:
-	if current_tab == "number" and state.in_run and rig_panel != null:
-		return rig_panel.offset_top - 10.0
 	if current_tab == "number":
 		return -NavDock.BAR_HEIGHT - 12.0 - HUB_BATTLE_HEIGHT - 8.0
 	return -NavDock.BAR_HEIGHT - 8.0
@@ -3436,17 +3399,6 @@ func _shake_stage(intensity: float = 6.0) -> void:
 	tween.tween_property(stage_root, "position:x", -intensity * 0.5, 0.06)
 	tween.tween_property(stage_root, "position:x", 0.0, 0.05)
 
-## The ring takes the strike when production damages the wave, so a tap has a
-## target and not only a Number. Passive ticks move the arc instead: a strike
-## per tick would be a strobe, not feedback.
-func _pulse_ring_hit(strength: float = 1.01) -> void:
-	if state.settings.reduce_motion or ring == null:
-		return
-	ring.pivot_offset = ring.size / 2.0
-	var tween := create_tween()
-	tween.tween_property(ring, "scale", Vector2(strength, strength), 0.05)
-	tween.tween_property(ring, "scale", Vector2.ONE, 0.11).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-
 ## A one-shot radial flash behind the number on impact. Kept as its own
 ## temporary node (freed when done) rather than driving stage_glow directly,
 ## since stage_glow's modulate is already being written every frame by
@@ -3457,12 +3409,12 @@ func _pulse_stage_impact(colour: Color) -> void:
 		return
 	var flash := TextureRect.new()
 	flash.texture = _make_radial_glow(Color.WHITE, 360)
-	flash.custom_minimum_size = Vector2(360, 360)
 	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	flash.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	flash.size = Vector2(360, 360)
+	flash.position = stage_glow.position + stage_glow.size / 2.0 - flash.size / 2.0
 	flash.modulate = Color(colour.r, colour.g, colour.b, 0.0)
 	stage_root.add_child(flash)
-	stage_root.move_child(flash, ring.get_index())
+	stage_root.move_child(flash, stage_glow.get_index() + 1)
 	var tween := create_tween()
 	tween.tween_property(flash, "modulate:a", 0.9, 0.05)
 	tween.tween_property(flash, "modulate:a", 0.0, 0.45).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
@@ -3479,21 +3431,14 @@ func _stage_danger_progress() -> float:
 		return 0.0
 	return clampf(state.wave_accumulator / GameState.WAVE_INTERVAL_SECONDS, 0.0, 1.0)
 
-## Drives the stage ring (D049): the outer arc is how much Liability is
-## cleared, and the thin inner ring drains with the time left before the hit;
-## both turn warm on a boss. The glow behind them warms as the hit approaches,
-## and throbs through the last seconds of a boss wave so the heaviest hit is
-## telegraphed before it lands.
+## The glow behind the Number warms as the Hit approaches, and throbs through
+## the last seconds of a boss wave so the heaviest Hit is telegraphed before it
+## lands.
 func _update_stage_colour() -> void:
 	var danger := _stage_danger_progress()
 	var colour := _heat_colour(danger)
 	var encounter: Variant = state.active_encounter
 	var boss: bool = state.in_run and encounter != null and encounter.is_boss
-	ring.set_arc(_liability_cleared(), WARNING if boss else ACCENT)
-	var time_left := 0.0
-	if state.in_run and encounter != null and not encounter.max_liability.is_zero() and not encounter.is_cleared():
-		time_left = 1.0 - danger
-	ring.set_inner(time_left, WARNING if boss else Color(MUTED_TEXT, 0.6))
 	var alpha := 1.0
 	if boss and danger > BOSS_TELEGRAPH_START:
 		var phase := (danger - BOSS_TELEGRAPH_START) / (1.0 - BOSS_TELEGRAPH_START)
@@ -3501,13 +3446,16 @@ func _update_stage_colour() -> void:
 		alpha = lerpf(1.0, lerpf(0.6, 1.0, beat), phase)
 	stage_glow.modulate = Color(colour.r, colour.g, colour.b, alpha)
 
-## Moves the wave's body along its path (D050). Its place is the wave clock, so
-## it reaches the Number exactly when the Hit lands, 15 seconds in. It shows
-## the HP still standing and warms through the last half of its approach. A
-## wave that is beaten shatters where it was; a new wave fades in at the edge.
+## Moves the wave's number along its path (D050, D051). Its place is the wave
+## clock, so it reaches the Number exactly when the Hit lands, 15 seconds in;
+## a boss that has landed stays on the Number. It shows the HP still standing,
+## less nothing the motes in flight have yet to deliver, and warms through the
+## last half of its approach. A beaten wave scatters where it was; a new wave
+## fades in at the arena's top edge.
 func _update_wave_enemy(delta: float) -> void:
 	if wave_enemy == null:
 		return
+	arena_fx.step(delta)
 	var encounter: Variant = state.active_encounter
 	var standing: bool = state.in_run and encounter != null and not encounter.max_liability.is_zero() and not encounter.is_cleared()
 	if not standing:
@@ -3516,71 +3464,126 @@ func _update_wave_enemy(delta: float) -> void:
 			_shatter_enemy(encounter.is_boss)
 		wave_enemy.visible = false
 		enemy_encounter = encounter
+		_clear_arena()
 		return
-	# Reduce Motion stops movement, not information (MOTION_SYSTEM rule 1): the
-	# body holds at the ring's edge, and the inner ring and the key keep the time.
-	var target := 0.0 if state.settings.reduce_motion else clampf(state.wave_accumulator / GameState.WAVE_INTERVAL_SECONDS, 0.0, 1.0)
 	if encounter != enemy_encounter or not wave_enemy.visible:
 		enemy_encounter = encounter
-		enemy_angle = _enemy_angle(state.wave)
-		enemy_travel = target
+		enemy_latched = false
+		enemy_entry = _enemy_entry(state.wave)
+		_clear_arena()
 		wave_enemy.visible = true
 		if not state.settings.reduce_motion:
 			wave_enemy.modulate.a = 0.0
 			create_tween().tween_property(wave_enemy, "modulate:a", 1.0, 0.3)
-	elif target < enemy_travel and not state.settings.reduce_motion:
-		enemy_travel = lerpf(enemy_travel, target, clampf(delta * 7.0, 0.0, 1.0))
+	# Reduce Motion stops movement, not information (MOTION_SYSTEM rule 1): the
+	# number holds at the top edge and its caption keeps the time.
+	var clock := clampf(state.wave_accumulator / GameState.WAVE_INTERVAL_SECONDS, 0.0, 1.0)
+	if enemy_latched:
+		enemy_travel = 1.0
+	elif state.settings.reduce_motion:
+		enemy_travel = 0.0
 	else:
-		enemy_travel = target
+		enemy_travel = clock
 	var boss: bool = encounter.is_boss
-	var tint: Color = WARNING if boss else TEXT.lerp(WARNING, smoothstep(0.5, 1.0, enemy_travel))
-	wave_enemy.show_value(_stat_number(encounter.remaining_liability), tint, 18 if boss else 15)
+	var tint: Color = BOSS_COLOUR if boss else TEXT.lerp(WARNING, smoothstep(0.5, 1.0, enemy_travel))
+	var shown: ScientificNumber = encounter.remaining_liability.add(arena_fx.in_flight()).add(mote_damage)
+	if shown.compare_to(encounter.max_liability) > 0:
+		shown = encounter.max_liability
+	var caption := "hits " + state.get_effective_collection().format_value()
+	if enemy_latched or state.settings.reduce_motion:
+		caption += " in " + str(maxi(0, ceili(GameState.WAVE_INTERVAL_SECONDS - state.wave_accumulator))) + "s"
+	wave_enemy.show_value(_stat_number(shown), tint, 30 if boss else 18, caption, BOSS_COLOUR if boss else MUTED_TEXT)
 	var path := _enemy_path()
-	wave_enemy.centre_on(path[0].lerp(path[1], enemy_travel))
+	var point: Vector2 = path[0].lerp(path[1], enemy_travel)
+	wave_enemy.centre_on(point)
+	arena_fx.target = wave_enemy.value_centre()
+	arena_fx.trail_from = path[0]
+	arena_fx.trail_to = point
+	arena_fx.trail_colour = Color(tint, 0.22) if enemy_travel > 0.02 and not enemy_latched else Color.TRANSPARENT
 
-## Where the body starts and stops, in the stage's space: from just outside the
-## ring to the edge of the Number, along the wave's angle.
+## Drops the motes and the trail, for a wave that is gone or a new one.
+func _clear_arena() -> void:
+	arena_fx.clear_motes()
+	arena_fx.trail_colour = Color.TRANSPARENT
+	mote_damage = ScientificNumber.new()
+	mote_elapsed = 0.0
+	mote_crit = false
+
+## Where the wave's number starts and stops, in the arena's space: from the top
+## edge at the wave's entry point, straight towards the Number, stopping where
+## the number and its caption meet the Number's own box.
 func _enemy_path() -> Array:
-	var direction := Vector2(cos(enemy_angle), sin(enemy_angle))
-	# Just outside the ring, but never past the stage's own edge, where the wave
-	# line and the currencies sit.
-	var centre: Vector2 = stage_root.size / 2.0
-	var room := centre - wave_enemy.size / 2.0 - Vector2(4.0, 4.0)
-	var out := ring.radius() + 24.0
-	if absf(direction.x) > 0.001:
-		out = minf(out, room.x / absf(direction.x))
-	if absf(direction.y) > 0.001:
-		out = minf(out, room.y / absf(direction.y))
-	var start: Vector2 = centre + direction * out
 	var number_box := number_label.get_global_rect()
-	var target := number_box.get_center() - stage_root.global_position
-	var half := number_box.size / 2.0 + Vector2(wave_enemy.size.x / 2.0, 2.0)
+	var home := number_box.get_center() - stage_root.global_position
+	var value_half := wave_enemy.font.get_height(wave_enemy.font_size) / 2.0
+	var margin := maxf(wave_enemy.size.x / 2.0 + 12.0, 40.0)
+	var start := Vector2(clampf(enemy_entry * stage_root.size.x, margin, stage_root.size.x - margin), value_half + 8.0)
+	var direction := (home - start).normalized()
+	# The caption hangs below the number, so from above the gap is its whole
+	# height; from the side, half the widths.
+	var half := number_box.size / 2.0 + Vector2(wave_enemy.size.x / 2.0, wave_enemy.size.y - value_half) + Vector2(4.0, 4.0)
 	var reach := INF
 	if absf(direction.x) > 0.001:
 		reach = half.x / absf(direction.x)
 	if absf(direction.y) > 0.001:
 		reach = minf(reach, half.y / absf(direction.y))
-	return [start, target + direction * reach]
+	var finish := home - direction * reach
+	if finish.y < start.y:
+		finish = start
+	return [start, finish]
 
-## Each wave comes in from one of the ring's upper corners, alternating sides,
-## at an angle that varies by wave. The corners have the room outside the ring,
-## and this never draws on the game's random stream, so it cannot change a run.
-func _enemy_angle(wave: int) -> float:
-	var spread := 25.0 + float((wave * 37) % 41)
-	return deg_to_rad(-90.0 + (spread if wave % 2 == 0 else -spread))
+## Where across the top edge a wave enters, as a share of the arena's width. A
+## golden-ratio step spreads successive waves out, and it never draws on the
+## game's random stream, so it cannot change a run.
+func _enemy_entry(wave: int) -> float:
+	return 0.18 + 0.64 * fposmod(float(wave) * 0.618034, 1.0)
 
-## A clean clear: the body breaks apart where it stood, with the no-Hit beat
+## A clean clear: the number breaks apart where it stood, with the no-Hit beat
 ## D041 asks for. Once only, since the body hides as it shatters.
 func _shatter_enemy(boss: bool) -> void:
 	if wave_enemy == null or not wave_enemy.visible:
 		return
-	_enemy_beat(WaveEnemy.Beat.SHATTER, WARNING if boss else TEXT)
-	_spawn_floating_text("BEATEN · NO HIT", ACCENT, wave_enemy.position + wave_enemy.size / 2.0 + stage_root.position)
+	_enemy_beat(WaveEnemy.Beat.SHATTER, BOSS_COLOUR if boss else TEXT)
+	_spawn_floating_text("BEATEN · NO HIT", ACCENT, wave_enemy.value_centre() + stage_root.position)
 	wave_enemy.visible = false
+	_clear_arena()
 
-## Plays a beat on a copy of the body where it is now, so the live body is free
-## to fade in as the next wave or ease back after a boss's Hit. A shatter
-## breaks it apart; a slam swells it into the Number and fades.
+## The wave reached the Number and its Hit came off (or was blocked). An
+## ordinary wave swells into the Number and gives way to the next; a boss stays
+## on the Number and hits again every clock (D051): no force pushes it back.
+func _enemy_landed(colour: Color) -> void:
+	_enemy_beat(WaveEnemy.Beat.SLAM, colour)
+	if enemy_encounter != null and state.active_encounter == enemy_encounter and enemy_encounter.is_boss:
+		enemy_latched = true
+
+## Sends the wave damage just dealt from the Number to the wave's number as a
+## mote (D051). The damage is already dealt; the mote only decides when the
+## shown HP catches up.
+func _fire_mote(amount: ScientificNumber, crit: bool) -> void:
+	if amount.is_zero() or state.settings.reduce_motion or not wave_enemy.visible:
+		return
+	var number_box := number_label.get_global_rect()
+	var from := Vector2(number_box.get_center().x, number_box.position.y) - stage_root.global_position
+	arena_fx.fire(from, amount, crit)
+
+## Passive damage goes out as one mote every MOTE_INTERVAL, carrying what built
+## up, so a deep Tick Speed reads as a steady stream rather than a firehose.
+func _gather_passive_damage(dealt: ScientificNumber, crit: bool, delta: float) -> void:
+	if state.settings.reduce_motion or not wave_enemy.visible:
+		mote_damage = ScientificNumber.new()
+		return
+	mote_damage = mote_damage.add(dealt)
+	mote_crit = mote_crit or crit
+	mote_elapsed += delta
+	if mote_elapsed >= MOTE_INTERVAL and not mote_damage.is_zero():
+		_fire_mote(mote_damage, mote_crit)
+		mote_damage = ScientificNumber.new()
+		mote_crit = false
+		mote_elapsed = 0.0
+
+## Plays a beat on a copy of the wave's number where it is now, so the live one
+## is free to fade in as the next wave or stay on the Number as a boss. A
+## shatter scatters its digits; a slam swells it into the Number and fades.
 func _enemy_beat(kind: int, colour: Color) -> void:
 	if wave_enemy == null or not wave_enemy.visible or state.settings.reduce_motion:
 		return
@@ -3588,7 +3591,7 @@ func _enemy_beat(kind: int, colour: Color) -> void:
 	ghost.beat = kind
 	stage_root.add_child(ghost)
 	ghost.show_value(wave_enemy.text, colour, wave_enemy.font_size)
-	var point := wave_enemy.position + wave_enemy.size / 2.0
+	var point := wave_enemy.value_centre()
 	if kind == WaveEnemy.Beat.SLAM:
 		point = _enemy_path()[1]
 	ghost.centre_on(point)
@@ -3611,23 +3614,6 @@ func _heat_colour(t: float) -> Color:
 		lerpf(ACCENT.s, WARNING.s, eased),
 		lerpf(ACCENT.v, WARNING.v, eased)
 	)
-
-## How much of this wave's Liability production has already cleared. A wave
-## with nothing due, or one already cleared, reads as a closed ring.
-func _liability_cleared() -> float:
-	if not state.in_run:
-		return 0.0
-	var encounter: Variant = state.active_encounter
-	if encounter == null or encounter.max_liability.is_zero() or encounter.is_cleared():
-		return 1.0
-	var remaining: float = encounter.remaining_liability.log10()
-	var total: float = encounter.max_liability.log10()
-	if is_inf(remaining):
-		return 1.0
-	# Liability spans orders of magnitude, so the arc tracks the ratio of the
-	# real values rather than their logs.
-	var ratio: float = pow(10.0, remaining - total)
-	return clampf(1.0 - ratio, 0.0, 1.0)
 
 ## Moves the displayed number toward the true value every frame instead of
 ## snapping to it, so production reads as a smooth climb even across
@@ -3654,16 +3640,14 @@ func _refresh_number_display() -> void:
 	number_label.text = display_number.format_value()
 	number_label.add_theme_font_size_override("font_size", _number_font_size(number_label.text))
 
-## The number has to sit inside the ring, so its size follows the ring's radius
-## and then the measured width of the string it actually has: "9.99e42" and
-## "1,048,576" are very different widths at the same font size.
+## The Number is set at 48 (D049) and shrinks only when the string it has
+## would not fit across the arena: "9.99e42" and "1,048,576" are very
+## different widths at the same size.
 func _number_font_size(text: String) -> int:
-	var radius := 168.0
-	if ring != null and ring.radius() > 0.0:
-		radius = ring.radius()
-	# Inside the inner ring, with room either side.
-	var available := (radius - RingArc.INNER_GAP) * 1.6
-	var ideal := int(clampf(radius * 0.40, 22.0, 72.0))
+	var available := 300.0
+	if stage_root != null and stage_root.size.x > 0.0:
+		available = stage_root.size.x - 48.0
+	var ideal := 48
 	var font := number_label.get_theme_font("font")
 	if font == null or text.is_empty():
 		return ideal

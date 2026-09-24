@@ -1,0 +1,78 @@
+class_name ArenaFx
+extends Control
+
+## What moves across the run arena besides the wave itself (D051): the faint
+## trail behind the wave, and the motes that carry the player's damage from
+## the Number to it. Presentation only. The damage is already dealt in
+## GameState when a mote leaves; a mote only decides when the wave's shown HP
+## catches up, so the number drops as each one lands.
+
+## Seconds a mote takes to reach the wave.
+const FLIGHT := 0.32
+## How far behind a mote its fading tail dots sit, in shares of its flight.
+const TAIL := [0.06, 0.12, 0.19]
+const BITE_SECONDS := 0.25
+
+var accent := Color.WHITE
+var critical := Color.WHITE
+## Where motes fly to: the wave's number, moved by main.gd every frame.
+var target := Vector2.ZERO
+var trail_from := Vector2.ZERO
+var trail_to := Vector2.ZERO
+var trail_colour := Color.TRANSPARENT
+## Each mote is {from, t (0..1), amount, crit}; each bite {at, age}.
+var _motes: Array = []
+var _bites: Array = []
+
+func _init() -> void:
+	mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+func fire(from: Vector2, amount: ScientificNumber, crit: bool) -> void:
+	if amount.is_zero():
+		return
+	_motes.append({"from": from, "t": 0.0, "amount": amount, "crit": crit})
+
+## Drops every mote in flight, for a wave that is gone or a run that ended.
+func clear_motes() -> void:
+	_motes.clear()
+	queue_redraw()
+
+## The damage already dealt but not yet shown landing.
+func in_flight() -> ScientificNumber:
+	var total := ScientificNumber.new()
+	for mote in _motes:
+		total = total.add(mote.amount)
+	return total
+
+func step(delta: float) -> void:
+	for mote in _motes:
+		mote.t += delta / FLIGHT
+	var landed := _motes.filter(func(mote): return mote.t >= 1.0)
+	for mote in landed:
+		_bites.append({"at": target, "age": 0.0, "crit": mote.crit})
+	_motes = _motes.filter(func(mote): return mote.t < 1.0)
+	for bite in _bites:
+		bite.age += delta
+	_bites = _bites.filter(func(bite): return bite.age < BITE_SECONDS)
+	queue_redraw()
+
+func _point(mote: Dictionary, t: float) -> Vector2:
+	# Eased out, so a mote leaves the Number briskly and settles into the wave.
+	var eased := 1.0 - pow(1.0 - clampf(t, 0.0, 1.0), 2.0)
+	return (mote.from as Vector2).lerp(target, eased)
+
+func _draw() -> void:
+	if trail_colour.a > 0.0:
+		draw_polyline_colors(PackedVector2Array([trail_from, trail_to]), PackedColorArray([Color(trail_colour, 0.0), trail_colour]), 1.0, true)
+	for mote in _motes:
+		var colour: Color = critical if mote.crit else accent
+		var radius := 2.6 if mote.crit else 2.1
+		draw_circle(_point(mote, mote.t), radius, Color(colour, 0.9))
+		for index in range(TAIL.size()):
+			var behind: float = mote.t - TAIL[index]
+			if behind > 0.0:
+				draw_circle(_point(mote, behind), radius * (0.75 - 0.15 * index), Color(colour, 0.5 - 0.14 * index))
+	for bite in _bites:
+		var share: float = bite.age / BITE_SECONDS
+		var colour: Color = critical if bite.crit else accent
+		draw_circle(bite.at, 5.0 + 7.0 * share, Color(colour, 0.16 * (1.0 - share)))
