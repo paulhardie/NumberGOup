@@ -66,6 +66,7 @@
 
 ## Working notes
 
+- **After a pull that adds a script, a blank grey game window means a stale editor cache**: quit Godot, delete `~/NumberGOup-main/.godot`, reopen. `main.gd` now loads its newer scripts by path so this should not recur; new scripts should follow suit (`docs/QUALITY_GATES.md`).
 - **The owner plays from `~/NumberGOup-main`.** It must end on merged `main`. When a game is running from it, work in a separate worktree.
 - **Every economy change** needs `bash run_tests.sh`, `bash run_balance.sh` before and after, the career simulator for anything that changes pacing, and an independent review of the diff ([`QUALITY_GATES.md`](QUALITY_GATES.md)).
 - **Recalibrating Workshop prices:** `tools/career_simulator.gd -- --spend focused --careers today_rig --runs 600 --run-cap-minutes 180 --deep-growth G` (and `--capped-growth`) runs a career to max; each takes about 15 minutes here.

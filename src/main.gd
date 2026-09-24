@@ -1,5 +1,11 @@
 extends Control
 
+# Scripts added since the editor last scanned the project are loaded here by
+# path rather than by their global class name: a checkout whose class cache
+# predates them would otherwise fail to parse this file and start blank.
+const WaveEnemyClass = preload("res://src/wave_enemy.gd")
+const ArenaFxClass = preload("res://src/arena_fx.gd")
+
 const SAVE_INTERVAL_SECONDS := 20.0
 # The Instrument look (D049): a near-black ground, borderless surfaces a step
 # lighter, and three greys for text, so containers read by fill, not outline.
@@ -106,11 +112,11 @@ var knowledge_label: Label
 var gems_label: Label
 var gems_button: Button
 var floating_text_layer: Control
-var arena_fx: ArenaFx
+var arena_fx: ArenaFxClass
 ## The box the Number and its rate sit centred in, moved by the layout.
 var number_frame: CenterContainer
 ## The wave as a body closing on the Number over its clock (D050).
-var wave_enemy: WaveEnemy
+var wave_enemy: WaveEnemyClass
 ## The encounter the body is drawn for; a new one means a new wave arrived.
 var enemy_encounter: Variant = null
 ## A boss that has reached the Number stays on it and hits again every clock
@@ -626,7 +632,7 @@ func _build_stage(parent: Control) -> void:
 	stage_glow.offset_right = 150.0
 	stage.add_child(stage_glow)
 
-	arena_fx = ArenaFx.new()
+	arena_fx = ArenaFxClass.new()
 	arena_fx.accent = ACCENT
 	arena_fx.critical = CRITICAL
 	arena_fx.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -652,7 +658,7 @@ func _build_stage(parent: Control) -> void:
 	rate_label = _make_number_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
 	number_col.add_child(rate_label)
 
-	wave_enemy = WaveEnemy.new(number_font)
+	wave_enemy = WaveEnemyClass.new(number_font)
 	wave_enemy.visible = false
 	stage.add_child(wave_enemy)
 
@@ -3617,7 +3623,7 @@ func _enemy_entry(wave: int) -> float:
 func _shatter_enemy(boss: bool) -> void:
 	if wave_enemy == null or not wave_enemy.visible:
 		return
-	_enemy_beat(WaveEnemy.Beat.SHATTER, BOSS_COLOUR if boss else TEXT)
+	_enemy_beat(WaveEnemyClass.Beat.SHATTER, BOSS_COLOUR if boss else TEXT)
 	_spawn_floating_text("BEATEN · NO HIT", ACCENT, wave_enemy.value_centre() + stage_root.position)
 	wave_enemy.visible = false
 	_clear_arena()
@@ -3628,7 +3634,7 @@ func _shatter_enemy(boss: bool) -> void:
 ## to show (D052), the wave's number swells into the Number instead.
 func _enemy_landed(colour: Color, slam: bool = true) -> void:
 	if slam:
-		_enemy_beat(WaveEnemy.Beat.SLAM, colour)
+		_enemy_beat(WaveEnemyClass.Beat.SLAM, colour)
 	if enemy_encounter != null and state.active_encounter == enemy_encounter and enemy_encounter.is_boss:
 		enemy_latched = true
 
@@ -3677,16 +3683,16 @@ func _gather_passive_damage(dealt: ScientificNumber, crit: bool, delta: float) -
 func _enemy_beat(kind: int, colour: Color) -> void:
 	if wave_enemy == null or not wave_enemy.visible or state.settings.reduce_motion:
 		return
-	var ghost := WaveEnemy.new(number_font)
+	var ghost := WaveEnemyClass.new(number_font)
 	ghost.beat = kind
 	stage_root.add_child(ghost)
 	ghost.show_value(wave_enemy.text, colour, wave_enemy.font_size)
 	var point := wave_enemy.value_centre()
-	if kind == WaveEnemy.Beat.SLAM:
+	if kind == WaveEnemyClass.Beat.SLAM:
 		point = _enemy_path()[1]
 	ghost.centre_on(point)
 	var tween := create_tween()
-	if kind == WaveEnemy.Beat.SLAM:
+	if kind == WaveEnemyClass.Beat.SLAM:
 		tween.tween_property(ghost, "scale", Vector2(1.35, 1.35), 0.08).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		tween.tween_property(ghost, "beat_progress", 1.0, 0.35)
 	else:
