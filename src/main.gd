@@ -382,7 +382,14 @@ func _process(delta: float) -> void:
 		elif event.type == "tier_unlock":
 			_show_toast("TIER " + event.amount.format_value() + " UNLOCKED", CRITICAL)
 		elif event.type == "second_wind":
-			_enemy_landed(BOSS_DANGER)
+			# The Hit that Second Wind forgave still landed: it keeps its wave's
+			# colour (red only for a boss) and shows its working, from the Hit as
+			# it stood before this step, since the event carries the restored
+			# Number rather than the Hit.
+			var rescued_colour: Color = BOSS_DANGER if hp_encounter != null and hp_encounter.is_boss else DANGER
+			_enemy_landed(rescued_colour, hit_parts.is_empty())
+			if not hit_parts.is_empty():
+				_show_hit_ledger(hit_parts, hit_parts.final, rescued_colour)
 			_show_toast("SECOND WIND  ·  " + event.amount.format_value() + " LEFT", CRITICAL)
 			_flash_number(CRITICAL, 0.6)
 			_pulse_stage_impact(CRITICAL)
