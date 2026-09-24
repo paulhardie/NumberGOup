@@ -352,10 +352,19 @@ func _run_wave_clock(events: Array[SimulationEvent]) -> void:
 		safety += 1
 		if active_encounter == null:
 			active_encounter = _make_encounter(wave)
-		var due: int = active_encounter.due_index(wave_accumulator)
-		if due >= 0:
-			events.append(_member_hit(due))
-			continue
+		# Everyone due this step, soonest first, from one scan of the pile.
+		var due: Array = active_encounter.due_indices(wave_accumulator)
+		if not due.is_empty():
+			var landed_any := false
+			for index in due:
+				if not in_run:
+					break
+				var member: Dictionary = active_encounter.members[index]
+				if TaxEncounterClass.is_alive(member) and float(member.next_hit) <= wave_accumulator:
+					events.append(_member_hit(index))
+					landed_any = true
+			if landed_any:
+				continue
 		if active_encounter.own_alive_count() == 0 and wave_accumulator >= balance_profile.MIN_WAVE_SECONDS:
 			active_encounter.shift_clock(wave_accumulator)
 			wave_accumulator = 0.0

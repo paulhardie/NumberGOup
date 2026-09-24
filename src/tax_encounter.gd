@@ -29,6 +29,15 @@ var remaining_liability: ScientificNumber:
 	set(value):
 		_set_living_total(value)
 var _remaining := ScientificNumber.new()
+## How many members are alive, and how many of them are this wave's own, kept
+## with `_remaining` so asking is free.
+var _alive := 0
+var _own_alive := 0
+## The soonest any living member can next hit, so a step with nobody due skips
+## the scan. -INF means "not known": every recount clears it.
+var _next_due := -INF
+## 10^-k for k = 0..16, so the recount needs no pow() per member.
+const POWERS_BELOW := [1.0, 1e-1, 1e-2, 1e-3, 1e-4, 1e-5, 1e-6, 1e-7, 1e-8, 1e-9, 1e-10, 1e-11, 1e-12, 1e-13, 1e-14, 1e-15, 1e-16]
 var collection := ScientificNumber.new()
 var reward: int = 0
 var is_boss: bool = false
@@ -96,10 +105,7 @@ func apply_compliance(amount: ScientificNumber, multiplier: float = 1.0) -> Scie
 	var member: Dictionary = members[index]
 	var requested := amount.multiply_scalar(multiplier)
 	var applied: ScientificNumber = requested if requested.compare_to(member.hp) < 0 else member.hp.copy()
-	member.hp = member.hp.subtract(applied)
-	if member.hp.is_zero():
-		member.state = KILLED
-	_sum_remaining()
+	_take(member, applied)
 	return applied
 
 ## Deals `amount` to one member, such as Thorns to the enemy that hit (D064),
@@ -109,11 +115,19 @@ func damage_member(index: int, amount: ScientificNumber) -> ScientificNumber:
 		return ScientificNumber.new()
 	var member: Dictionary = members[index]
 	var applied: ScientificNumber = amount if amount.compare_to(member.hp) < 0 else member.hp.copy()
+	_take(member, applied)
+	return applied
+
+## Takes `applied` off a living member. A hit that leaves it standing moves the
+## running total by what came off; a kill recounts, so rounding never builds
+## up across a pile (a recount per hit cost 3 ms with a thousand enemies).
+func _take(member: Dictionary, applied: ScientificNumber) -> void:
 	member.hp = member.hp.subtract(applied)
 	if member.hp.is_zero():
 		member.state = KILLED
-	_sum_remaining()
-	return applied
+		_sum_remaining()
+	else:
+		_remaining = _remaining.subtract(applied)
 
 ## The living member nearest the Number, or -1 when none lives. Members at the
 ## Number sit ahead of those still walking, carried ones first.
@@ -136,6 +150,29 @@ func due_index(elapsed: float) -> int:
 			due = index
 	return due
 
+## Every living member due to hit by `elapsed`, soonest first (ties in member
+## order, as due_index picks them), from one scan rather than one per hit.
+func due_indices(elapsed: float) -> Array:
+	var due: Array = []
+	if elapsed < _next_due:
+		return due
+	var soonest := INF
+	for index in range(members.size()):
+		var member: Dictionary = members[index]
+		var state := int(member.state)
+		if state == STANDING or state == AT_NUMBER:
+			var next_hit := float(member.next_hit)
+			if next_hit <= elapsed:
+				due.append(index)
+			elif next_hit < soonest:
+				soonest = next_hit
+	# The members due now hit and move on by at least half a second, and
+	# hit() lowers this if one comes due sooner.
+	_next_due = soonest
+	if due.size() > 1:
+		due.sort_custom(func(a, b): return float(members[a].next_hit) < float(members[b].next_hit) or (float(members[a].next_hit) == float(members[b].next_hit) and a < b))
+	return due
+
 ## The member hits: it is at the Number from now on and hits again after its
 ## interval.
 func hit(index: int) -> void:
@@ -151,12 +188,14 @@ func hit(index: int) -> void:
 		return
 	member.state = AT_NUMBER
 	member.next_hit = float(member.next_hit) + float(member.interval)
+	_next_due = minf(_next_due, float(member.next_hit))
 
 ## Moves every living member's clock back by `seconds`, when this wave's clock
 ## wraps (a boss wave) or they carry into the next wave's.
 func shift_clock(seconds: float) -> void:
 	for member in members:
 		member.next_hit = float(member.next_hit) - seconds
+	_next_due -= seconds
 
 ## The members still alive, for the next wave to carry in.
 func living_members() -> Array:
@@ -188,22 +227,32 @@ func own_uncleared() -> ScientificNumber:
 			total = total.add(member.hp)
 	return total
 
+# Plain loops rather than filter(): these run several times a step, and a pile
+# can hold hundreds of members.
 func own_alive_count() -> int:
-	return members.filter(func(member): return is_own(member) and is_alive(member)).size()
+	return _own_alive
 
 ## How many of this wave's members have reached the Number.
 func landed_count() -> int:
-	return members.filter(func(member): return is_own(member) and bool(member.get("landed", false))).size()
+	var count := 0
+	for member in members:
+		if int(member.wave) == wave and bool(member.get("landed", false)):
+			count += 1
+	return count
 
 func standing_count() -> int:
-	return members.filter(func(member): return is_alive(member)).size()
+	return _alive
 
 func at_number_count() -> int:
-	return members.filter(func(member): return is_alive(member) and int(member.state) == AT_NUMBER).size()
+	var count := 0
+	for member in members:
+		if int(member.state) == AT_NUMBER:
+			count += 1
+	return count
 
 ## True when nothing lives, this wave's members or carried ones.
 func is_cleared() -> bool:
-	return remaining_liability.is_zero()
+	return _alive == 0
 
 ## True when every one of this wave's members is beaten, whether or not it
 ## reached the Number first (D058): a member at the Number is still a fight.
@@ -270,12 +319,36 @@ func _set_living_total(target: ScientificNumber) -> void:
 			member.state = KILLED
 	_sum_remaining()
 
+## Recounts what lives and its HP. Summed as plain floats scaled to the
+## largest exponent, with one ScientificNumber at the end: adding them one by
+## one allocated a number per member.
 func _sum_remaining() -> void:
-	var total := ScientificNumber.new()
+	_next_due = -INF
+	var top := -2147483648
+	_alive = 0
+	_own_alive = 0
 	for member in members:
-		if is_alive(member):
-			total = total.add(member.hp)
-	_remaining = total
+		var state := int(member.state)
+		if state == STANDING or state == AT_NUMBER:
+			_alive += 1
+			if int(member.get("wave", wave)) == wave:
+				_own_alive += 1
+			var hp: ScientificNumber = member.hp
+			if not hp.is_zero() and hp.exponent > top:
+				top = hp.exponent
+	if _alive == 0 or top == -2147483648:
+		_remaining = ScientificNumber.new()
+		return
+	var sum := 0.0
+	for member in members:
+		var state := int(member.state)
+		if state == STANDING or state == AT_NUMBER:
+			var hp: ScientificNumber = member.hp
+			var below: int = top - hp.exponent
+			# Past sixteen places a member cannot move a float sum.
+			if not hp.is_zero() and below < POWERS_BELOW.size():
+				sum += hp.mantissa * POWERS_BELOW[below]
+	_remaining = ScientificNumber.new(1.0, top).multiply_scalar(sum)
 
 func to_dict() -> Dictionary:
 	var saved_members: Array = []
