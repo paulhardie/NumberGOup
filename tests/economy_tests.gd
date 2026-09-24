@@ -1141,7 +1141,7 @@ func _test_beaten_wave_gives_way_after_the_minimum_beat() -> void:
 	# 20 left of 100 is exactly 0.8 cleared: the share must not round down a Coin.
 	var exact := GameState.new()
 	exact.start_run(1, 28)
-	exact.active_encounter.max_liability = ScientificNumber.from_float(100)
+	exact.active_encounter = TaxEncounter.new(1, 1, ScientificNumber.from_float(100), ScientificNumber.from_float(1), 10, false, [6.0, 10.5, 15.0])
 	exact.active_encounter.remaining_liability = ScientificNumber.from_float(20)
 	_expect(floori(10.0 * exact.get_wave_cleared_share() + 0.000001) == 8, "a cleared share of exactly 0.8 should pay 8 of 10 Coins")
 
@@ -2824,6 +2824,40 @@ func _test_group_saves_and_resumes() -> void:
 	_expect(absf(migrated.get_wave_cleared_share() - 0.6) < 0.0001 and migrated.active_encounter.front_index() > 0, "a V9 wave should keep the share it had cleared, taken off the front")
 	_expect(int(_read_json(save_path).get("version", 0)) == SaveDataV10.VERSION and int(_read_json("res://.number_go_up_test_save.v9-backup.json").get("version", 0)) == 9, "a V9 save should be rewritten as V10, with the V9 file kept")
 	migrated.clear_save()
+
+	# A run saved on an older balance profile keeps each member's state, so a
+	# member that has landed never lands again on load.
+	var landed_once := GameState.new()
+	landed_once.save_path = save_path
+	landed_once.start_run(1, 61)
+	landed_once.number = ScientificNumber.from_float(1e6)
+	landed_once.wave = 31
+	landed_once.active_encounter = landed_once._make_encounter(31)
+	while landed_once.active_encounter.landed_count() == 0:
+		landed_once._advance_waves(0.25)
+	var number_after_landing := landed_once.number.copy()
+	var states_before: Array = landed_once.active_encounter.members.map(func(member): return int(member.state))
+	_expect(landed_once.save(), "the landed fixture should save")
+	var older_profile := _read_json(save_path)
+	older_profile.balance_profile_id = "tax-foundation-v10"
+	_write_json(save_path, older_profile)
+	var rebuilt := GameState.new()
+	rebuilt.save_path = save_path
+	rebuilt.load()
+	_expect(rebuilt.active_encounter.members.map(func(member): return int(member.state)) == states_before, "a rebuilt wave should keep each member's state")
+	rebuilt._advance_waves(0.05)
+	_expect(rebuilt.number.compare_to(number_after_landing) == 0, "a member that landed before the save should not land again")
+	rebuilt.clear_save()
+
+	for bad_members in ["three", [1, 2, 3], [{"hp": 5, "max": {}}]]:
+		var malformed: Dictionary = SaveDataV10.make(GameState.new())
+		malformed.active_encounter = {"members": bad_members}
+		_write_json(save_path, malformed)
+		var turned_away := GameState.new()
+		turned_away.save_path = save_path
+		turned_away.load()
+		_expect(turned_away.load_status == GameState.LOAD_UNREADABLE, "a save with malformed members should be refused whole: %s" % str(bad_members))
+		turned_away.clear_save()
 
 	var damaged: Dictionary = SaveDataV10.make(GameState.new())
 	damaged.active_encounter = {"members": "three"}

@@ -33,6 +33,10 @@ static func problem(data: Dictionary) -> String:
 	var encounter: Variant = data.get("active_encounter", null)
 	if encounter != null and not (encounter is Dictionary):
 		return "active_encounter is not an object"
-	if encounter is Dictionary and encounter.has("members") and not (encounter.members is Array):
-		return "active_encounter members is not a list"
+	if encounter is Dictionary and encounter.has("members"):
+		if not (encounter.members is Array):
+			return "active_encounter members is not a list"
+		for member in encounter.members:
+			if not (member is Dictionary and member.get("hp") is Dictionary and member.get("max") is Dictionary):
+				return "an active_encounter member is malformed"
 	return ""

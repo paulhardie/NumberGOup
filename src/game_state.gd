@@ -373,7 +373,8 @@ func _land_member(index: int) -> SimulationEvent:
 		landed = ScientificNumber.new()
 		brace_spent = true
 	var number_before_hit := number.copy()
-	var wave_hp_left: ScientificNumber = active_encounter.remaining_liability.copy()
+	# What the wave kept, including HP that earlier members carried past.
+	var wave_hp_left: ScientificNumber = active_encounter.uncleared()
 	number = number.subtract(landed)
 	active_encounter.land(index)
 	var thorns_share := minf(_effect_sum("recoil_share"), balance_profile.RECOIL_CEILING)
@@ -1599,7 +1600,19 @@ func _rebuild_encounter_on_current_profile() -> void:
 		return
 	var cleared := get_wave_cleared_share()
 	var rebuilt = _make_encounter(wave)
-	rebuilt.set_remaining(rebuilt.max_liability.multiply_scalar(1.0 - cleared))
+	# Member for member where the group matches (D057), so a member that has
+	# landed never lands twice; otherwise by the share cleared. If members had
+	# already landed, every one whose arrival has passed counts as through
+	# rather than landing again; a pre-group wave had landed nothing, so its
+	# overdue members land as the rules say.
+	if not rebuilt.carry_from(active_encounter):
+		rebuilt.set_remaining(rebuilt.max_liability.multiply_scalar(1.0 - cleared))
+		if not rebuilt.is_boss and active_encounter.landed_count() > 0:
+			while true:
+				var overdue: int = rebuilt.due_index(wave_accumulator)
+				if overdue < 0:
+					break
+				rebuilt.land(overdue)
 	active_encounter = rebuilt
 
 func _seconds_since(data: Dictionary) -> float:

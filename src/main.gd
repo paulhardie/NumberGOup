@@ -337,7 +337,7 @@ func _notification(what: int) -> void:
 func _process(delta: float) -> void:
 	var gems_before := state.gems
 	var hp_encounter: Variant = state.active_encounter if state.is_wave_standing() else null
-	var hp_before: ScientificNumber = hp_encounter.remaining_liability.copy() if hp_encounter != null else null
+	var hp_before: ScientificNumber = hp_encounter.uncleared() if hp_encounter != null else null
 	# The Hit as it stands before this step, so a wave that lands and is
 	# replaced in the same step can still show how its Hit was worked out.
 	var hit_parts: Dictionary = state.get_hit_breakdown() if hp_encounter != null else {}
@@ -429,7 +429,9 @@ func _process(delta: float) -> void:
 	# Whatever this step took off the wave that is still standing leaves the
 	# Number as motes (D051), one per shot (D054).
 	if hp_encounter != null and state.active_encounter == hp_encounter and state.is_wave_standing():
-		_send_shots(events, hp_before.subtract(hp_encounter.remaining_liability), delta)
+		# Measured against HP not yet cleared, so a member that walks past with
+		# its HP (D057) is not mistaken for damage dealt.
+		_send_shots(events, hp_before.subtract(hp_encounter.uncleared()), delta)
 	_update_wave_enemy(delta)
 	save_elapsed += delta
 	refresh_elapsed += delta
@@ -2430,7 +2432,7 @@ func _tap_number() -> void:
 		_show_toast("START A RUN TO PRODUCE NUMBER", MUTED_TEXT)
 		return
 	var hp_encounter: Variant = state.active_encounter if state.is_wave_standing() else null
-	var hp_before: ScientificNumber = hp_encounter.remaining_liability.copy() if hp_encounter != null else null
+	var hp_before: ScientificNumber = hp_encounter.uncleared() if hp_encounter != null else null
 	var event := state.tap()
 	var spawn_pos := floating_text_layer.get_local_mouse_position()
 	if not Rect2(Vector2.ZERO, floating_text_layer.size).has_point(spawn_pos):
@@ -2440,7 +2442,7 @@ func _tap_number() -> void:
 	# wave take the hit. Otherwise the gain floats up from the tap, as before.
 	var struck: bool = hp_encounter != null and state.active_encounter == hp_encounter and state.is_wave_standing()
 	if struck:
-		_fire_mote(hp_before.subtract(hp_encounter.remaining_liability), event.is_critical, true)
+		_fire_mote(hp_before.subtract(hp_encounter.uncleared()), event.is_critical, true)
 	else:
 		_spawn_floating_text(_output_float_text(event.amount, event.is_critical), CRITICAL if event.is_critical else ACCENT, spawn_pos)
 	if event.is_critical:
@@ -3525,6 +3527,11 @@ func _update_wave_enemy(delta: float) -> void:
 		# whose last member landed has already slammed into the Number.
 		if encounter == enemy_encounter and state.in_run and encounter != null and encounter.is_beaten():
 			_shatter_enemy(encounter.is_boss)
+		# The last member of a wave that let one through still breaks apart
+		# when beaten, without the no-Hit beat.
+		elif encounter == enemy_encounter and state.in_run and encounter != null and enemy_front >= 0 and enemy_front < encounter.members.size() and int(encounter.members[enemy_front].state) == TaxEncounterClass.KILLED:
+			_flush_shot_pops()
+			_enemy_beat(WaveEnemyClass.Beat.SHATTER, TEXT)
 		wave_enemy.visible = false
 		enemy_encounter = encounter
 		enemy_front = -1

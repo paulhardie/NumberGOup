@@ -93,6 +93,35 @@ func land(index: int) -> void:
 	member.state = LANDED
 	_sum_remaining()
 
+## HP not cleared: what stands plus what walked past.
+func uncleared() -> ScientificNumber:
+	return _remaining.add(passed_liability)
+
+## Takes the state of `old`, the same wave on an older balance profile, member
+## for member: each keeps its share of its HP and whether it was beaten or has
+## landed, so a resumed run never lands a member twice. False when the groups
+## do not match, for the caller to fall back to the cleared share.
+func carry_from(old) -> bool:
+	if old == null or old.members.size() != members.size() or members.is_empty():
+		return false
+	passed_liability = ScientificNumber.new()
+	for index in range(members.size()):
+		var was: Dictionary = old.members[index]
+		var member: Dictionary = members[index]
+		member.hp = member.max.multiply_scalar(_ratio(was.hp, was.max))
+		member.state = int(was.state)
+		if int(member.state) == KILLED:
+			member.hp = ScientificNumber.new()
+		elif int(member.state) == LANDED:
+			passed_liability = passed_liability.add(member.hp)
+	_sum_remaining()
+	return true
+
+static func _ratio(part: ScientificNumber, whole: ScientificNumber) -> float:
+	if whole.is_zero():
+		return 0.0
+	return clampf(part.mantissa / whole.mantissa * pow(10.0, part.exponent - whole.exponent), 0.0, 1.0)
+
 func landed_count() -> int:
 	return members.filter(func(member): return int(member.state) == LANDED).size()
 
@@ -117,7 +146,8 @@ func _set_standing_total(target: ScientificNumber) -> void:
 		# More than stands: share the total evenly over the standing members.
 		var standing := members.filter(func(member): return int(member.state) == STANDING)
 		for member in standing:
-			member.hp = target.multiply_scalar(1.0 / float(standing.size()))
+			var even := target.multiply_scalar(1.0 / float(standing.size()))
+			member.hp = even if even.compare_to(member.max) < 0 else member.max.copy()
 		_sum_remaining()
 		return
 	var to_clear := _remaining.subtract(target)
@@ -175,7 +205,7 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 	if saved_members is Array and not saved_members.is_empty():
 		encounter.members = []
 		for saved in saved_members:
-			if not (saved is Dictionary):
+			if not (saved is Dictionary and saved.get("hp") is Dictionary and saved.get("max") is Dictionary):
 				continue
 			encounter.members.append({
 				"max": ScientificNumber.from_dict(saved.get("max", {})),
@@ -186,7 +216,14 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 			})
 		encounter.passed_liability = ScientificNumber.from_dict(data.get("passed_liability", {}))
 		encounter._sum_remaining()
-	else:
+	# No member that parsed: never a beaten wave for free. It comes back as one
+	# member with what the wave had left, as a pre-group save does.
+	if encounter.members.is_empty():
+		encounter = (load("res://src/tax_encounter.gd") as GDScript).new(
+			encounter.tier_id, encounter.wave, encounter.max_liability, encounter.collection, encounter.reward, encounter.is_boss
+		)
+		encounter.set_remaining(ScientificNumber.from_dict(data.get("remaining_liability", data.get("max_liability", {}))))
+	elif not (saved_members is Array and not saved_members.is_empty()):
 		# A wave saved before groups (V9 and older) is one member with what it
 		# had left.
 		encounter.set_remaining(ScientificNumber.from_dict(data.get("remaining_liability", data.get("max_liability", {}))))
