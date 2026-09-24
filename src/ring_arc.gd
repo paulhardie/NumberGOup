@@ -1,11 +1,10 @@
 class_name RingArc
 extends Control
 
-## A progress ring. On the run stage the outer arc is how much of the wave's
-## Liability is cleared and a thin inner ring drains with the time left before
-## its hit (D049), so both encounter axes read in one glance around the Number.
-## On the hub the same ring shows the highest wave against the next goal, with
-## a dot for each milestone on the way.
+## A progress ring. The hub uses it for the highest wave against the next goal,
+## with a dot for each milestone on the way. The run stage used an outer and a
+## thin inner ring until D051 replaced them with the arena, so the inner ring
+## has no user today.
 
 const TRACK_COLOUR := Color(0.925, 0.925, 0.918, 0.08)
 const INNER_TRACK_COLOUR := Color(0.925, 0.925, 0.918, 0.04)

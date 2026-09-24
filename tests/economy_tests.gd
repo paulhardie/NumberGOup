@@ -1445,6 +1445,26 @@ func _test_guard_flat_reduction_and_floor() -> void:
 	_expect(state.get_effective_collection().compare_to(base_hit.multiply_scalar(0.10 * 0.5)) == 0, "external rule modifiers should still apply past Guard's floor")
 	state.active_rule_modifiers = []
 
+	# The Hit shown on the wave is its raw size; its defences come off at contact
+	# (D052). The parts must add up to the Hit that lands, in every mix.
+	var bare := GameState.new()
+	bare.start_run(1, 4)
+	var bare_parts := bare.get_hit_breakdown()
+	_expect(bare_parts.guard.is_zero() and bare_parts.armor.is_zero() and bare_parts.raw.compare_to(bare_parts.final) == 0, "with no defences the raw Hit is the Hit that lands")
+	bare.wave = 40
+	bare.active_encounter = bare._make_encounter(40)
+	for mix in [{"guard": 30}, {GameState.ARMOR_ID: 60}, {"guard": 30, GameState.ARMOR_ID: 60}]:
+		bare.purchased = mix
+		for rules in [[], [{"source": "test_perk", "target": "collection", "stage": "multiplicative", "value": 0.5}]]:
+			bare.active_rule_modifiers = rules
+			var parts := bare.get_hit_breakdown()
+			var rebuilt: ScientificNumber = parts.raw.subtract(parts.guard).subtract(parts.armor)
+			_expect(absf(rebuilt.log10() - parts.final.log10()) < 1.0e-9 and parts.final.compare_to(bare.get_effective_collection()) == 0, "a Hit's parts should add up to the Hit that lands: %s" % str(mix))
+	bare.purchased = {"guard": 30, GameState.ARMOR_ID: 60}
+	bare.active_rule_modifiers = []
+	var both := bare.get_hit_breakdown()
+	_expect(not both.guard.is_zero() and not both.armor.is_zero(), "Guard and Armor should each show what they took off")
+
 	# Tier scaling: On Tier 2 (collection_multiplier = 20.0), 10 Guard reduces by 200:
 	state.purchased = {"guard": 10}
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
