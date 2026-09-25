@@ -21,14 +21,14 @@ This document uses the accepted player vocabulary (Wave HP, Hit, Armor). [Vocabu
 
 - **Each row's job,** in the two plain jobs above: Attack rows decide whether a wave falls inside one timer (Damage, Attack Speed and the crits by raw damage; Range, Damage / Meter, Multishot and Bounce Shot by reaching and striking more of the crowd; Rapid Fire by bursts). Defense rows decide how many hits the Number takes and survives (Health and Regen as Number; Defense % and Absolute off every hit; Thorns and Lifesteal by fighting back; Knockback and Orbs by keeping enemies away; Death Defy as a last chance). Utility rows decide what a run pays (Cash rows fund run Upgrades; Coin rows fund the Workshop; Free Upgrades and Interest compound a run).
 - **The Number stays:** Health sets where a run starts, Regen adds to it, and every shot's damage is Number too (D037), which makes a strong Attack build a strong Defense one as well.
-- **Run Upgrades** add one level of an opened row at The Tower's Cash price, by how many of that row the run has bought. They are currently far stronger than anything else ([D068 evidence](DECISIONS.md#d068--the-towers-workshop-in-full-around-the-number)), because the Cash a kill pays is still ours.
+- **Run Upgrades** add one level of an opened row at The Tower's Cash price, by how many of that row the run has bought. Since D071 a kill pays The Tower's Cash, and a fresh run that buys them lasts about an hour; from the third run of a career they still carry every run to the cap ([D071 evidence](DECISIONS.md#d071--cash-per-kill-the-towers-way)).
 - **Not built yet:** The Tower's Land Mines, Shockwave, Wall, Recovery Packages, Enemy Level Skip, Rend Armor and Workshop Enhancements, and the Ultimate Weapons.
 
 ## The wave, in one paragraph
 
 *Rewritten for [D037](DECISIONS.md) (23 September 2026) and brought up to date for D063–D067 (25 September 2026); the D012 version is kept below as history.*
 
-Each wave is a crowd of **enemies**, each with its own **HP** and **Hit**, of The Tower's types (D065, D066). Everything you produce, taps and ticks alike, is **Number**, and the same output also strikes the nearest enemy within the Number's 30 m **reach** (D067), so the Number never stops rising while you produce. Enemies walk in from 60 m over a 35-second wave; one you beat before it arrives never hits you. One that reaches the Number **hits** it, harder with every hit, and stays until beaten (through wave 30 it hits once and leaves). Every kill pays as it happens, and every wave's end pays its Coins per Wave. A **boss** (every tenth wave) carries twenty enemies' HP and hits like one. If a hit takes your Number to zero, the run ends.
+Each wave is a crowd of **enemies**, each with its own **HP** and **Hit**, of The Tower's types (D065, D066). Everything you produce, taps and ticks alike, is **Number**, and the same output also strikes the nearest enemy within the Number's 30 m **reach** (D067), so the Number never stops rising while you produce. Enemies walk in from 60 m over a 35-second wave; one you beat before it arrives never hits you. One that reaches the Number **hits** it, harder with every hit, and stays until beaten, from wave 1 (D072). Every kill pays as it happens, and every wave's end pays its Coins per Wave. A **boss** (every tenth wave) carries twenty enemies' HP and hits like one. If a hit takes your Number to zero, the run ends.
 
 That gives each half of the stat catalogue one plain job:
 
@@ -651,7 +651,7 @@ Each step lands on its own and clears the gate for its risk level in [`QUALITY_G
 | 7 | **Core, targets and panel done** (panel laid out below the Number by D032). The Rig (D015): run-scoped ranks bought with Number priced against wave HP, worth 3× a Workshop rank (D023), with combined defensive ceilings, stacking with Workshop ranks, saved with the active run and cleared by every ending. Targets 7–9 pass; early/mid builds are the open playtest question. Remaining: Brace into the Defense tab (deliberately kept on the run screen for now, D032); Shield is off the run screen during runs | High: economy and save |
 | 8 | Ultimates, in both lenses | High: new timed effects and saved cooldown state |
 | 9 | **Done** (D068). The Tower's Workshop: its rows, prices and unlocks, every row acting in the run, save V12 refunding the old rows | High: economy and saves |
-| 10 | Retune run Upgrades' Cash against The Tower's real Cash per kill | High: economy |
+| 10 | **Done** (D071). Run Upgrades' Cash is The Tower's Cash per kill | High: economy |
 | 11 | The rest of The Tower's rows: Land Mines, Shockwave, Recovery Packages, Wall, Enemy Level Skip | High: new mechanics |
 
 Step 2 followed step 1 closely, so the new rule is explained on screen in the new words.

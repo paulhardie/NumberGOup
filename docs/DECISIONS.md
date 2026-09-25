@@ -599,7 +599,7 @@ Rules:
 
 ## D059 — A gentler opening: to wave 30 enemies hit once and leave
 
-- **Status:** Accepted (2026-09-24) on owner direction ("do that then"), taking the recommendation to soften only the opening after D058. Implemented (2026-09-24). The independent review's saved-run blocker was repaired under D060; the branch remains unplayed by the owner and unmerged.
+- **Status:** Superseded for new runs by [D072](#d072--enemies-stay-and-hit-from-wave-1-as-the-towers-do) (2026-09-25): enemies stay from wave 1. Accepted (2026-09-24) on owner direction ("do that then"), taking the recommendation to soften only the opening after D058. Implemented (2026-09-24). The independent review's saved-run blocker was repaired under D060; the branch remains unplayed by the owner and unmerged.
 - **Context:** D058's pile ended a focused player's first run at wave 17 (29 before). A longer hit interval alone could not fix it: the first runs die at the wave 20 boss, where members carried in keep hitting and soak up damage while the boss holds the clock.
 - **Decision:**
   1. **To wave 30 (`OPENING_HIT_WAVES`), a member that reaches the Number hits once and leaves** (D057's rule). A wave with one through passes unbeaten and pays for the share cleared. No pile forms.
@@ -612,7 +612,7 @@ Rules:
 
 ## D060 — Reconcile D058 active saves with D059's opening rule
 
-- **Status:** Accepted (2026-09-24) on the owner's approval, "sure go for it", after the independent D059 review identified the saved-run mismatch. Implemented (2026-09-24) on `claude/game-changes-review-fbili3`; not merged.
+- **Status:** Its load-time reconciliation now moves saves onto D072's staying rule instead (2026-09-25). Accepted (2026-09-24) on the owner's approval, "sure go for it", after the independent D059 review identified the saved-run mismatch. Implemented (2026-09-24) on `claude/game-changes-review-fbili3`; not merged.
 - **Context:** D058 and D059 both write save V10 and profile `tax-foundation-v11`. A D058 active save can therefore load with members from opening waves still at the Number, repeating Hits and carrying into later waves. Members from waves 31–49 can retain D058's five-second repeat interval instead of D059's eased interval. A profile-ID check alone cannot distinguish these saves.
 - **Decision:** On active-run load, remove ordinary members carried from waves 1–30, mark a current opening-wave member that has already hit as departed with its HP uncleared, and give approaching opening members a zero repeat interval. For waves 31–49, use the current eased interval and move an already-landed member's next Hit by the interval difference, retaining the elapsed time since its last Hit. Preserve Number, Hits already paid, the current wave's uncleared HP, Coins, Cash and boss behaviour. Current-rule saves continue to round-trip exactly. No save version bump: the data shape has not changed.
 - **Evidence:** A D058-shaped V10 fixture using the same profile ID failed four assertions before the repair: an early member carried, an opening member still repeated, an extra Hit landed, and an early member remained in a wave-31 pile. After the repair, `bash run_tests.sh` passed, as did headless boot and `tools/arena_probe.gd` (`ARENA PROBE PASS`; its windowed run printed a non-fatal shader-cache warning). The fixture checks old and current saves, boss state, preserved Number and uncleared HP, wave-31 timing and save round trips. `bash run_balance.sh` completed with output byte-identical to the pre-repair D059 run: seed 7 fresh wave 20/86 Coins, early wave 30/273 and rank-100 Attack wave 156/9,327. No career rerun, CI, phone or touch/motion check was done for this repair.
@@ -813,3 +813,37 @@ Rules:
 - **Evidence:** before-and-after captures of a boss wave, a crowded pile and a mid-wave stream at 390 × 844 (the capture tool and the arena probe). The pile no longer overlaps into unreadable runs, and the approach band is wider. Crowds still overlap where several enemies come in on nearly the same line.
 - **Consequences:** No rule, save or economy change. The Number is a sixth smaller on the run screen.
 - **Revisit when:** the owner has played it; if it is still cramped, the next levers are a smaller follower font, fewer pile numbers drawn before the caption counts the rest, or spreading enemies' directions so fewer share a line.
+
+## D071 — Cash per kill, The Tower's way
+
+- **Status:** Accepted (2026-09-25) on owner direction. The owner supplied community research on The Tower's Cash drops (attributed to Reddit, Game Vault and Tower Hub) and, shown a measurement of it, answered "yes" to switching. Implemented (2026-09-25) on `claude/beautiful-dirac-6ozaio`; not merged. Profile `tax-foundation-v17`. Replaces D042's and D066's Cash per kill.
+- **Context:** Since D042 a wave was worth 10 + 5 × its number in Cash (×3 on a boss), and since D066 each kill paid its HP's share of that. It was our own figure. Against The Tower's run-Upgrade prices (D068) a fresh run that bought them reached wave 153. Measured on the same rosters, it paid about 1.2 to 1.7 times The Tower's Cash over a run, but in the wrong shape: $0.63 for a wave-1 basic where The Tower pays $1, two to three times The Tower's from about wave 30, and spikes on boss waves.
+- **Decision:**
+  1. **A kill pays $1 on waves 1 to 9 and $1 more every ten waves** ($2 from wave 10, $11 at wave 100), times its type: basic 1, fast and ranged 2, tank 5.
+  2. **A boss pays 20 times a basic.** The research says only that bosses use "their own, much higher" table; 20 is our guess, the same as its HP weight, until the owner reads one boss kill's Cash in the game.
+  3. **Times the tier's reward multiplier** (Tier 2 ×1.8, Tier 3 ×2.6, as Coins use). The research says Cash is multiplied by the tier's difficulty multiplier without naming it; this is our reading. Cash was not tier-scaled before.
+  4. Cash Bonus and Cash / Wave are unchanged, and a member saved under D063 still owing a share of its wave's reward now pays its type's Cash like any other.
+  5. **Interest pays at most $50 a wave,** The Tower's cap before Labs raise it ([`TOWER_WORKSHOP_REFERENCE.md`](TOWER_WORKSHOP_REFERENCE.md)), under D063's standing rule to copy The Tower. It had no cap, and a 10-hour maxed simulation held 1.8e30 Cash by wave 1,029.
+- **Evidence** (seed 7, two taps a second; `run_balance.sh` and `tools/career_simulator.gd`):
+  - A fresh run that buys the cheapest useful run Upgrade whenever it can dies on wave 105 in 61 minutes with 83,000 Coins (was wave 153 in 89 minutes with 223,000). The owner's research says a new player takes about an hour to reach wave 100 (unverified). Without run Upgrades a fresh run is unchanged: wave 33 in 18.9 minutes.
+  - An early build that buys run Upgrades (Damage 20, Attack Speed 10, Health 20, Regen 10) is still alive at the 90-minute cap on wave 155.
+  - Careers (40 runs, 90-minute cap, even spending): buying run Upgrades reaches wave 61 on run 1 and wave 104 on run 2 (1.6 hours), then every run from run 3 lasts to the cap. Hoarding Cash is unchanged: wave 100 on run 18 (8.7 hours).
+  - The Interest cap changes none of these figures: the measured runs never hold enough Cash for Interest to pass $50 a wave.
+- **Consequences:**
+  - The first run or two now land near where The Tower's research puts a new player. **From the third run no run ends in 90 minutes**, so the next problem is walls, not Cash: once a build outgrows the curve, only the cap ends a run (the open question of every shot also being Number, D037 and D068).
+  - Tier 2 and 3 pay 1.8 and 2.6 times Tier 1's Cash per kill; before, every tier paid the same.
+- **Revisit when:** the owner reads a boss kill's Cash, or a battle report's Cash earned at a known wave on an early run; or a tier's Cash turns out not to follow its Coin multiplier.
+
+## D072 — Enemies stay and hit from wave 1, as The Tower's do
+
+- **Status:** Accepted (2026-09-25) on owner direction: "lets just get the wave 1 experience in place so we can perfect that loop. When in doubt, tower tier 1, brand new player. Copy the tower, work our mechanics over it where needed". Implemented (2026-09-25) on `claude/beautiful-dirac-6ozaio`; not merged. Profile `tax-foundation-v18`. Retires D059's gentler opening for new runs.
+- **Context:** Since D059, to wave 30 an enemy that reached the Number hit once and left, and from wave 31 enemies stayed, hitting every 15 seconds and easing to 5 by wave 50. D059 was ours, made when the pile ended a first run at wave 17 on our own curve. The Tower's enemies stay at the tower and keep attacking from the first wave, and since D063–D068 the curve, the Workshop and the Cash are The Tower's.
+- **Decision:**
+  1. **From wave 1, an enemy that reaches the Number stays and hits every `MEMBER_HIT_SECONDS` (5 seconds) until it dies,** bosses included. The Tower's own enemy attack interval is not known (TheTowerSDK has none); 5 seconds stays ours.
+  2. A run saved under D059 resumes on these rules: members that already hit and left stay gone, walking ones take the 5 seconds, a carried boss too, and a saved enemy whose clock shrinks keeps the next hit it was due, so a resumed pile never lands a burst of catch-up hits (fixed after the independent review). D059's mechanism stays in the code for those saves and its tests.
+- **Evidence** (seed 7, two taps a second; `run_balance.sh`, `tools/career_simulator.gd`):
+  - A fresh run that buys run Upgrades: wave 107 in 62 minutes (105 in 61 before), near the research's "about an hour to wave 100" for a new player.
+  - A fresh run that never buys one: wave 13 in 7.3 minutes (33 in 18.9 before). First spend (Damage 3, Health 2): wave 26 (38). Early: wave 61, unchanged; mid and stronger builds unchanged.
+  - Careers (12 runs, 90-minute cap): never buying run Upgrades reaches wave 30 on run 8 (1.6 hours); buying them reaches wave 61 on run 1 and 106 on run 2, and every run from run 3 lasts to the cap, as before.
+- **Consequences:** buying run Upgrades is now how a first run survives, as in The Tower; a player who never buys dies early. Runs from the third still reach the cap (D071's open question).
+- **Revisit when:** the owner reads The Tower's enemy attack rate, or plays a first run and finds the opening too harsh.

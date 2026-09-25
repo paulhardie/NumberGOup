@@ -49,10 +49,6 @@ func _init() -> void:
 	var st = main.state
 	st.highest_number = ScientificNumber.from_float(250000)
 	st.settings["reduce_motion"] = false
-	# Keep the long approach and shatter checks on the staying-member rule;
-	# the D059 opening pass is exercised below at wave 12.
-	st.balance_profile.OPENING_HIT_WAVES = 0
-	st.balance_profile.OPENING_EASED_BY = 0
 	# Basic enemies to start, so no faster one overtakes the front while the
 	# approach is measured; the usual mix returns for the boss.
 	var mix: Dictionary = st.balance_profile.ENEMY_MIX.duplicate()
@@ -165,6 +161,9 @@ func _init() -> void:
 	# Its enemies set off last are still walking in, 100 m out being further
 	# than the clock (D068); they carry on into the next wave.
 	_check(st.wave == 13 and main.wave_enemy.visible and st.active_encounter.at_number_count() == 0, "an opening wave that is missed slams and the next arrives (D059)")
+	# Back to today's rule, enemies staying from wave 1 (D072).
+	st.balance_profile.OPENING_HIT_WAVES = 0
+	st.balance_profile.OPENING_EASED_BY = 0
 	# With Defense Absolute and Defense %, the wave shows its raw Hit and the
 	# working plays at contact.
 	await create_timer(2.5).timeout
@@ -201,9 +200,23 @@ func _init() -> void:
 	await _shot("6_range_orbs")
 	st.purchased = {}
 	await create_timer(2.6).timeout
+	# Basics only, eight seconds after the first sets off, so it is 20 m out
+	# and in reach (D067, D068): a random mix could put a tank first, still
+	# out of reach, and no shot would leave as a mote.
+	var stream_mix: Dictionary = st.balance_profile.ENEMY_MIX
+	st.balance_profile.ENEMY_MIX = {"basic": 1.0}
 	st.active_encounter = st._make_encounter(st.wave)
-	# Eight seconds in, so the first enemies are in reach (D067, D068).
-	st.wave_accumulator = 8.0
+	st.balance_profile.ENEMY_MIX = stream_mix
+	var first := 0
+	for index in range(st.active_encounter.members.size()):
+		if float(st.active_encounter.members[index].sets_off) < float(st.active_encounter.members[first].sets_off):
+			first = index
+	st.wave_accumulator = float(st.active_encounter.members[first].sets_off) + 8.0
+	# Tough enough to stand through both stream checks: once it fell, the
+	# next basic is still walking in and the readout rightly hides.
+	st.active_encounter.members[first].max = ScientificNumber.from_float(1.0e6)
+	st.active_encounter.members[first].hp = ScientificNumber.from_float(1.0e6)
+	st.active_encounter._sum_remaining()
 	st.number = ScientificNumber.from_float(1.0e9)
 	# Live: Attack Speed 5.95 under Rapid Fire, 23.8 shots a second at the
 	# first Damage, keeps several motes flying without clearing the reach.
@@ -211,8 +224,14 @@ func _init() -> void:
 	st.rapid_fire_left = 30.0
 	var ticks_before: int = st.statistics.ticks
 	var peak := 0
-	for i in range(40):
+	# A second of the wave's clock rather than a count of frames: motes leave
+	# once per MOTE_INTERVAL of it, and a fast display can run 40 frames
+	# before the first one does.
+	var stream_start: float = st.wave_accumulator
+	var frames := 0
+	while st.wave_accumulator < stream_start + 1.0 and frames < 600:
 		await process_frame
+		frames += 1
 		peak = maxi(peak, main.arena_fx._motes.size())
 	await _shot("1d_stream")
 	_check(st.statistics.ticks - ticks_before >= 2 and peak >= 1, "live shots leave as motes: %d ticks, peak %d" % [st.statistics.ticks - ticks_before, peak])

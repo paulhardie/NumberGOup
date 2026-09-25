@@ -364,6 +364,11 @@ func is_wave_standing() -> bool:
 func get_rate_per_second() -> ScientificNumber:
 	return ScientificNumber.from_float(_damage() * _attack_speed() + stat("health_regen"))
 
+## Damage a second from shots before crits: the rate without Health Regen,
+## which adds Number but strikes nothing (D068).
+func get_damage_per_second() -> ScientificNumber:
+	return ScientificNumber.from_float(_damage() * _attack_speed())
+
 func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	if in_run:
 		return false
@@ -568,7 +573,7 @@ func _member_hit(index: int) -> SimulationEvent:
 ## Every kill pays when it happens, as The Tower's do (D066): Coins by its
 ## type (basics none, the rarer types more) times its wave (D068), lifted by
 ## the Coins / Kill Bonus row and Coin Bonus, with any part of a Coin carried
-## to the next kill; Cash by its share of its wave's HP, times Cash Bonus; and
+## to the next kill; Cash by its type and wave (D071), times Cash Bonus; and
 ## a boss its Gem, with the "boss beaten" moment when it falls after its wave
 ## passed (its own wave's clear tells that story otherwise).
 func _pay_kills() -> void:
@@ -587,7 +592,7 @@ func _pay_kills() -> void:
 		var coin_gain := _pay_coins(coin_amount)
 		if active_encounter.is_own(member):
 			active_encounter.paid_coins += coin_gain
-		var cash_amount: float = balance_profile.wave_cash(member_wave) * owed_share if owed_share > 0.0 else balance_profile.kill_cash(member_wave, float(member.get("weight", 1.0)), float(member.get("of", 1.0)))
+		var cash_amount: float = balance_profile.kill_cash(selected_tier, member_wave, str(member.get("kind", "basic")))
 		_add_cash(ScientificNumber.from_float(cash_amount * stat("cash_bonus")))
 		if bool(member.get("boss", false)):
 			var gem_gain := balance_profile.wave_gems(member_wave)
@@ -618,7 +623,9 @@ func _pay_wave_end() -> int:
 		_add_cash(ScientificNumber.from_float(per_wave))
 	var interest := stat("interest")
 	if interest > 0.0 and not cash.is_zero():
-		_add_cash(cash.multiply_scalar(interest))
+		var earned := cash.multiply_scalar(interest)
+		var cap := ScientificNumber.from_float(TaxBalanceProfile.INTEREST_CAP)
+		_add_cash(cap if earned.compare_to(cap) > 0 else earned)
 	for category in FREE_UPGRADE_ROWS:
 		var chance := stat(FREE_UPGRADE_ROWS[category])
 		if chance > 0.0 and rng.randf() < chance:
@@ -1840,16 +1847,17 @@ func _reconcile_opening_members_on_load() -> void:
 	var retained: Array = []
 	for member in active_encounter.members:
 		var member_wave := int(member.wave)
-		if bool(member.get("boss", false)):
-			retained.append(member)
-			continue
-		var interval := balance_profile.member_hit_seconds(member_wave)
-		if interval > 0.0:
+		var is_boss := bool(member.get("boss", false))
+		var interval := balance_profile.boss_hit_seconds(member_wave) if is_boss else balance_profile.member_hit_seconds(member_wave)
+		if interval > 0.0 or is_boss:
 			var saved_interval := float(member.interval)
-			if not is_equal_approx(saved_interval, interval):
+			if interval > 0.0 and not is_equal_approx(saved_interval, interval):
 				# A member already at the Number keeps the time since its last
-				# Hit when the D058 repeat clock becomes D059's eased clock.
-				if int(member.state) == TaxEncounterClass.AT_NUMBER:
+				# Hit when its clock grows (D058's five seconds becoming D059's
+				# eased clock), but never hits sooner than the saved run said
+				# when it shrinks (D059's clocks becoming D072's five seconds),
+				# or a resumed pile would land a burst of catch-up hits.
+				if int(member.state) == TaxEncounterClass.AT_NUMBER and interval > saved_interval:
 					member.next_hit = float(member.next_hit) + interval - saved_interval
 				member.interval = interval
 			retained.append(member)

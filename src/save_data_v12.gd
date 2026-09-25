@@ -12,7 +12,10 @@ const SaveDataV11Class = preload("res://src/save_data_v11.gd")
 ## unknown ids and the new Coin balance on the old scale, so it refuses a V12
 ## save instead (D028). An older save loads through the same reader and is
 ## converted once: its Coins scaled, and every rank of a retired row refunded
-## at the Coins it cost, scaled the same way.
+## at the Coins it cost, scaled the same way. An encounter member may also
+## carry `reached`, whether it came within reach before a knockback pushed it
+## out (D067); a V12 build without it reads it as false, so the key needs no
+## new version.
 const VERSION := 12
 
 static func make(state) -> Dictionary:
