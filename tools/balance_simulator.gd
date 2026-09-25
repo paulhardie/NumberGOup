@@ -5,119 +5,61 @@ const STEP := 0.5
 const SEED := 7
 const CHECKPOINTS := [1, 21, 50, 100]
 const MATRIX_SECONDS := 5400.0
-## Every Attack row at its cap (D019 deepened the ladders without moving where
-## they end, so this is the same power the three-rank caps used to reach).
-const ATTACK_MAX := {
-	"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 100,
-	"faster_echo": 60, "burst_relay": 6, "more_critical": 100, "magnitude_coil": 60,
-	"chain_reaction": 60, "automation_core": 50, "boss_damage": 100,
+## Builds on The Tower's rows (D068). Each is a set of Workshop levels; the
+## Workshop's unlocks are all treated as bought, since a build names its rows.
+## What a first failed run's Coins buy (about 250).
+const FIRST_RUN_SPEND := {"damage": 3, "health": 2}
+const EARLY := {"damage": 20, "attack_speed": 10, "health": 20, "health_regen": 10}
+const MID := {
+	"damage": 100, "attack_speed": 40, "critical_chance": 40, "critical_factor": 40, "range": 20,
+	"health": 100, "health_regen": 50, "defense_percent": 30, "defense_absolute": 50,
 }
-const UTILITY_MAX := {"smarter_efficiency": 60, "coin_bonus": 100, "knowledge_bonus": 50}
-## The same fractions of each ladder the shallow builds held: mid was Output and
-## Damage Multiplier maxed with Attack Speed at three fifths; early was two fifths
-## of the two opening rows.
-const MID := {"stronger_tap": 100, "generator": 100, "generator_two": 60, "faster_cadence": 60}
-const EARLY := {"stronger_tap": 40, "generator": 40}
-## Forty-eight Coins was the first Tier 1 payout when D035 priced the opening
-## Workshop; the rows stay as a pricing comparison.
-const OLD_FIRST_RUN_SPEND := {"stronger_tap": 12}
-const FIRST_RUN_SPEND := {"stronger_tap": 12, "generator": 6, "tax_resistance": 1}
-## Defense rows at their caps, and the pieces of that build worth measuring on
-## their own: balance target 6 asks that each one visibly move an outcome.
-const ARMOR := {"tax_resistance": 100}
-const SIPHON := {"siphon": 100}
-const RECOIL := {"recoil": 100}
-const CUSHION := {"priority_buffer": 50}
-const SECOND_WIND := {"second_wind": 50}
-const DEFENSE_MAX := {
-	"tax_resistance": 100, "siphon": 100, "recoil": 100,
-	"priority_buffer": 50, "brace_discount": 60, "second_wind": 50,
+## Every Attack row at level 100 or its last, and the same for Defense and
+## Utility: the reach of a long first career.
+const ATTACK_100 := {
+	"damage": 100, "attack_speed": 99, "critical_chance": 79, "critical_factor": 100, "range": 79,
+	"damage_per_meter": 100, "multishot_chance": 99, "multishot_targets": 7, "rapid_fire_chance": 85,
+	"rapid_fire_duration": 99, "bounce_shot_chance": 85, "bounce_shot_targets": 7, "bounce_shot_range": 60,
 }
-## label, tier, Workshop ranks, optional Rig policy. Progressed builds start
-## with every Tier 1 milestone claimed, so Coins per minute reflects repeatable
-## rewards. The Rig rows (targets 7-9) pair a build with and without in-run
-## spending so the difference is the Rig's own.
+const DEFENSE_100 := {
+	"health": 100, "health_regen": 100, "defense_percent": 99, "defense_absolute": 100, "thorns": 99,
+	"lifesteal": 80, "knockback_chance": 80, "knockback_force": 40, "orb_speed": 38, "orbs": 4,
+}
+const UTILITY_MAX := {
+	"cash_bonus": 149, "cash_per_wave": 149, "coins_per_kill": 149, "coins_per_wave": 149,
+	"free_attack_upgrade": 99, "free_defense_upgrade": 99, "free_utility_upgrade": 99, "interest": 99,
+}
+const DEFENSE_CORE := {"defense_percent": 99, "defense_absolute": 100}
+const THORNS := {"thorns": 99}
+const ORBS := {"orb_speed": 38, "orbs": 4}
+## label, tier, Workshop levels, optional run Upgrade policy. Progressed builds
+## start with every Tier 1 milestone claimed, so Coins per minute reflects
+## repeatable rewards. The "reinvest" rows pair a build with in-run spending.
 const BUILD_MATRIX := [
 	["fresh", 1, {}],
 	["fresh + rig", 1, {}, "reinvest"],
-	["old 48 Coin spend", 1, OLD_FIRST_RUN_SPEND],
-	["new 48 Coin spend", 1, FIRST_RUN_SPEND],
+	["first spend", 1, FIRST_RUN_SPEND],
 	["early", 1, EARLY],
 	["early + rig", 1, EARLY, "reinvest"],
 	["mid", 1, MID],
 	["mid + rig", 1, MID, "reinvest"],
-	["attack max", 1, ATTACK_MAX],
-	["attack max + rig", 1, ATTACK_MAX, "reinvest"],
-	["attack max + armor", 1, [ATTACK_MAX, ARMOR]],
-	["attack max + armor + rig", 1, [ATTACK_MAX, ARMOR], "reinvest"],
-	["attack max + siphon", 1, [ATTACK_MAX, SIPHON]],
-	["attack max + recoil", 1, [ATTACK_MAX, RECOIL]],
-	["attack max + cushion", 1, [ATTACK_MAX, CUSHION]],
-	["attack max + 2nd wind", 1, [ATTACK_MAX, SECOND_WIND]],
-	["attack max + defense max", 1, [ATTACK_MAX, DEFENSE_MAX]],
-	["attack max + utility max", 1, [ATTACK_MAX, UTILITY_MAX]],
-	["everything maxed", 1, [ATTACK_MAX, DEFENSE_MAX, UTILITY_MAX]],
-	["everything maxed + rig", 1, [ATTACK_MAX, DEFENSE_MAX, UTILITY_MAX], "reinvest"],
-	["defense max only", 1, DEFENSE_MAX],
-	["defense max only + rig", 1, DEFENSE_MAX, "reinvest"],
-	["attack max", 2, ATTACK_MAX],
-	["attack max + armor", 2, [ATTACK_MAX, ARMOR]],
-	# Cushion is the one stat whose worth depends on the tier, so it is measured
-	# where it is meant to matter as well as where it is meant not to.
-	["attack max + cushion", 2, [ATTACK_MAX, CUSHION]],
-	["attack max + defense max", 2, [ATTACK_MAX, DEFENSE_MAX]],
+	["attack 100", 1, ATTACK_100],
+	["attack 100 + rig", 1, ATTACK_100, "reinvest"],
+	["attack 100 + defense", 1, [ATTACK_100, DEFENSE_CORE]],
+	["attack 100 + thorns", 1, [ATTACK_100, THORNS]],
+	["attack 100 + orbs", 1, [ATTACK_100, ORBS]],
+	["attack + defense 100", 1, [ATTACK_100, DEFENSE_100]],
+	["attack + defense 100 + utility", 1, [ATTACK_100, DEFENSE_100, UTILITY_MAX]],
+	["defense 100 only", 1, DEFENSE_100],
+	["attack + defense 100", 2, [ATTACK_100, DEFENSE_100]],
 ]
-## The Rig policy the simulator plays. "reinvest" spends everything above the
-## next hit on Rig ranks, in this order, restarting from the top after every
-## purchase: the compounding damage rows first, because they are the ones worth
-## going deep on, then the flat ones, then Defense when damage alone is not the
-## answer. Deterministic, so a seeded run stays reproducible.
-const RIG_PRIORITY := [
-	"generator_two", "faster_cadence", "magnitude_coil", "more_critical",
-	"stronger_tap", "generator", "faster_echo", "chain_reaction",
-	"boss_damage", "tax_resistance", "siphon", "recoil", "coin_bonus",
-]
-## A boss within the HUD's three-wave warning puts Boss Damage first: the design
-## says buying it two waves before a boss is the intended moment, and the first
-## policy died on wave 40 bosses because it never did.
-const RIG_BOSS_PRIORITY := ["boss_damage", "generator_two", "faster_cadence", "magnitude_coil", "more_critical"]
-## Purchases inside this many seconds of the run's end measure whether Rig cost
-## growth has outrun income (target 9).
-const RIG_LATE_WINDOW := 600.0
-## How many incoming hits the policy keeps in reserve. One is not enough: after
-## a hit lands, a stuck wave keeps Number flat, so a second hit at zero ends the
-## run. A prudent player keeps a margin, and so does the measurement.
-const RIG_RESERVE_HITS := 2.0
-## The Rig effect multiplier sweep (D023): one Rig rank is worth M Workshop
-## ranks. Target 8 needs the Rig to beat hoarding; target 7 forbids a fresh
-## build substituting for Workshop investment. The smallest M that passes both
-## is the value the profile should keep.
-const RIG_MULTIPLIER_SWEEP := [2.0, 3.0, 5.0, 8.0]
-## The Rig price growth sweep (D039): each rank of a row costs this many times
-## the last, in seconds of income. Gentle enough that prices never cliff, steep
-## enough that top builds stop buying before the run becomes endless.
-const RIG_GROWTH_SWEEP := [1.3, 1.4, 1.5, 1.6]
 const CORE_SECONDS := 3600.0
-const SWEEP_BUILDS := [
-	["fresh", 1, {}],
-	["mid", 1, MID],
-	["attack max", 1, ATTACK_MAX],
-	["everything maxed", 1, [ATTACK_MAX, DEFENSE_MAX, UTILITY_MAX]],
-]
-const PURCHASE_ORDER := [
-	"stronger_tap",
-	"generator",
-	"generator_two",
-	"faster_cadence",
-	"faster_echo",
-	"burst_relay",
-	"more_critical",
-	"magnitude_coil",
-	"chain_reaction",
-	"smarter_efficiency",
-	"automation_core",
-	"priority_buffer",
-]
+## Purchases inside this many seconds of a run's end show whether run Upgrade
+## prices have outrun Cash.
+const RIG_LATE_WINDOW := 600.0
+## The first failed run's spend-down, in The Tower's rows: one level of each
+## in turn while Coins last.
+const PURCHASE_ORDER := ["damage", "health", "attack_speed", "health_regen", "critical_chance", "critical_factor"]
 
 func _init() -> void:
 	# `-- --opening` measures only the Tier 1 opening, for quick tuning passes.
@@ -155,14 +97,6 @@ func _init() -> void:
 	print("BUILD MATRIX  2 taps/sec, seed ", SEED)
 	for build in BUILD_MATRIX:
 		_simulate_build(build[0], build[1], _ranks(build[2]), str(build[3]) if build.size() > 3 else "none")
-	print("RIG EFFECT MULTIPLIER SWEEP  (reinvest policy, one rank worth M Workshop ranks)")
-	for multiplier in RIG_MULTIPLIER_SWEEP:
-		for build in SWEEP_BUILDS:
-			_simulate_build("M" + str(multiplier) + " " + str(build[0]), build[1], _ranks(build[2]), "reinvest", multiplier)
-	print("RIG PRICE GROWTH SWEEP  (reinvest policy, the profile's run rank worth, each rank costs G times the last)")
-	for growth in RIG_GROWTH_SWEEP:
-		for build in SWEEP_BUILDS:
-			_simulate_build("G" + str(growth) + " " + str(build[0]), build[1], _ranks(build[2]), "reinvest", -1.0, growth)
 	quit(0)
 
 ## How the core loop feels on the shipped rules (D037): when the Number first
@@ -176,10 +110,10 @@ func _simulate_core_loop() -> void:
 	_core_group("first spend", 1, FIRST_RUN_SPEND, {}, {}, [], [1.0, 2.0])
 	_core_group("early", 1, EARLY, {}, {}, [], [2.0])
 	_core_group("mid", 1, MID, {}, {}, [], [2.0])
-	_core_group("attack + armor", 1, _ranks([ATTACK_MAX, ARMOR]), {}, {}, [], [2.0])
-	_core_group("attack + armor", 2, _ranks([ATTACK_MAX, ARMOR]), {}, {}, [], [2.0])
+	_core_group("attack + defense", 1, _ranks([ATTACK_100, DEFENSE_CORE]), {}, {}, [], [2.0])
+	_core_group("attack + defense", 2, _ranks([ATTACK_100, DEFENSE_CORE]), {}, {}, [], [2.0])
 	_core_group(
-		"advanced layers", 1, _ranks([ATTACK_MAX, ARMOR]),
+		"advanced layers", 1, _ranks([ATTACK_100, DEFENSE_CORE]),
 		{"lab_damage": 40, "lab_resilience": 40, "lab_coin_research": 40},
 		{"card_damage": 7, "card_attack_speed": 7, "card_coins": 7, "card_extra_defense": 7},
 		["card_damage", "card_attack_speed", "card_coins", "card_extra_defense"], [2.0]
@@ -196,6 +130,7 @@ func _core_group(label: String, tier: int, ranks: Dictionary, labs: Dictionary, 
 func _core_case(label: String, tier: int, ranks: Dictionary, labs: Dictionary, cards: Dictionary, active_cards: Array, tap_rate: float, rig_policy: String) -> void:
 	var state := GameState.new()
 	state.purchased = ranks.duplicate()
+	_open_all(state)
 	state.lab_ranks = labs.duplicate()
 	state.card_ranks = cards.duplicate()
 	state.card_active.assign(active_cards)
@@ -244,7 +179,7 @@ func _core_case(label: String, tier: int, ranks: Dictionary, labs: Dictionary, c
 				first_hit = seconds
 		if rig_policy != "hoard" and state.in_run and _rig_can_spend(state):
 			if tier == 1 and state.wave <= 20 and state.rig_ranks_bought() < 2:
-				if state.can_purchase_rig("generator") and state.purchase_rig("generator"):
+				if state.can_purchase_rig("damage") and state.purchase_rig("damage"):
 					rig_buys += 1
 			elif rig_policy == "reinvest":
 				rig_buys += _play_rig(state)
@@ -277,17 +212,12 @@ func _ranks(spec: Variant) -> Dictionary:
 			merged[key] = (part as Dictionary)[key]
 	return merged
 
-func _simulate_build(label: String, tier: int, ranks: Dictionary, rig_policy: String = "none", rig_multiplier: float = -1.0, rig_growth: float = -1.0, hit_scale: float = -1.0) -> void:
+func _simulate_build(label: String, tier: int, ranks: Dictionary, rig_policy: String = "none", hit_scale: float = -1.0) -> void:
 	var state := GameState.new()
 	if hit_scale > 0.0:
 		state.balance_profile.COLLECTION_SCALE = hit_scale
-	if rig_multiplier > 0.0:
-		for category in state.balance_profile.RIG_EFFECT_MULTIPLIER.keys():
-			state.balance_profile.RIG_EFFECT_MULTIPLIER[category] = rig_multiplier
-	if rig_growth > 0.0:
-		for category in state.balance_profile.RIG_COST_GROWTH.keys():
-			state.balance_profile.RIG_COST_GROWTH[category] = rig_growth
 	state.purchased = ranks.duplicate()
+	_open_all(state)
 	# A build that has been here before: every Tier 1 checkpoint to wave 100 is
 	# claimed, so the Gems column shows what a repeat run pays (D030).
 	var claimed: Array = []
@@ -324,7 +254,7 @@ func _simulate_build(label: String, tier: int, ranks: Dictionary, rig_policy: St
 			rig_late += int(purchase[1])
 	var minutes := seconds / 60.0
 	print(
-		"  T", tier, "  ", label.rpad(24),
+		"  T", tier, "  ", label.rpad(32),
 		("death" if not state.in_run else "alive"),
 		"  wave=", reached,
 		"  minutes=", snappedf(minutes, 0.1),
@@ -334,14 +264,13 @@ func _simulate_build(label: String, tier: int, ranks: Dictionary, rig_policy: St
 		"  knowledge=", state.knowledge,
 		"  gems=", state.gems,
 		"  peak_number=", peak.format_value(),
-		"  rig_ranks=", rig_bought,
-		"  rig_last_10m=", rig_late
+		"  run_levels=", rig_bought,
+		"  run_levels_last_10m=", rig_late
 	)
 
 ## How far a player who has maxed the whole Workshop gets, with no Labs, Cards
-## or run ranks. `rank 100` stops every row at 100 ranks or its cap if lower,
-## where the ladders ended before D047; `maxed` is every row at its max rank.
-## WORKSHOP_LADDERS.md holds the figures for the ladders that were proposed.
+## or run Upgrades. `rank 100` stops every row at level 100 or its last if
+## lower; `maxed` is every row at its last level.
 func _maxed_ladder(name: String) -> Dictionary:
 	var ranks := {}
 	for definition in GameState.new().definitions:
@@ -385,11 +314,11 @@ const HIT_SWEEP_BUILDS := [
 	["fresh + rig", {}, "reinvest"],
 	["early", EARLY, "none"],
 	["mid", MID, "none"],
-	["attack max", ATTACK_MAX, "none"],
-	["attack max + rig", ATTACK_MAX, "reinvest"],
-	["attack max + armor", [ATTACK_MAX, ARMOR], "none"],
-	["attack max + defense max", [ATTACK_MAX, DEFENSE_MAX], "none"],
-	["defense max only", DEFENSE_MAX, "none"],
+	["attack 100", ATTACK_100, "none"],
+	["attack 100 + rig", ATTACK_100, "reinvest"],
+	["attack 100 + defense", [ATTACK_100, DEFENSE_CORE], "none"],
+	["attack + defense 100", [ATTACK_100, DEFENSE_100], "none"],
+	["defense 100 only", DEFENSE_100, "none"],
 ]
 
 func _simulate_hit_sweep() -> void:
@@ -417,50 +346,45 @@ func _simulate_hit_sweep() -> void:
 					first_hit = seconds
 			print("  opening taps/s=", tap_rate, "  first_hit=", snappedf(first_hit, 1.0), "s  end=wave ", state.last_run_summary.wave_reached if not state.in_run else state.wave, "  coins=", state.coins)
 		for build in HIT_SWEEP_BUILDS:
-			_simulate_build(str(build[0]), 1, _ranks(build[1]), str(build[2]), -1.0, -1.0, scale)
+			_simulate_build(str(build[0]), 1, _ranks(build[1]), str(build[2]), scale)
 
-## Plays the Rig the way a player reaching for the next wave does: never spend
-## the Number that covers the incoming hit, and put everything else into the
-## cheapest useful rank in priority order. Returns how many ranks landed.
+## Plays run Upgrades the way a player reaching for the next wave does: the
+## cheapest next level among the rows worth buying, while Cash covers one.
+## Deterministic, so a seeded run stays reproducible. Returns the levels bought.
+const RIG_ROWS := [
+	"damage", "attack_speed", "critical_chance", "critical_factor", "health", "health_regen",
+	"defense_percent", "defense_absolute", "thorns", "range", "multishot_chance",
+	"bounce_shot_chance", "lifesteal", "cash_bonus", "cash_per_wave", "coins_per_kill",
+]
+
 func _play_rig(state: GameState) -> int:
 	var bought := 0
-	var order: Array = RIG_PRIORITY
-	for ahead in range(1, 4):
-		if state.balance_profile.is_boss_wave(state.wave + ahead):
-			order = RIG_BOSS_PRIORITY
-			break
 	while true:
-		var purchased := false
-		for upgrade_id in order:
-			if not state.can_purchase_rig(upgrade_id):
+		var cheapest_id := ""
+		var cheapest_cost: ScientificNumber = null
+		for row_id in RIG_ROWS:
+			if not state.can_purchase_rig(row_id):
 				continue
-			if state.purchase_rig(upgrade_id):
-				bought += 1
-				purchased = true
-				break
-		if not purchased:
-			break
+			var cost := state.get_rig_cost(row_id)
+			if cheapest_cost == null or cost.compare_to(cheapest_cost) < 0:
+				cheapest_id = row_id
+				cheapest_cost = cost
+		if cheapest_id == "" or not state.purchase_rig(cheapest_id):
+			return bought
+		bought += 1
 	return bought
 
-## The Reinvestor spends "the moment a wave starts resisting": while a wave is
-## cleared it leaves the Number alone, so the buffer grows
-## before the spend. Buying on easy waves is what made the first policy drain
-## the buffer and die early.
+## A build names its rows, so every Workshop unlock is treated as bought.
+func _open_all(state: GameState) -> void:
+	for group in state.workshop_group_list:
+		if float(group.unlock_coins) > 0.0 and not state.workshop_groups.has(str(group.id)):
+			state.workshop_groups.append(str(group.id))
+
+## The Reinvestor spends while a wave stands, as before.
 func _rig_can_spend(state: GameState) -> bool:
 	if state.active_encounter == null:
 		return false
 	return not state.active_encounter.is_cleared() and not state.active_encounter.max_liability.is_zero()
-
-## The Number the policy will not spend: the hits that are actually coming, with
-## a one-hit margin. While a wave is cleared, that is the next wave's hit, so
-## the Number is spent down to a real reserve rather than to zero.
-func _rig_reserve(state: GameState) -> ScientificNumber:
-	var hit := ScientificNumber.new()
-	if state.active_encounter != null and not state.active_encounter.is_cleared() and not state.active_encounter.max_liability.is_zero():
-		hit = state.get_effective_collection()
-	else:
-		hit = state.balance_profile.collection_for_wave(state.selected_tier, state.wave + 1)
-	return hit.multiply_scalar(RIG_RESERVE_HITS)
 
 func _simulate_representative_tier_one() -> void:
 	var state := GameState.new()
@@ -479,9 +403,7 @@ func _simulate_representative_tier_one() -> void:
 				"  knowledge=", state.knowledge,
 				"  gems=", state.gems
 			)
-			# Spend down the way a player does, not one rank per row: with
-			# ladders 50-100 ranks deep (D019), a single pass through the order
-			# leaves almost all of the first run's Coins unspent.
+			# Spend down the way a player does, a level of each row in turn.
 			var spending := true
 			while spending:
 				spending = false
@@ -491,7 +413,8 @@ func _simulate_representative_tier_one() -> void:
 			print(
 				"POST-RUN WORKSHOP  level=", state.get_workshop_level(),
 				"  coins_remaining=", state.coins,
-				"  tap=", state._tap_base(),
+				"  damage=", state.stat("damage"),
+				"  health=", state.stat("health"),
 				"  number_per_sec=", snappedf(state.get_rate_per_second().mantissa * pow(10.0, state.get_rate_per_second().exponent), 0.01)
 			)
 			return
@@ -504,10 +427,8 @@ func _simulate_representative_tier_one() -> void:
 	)
 
 ## The Tier 1 opening from a fresh save (D033), at the tap rates a new player
-## actually manages. The player buys the cheapest Attack Rig rank they can
-## while keeping half again its price as a buffer. Opening targets: a first
-## purchase within about 15 seconds, hits that do not erase the starting
-## buffer, and a first run that funds Workshop ranks without idle farming.
+## actually manages. The player buys the cheapest of Damage, Attack Speed and
+## Health as soon as Cash covers it.
 const OPENING_TAP_RATES := [0.0, 1.0, 2.0, 3.0, 4.0, 6.0]
 const OPENING_STEP := 1.0 / 30.0
 
@@ -527,7 +448,7 @@ func _simulate_opening() -> void:
 		idle_seconds += OPENING_STEP
 	var no_action_end := "alive at wave " + str(no_action.wave) if no_action.in_run else "wave " + str(no_action.last_run_summary.wave_reached)
 	print("  no action  end=", no_action_end, " at ", snappedf(idle_seconds, 1.0), "s  coins=", no_action.coins)
-	print("OPENING  fresh save, Tier 1, cheapest Rig rank kept 1.5x affordable, seed ", SEED)
+	print("OPENING  fresh save, Tier 1, cheapest run Upgrade bought when affordable, seed ", SEED)
 	for rate in OPENING_TAP_RATES:
 		var state := GameState.new()
 		state.start_run(1, SEED)
@@ -547,7 +468,7 @@ func _simulate_opening() -> void:
 					tap_clock -= 1.0 / rate
 					state.tap()
 			for event in events:
-				var landed: bool = event.type in ["tax_collection", "pile_hit", "boss_collection", "second_wind"] and not event.amount.is_zero()
+				var landed: bool = event.type in ["tax_collection", "pile_hit", "boss_collection", "death_defy"] and not event.amount.is_zero()
 				if landed or event.type == "wave_death":
 					hits += 1
 					if seconds <= 60.0:
@@ -556,7 +477,7 @@ func _simulate_opening() -> void:
 						first_hit = seconds
 			var cheapest := ""
 			var cheapest_cost: ScientificNumber = null
-			for row_id in ["generator", "stronger_tap", "generator_two"]:
+			for row_id in ["damage", "attack_speed", "health"]:
 				var cost := state.get_rig_cost(row_id)
 				if cheapest_cost == null or cost.compare_to(cheapest_cost) < 0:
 					cheapest = row_id
@@ -578,10 +499,10 @@ func _simulate_opening() -> void:
 			"  coins=", state.coins
 		)
 
-## What a wave pays if every enemy of it is killed (D066): its kills by type
-## and its Coins per Wave, before Coin Bonus.
+## What a wave pays if every enemy of it is killed (D066, D068): its kills by
+## type and wave, and a fresh Coins / Wave, before any bonus.
 static func _wave_coins(profile, tier_id: int, wave: int, seed: int) -> float:
-	var total: float = profile.wave_end_coins(tier_id, wave)
+	var total: float = profile.wave_end_coins(tier_id, 1.0)
 	for entry in profile.wave_roster(wave, seed):
 		total += profile.kill_coins(tier_id, wave, str(entry.kind))
 	return total

@@ -474,8 +474,9 @@ func _process(delta: float) -> void:
 	_refresh_number_display()
 	_update_stage_colour()
 	# Whatever this step took off the wave that is still standing leaves the
-	# Number as motes (D051), one per shot (D054).
-	if hp_encounter != null and state.active_encounter == hp_encounter and state.is_wave_standing():
+	# Number as motes (D051), one per shot (D054). Still standing, not still in
+	# reach: a shot that kills the last enemy in reach still flies (D068).
+	if hp_encounter != null and state.active_encounter == hp_encounter and not hp_encounter.is_cleared():
 		# Measured against HP not yet cleared, so a member that walks past with
 		# its HP (D057) is not mistaken for damage dealt.
 		_send_shots(events, hp_before.subtract(hp_encounter.uncleared()), delta)
@@ -2497,7 +2498,7 @@ func _tap_number() -> void:
 	# A tap that still has a wave to chew through sends it a mote at once, and
 	# its damage comes off the wave as the mote lands, so the player sees the
 	# wave take the hit. Otherwise the gain floats up from the tap, as before.
-	var struck: bool = hp_encounter != null and state.active_encounter == hp_encounter and state.is_wave_standing()
+	var struck: bool = hp_encounter != null and state.active_encounter == hp_encounter and not hp_encounter.is_cleared()
 	if struck:
 		_fire_mote(hp_before.subtract(hp_encounter.uncleared()), event.is_critical, true)
 	else:
@@ -3340,7 +3341,7 @@ func _stat_value_text(definition: UpgradeDefinition, rank: int) -> String:
 		"metres":
 			return "%.1fm" % value
 		"per_metre":
-			return "×%.4f/m" % value
+			return "+%.2f%%/m" % (value * 100.0)
 		"seconds":
 			return "%.2fs" % value
 		"rpm":
@@ -3809,7 +3810,7 @@ func _show_hit_ledger(parts: Dictionary, landed: ScientificNumber, colour: Color
 	if is_instance_valid(active_hit_ledger):
 		active_hit_ledger.queue_free()
 	active_hit_ledger = null
-	# A Brace blocks a Hit that would have landed; Guard taking it to nothing
+	# A Brace blocks a Hit that would have landed; Defense Absolute taking it to nothing
 	# (D063) shows as its own working instead.
 	var blocked: bool = landed.is_zero() and not parts.final.is_zero()
 	if parts.guard.is_zero() and parts.armor.is_zero() and not blocked:
@@ -3817,11 +3818,12 @@ func _show_hit_ledger(parts: Dictionary, landed: ScientificNumber, colour: Color
 		return
 	var lines: Array = []
 	lines.append([_stat_number(parts.raw), colour, 16])
-	# The Tower's order (D063): Armor comes off first, then Guard.
+	# The Tower's order (D063): Defense % comes off first, then Defense
+	# Absolute, named as the Workshop names them (D068).
 	if not parts.armor.is_zero():
-		lines.append(["-" + _stat_number(parts.armor) + " armor", ACCENT, 12])
+		lines.append(["-" + _stat_number(parts.armor) + " defense %", ACCENT, 12])
 	if not parts.guard.is_zero():
-		lines.append(["-" + _stat_number(parts.guard) + " guard", ACCENT, 12])
+		lines.append(["-" + _stat_number(parts.guard) + " absolute", ACCENT, 12])
 	if blocked:
 		lines.append(["braced", ACCENT, 12])
 	lines.append(["= " + ("0" if landed.is_zero() else "-" + _stat_number(landed)), ACCENT if landed.is_zero() else colour, 16])
