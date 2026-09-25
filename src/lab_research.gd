@@ -82,9 +82,11 @@ func slot_cost(slots: int) -> int:
 		return 0
 	return int(SLOT_GEM_COSTS[index])
 
-## Coins for the next rank. Whole Coins, like every other Coin cost.
+## Coins for the next rank. Whole Coins, like every other Coin cost. The
+## ladders were sized on the Coin scale before The Tower's Workshop, so they
+## move to its scale with everything else (D068).
 func cost_at(definition: Definition, owned: int) -> int:
-	return maxi(1, ceili(float(definition.base_cost) * pow(definition.cost_growth, float(owned))))
+	return maxi(1, ceili(float(definition.base_cost) * pow(definition.cost_growth, float(owned)) * TaxBalanceProfile.COIN_RESCALE))
 
 ## Real seconds for the next rank. Lab Speed discounts every other line but
 ## never itself, so a maxed Speed line can still be re-run to prove the math.

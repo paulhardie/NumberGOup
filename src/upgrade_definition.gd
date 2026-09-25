@@ -29,6 +29,16 @@ var depth_curve: Array = []
 ## so ranks that existed keep their price and new ones take the gentler growth.
 var deep_cost_growth: float = 0.0
 var deep_price_from: int = 100
+## The Tower's rows (D068) state every level outright rather than a step per
+## rank: `values[level]` is the row's value at that level, `coin_prices[level]`
+## the Coins to go from it to the next, and `cash_prices[n]` the Cash for a
+## run's n-th run Upgrade of the row. Empty for a stepped row.
+var values := PackedFloat64Array()
+var coin_prices := PackedFloat64Array()
+var cash_prices := PackedFloat64Array()
+## The Workshop unlock the row opens with (D068), and how its value reads.
+var group: String = ""
+var unit: String = ""
 
 func _init(
 		upgrade_id: String,
@@ -59,7 +69,22 @@ func _init(
 	repeatable = is_repeatable
 	cost_growth = growth
 
+func is_table() -> bool:
+	return not values.is_empty()
+
+## The row's value at `level`, held to the levels it has.
+func value_at(level: int) -> float:
+	return values[clampi(level, 0, values.size() - 1)]
+
+## The Cash for a run's `bought`-th run Upgrade of the row (D068), or zero once
+## the table ends.
+func cash_price_at(bought: int) -> float:
+	return cash_prices[bought] if bought >= 0 and bought < cash_prices.size() else 0.0
+
 func cost_at(owned: int, discount: float = 0.0) -> ScientificNumber:
+	if is_table():
+		var price := coin_prices[owned] if owned >= 0 and owned < coin_prices.size() else 0.0
+		return ScientificNumber.from_float(price * maxf(0.1, 1.0 - discount))
 	var scaled: ScientificNumber
 	if deep_cost_growth > 0.0 and owned > deep_price_from:
 		scaled = cost.multiply_scalar(pow(cost_growth, deep_price_from) * pow(deep_cost_growth, owned - deep_price_from))
@@ -145,6 +170,11 @@ static func from_dict(dict: Dictionary) -> UpgradeDefinition:
 		definition.depth_curve = curve
 	definition.deep_cost_growth = float(dict.get("deep_cost_growth", 0.0))
 	definition.deep_price_from = int(dict.get("deep_price_from", 100))
+	definition.values = PackedFloat64Array(dict.get("values", []))
+	definition.coin_prices = PackedFloat64Array(dict.get("coin_prices", []))
+	definition.cash_prices = PackedFloat64Array(dict.get("cash_prices", []))
+	definition.group = str(dict.get("group", ""))
+	definition.unit = str(dict.get("unit", ""))
 	return definition
 
 func to_dict() -> Dictionary:
