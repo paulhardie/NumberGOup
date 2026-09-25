@@ -197,10 +197,24 @@ static func hit_part(member: Dictionary) -> float:
 static func distance_of(member: Dictionary, clock: float) -> float:
 	var kind := str(member.get("kind", "basic"))
 	var stop := TaxBalanceProfile.stop_distance(kind)
-	if bool(member.get("landed", false)) or int(member.state) == AT_NUMBER:
+	# A member knocked back off the Number (D068) has landed but walks again.
+	if int(member.state) == AT_NUMBER or (bool(member.get("landed", false)) and int(member.state) != STANDING):
 		return stop
 	var walked := TaxBalanceProfile.speed_metres(kind) * (clock - float(member.get("sets_off", LONG_AGO)))
 	return clampf(TaxBalanceProfile.SPAWN_DISTANCE_METRES - walked, stop, TaxBalanceProfile.SPAWN_DISTANCE_METRES)
+
+## The direction a member walks in from, in radians (D067): fixed by its wave,
+## arrival and type, so the arena, Bounce Shot and the orbs (D068) agree, and a
+## resumed run puts it where it was. Integer mixing rather than hash(), which
+## is not promised to stay the same between Godot versions.
+static func angle_of(member: Dictionary) -> float:
+	var key: int = int(member.get("wave", 1)) * 73856093 ^ roundi(float(member.get("arrive", 0.0)) * 64.0) * 19349663 ^ str(member.get("kind", "basic")).length() * 83492791
+	key ^= key >> 13
+	return float(posmod(key, 3600)) / 3600.0 * TAU
+
+## Where a member stands at `clock`, in metres from the Number.
+static func position_of(member: Dictionary, clock: float) -> Vector2:
+	return Vector2.from_angle(angle_of(member)) * distance_of(member, clock)
 
 ## Whether `member` has set off by the encounter's clock.
 func has_set_off(member: Dictionary) -> bool:
@@ -231,6 +245,107 @@ func target_index() -> int:
 	_target_changes = _changes
 	_target = best
 	return best
+
+## Up to `count` more living members in reach besides those in `exclude`,
+## nearest first: the other enemies a Multishot fires at (D068).
+func others_in_reach(count: int, exclude: Array) -> Array:
+	var found: Array = []
+	if count <= 0:
+		return found
+	var distances: Dictionary = {}
+	for index in range(members.size()):
+		var member: Dictionary = members[index]
+		if exclude.has(index) or not is_alive(member) or not has_set_off(member):
+			continue
+		var distance := distance_of(member, now)
+		if distance <= reach:
+			found.append(index)
+			distances[index] = distance
+	found.sort_custom(func(a, b): return float(distances[a]) < float(distances[b]) or (float(distances[a]) == float(distances[b]) and a < b))
+	return found.slice(0, count)
+
+## The living member nearest `from` within `radius` metres of it, besides
+## those in `exclude`, or -1: where a Bounce Shot goes next (D068). Distance
+## from the Number doesn't matter: a bounce can leave the reach.
+func nearest_to(from: Vector2, radius: float, exclude: Array) -> int:
+	var best := -1
+	var best_distance := radius
+	for index in range(members.size()):
+		var member: Dictionary = members[index]
+		if exclude.has(index) or not is_alive(member) or not has_set_off(member):
+			continue
+		var distance := from.distance_to(position_of(member, now))
+		if distance <= best_distance:
+			best = index
+			best_distance = distance
+	return best
+
+## Pushes a living member `metres` further out, never past where enemies set
+## off (D068). It walks back in at its own speed and hits again when it
+## arrives; one pushed off the Number stops hitting until it is back.
+func knock_back(index: int, metres: float) -> void:
+	if index < 0 or index >= members.size() or metres <= 0.0:
+		return
+	var member: Dictionary = members[index]
+	if not is_alive(member):
+		return
+	var kind := str(member.get("kind", "basic"))
+	var speed := TaxBalanceProfile.speed_metres(kind)
+	var here := distance_of(member, now)
+	var there := minf(TaxBalanceProfile.SPAWN_DISTANCE_METRES, here + metres)
+	if there <= here:
+		return
+	member.sets_off = now - (TaxBalanceProfile.SPAWN_DISTANCE_METRES - there) / speed
+	member.state = STANDING
+	member.next_hit = now + (there - TaxBalanceProfile.stop_distance(kind)) / speed
+	_changes += 1
+	_next_due = -INF
+
+## The members an orb touches between `from` and `to` on this wave's clock
+## (D068): `count` orbs evenly spaced on a circle of `radius` metres, turning
+## `rpm` times a minute from `phase` radians at clock zero. A member touches
+## one when it is within `hit` metres of the circle as an orb sweeps past its
+## direction. Bosses and members standing still are never touched: orbs circle
+## outside where anything stops.
+func orb_touches(from: float, to: float, count: int, radius: float, rpm: float, phase: float, hit: float) -> Array:
+	var touched: Array = []
+	if count <= 0 or to <= from or radius <= 0.0:
+		return touched
+	var turn := TAU * rpm / 60.0
+	var spacing := TAU / float(count)
+	var slack := hit / radius
+	for index in range(members.size()):
+		var member: Dictionary = members[index]
+		if not is_alive(member) or bool(member.get("boss", false)) or int(member.state) != STANDING:
+			continue
+		var kind := str(member.get("kind", "basic"))
+		var speed := TaxBalanceProfile.speed_metres(kind)
+		var sets_off := float(member.get("sets_off", LONG_AGO))
+		# When it is within `hit` of the circle while walking in: distance falls
+		# linearly from the spawn once it sets off.
+		var enter := sets_off + (TaxBalanceProfile.SPAWN_DISTANCE_METRES - radius - hit) / speed
+		var leave := sets_off + (TaxBalanceProfile.SPAWN_DISTANCE_METRES - radius + hit) / speed
+		if radius - hit < TaxBalanceProfile.stop_distance(kind):
+			continue
+		var start := maxf(from, maxf(enter, sets_off))
+		var finish := minf(to, leave)
+		if finish <= start:
+			continue
+		var sweep := turn * (finish - start)
+		var target := angle_of(member)
+		for orb in range(count):
+			var orb_angle := phase + turn * start + spacing * float(orb)
+			var ahead := fposmod(target - orb_angle + slack, TAU)
+			if sweep + 2.0 * slack >= TAU or ahead <= sweep + 2.0 * slack:
+				touched.append(index)
+				break
+	return touched
+
+## Kills a member outright, as an orb does (D068), for the caller to pay.
+func kill_member(index: int) -> void:
+	if index < 0 or index >= members.size() or not is_alive(members[index]):
+		return
+	_take(members[index], members[index].hp.copy())
 
 ## The living member the wave shows in front: the one damage strikes, else
 ## the nearest that has set off, else the first alive, or -1 when none lives.

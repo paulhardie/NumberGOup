@@ -6,7 +6,7 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v15"
+const PROFILE_ID := "tax-foundation-v16"
 ## The Tower's wave (D065): 26 seconds in which enemies spawn, then a 9-second
 ## gap, 35 in all. Every wave lasts its whole 35 seconds, beaten or not, as
 ## The Tower's do (D067, replacing D037's early clear).
@@ -54,8 +54,8 @@ const DEEP_RATIO_GROWTH := 0.002
 ## compounding, as The Tower's do (D063), so nothing that reaches the Number
 ## can stay there harmlessly.
 const HEAT_UP_PER_HIT := 1.04
-## Every wave pays this times its number in Coins, times the tier's reward
-## multiplier, from wave 1 (D040).
+## What a wave paid in Coins before kills paid (D040), on the old Coin scale.
+## Read only for a member saved under D063 that still owes its share.
 const WAVE_REWARD_SCALE := 0.65
 ## A boss carries this many enemies' HP (The Tower's 20) and hits like one
 ## (D063, D065).
@@ -67,13 +67,9 @@ const BOSS_REWARD_MULTIPLIER := 5.0
 const CASH_WAVE_BASE := 10.0
 const CASH_PER_WAVE := 5.0
 const BOSS_CASH_MULTIPLIER := 3.0
-## Output every run has from its first second, before any Workshop rank, which
-## upgrades do not raise (D033).
-const BASE_DAMAGE_PER_SECOND := 1.0
-## Shots a second before any Attack Speed (D055). Damage per shot is priced
-## against it, so raising it means more, smaller shots at the same damage per
-## second: a fresh run shows a stream of motes rather than one a second.
-const BASE_SHOTS_PER_SECOND := 2.5
+## Since D068 the Workshop is The Tower's: a fresh run fires Damage 3 once a
+## second (Attack Speed 1.0), with no separate output floor (D033) or base
+## shot rate (D055).
 ## How many enemies an ordinary wave sends (D065), each with the full enemy
 ## HP, as The Tower's do. FIRST_WAVE_MEMBERS is an estimate from the owner's
 ## wave 22 battle report (roughly 20 to 30 a wave early on; the SDK only
@@ -91,10 +87,13 @@ const MAX_WAVE_MEMBERS := 220
 const FIRST_ARRIVAL_SECONDS := 6.0
 ## Distance (D067), The Tower's way. Enemies set off this far from the Number
 ## and walk in at their type's speed; the Number reaches TOWER_RANGE_METRES,
-## The Tower's base Range, and its damage strikes only enemies inside it. The
-## spawn distance is ours (TheTowerSDK doesn't give one), chosen so a basic
-## enemy still takes 6 seconds and spends the last 3 in range.
-const SPAWN_DISTANCE_METRES := 60.0
+## The Tower's base Range, until the Range row raises it (D068), and its damage
+## strikes only enemies inside it. The spawn distance is ours (TheTowerSDK
+## doesn't give one). It was 60 m; D068 moved it to 100 m because The Tower's
+## Range row reaches 69.5 m and its orbs circle at 60 m or more, both of
+## which must lie inside where enemies appear. A basic still spends its last 3
+## seconds in the base reach.
+const SPAWN_DISTANCE_METRES := 100.0
 const TOWER_RANGE_METRES := 30.0
 const BASIC_SPEED_METRES := 10.0
 ## Enemy types (D066), The Tower's Tier 1 set. Each carries this many enemies'
@@ -129,7 +128,8 @@ static func travel_seconds(kind: String) -> float:
 ## play): basics pay none, the rarer types pay more.
 const KILL_COINS := {"basic": 0.0, "fast": 2.0, "ranged": 3.0, "tank": 4.0, "boss": 5.0}
 ## A boss sets off at the start of its wave and walks at a tank's speed.
-const BOSS_ARRIVAL_SECONDS := 18.0
+static func boss_arrival_seconds() -> float:
+	return travel_seconds("boss")
 ## A member that reaches the Number stays and hits again this often until
 ## beaten (D058). A boss keeps the 15-second clock. Mutable so the balance
 ## tools can sweep it.
@@ -156,11 +156,10 @@ func member_hit_seconds(wave: int) -> float:
 var tiers: Array = []
 
 func _init() -> void:
-	# Tier 1 starts a run with 50 Number so its first Hit costs Number, not the
-	# run. Higher tiers start with none, so their difficulty is honest from
-	# wave one (Cushion buys a start there).
+	# No tier gives a starting Number since D068: the Health row sets it, as
+	# The Tower's does.
 	tiers = [
-		TierDefinitionClass.new(1, 1.0, 1.0, 1.0, 50.0, 0),
+		TierDefinitionClass.new(1, 1.0, 1.0, 1.0, 0.0, 0),
 		TierDefinitionClass.new(2, 20.0, 20.0, 1.8, 0.0, TIER_UNLOCK_WAVE),
 		TierDefinitionClass.new(3, 60.0, 60.0, 2.6, 0.0, TIER_UNLOCK_WAVE),
 	]
@@ -207,7 +206,7 @@ func wave_roster(wave: int, seed: int = 0) -> Array:
 		var sets_off := snappedf(SPAWN_SECONDS * float(index) / float(count - 1), 1.0 / 64.0) if count > 1 else 0.0
 		roster.append({"kind": kind, "sets_off": sets_off, "arrive": sets_off + travel_seconds(kind), "order": index})
 	if is_boss_wave(wave):
-		roster.append({"kind": "boss", "sets_off": 0.0, "arrive": BOSS_ARRIVAL_SECONDS, "order": -1})
+		roster.append({"kind": "boss", "sets_off": 0.0, "arrive": boss_arrival_seconds(), "order": -1})
 	# Nearest the Number first; a fast enemy overtakes the slower ones set off
 	# before it. Ties keep the order they set off in, the boss first.
 	roster.sort_custom(func(a, b): return float(a.arrive) < float(b.arrive) or (float(a.arrive) == float(b.arrive) and int(a.order) < int(b.order)))
@@ -247,35 +246,24 @@ func roster_weight(roster: Array) -> float:
 func member_weights(wave: int, seed: int = 0) -> Array:
 	return wave_roster(wave, seed).map(func(entry): return float(ENEMY_HP_WEIGHT[entry.kind]))
 
-## What every wave's end pays, beaten or passed, in kill-coin units, as The
-## Tower's Coins per Wave does (D066): its base 1, beside a fast kill's 2 and a
-## boss's 5. Mutable so the tools can sweep it.
-var WAVE_END_KILL_COINS := 1.0
-
-## What a run's waves paid before types (D065), averaged over a boss cycle:
-## an ordinary wave's reward, and five on every tenth.
-func _average_wave_reward(tier_id: int, wave: int) -> float:
-	var cycle_reward := (float(BOSS_WAVE_INTERVAL - 1) + BOSS_REWARD_MULTIPLIER) / float(BOSS_WAVE_INTERVAL)
-	return float(maxi(1, wave)) * WAVE_REWARD_SCALE * cycle_reward * get_tier(tier_id).reward_multiplier
-
-## One kill-coin unit at a tier and wave (D066): a wave's average reward over
-## the kill-coins its enemies and its end are worth on average, so a run that
-## kills everything is paid what its waves paid before types. The Tower's
-## shape, our coefficients (D009).
-func _kill_coin_unit(tier_id: int, wave: int) -> float:
-	var ordinary_worth := 0.0
-	for mix_kind in ENEMY_MIX:
-		ordinary_worth += float(ENEMY_MIX[mix_kind]) * float(KILL_COINS[mix_kind])
-	var wave_worth := ordinary_worth * float(ordinary_members(wave)) + float(KILL_COINS["boss"]) / float(BOSS_WAVE_INTERVAL) + WAVE_END_KILL_COINS
-	return _average_wave_reward(tier_id, wave) / wave_worth
-
-## The Coins a wave pays as it ends, before Coin Bonus (D066).
-func wave_end_coins(tier_id: int, wave: int) -> float:
-	return WAVE_END_KILL_COINS * _kill_coin_unit(tier_id, wave)
-
-## The Coins one kill of `kind` at `wave` is worth, before Coin Bonus (D066).
+## Coins a kill of `kind` pays at `wave`, before the Coins / Kill Bonus row
+## and Coin Bonus (D068): its type's worth times the wave, times the tier's
+## reward multiplier, as The Tower's kills pay (TheTowerSDK: kills x wave x
+## type weight). The type worths are the owner's reference table (D066).
 func kill_coins(tier_id: int, wave: int, kind: String) -> float:
-	return _kill_coin_unit(tier_id, wave) * float(KILL_COINS.get(kind, 0.0))
+	return float(KILL_COINS.get(kind, 0.0)) * float(maxi(1, wave)) * get_tier(tier_id).reward_multiplier
+
+## What a wave's end pays in Coins (D068): the Coins / Wave row's value times
+## the tier's reward multiplier, before Coin Bonus.
+func wave_end_coins(tier_id: int, coins_per_wave: float) -> float:
+	return coins_per_wave * get_tier(tier_id).reward_multiplier
+
+## Coins became The Tower's scale with its Workshop (D068): a kill now pays
+## about 15 times what it did, and The Tower's first Workshop rank costs 30
+## Coins where ours cost 2. A save from before is converted at this rate
+## (its Coins, and the Coins its retired Workshop ranks cost, refunded), and
+## Coin prices and rewards that stayed ours (Labs, checkpoints) scale by it.
+const COIN_RESCALE := 15.0
 
 ## The Cash one kill pays: its HP's share of its wave's Cash (D066).
 func kill_cash(wave: int, weight: float, of: float) -> float:
@@ -304,15 +292,6 @@ static func latest_arrival() -> float:
 
 func is_boss_wave(wave: int) -> bool:
 	return wave > 0 and wave % BOSS_WAVE_INTERVAL == 0
-
-## What every run of a tier starts with, before any Workshop rank.
-func starting_number(tier_id: int) -> float:
-	return get_tier(tier_id).starting_number
-
-## What every run starts with in Cash: enough to afford opening Rig ranks
-## based on the player's opening income rate.
-func starting_cash(income_per_second: float) -> float:
-	return RIG_PRICE_SECONDS * maxf(income_per_second, BASE_DAMAGE_PER_SECOND) * 2.5
 
 ## One enemy's HP on the Tier 1 scale, in log10 so deep waves stay finite:
 ## 0.05 w^2.13 + 0.8 w + 1.5, x1.08 every 10 waves, x1.2 every 50 and x1.5
@@ -382,7 +361,7 @@ func is_milestone_wave(wave: int) -> bool:
 func milestone_bonus(tier_id: int, wave: int) -> int:
 	if not COIN_MILESTONE_WAVES.has(wave):
 		return 0
-	return maxi(1, roundi(float(wave) * get_tier(tier_id).reward_multiplier * 2.0))
+	return maxi(1, roundi(float(wave) * get_tier(tier_id).reward_multiplier * 2.0 * COIN_RESCALE))
 
 ## The Gems a checkpoint pays, once per tier record.
 func milestone_gems(tier_id: int, wave: int) -> int:
@@ -395,83 +374,34 @@ func milestone_gems(tier_id: int, wave: int) -> int:
 func wave_gems(wave: int) -> int:
 	return BOSS_WAVE_GEMS if is_boss_wave(wave) else 0
 
-## The Rig (D015): run-scoped ranks bought with Cash during a run (D042). Since
-## D039 a rank is priced in seconds of the player's own steady income, not in
-## Wave HP: `k` times RIG_PRICE_SECONDS of income, times the row's growth per
-## rank already owned. The price follows what the player makes, so it stays in
-## proportion at every tier and depth with no per-tier data, and a purchase
-## that raises income raises the next price with it.
-const RIG_PRICE_SECONDS := 5.0
-const RIG_COST_K := {
-	"attack": 1.0,
-	"defense": 1.0,
-	"utility": 2.0,
-}
-## Each rank of a row costs this many times the last, at the same income.
-## Swept at 1.3-1.6 (D039): 1.4 keeps the climb gentle while top builds still
-## stop buying before a run turns endless. At a fresh start six ranks of a row
-## that does not raise income cost 10, 14, 20, 27, 38, 54; a row that does,
-## such as Damage, climbs a little faster (10, 16, 24, 37, 56).
-## Mutable so the balance simulator can sweep it.
-var RIG_COST_GROWTH := {
-	"attack": 1.4,
-	"defense": 1.4,
-	"utility": 1.4,
-}
-## Which rows the Rig sells: all 21 Workshop rows from the canonical catalogue
-## are available in-run (matching The Tower). Upgrades spend in-run Cash.
-const RIG_ROWS := {
-	"attack": [
-		"stronger_tap", "generator", "generator_two", "faster_cadence",
-		"faster_echo", "burst_relay", "more_critical", "magnitude_coil",
-		"chain_reaction", "automation_core", "boss_damage",
-	],
-	"defense": [
-		"tax_resistance", "guard", "siphon", "recoil",
-		"priority_buffer", "brace_discount", "second_wind",
-	],
-	"utility": [
-		"smarter_efficiency", "coin_bonus", "knowledge_bonus",
-	],
-}
-
-func rig_has_row(category: String, upgrade_id: String) -> bool:
-	var rows: Array = RIG_ROWS.get(category, [])
-	return rows.has(upgrade_id)
-
-## A run rank is worth two Workshop ranks (D044). With run ranks capped at the
-## row's max rank, this is the dial on how much buying them speeds a career.
-## Measured by tools/career_simulator.gd from a fresh save to wave 100: 5.0
-## hours at worth 2 against 7.6 without them; with the proposed coin gates,
-## 7.2 hours at worth 1 (The Tower's), 6.3 at 2 and 4.9 at 3, against 8.7. At 2
-## they clearly pay without replacing the Workshop. Mutable so the simulators
-## can sweep it.
-var RIG_EFFECT_MULTIPLIER := {
-	"attack": 2.0,
-	"defense": 2.0,
-	"utility": 2.0,
-}
-
-func rig_effect_multiplier(category: String, upgrade_id: String) -> float:
-	return float(RIG_EFFECT_MULTIPLIER.get(category, 1.0))
-
-## Combined defensive ceilings (D023). Run ranks are worth more than Workshop
-## ranks, and Labs and Cards stack on both, so a row's own cap does not bound
-## the combined effect. These are the ceilings it can never pass, whichever
-## layer the ranks came from.
-const COLLECTION_RESISTANCE_CEILING := 0.75
-const SIPHON_CEILING := 0.5
+## Combined ceilings (D023). Labs and Cards stack on the Workshop rows, so a
+## row's own cap does not bound the combined effect. Defense % stops at The
+## Tower's global 98% (community research, not verified); Thorns at all of an
+## enemy's health.
+const DEFENSE_PERCENT_CEILING := 0.98
 const RECOIL_CEILING := 1.0
 ## Bosses take half of Thorns, as The Tower's do (D064).
 const BOSS_THORNS_SHARE := 0.5
 
-## One rank costs `k` times RIG_PRICE_SECONDS of the given income at the first
-## rank and grows from there (D039). Past that, a row's Workshop and run ranks
-## together stop at its max rank (D044).
-func rig_cost(category: String, rank: int, income_per_second: float) -> ScientificNumber:
-	var scale := float(RIG_COST_K.get(category, 1.0))
-	var growth := float(RIG_COST_GROWTH.get(category, 1.4))
-	return ScientificNumber.from_float(RIG_PRICE_SECONDS * maxf(income_per_second, BASE_DAMAGE_PER_SECOND) * scale * pow(growth, float(maxi(0, rank))))
+## The Tower's attack rows (D068), where its tables leave a rule to us.
+## Rapid Fire fires four times as fast, as the row's own text says.
+const RAPID_FIRE_SPEED := 4.0
+## Orbs circle at The Tower's 60 m or more, drifting out at half the Range past
+## it (the wiki: "lower than a 1:1 adjustment"), and kill any enemy but a boss
+## whose centre comes within ORB_HIT_METRES of one: ours.
+const ORB_MIN_RADIUS_METRES := 60.0
+const ORB_HIT_METRES := 3.0
+## Knockback (D068): a push of the row's force times this many metres, over the
+## enemy's mass relative to a basic (TheTowerSDK's Wave Info masses). The
+## metres per unit of force are ours; The Tower gives force no unit.
+const KNOCKBACK_METRES_PER_FORCE := 5.0
+const ENEMY_MASS := {"basic": 1.0, "fast": 1.0, "tank": 4.85627, "ranged": 1.0, "boss": 12.38}
+
+static func orb_radius(range_metres: float) -> float:
+	return ORB_MIN_RADIUS_METRES + 0.5 * maxf(0.0, range_metres - ORB_MIN_RADIUS_METRES)
+
+static func knockback_metres(force: float, kind: String) -> float:
+	return force * KNOCKBACK_METRES_PER_FORCE / float(ENEMY_MASS.get(kind, 1.0))
 
 func _from_log10(value_log: float) -> ScientificNumber:
 	if not is_finite(value_log):

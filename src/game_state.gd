@@ -15,6 +15,7 @@ const SaveDataV8Class = preload("res://src/save_data_v8.gd")
 const SaveDataV9Class = preload("res://src/save_data_v9.gd")
 const SaveDataV10Class = preload("res://src/save_data_v10.gd")
 const SaveDataV11Class = preload("res://src/save_data_v11.gd")
+const SaveDataV12Class = preload("res://src/save_data_v12.gd")
 const GameDataClass = preload("res://src/game_data.gd")
 
 const SAVE_PATH := "user://number_go_up_save.json"
@@ -59,33 +60,24 @@ const ARMOR_ID := "tax_resistance"
 const MAX_BUY := -1
 const BUY_STEPS := [1, 5, 10, MAX_BUY]
 
-## How to read one row's effect as a player-facing value, keyed by the effect
-## the row already declares, so a card cannot drift from what the rank does.
-## `base` is the value at rank zero; `op` is how ranks combine, matching the
-## _effect_sum / _effect_product call that consumes the effect.
+## How to read a Lab line's or a Card's effect as a player-facing value, keyed
+## by the effect it declares, so a card cannot drift from what its level does.
+## `base` is the value at level zero; `op` is how levels combine, matching the
+## _effect_sum / _effect_product call that consumes the effect. Workshop rows
+## state their own values and units since D068.
 const STAT_DISPLAY := {
-	"tap_flat": {"unit": "flat", "base": 1.0, "op": "add"},
-	"passive_flat": {"unit": "flat", "base": 0.0, "op": "add"},
 	"base_output_multiplier": {"unit": "multiplier", "base": 1.0, "op": "mul"},
-	# The Workshop row carries the base shots a second, so it reads as a rate
-	# from that base (D054, D055); a card on top of it is still a multiplier.
-	"tick_rate": {"unit": "multiplier", "row_unit": "per_second", "row_base": TaxBalanceProfile.BASE_SHOTS_PER_SECOND, "base": 1.0, "op": "mul"},
-	"double_tick_chance": {"unit": "percent", "base": 0.0, "op": "add"},
+	"tick_rate": {"unit": "multiplier", "base": 1.0, "op": "mul"},
 	"critical_chance": {"unit": "percent", "base": 0.0, "op": "add"},
-	"critical_multiplier_add": {"unit": "multiplier", "base": 2.0, "op": "add"},
-	"cost_discount": {"unit": "percent", "base": 0.0, "op": "add"},
 	"starting_number_flat": {"unit": "flat", "base": 0.0, "op": "add"},
-	"guard_flat": {"unit": "flat", "base": 0.0, "op": "add"},
 	"collection_resistance": {"unit": "percent", "base": 0.0, "op": "add"},
-	"siphon_share": {"unit": "percent", "base": 0.0, "op": "add"},
-	"recoil_share": {"unit": "percent", "base": 0.0, "op": "add"},
-	# The card reads as what Brace costs, so it starts at 30% and descends.
-	"brace_discount": {"unit": "percent", "base": BRACE_COST_PERCENT, "op": "add"},
-	"second_wind_share": {"unit": "percent", "base": 0.0, "op": "add"},
-	# Boss Damage reads as what it multiplies boss damage by, so it starts at x1.
-	"boss_damage": {"unit": "multiplier", "base": 1.0, "op": "add"},
 	"coin_bonus": {"unit": "percent", "base": 0.0, "op": "add"},
-	"knowledge_bonus": {"unit": "percent", "base": 0.0, "op": "add"},
+}
+## The Workshop's categories, whose rows run Upgrades and Free Upgrades raise.
+const FREE_UPGRADE_ROWS := {
+	"attack": "free_attack_upgrade",
+	"defense": "free_defense_upgrade",
+	"utility": "free_utility_upgrade",
 }
 
 var number := ScientificNumber.new()
@@ -110,14 +102,23 @@ var brace_spent := false
 ## The run's own peak, which Second Wind restores a share of. Distinct from
 ## highest_number, which is permanent and drives dock unlocks.
 var run_peak_number := ScientificNumber.new()
+## Retired with Second Wind and Crit Chain (D068). Kept at their defaults so
+## the older save writers the current one builds on still read them.
 var second_wind_used := false
 ## The part of a Coin owed but not yet paid by enemies beaten after their
 ## wave passed (D065): a wave's reward split across many enemies is under a
 ## Coin each, and flooring each kill would lose it all.
 var coin_fraction := 0.0
 ## Rig ranks are run-scoped like the Cash that buys them (D015, D042): they
-## stack with `purchased` for this run only and die with every ending.
+## stack with `purchased` for this run only and die with every ending. Since
+## D068 they are The Tower's in-run levels: each adds one level to its row.
 var rig_ranks: Dictionary = {}
+## The Workshop unlocks bought with Coins (D068), by group id. Groups that cost
+## nothing are open without being listed. Permanent.
+var workshop_groups: Array[String] = []
+## Seconds of Rapid Fire left this run (D068), saved so a resumed run fires as
+## the saved one would have.
+var rapid_fire_left := 0.0
 ## Events raised outside a step, such as a boss beaten by a tap after its wave
 ## passed (D063), reported with the next step's.
 var pending_events: Array[SimulationEvent] = []
@@ -172,10 +173,11 @@ var statistics := {
 var settings := {"muted": false, "haptics": true, "reduce_motion": false, "high_contrast": false}
 var tick_accumulator := 0.0
 var automation_accumulator := 0.0
-var momentum_stacks := 0
 var critical_chain := 0
 var rng := RandomNumberGenerator.new()
 var definitions: Array[UpgradeDefinition] = []
+var _definition_by_id: Dictionary = {}
+var workshop_group_list: Array = []
 var save_path := SAVE_PATH
 var load_status := LOAD_NEW_GAME
 ## True while the save on disk belongs to a newer build (LOAD_NEWER).
@@ -184,21 +186,17 @@ var saving_paused := false
 func _init() -> void:
 	rng.randomize()
 	definitions = _make_definitions()
+	for definition in definitions:
+		_definition_by_id[definition.id] = definition
+	workshop_group_list = GameDataClass.get_workshop_groups()
 	_ensure_tier_records()
 
+## A tap fires one more shot (D068), at Damage like any other.
 func tap() -> SimulationEvent:
 	if not in_run:
 		return SimulationEvent.new("tap", ScientificNumber.new(), false)
 	statistics.taps += 1
-	var is_critical := rng.randf() < _critical_chance()
-	var amount := ScientificNumber.from_float(_tap_base() * _damage_multiplier() * _momentum_multiplier())
-	if is_critical:
-		amount = amount.multiply_scalar(_critical_multiplier() * (1.0 + _chain_reaction_step() * critical_chain))
-		critical_chain += 1
-	else:
-		critical_chain = 0
-	_add_number(amount)
-	return SimulationEvent.new("tap", amount, is_critical)
+	return _fire("tap")
 
 func advance(delta: float) -> Array[SimulationEvent]:
 	var events: Array[SimulationEvent] = []
@@ -207,62 +205,154 @@ func advance(delta: float) -> Array[SimulationEvent]:
 	# A boss beaten by a tap since the last step (D063) reports here.
 	events.append_array(pending_events)
 	pending_events.clear()
-	tick_accumulator += minf(delta, 0.25)
-	var interval := 1.0 / _tick_rate()
+	var step := minf(delta, 0.25)
+	_regenerate(step)
+	tick_accumulator += step
 	var safety := 0
-	while tick_accumulator >= interval and safety < 20:
+	# Attack Speed is read shot by shot, since a shot can start Rapid Fire.
+	while in_run and safety < 60:
+		var interval := 1.0 / _attack_speed()
+		if tick_accumulator < interval:
+			break
 		tick_accumulator -= interval
-		events.append(_produce_tick())
+		events.append(_fire("tick"))
 		safety += 1
+	rapid_fire_left = maxf(0.0, rapid_fire_left - step)
 	events.append_array(_advance_waves(delta))
 	events.append_array(pending_events)
 	pending_events.clear()
 	return events
 
-func _produce_tick() -> SimulationEvent:
-	statistics.ticks += 1
-	workshop.tick_count += 1
-	if _effect_sum("momentum_per_tick") > 0.0:
-		momentum_stacks = mini(100, momentum_stacks + 1)
+## Health Regen (D068): Number regained every second of a run. It is not
+## output, so lifetime production (and Knowledge) doesn't count it.
+func _regenerate(seconds: float) -> void:
+	var regen := stat("health_regen") * seconds
+	if regen <= 0.0:
+		return
+	number = number.add(ScientificNumber.from_float(regen))
+	_note_number_peak()
+
+## One shot (D068), The Tower's way: the Number's Damage, critical and super
+## critical by chance, at the nearest enemy in reach; by chance also at others
+## in reach (Multishot) and on from each to the enemy nearest it (Bounce
+## Shot). Each strike is lifted by Damage / Meter for the distance, may knock
+## its enemy back, and feeds Lifesteal with what it took off. Every shot's
+## damage is Number whether or not it strikes (D037). A tick can start Rapid
+## Fire.
+func _fire(event_type: String) -> SimulationEvent:
+	if event_type == "tick":
+		statistics.ticks += 1
+		workshop.tick_count += 1
+	var damage := _damage()
 	var is_critical := rng.randf() < _critical_chance()
-	var amount := ScientificNumber.from_float(_passive_base() * _damage_multiplier() * _momentum_multiplier() + _base_output_per_tick())
 	if is_critical:
-		amount = amount.multiply_scalar(_critical_multiplier() * (1.0 + _chain_reaction_step() * critical_chain))
-		statistics.critical_ticks += 1
-		critical_chain += 1
+		damage *= stat("critical_factor")
+		if event_type == "tick":
+			statistics.critical_ticks += 1
+		var super_chance := stat("super_crit_chance")
+		if super_chance > 0.0 and rng.randf() < super_chance:
+			damage *= stat("super_crit_mult")
+	var outcome := {"produced": 0.0, "applied": 0.0, "shots": 0}
+	var target := -1
+	if active_encounter != null:
+		_sync_encounter()
+		target = active_encounter.target_index()
+	if target < 0:
+		outcome.produced = damage
+		outcome.shots = 1
 	else:
-		critical_chain = 0
-	# Multishot (D054): the second shot is the same hit again, so the tick
-	# still lands as one amount and only the event says it was two shots.
-	var hits := 1
-	if rng.randf() < _effect_sum("double_tick_chance"):
-		amount = amount.multiply_scalar(2.0)
-		hits = 2
-	var burst_interval := _burst_interval()
-	if burst_interval > 0 and workshop.tick_count % burst_interval == 0:
-		amount = amount.multiply_scalar(2.0)
-	_add_number(amount)
-	if in_run:
-		# Cash flows at the income Rig prices are quoted in (D042), shared across
-		# the ticks in a second. Anything else lets Attack Speed or Momentum
-		# raise every price without raising what pays for it.
-		_add_cash(ScientificNumber.from_float(get_rig_income_rate() / _tick_rate()))
-	var event := SimulationEvent.new("tick", amount, is_critical)
-	event.hits = hits
+		var struck: Array = [target]
+		var multishot := stat("multishot_chance")
+		if multishot > 0.0 and rng.randf() < multishot:
+			struck.append_array(active_encounter.others_in_reach(int(stat("multishot_targets")) - 1, struck))
+		var hit_already: Array = struck.duplicate()
+		var bounce_chance := stat("bounce_shot_chance")
+		for index in struck:
+			_strike(index, damage, outcome)
+			if bounce_chance <= 0.0 or rng.randf() >= bounce_chance:
+				continue
+			var from: Vector2 = TaxEncounterClass.position_of(active_encounter.members[index], active_encounter.now)
+			for bounce in range(int(stat("bounce_shot_targets"))):
+				var next: int = active_encounter.nearest_to(from, stat("bounce_shot_range"), hit_already)
+				if next < 0:
+					break
+				hit_already.append(next)
+				from = TaxEncounterClass.position_of(active_encounter.members[next], active_encounter.now)
+				_strike(next, damage, outcome)
+		_pay_kills()
+	var produced := ScientificNumber.from_float(float(outcome.produced))
+	lifetime_generated = lifetime_generated.add(produced)
+	var banked := produced
+	var lifesteal := stat("lifesteal")
+	if lifesteal > 0.0 and float(outcome.applied) > 0.0:
+		banked = banked.add(ScientificNumber.from_float(float(outcome.applied) * lifesteal))
+	number = number.add(banked)
+	_note_number_peak()
+	if event_type == "tick" and rapid_fire_left <= 0.0:
+		var rapid := stat("rapid_fire_chance")
+		if rapid > 0.0 and rng.randf() < rapid:
+			rapid_fire_left = stat("rapid_fire_duration")
+	var event := SimulationEvent.new(event_type, produced, is_critical)
+	event.hits = int(outcome.shots)
 	return event
 
-## True while the active wave still has HP to clear. Output is Number either
-## way (D037); this only says whether it is also striking a wave.
+## One projectile of a shot at the member at `index`: Damage / Meter lifts it
+## by the member's distance, Knockback may push the member back, and what came
+## off is counted for Lifesteal.
+func _strike(index: int, damage: float, outcome: Dictionary) -> void:
+	var member: Dictionary = active_encounter.members[index]
+	var distance: float = TaxEncounterClass.distance_of(member, active_encounter.now)
+	var dealt := damage * (1.0 + stat("damage_per_meter") * distance)
+	var applied: ScientificNumber = active_encounter.damage_member(index, ScientificNumber.from_float(dealt))
+	outcome.produced = float(outcome.produced) + dealt
+	outcome.applied = float(outcome.applied) + _as_float(applied)
+	outcome.shots = int(outcome.shots) + 1
+	var knockback := stat("knockback_chance")
+	if knockback > 0.0 and TaxEncounterClass.is_alive(member) and rng.randf() < knockback:
+		active_encounter.knock_back(index, TaxBalanceProfile.knockback_metres(stat("knockback_force"), str(member.get("kind", "basic"))))
+
+## One plain strike of `amount` at what the Number strikes: a shot without
+## its rolls or Damage / Meter, every unit of it Number (D037), what came off
+## fed to Lifesteal. Exact at any size, so the suite deals damage through it.
+func _add_number(amount: ScientificNumber) -> void:
+	lifetime_generated = lifetime_generated.add(amount)
+	var banked := amount
+	if in_run and active_encounter != null:
+		_sync_encounter()
+		var applied: ScientificNumber = active_encounter.apply_compliance(amount)
+		var lifesteal := stat("lifesteal")
+		if lifesteal > 0.0 and not applied.is_zero():
+			banked = banked.add(applied.multiply_scalar(lifesteal))
+		_pay_kills()
+	number = number.add(banked)
+	_note_number_peak()
+
+static func _as_float(value: ScientificNumber) -> float:
+	return 0.0 if value.is_zero() else value.mantissa * pow(10.0, value.exponent)
+
+func _note_number_peak() -> void:
+	if number.compare_to(highest_number) > 0:
+		highest_number = number.copy()
+	if number.compare_to(run_peak_number) > 0:
+		run_peak_number = number.copy()
+
+## Tells the encounter the wave's clock and the Number's reach, which the
+## Range row sets (D068).
+func _sync_encounter() -> void:
+	active_encounter.now = wave_accumulator
+	active_encounter.reach = _range()
+
 ## Whether production strikes the wave now: an enemy is in the Number's reach
 ## (D067). Otherwise output is Number alone, and shows as gain, not damage.
 func is_wave_standing() -> bool:
 	if not in_run or active_encounter == null or active_encounter.is_cleared():
 		return false
-	active_encounter.now = wave_accumulator
+	_sync_encounter()
 	return active_encounter.target_index() >= 0
 
+## Number a second from shots before crits, and Health Regen.
 func get_rate_per_second() -> ScientificNumber:
-	return ScientificNumber.from_float(_passive_base() * _damage_multiplier() * _momentum_multiplier() * _tick_rate() + balance_profile.BASE_DAMAGE_PER_SECOND)
+	return ScientificNumber.from_float(_damage() * _attack_speed() + stat("health_regen"))
 
 func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	if in_run:
@@ -272,20 +362,21 @@ func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 		return false
 	# Research finished before this run starts counts for all of it (D031).
 	_settle_labs()
-	# Number is run health/resources, never a banked head start. Permanent
-	# Workshop ranks define the baseline applied to every fresh attempt.
-	# Cushion scales with the tier's pressure, or it is a trap above Tier 1:
-	# a flat 500 against a wave-1 hit twenty times that size buys nothing.
-	number = ScientificNumber.from_float(balance_profile.starting_number(selected_tier) + _effect_sum("starting_number_flat") * get_cushion_scale())
+	# Number is run health/resources, never a banked head start. The Health row
+	# sets it, as The Tower's does (D068). A Card's flat start scales with the
+	# tier's pressure, or it is a trap above Tier 1: a flat 500 against a
+	# wave-1 hit twenty times that size buys nothing.
+	rig_ranks = {}
+	number = ScientificNumber.from_float(stat("health") + _effect_sum("starting_number_flat") * get_cushion_scale())
 	run_peak_number = number.copy()
-	cash = ScientificNumber.from_float(balance_profile.starting_cash(get_rig_income_rate()))
-	run_cash_earned = cash.copy()
+	# Cash comes from kills and waves alone, as The Tower's does (D068).
+	cash = ScientificNumber.new()
+	run_cash_earned = ScientificNumber.new()
 	second_wind_used = false
 	coin_fraction = 0.0
-	rig_ranks = {}
+	rapid_fire_left = 0.0
 	lifetime_generated = ScientificNumber.new()
 	workshop.tick_count = 0
-	momentum_stacks = 0
 	critical_chain = 0
 	tick_accumulator = 0.0
 	automation_accumulator = 0.0
@@ -344,8 +435,28 @@ func _advance_waves(delta: float) -> Array[SimulationEvent]:
 	var safe_delta := minf(delta, 0.25)
 	run_elapsed += safe_delta
 	wave_accumulator += safe_delta
+	_sweep_orbs(wave_accumulator - safe_delta, wave_accumulator)
 	_run_wave_clock(events)
 	return events
+
+## Orbs (D068) kill any enemy but a boss they touch as they circle. They turn
+## on the run's clock, so a wave's end doesn't jump them.
+func _sweep_orbs(from: float, to: float) -> void:
+	var count := int(stat("orbs"))
+	if count <= 0 or active_encounter == null:
+		return
+	_sync_encounter()
+	var rpm := stat("orb_speed")
+	var phase := TAU * rpm / 60.0 * (run_elapsed - wave_accumulator)
+	var touched: Array = active_encounter.orb_touches(from, to, count, orb_radius(), rpm, phase, TaxBalanceProfile.ORB_HIT_METRES)
+	if touched.is_empty():
+		return
+	for index in touched:
+		active_encounter.kill_member(index)
+	_pay_kills()
+
+func orb_radius() -> float:
+	return TaxBalanceProfile.orb_radius(_range())
 
 ## Plays the wave clock up to `wave_accumulator`. Every living member hits on
 ## its own clock: once when it reaches the Number, then every interval while it
@@ -362,7 +473,7 @@ func _run_wave_clock(events: Array[SimulationEvent]) -> void:
 		safety += 1
 		if active_encounter == null:
 			active_encounter = _make_encounter(wave)
-		active_encounter.now = wave_accumulator
+		_sync_encounter()
 		# Everyone due this step, soonest first, from one scan of the pile.
 		var due: Array = active_encounter.due_indices(wave_accumulator)
 		if not due.is_empty():
@@ -408,7 +519,8 @@ func _resolve_wave_boundary() -> SimulationEvent:
 ## enemy's hit, as The Tower's defences work (D063). Its first hit is its
 ## arrival; after that it stays and hits again every interval. A Brace blocks
 ## every hit until the wave's clock ends. Thorns deals the enemy that hit a
-## share of its own maximum HP, as The Tower's does (D064).
+## share of its own maximum HP, as The Tower's does (D064). A hit that would end
+## the run is ignored by Death Defy's chance (D068).
 func _member_hit(index: int) -> SimulationEvent:
 	var member: Dictionary = active_encounter.members[index]
 	var first := not bool(member.landed)
@@ -427,25 +539,28 @@ func _member_hit(index: int) -> SimulationEvent:
 	# because the contact still happened. It lands before an opening enemy can
 	# leave. The combined share is capped (D023).
 	member.landed = true
-	var thorns_share := minf(_effect_sum("recoil_share"), balance_profile.RECOIL_CEILING)
+	var thorns_share := minf(stat("thorns"), balance_profile.RECOIL_CEILING)
 	if thorns_share > 0.0:
 		var boss_share: float = balance_profile.BOSS_THORNS_SHARE if boss_hit else 1.0
 		active_encounter.damage_member(index, member.max.multiply_scalar(thorns_share * boss_share))
 		_pay_kills()
 	active_encounter.hit(index)
 	if number.is_zero():
-		if not _try_second_wind():
-			return _wave_death(wave, landed, boss_hit, number_before_hit, wave_hp_left)
-		return SimulationEvent.new("second_wind", number.copy())
+		var defy := stat("death_defy")
+		if defy > 0.0 and rng.randf() < defy:
+			number = number_before_hit
+			return SimulationEvent.new("death_defy", landed)
+		return _wave_death(wave, landed, boss_hit, number_before_hit, wave_hp_left)
 	if boss_hit:
 		return SimulationEvent.new("boss_collection", landed)
 	return SimulationEvent.new("tax_collection" if first else "pile_hit", landed)
 
 ## Every kill pays when it happens, as The Tower's do (D066): Coins by its
-## type (basics none, the rarer types more), lifted by Coin Bonus, with any
-## part of a Coin carried to the next kill; Cash by its share of its wave's HP;
-## and a boss its Gem, with the "boss beaten" moment when it falls after its
-## wave passed (its own wave's clear tells that story otherwise).
+## type (basics none, the rarer types more) times its wave (D068), lifted by
+## the Coins / Kill Bonus row and Coin Bonus, with any part of a Coin carried
+## to the next kill; Cash by its share of its wave's HP, times Cash Bonus; and
+## a boss its Gem, with the "boss beaten" moment when it falls after its wave
+## passed (its own wave's clear tells that story otherwise).
 func _pay_kills() -> void:
 	if active_encounter == null:
 		return
@@ -457,12 +572,13 @@ func _pay_kills() -> void:
 		# A member saved under D063's rules still owes the share of its passed
 		# wave's reward it carried; anything else pays by its type.
 		var owed_share := float(member.get("unpaid", 0.0))
-		var coin_amount: float = float(balance_profile.reward_for_wave(selected_tier, member_wave)) * owed_share if owed_share > 0.0 else balance_profile.kill_coins(selected_tier, member_wave, str(member.get("kind", "basic")))
+		# That share is on the old Coin scale (D068).
+		var coin_amount: float = float(balance_profile.reward_for_wave(selected_tier, member_wave)) * owed_share * TaxBalanceProfile.COIN_RESCALE if owed_share > 0.0 else balance_profile.kill_coins(selected_tier, member_wave, str(member.get("kind", "basic"))) * stat("coins_per_kill")
 		var coin_gain := _pay_coins(coin_amount)
 		if active_encounter.is_own(member):
 			active_encounter.paid_coins += coin_gain
 		var cash_amount: float = balance_profile.wave_cash(member_wave) * owed_share if owed_share > 0.0 else balance_profile.kill_cash(member_wave, float(member.get("weight", 1.0)), float(member.get("of", 1.0)))
-		_add_cash(ScientificNumber.from_float(cash_amount))
+		_add_cash(ScientificNumber.from_float(cash_amount * stat("cash_bonus")))
 		if bool(member.get("boss", false)):
 			var gem_gain := balance_profile.wave_gems(member_wave)
 			gems += gem_gain
@@ -480,11 +596,39 @@ func _pay_coins(amount: float) -> int:
 	run_coins_earned += coin_gain
 	return coin_gain
 
-## Every wave pays its Coins per Wave as it ends, beaten or passed (D066).
+## Every wave pays as it ends, beaten or passed, as The Tower's do (D068):
+## Coins / Wave, then Cash / Wave times Cash Bonus, then Interest on the Cash
+## held; then each Free Upgrade row's chance raises a run Upgrade of its
+## category for free.
 func _pay_wave_end() -> int:
-	var paid := _pay_coins(balance_profile.wave_end_coins(selected_tier, wave))
+	var paid := _pay_coins(balance_profile.wave_end_coins(selected_tier, stat("coins_per_wave")))
 	active_encounter.paid_coins += paid
+	var per_wave := stat("cash_per_wave") * stat("cash_bonus")
+	if per_wave > 0.0:
+		_add_cash(ScientificNumber.from_float(per_wave))
+	var interest := stat("interest")
+	if interest > 0.0 and not cash.is_zero():
+		_add_cash(cash.multiply_scalar(interest))
+	for category in FREE_UPGRADE_ROWS:
+		var chance := stat(FREE_UPGRADE_ROWS[category])
+		if chance > 0.0 and rng.randf() < chance:
+			_free_upgrade(category)
 	return paid
+
+## One free run Upgrade (D068): a random row of `category` that the Workshop
+## has opened and that has room, never a maxed one, as The Tower's pick.
+func _free_upgrade(category: String) -> void:
+	var open_rows: Array = []
+	for definition in definitions:
+		if definition.workshop_category == category and definition.is_table() and is_unlocked(definition) and rig_room(definition.id) > 0:
+			open_rows.append(definition)
+	if open_rows.is_empty():
+		return
+	var chosen: UpgradeDefinition = open_rows[rng.randi_range(0, open_rows.size() - 1)]
+	_raise_run_level(chosen.id, 1)
+	var event := SimulationEvent.new("free_upgrade", ScientificNumber.from_float(1.0))
+	event.label = chosen.title
+	pending_events.append(event)
 
 ## One enemy's hit before any defence, whatever its type (D066), times 4% for
 ## every hit it has already landed (D063).
@@ -526,22 +670,6 @@ func get_wave_cleared_share() -> float:
 	var full: ScientificNumber = active_encounter.max_liability
 	var left := remaining.mantissa / full.mantissa * pow(10.0, remaining.exponent - full.exponent)
 	return clampf(1.0 - left, 0.0, 1.0)
-
-## Once per run, a hit that would end the run leaves a share of the run's peak
-## Number instead. The share is the rank's own value, so an early rank buys a
-## breath rather than a rescue.
-func _try_second_wind() -> bool:
-	if second_wind_used:
-		return false
-	var share := _effect_sum("second_wind_share")
-	if share <= 0.0:
-		return false
-	var restored := run_peak_number.multiply_scalar(share)
-	if restored.is_zero():
-		return false
-	second_wind_used = true
-	number = restored
-	return true
 
 func _complete_current_wave(carried: Array = []) -> SimulationEvent:
 	var completed_wave := wave
@@ -618,6 +746,7 @@ func _make_encounter(target_wave: int):
 		roster.map(func(entry): return float(entry.sets_off))
 	)
 	encounter.now = wave_accumulator
+	encounter.reach = _range()
 	return encounter
 
 func _wave_death(reached: int, hit: ScientificNumber, boss: bool, number_before_hit: ScientificNumber, wave_hp_left: ScientificNumber) -> SimulationEvent:
@@ -678,25 +807,25 @@ func next_hit_share() -> float:
 ## Armor, then Guard. The pipeline decides the order by stage.
 func _collection_modifiers(_base: ScientificNumber = null) -> Array:
 	var modifiers := active_rule_modifiers.duplicate(true)
-	var resistance := clampf(_effect_sum("collection_resistance"), 0.0, balance_profile.COLLECTION_RESISTANCE_CEILING)
-	var guard_stat := _effect_sum("guard_flat")
+	var resistance := clampf(stat("defense_percent") + _effect_sum("collection_resistance"), 0.0, balance_profile.DEFENSE_PERCENT_CEILING)
+	var guard_stat := stat("defense_absolute")
 
-	# Guard (Defense Absolute): a flat amount off each enemy's hit after Armor,
-	# priced in the tier's Hit pressure. As in The Tower (D063), it can take a
-	# hit to nothing.
+	# Guard (Defense Absolute): a flat amount off each enemy's hit after Armor
+	# (Defense %). As in The Tower (D063, D068), it can take a hit to nothing,
+	# and it is the same at every tier.
 	if guard_stat > 0.0:
-		var tier_multiplier: float = balance_profile.get_tier(selected_tier).collection_multiplier
 		modifiers.append({
 			"source": "guard",
 			"target": "collection",
 			"stage": "flat_reduce_last",
-			"amount": ScientificNumber.from_float(guard_stat * tier_multiplier).to_dict(),
+			"amount": ScientificNumber.from_float(guard_stat).to_dict(),
 		})
 
-	# The combined ceiling (D023): Workshop, Rig, Lab and Card Armor stack, and
-	# without a limit a run could stop taking hits entirely. The ceiling bounds
-	# Armor's own share rather than the final hit, so a later rule that shrinks
-	# hits for its own reason keeps its effect instead of being clawed back.
+	# The combined ceiling (D023): the Workshop's Defense %, Labs and Cards
+	# stack, and without a limit a run could stop taking hits entirely. The
+	# ceiling bounds Armor's own share rather than the final hit, so a later
+	# rule that shrinks hits for its own reason keeps its effect instead of
+	# being clawed back.
 	modifiers.append({
 		"source": "armor",
 		"target": "collection",
@@ -714,7 +843,7 @@ func can_brace() -> bool:
 	return in_run and active_encounter != null and not active_encounter.is_cleared() and not braced and not number.is_zero()
 
 func get_brace_cost_percent() -> float:
-	return clampf(BRACE_COST_PERCENT + _effect_sum("brace_discount"), BRACE_COST_FLOOR, BRACE_COST_PERCENT)
+	return BRACE_COST_PERCENT
 
 func brace() -> bool:
 	if not can_brace():
@@ -724,10 +853,66 @@ func brace() -> bool:
 	return true
 
 func get_definition(upgrade_id: String) -> UpgradeDefinition:
-	for definition in definitions:
-		if definition.id == upgrade_id:
-			return definition
-	return null
+	return _definition_by_id.get(upgrade_id)
+
+## A Workshop row's level this run (D068): its Workshop levels and run
+## Upgrades together, never past its last level.
+func tower_level(upgrade_id: String) -> int:
+	var definition := get_definition(upgrade_id)
+	if definition == null:
+		return 0
+	return mini(definition.max_rank, get_owned(upgrade_id) + rig_owned(upgrade_id))
+
+## A Workshop row's value at its level this run, from The Tower's table
+## (D068), before any Lab or Card; 0 for a row the catalogue lacks.
+func stat(upgrade_id: String) -> float:
+	var definition := get_definition(upgrade_id)
+	if definition == null or not definition.is_table():
+		return 0.0
+	return definition.value_at(tower_level(upgrade_id))
+
+## The Workshop's unlock groups (D068).
+func get_group(group_id: String) -> Dictionary:
+	for group in workshop_group_list:
+		if str(group.id) == group_id:
+			return group
+	return {}
+
+## Whether a group's rows are open: free groups always, the rest once bought.
+func is_group_unlocked(group_id: String) -> bool:
+	var group := get_group(group_id)
+	if group.is_empty():
+		return false
+	return float(group.unlock_coins) <= 0.0 or workshop_groups.has(group_id)
+
+## The next group a category opens, in The Tower's order, or {} once all are.
+func next_locked_group(category: String) -> Dictionary:
+	var next := {}
+	for group in workshop_group_list:
+		if str(group.workshop_category) != category or is_group_unlocked(str(group.id)):
+			continue
+		if next.is_empty() or int(group.order) < int(next.order):
+			next = group
+	return next
+
+## A group opens between runs, for its Coins, only once every group before it
+## in its category has (The Tower's order).
+func can_unlock_group(group_id: String) -> bool:
+	var group := get_group(group_id)
+	if in_run or group.is_empty() or is_group_unlocked(group_id):
+		return false
+	if str(next_locked_group(str(group.workshop_category)).get("id", "")) != group_id:
+		return false
+	return float(coins) >= float(group.unlock_coins)
+
+func unlock_group(group_id: String) -> bool:
+	if not can_unlock_group(group_id):
+		return false
+	var price := int(ceil(float(get_group(group_id).unlock_coins)))
+	coins -= price
+	statistics.coins_spent = int(statistics.get("coins_spent", 0)) + price
+	workshop_groups.append(group_id)
+	return true
 
 func definitions_for_progression_type(progression_type: String) -> Array[UpgradeDefinition]:
 	var matching: Array[UpgradeDefinition] = []
@@ -760,7 +945,7 @@ func get_category_rank_total(category: String) -> int:
 ## Workshop's Coin Bonus row and Coin Research in the Labs.
 func get_coin_bonus_multiplier() -> float:
 	_settle_labs()
-	return 1.0 + _effect_sum("coin_bonus")
+	return (1.0 + _effect_sum("coin_bonus")) * stat("coins_per_kill")
 
 ## A category is open once it has a row to show. Ultimates have none until they
 ## are authored, so the tab reads as locked without a gate of its own.
@@ -794,120 +979,63 @@ func rig_ranks_bought() -> int:
 		total += int(rig_ranks[upgrade_id])
 	return total
 
-## What a row's Rig ranks are worth in Workshop ranks: a multiple, set when a
-## Rig rank spent the Number that buffers the next hit (D023). Since D042 it
-## spends Cash, and the multiple awaits a re-sweep.
+## What a row's run Upgrades are worth in Workshop levels: one each, as The
+## Tower's in-run levels are (D068).
 func rig_rank_equivalent(definition: UpgradeDefinition) -> float:
-	var ranks := float(rig_owned(definition.id))
-	if ranks <= 0.0:
-		return 0.0
-	return ranks * balance_profile.rig_effect_multiplier(definition.workshop_category, definition.id)
+	return float(rig_owned(definition.id))
 
-## What the Rig's prices are quoted against (D039), and the rate Cash flows at
-## (D042): the Number a steady player makes each second, which is the passive
-## rate plus one tap a second, whether or not the player taps. It leaves
-## out the boss-only bonus, so prices do not jump while a boss stands, and it
-## rises with every Rig rank that adds damage, so the next price rises too.
-func get_rig_income_rate() -> float:
-	return _rig_income(_passive_base(), _tap_base(), _tick_rate(), _base_output_multiplier() * _momentum_multiplier())
-
-func _rig_income(passive: float, tap_value: float, ticks: float, multiplier: float) -> float:
-	return (passive * ticks + tap_value) * multiplier + balance_profile.BASE_DAMAGE_PER_SECOND
-
-## The Cash price of the row's next rank, or of a named rank for a quote.
+## The Cash for the row's next run Upgrade, or for its `rank`-th, from The
+## Tower's table (D068): a run's first Upgrade of a row is its cheapest,
+## however many Workshop levels it has.
 func get_rig_cost(upgrade_id: String, rank: int = -1) -> ScientificNumber:
 	var definition := get_definition(upgrade_id)
-	if definition == null or not balance_profile.rig_has_row(definition.workshop_category, upgrade_id):
+	if definition == null or not definition.is_table():
 		return ScientificNumber.new()
-	var at_rank := rig_owned(upgrade_id) if rank < 0 else rank
-	return _rig_price(definition.workshop_category, at_rank, get_rig_income_rate(), _effect_sum("cost_discount"))
-
-## Discount lowers Rig prices as well as Workshop ones (D042), never below a
-## tenth of the price.
-func _rig_price(category: String, rank: int, income: float, discount: float) -> ScientificNumber:
-	var price := balance_profile.rig_cost(category, rank, income)
-	if discount > 0.0:
-		return price.multiply_scalar(clampf(1.0 - discount, 0.1, 1.0))
-	return price
+	return ScientificNumber.from_float(definition.cash_price_at(rig_owned(upgrade_id) if rank < 0 else rank))
 
 func _add_cash(amount: ScientificNumber) -> void:
 	cash = cash.add(amount)
 	run_cash_earned = run_cash_earned.add(amount)
 
-func can_purchase_rig(upgrade_id: String) -> bool:
-	if not in_run or rig_room(upgrade_id) <= 0:
-		return false
+## Whether a run can buy the row: the Workshop has opened it (D068) and it has
+## room.
+func rig_has_row(upgrade_id: String) -> bool:
 	var definition := get_definition(upgrade_id)
-	if definition == null or not balance_profile.rig_has_row(definition.workshop_category, upgrade_id):
+	return definition != null and definition.is_table() and is_unlocked(definition)
+
+func can_purchase_rig(upgrade_id: String) -> bool:
+	if not in_run or rig_room(upgrade_id) <= 0 or not rig_has_row(upgrade_id):
 		return false
 	return cash.compare_to(get_rig_cost(upgrade_id)) >= 0
 
-## How many more run ranks a row can take this run (D044). A row's Workshop
-## ranks and run ranks together stop at its max rank, as The Tower's in-run
-## levels do, so a row maxed in the Workshop sells nothing in a run and run
-## ranks patch what the permanent build lacks rather than stacking past it.
+## How many more run levels a row can take this run (D044). A row's Workshop
+## levels and run levels together stop at its last level, as The Tower's do,
+## so a row maxed in the Workshop sells nothing in a run.
 func rig_room(upgrade_id: String) -> int:
 	var definition := get_definition(upgrade_id)
 	if definition == null:
 		return 0
 	return maxi(0, definition.max_rank - get_owned(upgrade_id) - rig_owned(upgrade_id))
 
-## Quote the ranks a single Rig press can afford, priced one rank at a time.
-## Each rank can raise income and so the next price (D039), so the quote
-## prices every rank at the income it would have by then, exactly as buying
-## the same ranks singly would. Only the quoted row's own effect changes as
-## its ranks rise, so the income parts are read once and that effect applied
-## per rank: the Rig panel re-quotes every card several times a second.
+## Quote the run Upgrades a single press can afford, priced one at a time from
+## the row's Cash table (D068).
 func plan_rig_purchase(upgrade_id: String, count: int = 1) -> Dictionary:
 	var refused := {"ranks": 0, "cost": ScientificNumber.new()}
-	if not in_run or (count != MAX_BUY and count <= 0):
+	if not in_run or (count != MAX_BUY and count <= 0) or not rig_has_row(upgrade_id):
 		return refused
 	var definition := get_definition(upgrade_id)
-	if definition == null or not balance_profile.rig_has_row(definition.workshop_category, upgrade_id):
-		return refused
 	var owned := rig_owned(upgrade_id)
 	var room := rig_room(upgrade_id)
-	var worth := balance_profile.rig_effect_multiplier(definition.workshop_category, upgrade_id)
-	var passive := _passive_base()
-	var tap_value := _tap_base()
-	var ticks := _tick_rate()
-	var multiplier := _base_output_multiplier()
-	var momentum := _momentum_multiplier()
-	var discount := _effect_sum("cost_discount")
-	var spent := ScientificNumber.new()
+	var budget := _as_float(cash)
+	var spent := 0.0
 	var ranks := 0
-	var held := float(get_owned(upgrade_id)) + rig_rank_equivalent(definition)
-	var held_units := definition.units_at(held)
 	while ranks < room and (count == MAX_BUY or ranks < count):
-		# Steps this press would add, along the row's depth curve (D047).
-		var extra := definition.units_at(held + float(ranks) * worth) - held_units
-		var p := passive
-		var t := tap_value
-		var r := ticks
-		var m := multiplier
-		var d := discount
-		for effect in definition.effects:
-			var per_rank := float(definition.effects[effect])
-			match effect:
-				"passive_flat":
-					p += per_rank * extra
-				"tap_flat":
-					t += per_rank * extra
-				"tick_rate":
-					r *= pow(per_rank, extra)
-				"base_output_multiplier":
-					m *= pow(per_rank, extra)
-				"cost_discount":
-					d += per_rank * extra
-		var step := _rig_price(definition.workshop_category, owned + ranks, _rig_income(p, t, r, m * momentum), d)
-		if step.is_zero():
+		var step := definition.cash_price_at(owned + ranks)
+		if step <= 0.0 or spent + step > budget:
 			break
-		var next_spent := spent.add(step)
-		if next_spent.compare_to(cash) > 0:
-			break
-		spent = next_spent
+		spent += step
 		ranks += 1
-	return {"ranks": ranks, "cost": spent}
+	return {"ranks": ranks, "cost": ScientificNumber.from_float(spent)}
 
 func purchase_rig_ranks(upgrade_id: String, count: int = 1) -> int:
 	var plan := plan_rig_purchase(upgrade_id, count)
@@ -915,19 +1043,21 @@ func purchase_rig_ranks(upgrade_id: String, count: int = 1) -> int:
 	if ranks <= 0:
 		return 0
 	cash = cash.subtract(plan.cost)
-	rig_ranks[upgrade_id] = rig_owned(upgrade_id) + ranks
-	# Cushion adds to the Number a run starts with, and this run has already
-	# started, so an in-run rank pays its share of that Number now (D042).
-	var definition := get_definition(upgrade_id)
-	var starting_flat := float(definition.effects.get("starting_number_flat", 0.0))
-	if starting_flat > 0.0:
-		var worth := balance_profile.rig_effect_multiplier(definition.workshop_category, upgrade_id)
-		number = number.add(ScientificNumber.from_float(starting_flat * float(ranks) * worth * get_cushion_scale()))
-		if number.compare_to(run_peak_number) > 0:
-			run_peak_number = number.copy()
+	_raise_run_level(upgrade_id, ranks)
 	return ranks
 
-## Buys one run rank with Cash (D042), within the row's max rank (D044).
+## Raises a row's run level. Health raised mid-run adds what it adds to the
+## Number now, as The Tower's raises the tower's health (D068): the run has
+## already started with the old value.
+func _raise_run_level(upgrade_id: String, levels: int) -> void:
+	var before := stat("health")
+	rig_ranks[upgrade_id] = rig_owned(upgrade_id) + levels
+	var gained := stat("health") - before
+	if gained > 0.0:
+		number = number.add(ScientificNumber.from_float(gained))
+		_note_number_peak()
+
+## Buys one run level with Cash (D042), within the row's last level (D044).
 ## Number is never spent.
 func purchase_rig(upgrade_id: String) -> bool:
 	return purchase_rig_ranks(upgrade_id, 1) > 0
@@ -1242,8 +1372,9 @@ func _price_totals(definition: UpgradeDefinition) -> PackedInt64Array:
 
 func is_unlocked(definition: UpgradeDefinition) -> bool:
 	if definition.category == ProgressionTaxonomy.WORKSHOP:
-		# Each row carries its own Workshop level, which is what the retired bay
-		# gates duplicated: every row's requirement equalled its bay's gate.
+		# The Tower's rows open by group, bought with Coins (D068).
+		if definition.group != "":
+			return is_group_unlocked(definition.group)
 		return get_workshop_level() >= definition.workshop_level_required
 	return lifetime_generated.compare_to(definition.unlock_lifetime) >= 0
 
@@ -1266,10 +1397,12 @@ func purchase_ranks(upgrade_id: String, count: int = 1) -> int:
 	statistics.coins_spent = int(statistics.get("coins_spent", 0)) + cost
 	return ranks
 
-## The value a row reads as at a given rank, and the unit to read it in. Rows
-## with no declared effect (Burst, Crit Chain) fall back to their rank, which is
-## what their description already talks in.
+## The value a row reads as at a given rank, and the unit to read it in. The
+## Tower's rows state both (D068); a row with no declared effect falls back to
+## its rank.
 func stat_display(definition: UpgradeDefinition, rank: int) -> Dictionary:
+	if definition.is_table():
+		return {"value": definition.value_at(rank), "unit": definition.unit}
 	var units := definition.units_at(float(rank))
 	for effect_name in definition.effects:
 		if not STAT_DISPLAY.has(effect_name):
@@ -1322,8 +1455,8 @@ func _reset_run_state() -> void:
 	number = ScientificNumber.new()
 	lifetime_generated = ScientificNumber.new()
 	workshop.tick_count = 0
-	momentum_stacks = 0
 	critical_chain = 0
+	rapid_fire_left = 0.0
 	tick_accumulator = 0.0
 	automation_accumulator = 0.0
 	wave = 1
@@ -1381,7 +1514,7 @@ func save() -> bool:
 	var file := FileAccess.open(temp, FileAccess.WRITE)
 	if file == null:
 		return false
-	file.store_string(JSON.stringify(SaveDataV11Class.make(self), "", true, true))
+	file.store_string(JSON.stringify(SaveDataV12Class.make(self), "", true, true))
 	var write_error := file.get_error()
 	file.close()
 	if write_error != OK:
@@ -1427,7 +1560,7 @@ func _read_save(path: String) -> Dictionary:
 		return {"status": READ_UNREADABLE}
 	var data: Dictionary = json.data
 	var version := int(data.get("version", 0)) if (data.get("version") is int or data.get("version") is float) else 0
-	if version > SaveDataV11Class.VERSION:
+	if version > SaveDataV12Class.VERSION:
 		return {"status": READ_NEWER}
 	var known := (
 		SaveDataV2.is_legacy_v1(data)
@@ -1441,8 +1574,9 @@ func _read_save(path: String) -> Dictionary:
 		or SaveDataV9Class.is_valid(data)
 		or SaveDataV10Class.is_valid(data)
 		or SaveDataV11Class.is_valid(data)
+		or SaveDataV12Class.is_valid(data)
 	)
-	if not known or SaveDataV11Class.problem(data) != "":
+	if not known or SaveDataV12Class.problem(data) != "":
 		return {"status": READ_UNREADABLE}
 	return {"status": READ_OK, "data": data}
 
@@ -1469,6 +1603,8 @@ func _load_parsed(data: Dictionary, source_path: String) -> OfflineAward:
 			return _migrate_v9(data, source_path)
 		10:
 			return _migrate_v10(data, source_path)
+		11:
+			return _migrate_v11(data, source_path)
 	return _load_current(data)
 
 ## V5 through V11 share every key and meaning. V6 declared the fields added to
@@ -1518,6 +1654,13 @@ func _migrate_v10(data: Dictionary, source_path: String) -> OfflineAward:
 	_save_migrated_state(10, source_path)
 	return award
 
+## V11 to V12 changes the Workshop to The Tower's (D068); _load_common_fields
+## converts it, as it does for every older save.
+func _migrate_v11(data: Dictionary, source_path: String) -> OfflineAward:
+	var award := _load_current(data)
+	_save_migrated_state(11, source_path)
+	return award
+
 ## V4 kept the Workshop in four bays, with the Armor rank in a field of its own.
 ## V5 reads the same run, records and currencies; only the Workshop's shape
 ## changes, and no rank is lost: the Armor rank becomes an ordinary Workshop
@@ -1539,6 +1682,7 @@ func _fold_retired_workshop_shape(data: Dictionary) -> void:
 	if legacy_armor > 0:
 		purchased[ARMOR_ID] = maxi(int(purchased.get(ARMOR_ID, 0)), legacy_armor)
 	focus_path = ProgressionTaxonomy.category_for_legacy_bay(focus_path)
+	_convert_to_tower_workshop()
 
 func _load_tier_progress(data: Dictionary) -> void:
 	var saved_records: Variant = data.get("tier_records", {})
@@ -1633,6 +1777,7 @@ func _restore_saved_run(data: Dictionary) -> void:
 	run_peak_number = ScientificNumber.from_dict(saved_peak) if saved_peak is Dictionary else number.copy()
 	second_wind_used = bool(data.get("second_wind_used", false))
 	coin_fraction = clampf(float(data.get("coin_fraction", 0.0)), 0.0, 1.0) if in_run else 0.0
+	rapid_fire_left = clampf(float(data.get("rapid_fire_left", 0.0)), 0.0, 60.0) if in_run else 0.0
 	# V6 keeps the tick phase and crit chain, so the outputs after a reload are
 	# the ones the saved run would have produced (D006). Older saves resume at
 	# a fresh phase and an unbroken chain, as they always did.
@@ -1654,7 +1799,10 @@ func _restore_saved_run(data: Dictionary) -> void:
 		var saved_rig: Variant = data.get("rig_ranks", {})
 		if saved_rig is Dictionary:
 			for rig_id in saved_rig:
-				rig_ranks[str(rig_id)] = maxi(0, int(saved_rig[rig_id]))
+				# A retired row's run ranks die with it (D068): they were run-scoped.
+				var rig_definition := get_definition(str(rig_id))
+				if rig_definition != null and rig_definition.is_table():
+					rig_ranks[str(rig_id)] = clampi(int(saved_rig[rig_id]), 0, rig_definition.max_rank)
 		var saved_rng_state := str(data.get("rng_state", "0")).to_int()
 		if saved_rng_state != 0:
 			rng.state = saved_rng_state
@@ -1841,6 +1989,35 @@ func _load_common_fields(data: Dictionary) -> void:
 	# "ambience" named the retired background pad. Dropping it on load keeps the
 	# dead key out of saves rewritten in the current shape.
 	settings.erase("ambience")
+	# V12 (D068). Only groups the catalogue still sells, each once.
+	workshop_groups = []
+	var saved_groups: Variant = data.get("workshop_groups", [])
+	if saved_groups is Array:
+		for group_id in saved_groups:
+			var id_string := str(group_id)
+			if not get_group(id_string).is_empty() and not workshop_groups.has(id_string):
+				workshop_groups.append(id_string)
+	# V2 to V4 saves convert after their Armor rank is folded in, and V1 after
+	# its prototype ranks are mapped.
+	var version: Variant = data.get("version", 0)
+	if (version is int or version is float) and int(version) >= SaveDataV5Class.VERSION and int(version) < SaveDataV12Class.VERSION:
+		_convert_to_tower_workshop()
+
+## A save from before The Tower's Workshop (D068) is converted once, on load:
+## every rank of a retired row is refunded at the Coins it listed for, and
+## those Coins and the balance move to The Tower's scale. Nothing permanent is
+## lost (law 5): the player rebuys in the new Workshop with what the old one
+## cost them. The Coins spent statistic restarts, since nothing is spent now.
+func _convert_to_tower_workshop() -> void:
+	var refund := 0.0
+	for retired in GameDataClass.get_retired_workshop_upgrades():
+		var owned := mini(int(purchased.get(retired.id, 0)), retired.max_rank)
+		for rank in range(owned):
+			var price := retired.cost_at(rank)
+			refund += float(maxi(1, ceili(price.mantissa * pow(10.0, price.exponent))))
+		purchased.erase(retired.id)
+	coins = int(round((float(coins) + refund) * TaxBalanceProfile.COIN_RESCALE))
+	statistics.coins_spent = 0
 
 ## Ranks as the catalogue allows them: whole, never negative, and never past a
 ## row's cap, so a cap lowered by a retune takes effect on saves that already
@@ -1907,6 +2084,7 @@ func _migrate_v1(data: Dictionary, source_path: String) -> void:
 		if not mapped_ids.has(legacy_id):
 			credit += maxi(0, int(legacy[legacy_id]))
 	workshop.legacy_credit = credit
+	_convert_to_tower_workshop()
 	lab_slots = LabResearchClass.LEGACY_SLOTS
 	focus_path = ProgressionTaxonomy.category_for_legacy_bay(str(data.get("focus", "")))
 	var old_target := str(data.get("auto_selected", ""))
@@ -1929,7 +2107,7 @@ func _save_migrated_state(from_version: int, source_path: String) -> void:
 func clear_save() -> void:
 	for path in [save_path, _backup_path(), _temp_path()]:
 		_remove_if_present(path)
-	for version in range(1, SaveDataV11Class.VERSION):
+	for version in range(1, SaveDataV12Class.VERSION):
 		_remove_if_present(_migration_backup_path(version))
 	var folder := save_path.get_base_dir()
 	var quarantine_prefix := save_path.get_file().get_basename() + QUARANTINE_INFIX
@@ -1963,31 +2141,6 @@ func _remove_if_present(path: String) -> void:
 func has_persistent_storage() -> bool:
 	return OS.is_userfs_persistent()
 
-## Everything produced is Number, and the same output also counts against the
-## active wave (D037): the Number never stops rising while the player produces.
-## Lifetime production counts it once, so Knowledge is unchanged.
-func _add_number(amount: ScientificNumber) -> void:
-	lifetime_generated = lifetime_generated.add(amount)
-	var banked := amount
-	if in_run and active_encounter != null:
-		active_encounter.now = wave_accumulator
-		var struck: int = active_encounter.target_index()
-		var struck_boss: bool = active_encounter.is_boss_member(struck)
-		var into_wave: ScientificNumber = active_encounter.apply_compliance(amount)
-		# Leech (D038) feeds on a boss that stands and fights: a share of the
-		# damage the boss itself takes, not the pile in front of it, is added to
-		# the Number a second time. The combined share is capped (D023) so Rig
-		# ranks cannot stack it without limit.
-		var leech := minf(_effect_sum("siphon_share"), balance_profile.SIPHON_CEILING)
-		if leech > 0.0 and struck_boss and not into_wave.is_zero():
-			banked = banked.add(into_wave.multiply_scalar(leech))
-		_pay_kills()
-	number = number.add(banked)
-	if number.compare_to(highest_number) > 0:
-		highest_number = number.copy()
-	if number.compare_to(run_peak_number) > 0:
-		run_peak_number = number.copy()
-
 func _ensure_tier_records() -> void:
 	for tier in balance_profile.tiers:
 		var key := str(tier.id)
@@ -1997,65 +2150,40 @@ func _ensure_tier_records() -> void:
 func _new_tier_record() -> Dictionary:
 	return {"highest_wave": 0, "best_time": 0.0, "milestones_claimed": []}
 
-func _tap_base() -> float:
-	return 1.0 + _effect_sum("tap_flat")
-
-func _passive_base() -> float:
-	return _effect_sum("passive_flat")
-
-## Every run produces from its first second (D033): an idle game that does
-## nothing until a Workshop rank is bought reads as broken. The base is a flat
-## floor per second, not raised by upgrades, so it starts a new player without
-## making a built-up one stronger. Per tick it is shared across the ticks in a
-## second.
-func _base_output_per_tick() -> float:
-	return balance_profile.BASE_DAMAGE_PER_SECOND / _tick_rate()
-
-func _tick_rate() -> float:
-	return balance_profile.BASE_SHOTS_PER_SECOND * _effect_product("tick_rate", 1.0)
-
-## Everything that scales produced damage, including the boss-only bonus. Taps,
-## ticks and the displayed rate all read it, so a boss wave cannot show one
-## number and deal another.
-func _damage_multiplier() -> float:
-	return _base_output_multiplier() * _boss_damage_multiplier()
-
-## Boss Damage works on the boss itself, this wave's or one carried in, and
-## not on the pile in front of it.
-func _boss_damage_multiplier() -> float:
-	# Only on the boss the Number is striking (D063): not one out of reach (D067).
-	if active_encounter == null:
-		return 1.0
-	active_encounter.now = wave_accumulator
-	if not active_encounter.is_boss_member(active_encounter.target_index()):
-		return 1.0
-	return 1.0 + _effect_sum("boss_damage")
+## Damage a shot deals (D068): the Damage row, times Labs, Cards and Insight.
+func _damage() -> float:
+	return stat("damage") * _base_output_multiplier()
 
 func _base_output_multiplier() -> float:
 	return _effect_product("base_output_multiplier", 1.0)
 
-func _momentum_multiplier() -> float:
-	return 1.0 + float(momentum_stacks) * _effect_sum("momentum_per_tick")
+## Shots a second (D068): the Attack Speed row, times Cards, four times over
+## while Rapid Fire lasts.
+func _attack_speed() -> float:
+	var rapid: float = balance_profile.RAPID_FIRE_SPEED if rapid_fire_left > 0.0 else 1.0
+	return maxf(0.01, stat("attack_speed") * _effect_product("tick_rate", 1.0) * rapid)
 
 func _critical_chance() -> float:
-	return clampf(_effect_sum("critical_chance"), 0.0, 0.8)
+	return clampf(stat("critical_chance") + _effect_sum("critical_chance"), 0.0, 1.0)
 
-func _critical_multiplier() -> float:
-	return 2.0 + _effect_sum("critical_multiplier_add")
+## How far the Number reaches, in metres, for the arena's ring.
+func get_range() -> float:
+	return _range()
 
-func _chain_reaction_step() -> float:
-	return 0.005 * (float(get_owned("chain_reaction")) + rig_rank_equivalent(get_definition("chain_reaction")))
+## Where each orb is now, in radians, for the arena to draw (D068): the same
+## turn the orbs strike with.
+func orb_angles() -> Array:
+	var count := int(stat("orbs"))
+	var angles: Array = []
+	var turn := TAU * stat("orb_speed") / 60.0
+	for orb in range(count):
+		angles.append(turn * run_elapsed + TAU * float(orb) / float(count))
+	return angles
 
-## Burst shortens the interval by one tick per rank, from 12 down to the same
-## floor of 6 the three-rank version reached. The floor is what keeps deepening
-## this row a pacing change rather than a power change, and it holds for Rig
-## ranks too: a rank is one step, never multiplied, so one purchase cannot
-## reach the floor by itself.
-func _burst_interval() -> int:
-	var rank := get_owned("burst_relay") + rig_owned("burst_relay")
-	if rank <= 0:
-		return 0
-	return maxi(6, 12 - rank)
+## How far the Number reaches, in metres: the Range row (D068).
+func _range() -> float:
+	var reach := stat("range")
+	return reach if reach > 0.0 else TaxBalanceProfile.TOWER_RANGE_METRES
 
 ## What a row's Workshop and run ranks are worth together, in steps of its
 ## effect: one a rank, or more along a deep row's depth curve (D047).

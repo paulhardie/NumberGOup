@@ -7,6 +7,9 @@ var is_critical: bool = false
 ## Shots this event fired: 2 when Multishot doubled a tick, so the arena can
 ## show both.
 var hits := 1
+## What the event is about, where it names something: the row a Free Upgrade
+## raised (D068).
+var label := ""
 
 func _init(event_type: String, event_amount: ScientificNumber, critical: bool = false) -> void:
 	type = event_type
