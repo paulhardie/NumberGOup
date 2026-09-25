@@ -66,6 +66,13 @@ var reach := TaxBalanceProfile.TOWER_RANGE_METRES
 ## A member saved or built without a setting-off time set off long ago: it is
 ## in reach, and at the Number unless it stops short.
 const LONG_AGO := -1000.0
+## Counts every change to who is alive or where they stand, so target_index()
+## can reuse its answer until one happens or the clock moves.
+var _changes := 0
+var _target_now := NAN
+var _target_reach := NAN
+var _target_changes := -1
+var _target := -1
 
 func _init(
 	encounter_tier: int = 1,
@@ -201,6 +208,10 @@ func has_set_off(member: Dictionary) -> bool:
 ## Tower's default "closest" target, first in member order when two are as
 ## near (members at the Number, carried ones first). -1 when none is in reach.
 func target_index() -> int:
+	# One answer per clock and per change: shots ask several times a step, and
+	# a pile can hold hundreds.
+	if now == _target_now and reach == _target_reach and _changes == _target_changes and (_target < 0 or (_target < members.size() and is_alive(members[_target]))):
+		return _target
 	var best := -1
 	var best_distance := INF
 	for index in range(members.size()):
@@ -213,6 +224,10 @@ func target_index() -> int:
 			best_distance = distance
 			if distance <= 0.0:
 				break
+	_target_now = now
+	_target_reach = reach
+	_target_changes = _changes
+	_target = best
 	return best
 
 ## The living member the wave shows in front: the one damage strikes, else
@@ -277,6 +292,7 @@ func hit(index: int) -> void:
 	if not is_alive(member):
 		return
 	member.landed = true
+	_changes += 1
 	member.hits = int(member.get("hits", 0)) + 1
 	# An opening member (interval 0, D059) hits once and leaves, uncleared.
 	if float(member.interval) <= 0.0:
@@ -356,13 +372,21 @@ func at_number_count() -> int:
 func is_cleared() -> bool:
 	return _alive == 0
 
-## True when every one of this wave's members is beaten, whether or not it
-## reached the Number first (D058): a member at the Number is still a fight.
+## True when every one of this wave's members that came within reach is
+## beaten, whether or not it reached the Number first (D058): a member at the
+## Number is still a fight. One still walking outside the reach when the clock
+## ends, such as a tank set off late, could not be struck; it carries on into
+## the next wave without spoiling this one (D067).
 func is_beaten() -> bool:
-	if own_alive_count() > 0:
-		return false
-	# An opening member that hit and left was never beaten (D059).
-	return not members.any(func(member): return is_own(member) and int(member.state) == LANDED)
+	for member in members:
+		if not is_own(member):
+			continue
+		# An opening member that hit and left was never beaten (D059).
+		if int(member.state) == LANDED:
+			return false
+		if is_alive(member) and (int(member.state) == AT_NUMBER or (has_set_off(member) and distance_of(member, now) <= reach)):
+			return false
+	return true
 
 ## Takes the state of `old`, the same wave on an older balance profile, member
 ## for member: each keeps its share of its HP, its state and its clock, and
@@ -422,6 +446,7 @@ func _set_living_total(target: ScientificNumber) -> void:
 		to_clear = to_clear.subtract(taken)
 		if member.hp.is_zero():
 			member.state = KILLED
+			_changes += 1
 			_kills.append(member)
 	_sum_remaining()
 
@@ -429,6 +454,7 @@ func _set_living_total(target: ScientificNumber) -> void:
 ## largest exponent, with one ScientificNumber at the end: adding them one by
 ## one allocated a number per member.
 func _sum_remaining() -> void:
+	_changes += 1
 	_next_due = -INF
 	var top := -2147483648
 	_alive = 0
@@ -564,8 +590,10 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 				# so a dead member saved then is still owed; a rebuild onto
 				# today's profile pays it (carry_from).
 				"paid": bool(saved.get("paid", false)),
-				# Saved before distance (D067): set off long ago, so in reach.
-				"sets_off": clampf(float(saved.get("sets_off", LONG_AGO)), LONG_AGO, TaxBalanceProfile.latest_arrival()),
+				# Saved before distance (D067): set off long ago, so in reach,
+				# unless it is still walking in, when it set off its travel time
+				# before its first hit.
+				"sets_off": clampf(float(saved.get("sets_off", LONG_AGO if landed or state != STANDING else next_hit - TaxBalanceProfile.travel_seconds(kind))), LONG_AGO, TaxBalanceProfile.latest_arrival()),
 				# Saved under D063's rules: the share of its passed wave's reward
 				# it still owes, paid at its kill instead of its type's Coins.
 				"unpaid": clampf(float(saved.get("unpaid", 0.0)), 0.0, 1.0),

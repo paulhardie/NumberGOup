@@ -3014,6 +3014,39 @@ func _test_distance_and_reach() -> void:
 	var shooter: Dictionary = ranged.active_encounter.members[0]
 	_expect(hits == 1 and int(shooter.state) == TaxEncounter.AT_NUMBER and is_equal_approx(TaxEncounter.distance_of(shooter, ranged.wave_accumulator), 30.0) and ranged.active_encounter.target_index() == 0, "a ranged enemy should fire at 6 seconds from 30 m and stay there, in reach")
 
+	# A wave counts as beaten when everything that came within reach fell,
+	# though a tank set off late is still walking in when the clock ends: it
+	# carries on into the next wave (D067).
+	var sweeper := GameState.new()
+	sweeper.balance_profile.ENEMY_MIX = {"tank": 1.0}
+	sweeper.start_run(1, 75)
+	sweeper.number = ScientificNumber.from_float(1e9)
+	for step in range(141):
+		sweeper.active_encounter.now = sweeper.wave_accumulator
+		for blow in range(40):
+			var in_reach: int = sweeper.active_encounter.target_index()
+			if in_reach < 0:
+				break
+			sweeper.active_encounter.damage_member(in_reach, sweeper.active_encounter.members[in_reach].hp.copy())
+		sweeper._pay_kills()
+		sweeper._advance_waves(0.25)
+	_expect(sweeper.wave == 2 and sweeper.get_tier_best(1) == 1 and sweeper.active_encounter.members.any(func(member): return int(member.wave) == 1 and TaxEncounter.is_alive(member)), "a wave should count as beaten when all within reach fell, a late tank carried on")
+
+	# Boss Damage only lifts damage on a boss in reach.
+	var far_boss := GameState.new()
+	far_boss.purchased = {"boss_damage": 100}
+	far_boss.balance_profile.ENEMY_MIX = {"basic": 1.0}
+	far_boss.start_run(1, 76)
+	far_boss.wave = 10
+	far_boss.active_encounter = far_boss._make_encounter(10)
+	for index in range(far_boss.active_encounter.members.size()):
+		if not far_boss.active_encounter.is_boss_member(index):
+			far_boss.active_encounter.damage_member(index, far_boss.active_encounter.members[index].hp.copy())
+	far_boss.wave_accumulator = 4.0
+	_expect(is_equal_approx(far_boss._boss_damage_multiplier(), 1.0) and not far_boss.is_wave_standing(), "a boss out of reach should take no Boss Damage and draw no strike")
+	far_boss.wave_accumulator = 10.0
+	_expect(far_boss._boss_damage_multiplier() > 1.5 and far_boss.is_wave_standing(), "a boss in reach should take Boss Damage")
+
 	# A walker carried past its wave's clock keeps walking from where it was.
 	var carry := GameState.new()
 	carry.balance_profile.ENEMY_MIX = {"tank": 1.0}
@@ -3789,6 +3822,7 @@ func _beat_wave(state: GameState) -> void:
 func _all_in_reach(state: GameState) -> void:
 	for member in state.active_encounter.members:
 		member.sets_off = TaxEncounter.LONG_AGO
+	state.active_encounter._sum_remaining()
 
 func _advance_seconds(state: GameState, seconds: float) -> void:
 	var elapsed := 0.0

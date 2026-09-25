@@ -253,8 +253,13 @@ func _produce_tick() -> SimulationEvent:
 
 ## True while the active wave still has HP to clear. Output is Number either
 ## way (D037); this only says whether it is also striking a wave.
+## Whether production strikes the wave now: an enemy is in the Number's reach
+## (D067). Otherwise output is Number alone, and shows as gain, not damage.
 func is_wave_standing() -> bool:
-	return in_run and active_encounter != null and not active_encounter.is_cleared()
+	if not in_run or active_encounter == null or active_encounter.is_cleared():
+		return false
+	active_encounter.now = wave_accumulator
+	return active_encounter.target_index() >= 0
 
 func get_rate_per_second() -> ScientificNumber:
 	return ScientificNumber.from_float(_passive_base() * _damage_multiplier() * _momentum_multiplier() * _tick_rate() + balance_profile.BASE_DAMAGE_PER_SECOND)
@@ -2018,7 +2023,11 @@ func _damage_multiplier() -> float:
 ## Boss Damage works on the boss itself, this wave's or one carried in, and
 ## not on the pile in front of it.
 func _boss_damage_multiplier() -> float:
-	if active_encounter == null or not active_encounter.is_boss_member(active_encounter.front_index()):
+	# Only on the boss the Number is striking (D063): not one out of reach (D067).
+	if active_encounter == null:
+		return 1.0
+	active_encounter.now = wave_accumulator
+	if not active_encounter.is_boss_member(active_encounter.target_index()):
 		return 1.0
 	return 1.0 + _effect_sum("boss_damage")
 
