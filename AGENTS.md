@@ -152,7 +152,7 @@ Start with the smallest set of current sources, and read them when the work need
 - [`docs/HANDOVER.md`](docs/HANDOVER.md) — where the game is now, open decisions and the next steps. Read it first when picking up work; replace it, never append, when you hand off.
 - [`docs/GAME_VISION.md`](docs/GAME_VISION.md) — the player experience, pillars and anti-goals.
 - [`docs/TOWER_SCALING_FOUNDATION.md`](docs/TOWER_SCALING_FOUNDATION.md) — researched encounter foundation and rationale.
-- [`docs/TOWER_WORKSHOP_REFERENCE.md`](docs/TOWER_WORKSHOP_REFERENCE.md) — The Tower's Workshop rows, unlock order, prices and Ultimate Weapons, from the community wiki.
+- [`docs/TOWER_WORKSHOP_REFERENCE.md`](docs/TOWER_WORKSHOP_REFERENCE.md) — The Tower's Workshop rows, unlock order, prices and Ultimate Weapons, from the community wiki. Since D068 the game's Workshop *is* these rows: the data is `data/workshop/upgrades.json`.
 - [`docs/WORKSHOP_DESIGN.md`](docs/WORKSHOP_DESIGN.md) — Workshop categories, the wave rule, player-facing vocabulary and balance targets.
 - [`docs/MOTION_SYSTEM.md`](docs/MOTION_SYSTEM.md) — motion vocabulary and borrowed animation techniques.
 - [`docs/GAME_INVARIANTS.md`](docs/GAME_INVARIANTS.md) — behaviour that must remain true.
@@ -235,8 +235,9 @@ bash run_godot.sh --path . -s res://tools/arena_probe.gd
 
 - All of these use the Godot in `/Users/paulhardie/Downloads/Godot.app`; set `GODOT` to point them at another binary.
 - `run_tests.sh` is the economy suite; a green count with errors printed is not a pass, and the script fails the run on any error line. If it fails on classes it cannot find, the `.godot` cache is stale: run `bash run_godot.sh --headless --path . --import`.
-- `run_balance.sh` prints the curve and the representative first run; it is a measurement tool, not a gate. After `--`, `--hit-sweep` measures balance target 5 across Hit scales and `--maxed-workshop` measures a fully maxed Workshop against one stopped at rank 100.
-- `tools/career_simulator.gd` plays a fresh save run after run, spending Coins between runs, and compares today's rules with the proposed coin gates and other run rank worths; `-- --runs N`, `-- --spend even|focused`, `-- --layout plan|tower`, `-- --ladder NAME` and `-- --careers a,b` narrow it. It is a measurement tool, not a gate.
+- `run_balance.sh` prints the curve, the representative first run, the opening and the build matrix; it is a measurement tool, not a gate. After `--`, `--opening` prints only the opening, `--hit-sweep` measures balance target 5 across Hit scales and `--maxed-workshop` measures a fully maxed Workshop against one stopped at level 100.
+- `tools/career_simulator.gd` plays a fresh save run after run, opening Workshop unlocks and spending Coins between runs, with and without buying run Upgrades; `-- --runs N`, `-- --spend even|focused`, `-- --careers hoard,rig` and `-- --run-cap-minutes N` narrow it. It is a measurement tool, not a gate.
+- `tools/import_tower_workshop.py` regenerates `data/workshop/upgrades.json` from TheTowerSDK's Workshop table (its header says how to fetch it); never edit that JSON by hand (D068).
 - The headless project run catches parse and scene-build errors in `main.gd` and the UI classes.
 - CI runs the same baseline on every pull request and push to `main` (`.github/workflows/verify.yml`), with its Godot version pinned to match the development build — update the pin when upgrading Godot. `main` requires a pull request with a passing "Economy tests and headless boot" check.
 - `tools/arena_probe.gd` plays the run arena through its beats in a real window (groups walking in, motes, clears, slams, the Hit's working, the pile at the Number, a boss behind a pile, Reduce Motion), prints `ARENA PROBE PASS` or the failed checks, and writes screenshots to `user://arena_probe`. It saves to a throwaway file. On headless Linux wrap it in `xvfb-run -a -s "-screen 0 1024x1100x24"`.

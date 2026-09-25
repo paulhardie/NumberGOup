@@ -1,5 +1,7 @@
 # Workshop expansion
 
+**Superseded by [D068](DECISIONS.md#d068--the-towers-workshop-in-full-around-the-number) (25 September 2026):** the Workshop is now The Tower's own rows, prices and unlocks, so the rows, gates and ladders proposed here no longer apply. Kept as history.
+
 **Status:** Proposed, 23 September 2026. The [Tower parity plan and coin gates](#tower-parity-plan-and-coin-gates--proposed-23-september-2026) below is the newer proposal and says which of the earlier rows survive. Step 1 (the core rules, with Leech and Thorns) is accepted and built as [D037](DECISIONS.md) and [D038](DECISIONS.md); everything else here is still proposed. It follows the owner's direction that the Workshop should be fleshed out rather than cut, and that the difficulty curve should be solved by investment in it. Each row below needs its decision recorded in [`DECISIONS.md`](DECISIONS.md) before it is built.
 **Scope:** the permanent Workshop's Attack, Defense and Utility rows: what each existing row does under the proposed core rules, eight new rows, and how the Workshop keeps scaling across tiers. Ultimates stay as [`WORKSHOP_DESIGN.md`](WORKSHOP_DESIGN.md#ultimates--rare-powerful-earned) describes them.
 **Ladders:** rank depth, cost curves and stat curves for every row, with JSON and tables, are in [`WORKSHOP_LADDERS.md`](WORKSHOP_LADDERS.md).
