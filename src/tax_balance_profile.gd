@@ -229,13 +229,10 @@ func roster_weight(roster: Array) -> float:
 func member_weights(wave: int, seed: int = 0) -> Array:
 	return wave_roster(wave, seed).map(func(entry): return float(ENEMY_HP_WEIGHT[entry.kind]))
 
-## The part of a run's Coins paid as every wave ends, beaten or passed, as The
-## Tower's Coins per Wave pays (D066); kills pay the rest. Opening enemies hit
-## once and leave (D059), and one that leaves is never killed, so without this
-## a fresh run's Coins fall to a quarter. At 0.2 the opening builds earn what
-## they did before types (six seeds: fresh 40, early 134, mid 451), and a build
-## that kills everything is unaffected. Mutable so the tools can sweep it.
-var WAVE_COIN_SHARE := 0.2
+## What every wave's end pays, beaten or passed, in kill-coin units, as The
+## Tower's Coins per Wave does (D066): its base 1, beside a fast kill's 2 and a
+## boss's 5. Mutable so the tools can sweep it.
+var WAVE_END_KILL_COINS := 1.0
 
 ## What a run's waves paid before types (D065), averaged over a boss cycle:
 ## an ordinary wave's reward, and five on every tenth.
@@ -243,21 +240,24 @@ func _average_wave_reward(tier_id: int, wave: int) -> float:
 	var cycle_reward := (float(BOSS_WAVE_INTERVAL - 1) + BOSS_REWARD_MULTIPLIER) / float(BOSS_WAVE_INTERVAL)
 	return float(maxi(1, wave)) * WAVE_REWARD_SCALE * cycle_reward * get_tier(tier_id).reward_multiplier
 
-## The Coins a wave pays as it ends, before Coin Bonus (D066).
-func wave_end_coins(tier_id: int, wave: int) -> float:
-	return WAVE_COIN_SHARE * _average_wave_reward(tier_id, wave)
-
-## The Coins one kill of `kind` at `wave` is worth, before Coin Bonus (D066):
-## the rest of the wave's average reward, spread over the kill-coins its
-## enemies are worth on average, so a run's Coins match what the waves paid
-## before types. The Tower's shape, our coefficients (D009).
-func kill_coins(tier_id: int, wave: int, kind: String) -> float:
+## One kill-coin unit at a tier and wave (D066): a wave's average reward over
+## the kill-coins its enemies and its end are worth on average, so a run that
+## kills everything is paid what its waves paid before types. The Tower's
+## shape, our coefficients (D009).
+func _kill_coin_unit(tier_id: int, wave: int) -> float:
 	var ordinary_worth := 0.0
 	for mix_kind in ENEMY_MIX:
 		ordinary_worth += float(ENEMY_MIX[mix_kind]) * float(KILL_COINS[mix_kind])
-	var wave_worth := ordinary_worth * float(ordinary_members(wave)) + float(KILL_COINS["boss"]) / float(BOSS_WAVE_INTERVAL)
-	var unit: float = (1.0 - WAVE_COIN_SHARE) * _average_wave_reward(tier_id, wave) / wave_worth
-	return unit * float(KILL_COINS.get(kind, 0.0))
+	var wave_worth := ordinary_worth * float(ordinary_members(wave)) + float(KILL_COINS["boss"]) / float(BOSS_WAVE_INTERVAL) + WAVE_END_KILL_COINS
+	return _average_wave_reward(tier_id, wave) / wave_worth
+
+## The Coins a wave pays as it ends, before Coin Bonus (D066).
+func wave_end_coins(tier_id: int, wave: int) -> float:
+	return WAVE_END_KILL_COINS * _kill_coin_unit(tier_id, wave)
+
+## The Coins one kill of `kind` at `wave` is worth, before Coin Bonus (D066).
+func kill_coins(tier_id: int, wave: int, kind: String) -> float:
+	return _kill_coin_unit(tier_id, wave) * float(KILL_COINS.get(kind, 0.0))
 
 ## The Cash one kill pays: its HP's share of its wave's Cash (D066).
 func kill_cash(wave: int, weight: float, of: float) -> float:

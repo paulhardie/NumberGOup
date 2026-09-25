@@ -30,7 +30,7 @@ This branch plays like this on a fresh run (Godot 4.7.2, profile `tax-foundation
   - **Coins** by type: basics none, then fast, ranged, tank and boss, in the owner's 2/3/4/5 ratio, carried in parts of a Coin between payments.
   - **Cash** by the enemy's share of its wave's health.
   - **Gems:** a boss pays its Gem when it falls.
-  - **Coins per Wave:** every wave's end, beaten or passed, pays a fifth of the old average wave reward.
+  - **Coins per Wave:** every wave's end, beaten or passed, pays one kill-coin unit, The Tower's base of 1 (the owner's choice: "do what the tower does").
   - **In the arena,** the Coin-paying types lean gold, tanks are larger, and the front enemy's caption names its type.
 - **Thorns (D064)** deals every enemy that hits you a share of its own maximum HP (0.495% a rank, 99% at rank 200), bosses half.
 - **Where builds land** (six seeds, two taps a second, no run Upgrades, D066; waves as under D065):
@@ -49,7 +49,7 @@ This branch plays like this on a fresh run (Godot 4.7.2, profile `tax-foundation
 
 ## Open decisions for the owner
 
-1. **Coins per Wave's share and the career's pace (D066).** Kills now decide income, and tanks carry over half of kill Coins. Runs that die with tanks in their pile lose them, so the career reaches wave 100 about 28% later (5.5 hours against 4.3), though it catches up by wave 500. At 0.2 of the old average reward paid at every wave's end, the opening builds earn what they did before types. Recommend keeping 0.2: it makes Damage matter, as The Tower's economy does, and it's one setting (`WAVE_COIN_SHARE`) to raise if play feels slow. The sweep showed 0.5 roughly doubles opening Coins.
+1. **The opening's Coins (D066).** With The Tower's flat Coins per Wave, a fresh run earns 24 Coins and an early build 86 (D065: 37 and 138), because opening enemies that hit once and leave (D059) never pay. Distance, built The Tower's way, is where that settles: The Tower's enemies stay at the tower until killed.
 2. **How many enemies does The Tower send per wave early on?** D065 guesses 20 at wave 1 (`FIRST_WAVE_MEMBERS`, one setting). Recommend the owner reads "enemies destroyed" and the current wave from The Tower's Stats tab; that one pair settles it.
 3. **Should waves be fixed length, as The Tower's are?** Today a strong build strikes enemies before they arrive and moves on 2.5 seconds after beating the wave (D037). Recommend settling it inside the distance step, where arrival becomes a place and unarrived enemies can't be hit.
 4. **Merge this branch?** It carries D063–D066 and save V11, so a merge moves the owner's real save to V11 on first load (a V10 copy is kept, and any kills in its active wave are paid on today's rules). Recommend a PR once the owner has played it.
@@ -58,7 +58,7 @@ This branch plays like this on a fresh run (Godot 4.7.2, profile `tax-foundation
 
 ## Next steps, in order
 
-1. **Owner:** confirm Coins per Wave's share (open decision 1), play a fresh run on the branch, and read enemies destroyed and the current wave from The Tower's Stats tab. **Done when:** the share and the early enemy count are settled.
+1. **Owner:** play a fresh run on the branch, and read enemies destroyed and the current wave from The Tower's Stats tab. **Done when:** the early enemy count is settled.
 2. **Agent: distance.** Arrival as a position that damage and pushback can change, unarrived enemies out of reach (open decision 3), ranged enemies firing from their range, then The Tower's reach and crowd-control rows (Range, Knockback, Orbs, Bounce Shot, Multishot targets), unlocked with Coins as The Tower does. **Done when:** a D067 is accepted, and the economy suite, headless boot, arena probe, old-save fixtures, six-seed builds and a focused career pass and are measured. High economy and save risk; review the final diff independently.
 3. **Agent: the arena layout pass.** 20 or more enemies a wave overlap badly; the front caption clips on narrow screens; a carried walker's drawing should be checked in motion. Low–medium risk; can run alongside step 2 if one owner holds `main.gd`.
 
@@ -96,7 +96,7 @@ This branch plays like this on a fresh run (Godot 4.7.2, profile `tax-foundation
 
 ## Handing on
 
-D066 is built, reviewed and measured. The owner confirms Coins per Wave's share and plays it; distance comes next, with the arena layout pass alongside. Keep this handover as the current state, and leave the repository able to answer the next session's questions without this conversation.
+D066 is built, reviewed and measured. The owner chose The Tower's flat Coins per Wave; distance comes next, with the arena layout pass alongside. Keep this handover as the current state, and leave the repository able to answer the next session's questions without this conversation.
 
 1. **Replace this page. Never append to it.** Keep its shape: who is handing to whom and when; the branch and what is on it (merged or not, PR number); where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; and this section, addressed to the next agent.
 2. **Record any new choice the owner accepts** as the next `D0NN` entry in [`DECISIONS.md`](DECISIONS.md) (D067 onwards), with:
