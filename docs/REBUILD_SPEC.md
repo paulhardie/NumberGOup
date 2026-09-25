@@ -1,6 +1,6 @@
 # Rebuild spec: The Tower first, the Number second
 
-**Status:** proposed 25 September 2026, waiting on the owner's go. Nothing here is built. If accepted, it becomes D073 and replaces the tuning plan in [`HANDOVER.md`](HANDOVER.md).
+**Status:** accepted 25 September 2026 as [D073](DECISIONS.md#d073--rebuild-the-tower-first-the-number-second). Milestone 1 is built on `claude/great-tesla-9kfp95`; see [Progress](#progress).
 
 ## Why rebuild
 
@@ -70,15 +70,26 @@ The Number goes in only once v1 plays like The Tower, as one change measured aga
 ## Layout
 
 ```text
-src/tower/   tower_data.gd (loads the JSON), battle_sim.gd, enemy.gd, workshop.gd, save.gd
-src/ui/      battle_screen.gd, workshop_screen.gd, home_screen.gd, theme.gd
+src/tower/   tower_data.gd (loads the JSON), guesses.gd, battle_sim.gd (its Enemy and Shot inside); later workshop.gd, save.gd
+src/ui/      palette.gd, arena_view.gd, battle_screen.gd; later workshop_screen.gd, home_screen.gd
 data/tower/  enemies.json (generated)
 data/workshop/upgrades.json (generated, kept)
-tools/       import_tower_enemies.mjs, import_tower_workshop.py, sim_runs.gd
+tools/       import_tower_enemies.mjs, import_tower_workshop.py, sim_runs.gd, capture_battle.gd
 tests/       tower_tests.gd
 ```
 
 `main.gd` only switches between screens. Only `battle_sim.gd` owns combat rules; the screens draw its state and send it purchases.
+
+## Progress
+
+- **Milestone 1, the battle alone: built, not yet played by the owner.** A fresh tower that buys nothing dies on wave 2 in about 50 seconds on every seed, matching The Tower's "you die immediately". What's in it: `tools/import_tower_enemies.mjs` and its data, `src/tower/` (data, guesses, the simulation), `src/ui/` (the battle screen), `tools/sim_runs.gd`, `tools/capture_battle.gd` and `tests/tower_tests.gd`.
+- **Where it went differently from this spec:**
+  - The SDK's enemies per wave (about 4 early) contradict the owner's screens, so D065's count (20 at wave 1, rising) is kept as a guess.
+  - The type mix is the owner's wave 22 screen (85% basic, 7% fast, 6% tank, 2% ranged), not the SDK's 91/3/3/3.
+  - The health correction is only known to wave 22, so it holds at wave 22's value beyond.
+  - `scientific_number.gd`, the icons and the old arena effects weren't needed yet: plain floats and one number formatter cover it. They're at `f4f1e95` when wanted.
+  - The `pre-rebuild` tag was made but couldn't be pushed from the session; the old game is commit `f4f1e95`.
+  - Every script loads the others by path, never by `class_name`, per [`QUALITY_GATES.md`](QUALITY_GATES.md), so a stale editor cache can't blank the game.
 
 ## Milestones
 
@@ -133,8 +144,8 @@ This needs the owner's OK, then an edit to [`AGENTS.md`](../AGENTS.md), since on
 - **The owner's current progress doesn't carry over.** It stays on disk, and the old game stays reachable at `pre-rebuild`.
 - **The Workshop and enemy data are The Tower's own,** redistributed under the SDK's MIT licence. That's fine for a private build; publishing needs a decision (already open under D068).
 
-## Decisions needed before milestone 1
+## Decisions
 
-1. **Go on the rebuild,** starting the new game from a fresh save with the old one left untouched.
-2. **The process change above.**
+1. ~~Go on the rebuild~~: accepted (D073).
+2. **The process change above:** still open.
 3. The Number's version (A, B or C) can wait until milestone 5.
