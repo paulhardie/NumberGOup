@@ -533,6 +533,15 @@ func carry_from(old) -> bool:
 	_sum_remaining()
 	return true
 
+## Sets each walking member off its travel time before its next hit, so it
+## stands as far out as that hit is away. For a run resumed on a newer profile,
+## whose set-off distance may differ from the one its hits were timed for.
+func align_walkers_to_hits() -> void:
+	for member in members:
+		if int(member.state) == STANDING:
+			member.sets_off = float(member.next_hit) - TaxBalanceProfile.travel_seconds(str(member.get("kind", "basic")))
+	_next_due = -INF
+
 static func _ratio(part: ScientificNumber, whole: ScientificNumber) -> float:
 	if whole.is_zero():
 		return 0.0
@@ -670,22 +679,26 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 				interval = default_interval
 			elif interval > 0.0:
 				interval = maxf(0.5, interval)
+			var boss := bool(saved.get("boss", encounter.is_boss and member_wave == encounter.wave))
+			# Saved before D066: a boss or a basic enemy. The kind decides the
+			# boss.
+			var kind := _known_kind(str(saved.get("kind", "boss" if boss else "basic")))
 			# A damaged clock must neither fire a burst of catch-up hits nor
-			# never fire again.
+			# never fire again. A walker knocked back (D068) may be due after
+			# the wave's clock, but never after it walks back in.
 			var next_hit := float(saved.get("next_hit", arrive))
 			if not is_finite(next_hit):
 				next_hit = arrive
-			next_hit = clampf(next_hit, 0.0, maxf(TaxBalanceProfile.WAVE_INTERVAL_SECONDS + interval, arrive))
+			var walks_in := -INF
+			if state == STANDING and is_finite(float(saved.get("sets_off", NAN))):
+				walks_in = clampf(float(saved.sets_off), LONG_AGO, TaxBalanceProfile.latest_arrival()) + TaxBalanceProfile.travel_seconds(kind)
+			next_hit = clampf(next_hit, 0.0, maxf(maxf(TaxBalanceProfile.WAVE_INTERVAL_SECONDS + interval, arrive), walks_in))
 			var landed := bool(saved.get("landed", state == LANDED or state == AT_NUMBER))
 			# Saved before D063: a boss was always its own wave's, and a member
 			# that had landed had hit at least once.
 			var weight := float(saved.get("weight", 0.0))
 			var of := float(saved.get("of", 0.0))
 			var share := weight / of if weight > 0.0 and of >= weight else clampf(float(saved.get("share", 1.0)), 0.0, 1.0)
-			var boss := bool(saved.get("boss", encounter.is_boss and member_wave == encounter.wave))
-			# Saved before D066: a boss or a basic enemy. The kind decides the
-			# boss.
-			var kind := _known_kind(str(saved.get("kind", "boss" if boss else "basic")))
 			encounter.members.append({
 				"max": ScientificNumber.from_dict(saved.get("max", {})),
 				"hp": ScientificNumber.from_dict(saved.get("hp", {})),

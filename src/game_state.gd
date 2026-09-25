@@ -282,12 +282,7 @@ func _fire(event_type: String) -> SimulationEvent:
 		_pay_kills()
 	var produced := ScientificNumber.from_float(float(outcome.produced))
 	lifetime_generated = lifetime_generated.add(produced)
-	var banked := produced
-	var lifesteal := stat("lifesteal")
-	if lifesteal > 0.0 and float(outcome.applied) > 0.0:
-		banked = banked.add(ScientificNumber.from_float(float(outcome.applied) * lifesteal))
-	number = number.add(banked)
-	_note_number_peak()
+	_bank(produced, ScientificNumber.from_float(float(outcome.applied)))
 	if event_type == "tick" and rapid_fire_left <= 0.0:
 		var rapid := stat("rapid_fire_chance")
 		if rapid > 0.0 and rng.randf() < rapid:
@@ -316,14 +311,20 @@ func _strike(index: int, damage: float, outcome: Dictionary) -> void:
 ## fed to Lifesteal. Exact at any size, so the suite deals damage through it.
 func _add_number(amount: ScientificNumber) -> void:
 	lifetime_generated = lifetime_generated.add(amount)
-	var banked := amount
+	var applied := ScientificNumber.new()
 	if in_run and active_encounter != null:
 		_sync_encounter()
-		var applied: ScientificNumber = active_encounter.apply_compliance(amount)
-		var lifesteal := stat("lifesteal")
-		if lifesteal > 0.0 and not applied.is_zero():
-			banked = banked.add(applied.multiply_scalar(lifesteal))
+		applied = active_encounter.apply_compliance(amount)
 		_pay_kills()
+	_bank(amount, applied)
+
+## What strikes add to the Number: all they dealt (D037), plus Lifesteal's
+## share of what they took off.
+func _bank(dealt: ScientificNumber, applied: ScientificNumber) -> void:
+	var banked := dealt
+	var lifesteal := stat("lifesteal")
+	if lifesteal > 0.0 and not applied.is_zero():
+		banked = banked.add(applied.multiply_scalar(lifesteal))
 	number = number.add(banked)
 	_note_number_peak()
 
@@ -941,8 +942,8 @@ func get_category_rank_total(category: String) -> int:
 			total += get_lab_owned(lab_definition.id)
 	return total
 
-## The permanent multiplier every beaten wave's Coins pay through, from the
-## Workshop's Coin Bonus row and Coin Research in the Labs.
+## What a kill's Coins are multiplied by: Coins / Kill Bonus, times the Lab and
+## Card Coin bonus, which also lifts wave-end and checkpoint Coins.
 func get_coin_bonus_multiplier() -> float:
 	_settle_labs()
 	return (1.0 + _effect_sum("coin_bonus")) * stat("coins_per_kill")
@@ -1893,6 +1894,10 @@ func _rebuild_encounter_on_current_profile() -> void:
 		member.max = liability.multiply_scalar(float(member.share))
 		member.hp = member.max.multiply_scalar(remaining_share)
 		member.wave_hit = balance_profile.collection_for_wave(selected_tier, member_wave, run_seed)
+	# An older profile set enemies off from nearer (D068 moved them from 60 m
+	# to 100 m), so a walker keeps the hit it was due and the distance it had
+	# left, rather than today's set-off time with the old hit.
+	rebuilt.align_walkers_to_hits()
 	rebuilt._sum_remaining()
 	active_encounter = rebuilt
 	# Members the old save had killed pay now, on today's rules (D066): the

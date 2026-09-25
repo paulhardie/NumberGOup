@@ -17,6 +17,7 @@ func _init() -> void:
 	_test_shots_crit_and_super_crit()
 	_test_rapid_fire_and_regen()
 	_test_range_damage_per_meter_and_knockback()
+	_test_resumed_walkers_keep_their_hits()
 	_test_orbs_kill_what_they_touch()
 	_test_health_sets_the_starting_number()
 	_test_save_round_trip_and_legacy_migration()
@@ -460,6 +461,67 @@ func _test_range_damage_per_meter_and_knockback() -> void:
 	for step in range(5):
 		pile._advance_waves(0.25)
 	_expect(int(landed.hits) == hits_before + 1 and int(landed.state) == TaxEncounter.AT_NUMBER, "it should hit again when it walks back in")
+
+## A run resumed from a save keeps each walking enemy's hit where it was due:
+## one knocked back in the opening waves, whose hit falls after the wave's
+## clock, and one timed on an older profile that set enemies off from nearer.
+func _test_resumed_walkers_keep_their_hits() -> void:
+	var pile := GameState.new()
+	pile.balance_profile.ENEMY_MIX = {"basic": 1.0}
+	pile.balance_profile.OPENING_HIT_WAVES = 0
+	pile.balance_profile.OPENING_EASED_BY = 0
+	pile.start_run(1, 18)
+	pile.number = ScientificNumber.new(1.0, 9)
+	while pile.wave_accumulator < 34.0:
+		pile._advance_waves(0.25)
+	var index := -1
+	for candidate in range(pile.active_encounter.members.size()):
+		if int(pile.active_encounter.members[candidate].state) == TaxEncounter.AT_NUMBER:
+			index = candidate
+			break
+	_expect(index >= 0, "the knockback fixture should have an enemy at the Number late in the wave")
+	pile.active_encounter.knock_back(index, 90.0)
+	var pushed: Dictionary = pile.active_encounter.members[index]
+	_expect(float(pushed.next_hit) > TaxBalanceProfile.WAVE_INTERVAL_SECONDS + float(pushed.interval), "the fixture's pushed enemy should be due after the wave's clock and its interval")
+	var restored = TaxEncounter.from_dict(pile.active_encounter.to_dict())
+	var back: Dictionary = restored.members[index]
+	_expect(is_equal_approx(float(back.next_hit), float(pushed.next_hit)), "a knocked-back enemy should keep its hit across a reload: %f, not %f" % [float(back.next_hit), float(pushed.next_hit)])
+	_expect(is_equal_approx(TaxEncounter.distance_of(back, pile.wave_accumulator), TaxEncounter.distance_of(pushed, pile.wave_accumulator)), "a knocked-back enemy should stand where it was after a reload")
+
+	var save_path := "res://.number_go_up_test_save.json"
+	var older := GameState.new()
+	older.balance_profile.ENEMY_MIX = {"basic": 1.0}
+	older.start_run(1, 21)
+	older.number = ScientificNumber.new(1.0, 9)
+	for step in range(8):
+		older._advance_waves(0.25)
+	older.save_path = save_path
+	_expect(older.save(), "the older-profile fixture should save")
+	var old_data: Dictionary = _read_json(save_path)
+	old_data.balance_profile_id = "tax-foundation-v15"
+	# On that profile enemies set off 60 m out, so a basic walked in for 6
+	# seconds rather than 10, and arrived 4 seconds sooner.
+	var due: Array = []
+	for member in old_data.active_encounter.members:
+		if int(member.state) == TaxEncounter.STANDING:
+			member.next_hit = float(member.next_hit) - 4.0
+			member.sets_off = float(member.next_hit) - 6.0
+			due.append(float(member.next_hit))
+	_write_json(save_path, old_data)
+	var resumed := GameState.new()
+	resumed.balance_profile.ENEMY_MIX = {"basic": 1.0}
+	resumed.save_path = save_path
+	resumed.load()
+	var walkers: Array = resumed.active_encounter.members.filter(func(member): return int(member.state) == TaxEncounter.STANDING)
+	_expect(not walkers.is_empty() and walkers.size() == due.size(), "the older-profile fixture should resume with its walkers")
+	var aligned := true
+	for position in range(walkers.size()):
+		var walker: Dictionary = walkers[position]
+		var left := TaxEncounter.distance_of(walker, resumed.wave_accumulator) - TaxBalanceProfile.stop_distance("basic")
+		var expected_left := maxf(0.0, TaxBalanceProfile.speed_metres("basic") * (float(walker.next_hit) - resumed.wave_accumulator))
+		aligned = aligned and is_equal_approx(float(walker.next_hit), float(due[position])) and absf(left - minf(expected_left, TaxBalanceProfile.SPAWN_DISTANCE_METRES - TaxBalanceProfile.stop_distance("basic"))) < 1.0e-6
+	_expect(aligned, "a walker resumed on today's profile should keep its hit and stand as far out as that hit is away")
+	resumed.clear_save()
 
 ## D068: Orbs circle the Number and kill any enemy but a boss they touch.
 func _test_orbs_kill_what_they_touch() -> void:
@@ -1427,6 +1489,14 @@ func _test_lifesteal_feeds_the_number() -> void:
 	_expect(absf(state.number.log10() - log(1040.0 + 40.0 * share) / log(10.0)) < 1.0e-12, "Lifesteal should add its share of the 40 dealt")
 	state._add_number(ScientificNumber.from_float(100))
 	_expect(state.active_encounter.is_cleared() and absf(state.number.log10() - log(1140.0 + 100.0 * share) / log(10.0)) < 1.0e-12, "only the 60 the enemy absorbed should feed Lifesteal")
+
+	# The same through a real shot, the way a player gets it.
+	state.number = ScientificNumber.from_float(1000)
+	_one_enemy(state, ScientificNumber.from_float(100))
+	var shot := state.tap()
+	var dealt := float(shot.amount.mantissa) * pow(10.0, shot.amount.exponent)
+	_expect(dealt > 0.0 and dealt < 100.0, "the fixture's tap should strike without clearing the enemy")
+	_expect(absf(state.number.log10() - log(1000.0 + dealt * (1.0 + share)) / log(10.0)) < 1.0e-9, "a tap should bank what it dealt plus Lifesteal's share of it")
 
 func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
 	# D064: Thorns deals the enemy that hit a share of its own
