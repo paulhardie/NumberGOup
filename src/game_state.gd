@@ -623,7 +623,9 @@ func _pay_wave_end() -> int:
 		_add_cash(ScientificNumber.from_float(per_wave))
 	var interest := stat("interest")
 	if interest > 0.0 and not cash.is_zero():
-		_add_cash(cash.multiply_scalar(interest))
+		var earned := cash.multiply_scalar(interest)
+		var cap := ScientificNumber.from_float(TaxBalanceProfile.INTEREST_CAP)
+		_add_cash(cap if earned.compare_to(cap) > 0 else earned)
 	for category in FREE_UPGRADE_ROWS:
 		var chance := stat(FREE_UPGRADE_ROWS[category])
 		if chance > 0.0 and rng.randf() < chance:

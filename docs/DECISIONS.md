@@ -822,12 +822,14 @@ Rules:
   1. **A kill pays $1 on waves 1 to 9 and $1 more every ten waves** ($2 from wave 10, $11 at wave 100), times its type: basic 1, fast and ranged 2, tank 5.
   2. **A boss pays 20 times a basic.** The research says only that bosses use "their own, much higher" table; 20 is our guess, the same as its HP weight, until the owner reads one boss kill's Cash in the game.
   3. **Times the tier's reward multiplier** (Tier 2 ×1.8, Tier 3 ×2.6, as Coins use). The research says Cash is multiplied by the tier's difficulty multiplier without naming it; this is our reading. Cash was not tier-scaled before.
-  4. Cash Bonus, Cash / Wave and Interest are unchanged, and a member saved under D063 still owing a share of its wave's reward now pays its type's Cash like any other.
+  4. Cash Bonus and Cash / Wave are unchanged, and a member saved under D063 still owing a share of its wave's reward now pays its type's Cash like any other.
+  5. **Interest pays at most $50 a wave,** The Tower's cap before Labs raise it ([`TOWER_WORKSHOP_REFERENCE.md`](TOWER_WORKSHOP_REFERENCE.md)), under D063's standing rule to copy The Tower. It had no cap, and a 10-hour maxed simulation held 1.8e30 Cash by wave 1,029.
 - **Evidence** (seed 7, two taps a second; `run_balance.sh` and `tools/career_simulator.gd`):
   - A fresh run that buys the cheapest useful run Upgrade whenever it can dies on wave 105 in 61 minutes with 83,000 Coins (was wave 153 in 89 minutes with 223,000). The owner's research says a new player takes about an hour to reach wave 100 (unverified). Without run Upgrades a fresh run is unchanged: wave 33 in 18.9 minutes.
   - An early build that buys run Upgrades (Damage 20, Attack Speed 10, Health 20, Regen 10) is still alive at the 90-minute cap on wave 155.
   - Careers (40 runs, 90-minute cap, even spending): buying run Upgrades reaches wave 61 on run 1 and wave 104 on run 2 (1.6 hours), then every run from run 3 lasts to the cap. Hoarding Cash is unchanged: wave 100 on run 18 (8.7 hours).
+  - The Interest cap changes none of these figures: the measured runs never hold enough Cash for Interest to pass $50 a wave.
 - **Consequences:**
   - The first run or two now land near where The Tower's research puts a new player. **From the third run no run ends in 90 minutes**, so the next problem is walls, not Cash: once a build outgrows the curve, only the cap ends a run (the open question of every shot also being Number, D037 and D068).
-  - Tier 2 and 3 pay 1.8 and 2.6 times the Cash they did.
+  - Tier 2 and 3 pay 1.8 and 2.6 times Tier 1's Cash per kill; before, every tier paid the same.
 - **Revisit when:** the owner reads a boss kill's Cash, or a battle report's Cash earned at a known wave on an early run; or a tier's Cash turns out not to follow its Coin multiplier.

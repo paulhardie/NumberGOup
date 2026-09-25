@@ -1,6 +1,6 @@
 # Handover
 
-**Last updated:** 25 September 2026, by Claude, handing on to the next agent. **D068 (The Tower's Workshop), D069 (Labs, Cards, Knowledge and Gems parked) and D070 (more room in the run arena) are merged to `main`** in PR #59. `claude/beautiful-dirac-6ozaio` carries, on top of `main`, the fixes for PR #59's Codex review (`cb77565`: a knocked-back enemy keeps its wave from being beaten, Stats' Damage / sec leaves Health Regen out, the hub's Coin row is named for what it shows, the arena probe's stream checks are deterministic) and **D071: Cash per kill, The Tower's way**.
+**Last updated:** 25 September 2026, by Claude, handing on to the next agent. **D068 (The Tower's Workshop), D069 (Labs, Cards, Knowledge and Gems parked) and D070 (more room in the run arena) are merged to `main`** in PR #59. `claude/beautiful-dirac-6ozaio` carries, on top of `main`, the fixes for PR #59's Codex review (`cb77565`: a knocked-back enemy keeps its wave from being beaten, Stats' Damage / sec leaves Health Regen out, the hub's Coin row is named for what it shows, the arena probe's stream checks are deterministic) and **D071: Cash per kill, The Tower's way** (with Interest capped at $50 a wave), plus a fix so kills paid before a rebuild onto a newer balance profile stay paid.
 
 The branch is unmerged and has no PR. `claude/codex-handover-if13d2` is stale: everything on it is in `main`.
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
@@ -36,7 +36,7 @@ This branch plays like this on a fresh run (Godot 4.7.2, profile `tax-foundation
 
 ## Open decisions for the owner
 
-1. **Runs stop ending from the third.** With Cash fitted (D071), the first two runs land near The Tower's pace, but from run 3 every run lasts to the cap. **Every shot is also Number** (D037), so with The Tower's Damage values a strong Attack build banks so much Number that hits stop mattering. **Recommend: bank only a share of what a shot deals, or only what it takes off an enemy, and measure the careers again;** the Number stays (D068) but stops being free health. Interest has no cap here either (Cash reached 1.8e30 by wave 1,029 in a 10-hour maxed simulation); whether The Tower caps it is unverified.
+1. **Runs stop ending from the third.** With Cash fitted (D071), the first two runs land near The Tower's pace, but from run 3 every run lasts to the cap. **Every shot is also Number** (D037), so with The Tower's Damage values a strong Attack build banks so much Number that hits stop mattering. **Recommend: bank only a share of what a shot deals, or only what it takes off an enemy, and measure the careers again;** the Number stays (D068) but stops being free health.
 2. **A boss's Cash is a guess** (20 basics, D071). **Recommend: read one boss kill's Cash in The Tower** and replace it.
 3. **The refund at 15×.** The owner's real save converts once on first load: its old Workshop levels become Coins at their old prices, and all its Coins are multiplied by 15. **Recommend accepting:** 15 is the ratio of both kill pay and first-level prices. The V10/V11 file is kept beside the new save.
 4. **Merge this branch?** It carries the review fixes and D071. **Recommend: yes, once CI is green,** after the owner has played a run on it.
@@ -82,6 +82,7 @@ Each needs an owner "go", its own decision, and a retune against The Tower's Wor
 ## Known issues and risks
 
 - **Runs from the third reach the cap:** decision 1 above.
+- **A resumed pre-D066 save pays its unpaid kills without the run's own Cash Bonus and Coins / Kill Bonus levels:** `_restore_saved_run` rebuilds the encounter before restoring `rig_ranks`. Only saves from before D066 with unpaid kills are affected.
 - **Taps have no rate limit:** every tap is a full shot, so an autoclicker scales output without bound. Intended by D068; a lever to know about.
 - **Stale tools:** `tools/workshop_ladders.py` crashes on the regenerated `current.json` (`KeyError: 'faster_cadence'`), though `docs/WORKSHOP_LADDERS.md` names it as the generator of `proposed.json`; `tools/career_model.py` still models the retired Leech and Thorns rows.
 - **The Tower's Workshop data is its own table,** redistributed under the SDK's MIT licence: fine privately; publishing needs a decision.

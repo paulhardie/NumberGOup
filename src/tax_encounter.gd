@@ -530,6 +530,8 @@ func carry_from(old) -> bool:
 		member.next_hit = float(was.get("next_hit", member.arrive))
 		member.hits = int(was.get("hits", 1 if member.landed else 0))
 		member.reached = bool(was.get("reached", false))
+		# Paid on the old profile stays paid, or the next rebuild pays it again.
+		member.paid = bool(was.get("paid", false))
 		if int(member.state) == KILLED:
 			member.hp = ScientificNumber.new()
 			# Killed on the old profile, paid on this one's rules (D066).

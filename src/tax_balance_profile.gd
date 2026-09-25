@@ -66,6 +66,8 @@ const BOSS_REWARD_MULTIPLIER := 5.0
 ## Tower's boss table is not known; a boss paying twenty basics is our guess.
 const CASH_STEP_WAVES := 10
 const CASH_KIND := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "boss": 20.0}
+## The most Interest pays a wave, The Tower's cap before Labs raise it (D071).
+const INTEREST_CAP := 50.0
 ## Since D068 the Workshop is The Tower's: a fresh run fires Damage 3 once a
 ## second (Attack Speed 1.0), with no separate output floor (D033) or base
 ## shot rate (D055).

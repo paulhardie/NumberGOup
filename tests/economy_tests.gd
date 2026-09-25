@@ -2406,6 +2406,24 @@ func _test_cash_comes_from_kills_and_waves() -> void:
 	var kills := owed * 2.0
 	var held := 1000.0 + kills + 40.0 * 2.0
 	_expect(absf(bonus.cash.log10() - log(held * (1.0 + 0.03)) / log(10.0)) < 1.0e-9, "Cash Bonus should double kills and Cash / Wave, then Interest pay 3%% of the Cash held: %s" % bonus.cash.format_value())
+	# The Tower caps Interest at $50 a wave (D071).
+	var rich := GameState.new()
+	rich.purchased = {"interest": 50}
+	rich.start_run(1, 22)
+	rich.cash = ScientificNumber.from_float(100000.0)
+	rich._pay_wave_end()
+	_expect(rich.cash.compare_to(ScientificNumber.from_float(100050.0)) == 0, "Interest should pay no more than $50 a wave: %s" % rich.cash.format_value())
+
+	# In play, a kill pays its tier's Cash, a boss twenty basics' (D071).
+	var boss_run := GameState.new()
+	boss_run.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
+	_expect(boss_run.start_run(2, 23), "Tier 2 should start after its unlock")
+	boss_run.number = ScientificNumber.from_float(1e12)
+	boss_run.wave = 20
+	boss_run.active_encounter = _lone_boss(boss_run, 20)
+	boss_run.active_encounter.damage_member(0, boss_run.active_encounter.members[0].hp.copy())
+	boss_run._pay_kills()
+	_expect(is_equal_approx(boss_run.cash.mantissa * pow(10.0, boss_run.cash.exponent), profile.kill_cash(2, 20, "boss")) and is_equal_approx(profile.kill_cash(2, 20, "boss"), 3.0 * 20.0 * profile.get_tier(2).reward_multiplier), "a Tier 2 boss on wave 20 should pay $3 x 20 x the tier's multiplier: %s" % boss_run.cash.format_value())
 
 ## Health bought mid-run adds what it adds to the Number now, as The Tower's
 ## raises the tower's health (D068); other rows leave the Number alone.
@@ -3073,6 +3091,29 @@ func _test_enemy_types_and_pay_per_kill() -> void:
 	var paid_for_three: float = float(migrated_types.coins) + migrated_types.coin_fraction
 	_expect(owed_for_three > 0.0 and absf(paid_for_three - owed_for_three) < 0.000001 and migrated_types.active_encounter.members.slice(0, 3).all(func(member): return bool(member.paid)), "a migrated save should pay the kills it had made: %f of %f" % [paid_for_three, owed_for_three])
 	migrated_types.clear_save()
+
+	# Kills paid before a rebuild onto a newer profile stay paid through the
+	# next rebuild too, rather than paying again.
+	var paid_run := GameState.new()
+	paid_run.start_run(1, 65)
+	paid_run.number = ScientificNumber.from_float(1e9)
+	for kill in range(3):
+		paid_run.active_encounter.damage_member(kill, paid_run.active_encounter.members[kill].hp.copy())
+	paid_run._pay_kills()
+	var coins_paid := paid_run.coins
+	var cash_paid: ScientificNumber = paid_run.cash.copy()
+	_expect(not cash_paid.is_zero(), "the fixture's kills should pay Cash")
+	paid_run.save_path = save_path
+	for rebuild in range(2):
+		_expect(paid_run.save(), "the rebuild fixture should save")
+		var older_profile: Dictionary = _read_json(save_path)
+		older_profile.balance_profile_id = "tax-foundation-v16"
+		_write_json(save_path, older_profile)
+		paid_run = GameState.new()
+		paid_run.save_path = save_path
+		paid_run.load()
+	_expect(paid_run.coins == coins_paid and paid_run.cash.compare_to(cash_paid) == 0, "two rebuilds should pay no kill twice: %s Cash, not %s" % [paid_run.cash.format_value(), cash_paid.format_value()])
+	paid_run.clear_save()
 
 	# An enemy carried under D063's rules still owes its share of its passed
 	# wave's reward, and pays that at its kill rather than its type's Coins.

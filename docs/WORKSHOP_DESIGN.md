@@ -21,7 +21,7 @@ This document uses the accepted player vocabulary (Wave HP, Hit, Armor). [Vocabu
 
 - **Each row's job,** in the two plain jobs above: Attack rows decide whether a wave falls inside one timer (Damage, Attack Speed and the crits by raw damage; Range, Damage / Meter, Multishot and Bounce Shot by reaching and striking more of the crowd; Rapid Fire by bursts). Defense rows decide how many hits the Number takes and survives (Health and Regen as Number; Defense % and Absolute off every hit; Thorns and Lifesteal by fighting back; Knockback and Orbs by keeping enemies away; Death Defy as a last chance). Utility rows decide what a run pays (Cash rows fund run Upgrades; Coin rows fund the Workshop; Free Upgrades and Interest compound a run).
 - **The Number stays:** Health sets where a run starts, Regen adds to it, and every shot's damage is Number too (D037), which makes a strong Attack build a strong Defense one as well.
-- **Run Upgrades** add one level of an opened row at The Tower's Cash price, by how many of that row the run has bought. They are currently far stronger than anything else ([D068 evidence](DECISIONS.md#d068--the-towers-workshop-in-full-around-the-number)), because the Cash a kill pays is still ours.
+- **Run Upgrades** add one level of an opened row at The Tower's Cash price, by how many of that row the run has bought. Since D071 a kill pays The Tower's Cash, and a fresh run that buys them lasts about an hour; from the third run of a career they still carry every run to the cap ([D071 evidence](DECISIONS.md#d071--cash-per-kill-the-towers-way)).
 - **Not built yet:** The Tower's Land Mines, Shockwave, Wall, Recovery Packages, Enemy Level Skip, Rend Armor and Workshop Enhancements, and the Ultimate Weapons.
 
 ## The wave, in one paragraph
