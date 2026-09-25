@@ -833,3 +833,17 @@ Rules:
   - The first run or two now land near where The Tower's research puts a new player. **From the third run no run ends in 90 minutes**, so the next problem is walls, not Cash: once a build outgrows the curve, only the cap ends a run (the open question of every shot also being Number, D037 and D068).
   - Tier 2 and 3 pay 1.8 and 2.6 times Tier 1's Cash per kill; before, every tier paid the same.
 - **Revisit when:** the owner reads a boss kill's Cash, or a battle report's Cash earned at a known wave on an early run; or a tier's Cash turns out not to follow its Coin multiplier.
+
+## D072 — Enemies stay and hit from wave 1, as The Tower's do
+
+- **Status:** Accepted (2026-09-25) on owner direction: "lets just get the wave 1 experience in place so we can perfect that loop. When in doubt, tower tier 1, brand new player. Copy the tower, work our mechanics over it where needed". Implemented (2026-09-25) on `claude/beautiful-dirac-6ozaio`; not merged. Profile `tax-foundation-v18`. Retires D059's gentler opening for new runs.
+- **Context:** Since D059, to wave 30 an enemy that reached the Number hit once and left, and from wave 31 enemies stayed, hitting every 15 seconds and easing to 5 by wave 50. D059 was ours, made when the pile ended a first run at wave 17 on our own curve. The Tower's enemies stay at the tower and keep attacking from the first wave, and since D063–D068 the curve, the Workshop and the Cash are The Tower's.
+- **Decision:**
+  1. **From wave 1, an enemy that reaches the Number stays and hits every `MEMBER_HIT_SECONDS` (5 seconds) until it dies,** bosses included. The Tower's own enemy attack interval is not known (TheTowerSDK has none); 5 seconds stays ours.
+  2. D059's mechanism stays for runs saved under it: their opening members still pass, and a rebuild onto this profile gives the wave's own members today's interval.
+- **Evidence** (seed 7, two taps a second; `run_balance.sh`, `tools/career_simulator.gd`):
+  - A fresh run that buys run Upgrades: wave 107 in 62 minutes (105 in 61 before), near the research's "about an hour to wave 100" for a new player.
+  - A fresh run that never buys one: wave 13 in 7.3 minutes (33 in 18.9 before). First spend (Damage 3, Health 2): wave 26 (38). Early: wave 61, unchanged; mid and stronger builds unchanged.
+  - Careers (12 runs, 90-minute cap): never buying run Upgrades reaches wave 30 on run 8 (1.6 hours); buying them reaches wave 61 on run 1 and 106 on run 2, and every run from run 3 lasts to the cap, as before.
+- **Consequences:** buying run Upgrades is now how a first run survives, as in The Tower; a player who never buys dies early. Runs from the third still reach the cap (D071's open question).
+- **Revisit when:** the owner reads The Tower's enemy attack rate, or plays a first run and finds the opening too harsh.

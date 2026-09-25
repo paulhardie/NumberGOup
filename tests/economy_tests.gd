@@ -42,6 +42,7 @@ func _init() -> void:
 	_test_members_stay_and_the_pile_grows()
 	_test_tower_shaped_bosses_and_heat_up()
 	_test_opening_members_pass()
+	_test_enemies_stay_from_wave_one()
 	_test_d058_opening_save_reconciles()
 	_test_output_is_number_and_strikes_the_wave()
 	_test_repeated_taps_count_once()
@@ -1081,11 +1082,13 @@ func _test_first_run_funds_permanent_workshop() -> void:
 ## once a second and Health 5, on every tier.
 func _test_tier_one_opening() -> void:
 	var fresh := GameState.new()
+	_d059_opening(fresh.balance_profile)
 	fresh.start_run(1, 3)
 	var profile = fresh.balance_profile
 	_expect(fresh.get_rate_per_second().compare_to(ScientificNumber.from_float(3.0 + 0.0005)) == 0, "a fresh run should shoot Damage 3 a second, with The Tower's trace of Regen")
 	_expect(fresh.number.compare_to(ScientificNumber.from_float(5.0)) == 0, "a Tier 1 run should start at Health 5")
 	var tier_two := GameState.new()
+	_d059_opening(tier_two.balance_profile)
 	tier_two.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	tier_two.start_run(2, 3)
 	_expect(tier_two.number.compare_to(ScientificNumber.from_float(5.0)) == 0, "Tier 2 should start at Health too")
@@ -1128,6 +1131,7 @@ func _test_tier_one_opening() -> void:
 	# D065: a boss wave sends its ordinary enemies and a boss, which carries
 	# twenty enemies' HP and hits like one (D063).
 	var boss_run := GameState.new()
+	_d059_opening(boss_run.balance_profile)
 	boss_run.start_run(1, 3)
 	boss_run.wave = 10
 	boss_run.active_encounter = boss_run._make_encounter(10)
@@ -1142,12 +1146,14 @@ func _test_tier_one_opening() -> void:
 	# once a second. A fresh Tower (D068) lasts about 11 minutes idle and 18
 	# tapping.
 	var no_action := GameState.new()
+	_d059_opening(no_action.balance_profile)
 	no_action.start_run(1, 7)
 	for step in range(4 * 1200):
 		if not no_action.in_run:
 			break
 		no_action.advance(0.25)
 	var one_tap := GameState.new()
+	_d059_opening(one_tap.balance_profile)
 	one_tap.start_run(1, 7)
 	for step in range(4 * 1200):
 		if not one_tap.in_run:
@@ -1158,6 +1164,7 @@ func _test_tier_one_opening() -> void:
 	_expect(not no_action.in_run and not one_tap.in_run, "both openings should end within twenty minutes")
 	_expect(no_action.coins * 4 < one_tap.coins * 3, "a no-action opening must earn clearly less than tapping once a second")
 	var armored := GameState.new()
+	_d059_opening(armored.balance_profile)
 	armored.purchased = {"defense_percent": 1}
 	armored.start_run(1, 3)
 	armored.wave = 21
@@ -1169,6 +1176,7 @@ func _test_tier_one_opening() -> void:
 	# it moves on (D037). Nothing was cleared, so its one Coin is not paid and
 	# it sets no record, and its members carry into the next wave.
 	var stuck := GameState.new()
+	_d059_opening(stuck.balance_profile)
 	# Fast enemies, which all arrive inside the wave's clock (D068's 100 m).
 	stuck.balance_profile.ENEMY_MIX = {"fast": 1.0}
 	stuck.start_run(1, 3)
@@ -1302,6 +1310,7 @@ func _test_missed_waves_move_on_and_bosses_stay() -> void:
 	# D037: an ordinary wave that outlasts its timer hits once and moves on,
 	# paying Coins for the share cleared; it is not beaten, so it sets no record.
 	var state := GameState.new()
+	_d059_opening(state.balance_profile)
 	# Fast enemies, which all arrive inside the wave's clock (D068's 100 m).
 	state.balance_profile.ENEMY_MIX = {"fast": 1.0}
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
@@ -1333,6 +1342,7 @@ func _test_missed_waves_move_on_and_bosses_stay() -> void:
 	# D063: waves keep coming while a boss stands. An unbeaten boss hits and
 	# joins the pile in front of the next wave, keeping the damage dealt.
 	var boss := GameState.new()
+	_d059_opening(boss.balance_profile)
 	boss.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	boss.start_run(2, 25)
 	boss.wave = 30
@@ -1579,6 +1589,7 @@ func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
 	# D064: Thorns deals the enemy that hit a share of its own
 	# maximum HP, half on a boss, as The Tower's does.
 	var state := GameState.new()
+	_d059_opening(state.balance_profile)
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	state.purchased = {"thorns": 50}
 	state.start_run(2, 42)
@@ -1612,6 +1623,7 @@ func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
 	# The contact still happens, so Thorns still bites through a Brace (D064).
 	# Wave 51's enemies stay after hitting, so the pile shows what Thorns took.
 	var braced := GameState.new()
+	_d059_opening(braced.balance_profile)
 	braced.purchased = {"thorns": 50}
 	braced.start_run(1, 43)
 	braced.number = ScientificNumber.from_float(1e9)
@@ -1630,6 +1642,7 @@ func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
 	# Guard taking every hit to nothing still leaves the contact, so Thorns
 	# still bites: The Tower's Tier 1 turtle (D064).
 	var turtle := GameState.new()
+	_d059_opening(turtle.balance_profile)
 	turtle.purchased = {"thorns": 50, "defense_absolute": 5000}
 	turtle.start_run(1, 44)
 	turtle.number = ScientificNumber.from_float(1000)
@@ -1645,6 +1658,7 @@ func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
 	# At 99%, an opening enemy that hits after taking any damage dies to Thorns
 	# before it can leave, so its wave can still be beaten.
 	var opener := GameState.new()
+	_d059_opening(opener.balance_profile)
 	# Fast enemies, which all arrive inside the wave's clock; a basic set off
 	# last would still be walking in reach when it ends (D068's 100 m).
 	opener.balance_profile.ENEMY_MIX = {"fast": 1.0}
@@ -3760,9 +3774,11 @@ func _test_members_stay_and_the_pile_grows() -> void:
 ## hitting every 15 seconds and easing to MEMBER_HIT_SECONDS by wave 50.
 func _test_opening_members_pass() -> void:
 	var profile := TaxBalanceProfile.new()
+	_d059_opening(profile)
 	_expect(profile.member_hit_seconds(1) == 0.0 and profile.member_hit_seconds(30) == 0.0, "opening members should hit once and pass")
 	_expect(is_equal_approx(profile.member_hit_seconds(31), 14.5) and is_equal_approx(profile.member_hit_seconds(40), 10.0) and is_equal_approx(profile.member_hit_seconds(50), profile.MEMBER_HIT_SECONDS), "after the opening the interval should ease from 15 seconds to the member interval by wave 50")
 	var state := GameState.new()
+	_d059_opening(state.balance_profile)
 	state.balance_profile.ENEMY_MIX = {"basic": 1.0}
 	state.start_run(1, 81)
 	state.number = ScientificNumber.from_float(1e6)
@@ -3784,6 +3800,7 @@ func _test_opening_members_pass() -> void:
 func _test_d058_opening_save_reconciles() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
 	var old := GameState.new()
+	_d059_opening(old.balance_profile)
 	old.save_path = save_path
 	old.start_run(1, 82)
 	old.number = ScientificNumber.from_float(1e6)
@@ -3811,6 +3828,7 @@ func _test_d058_opening_save_reconciles() -> void:
 	var saved := _read_json(save_path)
 	_expect(int(saved.version) == SaveDataV12.VERSION and str(saved.balance_profile_id) == old.balance_profile.PROFILE_ID, "the old fixture should have D059's save version and profile ID")
 	var resumed := GameState.new()
+	_d059_opening(resumed.balance_profile)
 	resumed.save_path = save_path
 	resumed.load()
 	_expect(resumed.load_status == GameState.LOAD_OK and resumed.wave == 2, "the old V10 opening run should load")
@@ -3822,12 +3840,14 @@ func _test_d058_opening_save_reconciles() -> void:
 	_expect(resumed.number.compare_to(number_before) == 0, "a converted opening member should not hit again")
 	_expect(resumed.save(), "the converted opening run should save in D059 form")
 	var current := GameState.new()
+	_d059_opening(current.balance_profile)
 	current.save_path = save_path
 	current.load()
 	_expect(current.active_encounter.to_dict() == resumed.active_encounter.to_dict() and current.number.compare_to(resumed.number) == 0, "the converted D059 encounter should round-trip exactly")
 	resumed.clear_save()
 
 	var later := GameState.new()
+	_d059_opening(later.balance_profile)
 	later.save_path = save_path
 	later.start_run(1, 83)
 	later.number = ScientificNumber.from_float(1e9)
@@ -3846,6 +3866,7 @@ func _test_d058_opening_save_reconciles() -> void:
 	later.active_encounter.carry_in([early])
 	_expect(later.save(), "a D058-shaped later run with an opening pile should save")
 	var later_resumed := GameState.new()
+	_d059_opening(later_resumed.balance_profile)
 	later_resumed.save_path = save_path
 	later_resumed.load()
 	_expect(later_resumed.active_encounter.members.all(func(member): return int(member.wave) == 31) and later_resumed.active_encounter.at_number_count() == 1, "an early carried member should leave, while wave 31's own member stays")
@@ -3856,12 +3877,14 @@ func _test_d058_opening_save_reconciles() -> void:
 	_expect(premature_hits == 0, "a converted wave-31 member should not repeat on D058's old five-second clock")
 	_expect(later_resumed.save(), "the converted eased wave should save")
 	var later_roundtrip := GameState.new()
+	_d059_opening(later_roundtrip.balance_profile)
 	later_roundtrip.save_path = save_path
 	later_roundtrip.load()
 	_expect(later_roundtrip.active_encounter.to_dict() == later_resumed.active_encounter.to_dict(), "the eased interval and next Hit should round-trip exactly")
 	later_roundtrip.clear_save()
 
 	var boss := GameState.new()
+	_d059_opening(boss.balance_profile)
 	boss.save_path = save_path
 	boss.start_run(1, 85)
 	boss.wave = 30
@@ -3872,12 +3895,14 @@ func _test_d058_opening_save_reconciles() -> void:
 	early_boss.next_hit = 15.0
 	_expect(boss.save(), "an early boss encounter should save")
 	var boss_resumed := GameState.new()
+	_d059_opening(boss_resumed.balance_profile)
 	boss_resumed.save_path = save_path
 	boss_resumed.load()
 	_expect(boss_resumed.active_encounter.to_dict() == boss.active_encounter.to_dict(), "the wave-30 boss should keep its repeat interval and state")
 	boss_resumed.clear_save()
 
 	var fresh := GameState.new()
+	_d059_opening(fresh.balance_profile)
 	fresh.save_path = save_path
 	fresh.start_run(1, 84)
 	fresh.number = ScientificNumber.from_float(1e6)
@@ -3886,6 +3911,7 @@ func _test_d058_opening_save_reconciles() -> void:
 	_expect(int(fresh.active_encounter.members[0].state) == TaxEncounter.LANDED, "the D059 fixture should have a member that hit once and left")
 	_expect(fresh.save(), "a current D059 opening run should save")
 	var fresh_resumed := GameState.new()
+	_d059_opening(fresh_resumed.balance_profile)
 	fresh_resumed.save_path = save_path
 	fresh_resumed.load()
 	_expect(fresh_resumed.active_encounter.to_dict() == fresh.active_encounter.to_dict() and fresh_resumed.number.compare_to(fresh.number) == 0, "a current D059 opening encounter should load exactly")
@@ -3991,6 +4017,34 @@ func _leftover_save_files() -> Array:
 			if file_name.begins_with(".number_go_up_test_save"):
 				leftovers.append(file_name)
 	return leftovers
+
+## D072: as The Tower's do, an enemy that reaches the Number stays and keeps
+## hitting from wave 1.
+func _test_enemies_stay_from_wave_one() -> void:
+	var profile := TaxBalanceProfile.new()
+	_expect(is_equal_approx(profile.member_hit_seconds(1), profile.MEMBER_HIT_SECONDS) and is_equal_approx(profile.member_hit_seconds(30), profile.MEMBER_HIT_SECONDS), "enemies should hit every member interval from wave 1")
+	var state := GameState.new()
+	state.balance_profile.ENEMY_MIX = {"basic": 1.0}
+	state.start_run(1, 71)
+	state.number = ScientificNumber.new(1.0, 9)
+	var first: Dictionary = {}
+	while state.wave == 1 and state.wave_accumulator < 20.0:
+		state._advance_waves(0.25)
+		var at: Array = state.active_encounter.members.filter(func(member): return int(member.state) == TaxEncounter.AT_NUMBER)
+		if not at.is_empty():
+			first = at[0]
+			break
+	_expect(not first.is_empty(), "a wave-1 enemy should reach the Number and stay")
+	var hits_then := int(first.get("hits", 0))
+	for step in range(int(profile.MEMBER_HIT_SECONDS / 0.25) + 1):
+		state._advance_waves(0.25)
+	_expect(int(first.state) == TaxEncounter.AT_NUMBER and int(first.hits) == hits_then + 1, "it should hit again a member interval later: %d hits" % int(first.hits))
+
+## D059's gentler opening, off since D072, for the tests written under it and
+## for saves taken while it held.
+func _d059_opening(profile) -> void:
+	profile.OPENING_HIT_WAVES = 30
+	profile.OPENING_EASED_BY = 50
 
 func _funded_state() -> GameState:
 	var state := GameState.new()

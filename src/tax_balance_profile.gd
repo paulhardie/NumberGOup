@@ -6,7 +6,7 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v17"
+const PROFILE_ID := "tax-foundation-v18"
 ## The Tower's wave (D065): 26 seconds in which enemies spawn, then a 9-second
 ## gap, 35 in all. Every wave lasts its whole 35 seconds, beaten or not, as
 ## The Tower's do (D067, replacing D037's early clear).
@@ -136,15 +136,14 @@ static func boss_arrival_seconds() -> float:
 ## tools can sweep it.
 const DEFAULT_MEMBER_HIT_SECONDS := 5.0
 var MEMBER_HIT_SECONDS := DEFAULT_MEMBER_HIT_SECONDS
-## The opening is gentler (D059): to wave OPENING_HIT_WAVES a member that
-## reaches the Number hits once and leaves (D057's rule), so a new player
-## banks Cash before any pile forms. After that members stay, hitting every
-## OPENING_HIT_SECONDS at first and easing to MEMBER_HIT_SECONDS by wave
-## OPENING_EASED_BY. Zero means "hits once and passes".
+## Since D072 enemies stay and hit from wave 1, as The Tower's do: D059's
+## gentler opening (to wave OPENING_HIT_WAVES a member that reaches the
+## Number hits once and leaves, then hits every OPENING_HIT_SECONDS easing to
+## MEMBER_HIT_SECONDS by wave OPENING_EASED_BY) is off. It stays for saves
+## taken under it, whose opening members still pass, and for its tests.
 const OPENING_HIT_SECONDS := 15.0
-## Mutable so tests of the staying rule can start past the opening.
-var OPENING_HIT_WAVES := 30
-var OPENING_EASED_BY := 50
+var OPENING_HIT_WAVES := 0
+var OPENING_EASED_BY := 0
 
 func member_hit_seconds(wave: int) -> float:
 	if wave <= OPENING_HIT_WAVES:

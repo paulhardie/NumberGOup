@@ -1,6 +1,6 @@
 # Handover
 
-**Last updated:** 25 September 2026, by Claude, handing on to the next agent. **D068 (The Tower's Workshop), D069 (Labs, Cards, Knowledge and Gems parked) and D070 (more room in the run arena) are merged to `main`** in PR #59. `claude/beautiful-dirac-6ozaio` carries, on top of `main`, the fixes for PR #59's Codex review (`cb77565`: a knocked-back enemy keeps its wave from being beaten, Stats' Damage / sec leaves Health Regen out, the hub's Coin row is named for what it shows, the arena probe's stream checks are deterministic) and **D071: Cash per kill, The Tower's way** (with Interest capped at $50 a wave), plus a fix so kills paid before a rebuild onto a newer balance profile stay paid.
+**Last updated:** 25 September 2026, by Claude, handing on to the next agent. **D068 (The Tower's Workshop), D069 (Labs, Cards, Knowledge and Gems parked) and D070 (more room in the run arena) are merged to `main`** in PR #59. `claude/beautiful-dirac-6ozaio` carries, on top of `main`, the fixes for PR #59's Codex review (`cb77565`: a knocked-back enemy keeps its wave from being beaten, Stats' Damage / sec leaves Health Regen out, the hub's Coin row is named for what it shows, the arena probe's stream checks are deterministic) and **D071: Cash per kill, The Tower's way** (with Interest capped at $50 a wave), plus a fix so kills paid before a rebuild onto a newer balance profile stay paid, and **D072: enemies stay and hit from wave 1**, as The Tower's do.
 
 The branch is unmerged and has no PR. `claude/codex-handover-if13d2` is stale: everything on it is in `main`.
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
@@ -16,23 +16,24 @@ The branch is unmerged and has no PR. `claude/codex-handover-if13d2` is stale: e
 
 ## Where the game is
 
-This branch plays like this on a fresh run (Godot 4.7.2, profile `tax-foundation-v17`, save V12). Nothing below has been played by the owner or checked on a phone.
+This branch plays like this on a fresh run (Godot 4.7.2, profile `tax-foundation-v18`, save V12). Nothing below has been played by the owner or checked on a phone.
 
 - **A fresh run is a fresh Tower:** the Number starts at Health 5 and shoots Damage 3 once a second at the nearest enemy within 30 m. A tap fires one more shot. Every shot's damage is Number too (D037).
 - **The Workshop** opens Damage, Attack Speed, Critical Chance, Critical Factor, Health and Health Regen from the start. Everything else opens a group at a time for Coins: Range 50, Defense 75, Utility's Cash rows 40, and on up to Super Crit at 100M.
 - **Run Upgrades** sell only rows the Workshop has opened, at The Tower's Cash prices ($10, $12, $14… for Damage), one level each. Cash starts at none and comes from kills (D071, The Tower's: $1 plus $1 every ten waves, times basic 1, fast and ranged 2, tank 5, boss 20 as our guess), Cash / Wave and Interest.
 - **Pay:** a kill pays its type's Coins times its wave (basic none, fast 2, ranged 3, tank 4, boss 5); a wave's end pays Coins / Wave (1 before any level). Milestones pay their Coin bonuses; the Gems they also pay bank unseen while parked.
+- **Enemies stay:** from wave 1 an enemy that reaches the Number stays and hits every 5 seconds until it dies (D072).
 - **The field:** enemies set off 100 m out; a basic arrives in 10 seconds, a boss in 30. Orbs circle at 60 m or more. On screen (D070) the Number is set at 40 in the middle of the arena above Brace, enemies set off on the largest oval that fits, and enemy HP reads in whole numbers.
-- **Where builds land** (seed 7, two taps a second, after D071):
+- **Where builds land** (seed 7, two taps a second, after D071 and D072):
 
   | Build | Result |
   |---|---|
-  | Fresh, no run Upgrades | wave 33 in 18.9 min, 290 Coins |
-  | Fresh, buying run Upgrades | **wave 105 in 61 min, 83,000 Coins** (was wave 153 in 89 min) |
+  | Fresh, no run Upgrades | wave 13 in 7.3 min, 445 Coins (wave 33 before D072) |
+  | Fresh, buying run Upgrades | **wave 107 in 62 min, 91,000 Coins** (wave 153 before D071) |
   | Early (Damage 20, Attack Speed 10, Health 20, Regen 10) | wave 61 in 35.5 min; buying run Upgrades, alive at 90 min on wave 155 |
   | Mid (Damage 100 and a spread) or more | alive at 90 min on wave 155, mostly never hit |
 
-- **Careers** (40 runs, 90-minute cap, even spending): hoarding Cash reaches wave 100 on run 18 (8.7 hours); buying run Upgrades reaches wave 61 on run 1 and 104 on run 2 (1.6 hours), and **every run from run 3 lasts to the cap** on wave 155.
+- **Careers** (12 runs, 90-minute cap, even spending, after D072): never buying run Upgrades reaches wave 20 on run 5 and wave 30 on run 8 (1.6 hours); buying them reaches wave 61 on run 1 and 106 on run 2 (1.6 hours), and **every run from run 3 lasts to the cap** on wave 155.
 
 ## Open decisions for the owner
 
@@ -57,6 +58,7 @@ Each needs an owner "go", its own decision, and a retune against The Tower's Wor
 - **Cards:** Gem pulls, levels and the Active set, ideally moved to The Tower's cards.
 - **Knowledge:** Insight, Prestige and Research Focus. Prestige has no counterpart in The Tower; decide whether it returns at all.
 - **Gems:** only Cards and Lab slots use them; they return with those.
+- **Built and shelved (25 September):** Shockwave (100,000 Coins to open) was imported and working, then set aside uncommitted for the wave-1 focus. The Tower's rule, from TheTowerSDK and the wiki: every Shockwave Frequency seconds (20 → 14) the enemies are pushed away by Shockwave Size (0.6 → 2.35, ×10 m), never a boss. Our reading: only enemies in reach, keeping time on the run's clock.
 - **Not built, and later still:** Ultimate Weapons, Workshop Enhancements, protectors, Perks, Modules, events and tournaments. Also the unmerged `codex/prestige-run-summary`, which must move past save V12.
 
 ## How to measure
@@ -104,7 +106,7 @@ D068 is built, reviewed and measured, D069 has parked everything but the core lo
    - the parked list, until it is empty;
    - how to measure, and known issues;
    - this section, addressed to the next agent.
-2. **Record any new choice the owner accepts** as the next `D0NN` entry in [`DECISIONS.md`](DECISIONS.md) (D072 onwards). Include the owner's words, the context, the decision, the evidence (the figures measured and how), the consequences, and when to revisit. Update any document the change makes stale in the same commit.
+2. **Record any new choice the owner accepts** as the next `D0NN` entry in [`DECISIONS.md`](DECISIONS.md) (D073 onwards). Include the owner's words, the context, the decision, the evidence (the figures measured and how), the consequences, and when to revisit. Update any document the change makes stale in the same commit.
 3. **Say plainly what ran and what did not.**
 4. **Commit on a branch, never `main`, and push it.** Do not open or merge a PR unless the owner asks.
 5. **Tell the owner,** in the chat, the branch name, the head commit and the one decision you need from them next.
