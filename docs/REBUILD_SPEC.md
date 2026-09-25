@@ -100,6 +100,8 @@ Each one ends with the owner playing it.
 | First in-run Cash prices | Damage $10, Attack Speed $5, Crit Chance $4, Crit Factor $10 (the same as `upgrades.json`) | owner's screens, 25 Sep |
 | **A fresh run that buys nothing** | **dies at once**, in the first waves. The current game's lasts to wave 13 (D072), so it is far too kind | owner, 25 Sep |
 | Wave timing | 26 s spawning, 9 s cooldown | owner's screen and the SDK |
+| Wave 100 basic Attack | 403 in the SDK (a wave-100 step up from 374 at wave 99); owner's research says 391 from Skye's calculator. Unsettled: read it in game if a run gets there | SDK; owner's research, 25 Sep |
+| **Tier 1 turtles** | Defense Absolute past enemy Attack makes hits land for nothing, and Thorns kills what stands at the tower. It must work in the rebuild: Defense Absolute passing Attack is the owner's "I've stopped dying" moment (wave 21: 19.76 against 14.75). Defense Absolute 403 is level 69, about 47,700 Cash bought in a run; Thorns stops at 99% | owner's research and screens; `upgrades.json` |
 | A wave-22 run | 12 min 33 s game time, 1.46K Coins | owner's battle report, build not recorded |
 | New player to wave 100 | about an hour at 1× | community research, **unverified** |
 | **Needed from the owner** | 1. A fresh save's first run buying run upgrades: the wave reached, the time and the Coins. 2. One boss kill's Cash. 3. Where the fresh run's $93 Cash on wave 1 and its ×9.00 Coin multiplier come from. | **the two most useful numbers we don't have** |
@@ -112,6 +114,7 @@ These are carried from the current game until the owner reads the real value:
 - A boss pays 20 basics' Cash (D071).
 - Enemies set off 100 m out, basic speed is 10 m a second, the base range is 30 m, and orbs circle at 60 m (D067, D068). The Tower gives no units.
 - The Defense % global cap is 98% (community research).
+- Heat-up is 4% for each hit an enemy lands, compounding (the earlier research, said to match the SDK). The owner's 25 September research says 4% for each wave it survives, and to its mass too. Settle it by watching a boss stand at the tower.
 
 ## Process while the rebuild is in progress
 
