@@ -19,7 +19,7 @@ So: build The Tower's first hours cleanly, check them against The Tower, then ad
 These keep it from going round in circles again.
 
 1. **The Tower is the spec.** Where The Tower's number is known, use it. Where it isn't, pick one, list it under [Guesses](#guesses) and move on. A guess needs no decision entry; the owner replaces it when they read the real value.
-2. **Numbers are generated, never typed.** The Workshop already comes from TheTowerSDK (`tools/import_tower_workshop.py`). Enemy stats get the same treatment: a script generates per-wave health and damage, type multipliers, type mix and spawn counts from the SDK into `data/tower/enemies.json`. Checked: the SDK's `getEnemyWaveStats` gives a Tier 1 basic 2 HP / 1 damage at wave 1 and 4,364 / 402 at wave 100, matching [the research table](TOWER_SCALING_FOUNDATION.md#tier-1-wave-by-wave-against-ours--24-september-2026). Where the owner's screens disagree with the SDK (wave 22 health 63.11 against the SDK's 69), the screen wins and the script applies the correction.
+2. **Numbers are generated, never typed.** The Workshop already comes from TheTowerSDK (`tools/import_tower_workshop.py`). Enemy stats get the same treatment: a script generates per-wave health and damage, type multipliers, type mix and spawn counts from the SDK into `data/tower/enemies.json`. Checked: the SDK's `getEnemyWaveStats` gives a Tier 1 basic 2 HP / 1 damage at wave 1 and 4,364 / 402 at wave 100, matching [the research table](TOWER_SCALING_FOUNDATION.md#tier-1-wave-by-wave-against-ours--24-september-2026). **Take the SDK's values before it rounds them down:** its damage function floors to whole numbers, but unrounded it gives 1.176, 1.386 and 15.908 for waves 1, 2 and 22, which are exactly the owner's screens (1.18, 1.39 and 15.90); health unrounded gives 2.35 and 3.32 against the screens' 2.35 and 3.31. Where the owner's screens disagree with the SDK (wave 22 health 63.11 against the SDK's 69), the screen wins and the script applies the correction.
 3. **One simulation, two faces.** The battle is a plain GDScript simulation: no nodes, a fixed tick, a seeded RNG. The battle screen draws it; a headless tool runs it at thousands of times real speed. What is measured is exactly what is played, so the balance tools can't drift from the game.
 4. **No save compatibility until the loop is fun.** The new game saves to a new file, `user://number_go_up_tower.json`. The old save is left on disk, untouched: not converted and not deleted. The save has a version field. A save from a different version starts fresh and logs why, with no migrations.
 5. **The owner plays each milestone before the next starts.** "Done" means played, not just measured.
@@ -96,10 +96,13 @@ Each one ends with the owner playing it.
 |---|---|---|
 | Fresh save | Damage 3, Attack Speed 1.00, Crit 1% ×1.20, Health 5, Regen 0 | owner's new save, 24 Sep |
 | Wave 22 basic | Health 63.11, Attack 15.90; mix 85% basic, 7% fast, 6% tank, 2% ranged | owner's screen, 24 Sep |
+| Waves 1 and 2 basic | Health 2.35 and 3.31, Attack 1.18 and 1.39 | owner's screens, 25 Sep |
+| First in-run Cash prices | Damage $10, Attack Speed $5, Crit Chance $4, Crit Factor $10 (the same as `upgrades.json`) | owner's screens, 25 Sep |
+| **A fresh run that buys nothing** | **dies at once**, in the first waves. The current game's lasts to wave 13 (D072), so it is far too kind | owner, 25 Sep |
 | Wave timing | 26 s spawning, 9 s cooldown | owner's screen and the SDK |
 | A wave-22 run | 12 min 33 s game time, 1.46K Coins | owner's battle report, build not recorded |
 | New player to wave 100 | about an hour at 1× | community research, **unverified** |
-| **Needed from the owner** | 1. A fresh save's first run: the wave reached, the time and the Coins. 2. One boss kill's Cash. | **the two most useful numbers we don't have** |
+| **Needed from the owner** | 1. A fresh save's first run buying run upgrades: the wave reached, the time and the Coins. 2. One boss kill's Cash. 3. Where the fresh run's $93 Cash on wave 1 and its ×9.00 Coin multiplier come from. | **the two most useful numbers we don't have** |
 
 ## Guesses
 
