@@ -9,7 +9,8 @@ extends RefCounted
 ## stay and hit again every `interval` seconds until beaten. Members still at
 ## the Number when the clock runs out carry into the next wave, ahead of its
 ## column, so a build that cannot beat them is worn down by the pile. Damage
-## strikes the front living member, and any beyond its HP is lost.
+## strikes the nearest living member within the Number's reach (D067), and any
+## beyond its HP is lost.
 const STANDING := 0
 const KILLED := 1
 ## A member that landed and passed, as in D057 and the D059 opening. Its HP
@@ -47,7 +48,8 @@ var is_boss: bool = false
 ## carried in, then this wave's in arrival order. `weight` over `of` is the
 ## part of its wave's HP the member carries, and `share` that ratio; every
 ## member lands one enemy's Hit, `wave_hit` over `of`, whatever its HP (D066).
-## `next_hit` is when it next hits on this wave's clock, `landed` whether it
+## `sets_off` when it started walking in on this wave's clock (D067),
+## `next_hit` when it next hits on this wave's clock, `landed` whether it
 ## has reached the Number, `boss` whether it is a boss (which may be carried
 ## into later waves, D063), `hits` how many times it has hit, which heats up
 ## its next hit, `kind` its enemy type, and `paid` whether its kill has paid.

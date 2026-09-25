@@ -8,9 +8,9 @@ This document uses the accepted player vocabulary (Wave HP, Hit, Armor). [Vocabu
 
 ## The wave, in one paragraph
 
-*Rewritten for [D037](DECISIONS.md) (23 September 2026); the D012 version is kept below as history.*
+*Rewritten for [D037](DECISIONS.md) (23 September 2026) and brought up to date for D063–D067 (25 September 2026); the D012 version is kept below as history.*
 
-Each wave has **HP** (the ring) and a **Hit**. Everything you produce, taps and ticks alike, is **Number**, and the same output also counts against the wave's HP, so the Number never stops rising while you produce. Beat the wave before its 15-second timer runs out and it never hits you; after a short beat (2.5 seconds on screen at least) the next wave comes straight in. If the timer runs out with an ordinary wave still standing, it **hits** your Number once and moves on, paying Coins for the share of it you cleared. A **boss** (every tenth wave) stays until you beat it and hits every 15 seconds. If a hit takes your Number to zero, the run ends.
+Each wave is a crowd of **enemies**, each with its own **HP** and **Hit**, of The Tower's types (D065, D066). Everything you produce, taps and ticks alike, is **Number**, and the same output also strikes the nearest enemy within the Number's 30 m **reach** (D067), so the Number never stops rising while you produce. Enemies walk in from 60 m over a 35-second wave; one you beat before it arrives never hits you. One that reaches the Number **hits** it, harder with every hit, and stays until beaten (through wave 30 it hits once and leaves). Every kill pays as it happens, and every wave's end pays its Coins per Wave. A **boss** (every tenth wave) carries twenty enemies' HP and hits like one. If a hit takes your Number to zero, the run ends.
 
 That gives each half of the stat catalogue one plain job:
 
@@ -484,7 +484,7 @@ This keeps the single ring from the restage.
 
 - The ring is the wave's HP, closing as you deal damage, and its colour heats as the hit approaches. Both are unchanged.
 - One line under the ring reads `HITS FOR 900 IN 6s`, replacing `LIABILITY … LEFT · COLLECTION …`.
-- Since D037, output raises Number even while the ring is closing. A beaten wave cannot Hit and the next arrives after the 2.5-second minimum beat.
+- Since D037, output raises Number even while the ring is closing. A beaten wave cannot Hit; since D067 every wave runs its whole 35 seconds, as The Tower's do.
 - A missed ordinary wave Hits once and moves on; a boss stays and can Hit again after 15 seconds.
 - *(Retired by D040: Tier 1 has no warm-up, so no wave reads `WARM-UP · EVERYTHING BANKS`.)*
 - A ready or firing Ultimate announces itself on the wave line — `SURGE · ALL DAMAGE ×3 FOR 8s` — so it needs no button and no open panel. Ultimates fire on their own (D013, pillar 1); the Rig's Ultimate tab levels them, it does not trigger them.

@@ -349,9 +349,9 @@ func _advance_waves(delta: float) -> Array[SimulationEvent]:
 
 ## Plays the wave clock up to `wave_accumulator`. Every living member hits on
 ## its own clock: once when it reaches the Number, then every interval while it
-## stays (D058). A wave whose own members are all beaten gives way to the next
-## after the minimum beat (D037); one still standing when its clock runs out
-## passes, as does an opening wave whose members hit and left (D059). Whatever
+## stays (D058). Every wave runs its whole 35-second clock (D067): at its end
+## it is beaten if everything of it that came within reach fell, and passes
+## otherwise, as does an opening wave whose members hit and left (D059). Whatever
 ## still lives at the Number carries into the next wave,
 ## so a build that cannot beat them is worn down by the pile. Waves keep
 ## coming while a boss stands, as The Tower's do (D063): an unbeaten boss

@@ -422,8 +422,9 @@ func _process(delta: float) -> void:
 					Input.vibrate_handheld(35 if boss_hit else 14)
 		elif event.type == "wave_clear" or event.type == "boss_clear":
 			var boss_clear: bool = event.type == "boss_clear"
-			# A wave beaten after the 2.5-second beat is replaced in the same
-			# step, so its body shatters here rather than waiting to be seen.
+			# A wave counts as beaten only as its clock ends (D067), in the same
+			# step the next replaces it, so its body shatters here if it still
+			# shows.
 			# Only when the live number was one of the beaten wave's own; a pile
 			# member still at the Number is not beaten. "No hit" only if nothing
 			# of it, or of the pile, reached the Number.
@@ -3570,7 +3571,7 @@ func _update_stage_colour() -> void:
 ## a boss that has landed stays on the Number. It shows the HP still standing,
 ## less nothing the motes in flight have yet to deliver, and warms through the
 ## last half of its approach. A beaten wave scatters where it was; a new wave
-## fades in at the arena's top edge.
+## fades in at the arena's edge (D067).
 func _update_wave_enemy(delta: float) -> void:
 	if wave_enemy == null:
 		return
@@ -3588,7 +3589,7 @@ func _update_wave_enemy(delta: float) -> void:
 	var standing: bool = state.in_run and encounter != null and not encounter.max_liability.is_zero() and not encounter.is_cleared()
 	if not standing:
 		_flush_shot_pops()
-		# Beaten inside the 2.5-second beat: the wave is still on screen. A wave
+		# Beaten before its clock ends (D067): the last of it just fell. A wave
 		# whose last member landed has already slammed into the Number.
 		if encounter == enemy_encounter and state.in_run and encounter != null and encounter.is_beaten():
 			_shatter_enemy(encounter.is_boss, encounter.landed_count() == 0 or encounter.is_boss)
@@ -3604,10 +3605,10 @@ func _update_wave_enemy(delta: float) -> void:
 		_clear_arena()
 		return
 	var front: int = encounter.front_index()
-	# The live number is the front member, except while a boss stands, when the
-	# boss stays the live number even behind a pile (D058), in its own wave or
-	# carried into later ones (D063); damage still strikes the front, and the
-	# motes fly there.
+	# The live number is the member damage strikes, the nearest in reach
+	# (D067), except while a boss stands, when the boss stays the live number
+	# even behind a pile (D058), in its own wave or carried into later ones
+	# (D063); damage still strikes the nearest, and the motes fly there.
 	var display := front
 	var standing_boss: int = encounter.boss_index()
 	if standing_boss >= 0:
@@ -3630,7 +3631,7 @@ func _update_wave_enemy(delta: float) -> void:
 			wave_enemy.modulate.a = 0.0
 			create_tween().tween_property(wave_enemy, "modulate:a", 1.0, 0.3)
 	# Reduce Motion stops movement, not information (MOTION_SYSTEM rule 1): the
-	# number holds at the top edge and its caption keeps the time.
+	# number holds at the arena's edge and its caption keeps the time.
 	var member: Dictionary = encounter.members[display]
 	enemy_angle = _member_angle(member)
 	enemy_stop = TaxBalanceProfile.stop_distance(str(member.get("kind", "basic")))
