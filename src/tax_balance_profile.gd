@@ -132,8 +132,8 @@ const KILL_COINS := {"basic": 0.0, "fast": 2.0, "ranged": 3.0, "tank": 4.0, "bos
 static func boss_arrival_seconds() -> float:
 	return travel_seconds("boss")
 ## A member that reaches the Number stays and hits again this often until
-## beaten (D058). A boss keeps the 15-second clock. Mutable so the balance
-## tools can sweep it.
+## beaten (D058), a boss too (D063, D072). Mutable so the balance tools can
+## sweep it.
 const DEFAULT_MEMBER_HIT_SECONDS := 5.0
 var MEMBER_HIT_SECONDS := DEFAULT_MEMBER_HIT_SECONDS
 ## Since D072 enemies stay and hit from wave 1, as The Tower's do: D059's

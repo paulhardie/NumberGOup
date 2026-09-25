@@ -49,10 +49,6 @@ func _init() -> void:
 	var st = main.state
 	st.highest_number = ScientificNumber.from_float(250000)
 	st.settings["reduce_motion"] = false
-	# Keep the long approach and shatter checks on the staying-member rule;
-	# the D059 opening pass is exercised below at wave 12.
-	st.balance_profile.OPENING_HIT_WAVES = 0
-	st.balance_profile.OPENING_EASED_BY = 0
 	# Basic enemies to start, so no faster one overtakes the front while the
 	# approach is measured; the usual mix returns for the boss.
 	var mix: Dictionary = st.balance_profile.ENEMY_MIX.duplicate()
@@ -165,6 +161,9 @@ func _init() -> void:
 	# Its enemies set off last are still walking in, 100 m out being further
 	# than the clock (D068); they carry on into the next wave.
 	_check(st.wave == 13 and main.wave_enemy.visible and st.active_encounter.at_number_count() == 0, "an opening wave that is missed slams and the next arrives (D059)")
+	# Back to today's rule, enemies staying from wave 1 (D072).
+	st.balance_profile.OPENING_HIT_WAVES = 0
+	st.balance_profile.OPENING_EASED_BY = 0
 	# With Defense Absolute and Defense %, the wave shows its raw Hit and the
 	# working plays at contact.
 	await create_timer(2.5).timeout

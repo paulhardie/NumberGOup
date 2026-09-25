@@ -1847,16 +1847,17 @@ func _reconcile_opening_members_on_load() -> void:
 	var retained: Array = []
 	for member in active_encounter.members:
 		var member_wave := int(member.wave)
-		if bool(member.get("boss", false)):
-			retained.append(member)
-			continue
-		var interval := balance_profile.member_hit_seconds(member_wave)
-		if interval > 0.0:
+		var is_boss := bool(member.get("boss", false))
+		var interval := balance_profile.boss_hit_seconds(member_wave) if is_boss else balance_profile.member_hit_seconds(member_wave)
+		if interval > 0.0 or is_boss:
 			var saved_interval := float(member.interval)
-			if not is_equal_approx(saved_interval, interval):
+			if interval > 0.0 and not is_equal_approx(saved_interval, interval):
 				# A member already at the Number keeps the time since its last
-				# Hit when the D058 repeat clock becomes D059's eased clock.
-				if int(member.state) == TaxEncounterClass.AT_NUMBER:
+				# Hit when its clock grows (D058's five seconds becoming D059's
+				# eased clock), but never hits sooner than the saved run said
+				# when it shrinks (D059's clocks becoming D072's five seconds),
+				# or a resumed pile would land a burst of catch-up hits.
+				if int(member.state) == TaxEncounterClass.AT_NUMBER and interval > saved_interval:
 					member.next_hit = float(member.next_hit) + interval - saved_interval
 				member.interval = interval
 			retained.append(member)

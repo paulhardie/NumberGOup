@@ -43,6 +43,7 @@ func _init() -> void:
 	_test_tower_shaped_bosses_and_heat_up()
 	_test_opening_members_pass()
 	_test_enemies_stay_from_wave_one()
+	_test_opening_save_resumes_on_staying_rules()
 	_test_d058_opening_save_reconciles()
 	_test_output_is_number_and_strikes_the_wave()
 	_test_repeated_taps_count_once()
@@ -1082,13 +1083,11 @@ func _test_first_run_funds_permanent_workshop() -> void:
 ## once a second and Health 5, on every tier.
 func _test_tier_one_opening() -> void:
 	var fresh := GameState.new()
-	_d059_opening(fresh.balance_profile)
 	fresh.start_run(1, 3)
 	var profile = fresh.balance_profile
 	_expect(fresh.get_rate_per_second().compare_to(ScientificNumber.from_float(3.0 + 0.0005)) == 0, "a fresh run should shoot Damage 3 a second, with The Tower's trace of Regen")
 	_expect(fresh.number.compare_to(ScientificNumber.from_float(5.0)) == 0, "a Tier 1 run should start at Health 5")
 	var tier_two := GameState.new()
-	_d059_opening(tier_two.balance_profile)
 	tier_two.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	tier_two.start_run(2, 3)
 	_expect(tier_two.number.compare_to(ScientificNumber.from_float(5.0)) == 0, "Tier 2 should start at Health too")
@@ -1131,7 +1130,6 @@ func _test_tier_one_opening() -> void:
 	# D065: a boss wave sends its ordinary enemies and a boss, which carries
 	# twenty enemies' HP and hits like one (D063).
 	var boss_run := GameState.new()
-	_d059_opening(boss_run.balance_profile)
 	boss_run.start_run(1, 3)
 	boss_run.wave = 10
 	boss_run.active_encounter = boss_run._make_encounter(10)
@@ -1146,14 +1144,12 @@ func _test_tier_one_opening() -> void:
 	# once a second. A fresh Tower (D068) lasts about 11 minutes idle and 18
 	# tapping.
 	var no_action := GameState.new()
-	_d059_opening(no_action.balance_profile)
 	no_action.start_run(1, 7)
 	for step in range(4 * 1200):
 		if not no_action.in_run:
 			break
 		no_action.advance(0.25)
 	var one_tap := GameState.new()
-	_d059_opening(one_tap.balance_profile)
 	one_tap.start_run(1, 7)
 	for step in range(4 * 1200):
 		if not one_tap.in_run:
@@ -1164,7 +1160,6 @@ func _test_tier_one_opening() -> void:
 	_expect(not no_action.in_run and not one_tap.in_run, "both openings should end within twenty minutes")
 	_expect(no_action.coins * 4 < one_tap.coins * 3, "a no-action opening must earn clearly less than tapping once a second")
 	var armored := GameState.new()
-	_d059_opening(armored.balance_profile)
 	armored.purchased = {"defense_percent": 1}
 	armored.start_run(1, 3)
 	armored.wave = 21
@@ -1176,6 +1171,7 @@ func _test_tier_one_opening() -> void:
 	# it moves on (D037). Nothing was cleared, so its one Coin is not paid and
 	# it sets no record, and its members carry into the next wave.
 	var stuck := GameState.new()
+	# Under D059's opening, which a run saved before D072 still follows.
 	_d059_opening(stuck.balance_profile)
 	# Fast enemies, which all arrive inside the wave's clock (D068's 100 m).
 	stuck.balance_profile.ENEMY_MIX = {"fast": 1.0}
@@ -4039,6 +4035,80 @@ func _test_enemies_stay_from_wave_one() -> void:
 	for step in range(int(profile.MEMBER_HIT_SECONDS / 0.25) + 1):
 		state._advance_waves(0.25)
 	_expect(int(first.state) == TaxEncounter.AT_NUMBER and int(first.hits) == hits_then + 1, "it should hit again a member interval later: %d hits" % int(first.hits))
+
+## A run saved under D059's opening (profile v17) resumes on D072's rules
+## without a burst of hits: members that already left stay gone, walking
+## ones take today's five seconds, and none hits sooner than the save said.
+func _test_opening_save_resumes_on_staying_rules() -> void:
+	var save_path := "res://.number_go_up_test_save.json"
+	var opening := GameState.new()
+	_d059_opening(opening.balance_profile)
+	opening.balance_profile.ENEMY_MIX = {"basic": 1.0}
+	opening.start_run(1, 73)
+	opening.number = ScientificNumber.new(1.0, 9)
+	while opening.wave_accumulator < 16.0:
+		opening._advance_waves(0.25)
+	var left: int = opening.active_encounter.members.filter(func(member): return int(member.state) == TaxEncounter.LANDED).size()
+	var walking: int = opening.active_encounter.members.filter(func(member): return int(member.state) == TaxEncounter.STANDING).size()
+	_expect(left > 0 and walking > 0, "the opening fixture should have members gone and members walking")
+	opening.save_path = save_path
+	_expect(opening.save(), "the opening fixture should save")
+	var data: Dictionary = _read_json(save_path)
+	data.balance_profile_id = "tax-foundation-v17"
+	_write_json(save_path, data)
+	var first := GameState.new()
+	first.save_path = save_path
+	first.load()
+	var second := GameState.new()
+	second.save_path = save_path
+	second.load()
+	_expect(first.active_encounter.to_dict() == second.active_encounter.to_dict(), "two loads of an opening save should agree")
+	var own: Array = first.active_encounter.members
+	_expect(own.filter(func(member): return int(member.state) == TaxEncounter.LANDED).size() == left, "members that left under the opening should stay gone")
+	_expect(own.filter(func(member): return int(member.state) == TaxEncounter.STANDING).all(func(member): return is_equal_approx(float(member.interval), first.balance_profile.MEMBER_HIT_SECONDS)), "walking members should take today's five seconds")
+	var number_then: ScientificNumber = first.number.copy()
+	first._advance_waves(0.25)
+	_expect(first.number.compare_to(number_then) == 0, "no member should hit in the first step after loading")
+	_expect(first.save(), "the resumed opening run should save")
+	var again := GameState.new()
+	again.save_path = save_path
+	again.load()
+	_expect(again.active_encounter.to_dict() == first.active_encounter.to_dict(), "a re-saved opening run should round-trip exactly")
+	again.clear_save()
+
+	# A pile carried from the eased waves keeps each next Hit it was due.
+	var eased := GameState.new()
+	_d059_opening(eased.balance_profile)
+	eased.start_run(1, 74)
+	eased.number = ScientificNumber.new(1.0, 12)
+	eased.wave = 35
+	eased.active_encounter = eased._make_encounter(35)
+	eased.wave_accumulator = 5.0
+	var due: Array = []
+	for index in range(6):
+		var carried: Dictionary = eased.active_encounter.members[index]
+		carried.wave = 33
+		carried.state = TaxEncounter.AT_NUMBER
+		carried.landed = true
+		carried.hits = 3
+		carried.interval = eased.balance_profile.member_hit_seconds(33)
+		carried.next_hit = 6.5
+		due.append(6.5)
+	eased.active_encounter._sum_remaining()
+	eased.save_path = save_path
+	_expect(eased.save(), "the eased-pile fixture should save")
+	var eased_data: Dictionary = _read_json(save_path)
+	eased_data.balance_profile_id = "tax-foundation-v17"
+	_write_json(save_path, eased_data)
+	var resumed := GameState.new()
+	resumed.save_path = save_path
+	resumed.load()
+	var carried_back: Array = resumed.active_encounter.members.filter(func(member): return int(member.wave) == 33)
+	_expect(carried_back.size() == 6 and carried_back.all(func(member): return is_equal_approx(float(member.next_hit), 6.5) and is_equal_approx(float(member.interval), resumed.balance_profile.MEMBER_HIT_SECONDS)), "a carried pile should keep its next Hits and take today's five seconds")
+	var before_step: ScientificNumber = resumed.number.copy()
+	resumed._advance_waves(0.25)
+	_expect(resumed.number.compare_to(before_step) == 0, "a carried pile should not land a burst of hits on load")
+	resumed.clear_save()
 
 ## D059's gentler opening, off since D072, for the tests written under it and
 ## for saves taken while it held.

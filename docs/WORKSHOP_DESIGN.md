@@ -28,7 +28,7 @@ This document uses the accepted player vocabulary (Wave HP, Hit, Armor). [Vocabu
 
 *Rewritten for [D037](DECISIONS.md) (23 September 2026) and brought up to date for D063–D067 (25 September 2026); the D012 version is kept below as history.*
 
-Each wave is a crowd of **enemies**, each with its own **HP** and **Hit**, of The Tower's types (D065, D066). Everything you produce, taps and ticks alike, is **Number**, and the same output also strikes the nearest enemy within the Number's 30 m **reach** (D067), so the Number never stops rising while you produce. Enemies walk in from 60 m over a 35-second wave; one you beat before it arrives never hits you. One that reaches the Number **hits** it, harder with every hit, and stays until beaten (through wave 30 it hits once and leaves). Every kill pays as it happens, and every wave's end pays its Coins per Wave. A **boss** (every tenth wave) carries twenty enemies' HP and hits like one. If a hit takes your Number to zero, the run ends.
+Each wave is a crowd of **enemies**, each with its own **HP** and **Hit**, of The Tower's types (D065, D066). Everything you produce, taps and ticks alike, is **Number**, and the same output also strikes the nearest enemy within the Number's 30 m **reach** (D067), so the Number never stops rising while you produce. Enemies walk in from 60 m over a 35-second wave; one you beat before it arrives never hits you. One that reaches the Number **hits** it, harder with every hit, and stays until beaten, from wave 1 (D072). Every kill pays as it happens, and every wave's end pays its Coins per Wave. A **boss** (every tenth wave) carries twenty enemies' HP and hits like one. If a hit takes your Number to zero, the run ends.
 
 That gives each half of the stat catalogue one plain job:
 
