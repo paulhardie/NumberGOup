@@ -6,7 +6,7 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v16"
+const PROFILE_ID := "tax-foundation-v17"
 ## The Tower's wave (D065): 26 seconds in which enemies spawn, then a 9-second
 ## gap, 35 in all. Every wave lasts its whole 35 seconds, beaten or not, as
 ## The Tower's do (D067, replacing D037's early clear).
@@ -61,12 +61,11 @@ const WAVE_REWARD_SCALE := 0.65
 ## (D063, D065).
 const BOSS_HP_WEIGHT := 20.0
 const BOSS_REWARD_MULTIPLIER := 5.0
-## A beaten wave pays this much Cash plus CASH_PER_WAVE times its number, times
-## BOSS_CASH_MULTIPLIER on a boss (D042). It is flat rather than income-scaled,
-## so it matters most in the opening and fades beside income deeper in.
-const CASH_WAVE_BASE := 10.0
-const CASH_PER_WAVE := 5.0
-const BOSS_CASH_MULTIPLIER := 3.0
+## The Cash a kill pays, The Tower's way (D071): $1 on waves 1 to 9, and $1
+## more every CASH_STEP_WAVES waves after, times its type's CASH_KIND. The
+## Tower's boss table is not known; a boss paying twenty basics is our guess.
+const CASH_STEP_WAVES := 10
+const CASH_KIND := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "boss": 20.0}
 ## Since D068 the Workshop is The Tower's: a fresh run fires Damage 3 once a
 ## second (Attack Speed 1.0), with no separate output floor (D033) or base
 ## shot rate (D055).
@@ -265,11 +264,12 @@ func wave_end_coins(tier_id: int, coins_per_wave: float) -> float:
 ## Coin prices and rewards that stayed ours (Labs, checkpoints) scale by it.
 const COIN_RESCALE := 15.0
 
-## The Cash one kill pays: its HP's share of its wave's Cash (D066).
-func kill_cash(wave: int, weight: float, of: float) -> float:
-	if of <= 0.0:
-		return 0.0
-	return wave_cash(wave) * weight / of
+## The Cash one kill of `kind` pays before Cash Bonus (D071): The Tower's $1
+## plus $1 every ten waves, times its type's multiplier and the tier's reward
+## multiplier.
+func kill_cash(tier_id: int, wave: int, kind: String) -> float:
+	var base := 1.0 + float(maxi(1, wave) / CASH_STEP_WAVES)
+	return base * float(CASH_KIND.get(kind, 1.0)) * get_tier(tier_id).reward_multiplier
 
 ## How often a boss hits once it reaches the Number: as often as the enemies
 ## that stay at its wave (D063), and every 15 seconds through the opening,
@@ -347,12 +347,6 @@ func reward_for_wave(tier_id: int, wave: int) -> int:
 	var base_reward := float(maxi(1, wave)) * WAVE_REWARD_SCALE
 	var boss_multiplier := BOSS_REWARD_MULTIPLIER if is_boss_wave(wave) else 1.0
 	return maxi(1, roundi(base_reward * get_tier(tier_id).reward_multiplier * boss_multiplier))
-
-## The Cash a whole wave is worth (D042), paid by its kills, each its HP's
-## share (D066).
-func wave_cash(wave: int) -> float:
-	var boss_multiplier := BOSS_CASH_MULTIPLIER if is_boss_wave(wave) else 1.0
-	return (CASH_WAVE_BASE + CASH_PER_WAVE * float(maxi(1, wave))) * boss_multiplier
 
 func is_milestone_wave(wave: int) -> bool:
 	return MILESTONE_WAVES.has(wave)

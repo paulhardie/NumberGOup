@@ -813,3 +813,21 @@ Rules:
 - **Evidence:** before-and-after captures of a boss wave, a crowded pile and a mid-wave stream at 390 × 844 (the capture tool and the arena probe). The pile no longer overlaps into unreadable runs, and the approach band is wider. Crowds still overlap where several enemies come in on nearly the same line.
 - **Consequences:** No rule, save or economy change. The Number is a sixth smaller on the run screen.
 - **Revisit when:** the owner has played it; if it is still cramped, the next levers are a smaller follower font, fewer pile numbers drawn before the caption counts the rest, or spreading enemies' directions so fewer share a line.
+
+## D071 — Cash per kill, The Tower's way
+
+- **Status:** Accepted (2026-09-25) on owner direction. The owner supplied community research on The Tower's Cash drops (attributed to Reddit, Game Vault and Tower Hub) and, shown a measurement of it, answered "yes" to switching. Implemented (2026-09-25) on `claude/beautiful-dirac-6ozaio`; not merged. Profile `tax-foundation-v17`. Replaces D042's and D066's Cash per kill.
+- **Context:** Since D042 a wave was worth 10 + 5 × its number in Cash (×3 on a boss), and since D066 each kill paid its HP's share of that. It was our own figure. Against The Tower's run-Upgrade prices (D068) a fresh run that bought them reached wave 153. Measured on the same rosters, it paid about 1.2 to 1.7 times The Tower's Cash over a run, but in the wrong shape: $0.63 for a wave-1 basic where The Tower pays $1, two to three times The Tower's from about wave 30, and spikes on boss waves.
+- **Decision:**
+  1. **A kill pays $1 on waves 1 to 9 and $1 more every ten waves** ($2 from wave 10, $11 at wave 100), times its type: basic 1, fast and ranged 2, tank 5.
+  2. **A boss pays 20 times a basic.** The research says only that bosses use "their own, much higher" table; 20 is our guess, the same as its HP weight, until the owner reads one boss kill's Cash in the game.
+  3. **Times the tier's reward multiplier** (Tier 2 ×1.8, Tier 3 ×2.6, as Coins use). The research says Cash is multiplied by the tier's difficulty multiplier without naming it; this is our reading. Cash was not tier-scaled before.
+  4. Cash Bonus, Cash / Wave and Interest are unchanged, and a member saved under D063 still owing a share of its wave's reward now pays its type's Cash like any other.
+- **Evidence** (seed 7, two taps a second; `run_balance.sh` and `tools/career_simulator.gd`):
+  - A fresh run that buys the cheapest useful run Upgrade whenever it can dies on wave 105 in 61 minutes with 83,000 Coins (was wave 153 in 89 minutes with 223,000). The owner's research says a new player takes about an hour to reach wave 100 (unverified). Without run Upgrades a fresh run is unchanged: wave 33 in 18.9 minutes.
+  - An early build that buys run Upgrades (Damage 20, Attack Speed 10, Health 20, Regen 10) is still alive at the 90-minute cap on wave 155.
+  - Careers (40 runs, 90-minute cap, even spending): buying run Upgrades reaches wave 61 on run 1 and wave 104 on run 2 (1.6 hours), then every run from run 3 lasts to the cap. Hoarding Cash is unchanged: wave 100 on run 18 (8.7 hours).
+- **Consequences:**
+  - The first run or two now land near where The Tower's research puts a new player. **From the third run no run ends in 90 minutes**, so the next problem is walls, not Cash: once a build outgrows the curve, only the cap ends a run (the open question of every shot also being Number, D037 and D068).
+  - Tier 2 and 3 pay 1.8 and 2.6 times the Cash they did.
+- **Revisit when:** the owner reads a boss kill's Cash, or a battle report's Cash earned at a known wave on an early run; or a tier's Cash turns out not to follow its Coin multiplier.

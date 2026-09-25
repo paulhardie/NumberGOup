@@ -573,7 +573,7 @@ func _member_hit(index: int) -> SimulationEvent:
 ## Every kill pays when it happens, as The Tower's do (D066): Coins by its
 ## type (basics none, the rarer types more) times its wave (D068), lifted by
 ## the Coins / Kill Bonus row and Coin Bonus, with any part of a Coin carried
-## to the next kill; Cash by its share of its wave's HP, times Cash Bonus; and
+## to the next kill; Cash by its type and wave (D071), times Cash Bonus; and
 ## a boss its Gem, with the "boss beaten" moment when it falls after its wave
 ## passed (its own wave's clear tells that story otherwise).
 func _pay_kills() -> void:
@@ -592,7 +592,7 @@ func _pay_kills() -> void:
 		var coin_gain := _pay_coins(coin_amount)
 		if active_encounter.is_own(member):
 			active_encounter.paid_coins += coin_gain
-		var cash_amount: float = balance_profile.wave_cash(member_wave) * owed_share if owed_share > 0.0 else balance_profile.kill_cash(member_wave, float(member.get("weight", 1.0)), float(member.get("of", 1.0)))
+		var cash_amount: float = balance_profile.kill_cash(selected_tier, member_wave, str(member.get("kind", "basic")))
 		_add_cash(ScientificNumber.from_float(cash_amount * stat("cash_bonus")))
 		if bool(member.get("boss", false)):
 			var gem_gain := balance_profile.wave_gems(member_wave)

@@ -2383,12 +2383,19 @@ func _test_cash_comes_from_kills_and_waves() -> void:
 		state.advance(0.25)
 	_expect(state.cash.is_zero(), "shots that kill nothing should pay no Cash")
 	var profile := TaxBalanceProfile.new()
-	_expect(is_equal_approx(profile.wave_cash(1), 15.0) and is_equal_approx(profile.wave_cash(21), 115.0) and is_equal_approx(profile.wave_cash(10), 180.0), "a wave should be worth 10 + 5 x its number in Cash, x3 on a boss")
+	# The Tower's Cash per kill (D071): $1 to wave 9, $1 more every ten waves.
+	_expect(is_equal_approx(profile.kill_cash(1, 1, "basic"), 1.0) and is_equal_approx(profile.kill_cash(1, 9, "basic"), 1.0) and is_equal_approx(profile.kill_cash(1, 10, "basic"), 2.0) and is_equal_approx(profile.kill_cash(1, 29, "basic"), 3.0) and is_equal_approx(profile.kill_cash(1, 100, "basic"), 11.0), "a basic should pay $1 to wave 9 and $1 more every ten waves: $11 at wave 100")
+	_expect(is_equal_approx(profile.kill_cash(1, 100, "fast"), 22.0) and is_equal_approx(profile.kill_cash(1, 100, "ranged"), 22.0) and is_equal_approx(profile.kill_cash(1, 100, "tank"), 55.0) and is_equal_approx(profile.kill_cash(1, 100, "boss"), 220.0), "fast and ranged should pay double, a tank five times and a boss twenty")
+	_expect(is_equal_approx(profile.kill_cash(1, 0, "basic"), 1.0) and is_equal_approx(profile.kill_cash(1, 1, "protector"), 1.0), "wave 0 and an unknown type should pay like a basic on wave 1")
+	_expect(is_equal_approx(profile.kill_cash(2, 100, "tank"), 55.0 * profile.get_tier(2).reward_multiplier), "a tier's reward multiplier should lift its Cash")
 	var clearing := GameState.new()
 	clearing.start_run(1, 22)
+	var owed := 0.0
+	for member in clearing.active_encounter.members:
+		owed += profile.kill_cash(1, 1, str(member.kind))
 	clearing.active_encounter.remaining_liability = ScientificNumber.new()
 	clearing._complete_current_wave()
-	_expect(absf(clearing.cash.log10() - log(profile.wave_cash(1)) / log(10.0)) < 1.0e-9, "beating wave 1 should pay its Cash, kill by kill")
+	_expect(owed > 0.0 and absf(clearing.cash.log10() - log(owed) / log(10.0)) < 1.0e-9, "beating wave 1 should pay its Cash, kill by kill")
 	_expect(clearing.run_cash_earned.compare_to(clearing.cash) == 0, "Cash earned should count the wave's Cash")
 	var bonus := GameState.new()
 	bonus.purchased = {"cash_bonus": 100, "cash_per_wave": 10, "interest": 50}
@@ -2396,7 +2403,7 @@ func _test_cash_comes_from_kills_and_waves() -> void:
 	bonus.cash = ScientificNumber.from_float(1000.0)
 	bonus.active_encounter.remaining_liability = ScientificNumber.new()
 	bonus._complete_current_wave()
-	var kills := profile.wave_cash(1) * 2.0
+	var kills := owed * 2.0
 	var held := 1000.0 + kills + 40.0 * 2.0
 	_expect(absf(bonus.cash.log10() - log(held * (1.0 + 0.03)) / log(10.0)) < 1.0e-9, "Cash Bonus should double kills and Cash / Wave, then Interest pay 3%% of the Cash held: %s" % bonus.cash.format_value())
 
@@ -2994,7 +3001,7 @@ func _test_enemy_types_and_pay_per_kill() -> void:
 		state._pay_kills()
 		var paid: float = float(state.coins - coins_before) + state.coin_fraction - fraction_before
 		_expect(absf(paid - profile.kill_coins(1, 21, member.kind)) < 0.000001, "a %s kill should pay its Coins: %f" % [member.kind, paid])
-		_expect(absf(state.cash.subtract(cash_before).log10() - log(profile.wave_cash(21) * float(member.weight) / weights) / log(10.0)) < 0.000001, "a %s kill should pay its HP's share of the wave's Cash" % member.kind)
+		_expect(absf(state.cash.subtract(cash_before).log10() - log(profile.kill_cash(1, 21, member.kind)) / log(10.0)) < 0.000001, "a %s kill should pay its type's Cash" % member.kind)
 		_expect(bool(member.paid), "a paid kill should be marked")
 	_expect(is_zero_approx(profile.kill_coins(1, 21, "basic")) and profile.kill_coins(1, 21, "fast") < profile.kill_coins(1, 21, "ranged") and profile.kill_coins(1, 21, "ranged") < profile.kill_coins(1, 21, "tank") and profile.kill_coins(1, 21, "tank") < profile.kill_coins(1, 21, "boss"), "Coins per kill should run basic 0, then fast, ranged, tank and boss")
 	# The Tower's scale (D068): a kill pays its type's worth times its wave.

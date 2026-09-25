@@ -651,7 +651,7 @@ Each step lands on its own and clears the gate for its risk level in [`QUALITY_G
 | 7 | **Core, targets and panel done** (panel laid out below the Number by D032). The Rig (D015): run-scoped ranks bought with Number priced against wave HP, worth 3× a Workshop rank (D023), with combined defensive ceilings, stacking with Workshop ranks, saved with the active run and cleared by every ending. Targets 7–9 pass; early/mid builds are the open playtest question. Remaining: Brace into the Defense tab (deliberately kept on the run screen for now, D032); Shield is off the run screen during runs | High: economy and save |
 | 8 | Ultimates, in both lenses | High: new timed effects and saved cooldown state |
 | 9 | **Done** (D068). The Tower's Workshop: its rows, prices and unlocks, every row acting in the run, save V12 refunding the old rows | High: economy and saves |
-| 10 | Retune run Upgrades' Cash against The Tower's real Cash per kill | High: economy |
+| 10 | **Done** (D071). Run Upgrades' Cash is The Tower's Cash per kill | High: economy |
 | 11 | The rest of The Tower's rows: Land Mines, Shockwave, Recovery Packages, Wall, Enemy Level Skip | High: new mechanics |
 
 Step 2 followed step 1 closely, so the new rule is explained on screen in the new words.
