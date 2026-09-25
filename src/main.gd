@@ -70,8 +70,6 @@ const LONG_PRESS_SECONDS := 0.45
 ## sits on the category strip at the foot. Whatever height is left stays empty
 ## between them, held for systems that will want the upper half later.
 const RUN_STAGE_TOP := 56.0
-## Where the Number sits in the run arena, as a share of its height (D051).
-const NUMBER_HEIGHT_SHARE := 0.5
 ## Passive shot damage is collected this often; under Reduce Motion its shown
 ## HP also waits for that collection (D055).
 const MOTE_INTERVAL := 0.33
@@ -704,8 +702,7 @@ func _build_stage(parent: Control) -> void:
 	arena_fx.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(arena_fx)
 
-	# Centred on NUMBER_HEIGHT_SHARE of the arena's height, placed by
-	# _apply_screen_layout, in the middle and clear of Brace.
+	# Placed by _apply_screen_layout, in the middle of the arena above Brace.
 	var centre := CenterContainer.new()
 	number_frame = centre
 	centre.anchor_right = 1.0
@@ -717,7 +714,7 @@ func _build_stage(parent: Control) -> void:
 	number_col.add_theme_constant_override("separation", 6)
 	number_col.resized.connect(func(): number_col.pivot_offset = number_col.size / 2.0)
 	centre.add_child(number_col)
-	number_label = _make_number_label("", 48, HORIZONTAL_ALIGNMENT_CENTER, Color("f5f5f3"))
+	number_label = _make_number_label("", 40, HORIZONTAL_ALIGNMENT_CENTER, Color("f5f5f3"))
 	number_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	number_col.add_child(number_label)
 	rate_label = _make_number_label("", 13, HORIZONTAL_ALIGNMENT_CENTER, MUTED_TEXT)
@@ -2624,11 +2621,11 @@ func _apply_screen_layout() -> void:
 		var brace_size := brace_button.get_combined_minimum_size()
 		brace_button.position = Vector2(16.0, sheet_top - 14.0 - brace_size.y)
 		brace_button.size = brace_size
-		# In the middle of the arena, as The Tower's tower is (D067), but never
-		# down onto Brace.
+		# In the middle of the arena above Brace, as The Tower's tower is in
+		# the middle of its field (D067), so enemies have as much room to walk
+		# in above the Number as below it.
 		var number_height := number_col.get_combined_minimum_size().y
-		var number_centre := minf(arena_height * NUMBER_HEIGHT_SHARE, arena_height - 14.0 - brace_size.y - number_height / 2.0 - 8.0)
-		number_centre = maxf(number_centre, number_height / 2.0)
+		var number_centre := maxf((arena_height - 14.0 - brace_size.y) / 2.0, number_height / 2.0)
 		number_frame.offset_top = number_centre - number_height / 2.0
 		number_frame.offset_bottom = number_centre + number_height / 2.0
 		stage_glow.offset_top = number_centre - 150.0
@@ -3712,7 +3709,7 @@ func _update_wave_enemy(delta: float) -> void:
 		caption += " in " + str(maxi(0, ceili(float(member.next_hit) - state.wave_accumulator))) + "s"
 		if behind > 0:
 			caption += " · " + str(behind) + " more"
-	wave_enemy.show_value(_stat_number(shown), tint, 30 if boss else _kind_size(kind, 18), caption, BOSS_COLOUR if boss else MUTED_TEXT)
+	wave_enemy.show_value(_enemy_hp(shown), tint, 30 if boss else _kind_size(kind, 18), caption, BOSS_COLOUR if boss else MUTED_TEXT)
 	var path := _enemy_path()
 	var point: Vector2 = path[0].lerp(path[1], enemy_travel)
 	var front_point: Variant = _place_followers(encounter, display, front, path)
@@ -3777,9 +3774,9 @@ func _place_followers(encounter, display: int, front: int, _path: Array) -> Vari
 		var angle := TaxEncounterClass.angle_of(member)
 		if int(member.state) == TaxEncounterClass.AT_NUMBER:
 			# Members at the Number ring it where they came in (D058), in three
-			# staggered rows so neighbours stay readable.
-			node.show_value(_stat_number(member.hp), Color(DANGER, 0.8), _kind_size(follower_kind, 13))
-			node.centre_on(_arena_point(angle, TaxBalanceProfile.stop_distance(follower_kind), node.size / 2.0, 14.0 * float(at_number % 3)))
+			# staggered rows a number's height apart so neighbours stay readable.
+			node.show_value(_enemy_hp(member.hp), Color(DANGER, 0.8), _kind_size(follower_kind, 13))
+			node.centre_on(_arena_point(angle, TaxBalanceProfile.stop_distance(follower_kind), node.size / 2.0, (node.size.y + 4.0) * float(at_number % 3)))
 			node.visible = true
 			if index == front:
 				front_point = node.value_centre()
@@ -3787,7 +3784,7 @@ func _place_followers(encounter, display: int, front: int, _path: Array) -> Vari
 			at_number += 1
 			continue
 		var progress := _member_progress(member)
-		node.show_value(_stat_number(member.hp), Color(_kind_tint(follower_kind, TEXT.lerp(WARNING, smoothstep(0.5, 1.0, progress))), 0.55), _kind_size(follower_kind, 13))
+		node.show_value(_enemy_hp(member.hp), Color(_kind_tint(follower_kind, TEXT.lerp(WARNING, smoothstep(0.5, 1.0, progress))), 0.55), _kind_size(follower_kind, 13))
 		node.centre_on(_arena_point(angle, TaxEncounterClass.distance_of(member, state.wave_accumulator), node.size / 2.0))
 		node.visible = true
 		if index == front:
@@ -3895,18 +3892,31 @@ func _enemy_path() -> Array:
 
 ## Where an enemy `distance` metres out on the ray at `angle` is drawn (D067):
 ## the arena's edge at the full approach, the Number's box at none, and
-## evenly between, so the reach is a ring halfway in. `half` is the drawn
+## evenly between, so the reach is a ring part way in. `half` is the drawn
 ## number's half size, so it neither leaves the arena nor covers the Number.
 func _arena_point(angle: float, distance: float, half: Vector2 = Vector2(18.0, 10.0), lift: float = 0.0) -> Vector2:
 	var box := number_label.get_global_rect()
 	var centre := box.get_center() - stage_root.global_position
-	# Round, as The Tower's field is: the pile rings the Number just clear of
-	# it, and enemies set off on the largest circle the arena holds.
+	var direction := Vector2(cos(angle), sin(angle))
+	# The pile rings the Number just clear of it, all the way round.
 	var inner := box.size.length() * 0.45 + maxf(half.x, half.y)
-	var room := minf(minf(centre.x, stage_root.size.x - centre.x), minf(centre.y, stage_root.size.y - centre.y))
-	var outer := maxf(room - maxf(half.x, half.y) - 6.0, inner + 40.0)
+	# Enemies set off on the largest oval the arena holds above Brace rather
+	# than the largest circle: the arena is taller than it is wide, and a
+	# circle left the room above and below the Number empty while the
+	# approach crowded into the band beside it.
+	var bottom := stage_root.size.y
+	if brace_button != null and brace_button.visible:
+		bottom = minf(bottom, brace_button.get_global_rect().position.y - stage_root.global_position.y)
+	var across := minf(centre.x, stage_root.size.x - centre.x) - maxf(half.x, half.y) - 6.0
+	var tall := minf(centre.y, bottom - centre.y) - maxf(half.x, half.y) - 6.0
+	var outer := maxf(_oval_radius(direction, across, tall), inner + 40.0)
 	var share := clampf(distance / TaxBalanceProfile.SPAWN_DISTANCE_METRES, 0.0, 1.0)
-	return centre + Vector2(cos(angle), sin(angle)) * (lerpf(inner, outer, share) + lift)
+	return centre + direction * (lerpf(inner, outer, share) + lift)
+
+## How far out along `direction` an oval `across` wide and `tall` high (each
+## from its centre) reaches.
+static func _oval_radius(direction: Vector2, across: float, tall: float) -> float:
+	return 1.0 / sqrt(pow(direction.x / maxf(across, 1.0), 2.0) + pow(direction.y / maxf(tall, 1.0), 2.0))
 
 ## A clean clear: the number breaks apart where it stood, with the no-Hit beat
 ## D041 asks for. Once only, since the body hides as it shatters.
@@ -4124,14 +4134,15 @@ func _refresh_number_display() -> void:
 	number_label.text = display_number.format_value()
 	number_label.add_theme_font_size_override("font_size", _number_font_size(number_label.text))
 
-## The Number is set at 48 (D049) and shrinks only when the string it has
-## would not fit across the arena: "9.99e42" and "1,048,576" are very
-## different widths at the same size.
+## The Number is set at 40, down from D049's 48 so the enemies walking in
+## have room beside it, and shrinks only when the string it has would not fit
+## across the arena: "9.99e42" and "1,048,576" are very different widths at
+## the same size.
 func _number_font_size(text: String) -> int:
 	var available := 300.0
 	if stage_root != null and stage_root.size.x > 0.0:
 		available = stage_root.size.x - 48.0
-	var ideal := 48
+	var ideal := 40
 	var font := number_label.get_theme_font("font")
 	if font == null or text.is_empty():
 		return ideal
@@ -4252,6 +4263,15 @@ func _trim(value: float) -> String:
 func _stat_number(value: ScientificNumber) -> String:
 	if value.exponent < 3:
 		return _trim(value.mantissa * pow(10.0, value.exponent))
+	return value.format_value()
+
+## An enemy's HP in whole numbers: its decimals made the numbers wider without
+## telling the player anything. Rounded up, so a living enemy never reads 0.
+func _enemy_hp(value: ScientificNumber) -> String:
+	if value.is_zero():
+		return "0"
+	if value.exponent < 3:
+		return str(maxi(1, ceili(value.mantissa * pow(10.0, value.exponent) - 0.000001)))
 	return value.format_value()
 
 ## Coins share the Number formatter: full digits under a million, abbreviated

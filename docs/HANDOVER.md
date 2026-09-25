@@ -1,6 +1,6 @@
 # Handover
 
-**Last updated:** 25 September 2026, by Claude, handing on to the next agent. `claude/beautiful-dirac-6ozaio` holds **D068: The Tower's Workshop in full** (`57d2ba3`, `18cee0a`, `2289229`), the independent review's fixes (`6fcc235`), and **D069: Labs, Cards, Knowledge and Gems parked until the core loop is fun** (`dc1ff25`), with the documentation after them.
+**Last updated:** 25 September 2026, by Claude, handing on to the next agent. `claude/beautiful-dirac-6ozaio` holds **D068: The Tower's Workshop in full** (`57d2ba3`, `18cee0a`, `2289229`), the independent review's fixes (`6fcc235`), **D069: Labs, Cards, Knowledge and Gems parked until the core loop is fun** (`dc1ff25`) and **D070: more room in the run arena, enemy HP in whole numbers**, with the documentation after them.
 
 The branch is unmerged and has no PR. `main` holds PR #57 (D063–D067, up to `d23d384`); this branch sits on it. The D068 commits were first pushed to `claude/codex-handover-if13d2` after PR #57 had merged; that branch is now stale and its extra commits live here.
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
@@ -22,7 +22,7 @@ This branch plays like this on a fresh run (Godot 4.7.2, profile `tax-foundation
 - **The Workshop** opens Damage, Attack Speed, Critical Chance, Critical Factor, Health and Health Regen from the start. Everything else opens a group at a time for Coins: Range 50, Defense 75, Utility's Cash rows 40, and on up to Super Crit at 100M.
 - **Run Upgrades** sell only rows the Workshop has opened, at The Tower's Cash prices ($10, $12, $14… for Damage), one level each. Cash starts at none and comes from kills (our 10 + 5 × wave a wave), Cash / Wave and Interest.
 - **Pay:** a kill pays its type's Coins times its wave (basic none, fast 2, ranged 3, tank 4, boss 5); a wave's end pays Coins / Wave (1 before any level). Milestones pay their Coin bonuses; the Gems they also pay bank unseen while parked.
-- **The field:** enemies set off 100 m out; a basic arrives in 10 seconds, a boss in 30. Orbs circle at 60 m or more.
+- **The field:** enemies set off 100 m out; a basic arrives in 10 seconds, a boss in 30. Orbs circle at 60 m or more. On screen (D070) the Number is set at 40 in the middle of the arena above Brace, enemies set off on the largest oval that fits, and enemy HP reads in whole numbers.
 - **Where builds land** (seed 7, two taps a second; D068's figures, unchanged by D069 because none of these builds had Labs, Cards or Insight):
 
   | Build | Result |
@@ -70,7 +70,7 @@ Each needs an owner "go", its own decision, and a retune against The Tower's Wor
   - `tools/capture_ui.gd` at four sizes with the layers parked: the hub, run, run-over screen, milestones and drawer were inspected; no Gems, Knowledge, Cards or Labs show except the SOON seats.
   - `run_balance.sh` runs clean.
   - An independent review of the D068 diff: the save conversion's maths, idempotence, backups and data regeneration were verified clean; its should-fix findings are fixed or listed here.
-  - **`tools/arena_probe.gd` fails one check here:** "live shots leave as motes: 24 ticks, peak 0". It fails the same way on `2289229`, before any of this session's changes, so it is not caused by them. The likely cause is the probe's timing: it assumes enemies are in reach eight seconds in, which D068's 100 m set-off may have broken. Not fixed.
+  - **`tools/arena_probe.gd` is flaky on one check here:** "live shots leave as motes: 23 ticks, peak 0" failed three runs in four and passed one, both before and after D070; it fails the same way on `2289229`, before this session's changes. At that moment in the probe no enemy is in reach, so shots make no motes; the probe likely assumes enemies are in reach eight seconds in, which D068's 100 m set-off made a matter of timing. Not fixed. Every other probe check passes, and its screenshots were inspected for D070.
   - **Not run:** CI, a phone, touch play and the owner's real save.
 - **On Linux:** download Godot 4.7.2 and check its SHA-512 exactly as `.github/workflows/verify.yml` does, then set `GODOT` to it.
 - **The Workshop data:** never edit `data/workshop/upgrades.json` by hand. Rerun `tools/import_tower_workshop.py` (its header says how to fetch TheTowerSDK), then `tools/export_workshop.gd` for `current.md`.
@@ -108,7 +108,7 @@ D068 is built, reviewed and measured, D069 has parked everything but the core lo
    - the parked list, until it is empty;
    - how to measure, and known issues;
    - this section, addressed to the next agent.
-2. **Record any new choice the owner accepts** as the next `D0NN` entry in [`DECISIONS.md`](DECISIONS.md) (D070 onwards). Include the owner's words, the context, the decision, the evidence (the figures measured and how), the consequences, and when to revisit. Update any document the change makes stale in the same commit.
+2. **Record any new choice the owner accepts** as the next `D0NN` entry in [`DECISIONS.md`](DECISIONS.md) (D071 onwards). Include the owner's words, the context, the decision, the evidence (the figures measured and how), the consequences, and when to revisit. Update any document the change makes stale in the same commit.
 3. **Say plainly what ran and what did not.**
 4. **Commit on a branch, never `main`, and push it.** Do not open or merge a PR unless the owner asks.
 5. **Tell the owner,** in the chat, the branch name, the head commit and the one decision you need from them next.

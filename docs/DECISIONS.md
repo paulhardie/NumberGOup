@@ -799,3 +799,17 @@ Rules:
   - Bringing them back is its own decision, and each will need retuning against The Tower's Workshop, which they were never balanced against.
   - The capture tool leaves out the parked sheets.
 - **Revisit when:** the core loop is fun: the Cash economy is fitted to The Tower's pace, runs end for a reason, and the owner has played it. Then bring the layers back one at a time, each against The Tower's own version.
+
+## D070 — More room in the run arena, and enemy HP in whole numbers
+
+- **Status:** Accepted (2026-09-25) on owner direction: "Feels a little cramped as is. Can we space things out a little. Possibly remove the decimal point from the enemies as well, as it makes them a bit chunkier without giving you much valuable info." Implemented (2026-09-25) on `claude/beautiful-dirac-6ozaio`; not merged. Refines D049's run layout and D067's arena.
+- **Context:** On the 390 × 844 layout the Number, at 48, took half the arena's width, and the arena drew the whole 100 m approach in the thin band between a circle round the Number's widest point and the largest circle the arena held. Enemies crowded that band, the pile at the Number smeared into itself, and every enemy under 1,000 HP carried two decimals ("567.53").
+- **Decision:**
+  1. **Enemy HP shows in whole numbers,** rounded up so a living enemy never reads 0. Above 1,000 it reads as the Number does.
+  2. **The run's Number is set at 40,** not 48, and still shrinks only to fit.
+  3. **The Number sits in the middle of the arena above Brace,** so enemies have as much room above it as below.
+  4. **Enemies set off on the largest oval the arena holds above Brace,** not the largest circle, so a taller arena gives them its height. On today's phone layout the oval is nearly round; the pile still rings the Number on a circle just clear of it.
+  5. The pile's three staggered rows sit a number's height apart, not 14 px.
+- **Evidence:** before-and-after captures of a boss wave, a crowded pile and a mid-wave stream at 390 × 844 (the capture tool and the arena probe). The pile no longer overlaps into unreadable runs, and the approach band is wider. Crowds still overlap where several enemies come in on nearly the same line.
+- **Consequences:** No rule, save or economy change. The Number is a sixth smaller on the run screen.
+- **Revisit when:** the owner has played it; if it is still cramped, the next levers are a smaller follower font, fewer pile numbers drawn before the caption counts the rest, or spreading enemies' directions so fewer share a line.
