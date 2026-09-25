@@ -1,5 +1,7 @@
 # Workshop ladders: ranks, cost curves and stat curves
 
+**Superseded by [D068](DECISIONS.md#d068--the-towers-workshop-in-full-around-the-number) (25 September 2026):** the ladders here were our own rows' (D047). The Workshop now uses The Tower's tables in `data/workshop/upgrades.json`; `retired_v1.json` keeps the old rows only to refund them. `proposed*.json` beside it are this page's proposals. Kept as history.
+
 **Status:** The [Tower-matched review](#tower-matched-review--23-september-2026) is accepted and built as [D047](DECISIONS.md#d047--deep-workshop-ladders-on-the-towers-shape-and-150-hours-to-max); see [As built](#as-built--d047). The original proposal from [The short version](#the-short-version) on (5,000 / 1,000-rank classes, tier bands, rank conversion) is superseded and kept as the record. It answers the owner's request to look at every Workshop row, put them in JSON and tables, and decide how deep the ladders go (The Tower runs its core rows to about 5,000 levels) and how cost and stats climb.
 **Data:**
 - [`data/workshop/current.json`](../data/workshop/current.json) and [`current.md`](../data/workshop/current.md): every current Workshop row, Lab line and Card, generated from the live game by [`tools/export_workshop.gd`](../tools/export_workshop.gd).

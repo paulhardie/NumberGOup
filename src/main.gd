@@ -442,16 +442,16 @@ func _process(delta: float) -> void:
 				_show_toast("MILESTONE  ·  +" + str(gem_gain) + " GEMS", CRITICAL)
 		elif event.type == "tier_unlock":
 			_show_toast("TIER " + event.amount.format_value() + " UNLOCKED", CRITICAL)
-		elif event.type == "second_wind":
-			# The Hit that Second Wind forgave still landed: it keeps its wave's
-			# colour (red only for a boss) and shows its working, from the Hit as
-			# it stood before this step, since the event carries the restored
-			# Number rather than the Hit.
+		elif event.type == "free_upgrade":
+			_show_toast("FREE UPGRADE  ·  " + event.label, WORKSHOP_ACCENT)
+		elif event.type == "death_defy":
+			# Death Defy ignored the Hit (D068): it still reached the Number, so it
+			# keeps its wave's colour (red only for a boss) and shows its working.
 			var rescued_colour: Color = BOSS_DANGER if hp_encounter != null and hp_encounter.is_boss else DANGER
 			_enemy_landed(rescued_colour, hit_parts.is_empty())
 			if not hit_parts.is_empty():
 				_show_hit_ledger(hit_parts, hit_parts.final, rescued_colour)
-			_show_toast("SECOND WIND  ·  " + event.amount.format_value() + " LEFT", CRITICAL)
+			_show_toast("DEATH DEFY  ·  " + event.amount.format_value() + " IGNORED", CRITICAL)
 			_flash_number(CRITICAL, 0.6)
 			_pulse_stage_impact(CRITICAL)
 			_shake_stage(9.0)
@@ -474,8 +474,9 @@ func _process(delta: float) -> void:
 	_refresh_number_display()
 	_update_stage_colour()
 	# Whatever this step took off the wave that is still standing leaves the
-	# Number as motes (D051), one per shot (D054).
-	if hp_encounter != null and state.active_encounter == hp_encounter and state.is_wave_standing():
+	# Number as motes (D051), one per shot (D054). Still standing, not still in
+	# reach: a shot that kills the last enemy in reach still flies (D068).
+	if hp_encounter != null and state.active_encounter == hp_encounter and not hp_encounter.is_cleared():
 		# Measured against HP not yet cleared, so a member that walks past with
 		# its HP (D057) is not mistaken for damage dealt.
 		_send_shots(events, hp_before.subtract(hp_encounter.uncleared()), delta)
@@ -1198,7 +1199,7 @@ func _refresh_rig_detail(category: String) -> void:
 	grid.add_theme_constant_override("v_separation", 8)
 	rig_detail.add_child(grid)
 	for definition in state.cards_for_category(category):
-		if state.balance_profile.rig_has_row(category, definition.id):
+		if state.rig_has_row(definition.id):
 			grid.add_child(_make_rig_stat_card(definition, category))
 
 ## The multi-buy control: one press cycles x1 → x5 → x10 → MAX for the open
@@ -2154,19 +2155,18 @@ func _show_stat_info(definition: UpgradeDefinition, from_rig: bool = false) -> v
 	var owned := state.get_owned(definition.id)
 	stat_info_title.text = definition.title
 	stat_info_body.text = definition.description
-	stat_info_level.text = "RANK " + str(owned) + " / " + str(definition.max_rank) + "  ·  NOW " + _stat_value_text(definition, owned)
+	stat_info_level.text = "LEVEL " + str(owned) + " / " + str(definition.max_rank) + "  ·  NOW " + _stat_value_text(definition, owned)
 	if definition.is_maxed(owned):
-		stat_info_max.text = "MAX RANK REACHED"
+		stat_info_max.text = "MAX LEVEL REACHED"
 	else:
-		stat_info_max.text = "AT MAX RANK  ·  " + _stat_value_text(definition, definition.max_rank)
+		stat_info_max.text = "AT MAX LEVEL  ·  " + _stat_value_text(definition, definition.max_rank)
 	var extra: Array[String] = []
 	if not state.is_unlocked(definition):
-		extra.append("OPENS AT WORKSHOP LV " + str(definition.workshop_level_required) + "  ·  YOU ARE LV " + str(state.get_workshop_level()))
+		extra.append("UNLOCK " + _group_title(definition.group) + " IN THE WORKSHOP")
 	if from_rig:
 		var rig_ranks := state.rig_owned(definition.id)
-		var worth := state.balance_profile.rig_effect_multiplier(definition.workshop_category, definition.id)
-		var next := ("NEXT " + state.get_rig_cost(definition.id).format_value() + " CASH") if state.rig_room(definition.id) > 0 else "AT MAX RANK"
-		extra.append("THIS RUN  ·  " + str(rig_ranks) + " RUN RANK" + ("" if rig_ranks == 1 else "S") + ", EACH WORTH " + _trim(worth) + " WORKSHOP RANKS  ·  " + next)
+		var next := ("NEXT " + state.get_rig_cost(definition.id).format_value() + " CASH") if state.rig_room(definition.id) > 0 else "AT MAX LEVEL"
+		extra.append("THIS RUN  ·  +" + str(rig_ranks) + " LEVEL" + ("" if rig_ranks == 1 else "S") + "  ·  NOW " + _stat_value_text(definition, state.tower_level(definition.id)) + "  ·  " + next)
 	stat_info_extra.text = "\n".join(extra)
 	stat_info_extra.visible = not extra.is_empty()
 	stat_info_screen.visible = true
@@ -2498,7 +2498,7 @@ func _tap_number() -> void:
 	# A tap that still has a wave to chew through sends it a mote at once, and
 	# its damage comes off the wave as the mote lands, so the player sees the
 	# wave take the hit. Otherwise the gain floats up from the tap, as before.
-	var struck: bool = hp_encounter != null and state.active_encounter == hp_encounter and state.is_wave_standing()
+	var struck: bool = hp_encounter != null and state.active_encounter == hp_encounter and not hp_encounter.is_cleared()
 	if struck:
 		_fire_mote(hp_before.subtract(hp_encounter.uncleared()), event.is_critical, true)
 	else:
@@ -2878,62 +2878,88 @@ func _refresh_workshop() -> void:
 		button.add_theme_stylebox_override("hover", _panel_style(Color("26272a"), 19) if active else StyleBoxEmpty.new())
 	_refresh_workshop_detail(category)
 
-## The open category as a list (D049): one row per open upgrade, and the rows
-## still shut folded into a line per Workshop level that opens them.
+## The open category as a list (D049): one row per open upgrade, then the
+## next unlock The Tower's order offers (D068), with the rows it opens and its
+## Coins, and how many more follow.
 func _refresh_workshop_detail(category: String) -> void:
 	_clear_children(workshop_detail)
 	if state.in_run:
-		workshop_detail.add_child(_make_locked_panel("AVAILABLE BETWEEN RUNS", "Current ranks are active now and will be retained when this run ends."))
+		workshop_detail.add_child(_make_locked_panel("AVAILABLE BETWEEN RUNS", "Current levels are active now and will be retained when this run ends."))
 		workshop_detail.add_child(_make_gap(8))
 	if not state.has_category_content(category):
 		workshop_detail.add_child(_make_locked_panel("NOTHING HERE YET", "Ultimates unlock at waves 10, 25, 50 and 100."))
 		return
-	var locked_by_level := {}
 	for definition in state.cards_for_category(category):
 		if state.is_unlocked(definition):
 			workshop_detail.add_child(_make_stat_card(definition, category))
-		else:
-			var level := definition.workshop_level_required
-			if not locked_by_level.has(level):
-				locked_by_level[level] = []
-			locked_by_level[level].append(definition.title.capitalize())
-	if not locked_by_level.is_empty():
+	var next := state.next_locked_group(category)
+	if not next.is_empty():
 		workshop_detail.add_child(_make_gap(16))
-		workshop_detail.add_child(_make_locked_rows_panel(locked_by_level))
+		workshop_detail.add_child(_make_unlock_panel(category, next))
 
-## What is still shut in this category and the Workshop level that opens it.
-func _make_locked_rows_panel(locked_by_level: Dictionary) -> PanelContainer:
-	var panel := PanelContainer.new()
-	var style := _panel_style(Color.TRANSPARENT, 12, LINE)
-	style.content_margin_left = 16
-	style.content_margin_right = 16
-	style.content_margin_top = 14
-	style.content_margin_bottom = 14
-	panel.add_theme_stylebox_override("panel", style)
+## An unlock's name as the Workshop shows it: the rows it opens, since The
+## Tower names an unlock by what it opens.
+func _group_title(group_id: String) -> String:
+	var names: Array = []
+	for definition in state.definitions:
+		if definition.group == group_id:
+			names.append(definition.title)
+	return " & ".join(names)
+
+## The next unlock (D068): the rows it opens and its Coins, as one button, and
+## how many unlocks follow it in this category.
+func _make_unlock_panel(category: String, group: Dictionary) -> Button:
+	var group_id := str(group.id)
+	var price := int(ceil(float(group.unlock_coins)))
+	var affordable := state.can_unlock_group(group_id)
+	var button := Button.new()
+	button.flat = true
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(0, 64)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var style := _panel_style(Color(ACCENT.r, ACCENT.g, ACCENT.b, 0.08) if affordable else Color.TRANSPARENT, 12, ACCENT if affordable else LINE)
+	for stylebox_name in ["normal", "hover", "pressed"]:
+		button.add_theme_stylebox_override(stylebox_name, style)
 	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 12)
-	panel.add_child(row)
+	row.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	row.offset_left = 16
+	row.offset_right = -16
+	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(row)
 	var lines := VBoxContainer.new()
+	lines.alignment = BoxContainer.ALIGNMENT_CENTER
 	lines.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lines.add_theme_constant_override("separation", 3)
+	lines.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(lines)
-	var levels: Array = locked_by_level.keys()
-	levels.sort()
-	for i in range(levels.size()):
-		var names: Array = locked_by_level[levels[i]]
-		if i == 0:
-			lines.add_child(_make_label(str(names.size()) + " more at Workshop level " + str(levels[i]), 13, HORIZONTAL_ALIGNMENT_LEFT, MUTED_TEXT))
-			var first := _make_label(", ".join(names), 12, HORIZONTAL_ALIGNMENT_LEFT, FAINT_TEXT)
-			first.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			lines.add_child(first)
+	var names: Array = []
+	for definition in state.cards_for_category(category):
+		if definition.group == group_id:
+			names.append(definition.title.capitalize())
+	var title := _make_label("Unlock " + ", ".join(names), 13, HORIZONTAL_ALIGNMENT_LEFT, TEXT if affordable else MUTED_TEXT)
+	title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	lines.add_child(title)
+	var later := 0
+	for other in state.workshop_group_list:
+		if str(other.workshop_category) == category and int(other.order) > int(group.order) and not state.is_group_unlocked(str(other.id)):
+			later += 1
+	if later > 0:
+		lines.add_child(_make_label(str(later) + " more unlock" + ("" if later == 1 else "s") + " after this", 11, HORIZONTAL_ALIGNMENT_LEFT, FAINT_TEXT))
+	var cost := _make_number_label(_coins(price) + " Coins", 13, HORIZONTAL_ALIGNMENT_RIGHT, ACCENT if affordable else MUTED_TEXT)
+	cost.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	row.add_child(cost)
+	button.pressed.connect(func():
+		if state.unlock_group(group_id):
+			_show_toast("UNLOCKED  ·  " + ", ".join(names).to_upper(), WORKSHOP_ACCENT)
+			state.save()
+			_refresh_all()
+			_refresh_workshop()
+		elif state.in_run:
+			_show_toast("AVAILABLE BETWEEN RUNS", MUTED_TEXT)
 		else:
-			var later := _make_label(", ".join(names) + " at level " + str(levels[i]), 12, HORIZONTAL_ALIGNMENT_LEFT, FAINT_TEXT)
-			later.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-			lines.add_child(later)
-	var level_label := _make_number_label("You: Lv " + str(state.get_workshop_level()), 12, HORIZONTAL_ALIGNMENT_RIGHT, MUTED_TEXT)
-	level_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	row.add_child(level_label)
-	return panel
+			_show_toast("NEED " + _coins(price) + " COINS", MUTED_TEXT)
+	)
+	return button
 
 func _refresh_labs() -> void:
 	_clear_children(labs_content)
@@ -3137,7 +3163,7 @@ func _make_stat_card(definition: UpgradeDefinition, category: String) -> Button:
 	names.add_theme_constant_override("separation", 3)
 	row.add_child(names)
 	names.add_child(_make_label(definition.title.capitalize(), 14, HORIZONTAL_ALIGNMENT_LEFT, TEXT if unlocked else MUTED_TEXT))
-	names.add_child(_make_number_label("Rank " + _coins(owned) + " / " + _coins(definition.max_rank), 11, HORIZONTAL_ALIGNMENT_LEFT, FAINT_TEXT))
+	names.add_child(_make_number_label("Lv " + _coins(owned) + " / " + _coins(definition.max_rank), 11, HORIZONTAL_ALIGNMENT_LEFT, FAINT_TEXT))
 	var value := _make_number_label(_stat_value_text(definition, owned), 16, HORIZONTAL_ALIGNMENT_RIGHT, TEXT if unlocked else MUTED_TEXT)
 	value.custom_minimum_size = Vector2(72, 0)
 	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -3179,7 +3205,7 @@ func _make_stat_card(definition: UpgradeDefinition, category: String) -> Button:
 		elif maxed:
 			_show_toast("ALREADY MAXED", MUTED_TEXT)
 		elif not unlocked:
-			_show_toast("NEEDS WORKSHOP LV " + str(definition.workshop_level_required), MUTED_TEXT)
+			_show_toast("UNLOCK " + _group_title(definition.group) + " FIRST", MUTED_TEXT)
 		elif state.in_run:
 			_show_toast("AVAILABLE BETWEEN RUNS", MUTED_TEXT)
 		else:
@@ -3229,9 +3255,9 @@ func _make_rig_stat_card(definition: UpgradeDefinition, category: String) -> But
 		var plan := state.plan_rig_purchase(upgrade_id, step)
 		if int(plan.ranks) == 0:
 			if state.rig_room(upgrade_id) <= 0:
-				_show_toast(definition.title + " IS AT MAX RANK", MUTED_TEXT)
+				_show_toast(definition.title + " IS AT MAX LEVEL", MUTED_TEXT)
 			elif not state.is_unlocked(definition):
-				_show_toast("NEEDS WORKSHOP LV " + str(definition.workshop_level_required), MUTED_TEXT)
+				_show_toast("UNLOCK " + _group_title(definition.group) + " FIRST", MUTED_TEXT)
 			else:
 				_show_toast("NEED " + state.get_rig_cost(upgrade_id).format_value() + " CASH", MUTED_TEXT)
 			return
@@ -3256,7 +3282,7 @@ func _update_rig_card(definition: UpgradeDefinition) -> void:
 	if not is_instance_valid(tile):
 		return
 	var unlocked := state.is_unlocked(definition)
-	var effective := state.get_owned(definition.id) + int(state.rig_rank_equivalent(definition))
+	var effective := state.tower_level(definition.id)
 	var next_cost := state.get_rig_cost(definition.id)
 	var plan := state.plan_rig_purchase(definition.id, _buy_step(state.workshop.selected_category))
 	var ranks := int(plan.ranks)
@@ -3265,7 +3291,7 @@ func _update_rig_card(definition: UpgradeDefinition) -> void:
 	(refs.value_label as Label).text = _stat_value_text(definition, effective)
 	var cost_label: Label = refs.cost_label
 	if not unlocked:
-		cost_label.text = "Workshop Lv " + str(definition.workshop_level_required)
+		cost_label.text = "Locked"
 		cost_label.add_theme_color_override("font_color", FAINT_TEXT)
 		return
 	if state.rig_room(definition.id) <= 0:
@@ -3311,7 +3337,17 @@ func _stat_value_text(definition: UpgradeDefinition, rank: int) -> String:
 		"multiplier":
 			return "×%.2f" % value
 		"per_second":
-			return "%.2f/s" % value
+			return ("%.2f/s" % value) if value < 1000.0 else _stat_number(ScientificNumber.from_float(value)) + "/s"
+		"metres":
+			return "%.1fm" % value
+		"per_metre":
+			return "+%.2f%%/m" % (value * 100.0)
+		"seconds":
+			return "%.2fs" % value
+		"rpm":
+			return "%.2f rpm" % value
+		"count":
+			return str(roundi(value))
 		"flat":
 			# The Number formatter rounds to whole units, which would hide a
 			# rank worth 0.05. Small stat values need their decimals.
@@ -3323,7 +3359,7 @@ func _stat_cost_text(definition: UpgradeDefinition, owned: int, maxed: bool, unl
 	if maxed:
 		return "MAX"
 	if not unlocked:
-		return "LV " + str(definition.workshop_level_required)
+		return "LOCKED"
 	if int(plan.ranks) > 1:
 		return "×" + str(int(plan.ranks)) + " · " + _coins(int(plan.cost))
 	if int(plan.ranks) == 1:
@@ -3633,7 +3669,7 @@ func _update_wave_enemy(delta: float) -> void:
 	# Reduce Motion stops movement, not information (MOTION_SYSTEM rule 1): the
 	# number holds at the arena's edge and its caption keeps the time.
 	var member: Dictionary = encounter.members[display]
-	enemy_angle = _member_angle(member)
+	enemy_angle = TaxEncounterClass.angle_of(member)
 	enemy_stop = TaxBalanceProfile.stop_distance(str(member.get("kind", "basic")))
 	if enemy_latched or int(member.state) == TaxEncounterClass.AT_NUMBER:
 		enemy_travel = 1.0
@@ -3674,14 +3710,22 @@ func _update_wave_enemy(delta: float) -> void:
 	arena_fx.trail_colour = Color(tint, 0.22) if enemy_travel > 0.02 and not enemy_latched else Color.TRANSPARENT
 	_draw_range_ring()
 
-## The Number's reach as a faint ring (D067), The Tower's range circle: 30 m
-## of the 60 m approach, drawn on the same rays the enemies walk.
+## The Number's reach as a faint ring (D067), The Tower's range circle, at
+## what the Range row reaches (D068), drawn on the same rays the enemies walk;
+## and the orbs circling outside it.
 func _draw_range_ring() -> void:
 	var points := PackedVector2Array()
+	var reach := state.get_range()
 	for step in range(73):
-		points.append(_arena_point(TAU * float(step) / 72.0, TaxBalanceProfile.TOWER_RANGE_METRES))
+		points.append(_arena_point(TAU * float(step) / 72.0, reach))
 	arena_fx.ring_points = points
 	arena_fx.ring_colour = Color(ACCENT, 0.14)
+	var orbs := PackedVector2Array()
+	if state.in_run and not state.settings.reduce_motion:
+		for angle in state.orb_angles():
+			orbs.append(_arena_point(angle, state.orb_radius()))
+	arena_fx.orb_points = orbs
+	arena_fx.orb_colour = Color(ACCENT, 0.7)
 
 ## The rest of the wave as smaller, quieter numbers (D057), each on its own
 ## ray towards the Number at the distance it has walked (D067), as The
@@ -3715,7 +3759,7 @@ func _place_followers(encounter, display: int, front: int, _path: Array) -> Vari
 			enemy_followers.append(follower)
 		var node = enemy_followers[shown]
 		var follower_kind: String = str(member.get("kind", "basic"))
-		var angle := _member_angle(member)
+		var angle := TaxEncounterClass.angle_of(member)
 		if int(member.state) == TaxEncounterClass.AT_NUMBER:
 			# Members at the Number ring it where they came in (D058), in three
 			# staggered rows so neighbours stay readable.
@@ -3766,7 +3810,7 @@ func _show_hit_ledger(parts: Dictionary, landed: ScientificNumber, colour: Color
 	if is_instance_valid(active_hit_ledger):
 		active_hit_ledger.queue_free()
 	active_hit_ledger = null
-	# A Brace blocks a Hit that would have landed; Guard taking it to nothing
+	# A Brace blocks a Hit that would have landed; Defense Absolute taking it to nothing
 	# (D063) shows as its own working instead.
 	var blocked: bool = landed.is_zero() and not parts.final.is_zero()
 	if parts.guard.is_zero() and parts.armor.is_zero() and not blocked:
@@ -3774,11 +3818,12 @@ func _show_hit_ledger(parts: Dictionary, landed: ScientificNumber, colour: Color
 		return
 	var lines: Array = []
 	lines.append([_stat_number(parts.raw), colour, 16])
-	# The Tower's order (D063): Armor comes off first, then Guard.
+	# The Tower's order (D063): Defense % comes off first, then Defense
+	# Absolute, named as the Workshop names them (D068).
 	if not parts.armor.is_zero():
-		lines.append(["-" + _stat_number(parts.armor) + " armor", ACCENT, 12])
+		lines.append(["-" + _stat_number(parts.armor) + " defense %", ACCENT, 12])
 	if not parts.guard.is_zero():
-		lines.append(["-" + _stat_number(parts.guard) + " guard", ACCENT, 12])
+		lines.append(["-" + _stat_number(parts.guard) + " absolute", ACCENT, 12])
 	if blocked:
 		lines.append(["braced", ACCENT, 12])
 	lines.append(["= " + ("0" if landed.is_zero() else "-" + _stat_number(landed)), ACCENT if landed.is_zero() else colour, 16])
@@ -3847,15 +3892,6 @@ func _arena_point(angle: float, distance: float, half: Vector2 = Vector2(18.0, 1
 	var outer := maxf(room - maxf(half.x, half.y) - 6.0, inner + 40.0)
 	var share := clampf(distance / TaxBalanceProfile.SPAWN_DISTANCE_METRES, 0.0, 1.0)
 	return centre + Vector2(cos(angle), sin(angle)) * (lerpf(inner, outer, share) + lift)
-
-## The direction an enemy comes in from, all round the Number as The Tower's
-## do (D067). Fixed for the enemy by its wave, arrival and type, and never
-## drawn from the run's random stream, so it cannot change a run.
-func _member_angle(member: Dictionary) -> float:
-	# A hash spreads even a wave's evenly spaced arrivals round the circle;
-	# arrivals sit on a 1/64-second grid, so the key is whole numbers.
-	var key := hash(Vector3i(int(member.get("wave", 1)), roundi(float(member.get("arrive", 0.0)) * 64.0), str(member.get("kind", "basic")).length()))
-	return float(posmod(key, 3600)) / 3600.0 * TAU
 
 ## A clean clear: the number breaks apart where it stood, with the no-Hit beat
 ## D041 asks for. Once only, since the body hides as it shatters.

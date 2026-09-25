@@ -51,13 +51,15 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 	state.coins = 1240
 	state.knowledge = 14
 	state.purchased = {
-		"stronger_tap": 5,
-		"generator": 4,
-		"generator_two": 3,
-		"faster_cadence": 3,
-		"faster_echo": 1,
-		"more_critical": 2,
+		"damage": 5,
+		"attack_speed": 4,
+		"critical_chance": 3,
+		"critical_factor": 3,
+		"range": 2,
+		"health": 6,
+		"health_regen": 2,
 	}
+	state.workshop_groups.assign(["range", "cash"])
 	state.settings["reduce_motion"] = true
 	if state_name == "run" or state_name == "run_standing" or state_name == "run_feedback" or state_name == "run_crit" or state_name == "boss":
 		# The wave's body only travels with Reduce Motion off (D050).
@@ -66,9 +68,9 @@ func _capture_state(window_size: Vector2i, label: String, state_name: String, op
 		state.start_run(2, 99)
 		state.number = ScientificNumber.from_float(238500)
 		state.wave = 27
-		# Before the group's front member lands at 6 seconds (D057), so the
-		# capture shows the whole group walking in.
-		state.wave_accumulator = 4.5
+		# Before the group's front member lands at 10 seconds (D057, D068), so
+		# the capture shows the whole group walking in.
+		state.wave_accumulator = 8.5
 		state.run_coins_earned = 640
 		state.active_encounter = state._make_encounter(27)
 		if state_name == "boss":
