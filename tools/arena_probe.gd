@@ -2,8 +2,8 @@ extends SceneTree
 ## Plays the run arena through its beats in a real window and checks them:
 ## the group walking in (D057), motes and pops (D051, D054, D055), a beaten
 ## front member, clears, boss slams and latching, the Hit's working (D052),
-## Second Wind, the pile at the Number and a boss behind it (D058), and
-## Reduce Motion. Saves to a throwaway file and writes screenshots to
+## the pile at the Number and a boss behind it (D058), the Range ring and orbs
+## (D068), and Reduce Motion. Saves to a throwaway file and writes screenshots to
 ## user://arena_probe (the scratch HOME that run_godot.sh sets).
 ## Run: bash run_godot.sh --path . -s res://tools/arena_probe.gd
 ## (headless Linux: xvfb-run -a -s "-screen 0 1024x1100x24" bash run_godot.sh ...)
@@ -53,14 +53,26 @@ func _init() -> void:
 	# the D059 opening pass is exercised below at wave 12.
 	st.balance_profile.OPENING_HIT_WAVES = 0
 	st.balance_profile.OPENING_EASED_BY = 0
+	# Basic enemies to start, so no faster one overtakes the front while the
+	# approach is measured; the usual mix returns for the boss.
+	var mix: Dictionary = st.balance_profile.ENEMY_MIX.duplicate()
+	st.balance_profile.ENEMY_MIX = {"basic": 1.0}
 	st.start_run(1, 3)
 	st.number = ScientificNumber.from_float(5000)
+	# Sturdier than a wave 1 basic, which one shot of Damage 3 kills, so a tap
+	# chips the front rather than beating it.
+	for member in st.active_encounter.members:
+		member.max = ScientificNumber.from_float(100.0)
+		member.hp = member.max.copy()
+	st.active_encounter._sum_remaining()
 	main._refresh_all()
 	await _frames(3)
 	_check(main.wave_enemy.visible, "a standing wave shows its body")
 	var path: Array = main._enemy_path()
 	var start_gap: float = (main.wave_enemy.position + main.wave_enemy.size / 2.0).distance_to(path[1])
-	st.wave_accumulator = 4.0
+	# Eight seconds in, so the front basic is 20 m out, inside the reach (D068's
+	# 100 m approach), and a tap strikes it.
+	st.wave_accumulator = 8.0
 	await _frames(2)
 	var late_gap: float = (main.wave_enemy.position + main.wave_enemy.size / 2.0).distance_to(path[1])
 	var front_arrive: float = st.active_encounter.members[st.active_encounter.front_index()].arrive
@@ -123,16 +135,17 @@ func _init() -> void:
 	await create_timer(0.25).timeout
 	await _frames(2)
 	_check(main.wave_enemy.visible and st.wave == 2 and st.wave_accumulator < 1.5 and absf(main.enemy_travel - st.wave_accumulator / st.active_encounter.members[st.active_encounter.front_index()].arrive) < 0.03, "the next wave arrives at the edge: %f" % main.enemy_travel)
-	# A boss that is not beaten reaches the Number at 18 seconds and stays
-	# there, the live number, while the next wave comes in behind it at 35
-	# (D063, D065, D066).
+	st.balance_profile.ENEMY_MIX = mix
+	# A boss that is not beaten reaches the Number at 30 seconds (D068's 100 m)
+	# and stays there, the live number, while the next wave comes in behind it
+	# at 35 (D063, D065, D066).
 	st.wave = 10
 	st.active_encounter = st._make_encounter(10)
 	st.number = ScientificNumber.from_float(1.0e9)
-	st.wave_accumulator = st.balance_profile.BOSS_ARRIVAL_SECONDS - 0.1
+	st.wave_accumulator = TaxBalanceProfile.boss_arrival_seconds() - 0.1
 	await create_timer(0.25).timeout
 	var boss_in_wave: int = st.active_encounter.boss_index()
-	_check(st.wave == 10 and boss_in_wave >= 0 and int(st.active_encounter.members[boss_in_wave].state) == TaxEncounter.AT_NUMBER, "a boss Hit lands at 18 seconds and the boss stays")
+	_check(st.wave == 10 and boss_in_wave >= 0 and int(st.active_encounter.members[boss_in_wave].state) == TaxEncounter.AT_NUMBER, "a boss Hit lands at 30 seconds and the boss stays")
 	st.wave_accumulator = 34.9
 	await create_timer(0.25).timeout
 	var landed_boss: int = st.active_encounter.boss_index()
@@ -149,10 +162,13 @@ func _init() -> void:
 	st.active_encounter = st._make_encounter(12)
 	st.wave_accumulator = 34.95
 	await _frames(12)
-	_check(st.wave == 13 and main.wave_enemy.visible and st.active_encounter.at_number_count() == 0 and main.enemy_travel < 0.1, "an opening wave that is missed slams and the next arrives (D059)")
-	# With Guard and Armor, the wave shows its raw Hit and the working plays at contact.
+	# Its enemies set off last are still walking in, 100 m out being further
+	# than the clock (D068); they carry on into the next wave.
+	_check(st.wave == 13 and main.wave_enemy.visible and st.active_encounter.at_number_count() == 0, "an opening wave that is missed slams and the next arrives (D059)")
+	# With Defense Absolute and Defense %, the wave shows its raw Hit and the
+	# working plays at contact.
 	await create_timer(2.5).timeout
-	st.purchased = {"guard": 30, GameState.ARMOR_ID: 60}
+	st.purchased = {"defense_absolute": 2, "defense_percent": 60}
 	st.wave = 15
 	st.active_encounter = st._make_encounter(15)
 	st.number = ScientificNumber.from_float(1.0e9)
@@ -173,39 +189,26 @@ func _init() -> void:
 	await _frames(2)
 	var live_ledgers: Array = main.stage_root.get_children().filter(func(child): return child is VBoxContainer and child != main.number_col and not child.is_queued_for_deletion())
 	_check(main.active_hit_ledger != previous_ledger and live_ledgers.size() == 1, "close reduced Hits replace their working instead of stacking columns")
-	# Second Wind: an ordinary wave's forgiven Hit keeps its own colour and
-	# still shows its working.
+	# The Range row's ring and the orbs outside it (D068).
 	await create_timer(2.5).timeout
-	# Guard comes off each enemy's hit since D063, so a small Guard keeps
-	# this Hit reduced but real.
-	st.purchased = {"guard": 3, GameState.ARMOR_ID: 60, "second_wind": 20}
-	st.second_wind_used = false
-	st.wave = 17
-	st.active_encounter = st._make_encounter(17)
-	st.number = ScientificNumber.from_float(0.5)
-	st.run_peak_number = ScientificNumber.from_float(1.0e6)
+	st.purchased = {"range": 79, "orbs": 4, "orb_speed": 38}
+	st.active_encounter = st._make_encounter(st.wave)
+	st.wave_accumulator = 3.0
 	await _frames(3)
-	var rescued_parts: Dictionary = st.get_hit_breakdown()
-	st.wave_accumulator = 14.95
-	await create_timer(0.75).timeout
-	_check(st.second_wind_used, "the probe's Hit should call Second Wind")
-	var rescue_lines := 0
-	var rescue_colour := Color.BLACK
-	for child in main.stage_root.get_children():
-		if child is VBoxContainer and child != main.number_col and child.get_child_count() > rescue_lines:
-			rescue_lines = child.get_child_count()
-			rescue_colour = child.get_child(0).get_theme_color("font_color")
-	_check(rescue_lines == 4 and not rescue_parts_empty(rescued_parts), "a Hit Second Wind forgave still shows its working: %d lines" % rescue_lines)
-	_check(rescue_colour.is_equal_approx(main.DANGER), "an ordinary wave's forgiven Hit is not boss red")
-	await _shot("6_second_wind")
+	var ring_radius: float = main.arena_fx.ring_points[0].distance_to(main.number_label.get_global_rect().get_center() - main.stage_root.global_position)
+	var orb_radius: float = main.arena_fx.orb_points[0].distance_to(main.number_label.get_global_rect().get_center() - main.stage_root.global_position) if not main.arena_fx.orb_points.is_empty() else 0.0
+	_check(main.arena_fx.orb_points.size() == 4 and orb_radius > ring_radius * 0.8, "four orbs circle near the 69.5 m ring: ring %f, orbs %f" % [ring_radius, orb_radius])
+	await _shot("6_range_orbs")
+	st.purchased = {}
 	await create_timer(2.6).timeout
 	st.active_encounter = st._make_encounter(st.wave)
-	# Four seconds in, so the first enemies are in reach (D067).
-	st.wave_accumulator = 4.0
+	# Eight seconds in, so the first enemies are in reach (D067, D068).
+	st.wave_accumulator = 8.0
 	st.number = ScientificNumber.from_float(1.0e9)
-	# Live: a run at 5.95 shots a second keeps several motes flying.
-	st.purchased["faster_cadence"] = 100
-	st.purchased["generator"] = 40
+	# Live: Attack Speed 5.95 under Rapid Fire, 23.8 shots a second at the
+	# first Damage, keeps several motes flying without clearing the reach.
+	st.purchased["attack_speed"] = 99
+	st.rapid_fire_left = 30.0
 	var ticks_before: int = st.statistics.ticks
 	var peak := 0
 	for i in range(40):
@@ -213,7 +216,7 @@ func _init() -> void:
 		peak = maxi(peak, main.arena_fx._motes.size())
 	await _shot("1d_stream")
 	_check(st.statistics.ticks - ticks_before >= 2 and peak >= 1, "live shots leave as motes: %d ticks, peak %d" % [st.statistics.ticks - ticks_before, peak])
-	# D061: even at 14.9 shots a second, damage updates one label in place.
+	# D061: even at 23.8 shots a second, damage updates one label in place.
 	var seen := {}
 	for label in main.floating_text_layer.get_children():
 		seen[label] = true
@@ -223,15 +226,15 @@ func _init() -> void:
 	for label in main.floating_text_layer.get_children():
 		if label is Label and not seen.has(label) and label.text.begins_with("-"):
 			pops += 1
-	_check(st.statistics.ticks - shots_before >= 12 and pops == 0 and main.damage_readout.visible, "fourteen shots a second update one fixed readout: %d shots, %d pops" % [st.statistics.ticks - shots_before, pops])
-	st.purchased.erase("faster_cadence")
-	st.purchased.erase("generator")
+	_check(st.statistics.ticks - shots_before >= 12 and pops == 0 and main.damage_readout.visible, "a stream of shots updates one fixed readout: %d shots, %d pops" % [st.statistics.ticks - shots_before, pops])
+	st.purchased.erase("attack_speed")
+	st.rapid_fire_left = 0.0
 	# D057: a member reaching the Number carries its HP past; that is not
 	# damage, so no mote or pop may carry it.
 	st.wave = 27
 	st.active_encounter = st._make_encounter(27)
 	st.number = ScientificNumber.from_float(1.0e9)
-	st.wave_accumulator = 5.9
+	st.wave_accumulator = 9.9
 	await _frames(2)
 	main.arena_fx.clear_motes()
 	main.pop_damage = ScientificNumber.new()
