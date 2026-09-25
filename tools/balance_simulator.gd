@@ -303,7 +303,7 @@ func _simulate_maxed_workshop() -> void:
 				"  ", name.rpad(12), "T", tier, "  ", ("alive" if state.in_run else "death"), " at wave ", reached,
 				"  minutes=", snappedf(seconds / 60.0, 0.1),
 				"  coins=", state.coins,
-				"  damage/s=", state.get_rate_per_second().format_value(),
+				"  damage/s=", state.get_damage_per_second().format_value(),
 				"  wave HP=", state.balance_profile.liability_for_wave(tier, reached).format_value()
 			)
 

@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 25 September 2026, by Claude, handing on to the next agent. `claude/beautiful-dirac-6ozaio` holds **D068: The Tower's Workshop in full** (`57d2ba3`, `18cee0a`, `2289229`), the independent review's fixes (`6fcc235`), **D069: Labs, Cards, Knowledge and Gems parked until the core loop is fun** (`dc1ff25`) and **D070: more room in the run arena, enemy HP in whole numbers**, with the documentation after them.
+**Last updated:** 25 September 2026, by Claude, handing on to the next agent. **D068 (The Tower's Workshop), D069 (Labs, Cards, Knowledge and Gems parked) and D070 (more room in the run arena) are merged to `main`** in PR #59. `claude/beautiful-dirac-6ozaio` now carries the fixes for PR #59's Codex review on top of `main`: a knocked-back enemy keeps its wave from being beaten, Stats' Damage / sec leaves Health Regen out, the hub's Coin row is named for what it shows, and the arena probe's stream checks are deterministic.
 
-The branch is unmerged and has no PR. `main` holds PR #57 (D063–D067, up to `d23d384`); this branch sits on it. The D068 commits were first pushed to `claude/codex-handover-if13d2` after PR #57 had merged; that branch is now stale and its extra commits live here.
+The branch is unmerged and has no PR. `claude/codex-handover-if13d2` is stale: everything on it is in `main`.
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git. If it disagrees with the code or a decision, they win.
 
 ## For the next agent: start here
@@ -39,7 +39,7 @@ This branch plays like this on a fresh run (Godot 4.7.2, profile `tax-foundation
 1. **Run Upgrades are far too strong.** The Cash a kill pays is still our own figure, and against The Tower's cheap in-run prices it lets a fresh run reach wave 153. **Recommend: read The Tower's Cash earned at a known wave on an early run from a battle report, so the next agent can fit Cash per kill to it.** Until then the game's pacing is not meaningful. Interest has no cap here, which a long run shows (Cash reached 1.8e30 by wave 1,029 in a 10-hour maxed simulation); whether The Tower caps it is unverified and belongs in the same retune.
 2. **Every shot is also Number.** With The Tower's Damage values, a strong Attack build banks so much Number that hits stop mattering. **Recommend: judge it after the Cash retune,** since run Upgrades are most of today's excess; if strong builds still never lose, bank only the damage a shot actually deals, or a share of it.
 3. **The refund at 15×.** The owner's real save converts once on first load: its old Workshop levels become Coins at their old prices, and all its Coins are multiplied by 15. **Recommend accepting:** 15 is the ratio of both kill pay and first-level prices. The V10/V11 file is kept beside the new save.
-4. **Merge this branch?** It carries D068, D069 and save V12. **Recommend: after the Cash retune and the owner's first play.**
+4. **Merge this branch?** It carries only the review fixes above. **Recommend: yes, once CI is green;** none of it changes the Cash economy.
 
 ## Next steps, in order
 
@@ -65,12 +65,12 @@ Each needs an owner "go", its own decision, and a retune against The Tower's Wor
 ## How to measure
 
 - **What ran on this branch (25 September):**
-  - `bash run_tests.sh` → `PASS: economy tests`, including new tests for parking, walkers resumed across a profile change and a knockback reload, and Lifesteal through a real tap. The one `WARNING: Exponent too high` is the bad-save test feeding a broken save on purpose.
+  - `bash run_tests.sh` → `PASS: economy tests`, including new tests for parking, walkers resumed across a profile change and a knockback reload, Lifesteal through a real tap, a wave not beaten while an enemy knocked out of reach lives (and across a reload), and Damage / sec without Regen. The one `WARNING: Exponent too high` is the bad-save test feeding a broken save on purpose.
   - Headless boot clean.
   - `tools/capture_ui.gd` at four sizes with the layers parked: the hub, run, run-over screen, milestones and drawer were inspected; no Gems, Knowledge, Cards or Labs show except the SOON seats.
   - `run_balance.sh` runs clean.
   - An independent review of the D068 diff: the save conversion's maths, idempotence, backups and data regeneration were verified clean; its should-fix findings are fixed or listed here.
-  - **`tools/arena_probe.gd` is flaky on one check here:** "live shots leave as motes: 23 ticks, peak 0" failed three runs in four and passed one, both before and after D070; it fails the same way on `2289229`, before this session's changes. At that moment in the probe no enemy is in reach, so shots make no motes; the probe likely assumes enemies are in reach eight seconds in, which D068's 100 m set-off made a matter of timing. Not fixed. Every other probe check passes, and its screenshots were inspected for D070.
+  - **`tools/arena_probe.gd` passes five runs in five.** Its stream checks were flaky: they sampled 40 frames, which a fast display runs before the first mote leaves (once per `MOTE_INTERVAL` of the wave's clock), and a random mix could put a tank first, out of reach. They now use basics, a first enemy tough enough to stand through both checks, and a second of the wave's clock.
   - **Not run:** CI, a phone, touch play and the owner's real save.
 - **On Linux:** download Godot 4.7.2 and check its SHA-512 exactly as `.github/workflows/verify.yml` does, then set `GODOT` to it.
 - **The Workshop data:** never edit `data/workshop/upgrades.json` by hand. Rerun `tools/import_tower_workshop.py` (its header says how to fetch TheTowerSDK), then `tools/export_workshop.gd` for `current.md`.
@@ -85,9 +85,7 @@ Each needs an owner "go", its own decision, and a retune against The Tower's Wor
 ## Known issues and risks
 
 - **Run Upgrades and Cash** are the balance problem above.
-- **Knockback can turn a pass into a beaten wave:** an enemy pushed just outside reach as the clock ends counts as not in reach, so the wave is beaten while it lives (D067's rule, newly reachable through knockback).
 - **Taps have no rate limit:** every tap is a full shot, so an autoclicker scales output without bound. Intended by D068; a lever to know about.
-- **Two readouts mislead:** the hub's "Total Coin bonus" is the multiplier on a kill's Coins, not on every Coin; Stats' "DAMAGE / SEC" includes Health Regen.
 - **Stale tools:** `tools/workshop_ladders.py` crashes on the regenerated `current.json` (`KeyError: 'faster_cadence'`), though `docs/WORKSHOP_LADDERS.md` names it as the generator of `proposed.json`; `tools/career_model.py` still models the retired Leech and Thorns rows.
 - **The Tower's Workshop data is its own table,** redistributed under the SDK's MIT licence: fine privately; publishing needs a decision.
 - **Orbs' radius and Knockback's metres are ours**, since The Tower gives no units; both are single constants in `TaxBalanceProfile`. Damage / Meter's top level reads as +59% a metre (×42 at 69.5 m), unverified against the real game.

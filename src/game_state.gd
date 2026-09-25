@@ -364,6 +364,11 @@ func is_wave_standing() -> bool:
 func get_rate_per_second() -> ScientificNumber:
 	return ScientificNumber.from_float(_damage() * _attack_speed() + stat("health_regen"))
 
+## Damage a second from shots before crits: the rate without Health Regen,
+## which adds Number but strikes nothing (D068).
+func get_damage_per_second() -> ScientificNumber:
+	return ScientificNumber.from_float(_damage() * _attack_speed())
+
 func start_run(tier_id: int = -1, seed_override: int = -1) -> bool:
 	if in_run:
 		return false

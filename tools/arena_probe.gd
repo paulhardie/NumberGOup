@@ -201,9 +201,23 @@ func _init() -> void:
 	await _shot("6_range_orbs")
 	st.purchased = {}
 	await create_timer(2.6).timeout
+	# Basics only, eight seconds after the first sets off, so it is 20 m out
+	# and in reach (D067, D068): a random mix could put a tank first, still
+	# out of reach, and no shot would leave as a mote.
+	var stream_mix: Dictionary = st.balance_profile.ENEMY_MIX
+	st.balance_profile.ENEMY_MIX = {"basic": 1.0}
 	st.active_encounter = st._make_encounter(st.wave)
-	# Eight seconds in, so the first enemies are in reach (D067, D068).
-	st.wave_accumulator = 8.0
+	st.balance_profile.ENEMY_MIX = stream_mix
+	var first := 0
+	for index in range(st.active_encounter.members.size()):
+		if float(st.active_encounter.members[index].sets_off) < float(st.active_encounter.members[first].sets_off):
+			first = index
+	st.wave_accumulator = float(st.active_encounter.members[first].sets_off) + 8.0
+	# Tough enough to stand through both stream checks: once it fell, the
+	# next basic is still walking in and the readout rightly hides.
+	st.active_encounter.members[first].max = ScientificNumber.from_float(1.0e6)
+	st.active_encounter.members[first].hp = ScientificNumber.from_float(1.0e6)
+	st.active_encounter._sum_remaining()
 	st.number = ScientificNumber.from_float(1.0e9)
 	# Live: Attack Speed 5.95 under Rapid Fire, 23.8 shots a second at the
 	# first Damage, keeps several motes flying without clearing the reach.
@@ -211,8 +225,14 @@ func _init() -> void:
 	st.rapid_fire_left = 30.0
 	var ticks_before: int = st.statistics.ticks
 	var peak := 0
-	for i in range(40):
+	# A second of the wave's clock rather than a count of frames: motes leave
+	# once per MOTE_INTERVAL of it, and a fast display can run 40 frames
+	# before the first one does.
+	var stream_start: float = st.wave_accumulator
+	var frames := 0
+	while st.wave_accumulator < stream_start + 1.0 and frames < 600:
 		await process_frame
+		frames += 1
 		peak = maxi(peak, main.arena_fx._motes.size())
 	await _shot("1d_stream")
 	_check(st.statistics.ticks - ticks_before >= 2 and peak >= 1, "live shots leave as motes: %d ticks, peak %d" % [st.statistics.ticks - ticks_before, peak])

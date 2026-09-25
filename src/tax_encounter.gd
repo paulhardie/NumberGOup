@@ -295,6 +295,10 @@ func knock_back(index: int, metres: float) -> void:
 	var there := minf(TaxBalanceProfile.SPAWN_DISTANCE_METRES, here + metres)
 	if there <= here:
 		return
+	# Pushed out of reach, it still came within it, so its wave is not
+	# beaten while it lives (D067).
+	if int(member.state) == AT_NUMBER or (has_set_off(member) and here <= reach):
+		member.reached = true
 	member.sets_off = now - (TaxBalanceProfile.SPAWN_DISTANCE_METRES - there) / speed
 	member.state = STANDING
 	member.next_hit = now + (there - TaxBalanceProfile.stop_distance(kind)) / speed
@@ -501,7 +505,8 @@ func is_beaten() -> bool:
 		# An opening member that hit and left was never beaten (D059).
 		if int(member.state) == LANDED:
 			return false
-		if is_alive(member) and (int(member.state) == AT_NUMBER or (has_set_off(member) and distance_of(member, now) <= reach)):
+		# One knocked back out of reach (D068) had still come within it.
+		if is_alive(member) and (int(member.state) == AT_NUMBER or bool(member.get("reached", false)) or (has_set_off(member) and distance_of(member, now) <= reach)):
 			return false
 	return true
 
@@ -524,6 +529,7 @@ func carry_from(old) -> bool:
 		member.landed = bool(was.get("landed", false)) or int(was.state) == LANDED
 		member.next_hit = float(was.get("next_hit", member.arrive))
 		member.hits = int(was.get("hits", 1 if member.landed else 0))
+		member.reached = bool(was.get("reached", false))
 		if int(member.state) == KILLED:
 			member.hp = ScientificNumber.new()
 			# Killed on the old profile, paid on this one's rules (D066).
@@ -627,6 +633,7 @@ func to_dict() -> Dictionary:
 			"kind": member.get("kind", "basic"),
 			"paid": member.get("paid", false),
 			"sets_off": member.get("sets_off", LONG_AGO),
+			"reached": member.get("reached", false),
 			# Only members saved under D063's rules still owe a share (D066).
 			"unpaid": member.get("unpaid", 0.0),
 			# The share is saved as the two whole numbers it comes from, so it
@@ -727,6 +734,8 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 				# Saved under D063's rules: the share of its passed wave's reward
 				# it still owes, paid at its kill instead of its type's Coins.
 				"unpaid": clampf(float(saved.get("unpaid", 0.0)), 0.0, 1.0),
+				# Saved before knockback kept it: none had been pushed out.
+				"reached": bool(saved.get("reached", false)),
 			})
 		encounter._sum_remaining()
 	# No member that parsed, or a wave saved before groups (V9 and older): one

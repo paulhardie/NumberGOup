@@ -509,6 +509,32 @@ func _test_range_damage_per_meter_and_knockback() -> void:
 		pile._advance_waves(0.25)
 	_expect(int(landed.hits) == hits_before + 1 and int(landed.state) == TaxEncounter.AT_NUMBER, "it should hit again when it walks back in")
 
+	# Pushed out of reach as its wave's clock runs out, it still came within
+	# reach, so the wave is not beaten while it lives (D067), and a reload
+	# keeps that.
+	var late := GameState.new()
+	late.balance_profile.ENEMY_MIX = {"basic": 1.0}
+	late.balance_profile.OPENING_HIT_WAVES = 0
+	late.balance_profile.OPENING_EASED_BY = 0
+	late.start_run(1, 18)
+	late.number = ScientificNumber.new(1.0, 9)
+	while late.wave_accumulator < 34.0:
+		late._advance_waves(0.25)
+	for other in late.active_encounter.members.slice(1):
+		if late.active_encounter.is_own(other) and TaxEncounter.is_alive(other):
+			other.hp = ScientificNumber.new()
+			other.state = TaxEncounter.KILLED
+	late.active_encounter._sum_remaining()
+	var last: Dictionary = late.active_encounter.members[0]
+	_expect(TaxEncounter.is_alive(last) and not late.active_encounter.is_beaten(), "the fixture's last enemy should be alive in reach late in the wave")
+	late.active_encounter.knock_back(0, 90.0)
+	_expect(TaxEncounter.distance_of(last, late.active_encounter.now) > late.active_encounter.reach, "the fixture's last enemy should be pushed out of reach")
+	_expect(not late.active_encounter.is_beaten(), "a wave whose enemy was knocked out of reach alive should not be beaten")
+	var reloaded = TaxEncounter.from_dict(late.active_encounter.to_dict())
+	reloaded.now = late.active_encounter.now
+	reloaded.reach = late.active_encounter.reach
+	_expect(not reloaded.is_beaten(), "after a reload the knocked-back enemy should still keep its wave from being beaten")
+
 ## A run resumed from a save keeps each walking enemy's hit where it was due:
 ## one knocked back in the opening waves, whose hit falls after the wave's
 ## clock, and one timed on an older profile that set enemies off from nearer.
@@ -608,6 +634,7 @@ func _test_health_sets_the_starting_number() -> void:
 	_expect(state.start_run(1, 44), "a fresh run should start from the permanent Workshop")
 	_expect(state.number.compare_to(ScientificNumber.from_float(state.get_definition("health").value_at(100))) == 0, "Health should set the fresh-run Number")
 	_expect(state.get_rate_per_second().compare_to(ScientificNumber.from_float(state.stat("damage") * 1.0 + state.stat("health_regen"))) == 0, "the rate should be Damage a shot at Attack Speed, plus Regen")
+	_expect(state.stat("health_regen") > 0.0 and state.get_damage_per_second().compare_to(ScientificNumber.from_float(state.stat("damage") * 1.0)) == 0, "damage a second should leave Regen out: it strikes nothing")
 	_expect(not state.purchase("damage"), "permanent Workshop purchases must be locked during a run")
 	state.end_run()
 	_expect(state.get_owned("health") == 100 and state.get_owned("damage") == 60, "Workshop levels must survive retreat")

@@ -851,7 +851,8 @@ func _build_hub(parent: Control) -> void:
 
 	column.add_child(_make_gap(8))
 	hub_milestones_label = _make_hub_row(column, "Milestones", _open_milestones_sheet, true)
-	hub_coin_bonus_label = _make_hub_row(column, "Total Coin bonus", Callable(), true)
+	# A kill's Coins only: Coins / Wave and checkpoints do not take Coins / Kill Bonus.
+	hub_coin_bonus_label = _make_hub_row(column, "Kill Coin bonus", Callable(), true)
 	if not state.layers_parked:
 		hub_knowledge_row_label = _make_hub_row(column, "Knowledge", _open_knowledge_sheet, true)
 	_make_hub_row(column, "Stats", func(): _on_dock_tab_selected("settings"), false)
@@ -3428,7 +3429,7 @@ func _populate_stats_grid() -> void:
 	if not state.layers_parked:
 		entries.insert(3, ["KNOWLEDGE", str(state.knowledge)])
 	entries += [
-		["DAMAGE / SEC", state.get_rate_per_second().format_value()],
+		["DAMAGE / SEC", state.get_damage_per_second().format_value()],
 		["HIGHEST NUMBER", state.highest_number.format_value()],
 		["THIS RUN GENERATED", state.lifetime_generated.format_value()],
 		["TAPS", str(int(state.statistics.taps))],
