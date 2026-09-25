@@ -368,7 +368,7 @@
     {
       "id": "recoil",
       "title": "THORNS",
-      "description": "+0.5% of every hit you take is dealt to the wave in front of you, per rank.",
+      "description": "Each enemy that hits you takes 0.495% of its own maximum HP per rank (99% at rank 200); bosses take half.",
       "category": "workshop",
       "workshop_category": "defense",
       "progression_type": "module",
@@ -379,7 +379,7 @@
       "unlock_lifetime": 0.0,
       "repeatable": false,
       "effects": {
-        "recoil_share": 0.005
+        "recoil_share": 0.00495
       },
       "deep_cost_growth": 1.02
     },

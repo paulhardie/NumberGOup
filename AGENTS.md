@@ -152,6 +152,7 @@ Start with the smallest set of current sources, and read them when the work need
 - [`docs/HANDOVER.md`](docs/HANDOVER.md) — where the game is now, open decisions and the next steps. Read it first when picking up work; replace it, never append, when you hand off.
 - [`docs/GAME_VISION.md`](docs/GAME_VISION.md) — the player experience, pillars and anti-goals.
 - [`docs/TOWER_SCALING_FOUNDATION.md`](docs/TOWER_SCALING_FOUNDATION.md) — researched encounter foundation and rationale.
+- [`docs/TOWER_WORKSHOP_REFERENCE.md`](docs/TOWER_WORKSHOP_REFERENCE.md) — The Tower's Workshop rows, unlock order, prices and Ultimate Weapons, from the community wiki.
 - [`docs/WORKSHOP_DESIGN.md`](docs/WORKSHOP_DESIGN.md) — Workshop categories, the wave rule, player-facing vocabulary and balance targets.
 - [`docs/MOTION_SYSTEM.md`](docs/MOTION_SYSTEM.md) — motion vocabulary and borrowed animation techniques.
 - [`docs/GAME_INVARIANTS.md`](docs/GAME_INVARIANTS.md) — behaviour that must remain true.

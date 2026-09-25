@@ -20,6 +20,9 @@ var target := Vector2.ZERO
 var trail_from := Vector2.ZERO
 var trail_to := Vector2.ZERO
 var trail_colour := Color.TRANSPARENT
+## The Number's reach, The Tower's range circle (D067), set by main.gd.
+var ring_points := PackedVector2Array()
+var ring_colour := Color.TRANSPARENT
 ## Each mote is {from, t (0..1, below 0 while it waits to leave), amount,
 ## crit, tap}; each bite {at, age}.
 var _motes: Array = []
@@ -68,6 +71,8 @@ func _point(mote: Dictionary, t: float) -> Vector2:
 	return (mote.from as Vector2).lerp(target, eased)
 
 func _draw() -> void:
+	if ring_colour.a > 0.0 and ring_points.size() > 1:
+		draw_polyline(ring_points, ring_colour, 1.0, true)
 	if trail_colour.a > 0.0:
 		draw_polyline_colors(PackedVector2Array([trail_from, trail_to]), PackedColorArray([Color(trail_colour, 0.0), trail_colour]), 1.0, true)
 	for mote in _motes:

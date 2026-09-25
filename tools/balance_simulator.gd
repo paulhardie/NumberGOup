@@ -148,7 +148,7 @@ func _init() -> void:
 				"  W", checkpoint,
 				"  liability=", state.balance_profile.liability_for_wave(tier.id, checkpoint).format_value(),
 				"  collection=", state.balance_profile.collection_for_wave(tier.id, checkpoint).format_value(),
-				"  reward=", state.balance_profile.reward_for_wave(tier.id, checkpoint)
+				"  coins=", snappedf(_wave_coins(state.balance_profile, tier.id, checkpoint, 0), 0.1)
 			)
 	_simulate_representative_tier_one()
 	_simulate_opening()
@@ -518,7 +518,7 @@ func _simulate_opening() -> void:
 	for preview_wave in [1, 2, 5, 9, 10, 15, 19, 20, 21, 25, 30, 50, 100]:
 		preview.wave = preview_wave
 		preview.active_encounter = preview._make_encounter(preview_wave)
-		print("  W", preview_wave, "  hp=", preview.active_encounter.max_liability.format_value(), "  hit=", preview.get_effective_collection().format_value(), "  coins=", preview.active_encounter.reward)
+		print("  W", preview_wave, "  hp=", preview.active_encounter.max_liability.format_value(), "  hit=", preview.get_effective_collection().format_value(), "  coins=", snappedf(_wave_coins(preview.balance_profile, 1, preview_wave, SEED), 0.1))
 	var no_action := GameState.new()
 	no_action.start_run(1, SEED)
 	var idle_seconds := 0.0
@@ -577,3 +577,11 @@ func _simulate_opening() -> void:
 			"  hits=", hits,
 			"  coins=", state.coins
 		)
+
+## What a wave pays if every enemy of it is killed (D066): its kills by type
+## and its Coins per Wave, before Coin Bonus.
+static func _wave_coins(profile, tier_id: int, wave: int, seed: int) -> float:
+	var total: float = profile.wave_end_coins(tier_id, wave)
+	for entry in profile.wave_roster(wave, seed):
+		total += profile.kill_coins(tier_id, wave, str(entry.kind))
+	return total

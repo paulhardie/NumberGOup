@@ -14,11 +14,24 @@ func _init(value_mantissa: float = 0.0, value_exponent: int = 0) -> void:
 static func from_float(value: float) -> ScientificNumber:
 	return ScientificNumber.new(value, 0)
 
+## `bits` restores the mantissa exactly: Godot's JSON reader misreads about
+## one mantissa in thirteen by its last binary place, and a resumed run must
+## play out identically (law 6). The readable `mantissa` stays the authority;
+## the bits count only when they agree with it, so an older save or a hand
+## edit reads as it always did.
 static func from_dict(data: Dictionary) -> ScientificNumber:
-	return ScientificNumber.new(float(data.get("mantissa", 0.0)), int(data.get("exponent", 0)))
+	var value_mantissa := float(data.get("mantissa", 0.0))
+	var bits: Variant = data.get("bits", null)
+	if bits is String and (bits as String).length() == 16 and (bits as String).is_valid_hex_number():
+		var bytes: PackedByteArray = (bits as String).hex_decode()
+		if bytes.size() == 8:
+			var exact: float = bytes.to_float64_array()[0]
+			if is_finite(exact) and absf(exact - value_mantissa) <= 1.0e-12 * maxf(absf(value_mantissa), 1.0):
+				value_mantissa = exact
+	return ScientificNumber.new(value_mantissa, int(data.get("exponent", 0)))
 
 func to_dict() -> Dictionary:
-	return {"mantissa": mantissa, "exponent": exponent}
+	return {"mantissa": mantissa, "exponent": exponent, "bits": PackedFloat64Array([mantissa]).to_byte_array().hex_encode()}
 
 func copy() -> ScientificNumber:
 	return ScientificNumber.new(mantissa, exponent)
