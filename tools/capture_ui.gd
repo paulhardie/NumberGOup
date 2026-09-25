@@ -34,9 +34,11 @@ func _capture_size(window_size: Vector2i, label: String) -> void:
 	await _capture_state(window_size, label, "run_crit", false)
 	await _capture_state(window_size, label, "boss", false)
 	await _capture_state(window_size, label, "workshop", false)
-	await _capture_state(window_size, label, "knowledge", false)
-	await _capture_state(window_size, label, "labs", false)
-	await _capture_state(window_size, label, "cards", false)
+	# Parked sheets are out of reach in play (D069), so captures leave them out.
+	if not GameState.LAYERS_PARKED:
+		await _capture_state(window_size, label, "knowledge", false)
+		await _capture_state(window_size, label, "labs", false)
+		await _capture_state(window_size, label, "cards", false)
 	await _capture_state(window_size, label, "lost", false)
 	await _capture_state(window_size, label, "drawer", true)
 

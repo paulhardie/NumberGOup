@@ -112,6 +112,10 @@ func _simulate_core_loop() -> void:
 	_core_group("mid", 1, MID, {}, {}, [], [2.0])
 	_core_group("attack + defense", 1, _ranks([ATTACK_100, DEFENSE_CORE]), {}, {}, [], [2.0])
 	_core_group("attack + defense", 2, _ranks([ATTACK_100, DEFENSE_CORE]), {}, {}, [], [2.0])
+	# Labs and Cards add nothing while parked (D069), so this case would only
+	# repeat the one above.
+	if GameState.LAYERS_PARKED:
+		return
 	_core_group(
 		"advanced layers", 1, _ranks([ATTACK_100, DEFENSE_CORE]),
 		{"lab_damage": 40, "lab_resilience": 40, "lab_coin_research": 40},

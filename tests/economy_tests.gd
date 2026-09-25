@@ -9,6 +9,7 @@ func _init() -> void:
 	_test_scientific_number()
 	_test_workshop_unlocks_in_the_towers_order()
 	_test_research_focus_targets_a_category()
+	_test_parked_layers_add_nothing_and_keep_their_save()
 	_test_multi_buy_matches_buying_one_at_a_time()
 	_test_workshop_prices_are_the_towers()
 	_test_stat_values_read_the_towers_tables()
@@ -17,6 +18,7 @@ func _init() -> void:
 	_test_shots_crit_and_super_crit()
 	_test_rapid_fire_and_regen()
 	_test_range_damage_per_meter_and_knockback()
+	_test_resumed_walkers_keep_their_hits()
 	_test_orbs_kill_what_they_touch()
 	_test_health_sets_the_starting_number()
 	_test_save_round_trip_and_legacy_migration()
@@ -158,6 +160,7 @@ func _test_workshop_unlocks_in_the_towers_order() -> void:
 
 func _test_research_focus_targets_a_category() -> void:
 	var state := _funded_state()
+	state.layers_parked = false
 	state.purchased = {"damage": 100, "health": 20}
 	_expect(state.get_workshop_level() >= GameState.RESEARCH_WORKSHOP_LEVEL, "this build should reach the Research Focus level")
 	_expect(not state.select_focus("output"), "a retired bay id should no longer be selectable")
@@ -170,6 +173,50 @@ func _test_research_focus_targets_a_category() -> void:
 	_expect(state.get_workshop_coin_cost(health) < health_before, "Research Focus should discount its own category")
 	_expect(state.get_workshop_coin_cost(damage) == damage_before, "Research Focus should not discount another category")
 	_expect(not state.select_focus(ProgressionTaxonomy.ATTACK), "Research Focus should lock in until Prestige")
+
+## Labs, Cards, Knowledge and Gems are parked until the core loop is fun
+## (D069): owned ranks, cards, Insight and Focus add nothing and nothing new
+## can be bought, but every one of them survives a save and counts again the
+## moment the layers return.
+func _test_parked_layers_add_nothing_and_keep_their_save() -> void:
+	_expect(GameState.LAYERS_PARKED, "the parked layers should stay parked until the owner brings them back")
+	var save_path := "res://.number_go_up_test_save.json"
+	var plain := _funded_state()
+	var owned := _funded_state()
+	owned.purchased = {"damage": 100, "health": 20}
+	plain.purchased = owned.purchased.duplicate()
+	owned.save_path = save_path
+	owned.lab_ranks = {"lab_damage": 5}
+	owned.card_ranks = {"card_damage": 3, "card_coins": 7}
+	owned.card_active = ["card_damage", "card_coins"]
+	owned.knowledge = 9
+	owned.knowledge_purchased = {"insight": 4}
+	owned.gems = 500
+	owned.focus_path = ProgressionTaxonomy.ATTACK
+	_expect(owned.layers_parked, "a new state should start parked")
+	_expect(is_equal_approx(owned._damage(), plain._damage()), "owned Labs, Cards and Insight should add no damage while parked")
+	_expect(is_equal_approx(owned.get_coin_bonus_multiplier(), plain.get_coin_bonus_multiplier()), "a Coin card should add nothing while parked")
+	var damage := owned.get_definition("damage")
+	_expect(owned.get_workshop_coin_cost(damage) == plain.get_workshop_coin_cost(damage), "a Research Focus should discount nothing while parked")
+	_expect(owned.get_category_rank_total(ProgressionTaxonomy.ATTACK) == plain.get_category_rank_total(ProgressionTaxonomy.ATTACK), "Lab ranks should not count toward a category while parked")
+	_expect(not owned.can_start_lab("lab_speed") and not owned.can_unlock_lab_slot(), "no Lab work should start while parked")
+	_expect(not owned.can_pull_card() and not owned.unequip_card("card_damage") and owned.is_card_active("card_damage"), "Cards should neither pull nor change while parked")
+	_expect(not owned.can_purchase_insight() and not owned.can_prestige(), "Knowledge should buy nothing while parked")
+	owned.focus_path = ""
+	_expect(not owned.select_focus(ProgressionTaxonomy.DEFENSE), "no Research Focus should be chosen while parked")
+	owned.focus_path = ProgressionTaxonomy.ATTACK
+
+	_expect(owned.save(), "a parked save should write")
+	var restored := GameState.new()
+	restored.save_path = save_path
+	restored.load()
+	_expect(restored.get_lab_owned("lab_damage") == 5, "Lab ranks should survive parking")
+	_expect(restored.get_card_level("card_damage") == 3 and restored.is_card_active("card_coins"), "cards and the Active set should survive parking")
+	_expect(restored.knowledge == 9 and restored.get_owned("insight") == 4, "Knowledge and Insight should survive parking")
+	_expect(restored.gems == 500 and restored.focus_path == ProgressionTaxonomy.ATTACK, "Gems and the Research Focus should survive parking")
+	restored.layers_parked = false
+	_expect(restored._damage() > plain._damage(), "unparked, the same save's Labs, Cards and Insight should lift damage again")
+	restored.clear_save()
 
 ## A multi-buy press must never be a discount or a surcharge: it is the same
 ## levels at the same prices, charged in one go.
@@ -208,6 +255,7 @@ func _test_multi_buy_matches_buying_one_at_a_time() -> void:
 	# Quotes come from cached running totals (D047); a Research Focus changes
 	# every price, so the next quote must use the new ones.
 	var focused := _funded_state()
+	focused.layers_parked = false
 	var before_focus := int(focused.plan_purchase("damage", 5).cost)
 	focused.focus_path = ProgressionTaxonomy.ATTACK
 	var focus_singles := 0
@@ -460,6 +508,67 @@ func _test_range_damage_per_meter_and_knockback() -> void:
 	for step in range(5):
 		pile._advance_waves(0.25)
 	_expect(int(landed.hits) == hits_before + 1 and int(landed.state) == TaxEncounter.AT_NUMBER, "it should hit again when it walks back in")
+
+## A run resumed from a save keeps each walking enemy's hit where it was due:
+## one knocked back in the opening waves, whose hit falls after the wave's
+## clock, and one timed on an older profile that set enemies off from nearer.
+func _test_resumed_walkers_keep_their_hits() -> void:
+	var pile := GameState.new()
+	pile.balance_profile.ENEMY_MIX = {"basic": 1.0}
+	pile.balance_profile.OPENING_HIT_WAVES = 0
+	pile.balance_profile.OPENING_EASED_BY = 0
+	pile.start_run(1, 18)
+	pile.number = ScientificNumber.new(1.0, 9)
+	while pile.wave_accumulator < 34.0:
+		pile._advance_waves(0.25)
+	var index := -1
+	for candidate in range(pile.active_encounter.members.size()):
+		if int(pile.active_encounter.members[candidate].state) == TaxEncounter.AT_NUMBER:
+			index = candidate
+			break
+	_expect(index >= 0, "the knockback fixture should have an enemy at the Number late in the wave")
+	pile.active_encounter.knock_back(index, 90.0)
+	var pushed: Dictionary = pile.active_encounter.members[index]
+	_expect(float(pushed.next_hit) > TaxBalanceProfile.WAVE_INTERVAL_SECONDS + float(pushed.interval), "the fixture's pushed enemy should be due after the wave's clock and its interval")
+	var restored = TaxEncounter.from_dict(pile.active_encounter.to_dict())
+	var back: Dictionary = restored.members[index]
+	_expect(is_equal_approx(float(back.next_hit), float(pushed.next_hit)), "a knocked-back enemy should keep its hit across a reload: %f, not %f" % [float(back.next_hit), float(pushed.next_hit)])
+	_expect(is_equal_approx(TaxEncounter.distance_of(back, pile.wave_accumulator), TaxEncounter.distance_of(pushed, pile.wave_accumulator)), "a knocked-back enemy should stand where it was after a reload")
+
+	var save_path := "res://.number_go_up_test_save.json"
+	var older := GameState.new()
+	older.balance_profile.ENEMY_MIX = {"basic": 1.0}
+	older.start_run(1, 21)
+	older.number = ScientificNumber.new(1.0, 9)
+	for step in range(8):
+		older._advance_waves(0.25)
+	older.save_path = save_path
+	_expect(older.save(), "the older-profile fixture should save")
+	var old_data: Dictionary = _read_json(save_path)
+	old_data.balance_profile_id = "tax-foundation-v15"
+	# On that profile enemies set off 60 m out, so a basic walked in for 6
+	# seconds rather than 10, and arrived 4 seconds sooner.
+	var due: Array = []
+	for member in old_data.active_encounter.members:
+		if int(member.state) == TaxEncounter.STANDING:
+			member.next_hit = float(member.next_hit) - 4.0
+			member.sets_off = float(member.next_hit) - 6.0
+			due.append(float(member.next_hit))
+	_write_json(save_path, old_data)
+	var resumed := GameState.new()
+	resumed.balance_profile.ENEMY_MIX = {"basic": 1.0}
+	resumed.save_path = save_path
+	resumed.load()
+	var walkers: Array = resumed.active_encounter.members.filter(func(member): return int(member.state) == TaxEncounter.STANDING)
+	_expect(not walkers.is_empty() and walkers.size() == due.size(), "the older-profile fixture should resume with its walkers")
+	var aligned := true
+	for position in range(walkers.size()):
+		var walker: Dictionary = walkers[position]
+		var left := TaxEncounter.distance_of(walker, resumed.wave_accumulator) - TaxBalanceProfile.stop_distance("basic")
+		var expected_left := maxf(0.0, TaxBalanceProfile.speed_metres("basic") * (float(walker.next_hit) - resumed.wave_accumulator))
+		aligned = aligned and is_equal_approx(float(walker.next_hit), float(due[position])) and absf(left - minf(expected_left, TaxBalanceProfile.SPAWN_DISTANCE_METRES - TaxBalanceProfile.stop_distance("basic"))) < 1.0e-6
+	_expect(aligned, "a walker resumed on today's profile should keep its hit and stand as far out as that hit is away")
+	resumed.clear_save()
 
 ## D068: Orbs circle the Number and kill any enemy but a boss they touch.
 func _test_orbs_kill_what_they_touch() -> void:
@@ -785,6 +894,7 @@ func _test_bad_saves_are_never_written_over() -> void:
 func _test_v5_saves_migrate_without_loss() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
 	var source := _funded_state()
+	source.layers_parked = false
 	source.knowledge = 9
 	source.gems = 41
 	source.card_ranks = {"card_damage": 3}
@@ -808,6 +918,7 @@ func _test_v5_saves_migrate_without_loss() -> void:
 	v5.erase("lab_slots")
 	_write_json(save_path, v5)
 	var migrated := GameState.new()
+	migrated.layers_parked = false
 	migrated.save_path = save_path
 	migrated.load()
 	_expect(migrated.load_status == GameState.LOAD_OK, "a V5 save should load")
@@ -891,6 +1002,7 @@ func _test_offline_policy() -> void:
 
 func _test_prestige_reset_and_gain() -> void:
 	var state := GameState.new()
+	state.layers_parked = false
 	state.purchased = {"damage": 2, "health": 1}
 	_expect(state.start_run(1, 7), "the Prestige fixture should start a run")
 	state.wave = 12
@@ -1428,6 +1540,14 @@ func _test_lifesteal_feeds_the_number() -> void:
 	state._add_number(ScientificNumber.from_float(100))
 	_expect(state.active_encounter.is_cleared() and absf(state.number.log10() - log(1140.0 + 100.0 * share) / log(10.0)) < 1.0e-12, "only the 60 the enemy absorbed should feed Lifesteal")
 
+	# The same through a real shot, the way a player gets it.
+	state.number = ScientificNumber.from_float(1000)
+	_one_enemy(state, ScientificNumber.from_float(100))
+	var shot := state.tap()
+	var dealt := float(shot.amount.mantissa) * pow(10.0, shot.amount.exponent)
+	_expect(dealt > 0.0 and dealt < 100.0, "the fixture's tap should strike without clearing the enemy")
+	_expect(absf(state.number.log10() - log(1000.0 + dealt * (1.0 + share)) / log(10.0)) < 1.0e-9, "a tap should bank what it dealt plus Lifesteal's share of it")
+
 func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
 	# D064: Thorns deals the enemy that hit a share of its own
 	# maximum HP, half on a boss, as The Tower's does.
@@ -1542,6 +1662,7 @@ func _test_death_defy_ignores_an_ending_hit() -> void:
 ## absolute value.
 func _test_card_start_scales_with_the_tier() -> void:
 	var state := GameState.new()
+	state.layers_parked = false
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	state.card_ranks = {"card_health": 2}
 	state.card_active = ["card_health"]
@@ -1586,6 +1707,7 @@ func _test_coin_rows_lift_what_a_run_pays() -> void:
 	_expect(per_wave.coins == grace_owed and per_wave.coin_fraction < 1.0, "Coins / Wave at level 10 should pay 11 Coins at a wave's end, and parts of a Coin carry (D066)")
 
 	var carded := GameState.new()
+	carded.layers_parked = false
 	carded.card_ranks = {"card_coins": 7}
 	carded.card_active = ["card_coins"]
 	_expect(is_equal_approx(carded.get_coin_bonus_multiplier(), 1.07), "a Coin Bonus card should lift the Coin multiplier")
@@ -1595,6 +1717,7 @@ func _test_coin_rows_lift_what_a_run_pays() -> void:
 ## back to the ceiling.
 func _test_armor_ceiling_bounds_armor_not_other_rules() -> void:
 	var state := GameState.new()
+	state.layers_parked = false
 	state.purchased = {"defense_percent": 99}
 	state.lab_ranks = {"lab_resilience": 200}
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
@@ -2337,6 +2460,7 @@ func _test_lab_definitions_cover_the_open_categories() -> void:
 
 func _test_lab_research_costs_coins_and_takes_real_time() -> void:
 	var state := _funded_state()
+	state.layers_parked = false
 	_expect(state.can_start_lab("lab_damage"), "Damage Research should be startable with Coins in hand")
 	var cost := state.get_lab_cost("lab_damage")
 	var duration := state.get_lab_duration("lab_damage")
@@ -2353,6 +2477,7 @@ func _test_lab_research_costs_coins_and_takes_real_time() -> void:
 
 func _test_lab_slots_limit_concurrent_research() -> void:
 	var state := _funded_state()
+	state.layers_parked = false
 	state.gems = LabResearch.SLOT_GEM_COSTS[0]
 	_expect(state.unlock_lab_slot(), "the fixture should open a second Lab slot")
 	_expect(state.start_lab("lab_speed") and state.start_lab("lab_damage"), "both of the two Lab slots should be fillable")
@@ -2366,6 +2491,7 @@ func _test_lab_slots_limit_concurrent_research() -> void:
 ## saves keep the two slots every player had before slots were bought.
 func _test_lab_slots_open_with_gems() -> void:
 	var state := _funded_state()
+	state.layers_parked = false
 	_expect(state.lab_slots_total() == LabResearch.STARTING_SLOTS and LabResearch.STARTING_SLOTS == 1, "a new game should start with one Lab slot")
 	_expect(state.start_lab("lab_damage") and not state.can_start_lab("lab_speed"), "one slot should hold one line at a time")
 	_expect(state.get_lab_slot_cost() == 20, "the second slot should cost 20 Gems")
@@ -2382,18 +2508,21 @@ func _test_lab_slots_open_with_gems() -> void:
 	_expect(state.lab_slots_total() == LabResearch.MAX_SLOTS and spent == 40 + 80 + 160, "slots should open to five, at 40, 80 and 160 Gems after the second")
 	_expect(state.get_lab_slot_cost() == 0 and not state.unlock_lab_slot() and state.gems == 10000 - spent, "a sixth slot should not exist")
 	var running := _funded_state()
+	running.layers_parked = false
 	running.gems = 100
 	running.start_run(1, 3)
 	_expect(not running.can_unlock_lab_slot() and not running.unlock_lab_slot() and running.gems == 100, "opening a slot mid-run should be refused, like other Gem spends")
 
 	var save_path := "res://.number_go_up_test_save.json"
 	var saved := _funded_state()
+	saved.layers_parked = false
 	saved.save_path = save_path
 	saved.gems = 60
 	saved.unlock_lab_slot()
 	saved.unlock_lab_slot()
 	_expect(saved.save(), "the slot save should write")
 	var restored := GameState.new()
+	restored.layers_parked = false
 	restored.save_path = save_path
 	restored.load()
 	_expect(restored.lab_slots_total() == 3 and restored.gems == 0, "opened slots should survive a reload")
@@ -2405,6 +2534,7 @@ func _test_lab_slots_open_with_gems() -> void:
 	v6.erase("lab_slots")
 	_write_json(save_path, v6)
 	var migrated := GameState.new()
+	migrated.layers_parked = false
 	migrated.save_path = save_path
 	migrated.load()
 	_expect(migrated.lab_slots_total() == LabResearch.LEGACY_SLOTS, "a V6 save should keep its two Lab slots")
@@ -2415,6 +2545,7 @@ func _test_lab_slots_open_with_gems() -> void:
 		odd.lab_slots = stored
 		_write_json(save_path, odd)
 		var clamped := GameState.new()
+		clamped.layers_parked = false
 		clamped.save_path = save_path
 		clamped.load()
 		_expect(clamped.lab_slots_total() >= LabResearch.STARTING_SLOTS and clamped.lab_slots_total() <= LabResearch.MAX_SLOTS, "a stored slot count should stay between one and five")
@@ -2429,6 +2560,7 @@ func _test_research_finished_mid_run_waits_for_the_next_run() -> void:
 	var outcomes := []
 	for finish_mid_run in [false, true]:
 		var state := _funded_state()
+		state.layers_parked = false
 		state.purchased = build.duplicate()
 		_expect(state.start_lab("lab_damage"), "the fixture should have Damage Research running")
 		state.start_run(1, 42)
@@ -2446,6 +2578,7 @@ func _test_research_finished_mid_run_waits_for_the_next_run() -> void:
 
 	# Research finished before a run starts counts for all of that run.
 	var early := _funded_state()
+	early.layers_parked = false
 	early.start_lab("lab_damage")
 	early.lab_active["lab_damage"].started_unix = 0.0
 	early.start_run(1, 3)
@@ -2455,12 +2588,14 @@ func _test_research_finished_mid_run_waits_for_the_next_run() -> void:
 	# A save taken mid-run keeps the finished line waiting through the reload.
 	var save_path := "res://.number_go_up_test_save.json"
 	var mid := _funded_state()
+	mid.layers_parked = false
 	mid.save_path = save_path
 	mid.start_lab("lab_damage")
 	mid.start_run(1, 3)
 	mid.lab_active["lab_damage"].started_unix = 0.0
 	mid.save()
 	var resumed := GameState.new()
+	resumed.layers_parked = false
 	resumed.save_path = save_path
 	resumed.load()
 	_expect(resumed.in_run and resumed.get_lab_owned("lab_damage") == 0 and is_equal_approx(resumed._base_output_multiplier(), 1.0), "a run resumed from a save should not gain research that finished while it was away")
@@ -2470,22 +2605,26 @@ func _test_research_finished_mid_run_waits_for_the_next_run() -> void:
 
 	# A clock set back never shows more time left than the line takes.
 	var rewound := _funded_state()
+	rewound.layers_parked = false
 	rewound.start_lab("lab_speed", 5000.0)
 	var duration := float(rewound.lab_active["lab_speed"].duration)
 	_expect(is_equal_approx(rewound.get_lab_time_remaining("lab_speed", 5000.0 - 3600.0), duration), "a clock set back should show the line's full time, not more")
 
 func _test_lab_research_is_a_between_run_action() -> void:
 	var state := _funded_state()
+	state.layers_parked = false
 	state.start_run(1, 9)
 	_expect(not state.can_start_lab("lab_damage"), "starting research mid-run should be refused, like a Workshop purchase")
 	_expect(not state.start_lab("lab_damage"), "Labs should not spend Coins while a run is active")
 
 func _test_finished_lab_research_applies_its_effect() -> void:
 	var without := GameState.new()
+	without.layers_parked = false
 	without.purchased.damage = 1
 	var base_rate := without.get_rate_per_second()
 
 	var with_lab := GameState.new()
+	with_lab.layers_parked = false
 	with_lab.purchased.damage = 1
 	with_lab.lab_active["lab_damage"] = {"started_unix": 1000.0, "duration": 100.0}
 	_expect(with_lab.get_lab_owned("lab_damage", 1101.0) == 1, "Damage Research should settle once its duration has passed")
@@ -2493,6 +2632,7 @@ func _test_finished_lab_research_applies_its_effect() -> void:
 
 func _test_lab_speed_shortens_other_lines_not_itself() -> void:
 	var state := _funded_state()
+	state.layers_parked = false
 	var plain_duration := state.get_lab_duration("lab_damage")
 	state.lab_ranks["lab_speed"] = 10
 	var discounted_duration := state.get_lab_duration("lab_damage")
@@ -2505,12 +2645,14 @@ func _test_lab_speed_shortens_other_lines_not_itself() -> void:
 func _test_lab_save_round_trip() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
 	var original := _funded_state()
+	original.layers_parked = false
 	original.save_path = save_path
 	_expect(original.start_lab("lab_speed"), "the fixture should have Lab Speed researching")
 	original.lab_ranks["lab_damage"] = 3
 	var saved_active: Dictionary = original.lab_active["lab_speed"].duplicate(true)
 	_expect(original.save(), "the Labs save should write")
 	var restored := GameState.new()
+	restored.layers_parked = false
 	restored.save_path = save_path
 	restored.load()
 	_expect(restored.get_lab_owned("lab_damage") == 3, "a finished Labs rank should round-trip")
@@ -2526,6 +2668,7 @@ func _test_lab_save_round_trip() -> void:
 	legacy.erase("lab_active")
 	_write_json(save_path, legacy)
 	var loaded := GameState.new()
+	loaded.layers_parked = false
 	loaded.save_path = save_path
 	loaded.load()
 	_expect(loaded.lab_ranks.is_empty() and loaded.lab_active.is_empty(), "a pre-Labs save should resume with no Labs state")
@@ -2533,6 +2676,7 @@ func _test_lab_save_round_trip() -> void:
 	legacy["lab_active"] = "garbage"
 	_write_json(save_path, legacy)
 	var malformed := GameState.new()
+	malformed.layers_parked = false
 	malformed.save_path = save_path
 	malformed.load()
 	_expect(malformed.lab_active.is_empty(), "a malformed Labs block should read as empty, not crash")
@@ -2551,6 +2695,7 @@ func _test_card_definitions_are_common_and_rare() -> void:
 
 func _test_card_pull_costs_gems_and_grants_a_level() -> void:
 	var state := _funded_state()
+	state.layers_parked = false
 	state.gems = 100
 	_expect(state.can_pull_card(), "a pull should be affordable with Gems in hand")
 	var gems_before := state.gems
@@ -2564,12 +2709,14 @@ func _test_card_pull_costs_gems_and_grants_a_level() -> void:
 
 func _test_card_pull_is_a_between_run_action() -> void:
 	var state := _funded_state()
+	state.layers_parked = false
 	state.gems = 100
 	state.start_run(1, 3)
 	_expect(not state.can_pull_card() and state.pull_card() == "", "pulling mid-run should be refused, like a Workshop purchase")
 
 func _test_card_pull_never_exceeds_max_level() -> void:
 	var state := _funded_state()
+	state.layers_parked = false
 	state.gems = 100000
 	state.card_ranks["card_damage"] = CardCollection.MAX_LEVEL
 	var gems_before := state.gems
@@ -2587,6 +2734,7 @@ func _test_card_pull_never_exceeds_max_level() -> void:
 
 func _test_card_pull_duplicate_protection() -> void:
 	var state := _funded_state()
+	state.layers_parked = false
 	state.gems = 1000
 	state.card_ranks["card_damage"] = CardCollection.MAX_LEVEL
 	for i in range(20):
@@ -2596,6 +2744,7 @@ func _test_card_pull_duplicate_protection() -> void:
 
 func _test_card_equip_respects_slot_cap_and_run_state() -> void:
 	var state := _funded_state()
+	state.layers_parked = false
 	for id in ["card_damage", "card_attack_speed", "card_coins", "card_critical_chance"]:
 		state.card_ranks[id] = 1
 	_expect(state.card_slots_total() == CardCollection.ACTIVE_SLOTS, "the slot cap should match the catalogue's constant")
@@ -2613,15 +2762,18 @@ func _test_card_equip_respects_slot_cap_and_run_state() -> void:
 
 func _test_active_card_applies_its_effect_but_inventory_does_not() -> void:
 	var without := GameState.new()
+	without.layers_parked = false
 	without.purchased.damage = 1
 	var base_rate := without.get_rate_per_second()
 
 	var owned_only := GameState.new()
+	owned_only.layers_parked = false
 	owned_only.purchased.damage = 1
 	owned_only.card_ranks["card_damage"] = 3
 	_expect(owned_only.get_rate_per_second().compare_to(base_rate) == 0, "an owned-but-inactive card should not affect production")
 
 	var active := GameState.new()
+	active.layers_parked = false
 	active.purchased.damage = 1
 	active.card_ranks["card_damage"] = 3
 	active.card_active.append("card_damage")
@@ -2630,12 +2782,14 @@ func _test_active_card_applies_its_effect_but_inventory_does_not() -> void:
 func _test_card_save_round_trip() -> void:
 	var save_path := "res://.number_go_up_test_save.json"
 	var original := _funded_state()
+	original.layers_parked = false
 	original.save_path = save_path
 	original.gems = 42
 	original.card_ranks = {"card_damage": 3, "card_coins": 1}
 	original.card_active = ["card_damage"]
 	_expect(original.save(), "the Cards save should write")
 	var restored := GameState.new()
+	restored.layers_parked = false
 	restored.save_path = save_path
 	restored.load()
 	_expect(restored.gems == 42, "Gems should round-trip")
@@ -2651,6 +2805,7 @@ func _test_card_save_round_trip() -> void:
 	legacy.erase("card_active")
 	_write_json(save_path, legacy)
 	var loaded := GameState.new()
+	loaded.layers_parked = false
 	loaded.save_path = save_path
 	loaded.load()
 	_expect(loaded.gems == 0 and loaded.card_ranks.is_empty() and loaded.card_active.is_empty(), "a pre-Cards save should resume with no Cards state")
@@ -2659,6 +2814,7 @@ func _test_card_save_round_trip() -> void:
 	legacy["card_ranks"] = "garbage"
 	_write_json(save_path, legacy)
 	var malformed := GameState.new()
+	malformed.layers_parked = false
 	malformed.save_path = save_path
 	malformed.load()
 	_expect(malformed.card_ranks.is_empty() and malformed.card_active.is_empty(), "a malformed Cards block should read as empty, not crash")
@@ -2669,6 +2825,7 @@ func _test_card_save_round_trip() -> void:
 	legacy["card_active"] = ["card_damage", "not_a_real_card", "card_damage"]
 	_write_json(save_path, legacy)
 	var sanitised := GameState.new()
+	sanitised.layers_parked = false
 	sanitised.save_path = save_path
 	sanitised.load()
 	_expect(sanitised.card_active == ["card_damage"], "an Active list should drop unknown ids and duplicates")
@@ -2679,6 +2836,7 @@ func _test_card_save_round_trip() -> void:
 	legacy["card_active"] = ["card_damage", "card_attack_speed", "card_coins", "card_critical_chance", "card_health"]
 	_write_json(save_path, legacy)
 	var overfull := GameState.new()
+	overfull.layers_parked = false
 	overfull.save_path = save_path
 	overfull.load()
 	_expect(overfull.card_active.size() == CardCollection.ACTIVE_SLOTS, "an Active list beyond the slot cap should be truncated to it on load")
@@ -2691,6 +2849,7 @@ func _test_card_save_round_trip() -> void:
 ## fixture stands in for them with ranks past the Workshop maximum.
 func _test_defensive_ceilings_bound_the_combined_effects() -> void:
 	var state := _funded_state()
+	state.layers_parked = false
 	state.start_run(1, 13)
 	state.purchased = {"defense_percent": 99, "thorns": 99}
 	state.lab_ranks = {"lab_resilience": 200}

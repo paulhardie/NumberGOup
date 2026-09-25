@@ -12,6 +12,9 @@ signal tab_selected(tab_id: String)
 const TAB_ORDER: Array[String] = ["number", "workshop", "cards", "ultimates", "labs", "settings"]
 ## Seats held for systems still to be built.
 const SOON_TABS: Array[String] = ["ultimates"]
+## Seats for systems parked until the core loop is fun (D069): they read as
+## SOON too, so the bar keeps its shape for when they return.
+const PARKED_TABS: Array[String] = ["cards", "labs"]
 const MUTED := Color("8b8c88")
 const ACTIVE := Color("ececea")
 ## A seat for a system not built yet: present, but plainly not pressable.
@@ -117,7 +120,7 @@ func _make_button(tab_id: String) -> Button:
 	soon.set_anchors_and_offsets_preset(Control.PRESET_CENTER_TOP)
 	soon.offset_left = 8
 	soon.offset_top = 0
-	soon.visible = SOON_TABS.has(tab_id)
+	soon.visible = is_soon(tab_id)
 	button.add_child(soon)
 
 	_buttons[tab_id] = button
@@ -127,6 +130,9 @@ func _make_button(tab_id: String) -> Button:
 	_soon_tags[tab_id] = soon
 	_marks[tab_id] = mark
 	return button
+
+static func is_soon(tab_id: String) -> bool:
+	return SOON_TABS.has(tab_id) or (GameState.LAYERS_PARKED and PARKED_TABS.has(tab_id))
 
 func _tab_label(tab_id: String) -> String:
 	match tab_id:
@@ -145,7 +151,7 @@ func update_state(active_id: String, unlocked: Dictionary) -> void:
 		var icon: IconGlyph = _icons[tab_id]
 		var label: Label = _labels[tab_id]
 		var lock: IconGlyph = _locks[tab_id]
-		var is_soon := SOON_TABS.has(tab_id)
+		var is_soon := is_soon(tab_id)
 		var is_locked := not is_soon and not bool(unlocked.get(tab_id, true))
 		var is_active := tab_id == active_id and not is_locked
 		var colour: Color = ACTIVE if is_active else (SOON_COLOUR if is_soon else MUTED)

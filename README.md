@@ -22,7 +22,7 @@ Exported files must be served over HTTPS for browser persistence and PWA behavio
 
 ## Current game
 
-The playable slice includes tapping, shots, The Tower's permanent Workshop (D068: its 34 Attack, Defense and Utility rows, every level's value and price from The Tower's own table, opened a group at a time with Coins, and an Ultimates category reserved for later) with multi-buy, Research Focus, Prestige, Knowledge/Insight, local saves, a stats/settings drawer, and tiered Tax runs.
+The playable slice includes tapping, shots, The Tower's permanent Workshop (D068: its 34 Attack, Defense and Utility rows, every level's value and price from The Tower's own table, opened a group at a time with Coins, and an Ultimates category reserved for later) with multi-buy, local saves, a stats/settings drawer, and tiered Tax runs.
 
 Tax runs use two independent absolute stats:
 
@@ -33,7 +33,7 @@ Tier 1 runs one difficulty curve from wave 1 (D040): a wave is many enemies (20 
 
 Workshop upgrades are bought with Coins between runs and permanently raise the baseline used by every later attempt. Starting a run resets Number to its Health; death, retreat, and Prestige never remove Workshop levels. Number production only happens during an active run, so neither waiting at the hub nor going offline can bank a risk-free head start.
 
-Between runs the battle hub (D048) shows the tier's best wave on a ring marked with its milestones, the tier selector, the last run, Milestones, the Coin bonus and BATTLE, and the bottom bar holds Battle, Workshop, Cards, Labs and More, with a seat held for Ultimate Weapons. Labs queue permanent, timed Coin research; Cards are pulled with Gems and only equipped Cards add their effects to a run. Both can be inspected during a run, but spending and loadout changes happen between runs.
+Between runs the battle hub (D048) shows the tier's best wave on a ring marked with its milestones, the tier selector, the last run, Milestones, the Coin bonus and BATTLE, and the bottom bar holds Battle, Workshop, Cards, Labs and More, with a seat held for Ultimate Weapons. Labs, Cards, Knowledge (with Insight, Prestige and Research Focus) and Gems are built but parked until the core loop is fun (D069): the Cards and Labs seats read SOON, none of them adds anything to a run, and the save keeps all of their progress for when they return.
 
 Retreat ends and resets a run—it cannot pause Tax while Number keeps growing. Active runs freeze exactly while the app is away. Save schema V12 preserves the permanent Workshop and its bought unlocks, Labs (with their slots), Cards, Gems, the active encounter with its Cash, and deterministic RNG state, with V1–V11 migration; a save from before The Tower's Workshop is refunded its old ranks as Coins on The Tower's scale, once (D068). A save the game cannot read, or one from a newer version, is never written over (D028).
 
