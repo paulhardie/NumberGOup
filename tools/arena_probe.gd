@@ -65,7 +65,9 @@ func _init() -> void:
 	var late_gap: float = (main.wave_enemy.position + main.wave_enemy.size / 2.0).distance_to(path[1])
 	var front_arrive: float = st.active_encounter.members[st.active_encounter.front_index()].arrive
 	_check(late_gap < start_gap and absf(main.enemy_travel - minf(1.0, st.wave_accumulator / front_arrive)) < 0.02, "the front member closes on its own clock: %f -> %f" % [start_gap, late_gap])
-	_check(_followers(main) == st.active_encounter.standing_count() - 1, "every member behind the front is drawn: %d" % _followers(main))
+	# Only members that have set off are on the arena (D067).
+	var set_off: int = st.active_encounter.members.filter(func(m): return TaxEncounter.is_alive(m) and st.wave_accumulator >= float(m.sets_off)).size()
+	_check(_followers(main) == set_off - 1, "every member that has set off is drawn behind the front: %d of %d" % [_followers(main), set_off - 1])
 	await _shot("1_approach")
 	# A tap sends a mote, and the shown HP waits for it to land.
 	var shown_before: String = main.wave_enemy.text
@@ -250,7 +252,7 @@ func _init() -> void:
 	st.number = ScientificNumber.from_float(1.0e12)
 	st.wave_accumulator = 34.5
 	await create_timer(3.0).timeout
-	_check(st.wave == 58 and _followers(main) >= st.active_encounter.at_number_count() - 1, "the pile is drawn round the Number: %d" % _followers(main))
+	_check(st.wave == 58 and _followers(main) >= mini(st.active_encounter.at_number_count() - 1, main.MAX_PILE_DRAWN), "the pile is drawn round the Number: %d" % _followers(main))
 	main.hit_readout_elapsed = main.COMBAT_READOUT_WINDOW
 	main._record_hit_readout(ScientificNumber.from_float(4.0))
 	main._record_hit_readout(ScientificNumber.from_float(6.0))

@@ -71,7 +71,7 @@ const LONG_PRESS_SECONDS := 0.45
 ## between them, held for systems that will want the upper half later.
 const RUN_STAGE_TOP := 56.0
 ## Where the Number sits in the run arena, as a share of its height (D051).
-const NUMBER_HEIGHT_SHARE := 0.72
+const NUMBER_HEIGHT_SHARE := 0.5
 ## Passive shot damage is collected this often; under Reduce Motion its shown
 ## HP also waits for that collection (D055).
 const MOTE_INTERVAL := 0.33
@@ -154,18 +154,19 @@ var mote_crit := false
 var pop_damage := ScientificNumber.new()
 var pop_elapsed := 0.0
 var pop_crit := false
-## Where along its path the body is drawn, 0 at the arena's top edge and 1 at
-## the Number. It is the wave clock.
+## Where along its ray the live number is drawn, 0 at the arena's edge and 1
+## where it stops (D067).
 var enemy_travel := 0.0
 ## The member of the wave the live number shows: its front (D057). The rest of
 ## the wave walks behind it as smaller numbers, one node per member, reused.
 var enemy_front := -1
 var enemy_followers: Array = []
-## How many members at the Number are drawn round it, three columns a side of
-## three rows (D058); the rest are counted in the live number's caption.
+## How many members at the Number are drawn round it (D058); the rest are
+## counted in the live number's caption.
 const MAX_PILE_DRAWN := 18
-## Where across the arena's top edge the wave entered, as a share of its width.
-var enemy_entry := 0.5
+## The live number's direction from the Number and where it stops (D067).
+var enemy_angle := -PI / 2.0
+var enemy_stop := 0.0
 var stage_glow: TextureRect
 ## The ring's parent frame. Combat rattles move this rather than the number
 ## column: a container re-sorts its child whenever the number's width changes,
@@ -669,9 +670,9 @@ func _build_wave_line(parent: Control) -> void:
 	line.add_child(spacer)
 
 ## The run arena (D051): everything between the wave line and the Upgrades
-## sheet. The Number sits low in it, near the thumb, and each wave drops in
-## from the top edge towards it, so the wave's own number and its distance
-## carry what D049's two rings did.
+## sheet. The Number sits in its middle and enemies close in from every side
+## at their distance, inside a ring that marks its reach, as The Tower's field
+## does (D067).
 func _build_stage(parent: Control) -> void:
 	var stage := Control.new()
 	stage.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -699,9 +700,8 @@ func _build_stage(parent: Control) -> void:
 	arena_fx.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	stage.add_child(arena_fx)
 
-	# Centred on NUMBER_HEIGHT_SHARE of the arena's height: a box from twice
-	# that share less one down to the foot has its middle there.
-	# Placed by _apply_screen_layout, low in the arena and clear of Brace.
+	# Centred on NUMBER_HEIGHT_SHARE of the arena's height, placed by
+	# _apply_screen_layout, in the middle and clear of Brace.
 	var centre := CenterContainer.new()
 	number_frame = centre
 	centre.anchor_right = 1.0
@@ -2612,7 +2612,8 @@ func _apply_screen_layout() -> void:
 		var brace_size := brace_button.get_combined_minimum_size()
 		brace_button.position = Vector2(16.0, sheet_top - 14.0 - brace_size.y)
 		brace_button.size = brace_size
-		# Low in the arena, near the thumb, but never down onto Brace.
+		# In the middle of the arena, as The Tower's tower is (D067), but never
+		# down onto Brace.
 		var number_height := number_col.get_combined_minimum_size().y
 		var number_centre := minf(arena_height * NUMBER_HEIGHT_SHARE, arena_height - 14.0 - brace_size.y - number_height / 2.0 - 8.0)
 		number_centre = maxf(number_centre, number_height / 2.0)
@@ -3540,17 +3541,14 @@ func _stage_danger_progress() -> float:
 	# member already at the Number keeps it hot (D058).
 	return _member_progress(encounter.members[encounter.front_index()])
 
-## How far a member has walked, 0 at the arena's top edge and 1 at the Number
-## (D057). Every member sets off together and reaches the Number at its own
-## arrival time, so the front one walks fastest and the column spreads out.
-## A walker carried past its wave's clock (D066) keeps walking from where it
-## was: its first hit, `next_hit`, is still its arrival on today's clock.
+## How far a member has come, 0 at the arena's edge and 1 where it stops: at
+## the Number, or at the reach for a ranged enemy (D057, D067).
 func _member_progress(member: Dictionary) -> float:
 	if int(member.state) == TaxEncounterClass.AT_NUMBER:
 		return 1.0
-	var arrive := maxf(float(member.arrive), 0.001)
-	var walked: float = state.wave_accumulator + arrive - float(member.next_hit) if not bool(member.get("landed", false)) else state.wave_accumulator
-	return clampf(walked / arrive, 0.0, 1.0)
+	var kind := str(member.get("kind", "basic"))
+	var span := TaxBalanceProfile.SPAWN_DISTANCE_METRES - TaxBalanceProfile.stop_distance(kind)
+	return clampf((TaxBalanceProfile.SPAWN_DISTANCE_METRES - TaxEncounterClass.distance_of(member, state.wave_accumulator)) / maxf(span, 0.001), 0.0, 1.0)
 
 ## The glow behind the Number warms as the Hit approaches, and throbs through
 ## the last seconds of a boss wave so the heaviest Hit is telegraphed before it
@@ -3624,7 +3622,6 @@ func _update_wave_enemy(delta: float) -> void:
 		_flush_shot_pops()
 		enemy_encounter = encounter
 		enemy_latched = false
-		enemy_entry = _enemy_entry(state.wave)
 		_clear_arena()
 		wave_enemy.visible = true
 		# A boss carried into the next wave (D063) is already at the Number, so
@@ -3635,6 +3632,8 @@ func _update_wave_enemy(delta: float) -> void:
 	# Reduce Motion stops movement, not information (MOTION_SYSTEM rule 1): the
 	# number holds at the top edge and its caption keeps the time.
 	var member: Dictionary = encounter.members[display]
+	enemy_angle = _member_angle(member)
+	enemy_stop = TaxBalanceProfile.stop_distance(str(member.get("kind", "basic")))
 	if enemy_latched or int(member.state) == TaxEncounterClass.AT_NUMBER:
 		enemy_travel = 1.0
 	elif state.settings.reduce_motion:
@@ -3666,16 +3665,31 @@ func _update_wave_enemy(delta: float) -> void:
 	var point: Vector2 = path[0].lerp(path[1], enemy_travel)
 	var front_point: Variant = _place_followers(encounter, display, front, path)
 	wave_enemy.centre_on(point)
+	# Its caption never runs off the arena, however wide (a narrow screen).
+	wave_enemy.position.x = clampf(wave_enemy.position.x, 4.0, maxf(4.0, stage_root.size.x - wave_enemy.size.x - 4.0))
 	arena_fx.target = front_point if front_point is Vector2 else wave_enemy.value_centre()
 	arena_fx.trail_from = path[0]
 	arena_fx.trail_to = point
 	arena_fx.trail_colour = Color(tint, 0.22) if enemy_travel > 0.02 and not enemy_latched else Color.TRANSPARENT
+	_draw_range_ring()
 
-## The members behind the front walk in as smaller, quieter numbers (D057),
-## fanned across the top edge and converging on the Number. Under Reduce Motion
-## they are not drawn; the front's caption counts them instead. Returns where
-## the front member is drawn when it is not the live number, for the motes.
-func _place_followers(encounter, display: int, front: int, path: Array) -> Variant:
+## The Number's reach as a faint ring (D067), The Tower's range circle: 30 m
+## of the 60 m approach, drawn on the same rays the enemies walk.
+func _draw_range_ring() -> void:
+	var points := PackedVector2Array()
+	for step in range(73):
+		points.append(_arena_point(TAU * float(step) / 72.0, TaxBalanceProfile.TOWER_RANGE_METRES))
+	arena_fx.ring_points = points
+	arena_fx.ring_colour = Color(ACCENT, 0.14)
+
+## The rest of the wave as smaller, quieter numbers (D057), each on its own
+## ray towards the Number at the distance it has walked (D067), as The
+## Tower's enemies close in from every side. One that has not set off is not
+## drawn; those at the Number ring it, and ranged ones stand at the reach.
+## Under Reduce Motion they are not drawn; the front's caption counts them
+## instead. Returns where the front member is drawn when it is not the live
+## number, for the motes.
+func _place_followers(encounter, display: int, front: int, _path: Array) -> Variant:
 	if state.settings.reduce_motion:
 		_hide_followers(0)
 		return null
@@ -3685,6 +3699,9 @@ func _place_followers(encounter, display: int, front: int, path: Array) -> Varia
 	for index in range(encounter.members.size()):
 		var member: Dictionary = encounter.members[index]
 		if index == display or not TaxEncounterClass.is_alive(member):
+			continue
+		# Not yet set off: still off the arena, as The Tower spawns at the edge.
+		if state.wave_accumulator < float(member.get("sets_off", TaxEncounterClass.LONG_AGO)):
 			continue
 		# Past three columns a side the pile is not drawn; the caption counts it.
 		if int(member.state) == TaxEncounterClass.AT_NUMBER and at_number >= MAX_PILE_DRAWN:
@@ -3696,32 +3713,22 @@ func _place_followers(encounter, display: int, front: int, path: Array) -> Varia
 			wave_enemy.get_parent().move_child(follower, wave_enemy.get_index())
 			enemy_followers.append(follower)
 		var node = enemy_followers[shown]
-		var progress := _member_progress(member)
+		var follower_kind: String = str(member.get("kind", "basic"))
+		var angle := _member_angle(member)
 		if int(member.state) == TaxEncounterClass.AT_NUMBER:
-			# Members at the Number flank it (D058): alternating sides, three
-			# rows each, then a column further out, so each stays readable.
-			var box := number_label.get_global_rect()
-			var centre := box.get_center() - stage_root.global_position
-			var side := -1.0 if at_number % 2 == 0 else 1.0
-			var row := (at_number / 2) % 3
-			var column := at_number / 6
-			var x := centre.x + side * (box.size.x / 2.0 + 26.0 + 44.0 * float(column))
-			x = clampf(x, 24.0, stage_root.size.x - 24.0)
-			node.show_value(_stat_number(member.hp), Color(DANGER, 0.8), 13)
-			node.centre_on(Vector2(x, centre.y + (float(row) - 1.0) * 22.0))
+			# Members at the Number ring it where they came in (D058), in three
+			# staggered rows so neighbours stay readable.
+			node.show_value(_stat_number(member.hp), Color(DANGER, 0.8), _kind_size(follower_kind, 13))
+			node.centre_on(_arena_point(angle, TaxBalanceProfile.stop_distance(follower_kind), node.size / 2.0, 14.0 * float(at_number % 3)))
 			node.visible = true
 			if index == front:
 				front_point = node.value_centre()
 			shown += 1
 			at_number += 1
 			continue
-		# A golden-ratio fan keeps neighbours apart without touching the run's
-		# random stream.
-		var spread := (fposmod(float(index) * 0.618034, 1.0) - 0.5) * minf(stage_root.size.x * 0.8, 300.0)
-		var start: Vector2 = path[0] + Vector2(spread, 0.0)
-		var follower_kind: String = str(member.get("kind", "basic"))
+		var progress := _member_progress(member)
 		node.show_value(_stat_number(member.hp), Color(_kind_tint(follower_kind, TEXT.lerp(WARNING, smoothstep(0.5, 1.0, progress))), 0.55), _kind_size(follower_kind, 13))
-		node.centre_on(start.lerp(path[1], progress))
+		node.centre_on(_arena_point(angle, TaxEncounterClass.distance_of(member, state.wave_accumulator), node.size / 2.0))
 		node.visible = true
 		if index == front:
 			front_point = node.value_centre()
@@ -3809,6 +3816,7 @@ func _show_hit_ledger(parts: Dictionary, landed: ScientificNumber, colour: Color
 ## Drops the motes and the trail, for a wave that is gone or a new one.
 func _clear_arena() -> void:
 	arena_fx.clear_motes()
+	arena_fx.ring_colour = Color.TRANSPARENT
 	arena_fx.trail_colour = Color.TRANSPARENT
 	mote_damage = ScientificNumber.new()
 	mote_elapsed = 0.0
@@ -3817,34 +3825,36 @@ func _clear_arena() -> void:
 	pop_elapsed = 0.0
 	pop_crit = false
 
-## Where the wave's number starts and stops, in the arena's space: from the top
-## edge at the wave's entry point, straight towards the Number, stopping where
-## the number and its caption meet the Number's own box.
+## Where the live number starts and stops, in the arena's space: on its own
+## ray, from the arena's edge to where it stops, touching the Number or at
+## the reach for a ranged enemy (D067).
 func _enemy_path() -> Array:
-	var number_box := number_label.get_global_rect()
-	var home := number_box.get_center() - stage_root.global_position
-	var value_half := wave_enemy.font.get_height(wave_enemy.font_size) / 2.0
-	var margin := maxf(wave_enemy.size.x / 2.0 + 12.0, 40.0)
-	var start := Vector2(clampf(enemy_entry * stage_root.size.x, margin, stage_root.size.x - margin), value_half + 8.0)
-	var direction := (home - start).normalized()
-	# The caption hangs below the number, so from above the gap is its whole
-	# height; from the side, half the widths.
-	var half := number_box.size / 2.0 + Vector2(wave_enemy.size.x / 2.0, wave_enemy.size.y - value_half) + Vector2(4.0, 4.0)
-	var reach := INF
-	if absf(direction.x) > 0.001:
-		reach = half.x / absf(direction.x)
-	if absf(direction.y) > 0.001:
-		reach = minf(reach, half.y / absf(direction.y))
-	var finish := home - direction * reach
-	if finish.y < start.y:
-		finish = start
-	return [start, finish]
+	var half: Vector2 = wave_enemy.size / 2.0
+	return [_arena_point(enemy_angle, TaxBalanceProfile.SPAWN_DISTANCE_METRES, half), _arena_point(enemy_angle, enemy_stop, half)]
 
-## Where across the top edge a wave enters, as a share of the arena's width. A
-## golden-ratio step spreads successive waves out, and it never draws on the
-## game's random stream, so it cannot change a run.
-func _enemy_entry(wave: int) -> float:
-	return 0.18 + 0.64 * fposmod(float(wave) * 0.618034, 1.0)
+## Where an enemy `distance` metres out on the ray at `angle` is drawn (D067):
+## the arena's edge at the full approach, the Number's box at none, and
+## evenly between, so the reach is a ring halfway in. `half` is the drawn
+## number's half size, so it neither leaves the arena nor covers the Number.
+func _arena_point(angle: float, distance: float, half: Vector2 = Vector2(18.0, 10.0), lift: float = 0.0) -> Vector2:
+	var box := number_label.get_global_rect()
+	var centre := box.get_center() - stage_root.global_position
+	# Round, as The Tower's field is: the pile rings the Number just clear of
+	# it, and enemies set off on the largest circle the arena holds.
+	var inner := box.size.length() * 0.45 + maxf(half.x, half.y)
+	var room := minf(minf(centre.x, stage_root.size.x - centre.x), minf(centre.y, stage_root.size.y - centre.y))
+	var outer := maxf(room - maxf(half.x, half.y) - 6.0, inner + 40.0)
+	var share := clampf(distance / TaxBalanceProfile.SPAWN_DISTANCE_METRES, 0.0, 1.0)
+	return centre + Vector2(cos(angle), sin(angle)) * (lerpf(inner, outer, share) + lift)
+
+## The direction an enemy comes in from, all round the Number as The Tower's
+## do (D067). Fixed for the enemy by its wave, arrival and type, and never
+## drawn from the run's random stream, so it cannot change a run.
+func _member_angle(member: Dictionary) -> float:
+	# A hash spreads even a wave's evenly spaced arrivals round the circle;
+	# arrivals sit on a 1/64-second grid, so the key is whole numbers.
+	var key := hash(Vector3i(int(member.get("wave", 1)), roundi(float(member.get("arrive", 0.0)) * 64.0), str(member.get("kind", "basic")).length()))
+	return float(posmod(key, 3600)) / 3600.0 * TAU
 
 ## A clean clear: the number breaks apart where it stood, with the no-Hit beat
 ## D041 asks for. Once only, since the body hides as it shatters.
