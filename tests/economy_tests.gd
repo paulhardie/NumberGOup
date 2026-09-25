@@ -255,7 +255,7 @@ func _test_multi_buy_matches_buying_one_at_a_time() -> void:
 	# Quotes come from cached running totals (D047); a Research Focus changes
 	# every price, so the next quote must use the new ones.
 	var focused := _funded_state()
- 	focused.layers_parked = false
+	focused.layers_parked = false
 	var before_focus := int(focused.plan_purchase("damage", 5).cost)
 	focused.focus_path = ProgressionTaxonomy.ATTACK
 	var focus_singles := 0
