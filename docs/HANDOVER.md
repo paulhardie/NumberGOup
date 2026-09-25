@@ -7,6 +7,7 @@ The branch is unmerged and has no PR. `claude/codex-handover-if13d2` is stale: e
 
 ## For the next agent: start here
 
+0. **A rebuild is proposed** in [`REBUILD_SPEC.md`](REBUILD_SPEC.md) (25 September, `claude/great-tesla-9kfp95`): The Tower's first hours built clean, then the Number added as one twist. Until the owner says go or no, don't start new tuning work below; if they say go, the spec replaces these next steps.
 1. Read [`AGENTS.md`](../AGENTS.md), D063–D071 in [`DECISIONS.md`](DECISIONS.md), the [Workshop since D068](WORKSHOP_DESIGN.md#the-workshop-since-d068-the-towers) and [The Tower's Tier 1, wave by wave](TOWER_SCALING_FOUNDATION.md#tier-1-wave-by-wave-against-ours--24-september-2026). Fetch and check the branch against `origin` before new work. Don't switch the owner's playable `main` checkout.
 2. **Owner direction:**
    - **"Go full tower for now and get the base built"** (D068), with the Number kept ("Number stays, Tower around it"). D063's standing rule still holds: if in doubt, copy the way The Tower does it, shaped to a game of numbers.
