@@ -28,8 +28,11 @@ func _ghosts(main, kind: int) -> int:
 			count += 1
 	return count
 func _beat(st) -> void:
-	while not st.active_encounter.is_cleared():
-		st.active_encounter.apply_compliance(st.active_encounter.members[st.active_encounter.front_index()].hp)
+	for index in range(st.active_encounter.members.size()):
+		var member: Dictionary = st.active_encounter.members[index]
+		if TaxEncounter.is_alive(member):
+			st.active_encounter.damage_member(index, member.hp.copy())
+	st._pay_kills()
 func _followers(main) -> int:
 	return main.enemy_followers.filter(func(node): return node.visible).size()
 func rescue_parts_empty(parts: Dictionary) -> bool:
@@ -100,28 +103,24 @@ func _init() -> void:
 	# D057: beating the front member breaks it apart where it stood, and the
 	# next member becomes the live number.
 	var old_front: int = st.active_encounter.front_index()
-	st.active_encounter.apply_compliance(st.active_encounter.members[old_front].hp)
+	st.active_encounter.damage_member(old_front, st.active_encounter.members[old_front].hp.copy())
 	await _frames(2)
 	_check(_ghosts(main, WaveEnemy.Beat.SHATTER) == 1 and main.enemy_front == old_front + 1 and st.wave == 1, "a beaten front member shatters and the next takes its place")
 	await _shot("1e_front_beaten")
 	await create_timer(0.8).timeout
-	# Beaten after the 2.5-second beat: replaced in the same step.
+	# Beaten well before its clock ends, the wave shatters once and holds its
+	# 35 seconds (D067), then the next comes in.
 	_beat(st)
 	await _frames(2)
-	_check(_ghosts(main, WaveEnemy.Beat.SHATTER) == 1, "a wave beaten late shatters once")
+	_check(_ghosts(main, WaveEnemy.Beat.SHATTER) == 1 and st.wave == 1, "a beaten wave shatters once and holds its clock")
 	await create_timer(0.15).timeout
 	await _shot("2_shatter")
 	await create_timer(0.75).timeout
-	_check(_ghosts(main, WaveEnemy.Beat.SHATTER) == 0, "the shatter frees itself")
-	await _frames(4)
-	_check(main.wave_enemy.visible and st.wave_accumulator < 1.5 and absf(main.enemy_travel - st.wave_accumulator / st.active_encounter.members[st.active_encounter.front_index()].arrive) < 0.03, "the next wave arrives at the edge: %f" % main.enemy_travel)
-	# Beaten inside the beat: held on screen until 2.5 seconds.
-	st.wave_accumulator = 0.5
-	_beat(st)
+	_check(_ghosts(main, WaveEnemy.Beat.SHATTER) == 0 and st.wave == 1, "the shatter frees itself while the clock runs on")
+	st.wave_accumulator = GameState.WAVE_INTERVAL_SECONDS - 0.05
+	await create_timer(0.25).timeout
 	await _frames(2)
-	_check(_ghosts(main, WaveEnemy.Beat.SHATTER) == 1 and not main.wave_enemy.visible, "a wave beaten early shatters once and stays gone")
-	await create_timer(2.6).timeout
-	_check(main.wave_enemy.visible and _ghosts(main, WaveEnemy.Beat.SHATTER) == 0, "after the beat the next wave shows")
+	_check(main.wave_enemy.visible and st.wave == 2 and st.wave_accumulator < 1.5 and absf(main.enemy_travel - st.wave_accumulator / st.active_encounter.members[st.active_encounter.front_index()].arrive) < 0.03, "the next wave arrives at the edge: %f" % main.enemy_travel)
 	# A boss that is not beaten reaches the Number at 18 seconds and stays
 	# there, the live number, while the next wave comes in behind it at 35
 	# (D063, D065, D066).
@@ -199,7 +198,8 @@ func _init() -> void:
 	await _shot("6_second_wind")
 	await create_timer(2.6).timeout
 	st.active_encounter = st._make_encounter(st.wave)
-	st.wave_accumulator = 0.0
+	# Four seconds in, so the first enemies are in reach (D067).
+	st.wave_accumulator = 4.0
 	st.number = ScientificNumber.from_float(1.0e9)
 	# Live: a run at 5.95 shots a second keeps several motes flying.
 	st.purchased["faster_cadence"] = 100

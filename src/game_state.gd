@@ -357,6 +357,7 @@ func _run_wave_clock(events: Array[SimulationEvent]) -> void:
 		safety += 1
 		if active_encounter == null:
 			active_encounter = _make_encounter(wave)
+		active_encounter.now = wave_accumulator
 		# Everyone due this step, soonest first, from one scan of the pile.
 		var due: Array = active_encounter.due_indices(wave_accumulator)
 		if not due.is_empty():
@@ -370,21 +371,17 @@ func _run_wave_clock(events: Array[SimulationEvent]) -> void:
 					landed_any = true
 			if landed_any:
 				continue
-		if active_encounter.own_alive_count() == 0 and wave_accumulator >= balance_profile.MIN_WAVE_SECONDS:
-			active_encounter.shift_clock(wave_accumulator)
-			wave_accumulator = 0.0
+		# Every wave lasts its full clock, as The Tower's do (D067): beaten if
+		# all of its own enemies fell in it, unless an opening member hit and
+		# left (D059); passed otherwise.
+		if wave_accumulator >= WAVE_INTERVAL_SECONDS:
+			wave_accumulator -= WAVE_INTERVAL_SECONDS
+			active_encounter.shift_clock(WAVE_INTERVAL_SECONDS)
 			_end_brace_window()
-			# Nothing of the wave left: beaten, unless an opening member hit
-			# and left (D059), which passes it as a missed wave.
 			if active_encounter.is_beaten():
 				events.append(_complete_current_wave(active_encounter.living_members()))
 			else:
 				_pass_missed_wave(active_encounter.living_members())
-		elif wave_accumulator >= WAVE_INTERVAL_SECONDS:
-			wave_accumulator -= WAVE_INTERVAL_SECONDS
-			active_encounter.shift_clock(WAVE_INTERVAL_SECONDS)
-			_end_brace_window()
-			_pass_missed_wave(active_encounter.living_members())
 		else:
 			break
 
@@ -601,7 +598,7 @@ func _make_encounter(target_wave: int):
 	# Many enemies, each with the full enemy HP (D065), of types drawn for this
 	# run and wave, a tank carrying five enemies' worth and a boss twenty (D066).
 	var roster: Array = balance_profile.wave_roster(target_wave, run_seed)
-	return TaxEncounterClass.new(
+	var encounter = TaxEncounterClass.new(
 		selected_tier,
 		target_wave,
 		liability,
@@ -612,8 +609,11 @@ func _make_encounter(target_wave: int):
 		balance_profile.member_hit_seconds(target_wave),
 		roster.map(func(entry): return float(balance_profile.ENEMY_HP_WEIGHT[entry.kind])),
 		balance_profile.boss_hit_seconds(target_wave),
-		roster.map(func(entry): return str(entry.kind))
+		roster.map(func(entry): return str(entry.kind)),
+		roster.map(func(entry): return float(entry.sets_off))
 	)
+	encounter.now = wave_accumulator
+	return encounter
 
 func _wave_death(reached: int, hit: ScientificNumber, boss: bool, number_before_hit: ScientificNumber, wave_hp_left: ScientificNumber) -> SimulationEvent:
 	var knowledge_gain := get_prestige_knowledge_gain()
@@ -1642,6 +1642,8 @@ func _restore_saved_run(data: Dictionary) -> void:
 		if str(data.get("balance_profile_id", "")) != balance_profile.PROFILE_ID:
 			_rebuild_encounter_on_current_profile()
 		_reconcile_opening_members_on_load()
+		if active_encounter != null:
+			active_encounter.now = wave_accumulator
 		# Added after V5 shipped, like the run peak: a save without Rig ranks
 		# resumes with none, and malformed ranks read as none rather than crash.
 		var saved_rig: Variant = data.get("rig_ranks", {})
@@ -1963,7 +1965,8 @@ func _add_number(amount: ScientificNumber) -> void:
 	lifetime_generated = lifetime_generated.add(amount)
 	var banked := amount
 	if in_run and active_encounter != null:
-		var struck: int = active_encounter.front_index()
+		active_encounter.now = wave_accumulator
+		var struck: int = active_encounter.target_index()
 		var struck_boss: bool = active_encounter.is_boss_member(struck)
 		var into_wave: ScientificNumber = active_encounter.apply_compliance(amount)
 		# Leech (D038) feeds on a boss that stands and fights: a share of the

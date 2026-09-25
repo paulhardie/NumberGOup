@@ -30,6 +30,7 @@ func _init() -> void:
 	_test_production_clears_liability()
 	_test_a_wave_is_a_group()
 	_test_enemy_types_and_pay_per_kill()
+	_test_distance_and_reach()
 	_test_saved_numbers_read_back_exactly()
 	_test_group_members_land_one_by_one()
 	_test_group_brace_guard_and_thorns()
@@ -41,7 +42,7 @@ func _init() -> void:
 	_test_output_is_number_and_strikes_the_wave()
 	_test_repeated_taps_count_once()
 	_test_missed_waves_move_on_and_bosses_stay()
-	_test_beaten_wave_gives_way_after_the_minimum_beat()
+	_test_beaten_wave_waits_out_its_clock()
 	_test_missed_checkpoint_pays_when_passed()
 	_test_mid_wave_save_resumes_identically()
 	_test_collection_is_absolute()
@@ -1004,6 +1005,7 @@ func _test_production_clears_liability() -> void:
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	state.number = ScientificNumber.from_float(10000)
 	_expect(state.start_run(2, 9), "Tier 2 run should start after unlock")
+	_all_in_reach(state)
 	var before: ScientificNumber = state.active_encounter.remaining_liability.copy()
 	var tap := state.tap()
 	_expect(state.active_encounter.remaining_liability.compare_to(before.subtract(tap.amount)) == 0, "every produced unit should deal equal compliance damage")
@@ -1011,7 +1013,7 @@ func _test_production_clears_liability() -> void:
 	# D057: one blow beats only the front member; what it carried past that
 	# member's HP is lost, as it was past a whole wave's.
 	_expect(state.active_encounter.members[0].hp.is_zero() and state.active_encounter.standing_count() == state.active_encounter.members.size() - 1, "one blow should beat only the front member")
-	while not state.active_encounter.is_cleared():
+	for blow in range(state.active_encounter.members.size()):
 		state.active_encounter.apply_compliance(ScientificNumber.new(9.9, 300))
 	_expect(state.active_encounter.is_cleared(), "sufficient compliance should clear Liability without making it negative")
 	var event := state._resolve_wave_boundary()
@@ -1071,6 +1073,7 @@ func _test_repeated_taps_count_once() -> void:
 	var state := GameState.new()
 	state.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	state.start_run(2, 23)
+	_all_in_reach(state)
 	state.active_encounter.remaining_liability = ScientificNumber.from_float(30)
 	var lifetime_before: ScientificNumber = state.lifetime_generated.copy()
 	for tap_index in range(50):
@@ -1114,6 +1117,7 @@ func _test_missed_waves_move_on_and_bosses_stay() -> void:
 	boss.start_run(2, 25)
 	boss.wave = 30
 	boss.active_encounter = boss._make_encounter(30)
+	_all_in_reach(boss)
 	boss.number = ScientificNumber.from_float(1e12)
 	var boss_hp: ScientificNumber = boss.active_encounter.max_liability.copy()
 	boss._add_number(ScientificNumber.from_float(40))
@@ -1125,7 +1129,7 @@ func _test_missed_waves_move_on_and_bosses_stay() -> void:
 	boss._add_number(boss.active_encounter.members[carried_boss].hp.copy())
 	_expect(boss.active_encounter.boss_index() < 0 and boss.get_tier_best(2) == 0, "a boss beaten after its wave passed should not count its wave as beaten")
 	_beat_wave(boss)
-	_advance_seconds(boss, boss.balance_profile.MIN_WAVE_SECONDS)
+	boss._resolve_wave_boundary()
 	_expect(boss.wave == 32 and boss.get_tier_best(2) == 31, "beating the next wave should advance and count")
 
 func _test_missed_checkpoint_pays_when_passed() -> void:
@@ -1142,7 +1146,7 @@ func _test_missed_checkpoint_pays_when_passed() -> void:
 	state._resolve_wave_boundary()
 	_expect(state.wave == 26 and not state.get_tier_record(1).milestones_claimed.has(25), "a missed checkpoint wave should claim nothing")
 	_beat_wave(state)
-	_advance_seconds(state, state.balance_profile.MIN_WAVE_SECONDS)
+	state._resolve_wave_boundary()
 	var bonus: int = state.balance_profile.milestone_bonus(1, 25)
 	_expect(state.get_tier_record(1).milestones_claimed.has(25), "beating a later wave should claim the passed checkpoint")
 	_expect(state.coins - coins_before >= bonus and state.gems - gems_before == state.balance_profile.milestone_gems(1, 25), "the passed checkpoint should pay its Coin bonus and Gems once")
@@ -1151,24 +1155,21 @@ func _test_missed_checkpoint_pays_when_passed() -> void:
 	state._catch_up_passed_milestones()
 	_expect(state.coins == paid_coins and state.gems == paid_gems, "a reload catch-up should find nothing left to pay")
 
-func _test_beaten_wave_gives_way_after_the_minimum_beat() -> void:
-	# D037: a beaten wave no longer waits out its timer. It stays on screen for
-	# the minimum beat so the clear registers, then the next wave arrives.
+func _test_beaten_wave_waits_out_its_clock() -> void:
+	# D067, replacing D037's early clear: a wave lasts its whole 35 seconds, as
+	# The Tower's do, however soon it is beaten; then it counts as beaten.
 	var state := GameState.new()
 	state.start_run(1, 26)
 	_beat_wave(state)
 	var wave_one_coins := _kill_coins_owed(state, state.balance_profile.wave_end_coins(1, 1))
-	_expect(state.active_encounter.is_cleared() and state.wave == 1, "a cleared wave should hold until the minimum beat")
-	var events := state.advance(0.25)
-	_expect(state.wave == 1, "the next wave should not arrive before the minimum beat")
-	_advance_seconds(state, state.balance_profile.MIN_WAVE_SECONDS)
-	_expect(state.wave == 2 and state.coins == wave_one_coins, "the next wave should arrive once the beat has passed, its kills paid")
-	_expect(state.wave_accumulator < state.balance_profile.MIN_WAVE_SECONDS, "the new wave's timer should start fresh")
-	_expect(state.balance_profile.MIN_WAVE_SECONDS < GameState.WAVE_INTERVAL_SECONDS, "the minimum beat should be shorter than the timer")
-	var cleared_event := false
-	for event in events:
-		cleared_event = cleared_event or event.type == "wave_clear"
-	_expect(not cleared_event, "no clear should be reported before the beat")
+	var events: Array = []
+	for step in range(4 * 34):
+		events.append_array(state.advance(0.25))
+	_expect(state.active_encounter.is_cleared() and state.wave == 1 and not events.any(func(event): return event.type == "wave_clear"), "a beaten wave should hold its clock")
+	for step in range(8):
+		events.append_array(state.advance(0.25))
+	_expect(state.wave == 2 and events.any(func(event): return event.type == "wave_clear") and state.get_tier_best(1) == 1, "at 35 seconds a beaten wave should count and give way")
+	_expect(state.coins == wave_one_coins and state.wave_accumulator < 2.0, "its kills and its end should have paid, and the next clock start fresh")
 
 	# Driven through the clock: an ordinary wave left standing hits once at 15
 	# seconds and moves on, with its partial Coins, exactly like the boundary.
@@ -1200,6 +1201,7 @@ func _test_mid_wave_save_resumes_identically() -> void:
 	original.purchased = {"stronger_tap": 60, "more_critical": 100}
 	original.tier_records["1"].highest_wave = GameState.TIER_UNLOCK_WAVE
 	original.start_run(2, 31)
+	_all_in_reach(original)
 	for tap_index in range(5):
 		original.tap()
 	_expect(not original.active_encounter.is_cleared(), "the save should be taken mid-wave")
@@ -1431,8 +1433,9 @@ func _test_thorns_deal_the_hit_to_the_wave_in_front() -> void:
 	for member in opener.active_encounter.members:
 		member.hp = member.max.multiply_scalar(0.5)
 	opener.active_encounter._sum_remaining()
-	# The last of wave 1's enemies arrives at 32 seconds (D065).
-	for step in range(132):
+	# The last of wave 1's enemies arrives at 32 seconds (D065), and the wave
+	# counts at the end of its 35 (D067).
+	for step in range(141):
 		opener._advance_waves(0.25)
 	_expect(opener.wave == 2 and opener.get_tier_best(1) == 1, "opening enemies Thorns kills as they hit should leave their wave beaten")
 
@@ -2795,7 +2798,9 @@ func _test_a_wave_is_a_group() -> void:
 	_expect(absf(total.log10() - encounter.max_liability.log10()) < 0.000001, "the members' HP should add up to the wave's")
 	_expect(absf(encounter.members[0].max.log10() - profile._from_log10(profile._wave_hp_log10(1)).log10()) < 0.000001, "each enemy should carry the full enemy HP (D065)")
 	_expect(is_equal_approx(state.next_hit_share(), 1.0 / float(count)) and state.get_hit_breakdown().final.compare_to(state.get_effective_collection().multiply_scalar(1.0 / float(count))) == 0, "the next Hit shown should be the front member's share")
-	# Damage strikes the front member, and what passes its HP is lost.
+	# Damage strikes the front member, and what passes its HP is lost. Every
+	# member in reach here, so the front is the first (D067's test is its own).
+	_all_in_reach(state)
 	var front_hp: ScientificNumber = encounter.members[0].hp.copy()
 	var applied: ScientificNumber = encounter.apply_compliance(front_hp.multiply_scalar(2.0))
 	_expect(applied.compare_to(front_hp) == 0 and encounter.members[0].hp.is_zero() and encounter.members[1].hp.compare_to(encounter.members[1].max) == 0, "a blow should stop at the front member")
@@ -2954,9 +2959,87 @@ func _test_enemy_types_and_pay_per_kill() -> void:
 	owing_member.kind = "basic"
 	var owing_restored = TaxEncounter.from_dict(owing.active_encounter.to_dict())
 	owing.active_encounter = owing_restored
-	owing._add_number(owing.active_encounter.members[0].hp.copy())
+	owing.active_encounter.damage_member(0, owing.active_encounter.members[0].hp.copy())
+	owing._pay_kills()
 	var owed_share: float = float(owing.balance_profile.reward_for_wave(1, 1)) * 0.5
 	_expect(absf(float(owing.coins) + owing.coin_fraction - owed_share) < 0.000001, "an enemy owing a D063 share should pay it at its kill")
+
+## D067: distance, The Tower's way. Enemies set off 60 m out and walk in at
+## their type's speed; the Number's damage strikes only enemies within its
+## 30 m reach, nearest first; ranged enemies stop at the edge of reach and
+## fire from there; positions carry across a wave's end and a save.
+func _test_distance_and_reach() -> void:
+	var profile := TaxBalanceProfile.new()
+	_expect(is_equal_approx(TaxBalanceProfile.travel_seconds("basic"), 6.0) and is_equal_approx(TaxBalanceProfile.travel_seconds("fast"), 2.5) and is_equal_approx(TaxBalanceProfile.travel_seconds("tank"), 18.0) and is_equal_approx(TaxBalanceProfile.travel_seconds("ranged"), 6.0), "travel times should come from speeds over the 60 m approach")
+	var state := GameState.new()
+	state.balance_profile.ENEMY_MIX = {"basic": 1.0}
+	state.start_run(1, 71)
+	var encounter: TaxEncounter = state.active_encounter
+	var before: ScientificNumber = encounter.remaining_liability.copy()
+	var number_before: ScientificNumber = state.number.copy()
+	state.tap()
+	_expect(encounter.remaining_liability.compare_to(before) == 0 and state.number.compare_to(number_before) > 0 and encounter.target_index() < 0, "at the start nothing is in reach: a tap banks Number and strikes nothing")
+	encounter.now = 2.9
+	_expect(encounter.target_index() < 0, "a basic set off at 0 is still out of reach at 2.9 seconds")
+	encounter.now = 3.0
+	_expect(encounter.target_index() == 0 and is_equal_approx(TaxEncounter.distance_of(encounter.members[0], 3.0), 30.0), "at 3 seconds it walks into the 30 m reach")
+
+	# Nearest first: a fast enemy set off later overtakes basics set off earlier.
+	var mixed := GameState.new()
+	mixed.balance_profile.ENEMY_MIX = {"basic": 0.5, "fast": 0.5}
+	mixed.start_run(1, 72)
+	var crowd: TaxEncounter = mixed.active_encounter
+	crowd.now = 9.0
+	var nearest := -1
+	var nearest_distance := INF
+	for index in range(crowd.members.size()):
+		var member: Dictionary = crowd.members[index]
+		if crowd.has_set_off(member):
+			var distance := TaxEncounter.distance_of(member, 9.0)
+			if distance <= crowd.reach and distance < nearest_distance:
+				nearest = index
+				nearest_distance = distance
+	_expect(nearest >= 0 and crowd.target_index() == nearest, "damage should strike the nearest enemy in reach")
+
+	# Ranged enemies stop at the edge of reach, fire from there, and can be struck.
+	var ranged := GameState.new()
+	ranged.balance_profile.ENEMY_MIX = {"ranged": 1.0}
+	ranged.balance_profile.OPENING_HIT_WAVES = 0
+	ranged.balance_profile.OPENING_EASED_BY = 0
+	ranged.start_run(1, 73)
+	ranged.number = ScientificNumber.from_float(1e9)
+	var hits := 0
+	for step in range(25):
+		hits += ranged._advance_waves(0.25).filter(func(event): return event.type == "tax_collection").size()
+	var shooter: Dictionary = ranged.active_encounter.members[0]
+	_expect(hits == 1 and int(shooter.state) == TaxEncounter.AT_NUMBER and is_equal_approx(TaxEncounter.distance_of(shooter, ranged.wave_accumulator), 30.0) and ranged.active_encounter.target_index() == 0, "a ranged enemy should fire at 6 seconds from 30 m and stay there, in reach")
+
+	# A walker carried past its wave's clock keeps walking from where it was.
+	var carry := GameState.new()
+	carry.balance_profile.ENEMY_MIX = {"tank": 1.0}
+	carry.start_run(1, 74)
+	carry.number = ScientificNumber.from_float(1e9)
+	var last: Dictionary = carry.active_encounter.members[carry.active_encounter.members.size() - 1]
+	var at_35 := TaxEncounter.distance_of(last, 35.0)
+	for step in range(140):
+		carry._advance_waves(0.25)
+	_expect(carry.wave == 2 and not carry.active_encounter.is_own(last) and absf(TaxEncounter.distance_of(last, carry.active_encounter.now) - at_35) < 0.01, "a tank carried past its wave should keep its place: %f against %f" % [TaxEncounter.distance_of(last, carry.active_encounter.now), at_35])
+	var save_path := "res://.number_go_up_test_save.json"
+	carry.save_path = save_path
+	_expect(carry.save(), "a run with a walker between waves should save")
+	var carried_back := GameState.new()
+	carried_back.balance_profile.ENEMY_MIX = {"tank": 1.0}
+	carried_back.save_path = save_path
+	carried_back.load()
+	var back_last: Dictionary = carried_back.active_encounter.members[carry.active_encounter.members.find(last)]
+	_expect(float(back_last.sets_off) == float(last.sets_off) and carried_back.active_encounter.target_index() == carry.active_encounter.target_index(), "a reload should keep where each enemy set off and what the Number strikes")
+	for step in range(40):
+		carry.tap()
+		carried_back.tap()
+		carry._advance_waves(0.25)
+		carried_back._advance_waves(0.25)
+	_expect(carried_back.active_encounter.remaining_liability.mantissa == carry.active_encounter.remaining_liability.mantissa and carried_back.number.mantissa == carry.number.mantissa, "the reloaded run should strike and be struck exactly as the original")
+	carried_back.clear_save()
 
 ## Saved numbers read back bit for bit (law 6): Godot's JSON reader misreads
 ## about one mantissa in thirteen, so each number carries its exact bits too.
@@ -3022,7 +3105,7 @@ func _test_group_members_land_one_by_one() -> void:
 	var partial_count: int = partial.active_encounter.members.size()
 	var coins_before := partial.coins
 	for kill in range(2):
-		partial.active_encounter.apply_compliance(partial.active_encounter.members[kill].hp)
+		partial.active_encounter.damage_member(kill, partial.active_encounter.members[kill].hp.copy())
 	var partial_hits := 0
 	for step in range(141):
 		partial_hits += partial._advance_waves(0.25).filter(func(event): return event.type == "tax_collection").size()
@@ -3034,7 +3117,7 @@ func _test_group_members_land_one_by_one() -> void:
 	clean.start_run(1, 54)
 	_beat_wave(clean)
 	var clean_events: Array = []
-	for step in range(12):
+	for step in range(141):
 		clean_events.append_array(clean._advance_waves(0.25))
 	_expect(clean.wave == 2 and clean_events.any(func(event): return event.type == "wave_clear") and clean.get_tier_record(1).highest_wave >= 1, "a wave beaten before any member lands should count as beaten")
 
@@ -3105,8 +3188,8 @@ func _test_group_saves_and_resumes() -> void:
 	source.number = ScientificNumber.from_float(1e6)
 	source.wave = 31
 	source.active_encounter = source._make_encounter(31)
-	source.active_encounter.apply_compliance(source.active_encounter.members[0].hp)
-	source.active_encounter.apply_compliance(source.active_encounter.members[1].hp.multiply_scalar(0.5))
+	source.active_encounter.damage_member(0, source.active_encounter.members[0].hp.copy())
+	source.active_encounter.damage_member(1, source.active_encounter.members[1].hp.multiply_scalar(0.5))
 	for step in range(46):
 		source.advance(0.25)
 	_expect(source.active_encounter.landed_count() >= 1 and source.active_encounter.members[0].state == TaxEncounter.KILLED, "the fixture should have a beaten member and a landed one")
@@ -3158,7 +3241,9 @@ func _test_group_saves_and_resumes() -> void:
 	landed_once.number = ScientificNumber.from_float(1e6)
 	landed_once.wave = 31
 	landed_once.active_encounter = landed_once._make_encounter(31)
-	while landed_once.active_encounter.landed_count() == 0:
+	for step in range(200):
+		if landed_once.active_encounter.landed_count() > 0:
+			break
 		landed_once._advance_waves(0.25)
 	var number_after_landing := landed_once.number.copy()
 	var states_before: Array = landed_once.active_encounter.members.map(func(member): return int(member.state))
@@ -3365,7 +3450,7 @@ func _test_tower_shaped_bosses_and_heat_up() -> void:
 	_expect(gate.wave == 101 and not gate.is_tier_unlocked(2), "passing the wave 100 boss should not open Tier 2 by itself")
 	_beat_wave(gate)
 	var opened := false
-	for step in range(12):
+	for step in range(141):
 		for event in gate.advance(0.25):
 			opened = opened or event.type == "tier_unlock"
 	_expect(opened and gate.is_tier_unlocked(2), "beating wave 101 should open Tier 2 and say so")
@@ -3480,7 +3565,7 @@ func _test_members_stay_and_the_pile_grows() -> void:
 	_expect(late.wave == 2 and late.active_encounter.landed_count() >= 1, "the fixture should have one of wave 2's own members at the Number")
 	_beat_wave(late)
 	var late_events: Array = []
-	for step in range(12):
+	for step in range(113):
 		late_events.append_array(late._advance_waves(0.25))
 	_expect(late.wave == 3 and late_events.any(func(event): return event.type == "wave_clear") and late.get_tier_record(1).highest_wave >= 2, "a wave whose members are all beaten should count as beaten")
 
@@ -3689,10 +3774,21 @@ func _roster_kill_coins(state: GameState, seed: int, from: int, to: int) -> int:
 			owed += state.balance_profile.kill_coins(state.selected_tier, roster_wave, str(entry.kind))
 	return floori(owed + 0.000001)
 
+## Kills every living member of the active wave, wherever it is, and pays
+## for the kills.
 func _beat_wave(state: GameState) -> void:
-	while not state.active_encounter.is_cleared():
-		var front: int = state.active_encounter.front_index()
-		state._add_number(state.active_encounter.members[front].hp)
+	for index in range(state.active_encounter.members.size()):
+		var member: Dictionary = state.active_encounter.members[index]
+		if TaxEncounter.is_alive(member):
+			state.active_encounter.damage_member(index, member.hp.copy())
+	state._pay_kills()
+
+## Puts every member of the active wave in the Number's reach, as if it set
+## off long ago, for a test about something other than distance (D067). Its
+## hits still come on its own clock.
+func _all_in_reach(state: GameState) -> void:
+	for member in state.active_encounter.members:
+		member.sets_off = TaxEncounter.LONG_AGO
 
 func _advance_seconds(state: GameState, seconds: float) -> void:
 	var elapsed := 0.0

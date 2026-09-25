@@ -57,6 +57,15 @@ var _kills: Array = []
 ## Coins this wave's own kills have paid, for its clear to report. Not saved:
 ## a resumed wave reports only what it pays after resuming.
 var paid_coins: int = 0
+## Distance (D067): the wave's clock as the game last set it, and how far the
+## Number reaches. Damage strikes only enemies inside the reach, nearest
+## first. Not saved; the game sets both. At INF, as an encounter built by hand
+## starts, every enemy has walked in, as before distance.
+var now := INF
+var reach := TaxBalanceProfile.TOWER_RANGE_METRES
+## A member saved or built without a setting-off time set off long ago: it is
+## in reach, and at the Number unless it stops short.
+const LONG_AGO := -1000.0
 
 func _init(
 	encounter_tier: int = 1,
@@ -69,7 +78,8 @@ func _init(
 	hit_interval: float = TaxBalanceProfile.WAVE_INTERVAL_SECONDS,
 	weights: Array = [],
 	boss_interval: float = 0.0,
-	kinds: Array = []
+	kinds: Array = [],
+	set_off_times: Array = []
 ) -> void:
 	tier_id = encounter_tier
 	wave = encounter_wave
@@ -101,6 +111,7 @@ func _init(
 			"wave": wave, "wave_hit": collection.copy(), "next_hit": arrive,
 			"interval": member_interval, "landed": false, "boss": is_boss_member, "hits": 0,
 			"kind": kind, "paid": false, "weight": weight, "of": total,
+			"sets_off": float(set_off_times[index]) if index < set_off_times.size() else LONG_AGO,
 		})
 	_sum_remaining()
 
@@ -125,7 +136,11 @@ func boss_index() -> int:
 func apply_compliance(amount: ScientificNumber, multiplier: float = 1.0) -> ScientificNumber:
 	if is_cleared() or amount.is_zero() or multiplier <= 0.0:
 		return ScientificNumber.new()
-	var index := front_index()
+	var index := target_index()
+	# Nothing in reach: the output is still Number (D037), it just strikes
+	# nothing (D067).
+	if index < 0:
+		return ScientificNumber.new()
 	var member: Dictionary = members[index]
 	var requested := amount.multiply_scalar(multiplier)
 	var applied: ScientificNumber = requested if requested.compare_to(member.hp) < 0 else member.hp.copy()
@@ -167,12 +182,56 @@ static func hit_part(member: Dictionary) -> float:
 	var of := float(member.get("of", 0.0))
 	return 1.0 / of if of > 0.0 else float(member.share)
 
-## The living member nearest the Number, or -1 when none lives. Members at the
-## Number sit ahead of those still walking, carried ones first.
-func front_index() -> int:
+## How far `member` is from the Number at `clock` seconds, in metres (D067):
+## where it set off, less what it has walked, never nearer than where its type
+## stops. One that has reached the Number, or its range, is there.
+static func distance_of(member: Dictionary, clock: float) -> float:
+	var kind := str(member.get("kind", "basic"))
+	var stop := TaxBalanceProfile.stop_distance(kind)
+	if bool(member.get("landed", false)) or int(member.state) == AT_NUMBER:
+		return stop
+	var walked := TaxBalanceProfile.speed_metres(kind) * (clock - float(member.get("sets_off", LONG_AGO)))
+	return clampf(TaxBalanceProfile.SPAWN_DISTANCE_METRES - walked, stop, TaxBalanceProfile.SPAWN_DISTANCE_METRES)
+
+## Whether `member` has set off by the encounter's clock.
+func has_set_off(member: Dictionary) -> bool:
+	return now >= float(member.get("sets_off", LONG_AGO))
+
+## The living member damage strikes: the nearest inside the reach, as The
+## Tower's default "closest" target, first in member order when two are as
+## near (members at the Number, carried ones first). -1 when none is in reach.
+func target_index() -> int:
+	var best := -1
+	var best_distance := INF
 	for index in range(members.size()):
-		if is_alive(members[index]) and int(members[index].state) == AT_NUMBER:
-			return index
+		var member: Dictionary = members[index]
+		if not is_alive(member) or not has_set_off(member):
+			continue
+		var distance := distance_of(member, now)
+		if distance <= reach and distance < best_distance:
+			best = index
+			best_distance = distance
+			if distance <= 0.0:
+				break
+	return best
+
+## The living member the wave shows in front: the one damage strikes, else
+## the nearest that has set off, else the first alive, or -1 when none lives.
+func front_index() -> int:
+	var target := target_index()
+	if target >= 0:
+		return target
+	var best := -1
+	var best_distance := INF
+	for index in range(members.size()):
+		var member: Dictionary = members[index]
+		if is_alive(member) and has_set_off(member):
+			var distance := distance_of(member, now)
+			if distance < best_distance:
+				best = index
+				best_distance = distance
+	if best >= 0:
+		return best
 	for index in range(members.size()):
 		if is_alive(members[index]):
 			return index
@@ -233,6 +292,11 @@ func hit(index: int) -> void:
 func shift_clock(seconds: float) -> void:
 	for member in members:
 		member.next_hit = float(member.next_hit) - seconds
+		# Where it set off moves with the clock, so it keeps walking from where
+		# it was (D067); long ago stays long ago.
+		if float(member.get("sets_off", LONG_AGO)) > LONG_AGO:
+			member.sets_off = float(member.sets_off) - seconds
+	now -= seconds
 	_next_due -= seconds
 
 ## The members still alive, for the next wave to carry in.
@@ -410,6 +474,7 @@ func to_dict() -> Dictionary:
 			"hits": member.get("hits", 0),
 			"kind": member.get("kind", "basic"),
 			"paid": member.get("paid", false),
+			"sets_off": member.get("sets_off", LONG_AGO),
 			# Only members saved under D063's rules still owe a share (D066).
 			"unpaid": member.get("unpaid", 0.0),
 			# The share is saved as the two whole numbers it comes from, so it
@@ -499,6 +564,8 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 				# so a dead member saved then is still owed; a rebuild onto
 				# today's profile pays it (carry_from).
 				"paid": bool(saved.get("paid", false)),
+				# Saved before distance (D067): set off long ago, so in reach.
+				"sets_off": clampf(float(saved.get("sets_off", LONG_AGO)), LONG_AGO, TaxBalanceProfile.latest_arrival()),
 				# Saved under D063's rules: the share of its passed wave's reward
 				# it still owes, paid at its kill instead of its type's Coins.
 				"unpaid": clampf(float(saved.get("unpaid", 0.0)), 0.0, 1.0),

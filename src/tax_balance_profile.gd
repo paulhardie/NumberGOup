@@ -6,16 +6,13 @@ const TierDefinitionClass = preload("res://src/tier_definition.gd")
 ## Number Go Up's original, inspectable interpretation of The Tower's scaling
 ## shape: independent polynomial bodies, milestone growth and explicit tiers.
 ## The coefficients are deliberately ours rather than copied game data.
-const PROFILE_ID := "tax-foundation-v14"
+const PROFILE_ID := "tax-foundation-v15"
 ## The Tower's wave (D065): 26 seconds in which enemies spawn, then a 9-second
-## gap, 35 in all. A wave beaten early still gives way after MIN_WAVE_SECONDS
-## (D037).
+## gap, 35 in all. Every wave lasts its whole 35 seconds, beaten or not, as
+## The Tower's do (D067, replacing D037's early clear).
 const WAVE_INTERVAL_SECONDS := 35.0
 const SPAWN_SECONDS := 26.0
 const BOSS_WAVE_INTERVAL := 10
-## A beaten wave stays on screen at least this long before the next arrives
-## (D037), so a clear still registers when the build outclasses the wave.
-const MIN_WAVE_SECONDS := 2.5
 const TIER_UNLOCK_WAVE := 100
 ## Every tier's milestone checkpoints. Extends to wave 5,000 with final milestone
 ## at 5,000, paying Gems at every checkpoint and Coins at coin checkpoints.
@@ -92,6 +89,14 @@ const MAX_WAVE_MEMBERS := 220
 ## Members set off evenly through SPAWN_SECONDS, as The Tower's spawn through
 ## its 26 seconds, and a basic enemy takes this long to reach the Number.
 const FIRST_ARRIVAL_SECONDS := 6.0
+## Distance (D067), The Tower's way. Enemies set off this far from the Number
+## and walk in at their type's speed; the Number reaches TOWER_RANGE_METRES,
+## The Tower's base Range, and its damage strikes only enemies inside it. The
+## spawn distance is ours (TheTowerSDK doesn't give one), chosen so a basic
+## enemy still takes 6 seconds and spends the last 3 in range.
+const SPAWN_DISTANCE_METRES := 60.0
+const TOWER_RANGE_METRES := 30.0
+const BASIC_SPEED_METRES := 10.0
 ## Enemy types (D066), The Tower's Tier 1 set. Each carries this many enemies'
 ## HP (the owner's wave 22 Wave Info: tank 5x, the rest 1x; a boss 20x) and
 ## hits like one enemy, as the same screen shows every type at one Attack.
@@ -101,12 +106,25 @@ const ENEMY_HP_WEIGHT := {"basic": 1.0, "fast": 1.0, "tank": 5.0, "ranged": 1.0,
 ## screen is all the evidence so far, so it holds at every wave. Mutable so
 ## tests and tools can send one type.
 var ENEMY_MIX := {"basic": 0.85, "fast": 0.07, "tank": 0.06, "ranged": 0.02}
-## Seconds from setting off to reaching the Number, from TheTowerSDK's speed
-## ratios rounded to our own figures: fast 2.3x a basic's speed, tank and boss
-## a third. A ranged enemy walks at about half speed but stops at range to
-## fire; until distance exists (the next step) it starts firing when a basic
-## would arrive. Multiples of 1/64 s, so saved arrivals read back exactly.
-const ENEMY_TRAVEL_SECONDS := {"basic": 6.0, "fast": 2.5, "tank": 18.0, "ranged": 6.0, "boss": 18.0}
+## Each type's speed as a share of a basic's, from TheTowerSDK's ratios rounded
+## to our own figures: fast 2.4x, tank and boss a third, ranged a half. A ranged
+## enemy stops at the Number's range and fires from there, as The Tower's do;
+## the rest walk up to the Number (D067).
+const ENEMY_SPEED := {"basic": 1.0, "fast": 2.4, "tank": 1.0 / 3.0, "ranged": 0.5, "boss": 1.0 / 3.0}
+
+## How far from the Number an enemy of `kind` stops to attack (D067).
+static func stop_distance(kind: String) -> float:
+	return TOWER_RANGE_METRES if kind == "ranged" else 0.0
+
+## Metres a second an enemy of `kind` walks (D067).
+static func speed_metres(kind: String) -> float:
+	return BASIC_SPEED_METRES * float(ENEMY_SPEED.get(kind, 1.0))
+
+## Seconds from setting off to its first hit: to the Number, or for a ranged
+## enemy to the edge of range (D067). On a 1/64-second grid, so saved arrivals
+## read back exactly: basic and ranged 6, fast 2.5, tank and boss 18.
+static func travel_seconds(kind: String) -> float:
+	return snappedf((SPAWN_DISTANCE_METRES - stop_distance(kind)) / speed_metres(kind), 1.0 / 64.0)
 ## Coins a kill is worth, in kill-coin units (the owner's reference table and
 ## play): basics pay none, the rarer types pay more.
 const KILL_COINS := {"basic": 0.0, "fast": 2.0, "ranged": 3.0, "tank": 4.0, "boss": 5.0}
@@ -184,12 +202,12 @@ func wave_roster(wave: int, seed: int = 0) -> Array:
 	var roster: Array = []
 	for index in range(count):
 		var kind := _draw_kind(mixer.randf())
-		var sets_off := SPAWN_SECONDS * float(index) / float(count - 1) if count > 1 else 0.0
 		# Snapped to 1/64 of a second, which a saved run stores and reads back
 		# exactly; 26/19 of a second does not survive JSON bit for bit (law 6).
-		roster.append({"kind": kind, "arrive": snappedf(sets_off + float(ENEMY_TRAVEL_SECONDS[kind]), 1.0 / 64.0), "order": index})
+		var sets_off := snappedf(SPAWN_SECONDS * float(index) / float(count - 1), 1.0 / 64.0) if count > 1 else 0.0
+		roster.append({"kind": kind, "sets_off": sets_off, "arrive": sets_off + travel_seconds(kind), "order": index})
 	if is_boss_wave(wave):
-		roster.append({"kind": "boss", "arrive": BOSS_ARRIVAL_SECONDS, "order": -1})
+		roster.append({"kind": "boss", "sets_off": 0.0, "arrive": BOSS_ARRIVAL_SECONDS, "order": -1})
 	# Nearest the Number first; a fast enemy overtakes the slower ones set off
 	# before it. Ties keep the order they set off in, the boss first.
 	roster.sort_custom(func(a, b): return float(a.arrive) < float(b.arrive) or (float(a.arrive) == float(b.arrive) and int(a.order) < int(b.order)))
@@ -280,8 +298,8 @@ func member_arrivals(wave: int, seed: int = 0) -> Array:
 ## speed. A member may arrive after its wave's clock ends, and is carried.
 static func latest_arrival() -> float:
 	var slowest := 0.0
-	for kind in ENEMY_TRAVEL_SECONDS:
-		slowest = maxf(slowest, float(ENEMY_TRAVEL_SECONDS[kind]))
+	for kind in ENEMY_SPEED:
+		slowest = maxf(slowest, travel_seconds(kind))
 	return SPAWN_SECONDS + slowest
 
 func is_boss_wave(wave: int) -> bool:
