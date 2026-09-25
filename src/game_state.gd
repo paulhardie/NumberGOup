@@ -42,6 +42,12 @@ const OFFLINE_CAP_SECONDS := 43200.0
 const RESEARCH_WORKSHOP_LEVEL := 120
 const PRESTIGE_TEASER_UNLOCK := 110000.0
 const PRESTIGE_KNOWLEDGE_SCALE := 4.0
+## Labs, Cards, Knowledge (Insight, Prestige and Research Focus) and Gems are
+## parked until The Tower's core loop is fun (D069): none of their bonuses
+## count and none can be bought, but the save keeps every rank, card, timer and
+## balance untouched, and Gems and Knowledge still bank, so unparking loses
+## nothing. Flip this to bring them all back.
+const LAYERS_PARKED := true
 
 ## Public aliases retained for UI/tests. The authored balance lives in
 ## TaxBalanceProfile rather than being mixed into the state machine.
@@ -161,6 +167,9 @@ var card_ranks: Dictionary = {}
 ## Only Active cards' effects count; Inventory is a card owned but idle.
 var card_active: Array[String] = []
 var gems := 0
+## LAYERS_PARKED for this state; tests turn it off to keep the parked systems
+## covered for when they return. Not saved.
+var layers_parked := LAYERS_PARKED
 var last_run_summary: RunSummary = null
 var statistics := {
 	"taps": 0,
@@ -937,6 +946,8 @@ func get_category_rank_total(category: String) -> int:
 	for definition in definitions:
 		if definition.workshop_category == category:
 			total += get_owned(definition.id)
+	if layers_parked:
+		return total
 	for lab_definition in lab_research.definitions:
 		if lab_definition.category == category:
 			total += get_lab_owned(lab_definition.id)
@@ -1127,6 +1138,8 @@ func get_lab_slot_cost() -> int:
 
 ## Opening a slot spends Gems, which like Coins are a between-run resource.
 func can_unlock_lab_slot() -> bool:
+	if layers_parked:
+		return false
 	var cost := get_lab_slot_cost()
 	return not in_run and cost > 0 and gems >= cost
 
@@ -1154,7 +1167,7 @@ func get_lab_duration(research_id: String, now_unix: float = -1.0) -> float:
 ## starting research mid-run would need its own in-run spend UI for no gain,
 ## since the timer runs in real time regardless of what the run screen shows.
 func can_start_lab(research_id: String, now_unix: float = -1.0) -> bool:
-	if in_run:
+	if in_run or layers_parked:
 		return false
 	var definition := lab_research.get_definition(research_id)
 	if definition == null:
@@ -1211,7 +1224,7 @@ func card_slots_total() -> int:
 	return CardCollectionClass.ACTIVE_SLOTS
 
 func can_equip_card(card_id: String) -> bool:
-	if in_run or is_card_active(card_id) or get_card_level(card_id) <= 0:
+	if in_run or layers_parked or is_card_active(card_id) or get_card_level(card_id) <= 0:
 		return false
 	return active_card_count() < card_slots_total()
 
@@ -1222,7 +1235,7 @@ func equip_card(card_id: String) -> bool:
 	return true
 
 func unequip_card(card_id: String) -> bool:
-	if in_run or not is_card_active(card_id):
+	if in_run or layers_parked or not is_card_active(card_id):
 		return false
 	card_active.erase(card_id)
 	return true
@@ -1237,7 +1250,7 @@ func has_unmaxed_cards() -> bool:
 	return false
 
 func can_pull_card() -> bool:
-	return not in_run and gems >= get_pull_cost() and has_unmaxed_cards()
+	return not in_run and not layers_parked and gems >= get_pull_cost() and has_unmaxed_cards()
 
 ## Draws one card weighted by rarity, uniform within it. Owned cards level up
 ## one step per repeat pull, to MAX_LEVEL; a new card starts at level 1.
@@ -1306,7 +1319,7 @@ func get_cost_at(definition: UpgradeDefinition, owned: int) -> ScientificNumber:
 func _workshop_discount(definition: UpgradeDefinition) -> float:
 	var discount := _effect_sum("cost_discount")
 	# Focus is a nudge toward a first build, never a permanent branch lock.
-	if definition.workshop_category == focus_path:
+	if not layers_parked and definition.workshop_category == focus_path:
 		discount += 0.25
 	return discount
 
@@ -1419,7 +1432,7 @@ func stat_display(definition: UpgradeDefinition, rank: int) -> Dictionary:
 	return {"value": float(rank), "unit": "rank"}
 
 func can_purchase_insight() -> bool:
-	return knowledge > 0
+	return not layers_parked and knowledge > 0
 
 func purchase_insight() -> bool:
 	if not can_purchase_insight():
@@ -1436,7 +1449,7 @@ func get_prestige_knowledge_gain() -> int:
 	return maxi(0, floori(earned))
 
 func can_prestige() -> bool:
-	return get_prestige_knowledge_gain() > 0
+	return not layers_parked and get_prestige_knowledge_gain() > 0
 
 func prestige() -> int:
 	var gain := get_prestige_knowledge_gain()
@@ -1480,7 +1493,7 @@ func _reset_run_state() -> void:
 	_settle_labs()
 
 func select_focus(path: String) -> bool:
-	if in_run or focus_path != "" or get_workshop_level() < RESEARCH_WORKSHOP_LEVEL:
+	if in_run or layers_parked or focus_path != "" or get_workshop_level() < RESEARCH_WORKSHOP_LEVEL:
 		return false
 	if not ProgressionTaxonomy.WORKSHOP_CATEGORIES.has(path) or not has_category_content(path):
 		return false
@@ -2198,16 +2211,19 @@ func _row_units(definition: UpgradeDefinition) -> float:
 func _effect_sum(effect_name: String) -> float:
 	var total := 0.0
 	for definition in definitions:
-		if definition.effects.has(effect_name):
+		if definition.effects.has(effect_name) and not _is_parked(definition):
 			total += float(definition.effects[effect_name]) * _row_units(definition)
-	total += _lab_effect_sum(effect_name)
+	if not layers_parked:
+		total += _lab_effect_sum(effect_name)
 	return total
 
 func _effect_product(effect_name: String, base: float) -> float:
 	var total := base
 	for definition in definitions:
-		if definition.effects.has(effect_name):
+		if definition.effects.has(effect_name) and not _is_parked(definition):
 			total *= pow(float(definition.effects[effect_name]), _row_units(definition))
+	if layers_parked:
+		return total
 	for lab_definition in lab_research.definitions:
 		if lab_definition.effects.has(effect_name):
 			total *= pow(float(lab_definition.effects[effect_name]), float(_lab_rank(lab_definition.id)))
@@ -2215,6 +2231,10 @@ func _effect_product(effect_name: String, base: float) -> float:
 		if is_card_active(card_definition.id) and card_definition.effects.has(effect_name):
 			total *= pow(float(card_definition.effects[effect_name]), float(get_card_level(card_definition.id)))
 	return total
+
+## Insight is the only row outside the Workshop, and it is parked (D069).
+func _is_parked(definition: UpgradeDefinition) -> bool:
+	return layers_parked and definition.category == ProgressionTaxonomy.KNOWLEDGE
 
 ## Labs are permanent and time-gated rather than run-scoped, so they have no
 ## Rig-style equivalent to add: a finished rank simply always counts.

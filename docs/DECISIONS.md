@@ -783,3 +783,19 @@ Rules:
   - Save V12 will not load in an older build (D028). The owner's real save converts once, on first load, with a V11 (or V10) copy kept.
   - The Workshop data is The Tower's own table, redistributed under the SDK's MIT licence. That is fine for a private build; publishing the game with it would need a separate decision.
 - **Revisit when:** the owner reads The Tower's Cash per kill (a battle report's Cash earned for an early run) and run Upgrades are retuned against it; the next Tower rows (Land Mines, Shockwave, Recovery Packages, Wall, Enemy Level Skip, Ultimate Weapons) are built; or play shows a strong build never being hit.
+
+## D069 — Labs, Cards, Knowledge and Gems are parked until the core loop is fun
+
+- **Status:** Accepted (2026-09-25) on owner direction. After research on how The Tower played at launch (a tower, Cash upgrades in a run, Coins for the Workshop, and little else), asked whether to park the later layers while the core loop is tuned, the owner said: "Park them for now, but add them on the to do list", then "Parking as in, leave out cards etc for now until the loop is fun". Implemented (2026-09-25) on `claude/beautiful-dirac-6ozaio`; not merged.
+- **Context:** D068 made the Workshop The Tower's, but the core loop is not yet balanced: Cash per kill is still our own figure and lets a fresh run reach wave 153, and strong builds are almost never hit. Labs, Cards, Insight and Research Focus all multiply or discount on top of the Workshop, so every balance measurement and every play test of the core loop also measures them. The Tower itself launched with its core loop alone and added its later layers once that loop worked. GAME_VISION already rules out live-operations before the core run is proven fun.
+- **Decision:**
+  1. **Parked:** Labs (research, ranks and slots), Cards (pulls, levels and the Active set), Knowledge with everything it buys or gates (Insight, Prestige and Research Focus), and Gems, whose only uses are Card pulls and Lab slots.
+  2. **While parked, none of them count or can be bought:** their bonuses (Lab ranks, Active cards, Insight, the Research Focus discount) add nothing to any stat, Coin bonus or price, and starting research, opening a slot, pulling, equipping, unequipping, buying Insight, Prestige and choosing a Focus are all refused. Their screens are out of reach: the Cards and Labs seats read SOON, and the Gems and Knowledge chips, the Knowledge row and door, and every Gems and Knowledge reward line are hidden.
+  3. **Nothing is lost:** the save keeps every Lab rank, slot and timer, every card and the Active set, Knowledge, Insight, Gems and the Focus untouched, and Gems and Knowledge still bank as they are paid, so unparking brings each back exactly as it was. No save change.
+  4. **One switch:** `GameState.LAYERS_PARKED`. Tests that cover the parked systems unpark their own state (`layers_parked = false`), so the systems stay tested for when they return.
+- **Consequences:**
+  - The core loop is measured and played alone: the Workshop, run Upgrades, Cash and Coins.
+  - The owner's real save loses the power its Labs, Cards and Insight gave until they return. Nothing in the save changes.
+  - Bringing them back is its own decision, and each will need retuning against The Tower's Workshop, which they were never balanced against.
+  - The capture tool leaves out the parked sheets.
+- **Revisit when:** the core loop is fun: the Cash economy is fitted to The Tower's pace, runs end for a reason, and the owner has played it. Then bring the layers back one at a time, each against The Tower's own version.

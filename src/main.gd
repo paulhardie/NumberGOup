@@ -335,7 +335,7 @@ func _ready() -> void:
 	_build_ui()
 	var offline := state.load()
 	offline_message = _load_status_message(state.load_status)
-	if offline_message == "" and state.milestone_gems_caught_up > 0:
+	if offline_message == "" and state.milestone_gems_caught_up > 0 and not state.layers_parked:
 		offline_message = "MILESTONES CAUGHT UP  ·  +" + str(state.milestone_gems_caught_up) + " GEMS"
 	if not offline.amount.is_zero():
 		offline_message = "WELCOME BACK  +" + offline.amount.format_value() + "  /  " + _format_duration(offline.seconds)
@@ -437,8 +437,8 @@ func _process(delta: float) -> void:
 			if not event.amount.is_zero():
 				_pop_label(coins_label, 1.15 if boss_clear else 1.08)
 			if boss_clear:
-				_show_toast("BOSS BEATEN  ·  +" + event.amount.format_value() + " COINS" + ("  ·  +" + str(gem_gain) + " GEMS" if gem_gain > 0 else ""), CRITICAL)
-			elif gem_gain > 0:
+				_show_toast("BOSS BEATEN  ·  +" + event.amount.format_value() + " COINS" + ("  ·  +" + str(gem_gain) + " GEMS" if gem_gain > 0 and not state.layers_parked else ""), CRITICAL)
+			elif gem_gain > 0 and not state.layers_parked:
 				_show_toast("MILESTONE  ·  +" + str(gem_gain) + " GEMS", CRITICAL)
 		elif event.type == "tier_unlock":
 			_show_toast("TIER " + event.amount.format_value() + " UNLOCKED", CRITICAL)
@@ -613,6 +613,8 @@ func _build_currency_stack(parent: Control) -> void:
 	gems_label = gems_button.get_meta("value_label")
 	gems_button.tooltip_text = "Pull a Card"
 	gems_button.pressed.connect(_open_card_collection_sheet)
+	# Gems buy only Cards and Lab slots, both parked (D069).
+	gems_button.visible = not state.layers_parked
 
 ## A currency's icon and amount, pressable as the door to its spend. Tall
 ## enough for a thumb even where the text is small.
@@ -768,6 +770,8 @@ func _build_hub(parent: Control) -> void:
 	knowledge.tooltip_text = "Spend Knowledge"
 	knowledge.pressed.connect(_open_knowledge_sheet)
 	hub_knowledge_label = knowledge.get_meta("value_label")
+	gems.visible = not state.layers_parked
+	knowledge.visible = not state.layers_parked
 
 	column.add_child(_make_gap(20))
 	var ring_box := Control.new()
@@ -851,7 +855,8 @@ func _build_hub(parent: Control) -> void:
 	column.add_child(_make_gap(8))
 	hub_milestones_label = _make_hub_row(column, "Milestones", _open_milestones_sheet, true)
 	hub_coin_bonus_label = _make_hub_row(column, "Total Coin bonus", Callable(), true)
-	hub_knowledge_row_label = _make_hub_row(column, "Knowledge", _open_knowledge_sheet, true)
+	if not state.layers_parked:
+		hub_knowledge_row_label = _make_hub_row(column, "Knowledge", _open_knowledge_sheet, true)
 	_make_hub_row(column, "Stats", func(): _on_dock_tab_selected("settings"), false)
 
 	var spacer := Control.new()
@@ -1848,10 +1853,13 @@ func _refresh_milestones() -> void:
 		var name_label := _make_label("WAVE " + str(wave) + ("  ·  NEXT" if is_next else ""), 14, HORIZONTAL_ALIGNMENT_LEFT, TEXT)
 		name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		line.add_child(name_label)
-		var reward := "+" + str(profile.milestone_gems(tier_id, wave)) + " GEMS"
+		var rewards: Array[String] = []
+		if not state.layers_parked:
+			rewards.append("+" + str(profile.milestone_gems(tier_id, wave)) + " GEMS")
 		var coins := profile.milestone_bonus(tier_id, wave)
 		if coins > 0:
-			reward += "  ·  +" + _coins(coins) + " COINS"
+			rewards.append("+" + _coins(coins) + " COINS")
+		var reward := "  ·  ".join(rewards)
 		line.add_child(_make_label(reward, 11, HORIZONTAL_ALIGNMENT_RIGHT, ACCENT if done else MUTED_TEXT))
 
 func _on_card_pull_pressed() -> void:
@@ -2044,7 +2052,10 @@ func _build_drawer() -> void:
 		_open_knowledge_sheet()
 	)
 	stats_column.add_child(knowledge_route)
-	stats_column.add_child(HSeparator.new())
+	var knowledge_rule := HSeparator.new()
+	stats_column.add_child(knowledge_rule)
+	knowledge_route.visible = not state.layers_parked
+	knowledge_rule.visible = not state.layers_parked
 
 	stats_grid = GridContainer.new()
 	stats_grid.columns = 2
@@ -2380,13 +2391,13 @@ func _show_died_screen(summary: RunSummary) -> void:
 		died_defense_gap_label.text = summary.defense_gap.format_value()
 		died_attack_gap_label.add_theme_color_override("font_color", ACCENT if smaller_gap < 0 else TEXT)
 		died_defense_gap_label.add_theme_color_override("font_color", ACCENT if smaller_gap > 0 else TEXT)
-	died_knowledge_door.visible = summary.knowledge_gained > 0 or state.knowledge > 0
+	died_knowledge_door.visible = not state.layers_parked and (summary.knowledge_gained > 0 or state.knowledge > 0)
 	_count_total(died_coins_label, summary.coins_earned, func(value: int): return "+" + _coins(value))
-	died_knowledge_tile.visible = summary.knowledge_gained > 0
-	if summary.knowledge_gained > 0:
+	died_knowledge_tile.visible = summary.knowledge_gained > 0 and not state.layers_parked
+	if died_knowledge_tile.visible:
 		_count_total(died_knowledge_label, summary.knowledge_gained, func(value: int): return "+" + str(value), 0.7)
-	died_gems_tile.visible = summary.gems_earned > 0
-	if summary.gems_earned > 0:
+	died_gems_tile.visible = summary.gems_earned > 0 and not state.layers_parked
+	if died_gems_tile.visible:
 		_count_total(died_gems_label, summary.gems_earned, func(value: int): return "+" + str(value), 0.7)
 	died_peak_label.text = "Peak Number " + summary.peak_number.format_value()
 	died_screen.visible = true
@@ -2421,8 +2432,8 @@ func _animate_tab_panel(tab_id: String) -> void:
 	tween.tween_property(target, "modulate:a", 1.0, 0.18)
 
 func _on_dock_tab_selected(tab_id: String) -> void:
-	if NavDock.SOON_TABS.has(tab_id):
-		_show_toast("ULTIMATE WEAPONS  ·  COMING LATER", MUTED_TEXT)
+	if NavDock.is_soon(tab_id):
+		_show_toast(TAB_NAMES.get(tab_id, "ULTIMATE WEAPONS") + "  ·  COMING LATER", MUTED_TEXT)
 		return
 	if not _is_tab_unlocked(tab_id):
 		_show_toast("REACH " + ScientificNumber.from_float(tab_unlock_lifetime[tab_id]).format_value() + " TO UNLOCK " + TAB_NAMES[tab_id], MUTED_TEXT)
@@ -2736,14 +2747,15 @@ func _refresh_hub() -> void:
 				hub_last_run_hit.text = summary.final_hit.format_value()
 		hub_last_run_reward.text = "+" + _coins(summary.coins_earned)
 		var extra: Array[String] = []
-		if summary.knowledge_gained > 0:
+		if summary.knowledge_gained > 0 and not state.layers_parked:
 			extra.append("+" + str(summary.knowledge_gained) + " Knowledge")
-		if summary.gems_earned > 0:
+		if summary.gems_earned > 0 and not state.layers_parked:
 			extra.append("+" + str(summary.gems_earned) + " Gems")
 		hub_last_run_extra.text = "  ·  ".join(extra)
 	hub_last_run_extra.visible = hub_last_run_extra.text != ""
 	hub_coin_bonus_label.text = "×" + ("%.2f" % state.get_coin_bonus_multiplier())
-	hub_knowledge_row_label.text = str(state.knowledge) + " to spend" if state.knowledge > 0 else "0"
+	if hub_knowledge_row_label != null:
+		hub_knowledge_row_label.text = str(state.knowledge) + " to spend" if state.knowledge > 0 else "0"
 	var tier: Variant = state.balance_profile.get_tier(state.selected_tier)
 	hub_tier_label.text = "TIER " + str(state.selected_tier)
 	hub_reward_label.text = "rewards ×" + ("%.1f" % tier.reward_multiplier)
@@ -3414,8 +3426,11 @@ func _populate_stats_grid() -> void:
 		["CURRENT NUMBER", state.number.format_value()],
 		["SELECTED TIER", str(state.selected_tier)],
 		["TIER BEST", str(state.get_tier_best())],
-		["KNOWLEDGE", str(state.knowledge)],
 		["WORKSHOP LEVEL", str(state.get_workshop_level())],
+	]
+	if not state.layers_parked:
+		entries.insert(3, ["KNOWLEDGE", str(state.knowledge)])
+	entries += [
 		["DAMAGE / SEC", state.get_rate_per_second().format_value()],
 		["HIGHEST NUMBER", state.highest_number.format_value()],
 		["THIS RUN GENERATED", state.lifetime_generated.format_value()],
