@@ -104,7 +104,8 @@ Each one ends with the owner playing it.
 | **Tier 1 turtles** | Defense Absolute past enemy Attack makes hits land for nothing, and Thorns kills what stands at the tower. It must work in the rebuild: Defense Absolute passing Attack is the owner's "I've stopped dying" moment (wave 21: 19.76 against 14.75). Defense Absolute 403 is level 69, about 47,700 Cash bought in a run; Thorns stops at 99% | owner's research and screens; `upgrades.json` |
 | A wave-22 run | 12 min 33 s game time, 1.46K Coins | owner's battle report, build not recorded |
 | New player to wave 100 | about an hour at 1× | community research, **unverified** |
-| **Needed from the owner** | 1. A fresh save's first run buying run upgrades: the wave reached, the time and the Coins. 2. One boss kill's Cash. 3. Where the fresh run's $93 Cash on wave 1 and its ×9.00 Coin multiplier come from. | **the two most useful numbers we don't have** |
+| **Needed from the owner** | 1. A fresh save's first run buying run upgrades: the wave reached, the time and the Coins. 2. One boss kill's Cash. |
+| **The owner's account is not a new player's** | Its packs and bonuses give starting Cash ($93 by wave 1) and ×9.00 Coins. Divide its Coins by 9, and read its waves as an upper bound for a new player. Leave both bonuses out of the rebuild | owner, 25 Sep | **the two most useful numbers we don't have** |
 
 ## Guesses
 
