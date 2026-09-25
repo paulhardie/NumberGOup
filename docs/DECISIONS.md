@@ -716,3 +716,43 @@ Rules:
 - **Evidence** (six seeds, two taps a second, no run Upgrades; D065 → D066): waves hold. Fresh 19 → 19 (39.5 Coins), first spend 24 → 24.8 (67), early 32 → 33 (134), early + Guard 41 → 41, early + Thorns 32 → 33, mid 39 → 38.5 (451), mid + Guard 51 → 51, mid + Thorns 62 → 62.7, mid + Guard + Thorns 100 → 101, rank-100 Attack 109 → 108.5 (5,018), + Guard 109 → 108.8, + full Thorns 238 → still alive at the 90-minute cap on wave 226 (all six seeds). Those Coins are with a fifth of the average reward at wave ends. With The Tower's flat Coins per Wave (the owner's choice, six seeds): fresh 24.3, first spend 40.2, early 86.2 and mid 418.7 Coins; with none, 10.5, 16.7, 47.8 and 395. Opening enemies that hit once and leave (D059) are never killed, so they never pay, which is why the opening earns less than D065's. `bash run_balance.sh` (seed 7), D065 → D066 Coins: fresh 37 → 37, early 138 → 136, mid 466 → 419, attack max 4,949 → 5,164, everything maxed 34,573 → 33,842, but with run Upgrades early 249 → 159, mid 918 → 866 and fresh 111 → 93, and Defense-only 274 → 102. A focused career buying run Upgrades (30 runs): first run wave 29 with 93 Coins (30, 111), wave 50 at 3.4 hours (2.5), wave 75 at 4.8 (3.7), **wave 100 at 5.5 (4.3)**, and the thirtieth run reaches wave 496 at 32.4 hours (496 at 31.4). The economy suite (with new tests for rosters, pay per kill, late tanks across a save, migration pay and exact numbers), headless boot and arena probe pass. An independent review of the diff found no double payment; its four findings (a reload dropping a late tank carried out of an opening wave, a carried walker drawn back at the top, migrated kills unpaid, stale text) are fixed.
 - **Consequences:** Waves hold where they were. Killing is now what pays: tanks are 6% of enemies but over half of kill Coins, so Damage decides income and a build that can't kill tanks earns less (Defense-only Coins fell by nearly two thirds). A run that dies with tanks in its pile loses their Coins, which slows the middle of a career (wave 100 about 28% later) before it catches up by wave 500. A boss wave is no longer a Coin spike; the boss pays about the most of any kill. A late tank alone can keep a wave from counting as beaten, which moves records and checkpoints to the next beaten wave; how often is unmeasured. The mix holds at every wave, where The Tower's shifts towards the rarer types deep in a run (TheTowerSDK's measured waves 600–4,875 average about 20/28/27/25); that needs its own evidence.
 - **Revisit when:** the career pace or the opening's Coins read wrong in play (the D059 leaving rule is what costs them); the owner supplies The Tower's early enemy count or a deep-wave mix; distance gives ranged enemies their range; or play shows fast or tank waves reading wrong.
+
+## D067 — Distance, fixed-length waves and the arena, The Tower's way
+
+- **Status:** Accepted (2026-09-25) on owner direction. Asked for Coins per Wave, distance and the arena layout, the owner replied: "1. do what the tower does 2. same as point 1 3. same as the tower does it, except numbers instead of squares". Implemented (2026-09-25) on `claude/codex-handover-if13d2` in `0b3b009` (Coins per Wave, recorded in D066), `ff372a5`, `c3d44d0`, `9888598` and `dd75d95`; not merged.
+- **Context:** Since D057 damage struck the front living enemy wherever it was, even one yet to arrive. A beaten wave gave way after a 2.5-second beat (D037), so strong builds ran waves of about 24 seconds. Ranged enemies started firing when a basic would arrive. The arena dropped each wave from its top edge onto a Number low on the screen. The Tower's enemies walk in from off screen at their type's speed (the wiki: fast 2×, tank 50%, boss 30%). The tower shoots only within its Range (30 m base). Ranged enemies stop at that range and fire. A wave's timer never ends early. The tower sits in the middle of the field inside its range circle.
+- **Decision:**
+  1. **Enemies set off 60 m out and walk in at their type's speed:** a basic at 10 m/s (still 6 seconds to the Number), fast 2.4×, tank and boss a third, ranged a half. The 60 m is our figure (TheTowerSDK gives no spawn distance), chosen to keep D065's arrivals and give a basic its last 3 seconds in reach. Where each enemy set off is saved on a 1/64-second grid and moves with the clock, so a walker carried into the next wave keeps its place.
+  2. **The Number reaches 30 m, The Tower's base Range.** Production strikes only enemies inside it, nearest first, as The Tower's default target does. With nothing in reach, output is Number alone and shows as gain. Boss Damage lifts only damage on a boss in reach.
+  3. **Ranged enemies stop at the edge of reach and fire from there,** so they are struck at 30 m.
+  4. **Every wave runs its whole 35 seconds,** replacing D037's early clear. At its end a wave counts as beaten if every one of its own enemies that came within reach fell. An enemy still walking outside the reach, such as a tank set off late, carries on into the next wave without spoiling it. Without that rule, about one wave in sixteen could never be beaten.
+  5. **The arena is The Tower's field, in numbers.** The Number sits in the middle inside a faint ring at its reach. Each enemy walks straight in from its own direction, drawn from the moment it sets off at the distance it has covered. Enemies at the Number circle it in staggered rows, and ranged ones stand on the ring.
+  6. Profile `tax-foundation-v15`. The strike target is kept per clock and per change, because shots ask for it several times a step and piles run to hundreds.
+- **Evidence** (six seeds, two taps a second, no run Upgrades; D066 → D067, waves then minutes and Coins):
+
+  | Build | Wave | Minutes | Coins |
+  |---|---|---|---|
+  | Fresh | 19 → 20 | 10.1 → 11.3 | 24 → 21 |
+  | First spend | 24.8 → 26 | — | 40 → 34 |
+  | Early | 33 → 33 | 15.9 → 19.0 | 86 → 70 |
+  | Early + Guard | 41 → 41 | — | — |
+  | Mid | 38.5 → 40 | 14.4 → 23.1 | 419 → 338 |
+  | Mid + Guard | 51 → 52 | — | — |
+  | Mid + Thorns | 62.7 → 68 | — | — |
+  | Mid + Guard + Thorns | 101 → 101.7 | 50.6 → 59.0 | — |
+  | Rank-100 Attack | 108.5 → 111.7 | 23.8 → 64.9 | 5,018 → 4,917 |
+  | Rank-100 Attack + Guard | 108.8 → 112.2 | — | — |
+  | Rank-100 Attack + full Thorns | 226 → 155 | 90 → 90 (cap) | — |
+
+  - **Full Thorns is still alive on all six seeds at the 90-minute cap.** Fixed-length waves hold it to 155 waves in that time, not a weaker build.
+  - **`bash run_balance.sh` (seed 7):** the representative first run dies on wave 20 with 21 Coins. Everything maxed is alive at the 90-minute cap on wave 155 with 16,817 Coins.
+  - **Focused career buying run Upgrades** (30 runs, each capped at 180 minutes): first run wave 31 with 54 Coins; wave 50 at 4.4 hours (D066: 3.4); **wave 100 at 6.7 (5.5)**. The thirtieth run reaches wave 309 at 45.5 hours, where a 180-minute run can reach at most 308 waves of 35 seconds, so the late career is now bounded by the run cap.
+  - **Checks:** the economy suite (with new tests for reach, nearest-first targeting, ranged enemies, carried walkers, the fixed clock, a late tank not spoiling its wave, and Boss Damage out of reach), headless boot and arena probe pass. The four-size UI captures were inspected.
+  - **Review:** an independent review of the distance diff found the unbeatable late-tank wave, Boss Damage out of reach, silent taps with nothing in reach, older saves' walkers placed at the Number, and repeated per-shot scans. All are fixed.
+- **Consequences:**
+  - Waves hold, but every run is longer, because no wave ends early and the first 3 seconds of each strike nothing. A career reaches wave 100 about 20% later.
+  - The opening earns a little less: enemies now spend 3 seconds out of reach, and the opening's escaping enemies (D059) still never pay.
+  - Crowds read around the Number rather than down a column, though a large pile still crowds its ring.
+  - The Tower's Range, Knockback, Orbs, Bounce Shot and Multishot targets now have a primitive to act on: reach, distance and positions.
+  - Knockback will need an offset on where an enemy set off. When it lands, an enemy's arrival must be recomputed after a push.
+- **Revisit when:** the Range, Knockback, Orb, Bounce Shot and Multishot target rows are built (the next step); play shows the first 3 seconds of a wave feeling empty; or the run cap starts to shape careers.
