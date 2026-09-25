@@ -400,7 +400,8 @@ func _resolve_wave_boundary() -> SimulationEvent:
 			found = event
 	return found
 
-## A member hits the Number (D057, D058): its share of its wave's Hit, heated
+## A member hits the Number (D057, D058): one enemy's Hit whatever its type
+## (D066), heated
 ## up 4% for every hit it has already landed, then Armor and Guard on that one
 ## enemy's hit, as The Tower's defences work (D063). Its first hit is its
 ## arrival; after that it stays and hits again every interval. A Brace blocks
@@ -451,10 +452,15 @@ func _pay_kills() -> void:
 			continue
 		member.paid = true
 		var member_wave := int(member.wave)
-		var coin_gain := _pay_coins(balance_profile.kill_coins(selected_tier, member_wave, str(member.get("kind", "basic"))))
+		# A member saved under D063's rules still owes the share of its passed
+		# wave's reward it carried; anything else pays by its type.
+		var owed_share := float(member.get("unpaid", 0.0))
+		var coin_amount: float = float(balance_profile.reward_for_wave(selected_tier, member_wave)) * owed_share if owed_share > 0.0 else balance_profile.kill_coins(selected_tier, member_wave, str(member.get("kind", "basic")))
+		var coin_gain := _pay_coins(coin_amount)
 		if active_encounter.is_own(member):
 			active_encounter.paid_coins += coin_gain
-		_add_cash(ScientificNumber.from_float(balance_profile.kill_cash(member_wave, float(member.get("weight", 1.0)), float(member.get("of", 1.0)))))
+		var cash_amount: float = balance_profile.wave_cash(member_wave) * owed_share if owed_share > 0.0 else balance_profile.kill_cash(member_wave, float(member.get("weight", 1.0)), float(member.get("of", 1.0)))
+		_add_cash(ScientificNumber.from_float(cash_amount))
 		if bool(member.get("boss", false)):
 			var gem_gain := balance_profile.wave_gems(member_wave)
 			gems += gem_gain
@@ -478,8 +484,8 @@ func _pay_wave_end() -> int:
 	active_encounter.paid_coins += paid
 	return paid
 
-## One enemy's hit before any defence: its share of its wave's Hit, times 4%
-## for every hit it has already landed (D063).
+## One enemy's hit before any defence, whatever its type (D066), times 4% for
+## every hit it has already landed (D063).
 func _member_raw_hit(member: Dictionary) -> ScientificNumber:
 	var heat := pow(balance_profile.HEAT_UP_PER_HIT, float(int(member.get("hits", 0))))
 	return member.wave_hit.multiply_scalar(TaxEncounterClass.hit_part(member) * heat)
@@ -570,12 +576,9 @@ func _complete_current_wave(carried: Array = []) -> SimulationEvent:
 			record.best_time = run_elapsed
 	tier_records[str(selected_tier)] = record
 	highest_wave = maxi(highest_wave, completed_wave)
-	# Coin Bonus lifts everything a beaten wave pays, milestone bonuses included:
-	# a milestone is a wave beaten, and one rule is easier to read than two.
-	# Floored, not rounded: "+50% Coins" that sometimes pays +100% reads as a
-	# bug. Coins are whole, so a 1-Coin early wave carries no percentage at all
-	# — which costs nothing real, because this row opens at Workshop level 60,
-	# far past the waves that pay one Coin.
+	# Coin Bonus lifts the checkpoint bonuses too: one rule is easier to read
+	# than two. Floored, not rounded: "+50% Coins" that sometimes pays +100%
+	# reads as a bug.
 	coin_gain = floori(float(coin_gain) * (1.0 + _effect_sum("coin_bonus")))
 	coins += coin_gain
 	run_coins_earned += coin_gain
@@ -1472,8 +1475,8 @@ func _load_parsed(data: Dictionary, source_path: String) -> OfflineAward:
 ## V10 keeps a wave's members, which a V9 run resumes as one member (D057);
 ## V11 marks each member's boss and hits (D063), weight (D065), kind and
 ## whether its kill has paid (D066), which a V10 run resumes with its bosses
-## in their own wave, one hit per landed member, basic enemies, and its dead
-## already paid.
+## in their own wave, one hit per landed member and basic enemies, its dead
+## paid as the rebuild onto today's profile carries them.
 func _load_current(data: Dictionary) -> OfflineAward:
 	_load_common_fields(data)
 	_load_tier_progress(data)
@@ -1682,8 +1685,10 @@ func _reconcile_opening_members_on_load() -> void:
 				member.interval = interval
 			retained.append(member)
 			continue
-		# A member from an earlier opening wave would already have left.
-		if member_wave != wave:
+		# A member from an earlier opening wave that landed would already have
+		# left; one still walking, such as a late tank carried past its wave's
+		# clock (D066), has yet to hit.
+		if member_wave != wave and bool(member.get("landed", false)):
 			continue
 		member.interval = 0.0
 		if int(member.state) == TaxEncounterClass.AT_NUMBER:
@@ -1735,6 +1740,9 @@ func _rebuild_encounter_on_current_profile() -> void:
 		member.wave_hit = balance_profile.collection_for_wave(selected_tier, member_wave, run_seed)
 	rebuilt._sum_remaining()
 	active_encounter = rebuilt
+	# Members the old save had killed pay now, on today's rules (D066): the
+	# old rules paid a wave's own kills only when the wave ended.
+	_pay_kills()
 
 func _seconds_since(data: Dictionary) -> float:
 	return Time.get_unix_time_from_system() - float(data.get("last_seen_unix", Time.get_unix_time_from_system()))

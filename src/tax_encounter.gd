@@ -2,9 +2,10 @@ class_name TaxEncounter
 extends RefCounted
 
 ## A wave's members (D057), and any earlier members still at the Number
-## (D058). Each wave member carries its share of its wave's HP and Hit and
-## walks in as part of a column, reaching the Number at `arrive` seconds into
-## the wave's clock. Opening members hit once and leave (D059); later members
+## (D058). Each wave member is an enemy type carrying its share of its wave's
+## HP and landing one enemy's Hit (D066), and walks in as part of a column,
+## reaching the Number at `arrive` seconds into the wave's clock, which may be
+## after that clock ends. Opening members hit once and leave (D059); later members
 ## stay and hit again every `interval` seconds until beaten. Members still at
 ## the Number when the clock runs out carry into the next wave, ahead of its
 ## column, so a build that cannot beat them is worn down by the pile. Damage
@@ -320,6 +321,9 @@ func carry_from(old) -> bool:
 		member.hits = int(was.get("hits", 1 if member.landed else 0))
 		if int(member.state) == KILLED:
 			member.hp = ScientificNumber.new()
+			# Killed on the old profile, paid on this one's rules (D066).
+			if not bool(was.get("paid", false)):
+				_kills.append(member)
 	members = old.members.filter(func(member): return int(member.get("wave", old.wave)) != old.wave) + members
 	_sum_remaining()
 	return true
@@ -406,6 +410,8 @@ func to_dict() -> Dictionary:
 			"hits": member.get("hits", 0),
 			"kind": member.get("kind", "basic"),
 			"paid": member.get("paid", false),
+			# Only members saved under D063's rules still owe a share (D066).
+			"unpaid": member.get("unpaid", 0.0),
 			# The share is saved as the two whole numbers it comes from, so it
 			# reads back exactly: 1/43 does not survive JSON bit for bit (D065).
 			"weight": member.get("weight", 0.0),
@@ -469,8 +475,8 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 			var of := float(saved.get("of", 0.0))
 			var share := weight / of if weight > 0.0 and of >= weight else clampf(float(saved.get("share", 1.0)), 0.0, 1.0)
 			var boss := bool(saved.get("boss", encounter.is_boss and member_wave == encounter.wave))
-			# Saved before D066: a boss or a basic enemy, and one already killed
-			# was paid under the rules of its day. The kind decides the boss.
+			# Saved before D066: a boss or a basic enemy. The kind decides the
+			# boss.
 			var kind := _known_kind(str(saved.get("kind", "boss" if boss else "basic")))
 			encounter.members.append({
 				"max": ScientificNumber.from_dict(saved.get("max", {})),
@@ -489,7 +495,13 @@ static func from_dict(data: Dictionary) -> TaxEncounter:
 				# Far past any real run's count, and short of overflowing 1.04^n.
 				"hits": clampi(int(saved.get("hits", 1 if landed else 0)), 0, 10000),
 				"kind": kind,
-				"paid": bool(saved.get("paid", state == KILLED)),
+				# Before D066 a wave's own kills paid only when the wave ended,
+				# so a dead member saved then is still owed; a rebuild onto
+				# today's profile pays it (carry_from).
+				"paid": bool(saved.get("paid", false)),
+				# Saved under D063's rules: the share of its passed wave's reward
+				# it still owes, paid at its kill instead of its type's Coins.
+				"unpaid": clampf(float(saved.get("unpaid", 0.0)), 0.0, 1.0),
 			})
 		encounter._sum_remaining()
 	# No member that parsed, or a wave saved before groups (V9 and older): one

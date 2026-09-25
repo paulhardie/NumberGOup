@@ -272,13 +272,6 @@ func boss_hit_seconds(wave: int) -> float:
 	var interval := member_hit_seconds(wave)
 	return interval if interval > 0.0 else OPENING_HIT_SECONDS
 
-## When basic enemy `index` of `count` would reach the Number, in seconds from
-## the wave's start (D065).
-func member_arrival(index: int, count: int) -> float:
-	if count <= 1:
-		return FIRST_ARRIVAL_SECONDS
-	return snappedf(FIRST_ARRIVAL_SECONDS + SPAWN_SECONDS * float(index) / float(count - 1), 1.0 / 64.0)
-
 ## Every member's arrival, front first, the boss's included.
 func member_arrivals(wave: int, seed: int = 0) -> Array:
 	return wave_roster(wave, seed).map(func(entry): return float(entry.arrive))
@@ -358,8 +351,8 @@ func reward_for_wave(tier_id: int, wave: int) -> int:
 	var boss_multiplier := BOSS_REWARD_MULTIPLIER if is_boss_wave(wave) else 1.0
 	return maxi(1, roundi(base_reward * get_tier(tier_id).reward_multiplier * boss_multiplier))
 
-## The Cash a beaten wave pays (D042). A missed wave pays the share of it
-## that was cleared.
+## The Cash a whole wave is worth (D042), paid by its kills, each its HP's
+## share (D066).
 func wave_cash(wave: int) -> float:
 	var boss_multiplier := BOSS_CASH_MULTIPLIER if is_boss_wave(wave) else 1.0
 	return (CASH_WAVE_BASE + CASH_PER_WAVE * float(maxi(1, wave))) * boss_multiplier
@@ -379,7 +372,8 @@ func milestone_gems(tier_id: int, wave: int) -> int:
 		return 0
 	return maxi(1, roundi(MILESTONE_GEM_SCALE * sqrt(float(wave)) * get_tier(tier_id).reward_multiplier))
 
-## The Gems a beaten wave pays whether or not it is a checkpoint.
+## The Gem a boss wave's boss pays when it falls, checkpoint or not (D030,
+## D066).
 func wave_gems(wave: int) -> int:
 	return BOSS_WAVE_GEMS if is_boss_wave(wave) else 0
 

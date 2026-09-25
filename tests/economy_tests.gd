@@ -2777,7 +2777,10 @@ func _test_a_wave_is_a_group() -> void:
 	_expect(profile.members_for_wave(1) == 20 and profile.members_for_wave(9) == 20 and profile.members_for_wave(101) == 32, "a wave should start as twenty enemies and grow with the wave")
 	_expect(profile.members_for_wave(100) == profile.ordinary_members(100) + 1 and profile.member_weights(100).count(profile.BOSS_HP_WEIGHT) == 1, "a boss wave should add one boss to its enemies")
 	_expect(profile.members_for_wave(999) == 142 and profile.members_for_wave(10001) == profile.MAX_WAVE_MEMBERS, "the count should reach about 142 at wave 1,000 and stop at its cap")
-	_expect(is_equal_approx(profile.member_arrival(0, 20), 6.0) and is_equal_approx(profile.member_arrival(19, 20), 32.0) and is_equal_approx(profile.member_arrival(0, 1), 6.0), "enemies should arrive from 6 seconds through the next 26")
+	var basics := TaxBalanceProfile.new()
+	basics.ENEMY_MIX = {"basic": 1.0}
+	var column: Array = basics.member_arrivals(1)
+	_expect(is_equal_approx(float(column[0]), 6.0) and is_equal_approx(float(column[19]), 32.0), "basic enemies should arrive from 6 seconds through the next 26")
 	_expect(profile.member_arrivals(10).has(profile.BOSS_ARRIVAL_SECONDS) and _sorted(profile.member_arrivals(10)), "a boss should walk in among its wave in arrival order")
 	var state := GameState.new()
 	# Basic enemies only, so every share is equal; types are D066's test.
@@ -2897,6 +2900,63 @@ func _test_enemy_types_and_pay_per_kill() -> void:
 	_expect(late.wave == 2 and late.active_encounter.members.any(func(member): return member.kind == "tank" and not late.active_encounter.is_own(member)), "tanks still walking when the wave ends should carry into the next")
 	_expect(restored.wave == late.wave and restored.number.compare_to(late.number) == 0 and restored.coins == late.coins, "the restored run should play out the same")
 	restored.clear_save()
+
+	# Saved while those tanks walk into the next opening wave, a reload keeps
+	# them: they have yet to hit, so they have not left (D059, D066).
+	_expect(late.save(), "a run with tanks carried past their wave should save")
+	var walking := func(st: GameState) -> int: return st.active_encounter.members.filter(func(member): return not st.active_encounter.is_own(member) and not bool(member.landed) and TaxEncounter.is_alive(member)).size()
+	var carried_walkers: int = walking.call(late)
+	var reloaded := GameState.new()
+	reloaded.balance_profile.ENEMY_MIX = {"tank": 1.0}
+	reloaded.save_path = save_path
+	reloaded.load()
+	_expect(carried_walkers > 0 and walking.call(reloaded) == carried_walkers, "a reload should keep tanks still walking from the last opening wave: %d of %d" % [walking.call(reloaded), carried_walkers])
+	for step in range(48):
+		late._advance_waves(0.25)
+		reloaded._advance_waves(0.25)
+	_expect(reloaded.number.mantissa == late.number.mantissa and reloaded.number.exponent == late.number.exponent and reloaded.active_encounter.members.size() == late.active_encounter.members.size(), "the reloaded run should take the same hits, exactly")
+	reloaded.clear_save()
+
+	# A save from before types, reloaded on today's profile, pays for the
+	# enemies it had killed: the old rules paid a wave's kills only at its end.
+	var migrating := GameState.new()
+	migrating.balance_profile.ENEMY_MIX = {"tank": 1.0}
+	migrating.start_run(1, 63)
+	migrating.number = ScientificNumber.from_float(1e9)
+	for kill in range(3):
+		migrating.active_encounter.members[kill].hp = ScientificNumber.new()
+		migrating.active_encounter.members[kill].state = TaxEncounter.KILLED
+	migrating.active_encounter._sum_remaining()
+	migrating.save_path = save_path
+	_expect(migrating.save(), "the pre-types fixture should save")
+	var old_data: Dictionary = _read_json(save_path)
+	old_data.balance_profile_id = "tax-foundation-v13"
+	for member in old_data.active_encounter.members:
+		member.erase("kind")
+		member.erase("paid")
+	_write_json(save_path, old_data)
+	var migrated_types := GameState.new()
+	migrated_types.balance_profile.ENEMY_MIX = {"tank": 1.0}
+	migrated_types.save_path = save_path
+	migrated_types.load()
+	var owed_for_three: float = 3.0 * migrated_types.balance_profile.kill_coins(1, 1, "tank")
+	var paid_for_three: float = float(migrated_types.coins) + migrated_types.coin_fraction
+	_expect(owed_for_three > 0.0 and absf(paid_for_three - owed_for_three) < 0.000001 and migrated_types.active_encounter.members.slice(0, 3).all(func(member): return bool(member.paid)), "a migrated save should pay the kills it had made: %f of %f" % [paid_for_three, owed_for_three])
+	migrated_types.clear_save()
+
+	# An enemy carried under D063's rules still owes its share of its passed
+	# wave's reward, and pays that at its kill rather than its type's Coins.
+	var owing := GameState.new()
+	owing.start_run(1, 64)
+	owing.number = ScientificNumber.from_float(1e9)
+	var owing_member: Dictionary = owing.active_encounter.members[0]
+	owing_member.unpaid = 0.5
+	owing_member.kind = "basic"
+	var owing_restored = TaxEncounter.from_dict(owing.active_encounter.to_dict())
+	owing.active_encounter = owing_restored
+	owing._add_number(owing.active_encounter.members[0].hp.copy())
+	var owed_share: float = float(owing.balance_profile.reward_for_wave(1, 1)) * 0.5
+	_expect(absf(float(owing.coins) + owing.coin_fraction - owed_share) < 0.000001, "an enemy owing a D063 share should pay it at its kill")
 
 ## Saved numbers read back bit for bit (law 6): Godot's JSON reader misreads
 ## about one mantissa in thirteen, so each number carries its exact bits too.

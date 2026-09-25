@@ -13,7 +13,7 @@ const SaveDataV10Class = preload("res://src/save_data_v10.gd")
 ## ordinary enemy and lose its heat, so it refuses a V11 save instead (D028).
 ## A V10 save loads through the same reader: a boss is its own wave's, a member
 ## that landed has hit once, members are basic enemies or bosses, and one
-## already killed has been paid.
+## already killed is paid when the rebuild onto today's profile carries it.
 const VERSION := 11
 
 static func make(state) -> Dictionary:

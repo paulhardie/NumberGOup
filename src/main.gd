@@ -3543,10 +3543,14 @@ func _stage_danger_progress() -> float:
 ## How far a member has walked, 0 at the arena's top edge and 1 at the Number
 ## (D057). Every member sets off together and reaches the Number at its own
 ## arrival time, so the front one walks fastest and the column spreads out.
+## A walker carried past its wave's clock (D066) keeps walking from where it
+## was: its first hit, `next_hit`, is still its arrival on today's clock.
 func _member_progress(member: Dictionary) -> float:
 	if int(member.state) == TaxEncounterClass.AT_NUMBER:
 		return 1.0
-	return clampf(state.wave_accumulator / maxf(float(member.arrive), 0.001), 0.0, 1.0)
+	var arrive := maxf(float(member.arrive), 0.001)
+	var walked: float = state.wave_accumulator + arrive - float(member.next_hit) if not bool(member.get("landed", false)) else state.wave_accumulator
+	return clampf(walked / arrive, 0.0, 1.0)
 
 ## The glow behind the Number warms as the Hit approaches, and throbs through
 ## the last seconds of a boss wave so the heaviest Hit is telegraphed before it
