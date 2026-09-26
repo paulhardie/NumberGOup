@@ -18,10 +18,40 @@ notify() {
 	return 0
 }
 
+# Godot runs the game from its import cache (.godot/, never committed), so a
+# merge that adds a font, image or sound breaks the game until the new files
+# are imported. Import once per commit, stamped, so a folder that is already
+# current still catches up. Skipped while a Godot editor is open, which imports
+# for itself; tried again next minute.
+GODOT_BIN="${GODOT:-/Users/paulhardie/Downloads/Godot.app/Contents/MacOS/Godot}"
+import_if_needed() {
+	local stamp="$REPO/.godot/ngu-imported"
+	local head
+	head="$(git rev-parse HEAD)"
+	if [ -f "$stamp" ] && [ "$(cat "$stamp")" = "$head" ]; then
+		return 0
+	fi
+	if [ ! -x "$GODOT_BIN" ]; then
+		log "no Godot at $GODOT_BIN, so new files are not imported"
+		return 0
+	fi
+	if pgrep -f -- "--editor" >/dev/null 2>&1; then
+		return 0
+	fi
+	# Through run_godot.sh, so Godot's user folder, and the real save, is never touched.
+	if GODOT="$GODOT_BIN" bash "$REPO/run_godot.sh" --headless --path "$REPO" --import >/dev/null 2>&1; then
+		mkdir -p "$REPO/.godot" && echo "$head" > "$stamp"
+		log "imported $(git rev-parse --short HEAD)"
+	else
+		log "import failed at $(git rev-parse --short HEAD); will try again"
+	fi
+}
+
 cd "$REPO" 2>/dev/null || { log "no folder at $REPO"; exit 1; }
-git fetch --quiet origin "$BRANCH" || { log "fetch failed (offline?)"; exit 0; }
+git fetch --quiet origin "$BRANCH" || { log "fetch failed (offline?)"; import_if_needed; exit 0; }
 target="$(git rev-parse "origin/$BRANCH")"
 if [ "$(git rev-parse HEAD)" = "$target" ] && [ -z "$(git status --porcelain)" ]; then
+	import_if_needed
 	exit 0
 fi
 
@@ -48,6 +78,7 @@ git switch --quiet -C "$BRANCH" "$target"
 git branch --quiet --set-upstream-to "origin/$BRANCH" "$BRANCH"
 subject="$(git log -1 --format=%s)"
 log "updated to $(git rev-parse --short HEAD): $subject"
+import_if_needed
 notify "Updated: $subject. Reopen the game to play it."
 
 # Keep the installed copy of this script current. mv is atomic, so the copy
