@@ -931,3 +931,25 @@ Rules:
 
   All were fixed with tests, and each record is now checked whole before a replay.
 - **Revisit when:** runs get long enough that resuming is slow, or the owner wants runs to survive updates.
+
+## D079 — A version roadmap, with the Number as the run's score after 1.0
+
+- **Status:** Accepted (2026-09-26) on owner direction: "yes go with that, Number option A after 1.0".
+- **Context:** the rebuild spec's plan had run out. It stopped at "v1.1 rows" and "the Number (v2)", while the game had built everything its "Not in v1" list excluded, plus the activity report and resuming. The owner found The Tower's own version history: 0.1 was the core loop, the Workshop and Cards bought with Gems; then Tournaments in 0.2, Ultimate Weapons in 0.3, Labs in 0.5, Perks in 0.13 and Modules in 0.22. TheTowerSDK's copy of the patch notes confirms all but Labs, which it shows by 0.7.
+- **Decision:**
+  1. The spec's milestones become a version roadmap. Each version is playable and ends with the owner playing it:
+     - 0.9 now;
+     - 1.0: the first hours, signed off from the owner's reports;
+     - 1.1: the Number;
+     - 1.2: Cards and Gems;
+     - 1.3: Labs;
+     - 1.4: Ultimate Weapons;
+     - 1.5: Tier 2 and up;
+     - Perks and Modules later and unscheduled;
+     - Tournaments out.
+
+     The order follows what a new Tower player meets, not the order the developer built things.
+  2. **The Number is option A, the run's score:** everything the tower has dealt this run, shown big and always rising, with the best kept as a record. It comes straight after 1.0. It changes no balance, so it can go early and every later system is built knowing it's there.
+  3. The version lives in `project.godot` (`application/config/version`), shows on Home, and is stamped on every report entry beside the commit. The agent raises it only when a version's "done when" is met.
+- **Consequences:** Cards wait one version for the Number. Tournaments are dropped: a solo game has no one to compete with, and The Tower having them isn't a reason. Options B and C for the Number are closed; C (banking from shots) was what stopped runs ending before the rebuild.
+- **Revisit when:** a version's play changes what should come next, or the owner wants Perks or Modules scheduled.

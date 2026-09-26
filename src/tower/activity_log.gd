@@ -23,6 +23,7 @@ static func append(entry: Dictionary, path: String = PATH) -> bool:
 	line["at"] = Time.get_datetime_string_from_system(true)
 	if not line.get("game") is String:
 		line["game"] = game_version()
+		line["version"] = version()
 	var file := FileAccess.open(path, FileAccess.READ_WRITE) if FileAccess.file_exists(path) else FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		push_warning("Couldn't write the activity log at %s." % path)
@@ -64,10 +65,15 @@ static func export_report(workshop_state: Dictionary, path: String = PATH, folde
 		return {}
 	file.store_string(JSON.stringify({
 		"format": FORMAT, "version": VERSION, "exported_at": Time.get_datetime_string_from_system(true),
-		"game": game_version(), "workshop": workshop_state, "entries": entries,
+		"game": game_version(), "game_version": version(), "workshop": workshop_state, "entries": entries,
 	}, "", false, true))
 	file.close()
 	return {"path": out, "runs": entries.filter(func(entry): return entry.get("kind") == "run").size(), "entries": entries.size()}
+
+
+## The roadmap version the game is at (D079), from project.godot.
+static func version() -> String:
+	return String(ProjectSettings.get_setting("application/config/version", ""))
 
 
 ## The commit the game is running, read from the checkout's .git folder (the

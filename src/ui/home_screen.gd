@@ -3,6 +3,7 @@ extends Control
 ## or the Workshop.
 
 const Workshop = preload("res://src/tower/workshop.gd")
+const ActivityLog = preload("res://src/tower/activity_log.gd")
 const Palette = preload("res://src/ui/palette.gd")
 
 signal battle_pressed
@@ -24,6 +25,19 @@ func _ready() -> void:
 	ground.color = Palette.GROUND
 	ground.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(ground)
+	# The roadmap version and the commit (D079), so a screenshot or a report
+	# says which build it came from.
+	var build := Label.new()
+	build.text = "v%s · %s" % [ActivityLog.version(), ActivityLog.game_version().left(7)]
+	build.add_theme_font_override("font", Palette.NUMBER_FONT)
+	build.add_theme_font_size_override("font_size", 11)
+	build.add_theme_color_override("font_color", Palette.MUTED)
+	build.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	build.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	build.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	build.offset_right = -12
+	build.offset_bottom = -10
+	add_child(build)
 	var centre := CenterContainer.new()
 	centre.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(centre)

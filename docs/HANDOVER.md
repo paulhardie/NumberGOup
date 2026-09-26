@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 26 September 2026 (D078, resuming a run), by Claude, handing on to the next agent.
+**Last updated:** 26 September 2026 (D079, the version roadmap), by Claude, handing on to the next agent.
 
-**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after D077 merged ([paulhardie/NumberGOup#69](https://github.com/paulhardie/NumberGOup/pull/69)). It carries D078, not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after D077 merged ([paulhardie/NumberGOup#69](https://github.com/paulhardie/NumberGOup/pull/69)). It carries D078 (resuming) and D079 (the roadmap, and the version shown on Home and in reports), not yet merged, in [paulhardie/NumberGOup#70](https://github.com/paulhardie/NumberGOup/pull/70). The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -12,11 +12,18 @@
 
 1. Read [`AGENTS.md`](../AGENTS.md), [D073](DECISIONS.md#d073--rebuild-the-tower-first-the-number-second) and [`REBUILD_SPEC.md`](REBUILD_SPEC.md) (its Progress, Milestones, Benchmarks and Guesses). Fetch and check the branch against `origin` before new work.
 2. **Owner direction:** "go ahead with the rebuild". The Tower is the spec; copy it, and put anything unknown in `src/tower/guesses.gd` rather than debating it. The owner plays each milestone before the next starts.
-3. **Next:** the owner plays and exports a report (D077). **When one arrives, read it first:** `tools/read_report.gd -- --file <report>` on the commit it names. It is the best evidence there is for decision 1.
+3. **The plan is the roadmap** in [`REBUILD_SPEC.md`](REBUILD_SPEC.md#roadmap) (D079):
+   - the game is 0.9;
+   - 1.0 is the first hours signed off;
+   - 1.1 is the Number, option A: the run's score;
+   - then Cards, Labs, Ultimate Weapons and Tier 2.
+
+   Raise `application/config/version` in `project.godot` only when a version's "done when" is met.
+4. **Next:** the owner plays and exports a report (D077). **When one arrives, read it first:** `tools/read_report.gd -- --file <report>` on the commit it names. It is the best evidence there is for decision 1.
 
 ## Where the game is
 
-Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Workshop groups (D076, merged). The owner played milestone 4.
+**Version 0.9.** Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Workshop groups (D076, merged). The owner played milestone 4.
 
 - **Resuming (D078, not merged):** the save carries the run in progress; the game opens back into it by replaying it. If an update means it no longer replays the same, it ends at its saved wave with its Coins kept.
 - **Activity report (D077):** every run (seed, starting Workshop, each buy with its tick, a snapshot per wave) and every Workshop buy and unlock is logged to `user://number_go_up_activity.jsonl`. Home's Export report writes it to `user://reports/` and opens the folder. `tools/read_report.gd` reads and replays it.
@@ -41,9 +48,9 @@ Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Worksh
 ## Next steps, in order
 
 1. **Owner:** play a session on D077 as merged, export a report and drop it into the chat. Done when a report arrives.
-2. **Agent:** read that report and answer decision 1 from the owner's real runs: where they die, what they buy, Coins an hour.
-3. **Owner:** review and merge D078. Best done between runs: a run saved when a merge lands is likely to end at its saved wave. Then close the game mid-run and reopen it. Done when a real run resumes on the Mac.
-4. **Agent, after that:** Labs (The Tower's next system, which Starting Cash and Wall Regen need), or the Number (milestone 5), once the owner picks A, B or C.
+2. **Agent:** read that report and answer decision 1 from the owner's real runs: where they die, what they buy, Coins an hour. That decides whether 1.0 is signed off or needs tuning first.
+3. **Owner:** review and merge #70 (D078 and D079). Do it between runs: a run saved when a merge lands is likely to end at its saved wave. Then close the game mid-run and reopen it. Done when a real run resumes on the Mac, and Home shows "v0.9" in its corner.
+4. **Agent, once 1.0 is signed off:** the Number as the run's score (1.1). It shows in battle and on the run-over screen, and the best is kept as a record, with no balance change.
 
 ## How to measure
 

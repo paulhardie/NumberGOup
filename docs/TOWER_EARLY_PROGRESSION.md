@@ -30,6 +30,28 @@ Underneath the combat mechanics, the dual-economy loop anchors the progression. 
 
 For a practical look at how these early mathematical thresholds operate during live gameplay, the "OP Beginners Build Guide for The Tower" video demonstrates the exact transition point where the Tier 1 absolute defence strategy establishes the core loop before faltering against higher wave scaling.
 
+## The Tower's own version history
+
+The owner supplied this on 26 September 2026. What The Tower was at launch, and when its big systems arrived:
+
+- **0.1:** the core loop alone. The Attack, Defense and Utility Workshop tabs (Damage, Attack Speed, Health, Defense Absolute, Thorns, Lifesteal, Cash and Coin bonuses), and Gems to pull from the first pool of Cards, the only loadout choice.
+- **0.2:** Tournaments.
+- **0.3:** Ultimate Weapons.
+- **0.5:** the Laboratory.
+- **0.13:** Perks.
+- **0.22:** Modules.
+
+At launch the game was largely deterministic: level the Workshop, equip a few cards, and push through the early tiers until enemy scaling outran your stats.
+
+**Checked against TheTowerSDK's copy of the developer's patch notes (232 entries from 0.1.29 on):**
+- Cards and Gems are in the 0.1.x updates.
+- Tournaments are in 0.2.2, and Ultimate Weapons are being balanced in 0.3.1.
+- Perks are in 0.13.x, and 0.22.0 is titled "The Modules Update".
+- The first Lab mention is 0.7.2, "expanding the lab", so Labs came by 0.7. The notes skip 0.4 to 0.6, so 0.5 fits but isn't shown.
+- Shockwave came in 0.1.29.
+
+The roadmap (D079) follows the order a new player meets these, not this build order.
+
 ## How it lines up with the rebuild (26 September 2026)
 
 - **Agrees with what we have:**

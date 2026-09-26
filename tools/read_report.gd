@@ -28,7 +28,7 @@ func _init() -> void:
 	var runs: Array = report.entries.filter(func(entry): return entry.get("kind") == "run")
 	var here := ActivityLog.game_version()
 	var workshop: Dictionary = report.get("workshop", {})
-	print("Exported %s from game %s; this checkout is %s." % [report.exported_at, report.game, here])
+	print("Exported %s from v%s (%s); this checkout is %s." % [report.exported_at, report.get("game_version", "?"), report.game, here])
 	print("Workshop now: %s Coins, best wave %d, %d runs, groups %s" % [
 		_n(workshop.get("coins", 0.0)), int(workshop.get("best_wave", 0)), int(workshop.get("runs", 0)), ", ".join(workshop.get("open_groups", []))])
 	if options.has("run"):
