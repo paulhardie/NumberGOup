@@ -33,6 +33,21 @@ The vision's test still applies: **honest.** Every number that kills you should 
 - **(a) Capped at Health, as in The Tower.** Regen and Lifesteal fill it to the cap; Recovery Packages go past it up to Max Recovery.
 - **(b) No ceiling.** Regen, Lifesteal and packages keep raising it for ever. Flat hits threaten a small Number, and ÷ and % hits bite a big one, so the Number settles where healing equals loss, and upgrades raise that level. It's elegant and very "number go up", but it's a new balance, not The Tower's, and it risks D037: a Number that outgrows every hit.
 - **Recommend (a) for Tier 1,** because the owner wants Tier 1 to keep The Tower's shape. Hold (b) as a candidate twist for a later tier, measured on its own.
+- **Revisited (26 September 2026).** Playing (a), the owner found the Number "literally just a swap of health" and chose (b) for 1.0, measured first. The setting is `Guesses.NUMBER_OVERFILL`: how much of Regen and Lifesteal works past Health. It's still 0 in the game.
+- **Measured** (30-run `core` careers per setting, with `--curve`; 20-seed single runs):
+
+  | Past Health | Runs end? | First past wave 11 | Reaches wave 30 | Median Number, waves 5 / 10 / 15 / 20 / 25 (last 10 runs) | ÷ landed (last 10 runs) |
+  |---|---|---|---|---|---|
+  | 0 (a ceiling) | yes | run 12 | never in 30 runs | 33 / 49 / 78 / 44 / – | 20 of 70 |
+  | ¼ | yes | run 10 | run 28 | 55 / 92 / 154 / 100 / 150 | 38 of 91 |
+  | ½ | yes | run 10 | run 26 | 74 / 138 / 248 / 180 / 182 | 44 of 100 |
+  | all (no ceiling) | yes | run 10 | run 21 | 124 / 260 / 480 / 359 / 314 | 65 of 129 |
+
+  - Fresh runs are unchanged at every setting: buying nothing dies at wave 3, and spreading Cash at wave 8, since Regen starts near zero.
+  - With no ceiling, the Number climbs about fourfold from wave 5 to wave 15, then falls as the waves outgrow Regen, until the run ends. So a run has an arc: the Number goes up, and the run is the fight to keep it up.
+  - Every run still ends, and more Dividers land, because towers live into harder waves.
+  - The cost is pace: careers pass the wave-20 wall sooner (wave 30 by run 21, against never with the ceiling).
+
 - **Decision 1.**
 
 **1.3 Is the Number ever spent?** The old vision made it "score, health and ammunition at once". **Recommend no:** Cash stays the run's currency, as now. Spending the Number would bring back D037's tangle, where every choice trades survival for power.

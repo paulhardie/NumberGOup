@@ -43,6 +43,7 @@
 2. **The Number's four decisions:** answered (D081): ceiling at Health, subtract and divide, new operator enemies on top of The Tower's, and Health renamed Number.
 2a. **The enemy brainstorm:** answered and built (D082).
 2b. **The Tower's enemy list against our data:** Ranged now pays 2 Coins (D082); the speeds stay the SDK's.
+2d. **A Number with no ceiling (option b, THE_NUMBER.md 1.2):** the owner chose it for 1.0, to be measured first. It's measured, and **waiting on the owner's pick of setting**. Recommend all of Regen past Health (no ceiling): runs still end, fresh runs are unchanged, and the Number climbs about fourfold before the waves overtake it. Trade-off: careers reach wave 30 by run 21. The game still has the ceiling (`NUMBER_OVERFILL` 0) until the owner says.
 2c. **Is one ÷ every 6 minutes right?** As built, about a third of Dividers get through in the middle waves. **Recommend** judging it in play. If it's too rare, raise the Divider's share first (a single number), and watch the first-run benchmark.
 3. **Cheaper Workshop prices?** Answered: keep The Tower's (the owner, 26 September: "fair enough").
 4. **Lighter process while rebuilding.** **Recommend yes.**
