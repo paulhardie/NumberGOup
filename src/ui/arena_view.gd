@@ -41,6 +41,8 @@ const GLOW_RADIUS_PX := 110.0
 ## A ÷ flares the light violet, this much stronger, fading over this long.
 const DIVIDE_FLARE := 0.5
 const DIVIDE_FLARE_SECONDS := 0.8
+## The range, when shown: a haze this strong at its edge (D088).
+const RANGE_HAZE := 0.1
 ## A ÷ float lasts longer and rises further than the others.
 const DIVIDE_FLOAT_SECONDS := 1.2
 const DIVIDE_FLOAT_RISE_PX := 30.0
@@ -61,6 +63,9 @@ const LOOKS := {
 const FLASH := Color("f4f3ef")
 
 var sim: BattleSim
+## The range as a faint band of light at its edge, when the player asks for it
+## (D088); no line at all otherwise.
+var show_range := false
 ## How far between the sim's last tick and its current one to draw things.
 var blend := 1.0
 ## Where the tower stands, in the view.
@@ -228,8 +233,7 @@ func _draw() -> void:
 	if sim == null:
 		return
 	var reach_px := sim.stat("range") * px_per_metre()
-	_light_glow()
-	draw_arc(centre, reach_px, 0.0, TAU, 96, Color(Palette.ACCENT, 0.28), 2.0, true)
+	_light_glow(reach_px)
 	if _shockwave_age < SHOCKWAVE_SECONDS:
 		# The ring runs out to the edge of range and fades as it goes.
 		var spread := _shockwave_age / SHOCKWAVE_SECONDS
@@ -304,8 +308,9 @@ func _draw_tower(number: Dictionary) -> void:
 
 
 ## Sets the light behind the Number for this frame: white, breathing slowly,
-## tinted and brightened by a flare while one fades.
-func _light_glow() -> void:
+## tinted and brightened by a flare while one fades, and the range's haze at
+## `reach_px` when it's shown.
+func _light_glow(reach_px: float) -> void:
 	var breath := sin(_glow_time * TAU / GLOW_BREATH_SECONDS)
 	var strength := GLOW_STRENGTH * (1.0 + GLOW_BREATH * breath)
 	var tint := Color.WHITE
@@ -319,6 +324,8 @@ func _light_glow() -> void:
 	light.set_shader_parameter("radius_px", GLOW_RADIUS_PX)
 	light.set_shader_parameter("tint", tint)
 	light.set_shader_parameter("strength", strength)
+	light.set_shader_parameter("range_px", reach_px)
+	light.set_shader_parameter("range_strength", RANGE_HAZE if show_range else 0.0)
 
 
 ## An enemy is one number (D085): its health, counting down as it's shot,

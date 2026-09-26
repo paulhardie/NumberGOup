@@ -1134,3 +1134,15 @@ Rules:
   - A hit no longer flashes the Number; the orange "−x" float under it is the hit's only sign until the owner's hit states come.
   - Reduced motion is still not built: the breathing and the grain move.
 - **Revisit when:** the owner has played it: the light's strength, size and grain, and what the hit states and Ultimate Weapons should do with the light.
+
+## D088 — No range ring, unless the player asks, and settings of their own
+
+- **Status:** Accepted (2026-09-26) on owner direction, and implemented the same day on `claude/dazzling-gates-54ahbr`. The owner: "I say we get rid of the range ring. It spoils the aesthetic in my opinion. I think it's off by default, but if the user opts into it, I'd want a more subtle atmospheric range line".
+- **Decision:**
+  1. **The range ring is gone by default.** The arena is the Number in its light on black (D087), with nothing drawn at the range's edge.
+  2. **A "Show range" switch on Home turns it on.** It shows as a haze of the same grainy light, thickening toward the range's edge from inside and stopping just past it, drawn by the light's shader (`range_px`, `range_strength`), not as a line.
+  3. **Settings live in their own file**, `user://number_go_up_settings.json` (`src/settings.gd`: `{"version": 1, "show_range": false}`), written only when the player changes one. A preference can then never put the save's progress at risk (law 5). A missing or damaged file, or a value of the wrong kind, means the default.
+- **Consequences:**
+  - This is the game's first player setting. The switch sits on Home under Export report, with no settings screen yet; one is worth building when a second setting comes. Reduced motion (D085, D087) is the likely next.
+  - The Wall's ring, the shockwave and mine blasts still draw as before.
+- **Revisit when:** a second setting arrives, or the owner has played it with the range on.

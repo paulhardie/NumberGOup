@@ -6,7 +6,7 @@ extends Control
 ## they're earned), and when the window closes or loses focus. A game closed
 ## mid-run opens back into that run, as The Tower does (D078). Every run and
 ## Workshop purchase also goes into the activity log, which Home exports as a
-## report (D077).
+## report (D077). The player's settings live in their own file (D088).
 
 const Save = preload("res://src/tower/save.gd")
 const ActivityLog = preload("res://src/tower/activity_log.gd")
@@ -14,18 +14,22 @@ const Workshop = preload("res://src/tower/workshop.gd")
 const HomeScreen = preload("res://src/ui/home_screen.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
 const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
+const Settings = preload("res://src/settings.gd")
 
 const AUTOSAVE_SECONDS := 20.0
 
 ## Where the game saves and logs; the tests point these at their own files.
 var save_path := Save.PATH
 var log_path := ActivityLog.PATH
+var settings_path := Settings.PATH
 var workshop: Workshop
+var settings := Settings.new()
 var _screen: Control
 
 
 func _ready() -> void:
 	workshop = Save.load_workshop(save_path)
+	settings.read(settings_path)
 	var autosave := Timer.new()
 	autosave.wait_time = AUTOSAVE_SECONDS
 	autosave.timeout.connect(func():
@@ -58,6 +62,8 @@ func _save() -> void:
 func _show_home() -> HomeScreen:
 	var home := HomeScreen.new()
 	home.workshop = workshop
+	home.settings = settings
+	home.settings_changed.connect(func(): settings.write(settings_path))
 	home.battle_pressed.connect(_show_battle)
 	home.workshop_pressed.connect(_show_workshop)
 	home.export_pressed.connect(func():
@@ -73,6 +79,7 @@ func _show_home() -> HomeScreen:
 func _show_battle(saved: Dictionary = {}) -> void:
 	var battle := BattleScreen.new()
 	battle.workshop = workshop
+	battle.settings = settings
 	battle.resume = saved
 	battle.resume_failed.connect(_resume_failed)
 	battle.run_finished.connect(func():
