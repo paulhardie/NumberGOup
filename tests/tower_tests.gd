@@ -1544,6 +1544,21 @@ func test_an_enemy_shows_one_number() -> void:
 	check(Palette.number(Palette.number_shown(sim.health, sim.max_health(), true)) == preview.after, "and the landing leaves exactly that: %s" % sim.health)
 
 
+## The light behind the Number (D087) flares for a ÷ and fades back to white.
+func test_the_light_behind_the_number_flares_and_fades() -> void:
+	var arena := ArenaView.new()
+	var divider := BattleSim.Enemy.new()
+	divider.kind = "divider"
+	var landed: Array[Dictionary] = [{"type": "divided", "enemy": divider, "damage": 10.0, "at_wall": false, "divisor": 1.5}]
+	arena.absorb(landed, 0.0)
+	check(arena._flare.get("colour") == Palette.DIVIDER, "a ÷ landing flares the light violet")
+	arena.absorb([], ArenaView.DIVIDE_FLARE_SECONDS * 0.5)
+	check(not arena._flare.is_empty(), "still fading part way")
+	arena.absorb([], ArenaView.DIVIDE_FLARE_SECONDS * 0.6)
+	check(arena._flare.is_empty(), "and back to white once its time is up")
+	arena.free()
+
+
 ## A sim with nothing spawning, for placing enemies by hand.
 func _quiet_sim(row_levels: Dictionary = {}, groups: Array = BattleSim.START_GROUPS) -> BattleSim:
 	var sim := BattleSim.new(1, row_levels, groups)

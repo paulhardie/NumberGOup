@@ -1,14 +1,17 @@
 extends RefCounted
-## The look (D049): a near-black ground, Geist for words and Geist Mono for
+## The look (D049): a black ground (D087), Geist for words and Geist Mono for
 ## numbers, one accent for good and one warning for bad.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 
-const GROUND := Color("111213")
+## Pure black (D087), so the light behind the Number reads as light.
+const GROUND := Color("000000")
 const SURFACE := Color("17181a")
 const SURFACE_RAISED := Color("1c1d20")
 const LINE := Color("2a2b2f")
 const TEXT := Color("ececea")
+## The Number in the centre is white, always (D087).
+const NUMBER := Color("f7f6f2")
 const MUTED := Color("8b8c88")
 const ACCENT := Color("8fbfa8")
 const WARNING := Color("d68e5c")
