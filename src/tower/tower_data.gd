@@ -67,6 +67,30 @@ static func max_level(id: String) -> int:
 	return int(upgrade(id).max_rank)
 
 
+## The Cash one more level costs, when the run has already bought `bought`
+## of this row. Past the row's table there is nothing left to buy.
+static func cash_price(id: String, bought: int) -> float:
+	var prices: Array = upgrade(id)["cash_prices"]
+	return float(prices[bought]) if bought < prices.size() else INF
+
+
+## Every Workshop row, in The Tower's order.
+static func rows() -> Array[String]:
+	upgrade("damage")
+	var ids: Array[String] = []
+	ids.assign(_upgrades.keys())
+	return ids
+
+
+## Attack, Defense or Utility.
+static func category(id: String) -> String:
+	return String(upgrade(id).workshop_category)
+
+
+static func group(id: String) -> String:
+	return String(upgrade(id).group)
+
+
 static func _load(path: String) -> Dictionary:
 	var text := FileAccess.get_file_as_string(path)
 	var parsed = JSON.parse_string(text)

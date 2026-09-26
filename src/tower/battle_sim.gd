@@ -26,9 +26,15 @@ class Enemy:
 	## Guesses.ENEMY_HIT_SECONDS.
 	var hit_in := 0.0
 	var hits := 0
+	## Where it was a tick ago, so the screen can draw between the two.
+	var last_distance: float
 
 	func position() -> Vector2:
 		return Vector2.from_angle(angle) * distance
+
+	## Where to draw it `blend` of the way from the last tick to this one.
+	func drawn_at(blend: float) -> Vector2:
+		return Vector2.from_angle(angle) * lerpf(last_distance, distance, blend)
 
 	func arrived() -> bool:
 		return distance <= stop_at
@@ -37,13 +43,22 @@ class Enemy:
 class Shot:
 	var target: Enemy
 	var position: Vector2
+	var last_position: Vector2
 	var damage: float
 	var critical: bool
 
 
+## The groups of rows a run may buy from: The Tower opens these from the
+## start, and the Workshop opens the rest.
+const START_GROUPS := ["attack_start", "defense_start"]
+
 var run_seed: int
-## Row id → level. Every row not listed is at level 0.
+## Row id → Workshop level, the level every run starts from. Rows not listed
+## are at level 0.
 var levels: Dictionary
+## Row id → levels bought with Cash in this run, on top of the Workshop's.
+var run_levels: Dictionary = {}
+var open_groups: Array = START_GROUPS.duplicate()
 
 var time := 0.0
 var wave := 1
@@ -84,8 +99,42 @@ func _init(seed_value: int, row_levels: Dictionary = {}) -> void:
 	_schedule_wave()
 
 
+func level(id: String) -> int:
+	return int(levels.get(id, 0)) + int(run_levels.get(id, 0))
+
+
 func stat(id: String) -> float:
-	return TowerData.value(id, int(levels.get(id, 0)))
+	return TowerData.value(id, level(id))
+
+
+func is_open(id: String) -> bool:
+	return TowerData.group(id) in open_groups
+
+
+func at_max(id: String) -> bool:
+	return level(id) >= TowerData.max_level(id)
+
+
+## What one more level of `id` costs now. The Tower prices a run's upgrades by
+## how many of that row the run has bought, whatever the Workshop level.
+func price(id: String) -> float:
+	return TowerData.cash_price(id, int(run_levels.get(id, 0)))
+
+
+func can_buy(id: String) -> bool:
+	return alive and is_open(id) and not at_max(id) and cash >= price(id)
+
+
+## Buys one level of `id` with Cash; false, and nothing changes, if it can't.
+func buy(id: String) -> bool:
+	if not can_buy(id):
+		return false
+	var health_before := max_health()
+	cash -= price(id)
+	run_levels[id] = int(run_levels.get(id, 0)) + 1
+	# More Health raises the health you have now by the same amount.
+	health += max_health() - health_before
+	return true
 
 
 func max_health() -> float:
@@ -97,6 +146,10 @@ func step() -> void:
 		return
 	time += TICK
 	wave_clock += TICK
+	for enemy in enemies:
+		enemy.last_distance = enemy.distance
+	for shot in shots:
+		shot.last_position = shot.position
 	if wave_clock >= TowerData.wave_seconds():
 		wave_clock -= TowerData.wave_seconds()
 		wave += 1
@@ -152,6 +205,7 @@ func _spawn_due() -> void:
 		enemy.speed = TowerData.enemy_speed_m(wave, kind)
 		enemy.angle = _spawn_rng.randf() * TAU
 		enemy.distance = Guesses.SPAWN_DISTANCE_M
+		enemy.last_distance = enemy.distance
 		enemy.stop_at = Guesses.RANGED_DISTANCE_M if kind == "ranged" else Guesses.CONTACT_DISTANCE_M
 		enemies.append(enemy)
 
@@ -194,6 +248,7 @@ func _fire() -> void:
 		var shot := Shot.new()
 		shot.target = target
 		shot.position = Vector2.ZERO
+		shot.last_position = Vector2.ZERO
 		shot.critical = _combat_rng.randf() < stat("critical_chance")
 		shot.damage = stat("damage") * (stat("critical_factor") if shot.critical else 1.0)
 		shots.append(shot)

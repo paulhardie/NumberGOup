@@ -16,6 +16,8 @@ const FLASH_SECONDS := 0.2
 const ENEMY_SIZE := {"basic": 9.0, "fast": 7.0, "ranged": 9.0, "tank": 13.0, "boss": 20.0}
 
 var sim: BattleSim
+## How far between the sim's last tick and its current one to draw things.
+var blend := 1.0
 ## Where the tower stands, in the view.
 var centre := Vector2.ZERO
 
@@ -55,7 +57,7 @@ func _draw() -> void:
 	for enemy in sim.enemies:
 		_draw_enemy(enemy)
 	for shot in sim.shots:
-		draw_circle(to_view(shot.position), 3.0 if shot.critical else 2.0, Palette.TEXT if shot.critical else Palette.ACCENT)
+		draw_circle(to_view(shot.last_position.lerp(shot.position, blend)), 3.0 if shot.critical else 2.0, Palette.TEXT if shot.critical else Palette.ACCENT)
 	for item in _floats:
 		var rise: float = item.age / FLOAT_SECONDS
 		var at: Vector2 = to_view(item.at) + Vector2(0, -14.0 - 18.0 * rise)
@@ -75,7 +77,7 @@ func _draw_tower() -> void:
 
 func _draw_enemy(enemy: BattleSim.Enemy) -> void:
 	var half: float = ENEMY_SIZE[enemy.kind] * 0.5
-	var at := to_view(enemy.position())
+	var at := to_view(enemy.drawn_at(blend))
 	var colour := Palette.BOSS if enemy.kind == "boss" else (Palette.WARNING if enemy.kind == "fast" else Palette.ENEMY)
 	var turn := enemy.angle + PI * 0.25
 	var corners := PackedVector2Array()
