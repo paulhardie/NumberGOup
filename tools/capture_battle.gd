@@ -1,12 +1,13 @@
 extends SceneTree
 ## Opens the battle in a real window, fast-forwards a seeded run to a few
-## moments and saves a screenshot of each to user://capture, for looking at,
+## moments, buying upgrades as it goes, and saves a screenshot of each to
+## user://capture, for looking at,
 ## never for pixel comparison. Nothing is saved: the game has no save yet.
 ## On headless Linux wrap it in xvfb-run -a -s "-screen 0 1024x1100x24".
 
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
 
-const MOMENTS := [4.0, 12.0, 30.0, 45.0, 200.0]
+const MOMENTS := [4.0, 30.0, 120.0, 240.0, 600.0]
 
 
 func _init() -> void:
@@ -25,6 +26,7 @@ func _capture() -> void:
 	for moment in MOMENTS:
 		var events: Array[Dictionary] = []
 		while screen.sim.time < moment and screen.sim.alive:
+			_buy_evenly(screen.sim)
 			screen.sim.step()
 			events.append_array(screen.sim.events)
 			screen.sim.events.clear()
@@ -40,3 +42,12 @@ func _capture() -> void:
 		root.get_texture().get_image().save_png(path)
 		print("wrote ", ProjectSettings.globalize_path(path))
 	quit()
+
+
+## Buys whichever open row has the fewest levels, when it can afford it.
+func _buy_evenly(sim) -> void:
+	var fewest := ""
+	for id in ["damage", "attack_speed", "critical_chance", "critical_factor", "health", "health_regen"]:
+		if fewest == "" or int(sim.run_levels.get(id, 0)) < int(sim.run_levels.get(fewest, 0)):
+			fewest = id
+	sim.buy(fewest)

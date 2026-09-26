@@ -13,7 +13,7 @@ GODOT=/path/to/Godot bash run_godot.sh --headless --path . -s res://tools/sim_ru
 
 ## Current game
 
-Milestone 1 of the rebuild: the battle alone. A fresh tower (Damage 3, one shot a second, Critical 1% at ×1.20, Range 30 m, Health 5) stands in the centre of Tier 1. Each wave spends 26 seconds sending enemies in from 100 m, with a cooldown of about 8.7 seconds after, and a boss every tenth wave. Basic, fast, tank and ranged enemies have The Tower's own health and Attack for their wave. Enemies that reach the tower stay and hit it every 5 seconds, each hit 4% harder than the last. Kills pay The Tower's Cash and Coins. Nothing can be bought yet, so a run ends on wave 2, as a fresh tower's does in The Tower. A speed button runs the battle at ×1, ×2 or ×5.
+Milestone 2 of the rebuild: the battle, with run upgrades. A fresh tower (Damage 3, one shot a second, Critical 1% at ×1.20, Range 30 m, Health 5) stands in the centre of Tier 1. Each wave spends 26 seconds sending enemies in from 100 m, with a cooldown of about 8.7 seconds after, and a boss every tenth wave. Basic, fast, tank and ranged enemies have The Tower's own health and Attack for their wave. Enemies that reach the tower stay and hit it every 5 seconds, each hit 4% harder than the last. Kills pay The Tower's Cash and Coins. Cash buys levels of Damage, Attack Speed, Critical Chance, Critical Factor, Health and Health Regen at The Tower's prices, for this run only; the other rows open with the Workshop, which comes next. A run that buys nothing dies on wave 2, and one that spreads its Cash dies around wave 8, as a fresh tower does in The Tower. A speed button runs the battle at ×1, ×2 or ×5.
 
 The game doesn't save yet. When it does, it will use a new file and leave the old save alone.
 

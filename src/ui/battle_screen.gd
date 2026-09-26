@@ -1,26 +1,18 @@
 extends Control
 ## The battle: the arena on top, the tower's and the wave's readouts below it,
-## then the tower's stats. It runs the sim at the chosen game speed and draws
+## then the run's upgrades. It runs the sim at the chosen game speed and draws
 ## it; every rule lives in BattleSim.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Palette = preload("res://src/ui/palette.gd")
 const ArenaView = preload("res://src/ui/arena_view.gd")
+const UpgradePanel = preload("res://src/ui/upgrade_panel.gd")
 
 ## Game speeds, for testing a run quickly (docs/REBUILD_SPEC.md, "Dev only").
 const SPEEDS := [1.0, 2.0, 5.0]
 ## At most this many ticks a frame, so a slow frame can't snowball.
 const MAX_TICKS_PER_FRAME := 400
-
-const STAT_ROWS := [
-	["Damage", "damage"],
-	["Attack Speed", "attack_speed"],
-	["Critical Chance", "critical_chance"],
-	["Critical Factor", "critical_factor"],
-	["Range", "range"],
-	["Health Regen", "health_regen"],
-]
 
 var sim: BattleSim
 var _speed_index := 0
@@ -38,7 +30,7 @@ var _wave_title: Label
 var _enemy_attack: Label
 var _enemy_health: Label
 var _wave_bar: ProgressBar
-var _stat_values: Dictionary = {}
+var _upgrades: UpgradePanel
 var _over: PanelContainer
 var _over_text: Label
 
@@ -54,6 +46,7 @@ func start_run(seed_value: int) -> void:
 	sim = BattleSim.new(seed_value)
 	sim.record_events = true
 	_arena.sim = sim
+	_upgrades.set_sim(sim)
 	_carry = 0.0
 	_over.visible = false
 
@@ -69,6 +62,9 @@ func _process(delta: float) -> void:
 		ticks += 1
 	if ticks == MAX_TICKS_PER_FRAME:
 		_carry = 0.0
+	# Draw each enemy and shot between its last two ticks, so movement is
+	# smooth whatever the display's frame rate.
+	_arena.blend = clampf(_carry / BattleSim.TICK, 0.0, 1.0) if sim.alive else 1.0
 	_arena.absorb(sim.events, delta)
 	sim.events.clear()
 	_arena.queue_redraw()
@@ -80,33 +76,22 @@ func _process(delta: float) -> void:
 func _refresh() -> void:
 	_cash.text = "$ " + Palette.number(sim.cash)
 	_coins.text = "● " + Palette.number(sim.coins)
-	_tower_damage.text = "Damage " + Palette.number(sim.stat("damage"))
+	_tower_damage.text = "Damage " + UpgradePanel.value_text("damage", sim.stat("damage"))
 	_tower_regen.text = "Regen %.2f/s" % sim.stat("health_regen")
 	_health_bar.max_value = sim.max_health()
 	_health_bar.value = sim.health
-	_health_text.text = "%s / %s" % [Palette.number(sim.health), Palette.number(sim.max_health())]
+	# Whole, as The Tower shows it. A tower still standing never reads 0, and
+	# full health never reads more than the most.
+	var most := roundf(sim.max_health())
+	var now := minf(roundf(sim.health), most)
+	if sim.alive:
+		now = maxf(now, 1.0)
+	_health_text.text = "%s / %s" % [Palette.number(now), Palette.number(most)]
 	_wave_title.text = "Wave %d" % sim.wave
 	_enemy_attack.text = "Attack " + Palette.number(TowerData.enemy_attack(sim.wave, "basic"))
 	_enemy_health.text = "Health " + Palette.number(TowerData.enemy_health(sim.wave, "basic"))
 	_wave_bar.value = sim.wave_clock / TowerData.wave_seconds()
-	for row in STAT_ROWS:
-		_stat_values[row[1]].text = _stat_text(row[1])
-
-
-func _stat_text(id: String) -> String:
-	var value := sim.stat(id)
-	match id:
-		"attack_speed":
-			return "%.2f" % value
-		"critical_chance":
-			return "%.2f%%" % (value * 100.0)
-		"critical_factor":
-			return "×%.2f" % value
-		"range":
-			return "%s m" % Palette.number(value)
-		"health_regen":
-			return "%.2f/s" % value
-	return Palette.number(value)
+	_upgrades.refresh()
 
 
 func _show_run_over() -> void:
@@ -162,13 +147,8 @@ func _build() -> void:
 	readouts.add_child(_tower_panel())
 	readouts.add_child(_wave_panel())
 
-	var grid := GridContainer.new()
-	grid.columns = 2
-	grid.add_theme_constant_override("h_separation", 8)
-	grid.add_theme_constant_override("v_separation", 8)
-	for row in STAT_ROWS:
-		grid.add_child(_stat_card(row[0], row[1]))
-	column.add_child(_margined(grid, 16))
+	_upgrades = UpgradePanel.new()
+	column.add_child(_margined(_upgrades, 16))
 
 	_over = PanelContainer.new()
 	_over.add_theme_stylebox_override("panel", Palette.panel_box())
@@ -244,21 +224,6 @@ func _wave_panel() -> PanelContainer:
 	_wave_bar.max_value = 1.0
 	_wave_bar.custom_minimum_size = Vector2(0, 6)
 	column.add_child(_wave_bar)
-	return panel
-
-
-func _stat_card(title: String, id: String) -> PanelContainer:
-	var panel := _panel()
-	var line := HBoxContainer.new()
-	panel.add_child(line)
-	var name_label := Label.new()
-	name_label.text = title
-	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_label.add_theme_font_size_override("font_size", 13)
-	line.add_child(name_label)
-	var value := _number_label(14, Palette.TEXT)
-	line.add_child(value)
-	_stat_values[id] = value
 	return panel
 
 

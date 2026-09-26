@@ -8,12 +8,18 @@ const Guesses = preload("res://src/tower/guesses.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Palette = preload("res://src/ui/palette.gd")
+const BattleScreen = preload("res://src/ui/battle_screen.gd")
 
 var _failures: Array[String] = []
 var _checks := 0
 
 
 func _init() -> void:
+	# Once the tree is running, so screens added to it set themselves up.
+	_run.call_deferred()
+
+
+func _run() -> void:
 	for method in get_method_list():
 		if String(method.name).begins_with("test_"):
 			call(method.name)
@@ -179,6 +185,92 @@ func test_a_fresh_tower_that_buys_nothing_falls_in_the_first_waves() -> void:
 		check(not sim.alive and sim.wave <= 3, "seed %d fell on wave %d" % [seed_value, sim.wave])
 
 
+func test_buying_a_level_costs_the_towers_cash() -> void:
+	var sim := _quiet_sim()
+	check(not sim.buy("damage"), "no Cash, no purchase")
+	sim.cash = 25.0
+	check(sim.price("damage") == 10.0, "the first Damage level costs $10")
+	check(sim.buy("damage"), "a level bought with $10")
+	check_near(sim.cash, 15.0, 0.0, "$10 spent")
+	check_near(sim.stat("damage"), TowerData.value("damage", 1), 0.0, "Damage rises one level")
+	check(sim.price("damage") == 12.0, "the next costs $12")
+	check(sim.buy("damage") and not sim.buy("damage"), "$12 more buys one more, then the Cash runs out")
+	check_near(sim.cash, 3.0, 0.0, "$3 left")
+
+
+func test_a_run_prices_by_its_own_purchases() -> void:
+	var sim := BattleSim.new(1, {"damage": 20})
+	check(sim.price("damage") == 10.0, "Workshop levels don't raise a run's first price")
+	check_near(sim.stat("damage"), TowerData.value("damage", 20), 0.0, "the run starts at the Workshop's level")
+
+
+func test_only_open_rows_can_be_bought() -> void:
+	var sim := _quiet_sim()
+	sim.cash = 1e6
+	for id in ["damage", "attack_speed", "critical_chance", "critical_factor", "health", "health_regen"]:
+		check(sim.is_open(id), "%s is open from the start" % id)
+	for id in ["range", "defense_absolute", "thorns", "cash_bonus", "coins_per_wave"]:
+		check(not sim.is_open(id) and not sim.buy(id), "%s waits for the Workshop" % id)
+
+
+func test_buying_health_heals_by_the_gain() -> void:
+	var sim := _quiet_sim()
+	sim.health = 2.0
+	sim.cash = 10.0
+	check(sim.buy("health"), "Health bought")
+	check_near(sim.max_health(), 10.0, 0.0, "the most rises from 5 to 10")
+	check_near(sim.health, 7.0, 0.0, "and the health you have rises by the same 5")
+
+
+func test_nothing_past_a_rows_last_level() -> void:
+	var sim := BattleSim.new(1, {"attack_speed": TowerData.max_level("attack_speed")})
+	sim.cash = 1e9
+	check(sim.at_max("attack_speed") and not sim.buy("attack_speed"), "a maxed row can't be bought")
+
+
+func test_a_fallen_tower_buys_nothing() -> void:
+	var sim := _quiet_sim()
+	sim.cash = 100.0
+	sim.alive = false
+	check(not sim.buy("damage"), "no buying after the run ends")
+	check_near(sim.cash, 100.0, 0.0, "and no Cash taken")
+
+
+func test_things_are_drawn_between_their_last_two_ticks() -> void:
+	var sim := _quiet_sim()
+	var enemy := _place(sim, "basic", 50.0)
+	enemy.speed = 30.0
+	enemy.stop_at = Guesses.CONTACT_DISTANCE_M
+	sim.step()
+	check_near(enemy.drawn_at(0.0).length(), 50.0, 0.0001, "at blend 0, where it was a tick ago")
+	check_near(enemy.drawn_at(1.0).length(), 49.0, 0.0001, "at blend 1, where it is now")
+	check_near(enemy.drawn_at(0.5).length(), 49.5, 0.0001, "halfway between at 0.5")
+
+
+func test_pressing_an_upgrade_card_buys_it() -> void:
+	var screen = BattleScreen.new()
+	root.add_child(screen)
+	screen.sim.cash = 10.0
+	screen._upgrades.refresh()
+	var card: Button = screen._upgrades._cards["damage"].button
+	check(not card.disabled, "an affordable card can be pressed")
+	card.pressed.emit()
+	check(screen.sim.run_levels.get("damage", 0) == 1, "pressing Damage buys a level")
+	check_near(screen.sim.cash, 0.0, 0.0, "for $10")
+	check(card.disabled, "and the card greys out once Cash runs short")
+	screen.sim.health = screen.sim.max_health()
+	screen.sim.run_levels = {"health": 2}
+	screen.sim.health = screen.sim.max_health()
+	screen._refresh()
+	check(screen._health_text.text == "15 / 15", "full health 15.08 reads 15 / 15: %s" % screen._health_text.text)
+	screen.sim.health = 0.3
+	screen._refresh()
+	check(screen._health_text.text.begins_with("1 /"), "a tower still standing never reads 0: %s" % screen._health_text.text)
+	screen._upgrades.show_tab("utility")
+	check(screen._upgrades._cards.is_empty() and screen._upgrades._empty.visible, "Utility says its rows open in the Workshop")
+	screen.free()
+
+
 func test_numbers_read_as_the_towers() -> void:
 	check(Palette.number(2.35) == "2.35", "two decimals while small")
 	check(Palette.number(3.0) == "3", "whole numbers stay whole")
@@ -205,6 +297,7 @@ func _place(sim: BattleSim, kind: String, distance: float) -> BattleSim.Enemy:
 	enemy.speed = 0.0
 	enemy.angle = 0.0
 	enemy.distance = distance
+	enemy.last_distance = distance
 	enemy.stop_at = minf(distance, Guesses.CONTACT_DISTANCE_M)
 	sim.enemies.append(enemy)
 	return enemy
