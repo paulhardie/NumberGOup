@@ -15,7 +15,8 @@
 //   to the owner's screens: the SDK runs high by about half a percent a wave.
 //   The fit is only known to wave 22, so it holds at wave 22's value past it.
 //   Replace it when a later wave is read.
-// - Type multipliers and speeds are the SDK's. The type mix is the owner's
+// - Type multipliers, speeds and masses are the SDK's (mass sets how far
+//   Knockback pushes). The type mix is the owner's
 //   wave 22 screen, which disagrees with the SDK's 91/3/3/3.
 // - Wave timing is the SDK's: 26 seconds of spawning, then a cooldown.
 import fs from "node:fs";
@@ -87,7 +88,8 @@ for (const reading of READINGS) {
 const types = {};
 for (const [id, name] of [["basic", "Basic"], ["fast", "Fast"], ["tank", "Tank"], ["ranged", "Ranged"], ["boss", "Boss"]]) {
   const typeSpeed = panel.computeWaveInfoPanelEnemyExtras({ ...input(1), enemyType: name }).speed;
-  types[id] = { health: typeMults[name].hp, attack: typeMults[name].damage, speed: keep(typeSpeed) };
+  const mass = panel.computeWaveInfoPanelEnemyExtras({ ...input(1), enemyType: name }).mass;
+  types[id] = { health: typeMults[name].hp, attack: typeMults[name].damage, speed: keep(typeSpeed), mass: keep(mass) };
 }
 
 const out = {

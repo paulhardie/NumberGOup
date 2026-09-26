@@ -46,6 +46,11 @@ class Shot:
 	var last_position: Vector2
 	var damage: float
 	var critical: bool
+	## Bounce Shot: -1 until its first strike rolls for a bounce, then how many
+	## more enemies it may bounce on to.
+	var bounces := -1
+	## The enemies this shot and its bounces have struck, never struck twice.
+	var struck: Array[int] = []
 
 
 ## The groups of rows a run may buy from, before the Workshop opens more.
@@ -54,6 +59,12 @@ const START_GROUPS := ["attack_start", "defense_start"]
 const DEFENSE_PERCENT_CAP := 0.98
 ## A boss takes this share of Thorns (TheTowerSDK's breakpoints agree).
 const BOSS_THORNS_SHARE := 0.5
+## Rapid Fire fires four times as fast while it lasts (the community wiki).
+const RAPID_FIRE_SPEED := 4.0
+## The most Interest pays a wave before Labs raise it (D071).
+const INTEREST_CAP := 50.0
+## The Free Upgrade row for each category.
+const FREE_UPGRADE_ROWS := {"attack": "free_attack_upgrade", "defense": "free_defense_upgrade", "utility": "free_utility_upgrade"}
 
 var run_seed: int
 ## Row id → Workshop level, the level every run starts from. Rows not listed
@@ -71,7 +82,7 @@ var alive := true
 var killed_by := ""
 
 var health: float
-var cash := 0.0
+var cash := Guesses.STARTING_CASH
 var cash_earned := 0.0
 var coins := 0.0
 var kills := 0
@@ -90,6 +101,8 @@ var _schedule: Array[Dictionary] = []
 var _next_spawn := 0
 var _next_id := 1
 var _shot_charge := 0.0
+## Seconds of Rapid Fire left.
+var rapid_fire_left := 0.0
 
 
 ## `row_levels` and `groups` are the Workshop's: the levels a run starts from
@@ -136,12 +149,17 @@ func can_buy(id: String) -> bool:
 func buy(id: String) -> bool:
 	if not can_buy(id):
 		return false
-	var health_before := max_health()
 	cash -= price(id)
+	_raise(id)
+	return true
+
+
+## One more run level of `id`, bought or free.
+func _raise(id: String) -> void:
+	var health_before := max_health()
 	run_levels[id] = int(run_levels.get(id, 0)) + 1
 	# More Health raises the health you have now by the same amount.
 	health += max_health() - health_before
-	return true
 
 
 func max_health() -> float:
@@ -170,6 +188,7 @@ func step() -> void:
 		return
 	_fire()
 	_move_shots()
+	_sweep_orbs()
 
 
 ## The player stops the run; it ends as if the tower fell, keeping what it earned.
@@ -271,7 +290,9 @@ func landed_damage(raw: float) -> float:
 
 
 func _fire() -> void:
-	_shot_charge += stat("attack_speed") * TICK
+	var speed := stat("attack_speed") * (RAPID_FIRE_SPEED if rapid_fire_left > 0.0 else 1.0)
+	rapid_fire_left = maxf(0.0, rapid_fire_left - TICK)
+	_shot_charge += speed * TICK
 	while _shot_charge >= 1.0:
 		var target := _nearest_in_range()
 		if target == null:
@@ -289,13 +310,23 @@ func _fire() -> void:
 			others.erase(target)
 			targets.append_array(others.slice(0, int(stat("multishot_targets")) - 1))
 		for each in targets:
-			var shot := Shot.new()
-			shot.target = each
-			shot.position = Vector2.ZERO
-			shot.last_position = Vector2.ZERO
-			shot.critical = critical
-			shot.damage = damage
-			shots.append(shot)
+			_launch(each, Vector2.ZERO, damage, critical)
+		# Rapid Fire: each volley may start it, while it isn't running.
+		if rapid_fire_left <= 0.0 and stat("rapid_fire_chance") > 0.0 and _combat_rng.randf() < stat("rapid_fire_chance"):
+			rapid_fire_left = stat("rapid_fire_duration")
+			if record_events:
+				events.append({"type": "rapid_fire"})
+
+
+func _launch(target: Enemy, from: Vector2, damage: float, critical: bool) -> Shot:
+	var shot := Shot.new()
+	shot.target = target
+	shot.position = from
+	shot.last_position = from
+	shot.critical = critical
+	shot.damage = damage
+	shots.append(shot)
+	return shot
 
 
 func _nearest_in_range() -> Enemy:
@@ -330,12 +361,51 @@ func _move_shots() -> void:
 			flying.append(shot)
 			continue
 		_strike(shot.target, shot.damage, shot.critical)
+		var bounce := _bounce(shot)
+		if bounce != null:
+			flying.append(bounce)
 	shots = flying
 
 
+## Bounce Shot: a shot's first strike rolls its chance; on a bounce it goes on
+## from the enemy it struck to the nearest other enemy within Bounce Shot
+## Range, up to its targets, never striking one twice.
+func _bounce(shot: Shot) -> Shot:
+	shot.struck.append(shot.target.id)
+	if shot.bounces < 0:
+		var chance := stat("bounce_shot_chance")
+		shot.bounces = int(stat("bounce_shot_targets")) if chance > 0.0 and _combat_rng.randf() < chance else 0
+	if shot.bounces <= 0:
+		return null
+	var from := shot.target.position()
+	var reach := stat("bounce_shot_range")
+	var next: Enemy = null
+	for enemy in enemies:
+		if enemy.id in shot.struck or enemy.health <= 0.0:
+			continue
+		var gap := from.distance_to(enemy.position())
+		if gap <= reach and (next == null or gap < from.distance_to(next.position())):
+			next = enemy
+	if next == null:
+		return null
+	# Launched through _launch for its setup, but carried by the caller's list.
+	var bounce := _launch(next, from, shot.damage, shot.critical)
+	shots.erase(bounce)
+	bounce.bounces = shot.bounces - 1
+	bounce.struck = shot.struck.duplicate()
+	return bounce
+
+
 ## A shot lands, lifted by Damage / Meter for how far out its enemy is.
+## Lifesteal heals a share of what it took off, and Knockback may push the
+## enemy back by its force over the enemy's mass, never past where enemies
+## set off; it walks back and hits again when it arrives.
 func _strike(enemy: Enemy, shot_damage: float, critical: bool) -> void:
 	var damage := shot_damage * (1.0 + stat("damage_per_meter") * enemy.distance)
+	health = minf(max_health(), health + stat("lifesteal") * minf(damage, maxf(enemy.health, 0.0)))
+	if enemy.health > damage and stat("knockback_chance") > 0.0 and _combat_rng.randf() < stat("knockback_chance"):
+		var push := stat("knockback_force") * Guesses.KNOCKBACK_METRES_PER_FORCE / TowerData.mass_ratio(enemy.kind)
+		enemy.distance = minf(Guesses.SPAWN_DISTANCE_M, enemy.distance + push)
 	enemy.health -= damage
 	if record_events:
 		events.append({"type": "enemy_hit", "enemy": enemy, "damage": damage, "critical": critical})
@@ -360,7 +430,58 @@ func _kill(enemy: Enemy) -> void:
 ## nothing).
 func _pay_wave_end() -> void:
 	var paid_cash := stat("cash_per_wave") * stat("cash_bonus")
+	# Interest on the Cash held, after the wave's Cash, up to its cap.
+	paid_cash += minf(INTEREST_CAP, (cash + paid_cash) * stat("interest"))
 	cash += paid_cash
 	cash_earned += paid_cash
 	if is_open("coins_per_wave"):
 		coins += stat("coins_per_wave")
+	# Free Upgrades: by each category's chance, a random open row of it that
+	# isn't at its last level goes up one, free.
+	for category in FREE_UPGRADE_ROWS:
+		var chance := stat(FREE_UPGRADE_ROWS[category])
+		if chance <= 0.0 or _combat_rng.randf() >= chance:
+			continue
+		var rows: Array[String] = []
+		for id in TowerData.rows():
+			if TowerData.category(id) == category and is_open(id) and not at_max(id):
+				rows.append(id)
+		if rows.is_empty():
+			continue
+		var chosen := rows[_combat_rng.randi_range(0, rows.size() - 1)]
+		_raise(chosen)
+		if record_events:
+			events.append({"type": "free_upgrade", "id": chosen})
+
+
+## Orbs circle the tower and kill any walking enemy but a boss that comes
+## within Guesses.ORB_HIT_M of one. They turn on the run's clock.
+func orb_radius() -> float:
+	return Guesses.ORB_MIN_RADIUS_M + 0.5 * maxf(0.0, stat("range") - Guesses.ORB_MIN_RADIUS_M)
+
+
+func orb_angles() -> Array[float]:
+	var angles: Array[float] = []
+	var count := int(stat("orbs"))
+	for orb in range(count):
+		angles.append(fposmod(TAU * stat("orb_speed") / 60.0 * time + TAU * float(orb) / float(count), TAU))
+	return angles
+
+
+func _sweep_orbs() -> void:
+	var angles := orb_angles()
+	if angles.is_empty():
+		return
+	var radius := orb_radius()
+	var touched: Array[Enemy] = []
+	for enemy in enemies:
+		if enemy.kind == "boss" or enemy.arrived() or absf(enemy.distance - radius) > Guesses.ORB_HIT_M:
+			continue
+		var at := enemy.position()
+		for angle in angles:
+			if at.distance_to(Vector2.from_angle(angle) * radius) <= Guesses.ORB_HIT_M:
+				touched.append(enemy)
+				break
+	for enemy in touched:
+		enemy.health = 0.0
+		_kill(enemy)

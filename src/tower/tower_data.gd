@@ -46,6 +46,12 @@ static func enemy_speed_m(wave: int, kind: String) -> float:
 	return _per_wave("basic_speed", wave) * float(enemies().types[kind].speed) * Guesses.METRES_PER_SPEED
 
 
+## A kind's mass as a share of a basic enemy's, which is how much less far
+## Knockback pushes it.
+static func mass_ratio(kind: String) -> float:
+	return float(enemies().types[kind].mass) / float(enemies().types.basic.mass)
+
+
 static func wave_seconds() -> float:
 	return float(enemies().spawn_seconds) + float(enemies().cooldown_seconds)
 

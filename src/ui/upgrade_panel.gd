@@ -8,6 +8,8 @@ const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Palette = preload("res://src/ui/palette.gd")
 
 const TABS := [["Attack", "attack"], ["Defense", "defense"], ["Utility", "utility"]]
+const CARD_HEIGHT := 58
+const ROWS_SHOWN := 3
 
 var sim: BattleSim
 var _tab := "attack"
@@ -31,11 +33,18 @@ func _init() -> void:
 		button.pressed.connect(show_tab.bind(tab[1]))
 		tabs.add_child(button)
 		_tab_buttons[tab[1]] = button
+	# A fixed height that scrolls, so a tab with many rows never pushes the
+	# arena off the screen: three rows of cards show at once.
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, ROWS_SHOWN * CARD_HEIGHT + (ROWS_SHOWN - 1) * 8)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	add_child(scroll)
 	_grid = GridContainer.new()
 	_grid.columns = 2
+	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_grid.add_theme_constant_override("h_separation", 8)
 	_grid.add_theme_constant_override("v_separation", 8)
-	add_child(_grid)
+	scroll.add_child(_grid)
 	_empty = Label.new()
 	_empty.text = "Cash upgrades open in the Workshop."
 	_empty.add_theme_color_override("font_color", Palette.MUTED)
@@ -74,7 +83,7 @@ func refresh() -> void:
 
 func _card(id: String) -> Button:
 	var button := Button.new()
-	button.custom_minimum_size = Vector2(0, 58)
+	button.custom_minimum_size = Vector2(0, CARD_HEIGHT)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.pressed.connect(func():
 		sim.buy(id)

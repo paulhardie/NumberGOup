@@ -73,7 +73,7 @@ func test_a_fresh_tower_is_the_towers() -> void:
 	check_near(sim.stat("critical_factor"), 1.2, 0.0, "fresh Critical Factor")
 	check_near(sim.stat("range"), 30.0, 0.0, "fresh Range in metres")
 	check_near(sim.health, 5.0, 0.0, "fresh Health")
-	check_near(sim.cash, 0.0, 0.0, "a run starts with no Cash")
+	check_near(sim.cash, 0.0, 0.0, "a run starts with no Cash, as a new Tower account's does")
 
 
 func test_a_wave_lasts_the_towers_time() -> void:
@@ -303,7 +303,8 @@ func test_groups_open_in_the_towers_order() -> void:
 	check(workshop.open_group("range"), "Range opens")
 	check_near(workshop.coins, 1e6 - 50.0, 0.0, "for 50 Coins")
 	check(workshop.next_group("attack") == "multishot" and workshop.open_group("multishot"), "then Multishot, for 400")
-	check(workshop.next_group("attack") == "rapid_fire" and not workshop.can_open("rapid_fire"), "Rapid Fire isn't built yet, so it can't be opened")
+	check(workshop.open_group("rapid_fire") and workshop.open_group("bounce_shot"), "then Rapid Fire and Bounce Shot")
+	check(workshop.next_group("attack") == "super_crit" and not workshop.can_open("super_crit"), "Super Crit isn't built yet, so it can't be opened")
 	check(workshop.open_group("defense") and workshop.open_group("thorns"), "Defense, then Thorns")
 	check(workshop.open_group("cash") and workshop.open_group("coins"), "Cash, then Coins")
 	check(workshop.buy("thorns") and workshop.buy("cash_bonus"), "their rows can then be bought")
@@ -452,6 +453,7 @@ func test_damage_per_meter_lifts_far_strikes() -> void:
 func test_cash_and_coin_rows_pay() -> void:
 	var sim := BattleSim.new(1, {"cash_bonus": 50, "cash_per_wave": 3, "coins_per_kill": 50, "coins_per_wave": 4}, ["attack_start", "defense_start", "cash", "coins"])
 	sim._schedule.clear()
+	sim.cash = 0.0
 	var tank := _place(sim, "tank", 10.0)
 	tank.health = 0.01
 	for _i in range(60):
@@ -500,6 +502,149 @@ func test_the_battle_banks_coins_into_the_workshop() -> void:
 	screen.free()
 
 
+func test_rapid_fire_fires_four_times_as_fast() -> void:
+	var sim := _quiet_sim()
+	var enemy := _place(sim, "basic", 10.0)
+	enemy.max_health = 1e9
+	enemy.health = 1e9
+	sim.rapid_fire_left = 100.0
+	var volleys := 0
+	for _i in range(roundi(10.0 / BattleSim.TICK)):
+		sim.step()
+		volleys += sim.shots.filter(func(shot): return shot.last_position == Vector2.ZERO).size()
+	check(volleys >= 39 and volleys <= 41, "four shots a second at Attack Speed 1: %d in 10 s" % volleys)
+
+
+func test_rapid_fire_starts_by_its_chance_for_its_duration() -> void:
+	var sim := _quiet_sim()
+	sim.levels = {"rapid_fire_chance": TowerData.max_level("rapid_fire_chance"), "rapid_fire_duration": 10}
+	var enemy := _place(sim, "basic", 10.0)
+	enemy.max_health = 1e9
+	enemy.health = 1e9
+	var started := false
+	for _i in range(roundi(20.0 / BattleSim.TICK)):
+		sim.step()
+		if sim.rapid_fire_left > 0.0:
+			started = true
+			check(sim.rapid_fire_left <= sim.stat("rapid_fire_duration"), "it lasts at most its duration")
+			break
+	check(started, "a 34% chance starts it within 20 shots")
+
+
+func test_bounce_shot_goes_on_to_the_nearest_enemy_in_its_range() -> void:
+	var sim := _quiet_sim()
+	sim.levels = {"bounce_shot_chance": TowerData.max_level("bounce_shot_chance")}
+	var first := _place(sim, "basic", 10.0)
+	var near := _place(sim, "basic", 12.0)
+	var far := _place(sim, "basic", 10.0)
+	far.angle = PI
+	for enemy in [first, near, far]:
+		enemy.max_health = 1e9
+		enemy.health = 1e9
+	for _i in range(roundi(30.0 / BattleSim.TICK)):
+		sim.step()
+	check(first.health < first.max_health, "the tower shoots the first")
+	check(near.health < near.max_health, "shots bounce on to the enemy 2 m from it")
+	check(far.health == far.max_health, "but not to one 20 m away, past Bounce Shot Range (%s m)" % sim.stat("bounce_shot_range"))
+	var per_shot := sim.stat("damage")
+	var bounced := roundi((near.max_health - near.health) / per_shot)
+	var shot_at_first := roundi((first.max_health - first.health) / per_shot)
+	check(bounced > 0 and bounced < shot_at_first, "some shots bounce, not all: %d of %d" % [bounced, shot_at_first])
+
+
+func test_lifesteal_heals_a_share_of_what_strikes_take_off() -> void:
+	var sim := _quiet_sim()
+	sim.levels = {"lifesteal": TowerData.max_level("lifesteal"), "damage": 100, "health": 100}
+	sim.record_events = true
+	sim.health = 1.0
+	var enemy := _place(sim, "basic", 10.0)
+	enemy.max_health = 1e9
+	enemy.health = 1e9
+	while sim.events.filter(func(event): return event.type == "enemy_hit").is_empty():
+		sim.step()
+	var dealt: float = sim.events.filter(func(event): return event.type == "enemy_hit")[0].damage
+	var regen := sim.stat("health_regen") * sim.time
+	check_near(sim.health, 1.0 + regen + dealt * sim.stat("lifesteal"), 0.001, "healed %.2f%% of %s" % [sim.stat("lifesteal") * 100.0, dealt])
+
+
+func test_knockback_pushes_by_force_over_mass() -> void:
+	for kind in ["basic", "tank"]:
+		var sim := _quiet_sim()
+		sim.levels = {"knockback_chance": TowerData.max_level("knockback_chance"), "knockback_force": 10}
+		var enemy := _place(sim, kind, 20.0)
+		enemy.max_health = 1e9
+		enemy.health = 1e9
+		var pushed := 0.0
+		for _i in range(roundi(10.0 / BattleSim.TICK)):
+			sim.step()
+			if enemy.distance > 20.0:
+				pushed = enemy.distance - 20.0
+				break
+		var want := sim.stat("knockback_force") * Guesses.KNOCKBACK_METRES_PER_FORCE / TowerData.mass_ratio(kind)
+		check_near(pushed, want, 0.0001, "a %s goes %.2f m back" % [kind, want])
+
+
+func test_knockback_never_pushes_past_the_spawn() -> void:
+	var sim := _quiet_sim()
+	sim.levels = {"knockback_chance": TowerData.max_level("knockback_chance"), "knockback_force": TowerData.max_level("knockback_force"), "range": TowerData.max_level("range")}
+	var enemy := _place(sim, "basic", Guesses.SPAWN_DISTANCE_M - 1.0)
+	enemy.max_health = 1e9
+	enemy.health = 1e9
+	sim.levels["range"] = TowerData.max_level("range")
+	enemy.distance = sim.stat("range")
+	for _i in range(roundi(30.0 / BattleSim.TICK)):
+		sim.step()
+		check(enemy.distance <= Guesses.SPAWN_DISTANCE_M, "at most %s m out" % Guesses.SPAWN_DISTANCE_M)
+
+
+func test_interest_pays_on_cash_held_up_to_its_cap() -> void:
+	var sim := BattleSim.new(1, {"interest": 10}, ["attack_start", "defense_start", "cash", "interest"])
+	sim._schedule.clear()
+	sim.cash = 100.0
+	sim.wave_clock = TowerData.wave_seconds() - BattleSim.TICK * 0.5
+	sim.step()
+	check_near(sim.cash, 100.0 * (1.0 + sim.stat("interest")), 0.0001, "%.2f%% of the Cash held" % (sim.stat("interest") * 100.0))
+	sim.cash = 1e6
+	sim.wave_clock = TowerData.wave_seconds() - BattleSim.TICK * 0.5
+	sim.step()
+	check_near(sim.cash, 1e6 + 50.0, 0.0001, "but no more than $50 a wave")
+
+
+func test_free_upgrades_raise_open_rows_of_their_category() -> void:
+	var sim := BattleSim.new(1, {"free_attack_upgrade": TowerData.max_level("free_attack_upgrade"), "free_utility_upgrade": TowerData.max_level("free_utility_upgrade")},
+		["attack_start", "defense_start", "cash"])
+	sim._schedule.clear()
+	sim.record_events = true
+	for _i in range(40):
+		sim.wave_clock = TowerData.wave_seconds() - BattleSim.TICK * 0.5
+		sim.step()
+	var free := sim.events.filter(func(event): return event.type == "free_upgrade")
+	var raised := 0
+	for id in sim.run_levels:
+		raised += int(sim.run_levels[id])
+		check(TowerData.category(id) in ["attack", "utility"] and sim.is_open(id), "%s is an open Attack or Utility row" % id)
+	check(free.size() > 20 and free.size() < 60, "about half of 80 chances: %d" % free.size())
+	check(raised == free.size(), "each free upgrade is one level: %d and %d" % [raised, free.size()])
+	check(sim.cash >= 0.0, "and costs nothing: $%s" % sim.cash)
+
+
+func test_orbs_kill_walking_enemies_but_not_bosses() -> void:
+	var sim := _quiet_sim()
+	sim.levels = {"orbs": 4}
+	var orb: float = sim.orb_angles()[0]
+	var walker := _place(sim, "basic", sim.orb_radius())
+	walker.angle = orb
+	walker.stop_at = Guesses.CONTACT_DISTANCE_M
+	var boss := _place(sim, "boss", sim.orb_radius())
+	boss.angle = orb
+	boss.stop_at = Guesses.CONTACT_DISTANCE_M
+	var kills := sim.kills
+	sim.step()
+	check(not sim.enemies.has(walker) and sim.kills == kills + 1, "an orb kills the enemy it touches, and it pays")
+	check(sim.enemies.has(boss) and boss.health == boss.max_health, "but never a boss")
+	check(sim.orb_angles().size() == 4, "four orbs, spaced evenly")
+
+
 func test_numbers_read_as_the_towers() -> void:
 	check(Palette.number(2.35) == "2.35", "two decimals while small")
 	check(Palette.number(3.0) == "3", "whole numbers stay whole")
@@ -513,11 +658,14 @@ func _quiet_sim() -> BattleSim:
 	var sim := BattleSim.new(1)
 	sim._schedule.clear()
 	sim.wave_clock = -1e9
+	sim.cash = 0.0
 	return sim
 
 
 func _place(sim: BattleSim, kind: String, distance: float) -> BattleSim.Enemy:
 	var enemy := BattleSim.Enemy.new()
+	enemy.id = sim._next_id
+	sim._next_id += 1
 	enemy.kind = kind
 	enemy.wave = sim.wave
 	enemy.max_health = TowerData.enemy_health(sim.wave, kind)
