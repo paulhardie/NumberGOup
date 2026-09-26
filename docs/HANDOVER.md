@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 26 September 2026 (D084, the Number without its ring, and the enemy design brief), by Claude, handing on to the next agent.
+**Last updated:** 26 September 2026 (D085, the enemy design chosen: enemies show their health, with a colour each), by Claude, handing on to the next agent.
 
-**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after #72 merged. It carries D084: the ring round the Number removed, and [`design/ENEMY_NUMBERS_BRIEF.md`](design/ENEMY_NUMBERS_BRIEF.md) for Claude Design. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #73 (D084) merged. It carries only D085, a decision record; no code. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -51,9 +51,9 @@
 
 ## Next steps, in order
 
-0. **Owner:** send [`design/ENEMY_NUMBERS_BRIEF.md`](design/ENEMY_NUMBERS_BRIEF.md) and its screenshots to Claude Design. **Agent, when the design returns:** build the enemies as numbers in `src/ui/arena_view.gd`, with bundled OFL fonts. Drawing only; no rule changes (D084).
+0. **Agent:** build the enemies as numbers to D085: health counting down with a small operation tag, Anybody and Fraunces bundled (OFL), one colour per type, the boss white-hot. Drawing only, in `src/ui/arena_view.gd` and `src/ui/palette.gd`; no rule changes. Then check it with `tools/capture_battle.gd` against the mockups in the canvas D085 links. **Owner, before or alongside:** decide D085's two open items, the Divider's preview above the Number and a standing enemy's tag growing.
 
-1. **Owner:** merge this, play, and export a report. Say whether the Number in the centre and the ÷ moments feel right, and how often they come. Done when the owner has played it.
+1. **Owner:** play `main`, and export a report. Say whether the Number in the centre and the ÷ moments feel right, and how often they come. Done when the owner has played it.
 2. **Agent:** read the report. It records each run's peak Number, what Dividers took, and how many came and landed. Tune `Guesses.DIVIDER` from it with `sim_runs.gd` against the benchmarks (THE_NUMBER.md 5).
 3. **Owner, then:** sign off 1.0, or name what's missing. After that comes Cards (1.1).
 
