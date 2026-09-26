@@ -934,7 +934,7 @@ Rules:
 
 ## D079 — A version roadmap, with the Number as the run's score after 1.0
 
-- **Status:** Accepted (2026-09-26) on owner direction: "yes go with that, Number option A after 1.0".
+- **Status:** Accepted (2026-09-26) on owner direction: "yes go with that, Number option A after 1.0". Its second point (the Number as a score, after 1.0) is superseded the same day by [D080](#d080--the-number-is-the-tower-and-10-needs-it): the Number is the tower, and 1.0 needs it. The roadmap and version label stand.
 - **Context:** the rebuild spec's plan had run out. It stopped at "v1.1 rows" and "the Number (v2)", while the game had built everything its "Not in v1" list excluded, plus the activity report and resuming. The owner found The Tower's own version history: 0.1 was the core loop, the Workshop and Cards bought with Gems; then Tournaments in 0.2, Ultimate Weapons in 0.3, Labs in 0.5, Perks in 0.13 and Modules in 0.22. TheTowerSDK's copy of the patch notes confirms all but Labs, which it shows by 0.7.
 - **Decision:**
   1. The spec's milestones become a version roadmap. Each version is playable and ends with the owner playing it:
@@ -953,3 +953,19 @@ Rules:
   3. The version lives in `project.godot` (`application/config/version`), shows on Home, and is stamped on every report entry beside the commit. The agent raises it only when a version's "done when" is met.
 - **Consequences:** Cards wait one version for the Number. Tournaments are dropped: a solo game has no one to compete with, and The Tower having them isn't a reason. Options B and C for the Number are closed; C (banking from shots) was what stopped runs ending before the rebuild.
 - **Revisit when:** a version's play changes what should come next, or the owner wants Perks or Modules scheduled.
+
+## D080 — The Number is the tower, and 1.0 needs it
+
+- **Status:** Accepted direction (2026-09-26) on owner direction. The details are open in [`THE_NUMBER.md`](THE_NUMBER.md) until the owner answers its decisions. Supersedes D079's second point (the Number as option A, a score, after 1.0).
+- **Context:** the owner: "V1.0 can't be signed off until we get the number in the middle of the screen, and rework the enemies so they interact with it when they collide. This is a delicate operation as the game's identity hinges on this." Also: "basic enemies are flat damage, maybe certain enemies do division damage, maybe some % damage. I think for tier 1 we keep the tower's shape and progression."
+- **Decision:**
+  1. The Number sits in the middle of the battle as the tower itself.
+  2. Enemies act on it when they collide. Basic enemies subtract a flat amount, and some kinds divide or take a percentage.
+  3. Tier 1 keeps The Tower's shape and progression.
+  4. 1.0 is signed off only with this in, measured against the Tier 1 benchmarks and new targets for the Number.
+  5. [`THE_NUMBER.md`](THE_NUMBER.md) lists every consideration, with a recommendation each, and how it will be balanced.
+- **Consequences:**
+  - The roadmap loses its separate Number version: Cards and Gems become 1.1, Labs 1.2, Ultimate Weapons 1.3 and Tier 2 1.4.
+  - Options B and C from the spec are superseded; the Number is closest to B (the tower's Health), with operator enemies on top.
+  - The old game's lessons apply (D001: percentage hits make upgrades pointless; D037: a Number fed by its own output never falls).
+- **Revisit when:** the owner answers the design's decisions, or play shows the operators don't make the loop more fun.

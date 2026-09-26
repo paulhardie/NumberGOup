@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 26 September 2026 (D079, the version roadmap), by Claude, handing on to the next agent.
+**Last updated:** 26 September 2026 (D080, the Number is the tower), by Claude, handing on to the next agent.
 
-**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after D077 merged ([paulhardie/NumberGOup#69](https://github.com/paulhardie/NumberGOup/pull/69)). It carries D078 (resuming) and D079 (the roadmap, and the version shown on Home and in reports), not yet merged, in [paulhardie/NumberGOup#70](https://github.com/paulhardie/NumberGOup/pull/70). The old game is commit `f4f1e95`.
+**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after D077 merged ([paulhardie/NumberGOup#69](https://github.com/paulhardie/NumberGOup/pull/69)). It carries D078 (resuming), D079 (the roadmap, and the version shown on Home and in reports) and D080 (the Number's direction and [`THE_NUMBER.md`](THE_NUMBER.md)), not yet merged, in [paulhardie/NumberGOup#70](https://github.com/paulhardie/NumberGOup/pull/70). The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -14,8 +14,7 @@
 2. **Owner direction:** "go ahead with the rebuild". The Tower is the spec; copy it, and put anything unknown in `src/tower/guesses.gd` rather than debating it. The owner plays each milestone before the next starts.
 3. **The plan is the roadmap** in [`REBUILD_SPEC.md`](REBUILD_SPEC.md#roadmap) (D079):
    - the game is 0.9;
-   - 1.0 is the first hours signed off;
-   - 1.1 is the Number, option A: the run's score;
+   - 1.0 is the first hours **with the Number as the tower** (D080): the Number in the centre, and enemies that subtract, divide or take a share on contact;
    - then Cards, Labs, Ultimate Weapons and Tier 2.
 
    Raise `application/config/version` in `project.godot` only when a version's "done when" is met.
@@ -41,16 +40,22 @@
 ## Open decisions for the owner
 
 1. **How should a pack-free account pace?** Under D075, a focused pack-free career spends about 1.3 hours at the wave 10 boss and about 5½ hours reaching wave 30. With ×9 Coins it matches the owner's own account. The "wave 100 in an hour" research is unverified. **Recommend** keeping The Tower's rules and deciding the target by playing: if the first hours feel slow without packs, the lever is Coins per kill or Coins / Wave, not the enemy rules.
-2. **Cheaper Workshop prices?** Answered: keep The Tower's (the owner, 26 September: "fair enough").
-3. **Lighter process while rebuilding.** **Recommend yes.**
-4. **AGENTS.md's architectural law 3** (the modifier pipeline) names removed code. **Recommend** dropping it until a system needs stacked rules.
+2. **The Number's four decisions** ([`THE_NUMBER.md`](THE_NUMBER.md#6-decisions-for-the-owner), D080):
+   - **Ceiling:** recommend The Tower's Health in Tier 1.
+   - **Operators:** recommend subtract and divide.
+   - **New or converted enemies:** recommend new operator enemies on top of The Tower's.
+   - **Rename Health to Number:** recommend yes.
+3. **Cheaper Workshop prices?** Answered: keep The Tower's (the owner, 26 September: "fair enough").
+4. **Lighter process while rebuilding.** **Recommend yes.**
+5. **AGENTS.md's architectural law 3** (the modifier pipeline) names removed code. **Recommend** dropping it until a system needs stacked rules.
 
 ## Next steps, in order
 
 1. **Owner:** play a session on D077 as merged, export a report and drop it into the chat. Done when a report arrives.
 2. **Agent:** read that report and answer decision 1 from the owner's real runs: where they die, what they buy, Coins an hour. That decides whether 1.0 is signed off or needs tuning first.
 3. **Owner:** review and merge #70 (D078 and D079). Do it between runs: a run saved when a merge lands is likely to end at its saved wave. Then close the game mid-run and reopen it. Done when a real run resumes on the Mac, and Home shows "v0.9" in its corner.
-4. **Agent, once 1.0 is signed off:** the Number as the run's score (1.1). It shows in battle and on the run-over screen, and the best is kept as a record, with no balance change.
+4. **Owner:** answer the four decisions in [`THE_NUMBER.md`](THE_NUMBER.md#6-decisions-for-the-owner): the Number's ceiling, which operators, new or converted enemies, and renaming Health.
+5. **Agent, then:** build the Number's rules in `BattleSim`, measured headless against the benchmarks and the Number's targets, before any screen work (THE_NUMBER.md 5.4).
 
 ## How to measure
 

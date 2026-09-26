@@ -151,6 +151,7 @@ Start with the smallest set of current sources, and read them when the work need
 - [`README.md`](README.md) — what the game is and how to run it.
 - [`docs/HANDOVER.md`](docs/HANDOVER.md) — where the game is now, open decisions and the next steps. Read it first when picking up work; replace it, never append, when you hand off.
 - [`docs/REBUILD_SPEC.md`](docs/REBUILD_SPEC.md) — the rebuild (D073): The Tower's first hours built clean, its version roadmap (D079), benchmarks and guesses. While the rebuild runs it is the plan.
+- [`docs/THE_NUMBER.md`](docs/THE_NUMBER.md) — the Number as the tower (D080): every consideration, the recommended answers, the owner's decisions and the balance plan. Read it before touching how enemies hit or how the Number is shown.
 - [`docs/TOWER_SCALING_FOUNDATION.md`](docs/TOWER_SCALING_FOUNDATION.md) — researched encounter foundation and rationale.
 - [`docs/TOWER_WORKSHOP_REFERENCE.md`](docs/TOWER_WORKSHOP_REFERENCE.md) — The Tower's Workshop rows, unlock order, prices and Ultimate Weapons, from the community wiki. Since D068 the game's Workshop *is* these rows: the data is `data/workshop/upgrades.json`.
 - [`docs/TOWER_EARLY_PROGRESSION.md`](docs/TOWER_EARLY_PROGRESSION.md) — a reading of how The Tower's first hours reveal systems (Cards at wave 20, Labs at 30) and why the Tier 1 turtle works then breaks, plus The Tower's own version history; the owner's references, partly checked.

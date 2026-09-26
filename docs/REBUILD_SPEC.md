@@ -45,11 +45,11 @@ This was the first plan. The game (0.9) has gone past it: every Workshop group, 
 
 Tiers 2 and up, milestones, Gems, Cards, Labs, Knowledge, Ultimate Weapons, Perks, Modules, Tournaments and offline earnings. Also tapping to shoot (The Tower has no tap). The [Roadmap](#roadmap) says when each comes, if it does.
 
-## The Number (1.1)
+## The Number (in 1.0)
 
-The Number comes straight after 1.0, as one change measured against a known-good base. **The owner chose A (D079): the Number is the run's score.** It is everything the tower has dealt this run, shown big and always rising, with the best one kept as the record. It gives the game its name without touching balance.
+**The Number is the tower** (D080). It sits in the middle of the battle, and enemies act on it when they collide: basic enemies subtract, and some kinds divide or take a percentage. Tier 1 keeps The Tower's shape and progression. Every consideration, the recommended answer to each and the balance plan are in [`THE_NUMBER.md`](THE_NUMBER.md). The owner's answers to its decisions come first.
 
-Not chosen: B, the Number as the tower's Health (a rename, with little identity); and C, the Number banking from shots as D037 did, which is what stopped runs ending.
+This replaces the earlier options: A (a score beside the battle, D079) and C (banking from shots, D037, which stopped runs ending). The Number is closest to B, the tower's Health, with operator enemies on top.
 
 ## What carries over
 
@@ -103,12 +103,11 @@ Versions, each one a playable thing the owner plays and signs off (D079). The nu
 | Version | What | Done when |
 |---|---|---|
 | **0.9** (now) | Tier 1, the whole Workshop with multi-buy, the activity report, resuming a run | Built: the first plan's milestones 1 to 4 and D076–D078 |
-| **1.0** | The Tower's first hours, signed off | The owner's reports show the benchmarks within about 20%, and the owner says it feels like The Tower's opening |
-| **1.1** | The Number, option A: the run's score | Shown in battle and on the run-over screen, the best kept as a record, with no balance change measured |
-| **1.2** | Cards, and Gems to buy card slots: what The Tower launched with | The owner plays to wave 20 and uses them |
-| **1.3** | Labs, opening at wave 30 (Starting Cash, Wall Regen and the rest) | The owner plays to them |
-| **1.4** | Ultimate Weapons | The owner plays to them |
-| **1.5** | Tier 2 and up, where the Tier 1 turtle breaks | A Tier 1 turtle fails in Tier 2 and a pivot wins, as The Tower intends |
+| **1.0** | The Tower's first hours with **the Number as the tower** (D080): the Number in the centre, enemies that subtract, divide or take a share on contact | The Number's decisions are answered ([`THE_NUMBER.md`](THE_NUMBER.md)). Measured runs hold The Tower's benchmarks and meet the Number's targets. The owner says the core loop is satisfying and fun |
+| **1.1** | Cards, and Gems to buy card slots: what The Tower launched with | The owner plays to wave 20 and uses them |
+| **1.2** | Labs, opening at wave 30 (Starting Cash, Wall Regen and the rest) | The owner plays to them |
+| **1.3** | Ultimate Weapons | The owner plays to them |
+| **1.4** | Tier 2 and up, where the Tier 1 turtle breaks | A Tier 1 turtle fails in Tier 2 and a pivot wins, as The Tower intends |
 | Later, unscheduled | Perks, Modules | The owner asks |
 | Out | Tournaments: they need other players and servers | — |
 
@@ -170,6 +169,6 @@ This needs the owner's OK, then an edit to [`AGENTS.md`](../AGENTS.md), since on
 
 1. ~~Go on the rebuild~~: accepted (D073).
 2. **The process change above:** still open.
-3. ~~The Number's version (A, B or C)~~: A, straight after 1.0, with the rest of the roadmap (D079).
+3. ~~The Number's version (A, B or C)~~: A after 1.0 (D079), then superseded: the Number is the tower, in 1.0 (D080). Its open questions are in [`THE_NUMBER.md`](THE_NUMBER.md#6-decisions-for-the-owner).
 4. ~~Coins per kill~~: flat, accepted (D074).
 5. ~~Cheaper Workshop prices?~~ Keep The Tower's (the owner, 26 September: "fair enough"). The Tower lowers them later with Workshop Discount labs (up to 49.5% a tab), which come with Labs (1.3).
