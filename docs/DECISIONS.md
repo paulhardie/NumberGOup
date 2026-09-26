@@ -1067,7 +1067,7 @@ Rules:
 
 ## D085 — Enemies show their health, with a colour each
 
-- **Status:** Accepted (2026-09-26) on owner direction, answering D084's open question from Claude Design's mockups (the canvas "Enemies as Numbers", https://claude.ai/artifact/XWyQksmvMxMGnPANFr6f7d, private to the owner). The owner: "I prefer B", then "can we take that style and decide on colours for each of the standard enemies so they are all distinctive", then "keep the white boss, record the decision". Not yet built.
+- **Status:** Accepted (2026-09-26) on owner direction, answering D084's open question from Claude Design's mockups (the canvas "Enemies as Numbers", https://claude.ai/artifact/XWyQksmvMxMGnPANFr6f7d, private to the owner). The owner: "I prefer B", then "can we take that style and decide on colours for each of the standard enemies so they are all distinctive", then "keep the white boss, record the decision". Implemented (2026-09-26) on `claude/dazzling-gates-54ahbr`, the owner saying "go".
 - **Decision:**
   1. **An enemy shows its health**, counting down as it's shot, and pops at 0. What it does on contact ("−14", "÷1.5") rides beside it as a small tag, top right, at 85% of its colour: 11 pt, 14 pt on a boss. The recommended alternative, an enemy showing its operation, was not chosen.
   2. **Three typefaces, four font files, all SIL OFL:** Geist Mono is the player's (the Number and every float); Anybody (variable width and weight) is the crowd; Fraunces (variable optical size and weight) is the Divider alone; Geist stays for the panels. In Godot, one `FontVariation` per enemy type; Fast's slant is a synthetic oblique (`variation_transform`), not an italic file.
@@ -1092,5 +1092,13 @@ Rules:
   - Health values are the biggest numbers on screen: a wave-20 tank reads 271 and a boss 1.08K, reaching 2.6K by wave 30, against a Number of a few hundred. What an enemy does is the small tag.
   - Basic red and the orange hit float look alike under red-green colour-blindness; they differ in typeface and place.
   - Still open, from the mockups: a Divider inside the range showing a preview above the Number ("÷1.5 → 301"), and a standing enemy growing as its hit grows. Both are recommended; neither is decided. In B only the tag should grow, since a growing health number would read as healing.
-  - Building it is drawing work in `src/ui/arena_view.gd` and `src/ui/palette.gd`, plus two bundled font files. No rule, number or save changes. The widened Number means enemies at contact must be drawn about 46 pt out, clear of its digits.
-- **Revisit when:** it's built and played: whether the types read at a glance in a crowd, and whether the white boss steals the eye from the Number.
+  - It is drawing work only, in `src/ui/arena_view.gd` and `src/ui/palette.gd` with the fonts in `assets/fonts/` (each with its OFL). No rule, number or save changes.
+- **As built:**
+  - The tag is the enemy's next hit *after the tower's defences*, so it is exactly what will come off the Number, and it ticks up 4% with each hit the enemy lands. The health rounds up while small, so a living enemy never reads 0.
+  - Enemies at the tower are drawn just clear of the Number's digits on their own side, not on a fixed ring, since the Number's width changes with its digits.
+  - The Number is drawn over enemies and shots. Each enemy's old health bar is gone: its number is its health.
+  - Godot 4.7 ignores variable-font axes given by name; they must be OpenType tags, which `_cut` converts.
+  - A kill leaves the enemy's "0" swelling to 1.3× and fading over 0.12 s, under the "$1". A ranged enemy's hit draws its dotted lime line for 0.2 s.
+  - `tools/capture_battle.gd` now also shoots `battle_crowd`, the first boss once it is inside the view.
+- **Not built:** reduced motion. The game has no such setting yet, so the ÷ shake and the pops have no still alternative. A setting would be the first consumer of a preferences store, which is a foundation gap to decide on, not part of this change.
+- **Revisit when:** the owner has played it: whether the types read at a glance in a crowd, whether the white boss steals the eye from the Number, and how bunched enemies at the tower read, since those on the same side overlap each other as the squares did.

@@ -109,6 +109,29 @@ func _capture() -> void:
 	divided.queue_free()
 	await process_frame
 
+	# A crowd with the wave-10 boss in it, to see every enemy type's number
+	# side by side (D085).
+	var crowd := BattleScreen.new()
+	crowd.workshop = middling
+	root.add_child(crowd)
+	await process_frame
+	crowd.start_run(11)
+	crowd.set_process(false)
+	var crowd_events: Array[Dictionary] = []
+	# The first boss once it is well inside the view.
+	while crowd.sim.alive and crowd.sim.time < 3600.0 and not crowd.sim.enemies.any(
+			func(enemy): return enemy.kind == "boss" and enemy.distance < crowd.sim.stat("range") * 0.8):
+		crowd.sim.step()
+		crowd_events.append_array(crowd.sim.events)
+		crowd.sim.events.clear()
+	crowd._arena.absorb(crowd_events.slice(maxi(0, crowd_events.size() - 6)), 0.0)
+	crowd._refresh()
+	crowd._arena.queue_redraw()
+	await _frames()
+	_save_png("battle_crowd")
+	crowd.queue_free()
+	await process_frame
+
 	var screen := BattleScreen.new()
 	screen.workshop = Workshop.new()
 	root.add_child(screen)
