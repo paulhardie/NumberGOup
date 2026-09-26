@@ -47,9 +47,32 @@ import_if_needed() {
 	fi
 }
 
+# Work an agent has pushed but nobody has merged isn't in the game, however
+# finished it looks. Say so, once per change, for claude/ branches pushed in
+# the last day, so waiting work is never mistaken for merged work (it was
+# once: four changes sat on a branch with no pull request).
+warn_unmerged() {
+	git fetch --quiet --prune origin "+refs/heads/claude/*:refs/remotes/origin/claude/*" 2>/dev/null || return 0
+	local seen="$REPO/.git/ngu-unmerged-seen"
+	touch "$seen"
+	local now
+	now="$(date +%s)"
+	git for-each-ref --format='%(refname:short) %(objectname) %(committerdate:unix)' refs/remotes/origin/claude/ |
+		while read -r ref sha when; do
+			[ $((now - when)) -lt 86400 ] || continue
+			git merge-base --is-ancestor "$sha" "$target" && continue
+			grep -qx "$sha" "$seen" && continue
+			waiting="$(git rev-list --count "$target..$sha")"
+			log "not in the game yet: ${ref#origin/} has $waiting change(s) waiting to be merged"
+			notify "Not in the game yet: $waiting change(s) on ${ref#origin/} are waiting to be merged."
+			echo "$sha" >> "$seen"
+		done
+}
+
 cd "$REPO" 2>/dev/null || { log "no folder at $REPO"; exit 1; }
 git fetch --quiet origin "$BRANCH" || { log "fetch failed (offline?)"; import_if_needed; exit 0; }
 target="$(git rev-parse "origin/$BRANCH")"
+warn_unmerged
 if [ "$(git rev-parse HEAD)" = "$target" ] && [ -z "$(git status --porcelain)" ]; then
 	import_if_needed
 	exit 0

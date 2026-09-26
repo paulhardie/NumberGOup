@@ -2,7 +2,7 @@
 
 **Last updated:** 26 September 2026 (D087 and D088 built: a white Number in a grainy, breathing white light on pure black, and no range ring unless the player switches it on; before them, D085 and D086, enemies as numbers), by Claude, handing on to the next agent.
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #73 (D084) merged. D085 and D086 (enemies as numbers, the Divider preview) merged as #74. The branch now carries the sync job's import fix, D087 (the white Number in its light on black) and D088 (the range ring off by default, a Show range switch on Home, and the game's first settings file). Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #73 (D084) merged. D085 and D086 (enemies as numbers, the Divider preview) merged as #74. The branch carries the sync job's import fix and its warning about unmerged work, D087 (the white Number in its light on black) and D088 (the range ring off by default, a Show range switch on Home, and the game's first settings file). Its pull request is the one to merge; these commits once sat pushed with no pull request, which is why AGENTS.md now has the hand-off agent open one every time. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
