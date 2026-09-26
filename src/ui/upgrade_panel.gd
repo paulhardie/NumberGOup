@@ -65,30 +65,11 @@ func show_tab(tab: String) -> void:
 func refresh() -> void:
 	for id in _cards:
 		var card: Dictionary = _cards[id]
-		card.value.text = value_text(id, sim.stat(id))
+		card.value.text = Palette.row_value(id, sim.stat(id))
 		card.price.text = "MAX" if sim.at_max(id) else "$" + Palette.number(sim.price(id))
 		var affordable := sim.can_buy(id)
 		card.button.disabled = not affordable
 		card.price.add_theme_color_override("font_color", Palette.ACCENT if affordable else Palette.MUTED)
-
-
-## A row's value the way The Tower writes it.
-static func value_text(id: String, value: float) -> String:
-	match id:
-		"attack_speed":
-			return "%.2f" % value
-		"critical_chance":
-			return "%.2f%%" % (value * 100.0)
-		"critical_factor":
-			return "×%.2f" % value
-		"range":
-			return "%s m" % Palette.number(value)
-		"health_regen":
-			return "%.2f/s" % value
-		"damage", "health":
-			# The Tower shows the tower's own Damage and Health whole.
-			return Palette.number(roundf(value))
-	return Palette.number(value)
 
 
 func _card(id: String) -> Button:

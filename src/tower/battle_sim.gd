@@ -48,9 +48,12 @@ class Shot:
 	var critical: bool
 
 
-## The groups of rows a run may buy from: The Tower opens these from the
-## start, and the Workshop opens the rest.
+## The groups of rows a run may buy from, before the Workshop opens more.
 const START_GROUPS := ["attack_start", "defense_start"]
+## The most Defense % can take off a hit (community research, unverified).
+const DEFENSE_PERCENT_CAP := 0.98
+## A boss takes this share of Thorns (TheTowerSDK's breakpoints agree).
+const BOSS_THORNS_SHARE := 0.5
 
 var run_seed: int
 ## Row id → Workshop level, the level every run starts from. Rows not listed
@@ -64,6 +67,7 @@ var time := 0.0
 var wave := 1
 var wave_clock := 0.0
 var alive := true
+## What ended the run: an enemy kind, or "ended" when the player stopped it.
 var killed_by := ""
 
 var health: float
@@ -88,9 +92,12 @@ var _next_id := 1
 var _shot_charge := 0.0
 
 
-func _init(seed_value: int, row_levels: Dictionary = {}) -> void:
+## `row_levels` and `groups` are the Workshop's: the levels a run starts from
+## and the groups it may buy from.
+func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_GROUPS) -> void:
 	run_seed = seed_value
 	levels = row_levels.duplicate()
+	open_groups = groups.duplicate()
 	# Two streams, so a change in how often the tower fires or crits never
 	# changes which enemies a wave sends.
 	_spawn_rng.seed = hash([seed_value, "spawn"])
@@ -152,6 +159,7 @@ func step() -> void:
 		shot.last_position = shot.position
 	if wave_clock >= TowerData.wave_seconds():
 		wave_clock -= TowerData.wave_seconds()
+		_pay_wave_end()
 		wave += 1
 		_schedule_wave()
 	_spawn_due()
@@ -162,6 +170,13 @@ func step() -> void:
 		return
 	_fire()
 	_move_shots()
+
+
+## The player stops the run; it ends as if the tower fell, keeping what it earned.
+func end_run() -> void:
+	if alive:
+		alive = false
+		killed_by = "ended"
 
 
 ## Runs until the tower falls or `max_seconds` of game time pass.
@@ -216,7 +231,12 @@ func _move_enemies() -> void:
 			enemy.distance = maxf(enemy.stop_at, enemy.distance - enemy.speed * TICK)
 
 
+## Every enemy in place hits when its time comes: Defense % comes off first,
+## then Defense Absolute, which can take a hit to nothing. Thorns then deals
+## the enemy a share of its own maximum health, half on a boss, whatever the
+## defences took off, because the contact still happened.
 func _enemies_hit() -> void:
+	var thorned: Array[Enemy] = []
 	for enemy in enemies:
 		if not enemy.arrived():
 			continue
@@ -224,7 +244,7 @@ func _enemies_hit() -> void:
 		if enemy.hit_in > 0.0:
 			continue
 		enemy.hit_in += Guesses.ENEMY_HIT_SECONDS
-		var damage := enemy.attack * pow(Guesses.HEAT_UP_PER_HIT, enemy.hits)
+		var damage := landed_damage(enemy.attack * pow(Guesses.HEAT_UP_PER_HIT, enemy.hits))
 		enemy.hits += 1
 		health -= damage
 		if record_events:
@@ -234,6 +254,20 @@ func _enemies_hit() -> void:
 			alive = false
 			killed_by = enemy.kind
 			return
+		var thorns := minf(stat("thorns"), 1.0) * (BOSS_THORNS_SHARE if enemy.kind == "boss" else 1.0)
+		if thorns > 0.0:
+			enemy.health -= enemy.max_health * thorns
+			if enemy.health <= 0.0:
+				thorned.append(enemy)
+	# Killed after the loop, which mustn't lose enemies from under it.
+	for enemy in thorned:
+		_kill(enemy)
+
+
+## What a hit of `raw` leaves after the tower's defences.
+func landed_damage(raw: float) -> float:
+	var share := clampf(stat("defense_percent"), 0.0, DEFENSE_PERCENT_CAP)
+	return maxf(0.0, raw * (1.0 - share) - stat("defense_absolute"))
 
 
 func _fire() -> void:
@@ -245,13 +279,23 @@ func _fire() -> void:
 			_shot_charge = 1.0
 			return
 		_shot_charge -= 1.0
-		var shot := Shot.new()
-		shot.target = target
-		shot.position = Vector2.ZERO
-		shot.last_position = Vector2.ZERO
-		shot.critical = _combat_rng.randf() < stat("critical_chance")
-		shot.damage = stat("damage") * (stat("critical_factor") if shot.critical else 1.0)
-		shots.append(shot)
+		var critical := _combat_rng.randf() < stat("critical_chance")
+		var damage := stat("damage") * (stat("critical_factor") if critical else 1.0)
+		var targets: Array[Enemy] = [target]
+		# Multishot: by its chance the same shot also flies at the next
+		# nearest enemies in range, up to its targets in all.
+		if stat("multishot_chance") > 0.0 and _combat_rng.randf() < stat("multishot_chance"):
+			var others := _in_range_nearest_first()
+			others.erase(target)
+			targets.append_array(others.slice(0, int(stat("multishot_targets")) - 1))
+		for each in targets:
+			var shot := Shot.new()
+			shot.target = each
+			shot.position = Vector2.ZERO
+			shot.last_position = Vector2.ZERO
+			shot.critical = critical
+			shot.damage = damage
+			shots.append(shot)
 
 
 func _nearest_in_range() -> Enemy:
@@ -261,6 +305,16 @@ func _nearest_in_range() -> Enemy:
 		if enemy.distance <= reach and (nearest == null or enemy.distance < nearest.distance):
 			nearest = enemy
 	return nearest
+
+
+func _in_range_nearest_first() -> Array[Enemy]:
+	var reach := stat("range")
+	var found: Array[Enemy] = []
+	for enemy in enemies:
+		if enemy.distance <= reach:
+			found.append(enemy)
+	found.sort_custom(func(a, b): return a.distance < b.distance)
+	return found
 
 
 func _move_shots() -> void:
@@ -279,7 +333,9 @@ func _move_shots() -> void:
 	shots = flying
 
 
-func _strike(enemy: Enemy, damage: float, critical: bool) -> void:
+## A shot lands, lifted by Damage / Meter for how far out its enemy is.
+func _strike(enemy: Enemy, shot_damage: float, critical: bool) -> void:
+	var damage := shot_damage * (1.0 + stat("damage_per_meter") * enemy.distance)
 	enemy.health -= damage
 	if record_events:
 		events.append({"type": "enemy_hit", "enemy": enemy, "damage": damage, "critical": critical})
@@ -290,10 +346,21 @@ func _strike(enemy: Enemy, damage: float, critical: bool) -> void:
 func _kill(enemy: Enemy) -> void:
 	enemies.erase(enemy)
 	kills += 1
-	var paid_cash := (1.0 + floorf(enemy.wave / 10.0)) * float(Guesses.CASH_BY_TYPE[enemy.kind])
-	var paid_coins := float(Guesses.COINS_BY_TYPE[enemy.kind]) * float(enemy.wave)
+	var paid_cash := (1.0 + floorf(enemy.wave / 10.0)) * float(Guesses.CASH_BY_TYPE[enemy.kind]) * stat("cash_bonus")
+	var paid_coins := float(Guesses.COINS_BY_TYPE[enemy.kind]) * float(enemy.wave) * stat("coins_per_kill")
 	cash += paid_cash
 	cash_earned += paid_cash
 	coins += paid_coins
 	if record_events:
 		events.append({"type": "kill", "enemy": enemy, "cash": paid_cash, "coins": paid_coins})
+
+
+## As each wave ends: Cash / Wave times Cash Bonus, and Coins / Wave once the
+## Workshop has opened it (its first level is worth 1, so a closed row must pay
+## nothing).
+func _pay_wave_end() -> void:
+	var paid_cash := stat("cash_per_wave") * stat("cash_bonus")
+	cash += paid_cash
+	cash_earned += paid_cash
+	if is_open("coins_per_wave"):
+		coins += stat("coins_per_wave")

@@ -2,6 +2,8 @@ extends RefCounted
 ## The look (D049): a near-black ground, Geist for words and Geist Mono for
 ## numbers, one accent for good and one warning for bad.
 
+const TowerData = preload("res://src/tower/tower_data.gd")
+
 const GROUND := Color("111213")
 const SURFACE := Color("17181a")
 const SURFACE_RAISED := Color("1c1d20")
@@ -66,6 +68,28 @@ static func number(value: float) -> String:
 		return "%d" % int(floorf(value))
 	var tier := mini(int(floorf(log(size) / log(1000.0))), SUFFIXES.size() - 1)
 	return "%.2f%s" % [value / pow(1000.0, tier), SUFFIXES[tier]]
+
+
+## A row's value the way The Tower writes it.
+static func row_value(id: String, value: float) -> String:
+	match id:
+		"attack_speed":
+			return "%.2f" % value
+		"damage", "health":
+			# The Tower shows the tower's own Damage and Health whole.
+			return number(roundf(value))
+	match String(TowerData.upgrade(id).unit):
+		"percent":
+			return "%.2f%%" % (value * 100.0)
+		"multiplier":
+			return "×%.2f" % value
+		"per_second":
+			return "%.2f/s" % value
+		"metres":
+			return "%s m" % number(value)
+		"per_metre":
+			return "%.2f%%/m" % (value * 100.0)
+	return number(value)
 
 
 static func clock(seconds: float) -> String:

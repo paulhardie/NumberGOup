@@ -43,7 +43,7 @@ bash run_godot.sh --path . -s res://tools/capture_battle.gd
 - The headless project run imports and parses every script and builds the main scene; it catches UI-script and scene errors the suite does not load.
 - **A new script is loaded by path where it is used** (`const Foo = preload("res://src/foo.gd")`), as every script in `src/` does, not by a global `class_name`. The owner's play folder keeps the editor's class cache across pulls, and a cache that predates the new script fails to parse whatever names it, so the game opens to a blank window (it did after D051 added `ArenaFx`). CI and the headless run import fresh, so they cannot catch this; the check is reading the diff for a new `class_name` used by name elsewhere.
 - `tools/sim_runs.gd` is a measurement tool, not a gate.
-- The capture tool renders a seeded run's battle screen at a few moments into `user://capture`. Inspect the PNGs; never assert pixel equality.
+- The capture tool renders the home screen, the Workshop and a seeded run's battle at a few moments into `user://capture`. Inspect the PNGs; never assert pixel equality.
 - Documentation-only changes do not need the suite. They still need path, link, scope and contradiction checks against the current repository.
 
 The same baseline runs in CI (`.github/workflows/verify.yml`) on every pull request and push to `main`, using a pinned Godot build with its release checksum verified. `main` requires a pull request and a passing "Economy tests and headless boot" check before a normal merge; repository admins can bypass the requirement. The local checks above remain the developer-side gate; CI is the enforced copy.

@@ -10,6 +10,7 @@ const WORKSHOP_PATH := "res://data/workshop/upgrades.json"
 
 static var _enemies: Dictionary
 static var _upgrades: Dictionary
+static var _groups: Array
 
 
 static func enemies() -> Dictionary:
@@ -89,6 +90,50 @@ static func category(id: String) -> String:
 
 static func group(id: String) -> String:
 	return String(upgrade(id).group)
+
+
+## The Coins one more Workshop level costs, from `level`.
+static func coin_price(id: String, level: int) -> float:
+	var prices: Array = upgrade(id)["coin_prices"]
+	return float(prices[level]) if level < prices.size() else INF
+
+
+## The Workshop's groups, in The Tower's order within each category:
+## {id, workshop_category, order, unlock_coins}.
+static func groups() -> Array:
+	if _groups.is_empty():
+		_groups = _load(WORKSHOP_PATH).groups
+		_groups.sort_custom(func(a, b): return int(a.order) < int(b.order))
+	return _groups
+
+
+static func has_group(id: String) -> bool:
+	return groups().any(func(entry): return String(entry.id) == id)
+
+
+static func _group_entry(id: String) -> Dictionary:
+	for entry in groups():
+		if String(entry.id) == id:
+			return entry
+	assert(false, "no Workshop group %s" % id)
+	return {}
+
+
+static func group_price(id: String) -> float:
+	return float(_group_entry(id).unlock_coins)
+
+
+static func group_category(id: String) -> String:
+	return String(_group_entry(id).workshop_category)
+
+
+## The rows a group opens, in The Tower's order.
+static func group_rows(id: String) -> Array[String]:
+	var found: Array[String] = []
+	for row in rows():
+		if group(row) == id:
+			found.append(row)
+	return found
 
 
 static func _load(path: String) -> Dictionary:
