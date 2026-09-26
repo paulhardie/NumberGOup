@@ -905,8 +905,23 @@ Rules:
 - **Context:** tuning so far rests on the owner's screenshots and statements plus headless runs by agents. Every run is already deterministic from its seed and inputs, so a record of those replays the owner's real run exactly.
 - **Decision:**
   1. The battle records its inputs (each buy with its tick and multiplier, and End run) and a snapshot at each wave's end (health, Cash, Coins, kills, enemy Attack and Health, run levels bought).
-  2. Each finished run, each run the window closes on, and each Workshop buy and unlock go as one JSON line into `user://number_go_up_activity.jsonl`, beside the save and separate from it, stamped with the time (UTC) and the game's commit, read from the checkout's `.git`.
+  2. Each finished run, each run the window closes on (until D078, which resumes it instead), and each Workshop buy and unlock go as one JSON line into `user://number_go_up_activity.jsonl`, beside the save and separate from it, stamped with the time (UTC) and the game's commit, read from the checkout's `.git`.
   3. Home's **Export report** writes the whole log and the Workshop to one file in `user://reports/` and shows it in Finder; the owner drops it into the chat. Option A of two: nothing is uploaded automatically. B, where the Mac's sync job pushes reports to a branch, waits on the owner.
   4. `tools/read_report.gd` reads a report: runs as a table, each replayed to check it matches, one run wave by wave, and Workshop spending.
 - **Consequences:** a replay only matches on the commit that recorded it; the snapshots still read after the rules change. The log holds game numbers and times only, grows by a few KB a run, and is never trimmed. The inputs are also what saving a run in progress needs.
 - **Revisit when:** the log grows past a few MB, dragging a file in gets tedious (option B), or the game is exported without its `.git` (the version reads "unknown").
+
+## D078 — A run closed mid-way resumes, by replaying it
+
+- **Status:** Built (2026-09-26) on `claude/great-tesla-9kfp95`, on the owner's go-ahead to add work that was planned for later while they couldn't test ("is there anything else you can safely add to the game that you were going to later?"). It is accepted when the owner merges it. It was the handover's next step.
+- **Context:** closing the game mid-run lost the run (its Coins were kept). The Tower brings you back into the run. D077 already records everything a run needs to replay exactly.
+- **Decision:**
+  1. The save carries the run in progress under an optional `"run"` key: D077's run record plus the Coins it has banked into the Workshop. It sits in the same file and the same write as the Workshop, so those two can't disagree, and a crash can't bank Coins twice or lose them. The save stays version 1: a save without `"run"` loads as before, and an older game ignores the key.
+  2. The game opens straight into a saved run, as The Tower does, replaying it from its seed and inputs 2,000 ticks a frame behind "Resuming your run…", with the screen live.
+  3. The replay must end exactly where the save says (tick, wave, kills, Cash earned, Coins, health). If it doesn't (usually because the game updated in between, since the rules changed under it), or the record is damaged, the run ends at its saved wave. It counts towards best wave and runs, keeps its Coins, is logged as lost, and Home says so. A run is never played on from a state it didn't reach.
+  4. Closing mid-run no longer logs the run (D077); it's logged once, when it finally ends.
+- **Consequences:**
+  - Resuming takes time in proportion to the run's length: about 4.6 seconds for an hour of game time in the agent's container. Several-hour runs will want a snapshot of the whole battle state instead of a replay.
+  - Merging a change while a run is saved may end that run; the Mac's sync pulls merges every minute.
+  - The battle doesn't advance while the game is closed.
+- **Revisit when:** runs get long enough that resuming is slow, or the owner wants runs to survive updates.

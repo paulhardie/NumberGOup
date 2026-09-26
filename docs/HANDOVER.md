@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 26 September 2026 (D077, the activity report), by Claude, handing on to the next agent.
+**Last updated:** 26 September 2026 (D078, resuming a run), by Claude, handing on to the next agent.
 
-**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after D076 merged ([paulhardie/NumberGOup#68](https://github.com/paulhardie/NumberGOup/pull/68)). It carries D077 and the owner's reference [`TOWER_EARLY_PROGRESSION.md`](TOWER_EARLY_PROGRESSION.md), not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after D077 merged ([paulhardie/NumberGOup#69](https://github.com/paulhardie/NumberGOup/pull/69)). It carries D078, not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -18,6 +18,7 @@
 
 Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Workshop groups (D076, merged). The owner played milestone 4.
 
+- **Resuming (D078, not merged):** the save carries the run in progress; the game opens back into it by replaying it. If an update means it no longer replays the same, it ends at its saved wave with its Coins kept.
 - **Activity report (D077):** every run (seed, starting Workshop, each buy with its tick, a snapshot per wave) and every Workshop buy and unlock is logged to `user://number_go_up_activity.jsonl`. Home's Export report writes it to `user://reports/` and opens the folder. `tools/read_report.gd` reads and replays it.
 
 - **Workshop groups, all of them open and work:** Range and Damage / Meter, Multishot, Rapid Fire, Bounce Shot, Super Crit, Rend Armor (Attack); Defense % and Absolute, Thorns, Lifesteal, Knockback, Orbs, Shockwave, Land Mines, Death Defy, the Wall (Defense); Cash rows, Coins rows, Free Upgrades, Interest, Recovery Packages, Enemy Level Skip (Utility). A tab shows only its next locked group, as a big Unlock card (D076).
@@ -39,14 +40,23 @@ Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Worksh
 
 ## Next steps, in order
 
-1. **Owner:** merge D077, play a session as normal, then press Export report on Home and drop the file into the chat. Done when a report arrives.
+1. **Owner:** play a session on D077 as merged, export a report and drop it into the chat. Done when a report arrives.
 2. **Agent:** read that report and answer decision 1 from the owner's real runs: where they die, what they buy, Coins an hour.
-3. **Agent: saving a run in progress**, as The Tower resumes one. It's the one gap a player hits every session (closing mid-run loses the run), and the save is high risk, so it needs round-trip and old-save checks. Done when a run closed mid-wave resumes identically from its seed and RNG state.
+3. **Owner:** review and merge D078. Best done between runs: a run saved when a merge lands is likely to end at its saved wave. Then close the game mid-run and reopen it. Done when a real run resumes on the Mac.
 4. **Agent, after that:** Labs (The Tower's next system, which Starting Cash and Wall Regen need), or the Number (milestone 5), once the owner picks A, B or C.
 
 ## How to measure
 
-- **Ran on this branch (26 September, D077):** `bash run_tests.sh`: `PASS: tower tests (2254 checks)`. New checks cover:
+- **Ran on this branch (26 September, D078):** `bash run_tests.sh`: `PASS: tower tests (2290 checks)`. New checks cover:
+  - a replay in slices ending where one in one go does;
+  - damaged records rejected (missing parts, negative or absurd ticks, inputs out of order or past the end, a row this version doesn't know);
+  - the save round trip with a run, and with none;
+  - an old version-1 save with no run, and a `"run"` that isn't one;
+  - a battle screen resuming another's run at the same tick, wave, Cash, health and enemies, without banking Coins twice, keeping its play time and playing on;
+  - a tampered record given up once, with nothing played or saved from it.
+
+  Headless smoke of the real entry point with a scratch save: a good saved run opened straight into the battle and resumed; a tampered one ended at its wave, kept the Coins, cleared the run and said so on Home. **Not run:** an independent review by someone other than the author (the save is high risk per `QUALITY_GATES.md`; only the author's adversarial pass was done); a real close and reopen on the Mac.
+- **Ran for D077:** `bash run_tests.sh`: `PASS: tower tests (2254 checks)`. New checks cover:
   - inputs and wave snapshots being recorded;
   - a 15-minute run with every multiplier going through JSON and replaying to the same ticks, wave, kills, Cash, Coins and health, while another seed doesn't match;
   - the log appending, skipping a torn last line, stamping the version and exporting;
@@ -72,7 +82,8 @@ Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Worksh
 - A shot whose target dies first is lost, and the tower doesn't avoid overkill. That's our reading of The Tower, not checked.
 - Past wave 6,500 the enemy data holds its last value; generate more before a run can reach it.
 - **Boss waves are the walls:** careers end on or just after every tenth wave. That's The Tower's design (bosses are walls, D063), but worth watching in play.
-- **A run in progress isn't saved** (The Tower resumes one). Closing mid-run loses the run but not its Coins.
+- **Resuming replays the whole run,** about 4.6 s per hour of game time here. Fine now; several-hour runs will need a full battle-state snapshot instead.
+- **An update between closing and reopening usually ends a saved run** at its saved wave (D078). The Mac's sync pulls merges within a minute.
 
 ## Handing on
 

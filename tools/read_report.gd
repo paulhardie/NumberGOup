@@ -47,7 +47,11 @@ func _print_runs(runs: Array, here: String) -> void:
 		var replay := "other version"
 		if String(run.get("game", "")) == here:
 			replay = "matches" if RunReport.matches(run, RunReport.replay(run)) else "DIFFERS"
-		var ended := "closed" if bool(result.closed_mid_run) else String(result.killed_by)
+		var ended := String(result.killed_by)
+		if run.get("resume_failed", false):
+			ended = "lost"
+		elif bool(result.closed_mid_run):
+			ended = "closed"
 		print("%3d  %-19s  %4d  %9s  %9s  %5d  %11s  %5s  %-8s  %4d  %s" % [index + 1, run.get("at", "?"), int(result.wave),
 			_clock(float(result.time)), _clock(float(run.play.get("real_seconds", 0.0))), int(result.kills),
 			_n(result.cash_earned), _n(result.coins), ended, run.inputs.size(), replay])

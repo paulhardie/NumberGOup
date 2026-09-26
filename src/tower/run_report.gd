@@ -6,6 +6,7 @@ extends RefCounted
 ## read after the rules change.
 
 const BattleSim = preload("res://src/tower/battle_sim.gd")
+const TowerData = preload("res://src/tower/tower_data.gd")
 
 
 ## `play` is what only the screen knows: real seconds played, seconds at each
@@ -27,30 +28,92 @@ static func build(sim: BattleSim, play: Dictionary = {}) -> Dictionary:
 	}
 
 
-## Plays a recorded run again from its seed and inputs, to the tick it was
-## left at. Takes a run straight from JSON, where every number is a float.
+## The longest run a saved record may claim, in ticks (a day of game time), so
+## a damaged file can't set a replay running for ever.
+const MOST_TICKS := 30 * 60 * 60 * 24
+
+
+## Plays a recorded run again from its seed and inputs, a slice at a time,
+## so the battle screen can resume a long run without freezing.
+class Replay:
+	var sim: BattleSim
+	var _inputs: Array
+	var _next := 0
+	var _last: int
+
+	## Takes a run straight from JSON, where every number is a float.
+	func _init(run: Dictionary) -> void:
+		_inputs = run.get("inputs", [])
+		_last = int(run.get("result", {}).get("ticks", 0))
+		var start: Dictionary = run.get("start", {})
+		var levels := {}
+		var saved_levels: Dictionary = start.get("levels", {})
+		for id in saved_levels:
+			levels[String(id)] = int(saved_levels[id])
+		var groups: Array = []
+		for group in start.get("groups", []):
+			groups.append(String(group))
+		# The seed must go back to an int: the RNGs are seeded from its hash.
+		sim = BattleSim.new(int(run.get("seed", 0)), levels, groups)
+
+	## Steps at most `budget` ticks, applying each input at its tick; true once
+	## the run is back at the tick it was left at (or has ended).
+	func advance(budget: int) -> bool:
+		while true:
+			var target := int(_inputs[_next].tick) if _next < _inputs.size() else _last
+			while sim.alive and sim.ticks < target:
+				if budget <= 0:
+					return false
+				sim.step()
+				budget -= 1
+			if _next >= _inputs.size():
+				return true
+			var input: Dictionary = _inputs[_next]
+			_next += 1
+			if input.has("end"):
+				sim.end_run()
+			else:
+				sim.buy(String(input.buy), int(input.count))
+		return true
+
+
+## Plays a recorded run again, all at once, to the tick it was left at.
 static func replay(run: Dictionary) -> BattleSim:
-	var start: Dictionary = run.get("start", {})
-	var levels := {}
-	var saved_levels: Dictionary = start.get("levels", {})
-	for id in saved_levels:
-		levels[String(id)] = int(saved_levels[id])
-	var groups: Array = []
-	for group in start.get("groups", []):
-		groups.append(String(group))
-	# The seed must go back to an int: the RNGs are seeded from its hash.
-	var sim := BattleSim.new(int(run.get("seed", 0)), levels, groups)
-	for input in run.get("inputs", []):
-		while sim.alive and sim.ticks < int(input.tick):
-			sim.step()
+	var again := Replay.new(run)
+	again.advance(MOST_TICKS)
+	return again.sim
+
+
+## Whether a saved record has the shape a replay needs, with sane numbers.
+## A damaged save's run fails here rather than part way through a replay.
+static func is_replayable(run) -> bool:
+	if not run is Dictionary:
+		return false
+	if not (run.get("seed") is float or run.get("seed") is int):
+		return false
+	if not run.get("start") is Dictionary or not run.start.get("levels") is Dictionary or not run.start.get("groups") is Array:
+		return false
+	if not run.get("inputs") is Array or not run.get("result") is Dictionary:
+		return false
+	var last = run.result.get("ticks")
+	if not (last is float or last is int) or int(last) < 0 or int(last) > MOST_TICKS:
+		return false
+	var previous := 0
+	for input in run.inputs:
+		if not input is Dictionary or not (input.get("tick") is float or input.get("tick") is int):
+			return false
+		var tick := int(input.tick)
+		if tick < previous or tick > int(last):
+			return false
+		previous = tick
 		if input.has("end"):
-			sim.end_run()
-		else:
-			sim.buy(String(input.buy), int(input.count))
-	var last := int(run.get("result", {}).get("ticks", 0))
-	while sim.alive and sim.ticks < last:
-		sim.step()
-	return sim
+			continue
+		# A row this version doesn't know would stop the game on an assert.
+		if not input.get("buy") is String or not String(input.buy) in TowerData.rows():
+			return false
+		if not (input.get("count") is float or input.get("count") is int):
+			return false
+	return true
 
 
 ## Whether a replay ended where the recorded run did.

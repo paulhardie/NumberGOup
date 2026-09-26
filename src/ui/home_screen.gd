@@ -13,7 +13,8 @@ signal export_pressed
 var workshop: Workshop
 var _coins: Label
 var _record: Label
-var _exported: Label
+## A line under the buttons: where a report went, or what happened to a run.
+var _note: Label
 
 
 func _ready() -> void:
@@ -60,12 +61,12 @@ func _ready() -> void:
 	export.text = "Export report"
 	export.pressed.connect(func(): export_pressed.emit())
 	column.add_child(export)
-	_exported = Label.new()
-	_exported.add_theme_color_override("font_color", Palette.MUTED)
-	_exported.add_theme_font_size_override("font_size", 12)
-	_exported.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_exported.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	column.add_child(_exported)
+	_note = Label.new()
+	_note.add_theme_color_override("font_color", Palette.MUTED)
+	_note.add_theme_font_size_override("font_size", 12)
+	_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(_note)
 	refresh()
 
 
@@ -77,7 +78,11 @@ func refresh() -> void:
 ## Says where the report went, from ActivityLog.export_report's result.
 func show_exported(result: Dictionary) -> void:
 	if result.is_empty():
-		_exported.text = "Couldn't write the report."
+		show_note("Couldn't write the report.")
 		return
-	_exported.text = "Saved %s (%d runs). Drop it into the chat.\n%s" % [
-		String(result.path).get_file(), int(result.runs), ProjectSettings.globalize_path(String(result.path)).get_base_dir()]
+	show_note("Saved %s (%d runs). Drop it into the chat.\n%s" % [
+		String(result.path).get_file(), int(result.runs), ProjectSettings.globalize_path(String(result.path)).get_base_dir()])
+
+
+func show_note(text: String) -> void:
+	_note.text = text

@@ -32,7 +32,8 @@ func _init() -> void:
 func _run() -> void:
 	for method in get_method_list():
 		if String(method.name).begins_with("test_"):
-			call(method.name)
+			# Awaited, so a test that waits a frame finishes before the next starts.
+			await call(method.name)
 	if _failures.is_empty():
 		print("PASS: tower tests (%d checks)" % _checks)
 		quit(0)
@@ -1117,10 +1118,145 @@ func test_screens_report_what_the_log_needs() -> void:
 	home.workshop = workshop
 	root.add_child(home)
 	home.show_exported({"path": "user://reports/number_go_up_report-x.json", "runs": 3, "entries": 9})
-	check(home._exported.text.begins_with("Saved number_go_up_report-x.json (3 runs)"), "Home says where the report went: %s" % home._exported.text)
+	check(home._note.text.begins_with("Saved number_go_up_report-x.json (3 runs)"), "Home says where the report went: %s" % home._note.text)
 	home.show_exported({})
-	check(home._exported.text == "Couldn't write the report.", "or that it couldn't")
+	check(home._note.text == "Couldn't write the report.", "or that it couldn't")
 	home.free()
+
+
+func test_a_replay_in_slices_ends_where_one_in_one_go_does() -> void:
+	var played := _played_run(7, 300.0)
+	var run := _through_json(RunReport.build(played))
+	var sliced := RunReport.Replay.new(run)
+	var slices := 0
+	while not sliced.advance(37):
+		slices += 1
+	check(slices > 20, "it took many slices: %d" % slices)
+	check(RunReport.matches(run, sliced.sim), "and ends where the run did")
+	check(sliced.sim.inputs == RunReport.replay(run).inputs, "with the same inputs as a replay in one go")
+
+
+func test_only_a_sound_record_is_replayable() -> void:
+	var run := _through_json(RunReport.build(_played_run(3, 60.0)))
+	check(RunReport.is_replayable(run), "a recorded run is")
+	var broken: Array[Dictionary] = []
+	for damage in ["seed", "start", "inputs", "result"]:
+		var copy: Dictionary = run.duplicate(true)
+		copy.erase(damage)
+		broken.append(copy)
+	var copy: Dictionary = run.duplicate(true)
+	copy.result.ticks = -5.0
+	broken.append(copy)
+	copy = run.duplicate(true)
+	copy.result.ticks = float(RunReport.MOST_TICKS + 1)
+	broken.append(copy)
+	copy = run.duplicate(true)
+	copy.inputs.append({"tick": 0.0, "buy": "damage", "count": 1.0})
+	broken.append(copy)
+	copy = run.duplicate(true)
+	copy.inputs.append({"tick": copy.result.ticks, "buy": "a_row_from_the_future", "count": 1.0})
+	broken.append(copy)
+	copy = run.duplicate(true)
+	copy.inputs.append({"tick": copy.result.ticks + 1.0, "end": true})
+	broken.append(copy)
+	for each in broken:
+		check(not RunReport.is_replayable(each), "a damaged record isn't: %s" % [each.keys()])
+	check(not RunReport.is_replayable("not a run") and not RunReport.is_replayable({}), "nor is something that isn't one")
+
+
+func test_the_save_keeps_a_run_in_progress_with_the_workshop() -> void:
+	_clear_test_saves()
+	var workshop := Workshop.new()
+	workshop.coins = 123.0
+	var run := RunReport.build(_played_run(5, 90.0))
+	run["banked"] = 40.0
+	check(Save.save_workshop(workshop, TEST_SAVE, run), "saved with a run")
+	check(is_equal_approx(Save.load_workshop(TEST_SAVE).coins, 123.0), "the Workshop loads as before")
+	var loaded := Save.load_run(TEST_SAVE)
+	check(RunReport.is_replayable(loaded) and loaded.banked == 40.0 and int(loaded.seed) == 5, "and the run comes back whole")
+	check(Save.save_workshop(workshop, TEST_SAVE), "saved again with no run")
+	check(Save.load_run(TEST_SAVE).is_empty(), "and then there's none")
+	# A version 1 save as the game wrote it before runs were kept.
+	var file := FileAccess.open(TEST_SAVE, FileAccess.WRITE)
+	file.store_string('{"version": 1, "workshop": {"coins": 50.0, "levels": {"damage": 3}, "open_groups": ["attack_start", "defense_start"], "best_wave": 8, "runs": 4}}')
+	file.close()
+	check(Save.load_workshop(TEST_SAVE).level("damage") == 3 and Save.load_run(TEST_SAVE).is_empty(), "an older save loads, with no run")
+	file = FileAccess.open(TEST_SAVE, FileAccess.WRITE)
+	file.store_string('{"version": 1, "workshop": {"coins": 50.0}, "run": "garbage"}')
+	file.close()
+	check(Save.load_run(TEST_SAVE).is_empty(), "a run that isn't one reads as none")
+	check(Save.load_run("user://no_such_save.json").is_empty(), "no file, no run")
+	_clear_test_saves()
+
+
+func test_a_saved_run_resumes_where_it_was_left() -> void:
+	var workshop := Workshop.new()
+	# Sturdy enough to live through the minute played.
+	workshop.levels = {"damage": 20, "health": 60, "health_regen": 30}
+	var first = BattleScreen.new()
+	first.workshop = workshop
+	root.add_child(first)
+	first.start_run(99)
+	for frame in range(1800):
+		first._process(1.0 / 30.0)
+		if frame % 40 == 0:
+			first._upgrades._cards["attack_speed" if frame % 80 == 0 else "critical_chance"].button.pressed.emit()
+	check(first.sim.alive, "the first screen's run is still going")
+	var coins_banked := workshop.coins
+	var saved := _through_json(first.run_state())
+	check(saved.has("banked") and is_equal_approx(float(saved.banked), first._banked), "the run keeps the Coins it has banked")
+	check(first.sim.inputs.size() > 1, "and some buys to replay: %d" % first.sim.inputs.size())
+	var second = BattleScreen.new()
+	second.workshop = workshop
+	second.resume = saved
+	root.add_child(second)
+	check(second.sim == null and second.run_state() == saved, "while it replays, the save keeps the run as it was loaded")
+	second._upgrades.show_tab("defense")
+	second._process(0.1)
+	var frames := 1
+	while second.sim == null and frames < 200:
+		second._process(0.0)
+		frames += 1
+	check(second.sim != null, "the run comes back")
+	check(second.sim.ticks == first.sim.ticks and second.sim.wave == first.sim.wave and is_equal_approx(second.sim.cash, first.sim.cash)
+		and is_equal_approx(second.sim.health, first.sim.health) and second.sim.enemies.size() == first.sim.enemies.size(), "exactly where it was left")
+	second._process(0.0)
+	check(is_equal_approx(workshop.coins, coins_banked), "without banking its Coins twice")
+	check(is_equal_approx(second._real_seconds, first._real_seconds), "keeping its play time")
+	second._process(1.0)
+	check(second.sim.ticks > first.sim.ticks, "and plays on")
+	check(not second.run_state().is_empty(), "saving itself as it goes")
+	second.sim.end_run()
+	check(second.run_state().is_empty(), "until it ends")
+	first.free()
+	second.free()
+
+
+func test_a_run_that_cant_be_replayed_is_given_up_not_played_wrong() -> void:
+	var played := _played_run(11, 120.0)
+	var tampered := _through_json(RunReport.build(played))
+	tampered.result.kills = float(played.kills + 1)
+	var failed: Array[Dictionary] = []
+	var screen = BattleScreen.new()
+	screen.workshop = Workshop.new()
+	screen.resume = tampered
+	screen.resume_failed.connect(func(saved): failed.append(saved))
+	root.add_child(screen)
+	for _frame in range(50):
+		screen._process(0.0)
+	await process_frame
+	check(failed.size() == 1 and int(failed[0].seed) == 11, "a replay that ends elsewhere says so, once")
+	check(screen.sim == null and screen.run_state().is_empty(), "and nothing is played or saved from it")
+	screen.free()
+	failed.clear()
+	var damaged = BattleScreen.new()
+	damaged.workshop = Workshop.new()
+	damaged.resume = {"seed": "x"}
+	damaged.resume_failed.connect(func(saved): failed.append(saved))
+	root.add_child(damaged)
+	await process_frame
+	check(failed.size() == 1 and damaged.run_state().is_empty(), "a damaged record fails straight away")
+	damaged.free()
 
 
 func test_numbers_read_as_the_towers() -> void:
@@ -1178,3 +1314,23 @@ func _clear_test_logs() -> void:
 		for name in DirAccess.get_files_at(TEST_REPORTS):
 			DirAccess.remove_absolute(TEST_REPORTS + "/" + name)
 		DirAccess.remove_absolute(TEST_REPORTS)
+
+
+## A run played by buying something every few seconds, `seconds` long.
+func _played_run(seed_value: int, seconds: float) -> BattleSim:
+	var sim := BattleSim.new(seed_value)
+	var rows := ["damage", "attack_speed", "health", "health_regen"]
+	var turn := 0
+	while sim.alive and sim.time < seconds:
+		sim.step()
+		if sim.ticks % 61 == 0:
+			sim.buy(rows[turn % rows.size()], [1, 5, 0][turn % 3])
+			turn += 1
+	return sim
+
+
+## A record as it comes back from a file: every number a float.
+func _through_json(record: Dictionary) -> Dictionary:
+	var json := JSON.new()
+	json.parse(JSON.stringify(record, "", false, true))
+	return json.data
