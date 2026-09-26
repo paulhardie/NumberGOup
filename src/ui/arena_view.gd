@@ -1,8 +1,10 @@
 extends Control
-## Draws a BattleSim: the tower, its range, enemies walking in and shots in
-## flight. It reads the sim and never changes it.
+## Draws a BattleSim: the tower, its range and wall, enemies walking in,
+## shots in flight, land mines and shockwaves. It reads the sim and never
+## changes it.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
+const Guesses = preload("res://src/tower/guesses.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Palette = preload("res://src/ui/palette.gd")
 
@@ -12,6 +14,7 @@ const RANGE_SHARE := 0.64
 const TOWER_RADIUS_PX := 16.0
 const FLOAT_SECONDS := 0.9
 const FLASH_SECONDS := 0.2
+const SHOCKWAVE_SECONDS := 0.4
 
 const ENEMY_SIZE := {"basic": 9.0, "fast": 7.0, "ranged": 9.0, "tank": 13.0, "boss": 20.0}
 
@@ -23,6 +26,10 @@ var centre := Vector2.ZERO
 
 var _floats: Array[Dictionary] = []
 var _tower_flash := 0.0
+## Seconds since the last shockwave went out, while its ring is drawn.
+var _shockwave_age := SHOCKWAVE_SECONDS
+## Mine blasts fading: {at, age}.
+var _blasts: Array[Dictionary] = []
 
 
 func px_per_metre() -> float:
@@ -36,6 +43,10 @@ func to_view(world: Vector2) -> Vector2:
 ## Takes the sim's events for this frame and turns them into what fades.
 func absorb(events: Array[Dictionary], delta: float) -> void:
 	_tower_flash = maxf(0.0, _tower_flash - delta)
+	_shockwave_age += delta
+	for blast in _blasts:
+		blast.age += delta
+	_blasts = _blasts.filter(func(blast): return blast.age < FLASH_SECONDS * 2.0)
 	for item in _floats:
 		item.age += delta
 	_floats = _floats.filter(func(item): return item.age < FLOAT_SECONDS)
@@ -49,7 +60,24 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 				var name := String(TowerData.upgrade(event.id).title).capitalize()
 				_floats.append({"text": "Free: " + name, "at": Vector2(0, -8), "age": 0.0, "colour": Palette.COIN})
 			"rapid_fire":
-				_floats.append({"text": "Rapid Fire", "at": Vector2(0, -8), "age": 0.0, "colour": Palette.TEXT})
+				_tower_note("Rapid Fire", Palette.TEXT)
+			"package":
+				_tower_note("Recovery", Palette.ACCENT)
+			"death_defy":
+				_tower_note("Death Defied", Palette.COIN)
+			"wall_down":
+				_tower_note("Wall down", Palette.WARNING)
+			"wall_up":
+				_tower_note("Wall rebuilt", Palette.ACCENT)
+			"shockwave":
+				_shockwave_age = 0.0
+			"mine":
+				_blasts.append({"at": event.at, "age": 0.0})
+
+
+## A word that rises from the tower.
+func _tower_note(text: String, colour: Color) -> void:
+	_floats.append({"text": text, "at": Vector2(0, -8), "age": 0.0, "colour": colour})
 
 
 func _draw() -> void:
@@ -58,6 +86,20 @@ func _draw() -> void:
 	var reach_px := sim.stat("range") * px_per_metre()
 	draw_circle(centre, reach_px, Palette.SURFACE)
 	draw_arc(centre, reach_px, 0.0, TAU, 96, Color(Palette.ACCENT, 0.28), 2.0, true)
+	if _shockwave_age < SHOCKWAVE_SECONDS:
+		# The ring runs out to the edge of range and fades as it goes.
+		var spread := _shockwave_age / SHOCKWAVE_SECONDS
+		draw_arc(centre, reach_px * spread, 0.0, TAU, 96, Color(Palette.TEXT, 0.6 * (1.0 - spread)), 3.0, true)
+	for mine in sim.mines:
+		draw_circle(to_view(mine), 3.0, Palette.WARNING)
+	var blast_px := sim.stat("land_mine_radius") * px_per_metre()
+	for blast in _blasts:
+		var fade: float = 1.0 - blast.age / (FLASH_SECONDS * 2.0)
+		draw_circle(to_view(blast.at), blast_px, Color(Palette.WARNING, 0.35 * fade))
+	if sim.wall_up():
+		# Brighter the more of its health it has left.
+		var standing := sim.wall_health / maxf(sim.wall_max_health(), 0.001)
+		draw_arc(centre, Guesses.WALL_DISTANCE_M * px_per_metre(), 0.0, TAU, 64, Color(Palette.TEXT, 0.25 + 0.5 * standing), 3.0, true)
 	_draw_tower()
 	for enemy in sim.enemies:
 		_draw_enemy(enemy)
@@ -81,6 +123,9 @@ func _draw_tower() -> void:
 	draw_polyline(points, colour, 4.0 if sim.rapid_fire_left > 0.0 else 2.0, true)
 	# The tower's health, as the hexagon filling from below.
 	var share := clampf(sim.health / sim.max_health(), 0.0, 1.0)
+	if sim.health > sim.max_health():
+		# Overhealed by a recovery package: a ring around the tower.
+		draw_arc(centre, TOWER_RADIUS_PX + 4.0, 0.0, TAU, 32, Color(Palette.ACCENT, 0.6), 2.0, true)
 	draw_circle(centre, TOWER_RADIUS_PX * 0.55 * share, Color(colour, 0.5))
 
 

@@ -10,6 +10,7 @@ const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Palette = preload("res://src/ui/palette.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
+const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 const Save = preload("res://src/tower/save.gd")
 
 const TEST_SAVE := "user://test_tower_save.json"
@@ -272,9 +273,65 @@ func test_pressing_an_upgrade_card_buys_it() -> void:
 	screen.sim.health = 0.3
 	screen._refresh()
 	check(screen._health_text.text.begins_with("1 /"), "a tower still standing never reads 0: %s" % screen._health_text.text)
+	screen.sim.health = screen.sim.max_health() * 1.5
+	screen._refresh()
+	check(screen._health_text.text.begins_with(Palette.number(roundf(screen.sim.health))), "overhealed health reads above the most: %s" % screen._health_text.text)
+	check(screen._health_bar.value == screen._health_bar.max_value, "and the bar is full")
 	screen._upgrades.show_tab("utility")
 	check(screen._upgrades._cards.is_empty() and screen._upgrades._empty.visible, "Utility says its rows open in the Workshop")
 	screen.free()
+
+
+func test_the_multiplier_buys_several_levels_a_press() -> void:
+	var screen = BattleScreen.new()
+	root.add_child(screen)
+	screen.sim.cash = 1e6
+	var panel = screen._upgrades
+	panel._amount_button.pressed.emit()
+	check(panel._amount_button.text == "Buy ×5", "one press of the multiplier makes it ×5")
+	panel.refresh()
+	check(panel._cards["damage"].price.text.begins_with("+5 $"), "and a card quotes five levels: %s" % panel._cards["damage"].price.text)
+	panel._cards["damage"].button.pressed.emit()
+	check(screen.sim.level("damage") == 5, "pressing it buys five")
+	panel._amount_button.pressed.emit()
+	panel._amount_button.pressed.emit()
+	check(panel._amount_button.text == "Buy Max", "×10, then Max")
+	screen.sim.cash = 0.0
+	panel.refresh()
+	check(panel._cards["damage"].price.text == "$" + Palette.number(screen.sim.price("damage")), "Max it can't afford quotes the next level: %s" % panel._cards["damage"].price.text)
+	panel._amount_button.pressed.emit()
+	check(panel._amount_button.text == "Buy ×1", "and back round to ×1")
+	screen.free()
+
+
+func test_the_workshop_shows_only_each_tabs_next_group() -> void:
+	var workshop := Workshop.new()
+	workshop.coins = 60.0
+	var shop = WorkshopScreen.new()
+	shop.workshop = workshop
+	root.add_child(shop)
+	var unlocks := _unlock_cards(shop)
+	check(unlocks.size() == 1, "one Unlock card on the Attack tab: %d" % unlocks.size())
+	check(not unlocks[0].disabled, "Range's, which 60 Coins can open")
+	unlocks[0].pressed.emit()
+	check(workshop.is_group_open("range") and workshop.coins == 10.0, "pressing it opens Range for 50")
+	unlocks = _unlock_cards(shop)
+	check(unlocks.size() == 1 and unlocks[0].disabled, "then Multishot's card shows, too dear for now")
+	workshop.coins = 1e15
+	for group in ["multishot", "rapid_fire", "bounce_shot", "super_crit", "rend_armor"]:
+		workshop.open_group(group)
+	shop.show_tab("attack")
+	check(_unlock_cards(shop).is_empty(), "with every Attack group open there is no Unlock card")
+	shop.free()
+
+
+## The Workshop screen's Unlock cards: its list's buttons outside the row grid.
+func _unlock_cards(shop) -> Array[Button]:
+	var found: Array[Button] = []
+	for child in shop._list.get_children():
+		if child is Button and not child.is_queued_for_deletion():
+			found.append(child)
+	return found
 
 
 func test_a_fresh_workshop_is_the_towers() -> void:
@@ -306,10 +363,76 @@ func test_groups_open_in_the_towers_order() -> void:
 	check_near(workshop.coins, 1e6 - 50.0, 0.0, "for 50 Coins")
 	check(workshop.next_group("attack") == "multishot" and workshop.open_group("multishot"), "then Multishot, for 400")
 	check(workshop.open_group("rapid_fire") and workshop.open_group("bounce_shot"), "then Rapid Fire and Bounce Shot")
-	check(workshop.next_group("attack") == "super_crit" and not workshop.can_open("super_crit"), "Super Crit isn't built yet, so it can't be opened")
+	check(workshop.next_group("attack") == "super_crit" and not workshop.can_open("super_crit"), "Super Crit's 100M Coins are more than there are")
 	check(workshop.open_group("defense") and workshop.open_group("thorns"), "Defense, then Thorns")
 	check(workshop.open_group("cash") and workshop.open_group("coins"), "Cash, then Coins")
 	check(workshop.buy("thorns") and workshop.buy("cash_bonus"), "their rows can then be bought")
+	workshop.coins = 1e12
+	check(workshop.open_group("super_crit") and workshop.open_group("rend_armor"), "then Super Crit, then Rend Armor")
+	check(workshop.next_group("attack") == "", "and Attack has nothing left to open")
+
+
+func test_every_group_opens_and_its_rows_can_be_bought() -> void:
+	var workshop := Workshop.new()
+	workshop.coins = 1e15
+	for tab in ["attack", "defense", "utility"]:
+		while workshop.next_group(tab) != "":
+			var group := workshop.next_group(tab)
+			check(workshop.open_group(group), "%s opens" % group)
+	check(workshop.open_groups.size() == TowerData.groups().size(), "every group is open")
+	for id in TowerData.rows():
+		check(workshop.can_buy(id), "%s can be bought once its group is open" % id)
+	var sim := BattleSim.new(1, workshop.levels, workshop.open_groups)
+	sim.cash = 1e9
+	for id in TowerData.rows():
+		check(sim.can_buy(id), "%s can be bought in a run" % id)
+
+
+func test_multi_buy_in_the_workshop() -> void:
+	var workshop := Workshop.new()
+	var prices: Array = TowerData.upgrade("damage")["coin_prices"]
+	var five := 0.0
+	for index in range(5):
+		five += float(prices[index])
+	workshop.coins = five
+	var buying := workshop.plan("damage", 5)
+	check(int(buying.levels) == 5 and is_equal_approx(float(buying.cost), five), "×5 quotes five levels, priced one at a time: %s" % [buying])
+	check(not workshop.can_buy("damage", 10) and not workshop.buy("damage", 10), "×10 it can't afford buys nothing")
+	check(workshop.level("damage") == 0 and workshop.coins == five, "and changes nothing")
+	check(workshop.buy("damage", 5) and workshop.level("damage") == 5, "×5 buys five levels")
+	check_near(workshop.coins, 0.0, 0.0001, "for exactly what it quoted")
+	workshop.coins = 1000.0
+	check(workshop.buy("damage", 0), "Max buys")
+	check(workshop.coins < workshop.price("damage"), "as many levels as the Coins cover: %d, %s left" % [workshop.level("damage"), workshop.coins])
+	var top := TowerData.max_level("critical_chance")
+	workshop.levels["critical_chance"] = top - 3
+	workshop.coins = 1e12
+	check(int(workshop.plan("critical_chance", 10).levels) == 3, "×10 near the top quotes only the levels left")
+	check(workshop.buy("critical_chance", 0) and workshop.level("critical_chance") == top, "Max stops at the last level")
+	check(not workshop.can_buy("critical_chance", 1) and not workshop.can_buy("critical_chance", 0), "and nothing more can be bought")
+
+
+func test_multi_buy_in_a_run() -> void:
+	var sim := _quiet_sim()
+	var prices: Array = TowerData.upgrade("damage")["cash_prices"]
+	var ten := 0.0
+	for index in range(10):
+		ten += float(prices[index])
+	sim.cash = ten
+	check(sim.buy("damage", 10) and sim.level("damage") == 10, "×10 buys ten levels")
+	check_near(sim.cash, 0.0, 0.0001, "at the run's prices, summed")
+	check(sim.price("damage") == float(prices[10]), "and the run's next price is the eleventh")
+	sim.cash = 500.0
+	var health_before := sim.health
+	var max_before := sim.max_health()
+	check(sim.buy("health", 0), "Max buys Health")
+	check(sim.cash < sim.price("health"), "as much as the Cash covers")
+	check_near(sim.health - health_before, sim.max_health() - max_before, 0.0001, "and heals by the whole gain")
+	sim.levels["attack_speed"] = TowerData.max_level("attack_speed") - 2
+	sim.cash = 1e9
+	check(sim.buy("attack_speed", 5) and sim.at_max("attack_speed"), "×5 two levels from the top buys the two")
+	sim.end_run()
+	check(not sim.buy("damage", 0), "a fallen tower buys nothing, Max or not")
 
 
 func test_a_run_starts_from_the_workshop() -> void:
@@ -701,6 +824,196 @@ func test_an_enemy_in_place_hits_once_a_second() -> void:
 	check(enemy.hits == 10 or enemy.hits == 11, "about ten hits in ten seconds: %d" % enemy.hits)
 
 
+func test_super_crit_multiplies_a_critical_again() -> void:
+	var levels := {"critical_chance": TowerData.max_level("critical_chance"), "super_crit_chance": TowerData.max_level("super_crit_chance"), "super_crit_mult": 10}
+	var sim := _quiet_sim(levels, BattleSim.START_GROUPS + ["super_crit"])
+	sim.record_events = true
+	var enemy := _place(sim, "basic", 10.0)
+	enemy.max_health = 1e12
+	enemy.health = 1e12
+	for _i in range(roundi(400.0 / BattleSim.TICK)):
+		sim.step()
+	var crit := sim.stat("damage") * sim.stat("critical_factor")
+	var strikes := sim.events.filter(func(event): return event.type == "enemy_hit" and event.critical)
+	var supers := strikes.filter(func(event): return is_equal_approx(event.damage, crit * sim.stat("super_crit_mult")))
+	for event in strikes:
+		check(is_equal_approx(event.damage, crit) or is_equal_approx(event.damage, crit * sim.stat("super_crit_mult")), "a crit deals Critical Factor, or times Super Crit Mult too: %s" % event.damage)
+	var share := float(supers.size()) / float(strikes.size())
+	check(share > 0.12 and share < 0.28, "about 20%% of crits are super: %.2f of %d" % [share, strikes.size()])
+
+
+func test_death_defy_ignores_a_hit_that_would_end_the_run_by_its_chance() -> void:
+	var defied := 0
+	var runs := 300
+	for seed_value in range(runs):
+		var sim := BattleSim.new(seed_value, {"death_defy": TowerData.max_level("death_defy")}, BattleSim.START_GROUPS + ["death_defy"])
+		sim._schedule.clear()
+		sim.wave_clock = -1e9
+		var enemy := _place(sim, "basic", Guesses.CONTACT_DISTANCE_M)
+		enemy.attack = 1e9
+		sim.step()
+		if sim.alive:
+			defied += 1
+			check(is_equal_approx(sim.health, sim.max_health()), "a defied hit takes nothing")
+	var share := float(defied) / float(runs)
+	check(share > 0.22 and share < 0.38, "about 30%% of deadly hits are defied: %.2f" % share)
+	var sim := _quiet_sim({"death_defy": TowerData.max_level("death_defy")}, BattleSim.START_GROUPS + ["death_defy"])
+	var enemy := _place(sim, "basic", Guesses.CONTACT_DISTANCE_M)
+	sim.health = 1e6
+	sim.step()
+	check(sim.health < 1e6, "a hit that wouldn't end the run is never defied")
+
+
+func test_rend_armor_makes_later_strikes_hit_harder_up_to_its_cap() -> void:
+	var levels := {"rend_armor_chance": TowerData.max_level("rend_armor_chance"), "rend_armor_mult": TowerData.max_level("rend_armor_mult")}
+	var closed := _quiet_sim(levels)
+	var sim := _quiet_sim(levels, BattleSim.START_GROUPS + ["rend_armor"])
+	for each in [closed, sim]:
+		each.record_events = true
+		var enemy := _place(each, "basic", 10.0)
+		enemy.max_health = 1e12
+		enemy.health = 1e12
+		for _i in range(roundi(120.0 / BattleSim.TICK)):
+			each.step()
+	check(closed.enemies[0].rend == 0.0, "no rending before Rend Armor opens")
+	var enemy: BattleSim.Enemy = sim.enemies[0]
+	check(enemy.rend > 0.0 and enemy.rend <= BattleSim.REND_CAP, "rends stack on the enemy: %s" % enemy.rend)
+	var plain := sim.events.filter(func(event): return event.type == "enemy_hit" and not event.critical)
+	var first: float = plain[0].damage
+	var last: float = plain[-1].damage
+	check(last > first and last <= first * (1.0 + BattleSim.REND_CAP) + 0.0001, "later strikes hit harder, by at most 800%% more: %s then %s" % [first, last])
+	enemy.rend = BattleSim.REND_CAP - 0.01
+	for _i in range(roundi(30.0 / BattleSim.TICK)):
+		sim.step()
+	check(enemy.rend == BattleSim.REND_CAP, "rending stops at 800%% more: %s" % enemy.rend)
+
+
+func test_shockwave_pushes_enemies_in_range_back_but_not_bosses() -> void:
+	var closed := _quiet_sim()
+	closed.record_events = true
+	for _i in range(roundi(25.0 / BattleSim.TICK)):
+		closed.step()
+	check(closed.events.filter(func(event): return event.type == "shockwave").is_empty(), "no shockwaves before Shockwave opens")
+	var sim := _quiet_sim({}, BattleSim.START_GROUPS + ["shockwave"])
+	sim.record_events = true
+	var near := _place(sim, "basic", 20.0)
+	var far := _place(sim, "basic", 50.0)
+	var boss := _place(sim, "boss", 20.0)
+	for enemy in [near, far, boss]:
+		enemy.max_health = 1e12
+		enemy.health = 1e12
+	while sim.events.filter(func(event): return event.type == "shockwave").is_empty():
+		sim.step()
+	check_near(sim.time, sim.stat("shockwave_frequency"), BattleSim.TICK * 1.5, "the first shockwave comes after Shockwave Frequency seconds")
+	check_near(near.distance, 20.0 + sim.stat("shockwave_size"), 0.0001, "an enemy in range is pushed back by Shockwave Size")
+	check_near(far.distance, 50.0, 0.0, "one out of range isn't")
+	check_near(boss.distance, 20.0, 0.0, "nor is a boss")
+
+
+func test_land_mines_are_laid_in_range_and_blast_what_walks_onto_them() -> void:
+	var sim := _quiet_sim({"land_mine_chance": TowerData.max_level("land_mine_chance")}, BattleSim.START_GROUPS + ["land_mines"])
+	var target := _place(sim, "basic", 25.0)
+	target.angle = PI
+	target.max_health = 1e12
+	target.health = 1e12
+	for _i in range(roundi(60.0 / BattleSim.TICK)):
+		sim.step()
+	check(not sim.mines.is_empty(), "shots lay mines: %d" % sim.mines.size())
+	for mine in sim.mines:
+		check(mine.length() >= Guesses.CONTACT_DISTANCE_M - 0.0001 and mine.length() <= sim.stat("range") + 0.0001, "a mine lies in range: %s" % mine.length())
+	sim = _quiet_sim({}, BattleSim.START_GROUPS + ["land_mines"])
+	sim.record_events = true
+	sim.mines = [Vector2(20.0, 0.0)]
+	var walker := _place(sim, "basic", 21.0)
+	var beside := _place(sim, "basic", 20.0)
+	beside.angle = 0.2
+	var away := _place(sim, "basic", 20.0)
+	away.angle = PI
+	for enemy in [walker, away]:
+		enemy.max_health = 1000.0
+		enemy.health = 1000.0
+	beside.health = 1.0
+	var kills := sim.kills
+	sim.step()
+	check(sim.mines.is_empty(), "a walking enemy within 2 m sets the mine off")
+	check_near(walker.health, 1000.0 - sim.stat("damage") * sim.stat("land_mine_damage"), 0.0001, "the blast deals Land Mine Damage's share of Damage")
+	check(not sim.enemies.has(beside) and sim.kills == kills + 1, "an enemy within Land Mine Radius it kills is paid for")
+	check_near(away.health, 1000.0, 0.0, "one out of the radius is untouched")
+
+
+func test_the_wall_stops_melee_enemies_until_it_falls_then_rebuilds() -> void:
+	check(not _quiet_sim().wall_up(), "no wall before Wall opens")
+	var sim := _quiet_sim({"health": 100}, BattleSim.START_GROUPS + ["wall"])
+	sim.record_events = true
+	check(sim.wall_up() and is_equal_approx(sim.wall_health, sim.max_health() * sim.stat("wall_health")), "the wall starts at Wall Health's share of Health")
+	var walker := _place(sim, "basic", 12.0)
+	walker.speed = 30.0
+	walker.max_health = 1e12
+	walker.health = 1e12
+	for _i in range(30):
+		sim.step()
+	check_near(walker.distance, Guesses.WALL_DISTANCE_M, 0.0, "a melee enemy stops at the wall")
+	check(sim.wall_health < sim.wall_max_health() and is_equal_approx(sim.health, sim.max_health()), "and hits the wall, not the tower")
+	sim.wall_health = 0.01
+	while sim.wall_up():
+		sim.step()
+	check(not sim.events.filter(func(event): return event.type == "wall_down").is_empty(), "the wall falls")
+	check_near(sim.wall_rebuild_in, sim.stat("wall_rebuild"), BattleSim.TICK, "and rebuilds after Wall Rebuild seconds")
+	for _i in range(15):
+		sim.step()
+	check(walker.distance < Guesses.WALL_DISTANCE_M, "the enemy walks on once the wall is down")
+	sim.enemies.clear()
+	sim.wall_rebuild_in = 0.5
+	for _i in range(16):
+		sim.step()
+	check(sim.wall_up() and is_equal_approx(sim.wall_health, sim.wall_max_health()), "a rebuilt wall is whole")
+
+
+func test_recovery_packages_heal_past_health_up_to_max_recovery() -> void:
+	var closed := _quiet_sim({"package_chance": TowerData.max_level("package_chance")})
+	closed.health = 1.0
+	for _i in range(50):
+		closed._pay_wave_end()
+	check(closed.health == 1.0, "no packages before Recovery Packages opens")
+	var sim := _quiet_sim({"package_chance": TowerData.max_level("package_chance")}, BattleSim.START_GROUPS + ["recovery_packages"])
+	sim.record_events = true
+	var drops := 0
+	for _i in range(1000):
+		sim.events.clear()
+		sim.health = sim.max_health()
+		sim._pay_wave_end()
+		if not sim.events.filter(func(event): return event.type == "package").is_empty():
+			drops += 1
+			check_near(sim.health, sim.max_health() * (1.0 + sim.stat("recovery_amount")), 0.0001, "a package heals Recovery Amount's share of Health, past it")
+	check(drops > 250 and drops < 350, "about 30%% of waves drop one: %d of 1000" % drops)
+	var over := sim.health
+	sim._heal(1.0)
+	check(sim.health >= over, "regen and lifesteal never cut an overheal")
+	sim.health = sim.max_health() * sim.stat("max_recovery")
+	for _i in range(20):
+		sim._pay_wave_end()
+	check_near(sim.health, sim.max_health() * sim.stat("max_recovery"), 0.0001, "never past Max Recovery times Health")
+
+
+func test_enemy_level_skip_holds_back_a_share_of_waves() -> void:
+	var closed := _quiet_sim({"enemy_health_level_skip": 699, "enemy_attack_level_skip": 699})
+	for _i in range(20):
+		closed._advance_levels()
+	check(closed.health_level == 21 and closed.attack_level == 21, "without it, every wave is a level up")
+	var sim := _quiet_sim({"enemy_health_level_skip": 699, "enemy_attack_level_skip": 199}, BattleSim.START_GROUPS + ["enemy_level_skip"])
+	for _i in range(100):
+		sim._advance_levels()
+	check(sim.health_level == 1 + 100 - 35, "35%% of 100 waves skip Health: level %d" % sim.health_level)
+	check(sim.attack_level == 1 + 100 - 10, "10%% skip Attack: level %d" % sim.attack_level)
+	sim._schedule = [{"kind": "tank", "at": 0.0}]
+	sim._next_spawn = 0
+	sim.wave_clock = 0.0
+	sim._spawn_due()
+	var tank: BattleSim.Enemy = sim.enemies[-1]
+	check_near(tank.max_health, TowerData.enemy_health(sim.health_level, "tank"), 0.0001, "new enemies have the held-back health")
+	check_near(tank.attack, TowerData.enemy_attack(sim.attack_level, "tank"), 0.0001, "and attack")
+
+
 func test_numbers_read_as_the_towers() -> void:
 	check(Palette.number(2.35) == "2.35", "two decimals while small")
 	check(Palette.number(3.0) == "3", "whole numbers stay whole")
@@ -710,8 +1023,8 @@ func test_numbers_read_as_the_towers() -> void:
 
 
 ## A sim with nothing spawning, for placing enemies by hand.
-func _quiet_sim() -> BattleSim:
-	var sim := BattleSim.new(1)
+func _quiet_sim(row_levels: Dictionary = {}, groups: Array = BattleSim.START_GROUPS) -> BattleSim:
+	var sim := BattleSim.new(1, row_levels, groups)
 	sim._schedule.clear()
 	sim.wave_clock = -1e9
 	sim.cash = 0.0

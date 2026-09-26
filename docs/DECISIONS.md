@@ -888,3 +888,13 @@ Rules:
 - **Consequences:** the rebuild's pace fits the owner's account once its ×9 Coins are counted; a pack-free account is about nine times slower in Coins. The "about an hour to wave 100" research is unverified and doesn't fit a pack-free fresh account under these rules. The milestone 1 test now expects a tower buying nothing to fall by wave 5 within 3 minutes (was wave 3).
 - **Revisit when:** the owner reads a pack-free account's Coins at a known wave, or times from a fresh save to a wave.
 
+## D076 — Every Workshop group, The Tower's Unlock card, and multi-buy
+
+- **Status:** Accepted (2026-09-26) on owner direction: "add the multi buy buttons, and add in the remaining workshop items", and "The Tower uses progressive disclosure so when you go to workshop there is a big Unlock for 75 coins". Implemented (2026-09-26) on `claude/great-tesla-9kfp95`.
+- **Context:** after D075 the Workshop had the groups up to Orbs; Super Crit and Death Defy showed as coming soon, and six groups TheTowerSDK's table has (Shockwave, Land Mines, the Wall, Rend Armor, Recovery Packages, Enemy Level Skip) weren't imported. The Workshop listed every locked group with its price, which The Tower doesn't, and bought one level a tap.
+- **Decision:**
+  1. All eight groups are imported through `tools/import_tower_workshop.py` at The Tower's prices and unlock order and work in battle. Where The Tower doesn't say how something works, the rule is ours and listed under the spec's Guesses. Enemy Level Skip is steady, not a roll: The Tower's patch notes say "a 50% chance will skip every other wave with no variance".
+  2. A Workshop tab shows only its next locked group, as one big Unlock card with its price; the groups after it stay hidden until it opens.
+  3. The Workshop and the run's upgrade panel carry D018's buy multiplier, `×1 · ×5 · ×10 · Max`, one per screen, labelled "Buy" so it isn't read as the game speed. Levels are priced one at a time and summed; a ×N press it can't afford buys nothing and says what it would cost; Max buys as many as the Coins or Cash cover. The multiplier isn't saved.
+- **Consequences:** no Workshop group is left unbuilt, so the "built groups" list is gone. The later groups cost 100K to 500B Coins, far past where careers reach today, so they change nothing in the first hours; `--seeds 10 --buy even` still dies on wave 8. The save is unchanged.
+- **Revisit when:** the owner reads how any of the new mechanics behave in The Tower (the wall's distance and whether ranged shots hit it, mine placement, whether shockwaves move bosses).

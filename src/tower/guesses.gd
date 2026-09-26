@@ -53,6 +53,15 @@ const KNOCKBACK_METRES_PER_FORCE := 5.0
 const ORB_TURNS_PER_SECOND_AT_FIRST_LEVEL := 1.0
 const ORB_HIT_M := 3.0
 
+## The Wall stands this far out; melee enemies stop at it and hit it while
+## it stands. Ours; The Tower gives no units.
+const WALL_DISTANCE_M := 10.0
+
+## Land Mines: at most this many lie in range at once, and a walking enemy
+## within this many metres of one sets it off. Ours.
+const MAX_LAND_MINES := 30
+const LAND_MINE_TRIGGER_M := 2.0
+
 ## A shot's flight speed, metres a second.
 const SHOT_SPEED_M := 80.0
 

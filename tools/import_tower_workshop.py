@@ -34,6 +34,8 @@ ROWS = [
     ("bounce_shot_range", "Bounce Shot Range", "BOUNCE SHOT RANGE", "attack", "bounce_shot", "metres", "How far a shot can bounce.", 5.0),
     ("super_crit_chance", "Super Crit Chance", "SUPER CRIT CHANCE", "attack", "super_crit", "percent", "Chance a critical shot is a super critical.", 0.01),
     ("super_crit_mult", "Super Crit Mult", "SUPER CRIT MULT", "attack", "super_crit", "multiplier", "How much a super critical multiplies a critical.", 1.0),
+    ("rend_armor_chance", "Rend Armor Chance", "REND ARMOR CHANCE", "attack", "rend_armor", "percent", "Chance a strike rends its enemy's armour, so it takes more from every strike after.", 0.01),
+    ("rend_armor_mult", "Rend Armor Mult", "REND ARMOR MULT", "attack", "rend_armor", "percent", "How much more damage each rend adds, stacking to 800% more.", 1.0),
     ("health", "Health", "HEALTH", "defense", "defense_start", "flat", "The Number every run starts with.", 1.0),
     ("health_regen", "Health Regen", "HEALTH REGEN", "defense", "defense_start", "per_second", "Number regained every second of a run.", 1.0),
     ("defense_percent", "Defense Percent", "DEFENSE %", "defense", "defense", "percent", "Share taken off every hit, before Defense Absolute.", 0.01),
@@ -45,6 +47,13 @@ ROWS = [
     ("orb_speed", "Orb Speed", "ORB SPEED", "defense", "orbs", "flat", "How fast the orbs circle: a turn a second at its first level (0.4), faster in proportion.", 10.0),
     ("orbs", "Orbs", "ORBS", "defense", "orbs", "count", "Orbs circling the Number. Any enemy but a boss they touch dies.", 1.0),
     ("death_defy", "Death Defy", "DEATH DEFY", "defense", "death_defy", "percent", "Chance a hit that would end the run is ignored.", 0.01),
+    ("shockwave_size", "Shockwave Size", "SHOCKWAVE SIZE", "defense", "shockwave", "metres", "How far a shockwave pushes enemies in range back.", 10.0),
+    ("shockwave_frequency", "Shockwave Frequency", "SHOCKWAVE FREQUENCY", "defense", "shockwave", "seconds", "Seconds between shockwaves.", 1.0),
+    ("land_mine_chance", "Land Mine Chance", "LAND MINE CHANCE", "defense", "land_mines", "percent", "Chance a shot also lays a land mine in range.", 0.01),
+    ("land_mine_damage", "Land Mine Damage", "LAND MINE DAMAGE", "defense", "land_mines", "percent", "A mine's blast, as a share of Damage.", 0.01),
+    ("land_mine_radius", "Land Mine Radius", "LAND MINE RADIUS", "defense", "land_mines", "metres", "How far a mine's blast reaches.", 10.0),
+    ("wall_health", "Wall Health", "WALL HEALTH", "defense", "wall", "percent", "The wall's health, as a share of Health.", 0.01),
+    ("wall_rebuild", "Wall Rebuild", "WALL REBUILD", "defense", "wall", "seconds", "Seconds a fallen wall takes to rebuild.", 1.0),
     ("cash_bonus", "Cash Bonus", "CASH BONUS", "utility", "cash", "multiplier", "Multiplies the Cash kills and waves pay.", 1.0),
     ("cash_per_wave", "Cash / Wave", "CASH / WAVE", "utility", "cash", "flat", "Cash paid as each wave ends.", 1.0),
     ("coins_per_kill", "Coins / Kill Bonus", "COINS / KILL BONUS", "utility", "coins", "multiplier", "Multiplies the Coins kills pay.", 1.0),
@@ -53,6 +62,11 @@ ROWS = [
     ("free_defense_upgrade", "Free Defense Upgrade", "FREE DEFENSE UPGRADE", "utility", "free_upgrades", "percent", "Chance each wave raises a run Defense Upgrade for free.", 0.01),
     ("free_utility_upgrade", "Free Utility Upgrade", "FREE UTILITY UPGRADE", "utility", "free_upgrades", "percent", "Chance each wave raises a run Utility Upgrade for free.", 0.01),
     ("interest", "Interest / Wave", "INTEREST / WAVE", "utility", "interest", "percent", "Share of the Cash held paid again as each wave ends.", 0.01),
+    ("package_chance", "Package Chance", "PACKAGE CHANCE", "utility", "recovery_packages", "percent", "Chance a wave drops a recovery package.", 1.0),
+    ("recovery_amount", "Recovery Amount", "RECOVERY AMOUNT", "utility", "recovery_packages", "percent", "A package's healing, as a share of Health.", 1.0),
+    ("max_recovery", "Max Recovery", "MAX RECOVERY", "utility", "recovery_packages", "multiplier", "How far past Health packages can heal.", 1.0),
+    ("enemy_attack_level_skip", "Enemy Attack Level Skip", "ENEMY ATTACK LEVEL SKIP", "utility", "enemy_level_skip", "percent", "Share of waves whose enemies don't hit harder than the wave before's.", 1.0),
+    ("enemy_health_level_skip", "Enemy Health Level Skip", "ENEMY HEALTH LEVEL SKIP", "utility", "enemy_level_skip", "percent", "Share of waves whose enemies don't get tougher than the wave before's.", 1.0),
 ]
 
 # (id, category, order, Coins to unlock). Order within a category is the order
@@ -62,9 +76,10 @@ GROUPS = [
     ("rapid_fire", "attack", 3, 1500), ("bounce_shot", "attack", 4, 10000), ("super_crit", "attack", 5, 100000000),
     ("defense_start", "defense", 0, 0), ("defense", "defense", 1, 75), ("thorns", "defense", 2, 500),
     ("lifesteal", "defense", 3, 2000), ("knockback", "defense", 4, 5000), ("orbs", "defense", 5, 15000),
-    ("death_defy", "defense", 6, 1500000),
+    ("shockwave", "defense", 6, 100000), ("land_mines", "defense", 7, 400000), ("death_defy", "defense", 8, 1500000),
+    ("wall", "defense", 9, 500000000), ("rend_armor", "attack", 6, 500000000000),
     ("cash", "utility", 0, 40), ("coins", "utility", 1, 100), ("free_upgrades", "utility", 2, 800),
-    ("interest", "utility", 3, 5000),
+    ("interest", "utility", 3, 5000), ("recovery_packages", "utility", 4, 1500000), ("enemy_level_skip", "utility", 5, 1000000000),
 ]
 
 

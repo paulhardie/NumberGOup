@@ -39,11 +39,21 @@ func _capture() -> void:
 	shop.ready.connect(func(): shop.show_tab("utility"))
 	await _shoot(shop, "workshop_utility")
 
-	# A strong tower, to show the later groups: orbs, Rapid Fire, bounces.
+	shop = WorkshopScreen.new()
+	shop.workshop = progress
+	shop.ready.connect(func():
+		shop.show_tab("defense")
+		shop._next_amount())
+	await _shoot(shop, "workshop_defense_x5")
+
+	# A strong tower, to show the later groups: orbs, Rapid Fire, bounces,
+	# the wall, land mines and a shockwave.
 	var strong := Workshop.new()
-	strong.open_groups.append_array(["range", "multishot", "rapid_fire", "bounce_shot", "defense", "thorns", "lifesteal", "knockback", "orbs"])
+	strong.open_groups.append_array(["range", "multishot", "rapid_fire", "bounce_shot", "defense", "thorns", "lifesteal", "knockback", "orbs",
+		"shockwave", "land_mines", "wall", "recovery_packages"])
 	strong.levels = {"damage": 60, "attack_speed": 30, "health": 60, "orbs": 4, "orb_speed": 20, "rapid_fire_chance": 40,
-		"rapid_fire_duration": 40, "multishot_chance": 60, "bounce_shot_chance": 60, "knockback_chance": 40}
+		"rapid_fire_duration": 40, "multishot_chance": 60, "bounce_shot_chance": 60, "knockback_chance": 40,
+		"land_mine_chance": 30, "wall_health": 400}
 	var showcase := BattleScreen.new()
 	showcase.workshop = strong
 	root.add_child(showcase)
@@ -51,11 +61,15 @@ func _capture() -> void:
 	showcase.start_run(3)
 	showcase.set_process(false)
 	var shown: Array[Dictionary] = []
-	while showcase.sim.time < 420.0 and showcase.sim.alive:
+	while showcase.sim.alive and (showcase.sim.time < 420.0 or not shown.any(func(event): return event.type == "shockwave")):
+		if showcase.sim.time < 420.0:
+			shown.clear()
 		showcase.sim.step()
 		shown.append_array(showcase.sim.events)
 		showcase.sim.events.clear()
 	showcase._arena.absorb(shown.slice(maxi(0, shown.size() - 10)), 0.0)
+	# Part way through the shockwave's ring.
+	showcase._arena.absorb([], 0.15)
 	showcase._refresh()
 	showcase._arena.queue_redraw()
 	await _frames()
