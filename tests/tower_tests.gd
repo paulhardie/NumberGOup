@@ -117,7 +117,7 @@ func test_a_kill_pays_cash_by_type_and_wave() -> void:
 	for _i in range(60):
 		sim.step()
 	check_near(sim.cash, 1.0 + 2.0 * 5.0, 0.0, "a wave 10 tank pays $2 times 5")
-	check_near(sim.coins, 4.0 * 10.0, 0.0, "and 4 Coins times its wave")
+	check_near(sim.coins, 4.0, 0.0, "and 4 Coins, whatever its wave (D074)")
 
 
 func test_an_enemy_hits_on_arrival_then_harder_each_time() -> void:

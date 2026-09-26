@@ -33,7 +33,7 @@ These keep it from going round in circles again.
 | **Enemies** | Basic, Fast, Tank and Ranged, with a Boss every 10 waves. SDK health, damage and multipliers (tank 5× health, ½ damage; boss 20× health, 1× damage) and SDK speeds (fast 2×, tank ½×, boss 0.3×). Enemies that reach the tower stay and hit, each hit 4% harder than the last. |
 | **Tower stats** | The starting rows: Damage, Attack Speed, Crit Chance, Crit Factor, Health and Health Regen. Then the groups that cost 500 Coins or less to open: Range with Damage / Meter (50), Multishot (400), Defense % with Defense Absolute (75), Thorns (500), Cash Bonus with Cash / Wave (40), and Coins / Kill with Coins / Wave (100). This covers roughly the first hour of The Tower. |
 | **Run upgrades** | Every opened row, bought one level at a time with Cash at The Tower's Cash prices. |
-| **Pay** | Cash per kill as D071 has it ($1, plus $1 every 10 waves, times the type). Coins per kill by type (basic 0, fast 2, ranged 3, tank 4, boss 5) times the wave. Coins / Wave at each wave's end. |
+| **Pay** | Cash per kill as D071 has it ($1, plus $1 every 10 waves, times the type). Coins per kill by type, flat (basic 0, fast 2, ranged 3, tank 4, boss 5; D074). Coins / Wave at each wave's end. |
 | **Workshop** | Attack, Defense and Utility tabs, rows with multi-buy, and a locked-group card showing its unlock price. Coins are spent between runs. |
 | **Home** | Battle button, best wave, Coins. |
 | **Look** | D049's look: Geist and Geist Mono, near-black ground, one accent and one warning colour. Portrait-first. |
@@ -87,7 +87,7 @@ tests/       tower_tests.gd
 - **Milestone 3, the Workshop, Coins, home and saving: built, not yet played by the owner.** A home screen (Battle, Workshop, best wave, Coins), a Workshop screen buying permanent levels at The Tower's Coin prices, and groups opening in The Tower's order. The rows those groups bring now work in battle: Range, Damage / Meter, Multishot, Defense % and Absolute, Thorns, Cash Bonus, Cash / Wave, Coins / Kill Bonus and Coins / Wave. Groups past Thorns show as coming soon (milestone 4). Coins go into the Workshop as they're earned. The save is `user://number_go_up_tower.json`, version 1, written whole or not at all, and an unreadable file is moved aside, never written over. An End run button ends a run early. Careers in `tools/sim_runs.gd` (12 runs from a fresh Workshop):
   - spreading every Coin and every Cash across all open rows stalls at waves 7–10;
   - a player focused on Damage and Attack Speed in the run breaks the wave 10 boss by run 10 (0.9 hours), and run 12 reaches **wave 22 in 12 min 37 s of game time, against the owner's Tower report of wave 22 in 12 min 33 s**;
-  - but that run earned **2,340 Coins, about 14 times the owner's report** (1,460 at ×9, so about 160). Coins per kill are paid times the wave (D066, from the SDK's model). Paid flat, as the owner's reference table lists them, the same kind of run earns about 280 (1.7 times), and the owner's first run also fits better. Open question for the owner (Decisions, 4).
+  - but that run earned **2,340 Coins, about 14 times the owner's report** (1,460 at ×9, so about 160). Coins per kill are paid times the wave (D066, from the SDK's model). Paid flat, as the owner's reference table lists them, the same kind of run earns about 280 (1.7 times), and the owner's first run also fits better. The owner chose flat (D074): the first dozen runs now earn 50–130 Coins each, and wave 20 comes on run 18 (1.7 hours).
 - **Where it went differently from this spec:**
   - The SDK's enemies per wave (about 4 early) contradict the owner's screens, so D065's count (20 at wave 1, rising) is kept as a guess.
   - The type mix is the owner's wave 22 screen (85% basic, 7% fast, 6% tank, 2% ranged), not the SDK's 91/3/3/3.
@@ -154,4 +154,5 @@ This needs the owner's OK, then an edit to [`AGENTS.md`](../AGENTS.md), since on
 1. ~~Go on the rebuild~~: accepted (D073).
 2. **The process change above:** still open.
 3. The Number's version (A, B or C) can wait until milestone 5.
-4. **Coins per kill: times the wave (D066, as built) or flat (the owner's table)?** Flat fits the owner's Tower reports far better (see Progress). Recommended: flat. It's one line in `battle_sim.gd` plus its test.
+4. ~~Coins per kill~~: flat, accepted (D074).
+5. **Cheaper Workshop prices?** The owner finds them high. They are The Tower's own for a new account; The Tower lowers them later with Workshop Discount labs (up to 49.5% a tab) and the Vault. Waiting on a screenshot of the owner's Tower Workshop.

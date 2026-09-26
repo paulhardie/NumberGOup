@@ -861,3 +861,13 @@ Rules:
 - **Evidence (milestone 1):** the generated enemy data reproduces all ten of the owner's readings (Attack exactly, health within 0.3%). `tools/sim_runs.gd`, 10 seeds: a fresh tower that buys nothing dies on wave 2 in 46–57 seconds every time (The Tower's: "you die immediately"). `bash run_tests.sh`: 252 checks pass.
 - **Consequences:** the old game is gone from this branch (recoverable at `f4f1e95`; the `pre-rebuild` tag exists locally but could not be pushed from the session). AGENTS.md's architectural law 3 (the modifier pipeline) names code that no longer exists and needs the owner's word. The health correction past wave 22 and the enemy count per wave are guesses until read.
 - **Revisit when:** each milestone is played; the owner reads a basic enemy's health past wave 22, a boss kill's Cash, or the enemy count at a known wave.
+
+## D074 — Kills pay flat Coins
+
+- **Status:** Accepted (2026-09-26) on owner direction: "Yes to flat coins". Implemented (2026-09-26) on `claude/great-tesla-9kfp95`. Replaces D066's "times its wave".
+- **Context:** Since D066 a kill paid its type's Coins times its wave, following TheTowerSDK's coin model. In the rebuild's careers (`tools/sim_runs.gd --careers`), a run reaching wave 22 earned 2,340 Coins, where the owner's Tower battle report shows 1,460 at ×9, about 160. The owner's first Tower run earned about 27 Coins over 8 waves at ×1.
+- **Decision:** a kill pays its type's Coins flat, whatever its wave: basic 0, fast 2, ranged 3, tank 4, boss 5 (the owner's reference table), times Coins / Kill Bonus. Coins / Wave is unchanged.
+- **Evidence** (`--careers 30 --buy attack`): wave-22-ish runs earn 270–280 Coins, within twice the owner's report. The first dozen runs earn 50–130 each; wave 20 comes on run 18 (1.7 hours) and waves 24–28 around 3–4 hours.
+- **Consequences:** the Workshop fills much more slowly. The owner also asked for cheaper Workshop prices; they are The Tower's own for a new account (TheTowerSDK, the wiki and the owner's fresh-save screen agree), and The Tower lowers them later through Labs and the Vault. Left open as a separate question.
+- **Revisit when:** the owner reads Coins earned at a known wave on a fresh Tower account, or plays a few runs and finds the pace wrong.
+

@@ -347,7 +347,7 @@ func _kill(enemy: Enemy) -> void:
 	enemies.erase(enemy)
 	kills += 1
 	var paid_cash := (1.0 + floorf(enemy.wave / 10.0)) * float(Guesses.CASH_BY_TYPE[enemy.kind]) * stat("cash_bonus")
-	var paid_coins := float(Guesses.COINS_BY_TYPE[enemy.kind]) * float(enemy.wave) * stat("coins_per_kill")
+	var paid_coins := float(Guesses.COINS_BY_TYPE[enemy.kind]) * stat("coins_per_kill")
 	cash += paid_cash
 	cash_earned += paid_cash
 	coins += paid_coins
