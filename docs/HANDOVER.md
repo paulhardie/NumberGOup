@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 26 September 2026 (D077, the activity report), by Claude, handing on to the next agent.
+**Last updated:** 26 September 2026 (D080, the Number is the tower), by Claude, handing on to the next agent.
 
-**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after D076 merged ([paulhardie/NumberGOup#68](https://github.com/paulhardie/NumberGOup/pull/68)). It carries D077 and the owner's reference [`TOWER_EARLY_PROGRESSION.md`](TOWER_EARLY_PROGRESSION.md), not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after D077 merged ([paulhardie/NumberGOup#69](https://github.com/paulhardie/NumberGOup/pull/69)). It carries D078 (resuming), D079 (the roadmap, and the version shown on Home and in reports) and D080 (the Number's direction and [`THE_NUMBER.md`](THE_NUMBER.md)), not yet merged, in [paulhardie/NumberGOup#70](https://github.com/paulhardie/NumberGOup/pull/70). The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -12,12 +12,19 @@
 
 1. Read [`AGENTS.md`](../AGENTS.md), [D073](DECISIONS.md#d073--rebuild-the-tower-first-the-number-second) and [`REBUILD_SPEC.md`](REBUILD_SPEC.md) (its Progress, Milestones, Benchmarks and Guesses). Fetch and check the branch against `origin` before new work.
 2. **Owner direction:** "go ahead with the rebuild". The Tower is the spec; copy it, and put anything unknown in `src/tower/guesses.gd` rather than debating it. The owner plays each milestone before the next starts.
-3. **Next:** the owner plays and exports a report (D077). **When one arrives, read it first:** `tools/read_report.gd -- --file <report>` on the commit it names. It is the best evidence there is for decision 1.
+3. **The plan is the roadmap** in [`REBUILD_SPEC.md`](REBUILD_SPEC.md#roadmap) (D079):
+   - the game is 0.9;
+   - 1.0 is the first hours **with the Number as the tower** (D080): the Number in the centre, and enemies that subtract, divide or take a share on contact;
+   - then Cards, Labs, Ultimate Weapons and Tier 2.
+
+   Raise `application/config/version` in `project.godot` only when a version's "done when" is met.
+4. **Next:** the owner plays and exports a report (D077). **When one arrives, read it first:** `tools/read_report.gd -- --file <report>` on the commit it names. It is the best evidence there is for decision 1.
 
 ## Where the game is
 
-Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Workshop groups (D076, merged). The owner played milestone 4.
+**Version 0.9.** Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Workshop groups (D076, merged). The owner played milestone 4.
 
+- **Resuming (D078, not merged):** the save carries the run in progress; the game opens back into it by replaying it. If an update means it no longer replays the same, it ends at its saved wave with its Coins kept.
 - **Activity report (D077):** every run (seed, starting Workshop, each buy with its tick, a snapshot per wave) and every Workshop buy and unlock is logged to `user://number_go_up_activity.jsonl`. Home's Export report writes it to `user://reports/` and opens the folder. `tools/read_report.gd` reads and replays it.
 
 - **Workshop groups, all of them open and work:** Range and Damage / Meter, Multishot, Rapid Fire, Bounce Shot, Super Crit, Rend Armor (Attack); Defense % and Absolute, Thorns, Lifesteal, Knockback, Orbs, Shockwave, Land Mines, Death Defy, the Wall (Defense); Cash rows, Coins rows, Free Upgrades, Interest, Recovery Packages, Enemy Level Skip (Utility). A tab shows only its next locked group, as a big Unlock card (D076).
@@ -33,20 +40,31 @@ Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Worksh
 ## Open decisions for the owner
 
 1. **How should a pack-free account pace?** Under D075, a focused pack-free career spends about 1.3 hours at the wave 10 boss and about 5½ hours reaching wave 30. With ×9 Coins it matches the owner's own account. The "wave 100 in an hour" research is unverified. **Recommend** keeping The Tower's rules and deciding the target by playing: if the first hours feel slow without packs, the lever is Coins per kill or Coins / Wave, not the enemy rules.
-2. **Cheaper Workshop prices?** Answered: keep The Tower's (the owner, 26 September: "fair enough").
-3. **Lighter process while rebuilding.** **Recommend yes.**
-4. **AGENTS.md's architectural law 3** (the modifier pipeline) names removed code. **Recommend** dropping it until a system needs stacked rules.
+2. **The Number's four decisions** ([`THE_NUMBER.md`](THE_NUMBER.md#6-decisions-for-the-owner), D080):
+   - **Ceiling:** recommend The Tower's Health in Tier 1.
+   - **Operators:** recommend subtract and divide.
+   - **New or converted enemies:** recommend new operator enemies on top of The Tower's.
+   - **Rename Health to Number:** recommend yes.
+3. **Cheaper Workshop prices?** Answered: keep The Tower's (the owner, 26 September: "fair enough").
+4. **Lighter process while rebuilding.** **Recommend yes.**
+5. **AGENTS.md's architectural law 3** (the modifier pipeline) names removed code. **Recommend** dropping it until a system needs stacked rules.
 
 ## Next steps, in order
 
-1. **Owner:** merge D077, play a session as normal, then press Export report on Home and drop the file into the chat. Done when a report arrives.
-2. **Agent:** read that report and answer decision 1 from the owner's real runs: where they die, what they buy, Coins an hour.
-3. **Agent: saving a run in progress**, as The Tower resumes one. It's the one gap a player hits every session (closing mid-run loses the run), and the save is high risk, so it needs round-trip and old-save checks. Done when a run closed mid-wave resumes identically from its seed and RNG state.
-4. **Agent, after that:** Labs (The Tower's next system, which Starting Cash and Wall Regen need), or the Number (milestone 5), once the owner picks A, B or C.
+1. **Owner:** play a session on D077 as merged, export a report and drop it into the chat. Done when a report arrives.
+2. **Agent:** read that report and answer decision 1 from the owner's real runs: where they die, what they buy, Coins an hour. That decides whether 1.0 is signed off or needs tuning first.
+3. **Owner:** review and merge #70 (D078 and D079). Do it between runs: a run saved when a merge lands is likely to end at its saved wave. Then close the game mid-run and reopen it. Done when a real run resumes on the Mac, and Home shows "v0.9" in its corner.
+4. **Owner:** answer the four decisions in [`THE_NUMBER.md`](THE_NUMBER.md#6-decisions-for-the-owner): the Number's ceiling, which operators, new or converted enemies, and renaming Health.
+5. **Agent, then:** build the Number's rules in `BattleSim`, measured headless against the benchmarks and the Number's targets, before any screen work (THE_NUMBER.md 5.4).
 
 ## How to measure
 
-- **Ran on this branch (26 September, D077):** `bash run_tests.sh`: `PASS: tower tests (2254 checks)`. New checks cover:
+- **Ran on this branch (26 September, D078):** `bash run_tests.sh`: `PASS: tower tests (2320 checks)`.
+  - **Independent review done:** a separate agent session reviewed the diff and reproduced its findings. Every finding was fixed, with a test each (see D078): the match check now compares Cash, levels, enemies, inputs and the random streams; damaged records are rejected whole; runs after "Battle again" are logged; the failure handling can't be crashed by a damaged wave; and a lost run's log entry keeps the version that recorded it.
+  - The reviewer's price-change reproduction now fails the match, as it should.
+  - New checks drive the game's real entry point with test files: opening into a saved run, and ending a changed or damaged one. They check that each is counted at its wave, keeps its Coins, is logged as lost and shows the note on Home.
+  - **Not run:** a real close and reopen on the Mac.
+- **Ran for D077:** `bash run_tests.sh`: `PASS: tower tests (2254 checks)`. New checks cover:
   - inputs and wave snapshots being recorded;
   - a 15-minute run with every multiplier going through JSON and replaying to the same ticks, wave, kills, Cash, Coins and health, while another seed doesn't match;
   - the log appending, skipping a torn last line, stamping the version and exporting;
@@ -72,7 +90,8 @@ Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Worksh
 - A shot whose target dies first is lost, and the tower doesn't avoid overkill. That's our reading of The Tower, not checked.
 - Past wave 6,500 the enemy data holds its last value; generate more before a run can reach it.
 - **Boss waves are the walls:** careers end on or just after every tenth wave. That's The Tower's design (bosses are walls, D063), but worth watching in play.
-- **A run in progress isn't saved** (The Tower resumes one). Closing mid-run loses the run but not its Coins.
+- **Resuming replays the whole run,** about 4.6 s per hour of game time here. Fine now; several-hour runs will need a full battle-state snapshot instead.
+- **An update between closing and reopening usually ends a saved run** at its saved wave (D078). The Mac's sync pulls merges within a minute.
 
 ## Handing on
 

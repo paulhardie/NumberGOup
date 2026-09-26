@@ -2,7 +2,8 @@ extends Control
 ## The battle: the arena on top, the tower's and the wave's readouts below it,
 ## then the run's upgrades. It runs the sim at the chosen game speed and draws
 ## it; every rule lives in BattleSim. A run starts from the Workshop, and the
-## Coins it earns go into the Workshop as they come.
+## Coins it earns go into the Workshop as they come. A run saved mid-way is
+## resumed by replaying it from its seed and inputs, a slice a frame (D078).
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
@@ -11,19 +12,32 @@ const ArenaView = preload("res://src/ui/arena_view.gd")
 const UpgradePanel = preload("res://src/ui/upgrade_panel.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 const RunReport = preload("res://src/tower/run_report.gd")
+const ActivityLog = preload("res://src/tower/activity_log.gd")
 
 ## The run is over and its record is in the Workshop, so the game can save.
 signal run_finished
 signal home_pressed
+## A saved run couldn't be brought back: its record is damaged ("damaged"),
+## or the game changed so its replay no longer ends where it was left
+## ("changed").
+signal resume_failed(saved: Dictionary, reason: String)
 
 ## Game speeds, for testing a run quickly (docs/REBUILD_SPEC.md, "Dev only").
 const SPEEDS := [1.0, 2.0, 5.0]
 ## At most this many ticks a frame, so a slow frame can't snowball.
 const MAX_TICKS_PER_FRAME := 400
+## Ticks of a saved run replayed a frame while resuming: about an hour of game
+## time takes a few seconds, and the screen stays live meanwhile.
+const RESUME_TICKS_PER_FRAME := 2000
 
 var sim: BattleSim
 ## Set before the screen is added; a fresh one if not.
 var workshop: Workshop
+## The saved run to resume (Save.load_run), set before the screen is added;
+## empty for a new run.
+var resume: Dictionary = {}
+var _replay: RunReport.Replay
+var _resuming: Label
 var _speed_index := 0
 ## The run's Coins already moved into the Workshop.
 var _banked := 0.0
@@ -57,11 +71,58 @@ func _ready() -> void:
 	if workshop == null:
 		workshop = Workshop.new()
 	_build()
-	start_run(randi())
+	if resume.is_empty():
+		start_run(randi())
+	else:
+		_begin_resume()
 
 
 func start_run(seed_value: int) -> void:
-	sim = BattleSim.new(seed_value, workshop.levels, workshop.open_groups)
+	_adopt(BattleSim.new(seed_value, workshop.levels, workshop.open_groups))
+
+
+func _begin_resume() -> void:
+	_resuming = Label.new()
+	_resuming.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_resuming.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_resuming.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_resuming.add_theme_font_size_override("font_size", 20)
+	_resuming.text = "Resuming your run…"
+	add_child(_resuming)
+	if not RunReport.is_replayable(resume):
+		_fail_resume("damaged")
+		return
+	_replay = RunReport.Replay.new(resume)
+
+
+func _finish_resume() -> void:
+	var again := _replay.sim
+	_replay = null
+	if not again.alive or not RunReport.matches(resume, again):
+		_fail_resume("changed")
+		return
+	var saved := resume
+	resume = {}
+	_resuming.queue_free()
+	_adopt(again)
+	# The Coins it had already put in the Workshop, which the save kept with it.
+	_banked = float(saved.get("banked", again.coins))
+	var play: Dictionary = saved.get("play", {})
+	_real_seconds = float(play.get("real_seconds", 0.0))
+	_seconds_at_speed = play.get("seconds_at_speed", {}).duplicate()
+
+
+## Deferred, so the game can change screens outside this one's frame.
+func _fail_resume(reason: String) -> void:
+	var saved := resume
+	resume = {}
+	_replay = null
+	resume_failed.emit.call_deferred(saved, reason)
+
+
+## Plays `run_sim` from here on.
+func _adopt(run_sim: BattleSim) -> void:
+	sim = run_sim
 	sim.record_events = true
 	_banked = 0.0
 	_arena.sim = sim
@@ -73,6 +134,17 @@ func start_run(seed_value: int) -> void:
 
 
 func _process(delta: float) -> void:
+	if _replay != null:
+		# is_replayable should make this impossible; never sit on the
+		# resuming screen for good if a record still slips through.
+		if _replay.sim == null:
+			_fail_resume("damaged")
+			return
+		if _replay.advance(RESUME_TICKS_PER_FRAME):
+			_finish_resume()
+		else:
+			_resuming.text = "Resuming your run… wave %d" % _replay.sim.wave
+		return
 	if sim == null:
 		return
 	if sim.alive:
@@ -99,6 +171,20 @@ func _process(delta: float) -> void:
 		workshop.finish_run(sim.wave)
 		run_finished.emit()
 		_show_run_over()
+
+
+## The run to keep in the save: one still being resumed as it was loaded, the
+## one being played with the Coins it has banked, or {} once it's over.
+func run_state() -> Dictionary:
+	if not resume.is_empty():
+		return resume
+	if sim == null or not sim.alive:
+		return {}
+	var state := report()
+	state["banked"] = _banked
+	# The version that recorded it, which a lost run's log entry keeps.
+	state["game"] = ActivityLog.game_version()
+	return state
 
 
 ## The run for the activity log: replayable, with its real play time.
@@ -191,7 +277,9 @@ func _build() -> void:
 	var end := Button.new()
 	end.text = "End run"
 	end.size_flags_horizontal = Control.SIZE_SHRINK_END
-	end.pressed.connect(func(): sim.end_run())
+	end.pressed.connect(func():
+		if sim != null:
+			sim.end_run())
 	corner.add_child(end)
 
 	var readouts := HBoxContainer.new()

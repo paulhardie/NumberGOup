@@ -150,6 +150,13 @@ func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_G
 	_schedule_wave()
 
 
+## Where the two random streams stand, as text: their 64-bit states are more
+## than JSON's numbers hold exactly. A replay that drew exactly the same
+## numbers ends with the same states.
+func rng_state() -> Array[String]:
+	return [str(_spawn_rng.state), str(_combat_rng.state)]
+
+
 func level(id: String) -> int:
 	return int(levels.get(id, 0)) + int(run_levels.get(id, 0))
 

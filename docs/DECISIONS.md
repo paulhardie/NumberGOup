@@ -905,8 +905,67 @@ Rules:
 - **Context:** tuning so far rests on the owner's screenshots and statements plus headless runs by agents. Every run is already deterministic from its seed and inputs, so a record of those replays the owner's real run exactly.
 - **Decision:**
   1. The battle records its inputs (each buy with its tick and multiplier, and End run) and a snapshot at each wave's end (health, Cash, Coins, kills, enemy Attack and Health, run levels bought).
-  2. Each finished run, each run the window closes on, and each Workshop buy and unlock go as one JSON line into `user://number_go_up_activity.jsonl`, beside the save and separate from it, stamped with the time (UTC) and the game's commit, read from the checkout's `.git`.
+  2. Each finished run, each run the window closes on (until D078, which resumes it instead), and each Workshop buy and unlock go as one JSON line into `user://number_go_up_activity.jsonl`, beside the save and separate from it, stamped with the time (UTC) and the game's commit, read from the checkout's `.git`.
   3. Home's **Export report** writes the whole log and the Workshop to one file in `user://reports/` and shows it in Finder; the owner drops it into the chat. Option A of two: nothing is uploaded automatically. B, where the Mac's sync job pushes reports to a branch, waits on the owner.
   4. `tools/read_report.gd` reads a report: runs as a table, each replayed to check it matches, one run wave by wave, and Workshop spending.
 - **Consequences:** a replay only matches on the commit that recorded it; the snapshots still read after the rules change. The log holds game numbers and times only, grows by a few KB a run, and is never trimmed. The inputs are also what saving a run in progress needs.
 - **Revisit when:** the log grows past a few MB, dragging a file in gets tedious (option B), or the game is exported without its `.git` (the version reads "unknown").
+
+## D078 — A run closed mid-way resumes, by replaying it
+
+- **Status:** Built (2026-09-26) on `claude/great-tesla-9kfp95`, on the owner's go-ahead to add work that was planned for later while they couldn't test ("is there anything else you can safely add to the game that you were going to later?"). It is accepted when the owner merges it. It was the handover's next step.
+- **Context:** closing the game mid-run lost the run (its Coins were kept). The Tower brings you back into the run. D077 already records everything a run needs to replay exactly.
+- **Decision:**
+  1. The save carries the run in progress under an optional `"run"` key: D077's run record plus the Coins it has banked into the Workshop. It sits in the same file and the same write as the Workshop, so those two can't disagree, and a crash can't bank Coins twice or lose them. The save stays version 1: a save without `"run"` loads as before, and an older game ignores the key.
+  2. The game opens straight into a saved run, as The Tower does, replaying it from its seed and inputs 2,000 ticks a frame behind "Resuming your run…", with the screen live.
+  3. The replay must end exactly where the save says: the same tick, wave, kills, Cash held and earned, Coins, health, run levels and enemies; every recorded input applied; and both random streams at the same place, so it drew exactly the same numbers. If it doesn't (usually because the game updated in between, since the rules changed under it), or the record is damaged, the run ends at its saved wave. It counts towards best wave and runs, keeps its Coins, is logged as lost, and Home says so. A run is never played on from a state it didn't reach.
+  4. Closing mid-run no longer logs the run (D077); it's logged once, when it finally ends.
+- **Consequences:**
+  - Resuming takes time in proportion to the run's length: about 4.6 seconds for an hour of game time in the agent's container. Several-hour runs will want a snapshot of the whole battle state instead of a replay.
+  - Merging a change while a run is saved may end that run; the Mac's sync pulls merges every minute.
+  - The battle doesn't advance while the game is closed.
+- **Independent review (2026-09-26):** a separate reviewer found that the first version's match check compared only totals, so a price change could let a run "match" and play on with different Cash. That's why the check is now as in 3. It also found:
+  - a damaged record could lock the game on the resuming screen;
+  - runs after "Battle again" weren't logged (a D077 bug);
+  - a damaged wave or banked figure could crash the handling or bank Coins twice.
+
+  All were fixed with tests, and each record is now checked whole before a replay.
+- **Revisit when:** runs get long enough that resuming is slow, or the owner wants runs to survive updates.
+
+## D079 — A version roadmap, with the Number as the run's score after 1.0
+
+- **Status:** Accepted (2026-09-26) on owner direction: "yes go with that, Number option A after 1.0". Its second point (the Number as a score, after 1.0) is superseded the same day by [D080](#d080--the-number-is-the-tower-and-10-needs-it): the Number is the tower, and 1.0 needs it. The roadmap and version label stand.
+- **Context:** the rebuild spec's plan had run out. It stopped at "v1.1 rows" and "the Number (v2)", while the game had built everything its "Not in v1" list excluded, plus the activity report and resuming. The owner found The Tower's own version history: 0.1 was the core loop, the Workshop and Cards bought with Gems; then Tournaments in 0.2, Ultimate Weapons in 0.3, Labs in 0.5, Perks in 0.13 and Modules in 0.22. TheTowerSDK's copy of the patch notes confirms all but Labs, which it shows by 0.7.
+- **Decision:**
+  1. The spec's milestones become a version roadmap. Each version is playable and ends with the owner playing it:
+     - 0.9 now;
+     - 1.0: the first hours, signed off from the owner's reports;
+     - 1.1: the Number;
+     - 1.2: Cards and Gems;
+     - 1.3: Labs;
+     - 1.4: Ultimate Weapons;
+     - 1.5: Tier 2 and up;
+     - Perks and Modules later and unscheduled;
+     - Tournaments out.
+
+     The order follows what a new Tower player meets, not the order the developer built things.
+  2. **The Number is option A, the run's score:** everything the tower has dealt this run, shown big and always rising, with the best kept as a record. It comes straight after 1.0. It changes no balance, so it can go early and every later system is built knowing it's there.
+  3. The version lives in `project.godot` (`application/config/version`), shows on Home, and is stamped on every report entry beside the commit. The agent raises it only when a version's "done when" is met.
+- **Consequences:** Cards wait one version for the Number. Tournaments are dropped: a solo game has no one to compete with, and The Tower having them isn't a reason. Options B and C for the Number are closed; C (banking from shots) was what stopped runs ending before the rebuild.
+- **Revisit when:** a version's play changes what should come next, or the owner wants Perks or Modules scheduled.
+
+## D080 — The Number is the tower, and 1.0 needs it
+
+- **Status:** Accepted direction (2026-09-26) on owner direction. The details are open in [`THE_NUMBER.md`](THE_NUMBER.md) until the owner answers its decisions. Supersedes D079's second point (the Number as option A, a score, after 1.0).
+- **Context:** the owner: "V1.0 can't be signed off until we get the number in the middle of the screen, and rework the enemies so they interact with it when they collide. This is a delicate operation as the game's identity hinges on this." Also: "basic enemies are flat damage, maybe certain enemies do division damage, maybe some % damage. I think for tier 1 we keep the tower's shape and progression."
+- **Decision:**
+  1. The Number sits in the middle of the battle as the tower itself.
+  2. Enemies act on it when they collide. Basic enemies subtract a flat amount, and some kinds divide or take a percentage.
+  3. Tier 1 keeps The Tower's shape and progression.
+  4. 1.0 is signed off only with this in, measured against the Tier 1 benchmarks and new targets for the Number.
+  5. [`THE_NUMBER.md`](THE_NUMBER.md) lists every consideration, with a recommendation each, and how it will be balanced.
+- **Consequences:**
+  - The roadmap loses its separate Number version: Cards and Gems become 1.1, Labs 1.2, Ultimate Weapons 1.3 and Tier 2 1.4.
+  - Options B and C from the spec are superseded; the Number is closest to B (the tower's Health), with operator enemies on top.
+  - The old game's lessons apply (D001: percentage hits make upgrades pointless; D037: a Number fed by its own output never falls).
+- **Revisit when:** the owner answers the design's decisions, or play shows the operators don't make the loop more fun.

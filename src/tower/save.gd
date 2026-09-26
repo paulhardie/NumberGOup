@@ -1,7 +1,13 @@
 extends RefCounted
 ## Reads and writes the rebuilt game's save: the Workshop, as JSON with a
-## version. It is its own file, so the pre-rebuild save is never touched
-## (D073). A file this version can't read is moved aside, never written over.
+## version, and the run in progress if there is one (D078). It is its own
+## file, so the pre-rebuild save is never touched (D073). A file this version
+## can't read is moved aside, never written over.
+##
+## The run sits in the same file as the Workshop, so the two are always written
+## together: the Coins a run has already put in the Workshop and the record of
+## how many it had put in can never disagree. "run" is optional, so a version-1
+## save without one still loads, and an older game ignores it.
 
 const Workshop = preload("res://src/tower/workshop.gd")
 
@@ -29,15 +35,31 @@ static func load_workshop(path: String = PATH) -> Workshop:
 	return workshop
 
 
+## The run in progress the save holds (src/tower/run_report.gd's record, plus
+## the Coins it had banked), or {} when there is none. Read after
+## load_workshop, which deals with a file that can't be read.
+static func load_run(path: String = PATH) -> Dictionary:
+	if not FileAccess.file_exists(path):
+		return {}
+	var json := JSON.new()
+	if json.parse(FileAccess.get_file_as_string(path)) != OK or not json.data is Dictionary:
+		return {}
+	var run = json.data.get("run")
+	return run if run is Dictionary else {}
+
+
 ## Writes to a temporary file first and then swaps it in, so a crash mid-write
-## never leaves half a save.
-static func save_workshop(workshop: Workshop, path: String = PATH) -> bool:
+## never leaves half a save. `run` is the run in progress, or {} for none.
+static func save_workshop(workshop: Workshop, path: String = PATH, run: Dictionary = {}) -> bool:
 	var temporary := path + ".tmp"
 	var file := FileAccess.open(temporary, FileAccess.WRITE)
 	if file == null:
 		push_warning("Couldn't write the save to %s." % temporary)
 		return false
 	# Full precision, so a large Coin balance comes back to the last digit.
-	file.store_string(JSON.stringify({"version": VERSION, "workshop": workshop.to_dict()}, "", true, true))
+	var data := {"version": VERSION, "workshop": workshop.to_dict()}
+	if not run.is_empty():
+		data["run"] = run
+	file.store_string(JSON.stringify(data, "", true, true))
 	file.close()
 	return DirAccess.rename_absolute(temporary, path) == OK

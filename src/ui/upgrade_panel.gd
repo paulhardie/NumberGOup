@@ -73,6 +73,9 @@ func set_sim(run: BattleSim) -> void:
 
 func show_tab(tab: String) -> void:
 	_tab = tab
+	# While a saved run is being resumed there is no run to show yet.
+	if sim == null:
+		return
 	for id in _tab_buttons:
 		_tab_buttons[id].set_pressed_no_signal(id == tab)
 	for child in _grid.get_children():

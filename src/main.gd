@@ -1,10 +1,12 @@
 extends Control
 ## Number Go Up, rebuilt as The Tower first (docs/REBUILD_SPEC.md). Switches
 ## between the home screen, the battle and the Workshop, and saves the
-## Workshop: after every purchase, when a run ends, every AUTOSAVE_SECONDS of
-## battle (a run's Coins go into the Workshop as they're earned), and when
-## the window closes or loses focus. Every run and Workshop purchase also goes
-## into the activity log, which Home exports as a report (D077).
+## Workshop and any run in progress: after every purchase, when a run ends,
+## every AUTOSAVE_SECONDS of battle (a run's Coins go into the Workshop as
+## they're earned), and when the window closes or loses focus. A game closed
+## mid-run opens back into that run, as The Tower does (D078). Every run and
+## Workshop purchase also goes into the activity log, which Home exports as a
+## report (D077).
 
 const Save = preload("res://src/tower/save.gd")
 const ActivityLog = preload("res://src/tower/activity_log.gd")
@@ -15,12 +17,15 @@ const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 
 const AUTOSAVE_SECONDS := 20.0
 
+## Where the game saves and logs; the tests point these at their own files.
+var save_path := Save.PATH
+var log_path := ActivityLog.PATH
 var workshop: Workshop
 var _screen: Control
 
 
 func _ready() -> void:
-	workshop = Save.load_workshop()
+	workshop = Save.load_workshop(save_path)
 	var autosave := Timer.new()
 	autosave.wait_time = AUTOSAVE_SECONDS
 	autosave.timeout.connect(func():
@@ -28,38 +33,48 @@ func _ready() -> void:
 			_save())
 	add_child(autosave)
 	autosave.start()
-	_show_home()
+	var saved := Save.load_run(save_path)
+	if saved.is_empty():
+		_show_home()
+	else:
+		_show_battle(saved)
 
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		if workshop != null:
 			_save()
-	# A run closed mid-way still goes in the log, marked as closed.
-	if what == NOTIFICATION_WM_CLOSE_REQUEST and _screen is BattleScreen and _screen.sim != null and _screen.sim.alive:
-		_log_run(_screen)
 
 
+## The run in progress goes in the same write as the Workshop, so the Coins it
+## has banked and its record of them always agree.
 func _save() -> void:
-	Save.save_workshop(workshop)
+	var run := {}
+	if _screen is BattleScreen:
+		run = _screen.run_state()
+	Save.save_workshop(workshop, save_path, run)
 
 
-func _show_home() -> void:
+func _show_home() -> HomeScreen:
 	var home := HomeScreen.new()
 	home.workshop = workshop
 	home.battle_pressed.connect(_show_battle)
 	home.workshop_pressed.connect(_show_workshop)
 	home.export_pressed.connect(func():
-		var result := ActivityLog.export_report(workshop.to_dict())
+		var result := ActivityLog.export_report(workshop.to_dict(), log_path)
 		home.show_exported(result)
 		if not result.is_empty():
 			OS.shell_show_in_file_manager(ProjectSettings.globalize_path(String(result.path))))
 	_swap(home)
+	return home
 
 
-func _show_battle() -> void:
+## A new run, or the saved one to resume.
+func _show_battle(saved: Dictionary = {}) -> void:
 	var battle := BattleScreen.new()
 	battle.workshop = workshop
+	battle.resume = saved
+	battle.resume_failed.connect(_resume_failed)
 	battle.run_finished.connect(func():
 		_log_run(battle)
 		_save())
@@ -71,16 +86,33 @@ func _show_workshop() -> void:
 	var shop := WorkshopScreen.new()
 	shop.workshop = workshop
 	shop.changed.connect(_save)
-	shop.activity.connect(func(entry): ActivityLog.append(entry))
+	shop.activity.connect(func(entry): ActivityLog.append(entry, log_path))
 	shop.home_pressed.connect(_show_home)
 	_swap(shop)
 
 
-## Logs a battle's run once, whether it ended or the window closed on it.
+## A saved run that can't be brought back, because the game updated since or
+## the record is damaged: it ends at its saved wave, keeping the Coins it had
+## already banked.
+func _resume_failed(saved: Dictionary, reason: String) -> void:
+	var result = saved.get("result", {})
+	var wave = result.get("wave", 0) if result is Dictionary else 0
+	# A damaged record can hold anything here.
+	var reached := int(wave) if (wave is float or wave is int) and is_finite(float(wave)) and float(wave) >= 0.0 else 0
+	workshop.finish_run(reached)
+	var entry := saved.duplicate(true)
+	entry["kind"] = "run"
+	entry["resume_failed"] = reason
+	ActivityLog.append(entry, log_path)
+	var why := "couldn't carry over to this version of the game" if reason == "changed" else "couldn't be read"
+	_show_home().show_note("Your run at wave %d %s, so it ended there. Its Coins are kept." % [reached, why])
+	_save()
+
+
+## Logs a run as it ends. A run the window closes on is saved and resumed
+## instead, so each run is logged once (D078).
 func _log_run(battle: BattleScreen) -> void:
-	if not battle.has_meta("logged"):
-		battle.set_meta("logged", true)
-		ActivityLog.append(battle.report())
+	ActivityLog.append(battle.report(), log_path)
 
 
 func _swap(next: Control) -> void:

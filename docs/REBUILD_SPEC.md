@@ -10,9 +10,9 @@ The one open blocker (runs never end from the third) comes from the one piece th
 
 So: build The Tower's first hours cleanly, check them against The Tower, then add the Number as one deliberate twist.
 
-## The goal of v1
+## The goal of 1.0
 
-**A brand-new Tier 1 player's first few hours of The Tower, playable in Godot and measured against The Tower's own figures.** v1 is done when the owner plays a fresh save for a few runs and says it feels like The Tower's opening, and the benchmarks below land within about 20%.
+**A brand-new Tier 1 player's first few hours of The Tower, playable in Godot and measured against The Tower's own figures.** 1.0 is done when the owner plays a fresh save for a few runs and says it feels like The Tower's opening, and the benchmarks below land within about 20%.
 
 ## Rules for the rebuild
 
@@ -22,12 +22,14 @@ These keep it from going round in circles again.
 2. **Numbers are generated, never typed.** The Workshop already comes from TheTowerSDK (`tools/import_tower_workshop.py`). Enemy stats get the same treatment: a script generates per-wave health and damage, type multipliers, type mix and spawn counts from the SDK into `data/tower/enemies.json`. Checked: the SDK's `getEnemyWaveStats` gives a Tier 1 basic 2 HP / 1 damage at wave 1 and 4,364 / 402 at wave 100, matching [the research table](TOWER_SCALING_FOUNDATION.md#tier-1-wave-by-wave-against-ours--24-september-2026). **Take the SDK's values before it rounds them down:** its damage function floors to whole numbers, but unrounded it gives 1.176, 1.386 and 15.908 for waves 1, 2 and 22, which are exactly the owner's screens (1.18, 1.39 and 15.90); Health drifts: unrounded it is exact at wave 1 (2.35) but runs high from there, 3.32 against the screens' 3.31 at wave 2, 7.32 against 7.20 at wave 5, 12.58 against 12.15 at wave 8 and 69.64 against 63.11 at wave 22. Every reading so far fits the SDK's health times 0.9953 to the power of (wave − 1), within 0.3%; that is a fit to five points, not a known rule, so it needs a reading past wave 22 before it is trusted. Where the owner's screens disagree with the SDK (wave 22 health 63.11 against the SDK's 69), the screen wins and the script applies the correction.
 3. **One simulation, two faces.** The battle is a plain GDScript simulation: no nodes, a fixed tick, a seeded RNG. The battle screen draws it; a headless tool runs it at thousands of times real speed. What is measured is exactly what is played, so the balance tools can't drift from the game.
 4. **No save compatibility until the loop is fun.** The new game saves to a new file, `user://number_go_up_tower.json`. The old save is left on disk, untouched: not converted and not deleted. The save has a version field. A save from a different version starts fresh and logs why, with no migrations.
-5. **The owner plays each milestone before the next starts.** "Done" means played, not just measured.
+5. **The owner plays each version before the next starts.** "Done" means played, not just measured.
 6. **Light paperwork.** Tests cover the formulas (prices, enemy stats, pay) and the simulation's determinism. The rebuild gets one decision entry, plus one for each owner choice, not one per tuning. The handover stays under a page.
 
-## What v1 has
+## What 1.0 has
 
-| Area | In v1 |
+This was the first plan. The game (0.9) has gone past it: every Workshop group, multi-buy, the activity report and resuming runs (see [Progress](#progress)).
+
+| Area | In 1.0 |
 |---|---|
 | **Battle** | Tier 1 only. The tower sits in the centre and shoots the nearest enemy in range. Waves last 26 s of spawning plus 9 s of cooldown. The run ends at death or on Quit, and the run-over screen shows the wave, time, Coins and what killed you. |
 | **Enemies** | Basic, Fast, Tank and Ranged, with a Boss every 10 waves. SDK health, damage and multipliers (tank 5× health, ½ damage; boss 20× health, 1× damage) and SDK speeds (fast 2×, tank ½×, boss 0.3×). Enemies that reach the tower stay and hit, each hit 4% harder than the last. |
@@ -39,21 +41,15 @@ These keep it from going round in circles again.
 | **Look** | D049's look: Geist and Geist Mono, near-black ground, one accent and one warning colour. Portrait-first. |
 | **Dev only** | A game-speed switch (1×, 2×, 5×) so the owner can test a run quickly. |
 
-## Straight after v1 (v1.1)
+## Not in 1.0
 
-The next groups in The Tower's unlock order, as Coins come in: Free Upgrades (800), Rapid Fire (1,500), Lifesteal (2,000), Knockback (5,000), Interest (5,000), Bounce Shot (10,000) and Orbs (15,000). The Workshop data already describes them; each is a mechanic plus its tests.
+Tiers 2 and up, milestones, Gems, Cards, Labs, Knowledge, Ultimate Weapons, Perks, Modules, Tournaments and offline earnings. Also tapping to shoot (The Tower has no tap). The [Roadmap](#roadmap) says when each comes, if it does.
 
-## Not in v1
+## The Number (in 1.0)
 
-Tiers 2 and up, milestones, Gems, Labs, Cards, Knowledge, Ultimate Weapons, Perks, Modules, offline earnings, Death Defy, Super Crit, Land Mines, Shockwave, Wall, Recovery Packages, Enemy Level Skip. Also tapping to shoot (The Tower has no tap), and the Number.
+**The Number is the tower** (D080). It sits in the middle of the battle, and enemies act on it when they collide: basic enemies subtract, and some kinds divide or take a percentage. Tier 1 keeps The Tower's shape and progression. Every consideration, the recommended answer to each and the balance plan are in [`THE_NUMBER.md`](THE_NUMBER.md). The owner's answers to its decisions come first.
 
-## The Number (v2)
-
-The Number goes in only once v1 plays like The Tower, as one change measured against a known-good base. The owner picks the version first:
-
-- **A. The Number is the run's score:** everything the tower has dealt this run, shown big and always rising, with the best one kept as the record. It gives the game its name without touching balance. **Recommended.**
-- **B. The Number is the tower's Health,** shown as the big readout. It's a rename, with no balance risk but little identity.
-- **C. The Number banks from shots, as D037 does now.** This is what stopped runs ending. It would need a limit, such as banking only a share of each shot, and its own measured decision.
+This replaces the earlier options: A (a score beside the battle, D079) and C (banking from shots, D037, which stopped runs ending). The Number is closest to B, the tower's Health, with operator enemies on top.
 
 ## What carries over
 
@@ -91,6 +87,7 @@ tests/       tower_tests.gd
 - **Milestone 4, The Tower's next groups: built, not yet played by the owner.** Free Upgrades (800), Rapid Fire (1,500), Lifesteal (2,000), Knockback and Interest (5,000), Bounce Shot (10,000) and Orbs (15,000) open and work in battle; Super Crit and Death Defy still show as coming soon. Rapid Fire: each volley may start it, four times the fire rate for its duration. Bounce Shot: a shot's first strike rolls its chance, then goes on to the nearest other enemy within Bounce Shot Range, up to its targets, never twice to one. Lifesteal heals a share of what each strike takes off. Knockback pushes by force over the enemy's mass (now in the generated enemy data), never past the spawn. Interest pays on Cash held at a wave's end, up to $50. Free Upgrades raise a random open row of their tab each wave by their chance. Orbs kill any walking enemy but a boss that touches them. The run's upgrade panel now scrolls at three rows. A run starts with $0 (the owner, 26 September; the Starting Cash lab isn't built). Then D075 replaced four guesses with the owner's figures (11 enemies in wave 1, a hit a second, ranged and orbs on the Range edge); single runs still fit the owner's first Tower run, and careers fit the owner's account once its ×9 Coins are counted. A 40-run career reaches Free Upgrades on run 35 and Rapid Fire on run 39 (about 6 hours), with runs plateauing at waves 19–28 from about 2 hours in, mostly ended by ranged enemies (see Risks).
 - **Every Workshop group, multi-buy and The Tower's Unlock card: built, not yet played by the owner (D076).** The eight groups left open and work: Super Crit (a crit may be multiplied again), Rend Armor (a strike may rend, so every later strike on that enemy hits harder, to 800% more), Shockwave (every Shockwave Frequency seconds, enemies in range but bosses are pushed back by Shockwave Size), Land Mines (a volley may lay a mine in range; a walking enemy that reaches one sets it off for Land Mine Damage's share of Damage within its radius), Death Defy (a hit that would end the run may be ignored), the Wall (a ring at 10 m that melee enemies stop at and hit; when it falls it rebuilds after Wall Rebuild seconds), Recovery Packages (a wave's end may heal a share of Health, past it up to Max Recovery) and Enemy Level Skip (a steady share of waves whose enemies don't get tougher or harder-hitting, non-random as The Tower's patch notes say). A Workshop tab now shows only its next group, as one big Unlock card, as The Tower does. The Workshop and the run have a Buy ×1 · ×5 · ×10 · Max button (D018's steps): a press buys that many levels priced one at a time, and Max as many as the Coins or Cash cover. The battle screen draws the wall, mines, shockwaves and an overhealed tower, and the wave panel shows the enemy levels Level Skip held back. `--seeds 10 --buy even` still dies on wave 8.
 - **An activity report (D077): built, not yet used by the owner.** Every run (seed, starting Workshop, each buy with its tick, a snapshot per wave) and every Workshop purchase is logged beside the save. Home's Export report writes one file for the owner to drop into the chat, and `tools/read_report.gd` reads it and replays each run exactly on the commit that recorded it. From here, benchmarks can come from the owner's own runs rather than screenshots.
+- **A run closed mid-way resumes (D078): built, not yet played by the owner.** The save carries the run in progress beside the Workshop, and the game opens back into it, replayed from its seed. A run that no longer replays the same after an update ends at its saved wave with its Coins kept.
 - **Where it went differently from this spec:**
   - The SDK's enemies per wave (about 4 early) contradict the owner's screens, so D065's count (20 at wave 1, rising) is kept as a guess.
   - The type mix is the owner's wave 22 screen (85% basic, 7% fast, 6% tank, 2% ranged), not the SDK's 91/3/3/3.
@@ -99,15 +96,22 @@ tests/       tower_tests.gd
   - The `pre-rebuild` tag was made but couldn't be pushed from the session; the old game is commit `f4f1e95`.
   - Every script loads the others by path, never by `class_name`, per [`QUALITY_GATES.md`](QUALITY_GATES.md), so a stale editor cache can't blank the game.
 
-## Milestones
+## Roadmap
 
-Each one ends with the owner playing it.
+Versions, each one a playable thing the owner plays and signs off (D079). The number is `application/config/version` in `project.godot`. It shows on Home and is stamped on every report entry beside the commit. The agent raises it only when a version's "done when" is met; work in between keeps the current number, and the commit tells builds apart. The order is the order a new Tower player meets things (Cards at wave 20, Labs at wave 30, Ultimate Weapons later), not the order The Tower's developer built them ([TOWER_EARLY_PROGRESSION.md](TOWER_EARLY_PROGRESSION.md#the-towers-own-version-history)).
 
-1. **The battle alone.** Generated enemy data, the simulation, the battle screen and the headless run tool, with a fresh tower and no upgrades. **Done when** a fresh tower's run matches The Tower's for a fresh save (the owner's benchmark 1 below) and the tests pass.
-2. **Run upgrades and Cash.** The in-run panel, Cash pay and the run-over screen. **Done when** a fresh run that buys upgrades lands near the benchmarks.
-3. **Workshop, Coins, home and save.** **Done when** the owner has played several runs from a fresh save and the career tool shows runs still ending for a reason after run 3.
-4. **v1.1 rows.**
-5. **The Number** (v2), once the owner has picked A, B or C.
+| Version | What | Done when |
+|---|---|---|
+| **0.9** (now) | Tier 1, the whole Workshop with multi-buy, the activity report, resuming a run | Built: the first plan's milestones 1 to 4 and D076–D078 |
+| **1.0** | The Tower's first hours with **the Number as the tower** (D080): the Number in the centre, enemies that subtract, divide or take a share on contact | The Number's decisions are answered ([`THE_NUMBER.md`](THE_NUMBER.md)). Measured runs hold The Tower's benchmarks and meet the Number's targets. The owner says the core loop is satisfying and fun |
+| **1.1** | Cards, and Gems to buy card slots: what The Tower launched with | The owner plays to wave 20 and uses them |
+| **1.2** | Labs, opening at wave 30 (Starting Cash, Wall Regen and the rest) | The owner plays to them |
+| **1.3** | Ultimate Weapons | The owner plays to them |
+| **1.4** | Tier 2 and up, where the Tier 1 turtle breaks | A Tier 1 turtle fails in Tier 2 and a pivot wins, as The Tower intends |
+| Later, unscheduled | Perks, Modules | The owner asks |
+| Out | Tournaments: they need other players and servers | — |
+
+Each version still ends with the owner playing it.
 
 ## Benchmarks
 
@@ -165,6 +169,6 @@ This needs the owner's OK, then an edit to [`AGENTS.md`](../AGENTS.md), since on
 
 1. ~~Go on the rebuild~~: accepted (D073).
 2. **The process change above:** still open.
-3. The Number's version (A, B or C) can wait until milestone 5.
+3. ~~The Number's version (A, B or C)~~: A after 1.0 (D079), then superseded: the Number is the tower, in 1.0 (D080). Its open questions are in [`THE_NUMBER.md`](THE_NUMBER.md#6-decisions-for-the-owner).
 4. ~~Coins per kill~~: flat, accepted (D074).
-5. **Cheaper Workshop prices?** The owner finds them high. They are The Tower's own for a new account; The Tower lowers them later with Workshop Discount labs (up to 49.5% a tab) and the Vault. Waiting on a screenshot of the owner's Tower Workshop.
+5. ~~Cheaper Workshop prices?~~ Keep The Tower's (the owner, 26 September: "fair enough"). The Tower lowers them later with Workshop Discount labs (up to 49.5% a tab), which come with Labs (1.3).

@@ -28,7 +28,7 @@ func _init() -> void:
 	var runs: Array = report.entries.filter(func(entry): return entry.get("kind") == "run")
 	var here := ActivityLog.game_version()
 	var workshop: Dictionary = report.get("workshop", {})
-	print("Exported %s from game %s; this checkout is %s." % [report.exported_at, report.game, here])
+	print("Exported %s from v%s (%s); this checkout is %s." % [report.exported_at, report.get("game_version", "?"), report.game, here])
 	print("Workshop now: %s Coins, best wave %d, %d runs, groups %s" % [
 		_n(workshop.get("coins", 0.0)), int(workshop.get("best_wave", 0)), int(workshop.get("runs", 0)), ", ".join(workshop.get("open_groups", []))])
 	if options.has("run"):
@@ -43,11 +43,18 @@ func _print_runs(runs: Array, here: String) -> void:
 	print("\n  #  when (UTC)           wave  game time  real time  kills  cash earned  coins  ended by  buys  replay")
 	for index in range(runs.size()):
 		var run: Dictionary = runs[index]
+		if not RunReport.is_replayable(run):
+			print("%3d  %-19s  a damaged record%s" % [index + 1, run.get("at", "?"), ", lost on resume" if run.has("resume_failed") else ""])
+			continue
 		var result: Dictionary = run.result
 		var replay := "other version"
 		if String(run.get("game", "")) == here:
 			replay = "matches" if RunReport.matches(run, RunReport.replay(run)) else "DIFFERS"
-		var ended := "closed" if bool(result.closed_mid_run) else String(result.killed_by)
+		var ended := String(result.killed_by)
+		if run.get("resume_failed", false):
+			ended = "lost"
+		elif bool(result.closed_mid_run):
+			ended = "closed"
 		print("%3d  %-19s  %4d  %9s  %9s  %5d  %11s  %5s  %-8s  %4d  %s" % [index + 1, run.get("at", "?"), int(result.wave),
 			_clock(float(result.time)), _clock(float(run.play.get("real_seconds", 0.0))), int(result.kills),
 			_n(result.cash_earned), _n(result.coins), ended, run.inputs.size(), replay])
@@ -58,6 +65,9 @@ func _print_run(runs: Array, number: int) -> void:
 		printerr("There are %d runs." % runs.size())
 		return
 	var run: Dictionary = runs[number - 1]
+	if not RunReport.is_replayable(run):
+		print("\nRun %d is a damaged record: %s" % [number, JSON.stringify(run).left(400)])
+		return
 	print("\nRun %d: seed %d, started with %s" % [number, int(run.seed), run.start.levels])
 	print("Played %s real, at speeds %s" % [_clock(float(run.play.get("real_seconds", 0.0))), run.play.get("seconds_at_speed", {})])
 	print("\n wave  game time  health / most   cash  earned  coins  kills  enemy atk  enemy hp  bought")
