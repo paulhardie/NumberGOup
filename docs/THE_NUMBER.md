@@ -1,6 +1,6 @@
 # The Number: design considerations
 
-**Status:** the direction is decided (D080), its four decisions are answered (D081, section 6), and the enemy design is answered and built (D082, section 7): the Number in the centre, and the Divider. What's left for 1.0 is the owner playing it. This page is the working list of everything that changes now that the tower *is* a number; the owner's answers go into [`DECISIONS.md`](DECISIONS.md), and this page is updated to match.
+**Status:** the direction is decided (D080), its four decisions are answered (D081, section 6), and the enemy design is answered and built (D082, section 7): the Number in the centre, and the Divider. Since then the owner removed the Number's ceiling and made Tier 1's Divider gentle (D083: ÷1.25, then ÷1.5). What's left for 1.0 is the owner playing it. This page is the working list of everything that changes now that the tower *is* a number; the owner's answers go into [`DECISIONS.md`](DECISIONS.md), and this page is updated to match.
 
 ## The direction, in the owner's words
 
@@ -33,6 +33,22 @@ The vision's test still applies: **honest.** Every number that kills you should 
 - **(a) Capped at Health, as in The Tower.** Regen and Lifesteal fill it to the cap; Recovery Packages go past it up to Max Recovery.
 - **(b) No ceiling.** Regen, Lifesteal and packages keep raising it for ever. Flat hits threaten a small Number, and ÷ and % hits bite a big one, so the Number settles where healing equals loss, and upgrades raise that level. It's elegant and very "number go up", but it's a new balance, not The Tower's, and it risks D037: a Number that outgrows every hit.
 - **Recommend (a) for Tier 1,** because the owner wants Tier 1 to keep The Tower's shape. Hold (b) as a candidate twist for a later tier, measured on its own.
+- **Revisited (26 September 2026).** Playing (a), the owner found the Number "literally just a swap of health" and chose (b) for 1.0, measured first. The setting is `Guesses.NUMBER_OVERFILL`: how much of Regen and Lifesteal works past Health. It's still 0 in the game.
+- **Measured** (30-run `core` careers per setting, with `--curve`; 20-seed single runs):
+
+  | Past Health | Runs end? | First past wave 11 | Reaches wave 30 | Median Number, waves 5 / 10 / 15 / 20 / 25 (last 10 runs) | ÷ landed (last 10 runs) |
+  |---|---|---|---|---|---|
+  | 0 (a ceiling) | yes | run 12 | never in 30 runs | 33 / 49 / 78 / 44 / – | 20 of 70 |
+  | ¼ | yes | run 10 | run 28 | 55 / 92 / 154 / 100 / 150 | 38 of 91 |
+  | ½ | yes | run 10 | run 26 | 74 / 138 / 248 / 180 / 182 | 44 of 100 |
+  | all (no ceiling) | yes | run 10 | run 21 | 124 / 260 / 480 / 359 / 314 | 65 of 129 |
+
+  - Fresh runs are unchanged at every setting: buying nothing dies at wave 3, and spreading Cash at wave 8, since Regen starts near zero.
+  - With no ceiling, the Number climbs about fourfold from wave 5 to wave 15, then falls as the waves outgrow Regen, until the run ends. So a run has an arc: the Number goes up, and the run is the fight to keep it up.
+  - Every run still ends, and more Dividers land, because towers live into harder waves.
+  - The cost is pace: careers pass the wave-20 wall sooner (wave 30 by run 21, against never with the ceiling).
+- **Decided (D083): no ceiling.** Built with Tier 1's gentle Divider (÷1.25 then ÷1.5, 4× health). As shipped, careers reach wave 30 by run 24, and the Number's median at waves 5 to 30 runs 113, 236, 459, 392, 408 and 151.
+
 - **Decision 1.**
 
 **1.3 Is the Number ever spent?** The old vision made it "score, health and ammunition at once". **Recommend no:** Cash stays the run's currency, as now. Spending the Number would bring back D037's tangle, where every choice trades survival for power.
@@ -85,7 +101,7 @@ The vision's test still applies: **honest.** Every number that kills you should 
 
 **2.8 Ranged enemies.** Their shots are hits like any other; a ranged ÷ enemy would divide from the Range edge. **Recommend:** ranged stays flat in Tier 1, since a ÷ at range can't be answered by killing it first.
 
-**2.9 How big is the divisor?** ÷2 is legible and dramatic. **Recommend** starting at ÷2 and tuning by how often they come, not by odd divisors like ÷1.37. If a softer step is needed, ÷1.5 reads fine.
+**2.9 How big is the divisor?** *Decided (D083):* Tier 1 is the tutorial, so ÷1.25 (a fifth) to wave 17, then ÷1.5 (a third), in clean steps of 0.25. ÷2 and beyond are for later tiers. A bigger divisor takes more (÷2 half, ÷3 two thirds), so gentle means closer to 1. *The first recommendation, kept for the record:*  ÷2 is legible and dramatic. **Recommend** starting at ÷2 and tuning by how often they come, not by odd divisors like ÷1.37. If a softer step is needed, ÷1.5 reads fine.
 
 **2.10 Telegraphing (honesty).** Every operator enemy carries its symbol ("÷2") on its body, has its own shape and colour, and is visible from the spawn edge. At its speed that gives several seconds' warning. **To measure:** the time from spawn to contact for each operator enemy is never under a set minimum, e.g. 4 seconds.
 
@@ -253,6 +269,10 @@ The numbers to tune are its share by wave, its health and the divisor. **Tune sh
 - **The Scatter as a divide pun:** it halves into two on each hit.
 - **The Ray** as a charged ×2 hit.
 - **The Protector** as a shield that makes Dividers harder to stop.
+
+### Changed by D083
+
+Tier 1's Divider is gentler than D082 built it: ÷1.25 to wave 17, then ÷1.5, with 4× a basic enemy's health throughout. Most land, as frequent, small ÷ moments, and the Number has no ceiling. The measurements are in D083.
 
 ### Answered and built (D082)
 

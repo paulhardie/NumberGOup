@@ -202,14 +202,11 @@ func _refresh() -> void:
 	_coins.text = "● " + Palette.number(workshop.coins)
 	_tower_damage.text = "Damage " + Palette.row_value("damage", sim.stat("damage"))
 	_tower_regen.text = "Regen %.2f/s" % sim.stat("health_regen")
-	# A recovery package can heal past the most; the bar stays full then.
-	_health_bar.max_value = maxf(sim.max_health(), sim.health)
+	# The Number against this run's peak (D083: it has no ceiling).
+	_health_bar.max_value = maxf(sim.peak_number, 0.001)
 	_health_bar.value = sim.health
-	# Whole, as The Tower shows it. A tower still standing never reads 0, and
-	# full health never reads more than the most, except when overhealed.
-	var most := roundf(sim.max_health())
 	var now := Palette.number_shown(sim.health, sim.max_health(), sim.alive)
-	_health_text.text = "%s / %s" % [Palette.number(now), Palette.number(most)]
+	_health_text.text = "%s · peak %s" % [Palette.number(now), Palette.number(roundf(sim.peak_number))]
 	_wave_title.text = "Wave %d" % sim.wave
 	_enemy_attack.text = "Attack " + Palette.number(sim.enemy_attack_now("basic"))
 	_enemy_health.text = "Health " + Palette.number(sim.enemy_health_now("basic"))

@@ -75,19 +75,33 @@ const CASH_BY_TYPE := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "b
 ## 2, as The Tower's own enemy list says (D082).
 const COINS_BY_TYPE := {"basic": 0.0, "fast": 2.0, "ranged": 2.0, "tank": 4.0, "boss": 5.0, "divider": 2.0}
 
+## How much of Regen and Lifesteal still works once the Number is past Health:
+## 0 would be a ceiling (D081); all of it, so the Number keeps rising for as
+## long as the tower survives, is the owner's choice (D083), measured in
+## docs/THE_NUMBER.md 1.2. Health is now where the Number starts and what
+## buying Number adds to, not a limit.
+const NUMBER_OVERFILL := 1.0
+
 ## The Divider (D082, docs/THE_NUMBER.md section 7): ours, not The Tower's. It
 ## walks in at a basic enemy's speed and, on reaching the Number, takes away
-## 1 - 1/divisor of it (half, at ÷2) through the defences, and is used up.
+## 1 - 1/divisor of it through the defences, and is used up. A bigger divisor
+## takes more (÷2 half, ÷3 two thirds), so Tier 1, the tutorial, stays gentle
+## (D083): ÷1.25 (a fifth) at FROM_WAVE, rising to ÷1.5 (a third) by FULL_WAVE,
+## in steps of DIVISOR_STEP so it always reads cleanly (÷1.25 to wave 17, then
+## ÷1.5). ÷2 and beyond are for later tiers. Each Divider keeps the divisor it
+## spawned with, which is what it shows.
 ## None before FROM_WAVE; from there a share of each wave's count, on top of
 ## The Tower's enemies, rising in a straight line from SHARE_FIRST to
 ## SHARE_FULL at FULL_WAVE and holding there. Its health, in basic enemies',
-## rises the same way from HEALTH_FIRST to HEALTH_FULL: measured, 2× lets a
-## fresh tower keep The Tower's wave-8 death, and 4× by the middle waves lets
-## about half through, a ÷ every few minutes. Tune the share first, then
-## health or speed, and the divisor last: ÷2 is the identity.
+## can ramp the same way from HEALTH_FIRST to HEALTH_FULL. At ÷2 a fresh tower
+## needed 2× at first to keep The Tower's wave-8 death; at Tier 1's gentler
+## divisors 4× throughout keeps it, and most Dividers land: frequent, small ÷
+## moments that teach the enemy (D083, measured in THE_NUMBER.md 7).
 const DIVIDER := {
-	"divisor": 2.0,
-	"health_first": 2.0,
+	"divisor_first": 1.25,
+	"divisor_full": 1.5,
+	"divisor_step": 0.25,
+	"health_first": 4.0,
 	"health_full": 4.0,
 	"speed": 1.0,
 	"from_wave": 5,

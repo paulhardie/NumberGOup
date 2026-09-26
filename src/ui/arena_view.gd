@@ -72,10 +72,10 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 				hit_total += float(event.damage)
 			"divided":
 				if event.at_wall:
-					_floats.append({"text": "÷2 Wall", "at": event.enemy.position(), "age": 0.0, "colour": Palette.DIVIDER, "size": 16})
+					_floats.append({"text": "÷%s Wall" % _divisor_text(event.divisor), "at": event.enemy.position(), "age": 0.0, "colour": Palette.DIVIDER, "size": 16})
 				else:
 					_divide_left = SHAKE_SECONDS
-					_floats.append({"text": "÷%s  −%s" % [_divisor_text(), Palette.number(float(event.damage))], "at": Vector2(0, -6), "age": 0.0,
+					_floats.append({"text": "÷%s  −%s" % [_divisor_text(event.divisor), Palette.number(float(event.damage))], "at": Vector2(0, -6), "age": 0.0,
 						"colour": Palette.DIVIDER, "size": 20})
 			"free_upgrade":
 				var name := String(TowerData.upgrade(event.id).title).capitalize()
@@ -99,9 +99,9 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 		_floats.append({"text": "−" + Palette.number(hit_total), "at": Vector2(0, 10), "age": 0.0, "colour": Palette.WARNING, "size": 14})
 
 
-func _divisor_text() -> String:
-	var divisor := float(sim.divider.divisor)
-	return str(int(divisor)) if is_equal_approx(divisor, roundf(divisor)) else "%.1f" % divisor
+## "2", "1.5", "1.25", "1.38": at most two decimals, none trailing.
+static func _divisor_text(divisor: float) -> String:
+	return String.num(snappedf(divisor, 0.01), 2)
 
 
 ## A word that rises from the tower.
@@ -146,20 +146,21 @@ func _draw() -> void:
 
 
 ## The tower is the Number: whole, as Palette.number_shown has it (a standing
-## tower never reads 0), in a body whose ring shows how full it is against Health, its
-## ceiling. It turns the warning colour when low, the Coin colour when a
-## package has healed it past Health, and flashes and shakes when a ÷ lands.
+## tower never reads 0), in a body whose ring shows it against this run's peak
+## (D083: it has no ceiling). It is the Coin colour while it stands at a new
+## peak, the warning colour below a quarter of its peak, and flashes and shakes
+## when a ÷ lands.
 func _draw_tower() -> void:
 	var shake := Vector2.ZERO
 	if _divide_left > 0.0:
 		var strength := _divide_left / SHAKE_SECONDS
 		shake = Vector2(sin(_divide_left * 90.0), cos(_divide_left * 70.0)) * SHAKE_PX * strength
 	var at := centre + shake
-	var most := maxf(sim.max_health(), 0.001)
+	var peak := maxf(sim.peak_number, 0.001)
 	var colour := Palette.ACCENT
-	if sim.health > sim.max_health():
+	if sim.health >= peak * 0.999:
 		colour = Palette.COIN
-	elif sim.health < most * 0.25:
+	elif sim.health < peak * 0.25:
 		colour = Palette.WARNING
 	if _tower_flash > 0.0:
 		colour = Palette.WARNING.lerp(colour, 1.0 - _tower_flash / FLASH_SECONDS)
@@ -168,7 +169,7 @@ func _draw_tower() -> void:
 	draw_circle(at, BODY_RADIUS_PX, Palette.GROUND)
 	draw_arc(at, BODY_RADIUS_PX, 0.0, TAU, 48, Color(Palette.LINE, 1.0), 2.0, true)
 	# Thicker while Rapid Fire runs.
-	var fill := clampf(sim.health / most, 0.0, 1.0)
+	var fill := clampf(sim.health / peak, 0.0, 1.0)
 	draw_arc(at, BODY_RADIUS_PX, -PI * 0.5, -PI * 0.5 + TAU * fill, 48, colour, 4.0 if sim.rapid_fire_left > 0.0 else 2.5, true)
 	var text := Palette.number(Palette.number_shown(sim.health, sim.max_health(), sim.alive))
 	# Shrink to fit the body as the digits grow.
@@ -186,7 +187,7 @@ func _draw_enemy(enemy: BattleSim.Enemy) -> void:
 	var distance_px := maxf(enemy.drawn_at(blend).length() * px_per_metre(), BODY_RADIUS_PX + half)
 	var at := centre + toward * distance_px
 	if enemy.kind == "divider":
-		_draw_divider(at, half)
+		_draw_divider(at, half, enemy.divisor)
 	else:
 		_draw_square(enemy, at, half)
 	if enemy.health < enemy.max_health:
@@ -198,14 +199,15 @@ func _draw_enemy(enemy: BattleSim.Enemy) -> void:
 
 
 ## The Divider: a diamond with its ÷ on it, always readable (THE_NUMBER.md 2.10).
-func _draw_divider(at: Vector2, half: float) -> void:
+func _draw_divider(at: Vector2, half: float, divisor: float) -> void:
 	var corners := PackedVector2Array()
 	for corner in range(5):
 		corners.append(at + Vector2.from_angle(TAU * corner / 4.0) * half * 1.3)
 	draw_polyline(corners, Palette.DIVIDER, 2.0, true)
-	var label := "÷" + _divisor_text()
-	var size := Palette.NUMBER_FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 10)
-	draw_string(Palette.NUMBER_FONT, at + Vector2(-size.x * 0.5, 3.5), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Palette.DIVIDER)
+	# The divisor sits under the diamond, where it has room to be read.
+	var label := "÷" + _divisor_text(divisor)
+	var size := Palette.NUMBER_FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11)
+	draw_string(Palette.NUMBER_FONT, at + Vector2(-size.x * 0.5, half * 1.3 + 12.0), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 11, Palette.DIVIDER)
 
 
 ## The Tower's launch enemies: squares that subtract.

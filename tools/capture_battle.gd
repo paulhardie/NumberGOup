@@ -87,7 +87,15 @@ func _capture() -> void:
 	divided.start_run(11)
 	divided.set_process(false)
 	var landed := false
+	var walking_shot := false
 	while divided.sim.alive and not landed and divided.sim.time < 3600.0:
+		# One frame of a Divider on its way in, before any has landed.
+		if not walking_shot and divided.sim.enemies.any(func(enemy): return enemy.kind == "divider" and enemy.distance < 35.0):
+			walking_shot = true
+			divided._refresh()
+			divided._arena.queue_redraw()
+			await _frames()
+			_save_png("battle_divider_walking")
 		divided.sim.step()
 		landed = divided.sim.events.any(func(event): return event.type == "divided" and not event.at_wall)
 		if landed:

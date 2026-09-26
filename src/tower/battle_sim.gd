@@ -32,6 +32,8 @@ class Enemy:
 	var last_distance: float
 	## Rend Armor: how much more damage this enemy takes from strikes.
 	var rend := 0.0
+	## A Divider's divisor, fixed when it spawns; 0 for every other enemy.
+	var divisor := 0.0
 
 	func position() -> Vector2:
 		return Vector2.from_angle(angle) * distance
@@ -120,6 +122,8 @@ var _divider_due := 0.0
 ## The Divider's numbers for this run (Guesses.DIVIDER), which the measuring
 ## tools may change before the first step to try others.
 var divider: Dictionary = Guesses.DIVIDER.duplicate()
+## Guesses.NUMBER_OVERFILL for this run, which the measuring tools may change.
+var overfill := Guesses.NUMBER_OVERFILL
 
 ## The highest the Number has stood this run: the run's record (D081).
 var peak_number := 0.0
@@ -237,11 +241,12 @@ func max_health() -> float:
 	return stat("health")
 
 
-## Healing that stops at the most health: Regen and Lifesteal never take away
-## a recovery package's overheal.
+## Regen and Lifesteal: in full up to Health, and past it at `overfill`'s
+## share (Guesses.NUMBER_OVERFILL; 0 is a ceiling). They never take away a
+## recovery package's overheal.
 func _heal(amount: float) -> void:
-	if health < max_health():
-		health = minf(max_health(), health + amount)
+	var room := maxf(0.0, max_health() - health)
+	health += minf(amount, room) + maxf(0.0, amount - room) * overfill
 
 
 func wall_max_health() -> float:
@@ -282,6 +287,13 @@ func divider_share(at_wave: int) -> float:
 	if at_wave < int(divider.from_wave):
 		return 0.0
 	return lerpf(float(divider.share_first), float(divider.share_full), _divider_ramp(at_wave))
+
+
+## The divisor a Divider spawning on `at_wave` carries.
+func divider_divisor(at_wave: int) -> float:
+	var smooth := lerpf(float(divider.divisor_first), float(divider.divisor_full), _divider_ramp(at_wave))
+	# In clean steps, so the ÷ on its body always reads simply.
+	return snappedf(smooth, float(divider.get("divisor_step", 0.0))) if float(divider.get("divisor_step", 0.0)) > 0.0 else smooth
 
 
 ## How far along its ramp the Divider is at `at_wave`: 0 at its first wave,
@@ -384,6 +396,7 @@ func _spawn_due() -> void:
 		enemy.speed = _speed_m(kind)
 		if kind == "divider":
 			enemy.angle = _divider_rng.randf() * TAU
+			enemy.divisor = divider_divisor(wave)
 			dividers_spawned += 1
 		else:
 			enemy.angle = _spawn_rng.randf() * TAU
@@ -467,7 +480,8 @@ func _enemies_hit() -> void:
 ## used up: gone, unpaid, and no longer a target for shots already flying.
 ## Half of anything is never all of it, so it can't end a run on its own.
 func _divide(enemy: Enemy) -> void:
-	var share := 1.0 - 1.0 / maxf(1.0, float(divider.divisor))
+	var divisor := enemy.divisor if enemy.divisor > 0.0 else divider_divisor(wave)
+	var share := 1.0 - 1.0 / maxf(1.0, divisor)
 	var at_wall := wall_up() and enemy.distance > Guesses.CONTACT_DISTANCE_M
 	var loss := 0.0
 	if at_wall:
@@ -486,7 +500,7 @@ func _divide(enemy: Enemy) -> void:
 	enemy.health = 0.0
 	enemies.erase(enemy)
 	if record_events:
-		events.append({"type": "divided", "enemy": enemy, "damage": loss, "at_wall": at_wall})
+		events.append({"type": "divided", "enemy": enemy, "damage": loss, "at_wall": at_wall, "divisor": divisor})
 
 
 ## What a hit of `raw` leaves after the tower's defences.

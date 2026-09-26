@@ -15,7 +15,10 @@ extends SceneTree
 ## --divider-share N scales how many Dividers come (1 is Guesses.DIVIDER's,
 ## 0 none) and --divider-speed N sets their speed as a share of a basic
 ## enemy's, and --divider-health N its health in basic enemies', for trying
-## the Divider's tuning without changing the game.
+## the Divider's tuning without changing the game; --divider-divisor N fixes
+## its divisor at every wave. --overfill N sets how much
+## of Regen and Lifesteal works past Health (0 a ceiling, 1 none), and --curve
+## adds the Number at the end of every fifth wave to each run's line.
 ##
 ## --careers N plays N runs in a row from a fresh Workshop instead, spending
 ## the Coins between runs: it opens the cheapest group it can, otherwise buys
@@ -57,7 +60,7 @@ func _init() -> void:
 		waves.append(sim.wave)
 		print("%4d  %4d  %9s  %5d  %11.0f  %5.0f  %11.1f  %13s  %5.0f%%  %-9s  %s" % [index + 1, sim.wave, _clock(sim.time), sim.kills, sim.cash_earned, sim.coins,
 			sim.peak_number, "%d/%d" % [sim.dividers_spawned, sim.dividers_landed], _divider_share_of_loss(sim),
-			sim.killed_by if not sim.alive else "(alive)", _bought(sim)])
+			sim.killed_by if not sim.alive else "(alive)", _bought(sim)] + _curve(sim, options))
 	waves.sort()
 	print("median wave %d, range %d to %d" % [waves[waves.size() / 2], waves[0], waves[-1]])
 	quit()
@@ -79,7 +82,7 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 		hours += sim.time / 3600.0
 		_spend_workshop(workshop, strategy)
 		print("%3d  %4d  %9s  %5.1f  %12.0f  %10.0f  %13s  %-9s  %s" % [run + 1, sim.wave, _clock(sim.time), hours, sim.coins, workshop.coins,
-			"%d/%d" % [sim.dividers_spawned, sim.dividers_landed], sim.killed_by if not sim.alive else "(alive)", _workshop_summary(workshop)])
+			"%d/%d" % [sim.dividers_spawned, sim.dividers_landed], sim.killed_by if not sim.alive else "(alive)", _workshop_summary(workshop)] + _curve(sim, options))
 
 
 func _spend_workshop(workshop: Workshop, strategy: String) -> void:
@@ -151,6 +154,17 @@ func _choose(sim: BattleSim, strategy: String) -> String:
 	return best if sim.can_buy(best) else ""
 
 
+## With --curve, the Number at the end of every fifth wave, as " | 5:12 10:40 …".
+func _curve(sim: BattleSim, options: Dictionary) -> String:
+	if not options.has("curve"):
+		return ""
+	var points: Array[String] = []
+	for snapshot in sim.wave_log:
+		if int(snapshot.wave) % 5 == 0:
+			points.append("%d:%.0f" % [int(snapshot.wave), float(snapshot.health)])
+	return "  | " + " ".join(points)
+
+
 func _tune(sim: BattleSim, options: Dictionary) -> void:
 	if options.has("divider-share"):
 		var scale := float(options["divider-share"])
@@ -158,6 +172,11 @@ func _tune(sim: BattleSim, options: Dictionary) -> void:
 		sim.divider.share_full = float(sim.divider.share_full) * scale
 	if options.has("divider-speed"):
 		sim.divider.speed = float(options["divider-speed"])
+	if options.has("overfill"):
+		sim.overfill = float(options.overfill)
+	if options.has("divider-divisor"):
+		sim.divider.divisor_first = float(options["divider-divisor"])
+		sim.divider.divisor_full = float(options["divider-divisor"])
 	if options.has("divider-health"):
 		sim.divider.health_first = float(options["divider-health"])
 		sim.divider.health_full = float(options["divider-health"])
@@ -185,7 +204,9 @@ func _clock(seconds: float) -> String:
 func _options() -> Dictionary:
 	var found := {}
 	var args := OS.get_cmdline_user_args()
-	for index in range(0, args.size() - 1):
+	for index in range(args.size()):
 		if args[index].begins_with("--"):
-			found[args[index].substr(2)] = args[index + 1]
+			# An option with no value after it, like --curve, is a switch.
+			var has_value := index + 1 < args.size() and not args[index + 1].begins_with("--")
+			found[args[index].substr(2)] = args[index + 1] if has_value else "true"
 	return found
