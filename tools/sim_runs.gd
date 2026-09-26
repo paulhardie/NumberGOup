@@ -10,9 +10,15 @@ extends SceneTree
 ##   even      buys whichever open row has the fewest levels, when it can
 ##   attack    only Damage and Attack Speed, cheapest first
 ## --cap-minutes stops a run that is still alive (default 90).
+##
+## --careers N plays N runs in a row from a fresh Workshop instead, spending
+## the Coins between runs: it opens the cheapest group it can, otherwise buys
+## the open Workshop row with the fewest levels, until nothing is affordable.
+## Each run buys with --buy (use even). Each row printed is one run.
 
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
+const Workshop = preload("res://src/tower/workshop.gd")
 
 const STRATEGIES := ["none", "cheapest", "even", "attack"]
 
@@ -25,6 +31,10 @@ func _init() -> void:
 	if strategy not in STRATEGIES:
 		printerr("--buy must be one of %s" % ", ".join(STRATEGIES))
 		quit(1)
+		return
+	if options.has("careers"):
+		_career(int(options.careers), strategy, cap_seconds)
+		quit()
 		return
 	var waves: Array[int] = []
 	print("buying: %s" % strategy)
@@ -40,6 +50,54 @@ func _init() -> void:
 	waves.sort()
 	print("median wave %d, range %d to %d" % [waves[waves.size() / 2], waves[0], waves[-1]])
 	quit()
+
+
+func _career(runs: int, strategy: String, cap_seconds: float) -> void:
+	var workshop := Workshop.new()
+	var hours := 0.0
+	print("career, buying %s in each run, %d-minute cap" % [strategy, int(cap_seconds / 60.0)])
+	print("run  wave  game time  hours  coins earned  coins left  killed by  Workshop")
+	for run in range(runs):
+		var sim := BattleSim.new(run + 1, workshop.levels, workshop.open_groups)
+		while sim.alive and sim.time < cap_seconds:
+			_spend(sim, strategy)
+			sim.step()
+		workshop.add_coins(sim.coins)
+		workshop.finish_run(sim.wave)
+		hours += sim.time / 3600.0
+		_spend_workshop(workshop)
+		print("%3d  %4d  %9s  %5.1f  %12.0f  %10.0f  %-9s  %s" % [run + 1, sim.wave, _clock(sim.time), hours, sim.coins, workshop.coins,
+			sim.killed_by if not sim.alive else "(alive)", _workshop_summary(workshop)])
+
+
+func _spend_workshop(workshop: Workshop) -> void:
+	while true:
+		var cheapest_group := ""
+		for category in ["attack", "defense", "utility"]:
+			var group := workshop.next_group(category)
+			if group != "" and workshop.can_open(group) and (cheapest_group == "" or TowerData.group_price(group) < TowerData.group_price(cheapest_group)):
+				cheapest_group = group
+		if cheapest_group != "":
+			workshop.open_group(cheapest_group)
+			continue
+		var fewest := ""
+		for id in TowerData.rows():
+			if workshop.is_group_open(TowerData.group(id)) and workshop.level(id) < TowerData.max_level(id):
+				if fewest == "" or workshop.level(id) < workshop.level(fewest):
+					fewest = id
+		if fewest == "" or not workshop.buy(fewest):
+			return
+
+
+func _workshop_summary(workshop: Workshop) -> String:
+	var opened: Array[String] = []
+	for group in workshop.open_groups:
+		if TowerData.group_price(group) > 0.0:
+			opened.append(group)
+	var total := 0
+	for id in workshop.levels:
+		total += int(workshop.levels[id])
+	return "%d levels; opened %s" % [total, ", ".join(opened) if not opened.is_empty() else "nothing"]
 
 
 func _spend(sim: BattleSim, strategy: String) -> void:
