@@ -168,7 +168,7 @@ func _process(delta: float) -> void:
 	_bank_coins()
 	_refresh()
 	if not sim.alive and not _over.visible:
-		workshop.finish_run(sim.wave)
+		workshop.finish_run(sim.wave, sim.peak_number)
 		run_finished.emit()
 		_show_run_over()
 
@@ -208,9 +208,7 @@ func _refresh() -> void:
 	# Whole, as The Tower shows it. A tower still standing never reads 0, and
 	# full health never reads more than the most, except when overhealed.
 	var most := roundf(sim.max_health())
-	var now := roundf(sim.health) if sim.health > sim.max_health() else minf(roundf(sim.health), most)
-	if sim.alive:
-		now = maxf(now, 1.0)
+	var now := Palette.number_shown(sim.health, sim.max_health(), sim.alive)
 	_health_text.text = "%s / %s" % [Palette.number(now), Palette.number(most)]
 	_wave_title.text = "Wave %d" % sim.wave
 	_enemy_attack.text = "Attack " + Palette.number(sim.enemy_attack_now("basic"))
@@ -220,12 +218,19 @@ func _refresh() -> void:
 
 
 func _show_run_over() -> void:
-	var cause := {"basic": "a basic enemy", "fast": "a fast enemy", "tank": "a tank", "ranged": "a ranged enemy", "boss": "a boss"}
+	var cause := {"basic": "a basic enemy", "fast": "a fast enemy", "tank": "a tank", "ranged": "a ranged enemy", "boss": "a boss", "divider": "a Divider"}
 	var ended := sim.killed_by == "ended"
 	_over_title.text = "Run ended" if ended else "Tower destroyed"
 	var how := "Ended on wave %d" % sim.wave if ended else "Destroyed on wave %d by %s" % [sim.wave, cause.get(sim.killed_by, sim.killed_by)]
-	_over_text.text = "%s\n%s of game time · %d kills\nCash earned $%s · Coins earned %s\nBest wave %d" % [
-		how, Palette.clock(sim.time), sim.kills, Palette.number(sim.cash_earned), Palette.number(sim.coins), workshop.best_wave]
+	var lost := 0.0
+	for kind in sim.lost_to:
+		lost += float(sim.lost_to[kind])
+	var divided := float(sim.lost_to.get("divider", 0.0))
+	var dividers := "%d Divider%s reached you, taking %s of the %s you lost" % [sim.dividers_landed, "" if sim.dividers_landed == 1 else "s",
+		Palette.number(divided), Palette.number(lost)] if sim.dividers_landed > 0 else "No Divider reached you"
+	_over_text.text = "%s\n%s of game time · %d kills\nPeak Number %s · %s\nCash earned $%s · Coins earned %s\nBest wave %d · best Number %s" % [
+		how, Palette.clock(sim.time), sim.kills, Palette.number(ceilf(sim.peak_number)), dividers, Palette.number(sim.cash_earned),
+		Palette.number(sim.coins), workshop.best_wave, Palette.number(ceilf(workshop.best_number))]
 	_over.visible = true
 
 
@@ -307,6 +312,8 @@ func _build() -> void:
 	over_column.add_child(_over_title)
 	_over_text = Label.new()
 	_over_text.add_theme_color_override("font_color", Palette.MUTED)
+	_over_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_over_text.custom_minimum_size = Vector2(300, 0)
 	over_column.add_child(_over_text)
 	var again := Button.new()
 	again.text = "Battle again"

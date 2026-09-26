@@ -12,6 +12,10 @@ extends SceneTree
 ##   core      Damage, Attack Speed, Health, Health Regen and Defense
 ##             Absolute, cheapest first; in a career its Workshop does the same
 ## --cap-minutes stops a run that is still alive (default 90).
+## --divider-share N scales how many Dividers come (1 is Guesses.DIVIDER's,
+## 0 none) and --divider-speed N sets their speed as a share of a basic
+## enemy's, and --divider-health N its health in basic enemies', for trying
+## the Divider's tuning without changing the game.
 ##
 ## --careers N plays N runs in a row from a fresh Workshop instead, spending
 ## the Coins between runs: it opens the cheapest group it can, otherwise buys
@@ -38,41 +42,44 @@ func _init() -> void:
 		quit(1)
 		return
 	if options.has("careers"):
-		_career(int(options.careers), strategy, cap_seconds)
+		_career(int(options.careers), strategy, cap_seconds, options)
 		quit()
 		return
 	var waves: Array[int] = []
 	print("buying: %s" % strategy)
-	print("seed  wave  game time  kills  cash earned  coins  killed by  levels bought")
+	print("seed  wave  game time  kills  cash earned  coins  peak Number  ÷ came/landed  ÷ took  killed by  levels bought")
 	for index in range(seeds):
 		var sim := BattleSim.new(index + 1)
+		_tune(sim, options)
 		while sim.alive and sim.time < cap_seconds:
 			_spend(sim, strategy)
 			sim.step()
 		waves.append(sim.wave)
-		print("%4d  %4d  %9s  %5d  %11.0f  %5.0f  %-9s  %s" % [index + 1, sim.wave, _clock(sim.time), sim.kills, sim.cash_earned, sim.coins,
+		print("%4d  %4d  %9s  %5d  %11.0f  %5.0f  %11.1f  %13s  %5.0f%%  %-9s  %s" % [index + 1, sim.wave, _clock(sim.time), sim.kills, sim.cash_earned, sim.coins,
+			sim.peak_number, "%d/%d" % [sim.dividers_spawned, sim.dividers_landed], _divider_share_of_loss(sim),
 			sim.killed_by if not sim.alive else "(alive)", _bought(sim)])
 	waves.sort()
 	print("median wave %d, range %d to %d" % [waves[waves.size() / 2], waves[0], waves[-1]])
 	quit()
 
 
-func _career(runs: int, strategy: String, cap_seconds: float) -> void:
+func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionary) -> void:
 	var workshop := Workshop.new()
 	var hours := 0.0
 	print("career, buying %s in each run, %d-minute cap" % [strategy, int(cap_seconds / 60.0)])
-	print("run  wave  game time  hours  coins earned  coins left  killed by  Workshop")
+	print("run  wave  game time  hours  coins earned  coins left  ÷ came/landed  killed by  Workshop")
 	for run in range(runs):
 		var sim := BattleSim.new(run + 1, workshop.levels, workshop.open_groups)
+		_tune(sim, options)
 		while sim.alive and sim.time < cap_seconds:
 			_spend(sim, strategy)
 			sim.step()
 		workshop.add_coins(sim.coins)
-		workshop.finish_run(sim.wave)
+		workshop.finish_run(sim.wave, sim.peak_number)
 		hours += sim.time / 3600.0
 		_spend_workshop(workshop, strategy)
-		print("%3d  %4d  %9s  %5.1f  %12.0f  %10.0f  %-9s  %s" % [run + 1, sim.wave, _clock(sim.time), hours, sim.coins, workshop.coins,
-			sim.killed_by if not sim.alive else "(alive)", _workshop_summary(workshop)])
+		print("%3d  %4d  %9s  %5.1f  %12.0f  %10.0f  %13s  %-9s  %s" % [run + 1, sim.wave, _clock(sim.time), hours, sim.coins, workshop.coins,
+			"%d/%d" % [sim.dividers_spawned, sim.dividers_landed], sim.killed_by if not sim.alive else "(alive)", _workshop_summary(workshop)])
 
 
 func _spend_workshop(workshop: Workshop, strategy: String) -> void:
@@ -142,6 +149,26 @@ func _choose(sim: BattleSim, strategy: String) -> String:
 		if better:
 			best = id
 	return best if sim.can_buy(best) else ""
+
+
+func _tune(sim: BattleSim, options: Dictionary) -> void:
+	if options.has("divider-share"):
+		var scale := float(options["divider-share"])
+		sim.divider.share_first = float(sim.divider.share_first) * scale
+		sim.divider.share_full = float(sim.divider.share_full) * scale
+	if options.has("divider-speed"):
+		sim.divider.speed = float(options["divider-speed"])
+	if options.has("divider-health"):
+		sim.divider.health_first = float(options["divider-health"])
+		sim.divider.health_full = float(options["divider-health"])
+
+
+## The share of everything the Number lost that Dividers took.
+func _divider_share_of_loss(sim: BattleSim) -> float:
+	var total := 0.0
+	for kind in sim.lost_to:
+		total += float(sim.lost_to[kind])
+	return 100.0 * float(sim.lost_to.get("divider", 0.0)) / total if total > 0.0 else 0.0
 
 
 func _bought(sim: BattleSim) -> String:

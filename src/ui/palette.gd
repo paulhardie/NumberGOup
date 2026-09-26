@@ -15,6 +15,9 @@ const WARNING := Color("d68e5c")
 const COIN := Color("d4b04e")
 const ENEMY := Color("e0625a")
 const BOSS := Color("ff4a3d")
+## The Divider (D082): its own colour, so a ÷ reads apart from the squares
+## that subtract.
+const DIVIDER := Color("b48cf2")
 
 const WORD_FONT := preload("res://assets/fonts/Geist.ttf")
 const NUMBER_FONT := preload("res://assets/fonts/GeistMono.ttf")
@@ -103,6 +106,14 @@ static func quote(buying: Dictionary, next_price: float, symbol: String) -> Stri
 		return symbol + number(next_price)
 	var cost := symbol + number(float(buying.cost))
 	return cost if bought == 1 else "+%d %s" % [bought, cost]
+
+
+## The Number as it's shown, the same in the centre and the panel: whole, as
+## The Tower shows Health; a standing tower never reads 0, and full health
+## never reads more than the most, unless a package has healed it past.
+static func number_shown(now: float, most: float, standing: bool) -> float:
+	var shown := roundf(now) if now > most else minf(roundf(now), roundf(most))
+	return maxf(shown, 1.0) if standing else maxf(shown, 0.0)
 
 
 static func clock(seconds: float) -> String:

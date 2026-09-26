@@ -77,6 +77,30 @@ func _capture() -> void:
 	showcase.queue_free()
 	await process_frame
 
+	# The moment a Divider reaches the Number (D082).
+	var divided := BattleScreen.new()
+	var middling := Workshop.new()
+	middling.levels = {"damage": 25, "attack_speed": 10, "health": 80, "health_regen": 40}
+	divided.workshop = middling
+	root.add_child(divided)
+	await process_frame
+	divided.start_run(11)
+	divided.set_process(false)
+	var landed := false
+	while divided.sim.alive and not landed and divided.sim.time < 3600.0:
+		divided.sim.step()
+		landed = divided.sim.events.any(func(event): return event.type == "divided" and not event.at_wall)
+		if landed:
+			divided._arena.absorb(divided.sim.events, 0.0)
+		divided.sim.events.clear()
+	divided._arena.absorb([], 0.08)
+	divided._refresh()
+	divided._arena.queue_redraw()
+	await _frames()
+	_save_png("battle_divided")
+	divided.queue_free()
+	await process_frame
+
 	var screen := BattleScreen.new()
 	screen.workshop = Workshop.new()
 	root.add_child(screen)
@@ -95,7 +119,7 @@ func _capture() -> void:
 		screen._bank_coins()
 		screen._refresh()
 		if not screen.sim.alive:
-			screen.workshop.finish_run(screen.sim.wave)
+			screen.workshop.finish_run(screen.sim.wave, screen.sim.peak_number)
 			screen._show_run_over()
 		screen._arena.queue_redraw()
 		await _frames()

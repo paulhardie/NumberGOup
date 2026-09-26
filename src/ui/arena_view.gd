@@ -1,6 +1,7 @@
 extends Control
-## Draws a BattleSim: the tower, its range and wall, enemies walking in,
-## shots in flight, land mines and shockwaves. It reads the sim and never
+## Draws a BattleSim: the Number in the centre (the tower, D080), its range
+## and wall, enemies walking in, shots in flight, land mines and shockwaves,
+## and what each contact did to the Number. It reads the sim and never
 ## changes it.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
@@ -11,12 +12,19 @@ const Palette = preload("res://src/ui/palette.gd")
 ## The range circle's radius as a share of half the view's width, as on The
 ## Tower's screen (292 px of 460 in the owner's screenshots).
 const RANGE_SHARE := 0.64
-const TOWER_RADIUS_PX := 16.0
+## The Number's body. Wider than the tower's 3 m contact edge so the Number
+## can be read; enemies are drawn touching this edge, which is only drawing:
+## the sim's contact distance is unchanged.
+const BODY_RADIUS_PX := 30.0
+const NUMBER_FONT_PX := 26
+## How long the Number shakes after a ÷, in seconds, and by how many pixels.
+const SHAKE_SECONDS := 0.3
+const SHAKE_PX := 4.0
 const FLOAT_SECONDS := 0.9
 const FLASH_SECONDS := 0.2
 const SHOCKWAVE_SECONDS := 0.4
 
-const ENEMY_SIZE := {"basic": 9.0, "fast": 7.0, "ranged": 9.0, "tank": 13.0, "boss": 20.0}
+const ENEMY_SIZE := {"basic": 9.0, "fast": 7.0, "ranged": 9.0, "tank": 13.0, "boss": 20.0, "divider": 12.0}
 
 var sim: BattleSim
 ## How far between the sim's last tick and its current one to draw things.
@@ -26,6 +34,8 @@ var centre := Vector2.ZERO
 
 var _floats: Array[Dictionary] = []
 var _tower_flash := 0.0
+## Seconds left of the flash and shake a ÷ sets off.
+var _divide_left := 0.0
 ## Seconds since the last shockwave went out, while its ring is drawn.
 var _shockwave_age := SHOCKWAVE_SECONDS
 ## Mine blasts fading: {at, age}.
@@ -43,6 +53,7 @@ func to_view(world: Vector2) -> Vector2:
 ## Takes the sim's events for this frame and turns them into what fades.
 func absorb(events: Array[Dictionary], delta: float) -> void:
 	_tower_flash = maxf(0.0, _tower_flash - delta)
+	_divide_left = maxf(0.0, _divide_left - delta)
 	_shockwave_age += delta
 	for blast in _blasts:
 		blast.age += delta
@@ -50,12 +61,22 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 	for item in _floats:
 		item.age += delta
 	_floats = _floats.filter(func(item): return item.age < FLOAT_SECONDS)
+	# Flat hits in one frame show as one "−" at the Number, not a pile.
+	var hit_total := 0.0
 	for event in events:
 		match event.type:
 			"kill":
 				_floats.append({"text": "$" + Palette.number(event.cash), "at": event.enemy.position(), "age": 0.0, "colour": Palette.ACCENT})
 			"tower_hit":
 				_tower_flash = FLASH_SECONDS
+				hit_total += float(event.damage)
+			"divided":
+				if event.at_wall:
+					_floats.append({"text": "÷2 Wall", "at": event.enemy.position(), "age": 0.0, "colour": Palette.DIVIDER, "size": 16})
+				else:
+					_divide_left = SHAKE_SECONDS
+					_floats.append({"text": "÷%s  −%s" % [_divisor_text(), Palette.number(float(event.damage))], "at": Vector2(0, -6), "age": 0.0,
+						"colour": Palette.DIVIDER, "size": 20})
 			"free_upgrade":
 				var name := String(TowerData.upgrade(event.id).title).capitalize()
 				_floats.append({"text": "Free: " + name, "at": Vector2(0, -8), "age": 0.0, "colour": Palette.COIN})
@@ -73,6 +94,14 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 				_shockwave_age = 0.0
 			"mine":
 				_blasts.append({"at": event.at, "age": 0.0})
+	if hit_total > 0.0:
+		# Starts below the Number and rises into its lower edge, never over its digits.
+		_floats.append({"text": "−" + Palette.number(hit_total), "at": Vector2(0, 10), "age": 0.0, "colour": Palette.WARNING, "size": 14})
+
+
+func _divisor_text() -> String:
+	var divisor := float(sim.divider.divisor)
+	return str(int(divisor)) if is_equal_approx(divisor, roundf(divisor)) else "%.1f" % divisor
 
 
 ## A word that rises from the tower.
@@ -111,27 +140,76 @@ func _draw() -> void:
 	for item in _floats:
 		var rise: float = item.age / FLOAT_SECONDS
 		var at: Vector2 = to_view(item.at) + Vector2(0, -14.0 - 18.0 * rise)
-		draw_string(Palette.NUMBER_FONT, at, item.text, HORIZONTAL_ALIGNMENT_CENTER, -1, 12, Color(item.colour, 1.0 - rise))
+		var font_size: int = item.get("size", 12)
+		var width := Palette.NUMBER_FONT.get_string_size(item.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		draw_string(Palette.NUMBER_FONT, at - Vector2(width * 0.5, 0), item.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(item.colour, 1.0 - rise))
 
 
+## The tower is the Number: whole, as Palette.number_shown has it (a standing
+## tower never reads 0), in a body whose ring shows how full it is against Health, its
+## ceiling. It turns the warning colour when low, the Coin colour when a
+## package has healed it past Health, and flashes and shakes when a ÷ lands.
 func _draw_tower() -> void:
-	var points := PackedVector2Array()
-	for corner in range(7):
-		points.append(centre + Vector2.from_angle(TAU * corner / 6.0) * TOWER_RADIUS_PX)
-	var colour := Palette.WARNING.lerp(Palette.ACCENT, 1.0 - _tower_flash / FLASH_SECONDS) if _tower_flash > 0.0 else Palette.ACCENT
-	# Thicker while Rapid Fire runs.
-	draw_polyline(points, colour, 4.0 if sim.rapid_fire_left > 0.0 else 2.0, true)
-	# The tower's health, as the hexagon filling from below.
-	var share := clampf(sim.health / sim.max_health(), 0.0, 1.0)
+	var shake := Vector2.ZERO
+	if _divide_left > 0.0:
+		var strength := _divide_left / SHAKE_SECONDS
+		shake = Vector2(sin(_divide_left * 90.0), cos(_divide_left * 70.0)) * SHAKE_PX * strength
+	var at := centre + shake
+	var most := maxf(sim.max_health(), 0.001)
+	var colour := Palette.ACCENT
 	if sim.health > sim.max_health():
-		# Overhealed by a recovery package: a ring around the tower.
-		draw_arc(centre, TOWER_RADIUS_PX + 4.0, 0.0, TAU, 32, Color(Palette.ACCENT, 0.6), 2.0, true)
-	draw_circle(centre, TOWER_RADIUS_PX * 0.55 * share, Color(colour, 0.5))
+		colour = Palette.COIN
+	elif sim.health < most * 0.25:
+		colour = Palette.WARNING
+	if _tower_flash > 0.0:
+		colour = Palette.WARNING.lerp(colour, 1.0 - _tower_flash / FLASH_SECONDS)
+	if _divide_left > 0.0:
+		colour = Palette.DIVIDER.lerp(colour, 1.0 - _divide_left / SHAKE_SECONDS)
+	draw_circle(at, BODY_RADIUS_PX, Palette.GROUND)
+	draw_arc(at, BODY_RADIUS_PX, 0.0, TAU, 48, Color(Palette.LINE, 1.0), 2.0, true)
+	# Thicker while Rapid Fire runs.
+	var fill := clampf(sim.health / most, 0.0, 1.0)
+	draw_arc(at, BODY_RADIUS_PX, -PI * 0.5, -PI * 0.5 + TAU * fill, 48, colour, 4.0 if sim.rapid_fire_left > 0.0 else 2.5, true)
+	var text := Palette.number(Palette.number_shown(sim.health, sim.max_health(), sim.alive))
+	# Shrink to fit the body as the digits grow.
+	var font_size := NUMBER_FONT_PX
+	while font_size > 10 and Palette.NUMBER_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > BODY_RADIUS_PX * 1.7:
+		font_size -= 1
+	var size := Palette.NUMBER_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+	draw_string(Palette.NUMBER_FONT, at + Vector2(-size.x * 0.5, font_size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, colour)
 
 
 func _draw_enemy(enemy: BattleSim.Enemy) -> void:
 	var half: float = ENEMY_SIZE[enemy.kind] * 0.5
-	var at := to_view(enemy.drawn_at(blend))
+	# Enemies close to the tower are drawn touching the Number's body.
+	var toward := Vector2.from_angle(enemy.angle)
+	var distance_px := maxf(enemy.drawn_at(blend).length() * px_per_metre(), BODY_RADIUS_PX + half)
+	var at := centre + toward * distance_px
+	if enemy.kind == "divider":
+		_draw_divider(at, half)
+	else:
+		_draw_square(enemy, at, half)
+	if enemy.health < enemy.max_health:
+		var width := half * 2.0
+		var top := at + Vector2(-half, -half - 6.0)
+		var colour := Palette.DIVIDER if enemy.kind == "divider" else Palette.ENEMY
+		draw_rect(Rect2(top, Vector2(width, 2.0)), Color(Palette.LINE, 0.9))
+		draw_rect(Rect2(top, Vector2(width * enemy.health / enemy.max_health, 2.0)), colour)
+
+
+## The Divider: a diamond with its ÷ on it, always readable (THE_NUMBER.md 2.10).
+func _draw_divider(at: Vector2, half: float) -> void:
+	var corners := PackedVector2Array()
+	for corner in range(5):
+		corners.append(at + Vector2.from_angle(TAU * corner / 4.0) * half * 1.3)
+	draw_polyline(corners, Palette.DIVIDER, 2.0, true)
+	var label := "÷" + _divisor_text()
+	var size := Palette.NUMBER_FONT.get_string_size(label, HORIZONTAL_ALIGNMENT_LEFT, -1, 10)
+	draw_string(Palette.NUMBER_FONT, at + Vector2(-size.x * 0.5, 3.5), label, HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Palette.DIVIDER)
+
+
+## The Tower's launch enemies: squares that subtract.
+func _draw_square(enemy: BattleSim.Enemy, at: Vector2, half: float) -> void:
 	var colour := Palette.BOSS if enemy.kind == "boss" else (Palette.WARNING if enemy.kind == "fast" else Palette.ENEMY)
 	var turn := enemy.angle + PI * 0.25
 	var corners := PackedVector2Array()
@@ -142,8 +220,3 @@ func _draw_enemy(enemy: BattleSim.Enemy) -> void:
 		for corner in range(4):
 			corners.append(at + Vector2.from_angle(enemy.angle + PI + TAU * corner / 3.0) * half * 1.2)
 	draw_polyline(corners, colour, 3.0 if enemy.kind in ["tank", "boss"] else 2.0, true)
-	if enemy.health < enemy.max_health:
-		var width := half * 2.0
-		var top := at + Vector2(-half, -half - 6.0)
-		draw_rect(Rect2(top, Vector2(width, 2.0)), Color(Palette.LINE, 0.9))
-		draw_rect(Rect2(top, Vector2(width * enemy.health / enemy.max_health, 2.0)), colour)
