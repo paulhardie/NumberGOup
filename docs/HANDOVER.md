@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 26 September 2026 (D083, no ceiling and a gentle Divider), by Claude, handing on to the next agent.
+**Last updated:** 26 September 2026 (D084, the Number without its ring, and the enemy design brief), by Claude, handing on to the next agent.
 
-**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after #71 merged. It carries D083: no ceiling on the Number, Tier 1's gentle Divider, the ring against the run's peak, and the tools to measure them. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after #72 merged. It carries D084: the ring round the Number removed, and [`design/ENEMY_NUMBERS_BRIEF.md`](design/ENEMY_NUMBERS_BRIEF.md) for Claude Design. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -50,6 +50,8 @@
 5. **AGENTS.md's architectural law 3** (the modifier pipeline) names removed code. **Recommend** dropping it until a system needs stacked rules.
 
 ## Next steps, in order
+
+0. **Owner:** send [`design/ENEMY_NUMBERS_BRIEF.md`](design/ENEMY_NUMBERS_BRIEF.md) and its screenshots to Claude Design. **Agent, when the design returns:** build the enemies as numbers in `src/ui/arena_view.gd`, with bundled OFL fonts. Drawing only; no rule changes (D084).
 
 1. **Owner:** merge this, play, and export a report. Say whether the Number in the centre and the ÷ moments feel right, and how often they come. Done when the owner has played it.
 2. **Agent:** read the report. It records each run's peak Number, what Dividers took, and how many came and landed. Tune `Guesses.DIVIDER` from it with `sim_runs.gd` against the benchmarks (THE_NUMBER.md 5).
