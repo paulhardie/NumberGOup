@@ -14,23 +14,22 @@ const METRES_PER_SPEED := 10.0
 ## Where a melee enemy stops: the tower's edge.
 const CONTACT_DISTANCE_M := 3.0
 
-## Where a ranged enemy stops and fires from (D067).
-const RANGED_DISTANCE_M := 30.0
-
-## Seconds between an enemy's hits once it is in place, first hit on arrival
-## (D072). TheTowerSDK has no enemy attack interval.
-const ENEMY_HIT_SECONDS := 5.0
+## Seconds between an enemy's hits once it is in place, first hit on arrival:
+## about one a second at ×1 (the owner, 26 September). TheTowerSDK has no enemy
+## attack interval. Ranged enemies stop on the edge of the tower's Range; that
+## rule lives in BattleSim, since it follows the Range row.
+const ENEMY_HIT_SECONDS := 1.0
 
 ## Each hit an enemy lands makes its next 4% harder, compounding. The earlier
 ## research says the SDK agrees; the owner's 25 September research says it
 ## grows per wave survived instead. Unsettled.
 const HEAT_UP_PER_HIT := 1.04
 
-## Enemies a wave, bosses aside: 20 at wave 1, plus 0.123 a wave to wave
-## 1,000, then 0.0145 a wave, at most 220 (D065). The SDK's spawn model says
-## about 4 early, which the owner's screens contradict (10+ on screen by wave 8,
-## 16 active at wave 22).
-const FIRST_WAVE_ENEMIES := 20
+## Enemies a wave, bosses aside: 11 at wave 1 (the owner: "about 10 to 12",
+## two or three on screen at once early), plus 0.123 a wave to wave 1,000
+## (about 133 there, near TheTowerSDK's 120-143), then 0.0145 a wave, at most
+## 220. The SDK's early counts (about 4) contradict the owner's screens.
+const FIRST_WAVE_ENEMIES := 11
 const ENEMIES_PER_WAVE := 0.123
 const DEEP_ENEMIES_FROM := 1000
 const DEEP_ENEMIES_PER_WAVE := 0.0145
@@ -46,9 +45,12 @@ const STARTING_CASH := 0.0
 ## as much less far as their mass is greater (D068). The Tower gives no units.
 const KNOCKBACK_METRES_PER_FORCE := 5.0
 
-## Orbs circle at 60 m, or halfway to the Range beyond it, and kill a walking
-## enemy that comes within 3 m of one (D068). Ours; The Tower gives no units.
-const ORB_MIN_RADIUS_M := 60.0
+## Orbs circle on the edge of the tower's Range and kill an enemy but a boss
+## that comes within ORB_HIT_M of one, ranged enemies standing on that edge
+## included (the owner, 26 September). At Orb Speed's first level they make a
+## full turn a second, and faster in proportion to the row's value. The 3 m
+## is ours.
+const ORB_TURNS_PER_SECOND_AT_FIRST_LEVEL := 1.0
 const ORB_HIT_M := 3.0
 
 ## A shot's flight speed, metres a second.

@@ -871,3 +871,20 @@ Rules:
 - **Consequences:** the Workshop fills much more slowly. The owner also asked for cheaper Workshop prices; they are The Tower's own for a new account (TheTowerSDK, the wiki and the owner's fresh-save screen agree), and The Tower lowers them later through Labs and the Vault. Left open as a separate question.
 - **Revisit when:** the owner reads Coins earned at a known wave on a fresh Tower account, or plays a few runs and finds the pace wrong.
 
+## D075 — The Tower's early timings, from the owner
+
+- **Status:** Accepted (2026-09-26) on owner direction, replacing four guesses. Implemented (2026-09-26) on `claude/great-tesla-9kfp95`. The owner's figures were given as statements, not screen readings; the video they sent ("Labs That New Tower Player Should Research ASAP", BonzosTower) is about Labs and couldn't be watched here.
+- **Context:** careers plateaued at waves 19–28 from about 2 hours in (milestone 4). The owner: "the total number of enemies spawned across the entirety of wave 1 is only about 10 to 12 … you rarely see more than two or three on screen"; "a basic enemy strikes roughly once per second"; "Ranged enemies stop exactly on the edge of your tower's current range circle … if you upgrade your range mid-run, they will stop further out"; "Base Orb speed is roughly one full revolution per second … Orbs are locked to orbit directly on the edge of your tower's range circle".
+- **Decision:**
+  1. Wave 1 sends 11 enemies (was 20), rising 0.123 a wave as before (about 133 by wave 1,000, near TheTowerSDK's 120–143).
+  2. An enemy in place hits once a second (was every 5), first hit on arrival.
+  3. Ranged enemies stop on the edge of the tower's Range as it is while they walk (was a fixed 30 m).
+  4. Orbs circle on the edge of Range (was 60 m out), a full turn a second at Orb Speed's first level and faster in proportion (was 0.4 turns a minute), and sweep ranged enemies standing on that edge. The Workshop data's Orb Speed unit changed to match, through its importer.
+- **Evidence** (`tools/sim_runs.gd`, 10 seeds, and careers of 24–40 runs):
+  - Single runs: buying nothing dies on waves 2–5 (median 3) within 2½ minutes (was 2); spreading Cash evenly still dies on wave 8 (7–10), the owner's first Tower run.
+  - Careers did **not** speed up. With fewer enemies there are fewer Coin-paying kills: early runs earn 30–60 Coins, and a career sits at the wave 10 boss for about 2½ hours spending evenly, or 1.3 hours buying only Damage, Attack Speed, Health, Regen and Defense Absolute. That focused career then holds at wave 20–21 until about 5½ hours.
+  - Switching off per-hit heat-up changed almost nothing, so it isn't the cause.
+  - **With the owner's ×9 Coin bonus from packs**, the focused career reaches wave 21 on its third run (about 25 minutes), close to the owner's own new Tower save, which reached wave 22 the day it was made. Each tenth wave's boss is then a wall (31, 41, 50).
+- **Consequences:** the rebuild's pace fits the owner's account once its ×9 Coins are counted; a pack-free account is about nine times slower in Coins. The "about an hour to wave 100" research is unverified and doesn't fit a pack-free fresh account under these rules. The milestone 1 test now expects a tower buying nothing to fall by wave 5 within 3 minutes (was wave 3).
+- **Revisit when:** the owner reads a pack-free account's Coins at a known wave, or times from a fresh save to a wave.
+

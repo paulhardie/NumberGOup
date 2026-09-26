@@ -42,7 +42,7 @@ ROWS = [
     ("lifesteal", "Lifesteal", "LIFESTEAL", "defense", "lifesteal", "percent", "Share of the damage shots deal added to the Number again.", 0.01),
     ("knockback_chance", "Knockback Chance", "KNOCKBACK CHANCE", "defense", "knockback", "percent", "Chance a shot pushes its enemy back.", 0.01),
     ("knockback_force", "Knockback Force", "KNOCKBACK FORCE", "defense", "knockback", "flat", "How hard a knockback pushes. Heavier enemies move less.", 1.0),
-    ("orb_speed", "Orb Speed", "ORB SPEED", "defense", "orbs", "rpm", "How fast the orbs circle, in turns a minute.", 10.0),
+    ("orb_speed", "Orb Speed", "ORB SPEED", "defense", "orbs", "flat", "How fast the orbs circle: a turn a second at its first level (0.4), faster in proportion.", 10.0),
     ("orbs", "Orbs", "ORBS", "defense", "orbs", "count", "Orbs circling the Number. Any enemy but a boss they touch dies.", 1.0),
     ("death_defy", "Death Defy", "DEATH DEFY", "defense", "death_defy", "percent", "Chance a hit that would end the run is ignored.", 0.01),
     ("cash_bonus", "Cash Bonus", "CASH BONUS", "utility", "cash", "multiplier", "Multiplies the Cash kills and waves pay.", 1.0),

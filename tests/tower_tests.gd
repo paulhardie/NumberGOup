@@ -181,12 +181,14 @@ func test_a_run_replays_exactly_from_its_seed() -> void:
 
 
 ## The rebuild's milestone 1 benchmark: The Tower's fresh tower, buying
-## nothing, dies at once (the owner, 25 September).
+## nothing, dies at once (the owner, 25 September). With the owner's 26
+## September enemy count (about 11 in wave 1) that is waves 2 to 5, within
+## about two and a half minutes; it was waves 2 and 3 at 20 enemies a wave.
 func test_a_fresh_tower_that_buys_nothing_falls_in_the_first_waves() -> void:
 	for seed_value in range(1, 6):
 		var sim := BattleSim.new(seed_value)
 		sim.run_until_dead(600.0)
-		check(not sim.alive and sim.wave <= 3, "seed %d fell on wave %d" % [seed_value, sim.wave])
+		check(not sim.alive and sim.wave <= 5 and sim.time < 180.0, "seed %d fell on wave %d at %.0f s" % [seed_value, sim.wave, sim.time])
 
 
 func test_buying_a_level_costs_the_towers_cash() -> void:
@@ -631,18 +633,72 @@ func test_free_upgrades_raise_open_rows_of_their_category() -> void:
 func test_orbs_kill_walking_enemies_but_not_bosses() -> void:
 	var sim := _quiet_sim()
 	sim.levels = {"orbs": 4}
-	var orb: float = sim.orb_angles()[0]
+	var orb: float = sim.orb_angles(sim.time)[0]
 	var walker := _place(sim, "basic", sim.orb_radius())
-	walker.angle = orb
+	walker.angle = orb + 0.05
 	walker.stop_at = Guesses.CONTACT_DISTANCE_M
 	var boss := _place(sim, "boss", sim.orb_radius())
-	boss.angle = orb
+	boss.angle = orb + 0.05
 	boss.stop_at = Guesses.CONTACT_DISTANCE_M
 	var kills := sim.kills
 	sim.step()
-	check(not sim.enemies.has(walker) and sim.kills == kills + 1, "an orb kills the enemy it touches, and it pays")
+	check(not sim.enemies.has(walker) and sim.kills == kills + 1, "an orb kills the enemy it sweeps past, and it pays")
 	check(sim.enemies.has(boss) and boss.health == boss.max_health, "but never a boss")
 	check(sim.orb_angles().size() == 4, "four orbs, spaced evenly")
+
+
+func test_orbs_circle_on_the_range_edge_a_turn_a_second() -> void:
+	var sim := _quiet_sim()
+	sim.levels = {"orbs": 1}
+	check_near(sim.orb_radius(), sim.stat("range"), 0.0, "on the edge of Range")
+	check_near(sim.orb_turns_per_second(), 1.0, 0.0001, "a full turn a second at Orb Speed's first level")
+	sim.levels["range"] = 20
+	check_near(sim.orb_radius(), sim.stat("range"), 0.0, "and out with more Range")
+	sim.levels["orb_speed"] = 10
+	check(sim.orb_turns_per_second() > 1.0, "faster with Orb Speed")
+
+
+func test_one_orb_sweeps_a_ranged_enemy_off_the_range_edge_within_a_second() -> void:
+	var sim := _quiet_sim()
+	sim.levels = {"orbs": 1}
+	var ranged := _place(sim, "ranged", sim.stat("range"))
+	ranged.angle = 2.0
+	ranged.max_health = 1e9
+	ranged.health = 1e9
+	var steps := 0
+	while sim.enemies.has(ranged) and steps < roundi(1.0 / BattleSim.TICK) + 1:
+		sim.step()
+		steps += 1
+	check(not sim.enemies.has(ranged), "a turn a second reaches it, however tough it is")
+
+
+func test_ranged_enemies_stop_on_the_range_edge() -> void:
+	var sim := _quiet_sim()
+	var ranged := _place(sim, "ranged", 60.0)
+	ranged.speed = 20.0
+	ranged.stop_at = 0.0
+	ranged.max_health = 1e9
+	ranged.health = 1e9
+	sim.step()
+	check_near(ranged.stop_at, sim.stat("range"), 0.0, "it will stop at the tower's Range")
+	sim.levels["range"] = 20
+	sim.step()
+	check_near(ranged.stop_at, sim.stat("range"), 0.0, "and further out once Range grows while it walks")
+	for _i in range(90):
+		sim.step()
+	check_near(ranged.distance, sim.stat("range"), 0.0001, "then stands exactly on the line")
+
+
+func test_an_enemy_in_place_hits_once_a_second() -> void:
+	var sim := _quiet_sim()
+	sim.levels = {"health": 200}
+	sim.health = sim.max_health()
+	var enemy := _place(sim, "basic", Guesses.CONTACT_DISTANCE_M)
+	enemy.max_health = 1e9
+	enemy.health = 1e9
+	for _i in range(roundi(10.0 / BattleSim.TICK)):
+		sim.step()
+	check(enemy.hits == 10 or enemy.hits == 11, "about ten hits in ten seconds: %d" % enemy.hits)
 
 
 func test_numbers_read_as_the_towers() -> void:

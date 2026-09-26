@@ -240,12 +240,16 @@ func _spawn_due() -> void:
 		enemy.angle = _spawn_rng.randf() * TAU
 		enemy.distance = Guesses.SPAWN_DISTANCE_M
 		enemy.last_distance = enemy.distance
-		enemy.stop_at = Guesses.RANGED_DISTANCE_M if kind == "ranged" else Guesses.CONTACT_DISTANCE_M
+		enemy.stop_at = stat("range") if kind == "ranged" else Guesses.CONTACT_DISTANCE_M
 		enemies.append(enemy)
 
 
 func _move_enemies() -> void:
 	for enemy in enemies:
+		# Ranged enemies stop on the edge of the tower's Range, wherever it is
+		# now: more Range and the ones still walking stop further out.
+		if enemy.kind == "ranged" and not enemy.arrived():
+			enemy.stop_at = stat("range")
 		if not enemy.arrived():
 			enemy.distance = maxf(enemy.stop_at, enemy.distance - enemy.speed * TICK)
 
@@ -454,32 +458,40 @@ func _pay_wave_end() -> void:
 			events.append({"type": "free_upgrade", "id": chosen})
 
 
-## Orbs circle the tower and kill any walking enemy but a boss that comes
-## within Guesses.ORB_HIT_M of one. They turn on the run's clock.
+## Orbs circle on the edge of the tower's Range and kill any enemy but a boss
+## that comes within Guesses.ORB_HIT_M of one, walking or standing. They turn
+## on the run's clock, fast enough to pass several metres a tick, so each tick
+## checks the whole arc an orb swept, not just where it ends up.
 func orb_radius() -> float:
-	return Guesses.ORB_MIN_RADIUS_M + 0.5 * maxf(0.0, stat("range") - Guesses.ORB_MIN_RADIUS_M)
+	return stat("range")
 
 
-func orb_angles() -> Array[float]:
+func orb_turns_per_second() -> float:
+	return Guesses.ORB_TURNS_PER_SECOND_AT_FIRST_LEVEL * stat("orb_speed") / TowerData.value("orb_speed", 0)
+
+
+func orb_angles(at_time: float = time) -> Array[float]:
 	var angles: Array[float] = []
 	var count := int(stat("orbs"))
 	for orb in range(count):
-		angles.append(fposmod(TAU * stat("orb_speed") / 60.0 * time + TAU * float(orb) / float(count), TAU))
+		angles.append(fposmod(TAU * orb_turns_per_second() * at_time + TAU * float(orb) / float(count), TAU))
 	return angles
 
 
 func _sweep_orbs() -> void:
-	var angles := orb_angles()
-	if angles.is_empty():
+	var starts := orb_angles(time - TICK)
+	if starts.is_empty():
 		return
 	var radius := orb_radius()
+	var sweep := TAU * orb_turns_per_second() * TICK
+	var slack := Guesses.ORB_HIT_M / radius
 	var touched: Array[Enemy] = []
 	for enemy in enemies:
-		if enemy.kind == "boss" or enemy.arrived() or absf(enemy.distance - radius) > Guesses.ORB_HIT_M:
+		if enemy.kind == "boss" or absf(enemy.distance - radius) > Guesses.ORB_HIT_M:
 			continue
-		var at := enemy.position()
-		for angle in angles:
-			if at.distance_to(Vector2.from_angle(angle) * radius) <= Guesses.ORB_HIT_M:
+		for start in starts:
+			# How far ahead of the orb's starting angle the enemy sits.
+			if fposmod(enemy.angle - start + slack, TAU) <= sweep + 2.0 * slack:
 				touched.append(enemy)
 				break
 	for enemy in touched:
