@@ -12,13 +12,15 @@ const ArenaView = preload("res://src/ui/arena_view.gd")
 const UpgradePanel = preload("res://src/ui/upgrade_panel.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 const RunReport = preload("res://src/tower/run_report.gd")
+const ActivityLog = preload("res://src/tower/activity_log.gd")
 
 ## The run is over and its record is in the Workshop, so the game can save.
 signal run_finished
 signal home_pressed
-## A saved run couldn't be brought back: its record is damaged, or the game
-## changed so its replay no longer ends where it was left.
-signal resume_failed(saved: Dictionary)
+## A saved run couldn't be brought back: its record is damaged ("damaged"),
+## or the game changed so its replay no longer ends where it was left
+## ("changed").
+signal resume_failed(saved: Dictionary, reason: String)
 
 ## Game speeds, for testing a run quickly (docs/REBUILD_SPEC.md, "Dev only").
 const SPEEDS := [1.0, 2.0, 5.0]
@@ -88,7 +90,7 @@ func _begin_resume() -> void:
 	_resuming.text = "Resuming your run…"
 	add_child(_resuming)
 	if not RunReport.is_replayable(resume):
-		_fail_resume()
+		_fail_resume("damaged")
 		return
 	_replay = RunReport.Replay.new(resume)
 
@@ -97,7 +99,7 @@ func _finish_resume() -> void:
 	var again := _replay.sim
 	_replay = null
 	if not again.alive or not RunReport.matches(resume, again):
-		_fail_resume()
+		_fail_resume("changed")
 		return
 	var saved := resume
 	resume = {}
@@ -111,11 +113,11 @@ func _finish_resume() -> void:
 
 
 ## Deferred, so the game can change screens outside this one's frame.
-func _fail_resume() -> void:
+func _fail_resume(reason: String) -> void:
 	var saved := resume
 	resume = {}
 	_replay = null
-	resume_failed.emit.call_deferred(saved)
+	resume_failed.emit.call_deferred(saved, reason)
 
 
 ## Plays `run_sim` from here on.
@@ -133,6 +135,11 @@ func _adopt(run_sim: BattleSim) -> void:
 
 func _process(delta: float) -> void:
 	if _replay != null:
+		# is_replayable should make this impossible; never sit on the
+		# resuming screen for good if a record still slips through.
+		if _replay.sim == null:
+			_fail_resume("damaged")
+			return
 		if _replay.advance(RESUME_TICKS_PER_FRAME):
 			_finish_resume()
 		else:
@@ -175,6 +182,8 @@ func run_state() -> Dictionary:
 		return {}
 	var state := report()
 	state["banked"] = _banked
+	# The version that recorded it, which a lost run's log entry keeps.
+	state["game"] = ActivityLog.game_version()
 	return state
 
 

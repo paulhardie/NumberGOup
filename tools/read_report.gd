@@ -43,6 +43,9 @@ func _print_runs(runs: Array, here: String) -> void:
 	print("\n  #  when (UTC)           wave  game time  real time  kills  cash earned  coins  ended by  buys  replay")
 	for index in range(runs.size()):
 		var run: Dictionary = runs[index]
+		if not RunReport.is_replayable(run):
+			print("%3d  %-19s  a damaged record%s" % [index + 1, run.get("at", "?"), ", lost on resume" if run.has("resume_failed") else ""])
+			continue
 		var result: Dictionary = run.result
 		var replay := "other version"
 		if String(run.get("game", "")) == here:
@@ -62,6 +65,9 @@ func _print_run(runs: Array, number: int) -> void:
 		printerr("There are %d runs." % runs.size())
 		return
 	var run: Dictionary = runs[number - 1]
+	if not RunReport.is_replayable(run):
+		print("\nRun %d is a damaged record: %s" % [number, JSON.stringify(run).left(400)])
+		return
 	print("\nRun %d: seed %d, started with %s" % [number, int(run.seed), run.start.levels])
 	print("Played %s real, at speeds %s" % [_clock(float(run.play.get("real_seconds", 0.0))), run.play.get("seconds_at_speed", {})])
 	print("\n wave  game time  health / most   cash  earned  coins  kills  enemy atk  enemy hp  bought")

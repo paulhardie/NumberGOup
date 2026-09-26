@@ -17,12 +17,15 @@ const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 
 const AUTOSAVE_SECONDS := 20.0
 
+## Where the game saves and logs; the tests point these at their own files.
+var save_path := Save.PATH
+var log_path := ActivityLog.PATH
 var workshop: Workshop
 var _screen: Control
 
 
 func _ready() -> void:
-	workshop = Save.load_workshop()
+	workshop = Save.load_workshop(save_path)
 	var autosave := Timer.new()
 	autosave.wait_time = AUTOSAVE_SECONDS
 	autosave.timeout.connect(func():
@@ -30,7 +33,7 @@ func _ready() -> void:
 			_save())
 	add_child(autosave)
 	autosave.start()
-	var saved := Save.load_run()
+	var saved := Save.load_run(save_path)
 	if saved.is_empty():
 		_show_home()
 	else:
@@ -49,7 +52,7 @@ func _save() -> void:
 	var run := {}
 	if _screen is BattleScreen:
 		run = _screen.run_state()
-	Save.save_workshop(workshop, Save.PATH, run)
+	Save.save_workshop(workshop, save_path, run)
 
 
 func _show_home() -> HomeScreen:
@@ -58,7 +61,7 @@ func _show_home() -> HomeScreen:
 	home.battle_pressed.connect(_show_battle)
 	home.workshop_pressed.connect(_show_workshop)
 	home.export_pressed.connect(func():
-		var result := ActivityLog.export_report(workshop.to_dict())
+		var result := ActivityLog.export_report(workshop.to_dict(), log_path)
 		home.show_exported(result)
 		if not result.is_empty():
 			OS.shell_show_in_file_manager(ProjectSettings.globalize_path(String(result.path))))
@@ -83,30 +86,33 @@ func _show_workshop() -> void:
 	var shop := WorkshopScreen.new()
 	shop.workshop = workshop
 	shop.changed.connect(_save)
-	shop.activity.connect(func(entry): ActivityLog.append(entry))
+	shop.activity.connect(func(entry): ActivityLog.append(entry, log_path))
 	shop.home_pressed.connect(_show_home)
 	_swap(shop)
 
 
-## A saved run that can't be replayed, usually because the game updated since:
-## it ends at its saved wave, keeping the Coins it had already banked.
-func _resume_failed(saved: Dictionary) -> void:
+## A saved run that can't be brought back, because the game updated since or
+## the record is damaged: it ends at its saved wave, keeping the Coins it had
+## already banked.
+func _resume_failed(saved: Dictionary, reason: String) -> void:
 	var result = saved.get("result", {})
-	var wave := int(result.get("wave", 0)) if result is Dictionary else 0
-	workshop.finish_run(wave)
+	var wave = result.get("wave", 0) if result is Dictionary else 0
+	# A damaged record can hold anything here.
+	var reached := int(wave) if (wave is float or wave is int) and is_finite(float(wave)) and float(wave) >= 0.0 else 0
+	workshop.finish_run(reached)
 	var entry := saved.duplicate(true)
 	entry["kind"] = "run"
-	entry["resume_failed"] = true
-	ActivityLog.append(entry)
-	_show_home().show_note("Your run at wave %d couldn't carry over to this version of the game, so it ended there. Its Coins are kept." % wave)
+	entry["resume_failed"] = reason
+	ActivityLog.append(entry, log_path)
+	var why := "couldn't carry over to this version of the game" if reason == "changed" else "couldn't be read"
+	_show_home().show_note("Your run at wave %d %s, so it ended there. Its Coins are kept." % [reached, why])
 	_save()
 
 
-## Logs a battle's run once, whether it ended or the window closed on it.
+## Logs a run as it ends. A run the window closes on is saved and resumed
+## instead, so each run is logged once (D078).
 func _log_run(battle: BattleScreen) -> void:
-	if not battle.has_meta("logged"):
-		battle.set_meta("logged", true)
-		ActivityLog.append(battle.report())
+	ActivityLog.append(battle.report(), log_path)
 
 
 func _swap(next: Control) -> void:

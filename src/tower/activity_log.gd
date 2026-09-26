@@ -13,13 +13,16 @@ const VERSION := 1
 static var _game := ""
 
 
-## Adds `entry`, stamped with the time (UTC) and the game's version. Appends
+## Adds `entry`, stamped with the time (UTC) and the game's version, unless
+## it already names the version that recorded it (a saved run lost to an
+## update keeps its own, so a replay is only tried on that one). Appends
 ## one whole line, so a crash can at worst tear the last line, which read()
 ## skips.
 static func append(entry: Dictionary, path: String = PATH) -> bool:
 	var line := entry.duplicate(true)
 	line["at"] = Time.get_datetime_string_from_system(true)
-	line["game"] = game_version()
+	if not line.get("game") is String:
+		line["game"] = game_version()
 	var file := FileAccess.open(path, FileAccess.READ_WRITE) if FileAccess.file_exists(path) else FileAccess.open(path, FileAccess.WRITE)
 	if file == null:
 		push_warning("Couldn't write the activity log at %s." % path)

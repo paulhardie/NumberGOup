@@ -15,6 +15,7 @@ const Save = preload("res://src/tower/save.gd")
 const RunReport = preload("res://src/tower/run_report.gd")
 const ActivityLog = preload("res://src/tower/activity_log.gd")
 const HomeScreen = preload("res://src/ui/home_screen.gd")
+const Main = preload("res://src/main.gd")
 
 const TEST_SAVE := "user://test_tower_save.json"
 const TEST_LOG := "user://test_activity.jsonl"
@@ -1159,8 +1160,21 @@ func test_only_a_sound_record_is_replayable() -> void:
 	copy = run.duplicate(true)
 	copy.inputs.append({"tick": copy.result.ticks + 1.0, "end": true})
 	broken.append(copy)
+	for damage in [["start", "groups", [5.0]], ["start", "levels", {"damage": {}}], ["result", "wave", "x"], ["result", "coins", INF],
+			["result", "bought", []]]:
+		copy = run.duplicate(true)
+		copy[damage[0]][damage[1]] = damage[2]
+		broken.append(copy)
+	for extra in [{"banked": "lots"}, {"banked": -1.0}, {"banked": float(run.result.coins) + 1.0}, {"play": 7.0},
+			{"play": {"real_seconds": "x"}}, {"play": {"seconds_at_speed": []}}]:
+		copy = run.duplicate(true)
+		copy.merge(extra, true)
+		broken.append(copy)
 	for each in broken:
 		check(not RunReport.is_replayable(each), "a damaged record isn't: %s" % [each.keys()])
+	copy = run.duplicate(true)
+	copy.merge({"banked": run.result.coins, "play": {"real_seconds": 3.0, "seconds_at_speed": {"×1": 3.0}}}, true)
+	check(RunReport.is_replayable(copy), "a saved run with its banked Coins and play time is")
 	check(not RunReport.is_replayable("not a run") and not RunReport.is_replayable({}), "nor is something that isn't one")
 
 
@@ -1169,11 +1183,11 @@ func test_the_save_keeps_a_run_in_progress_with_the_workshop() -> void:
 	var workshop := Workshop.new()
 	workshop.coins = 123.0
 	var run := RunReport.build(_played_run(5, 90.0))
-	run["banked"] = 40.0
+	run["banked"] = run.result.coins
 	check(Save.save_workshop(workshop, TEST_SAVE, run), "saved with a run")
 	check(is_equal_approx(Save.load_workshop(TEST_SAVE).coins, 123.0), "the Workshop loads as before")
 	var loaded := Save.load_run(TEST_SAVE)
-	check(RunReport.is_replayable(loaded) and loaded.banked == 40.0 and int(loaded.seed) == 5, "and the run comes back whole")
+	check(RunReport.is_replayable(loaded) and is_equal_approx(float(loaded.banked), float(run.result.coins)) and int(loaded.seed) == 5, "and the run comes back whole")
 	check(Save.save_workshop(workshop, TEST_SAVE), "saved again with no run")
 	check(Save.load_run(TEST_SAVE).is_empty(), "and then there's none")
 	# A version 1 save as the game wrote it before runs were kept.
@@ -1187,6 +1201,25 @@ func test_the_save_keeps_a_run_in_progress_with_the_workshop() -> void:
 	check(Save.load_run(TEST_SAVE).is_empty(), "a run that isn't one reads as none")
 	check(Save.load_run("user://no_such_save.json").is_empty(), "no file, no run")
 	_clear_test_saves()
+
+
+func test_a_replay_must_end_in_the_same_state_not_just_the_same_totals() -> void:
+	var played := _played_run(21, 200.0)
+	var run := _through_json(RunReport.build(played))
+	check(RunReport.matches(run, RunReport.replay(run)), "the true record matches")
+	# Each stands in for a rule or price that changed after the run was saved.
+	var changes := {
+		"Cash held": func(copy): copy.result.cash = float(copy.result.cash) + 1.0,
+		"levels bought": func(copy): copy.result.bought["damage"] = float(copy.result.bought.get("damage", 0.0)) + 1.0,
+		"enemies": func(copy): copy.result.enemies = float(copy.result.enemies) + 1.0,
+		"random streams": func(copy): copy.result.rng = [copy.result.rng[0], "12345"],
+		"a buy it couldn't make": func(copy): copy.inputs.append({"tick": copy.result.ticks, "buy": "damage", "count": 0.0}),
+	}
+	for change in changes:
+		var copy: Dictionary = run.duplicate(true)
+		changes[change].call(copy)
+		var again := RunReport.replay(copy)
+		check(not RunReport.matches(copy, again), "a replay ending with different %s doesn't match" % change)
 
 
 func test_a_saved_run_resumes_where_it_was_left() -> void:
@@ -1240,23 +1273,80 @@ func test_a_run_that_cant_be_replayed_is_given_up_not_played_wrong() -> void:
 	var screen = BattleScreen.new()
 	screen.workshop = Workshop.new()
 	screen.resume = tampered
-	screen.resume_failed.connect(func(saved): failed.append(saved))
+	screen.resume_failed.connect(func(saved, reason): failed.append({"saved": saved, "reason": reason}))
 	root.add_child(screen)
 	for _frame in range(50):
 		screen._process(0.0)
 	await process_frame
-	check(failed.size() == 1 and int(failed[0].seed) == 11, "a replay that ends elsewhere says so, once")
+	check(failed.size() == 1 and int(failed[0].saved.seed) == 11 and failed[0].reason == "changed", "a replay that ends elsewhere says so, once")
 	check(screen.sim == null and screen.run_state().is_empty(), "and nothing is played or saved from it")
 	screen.free()
 	failed.clear()
 	var damaged = BattleScreen.new()
 	damaged.workshop = Workshop.new()
 	damaged.resume = {"seed": "x"}
-	damaged.resume_failed.connect(func(saved): failed.append(saved))
+	damaged.resume_failed.connect(func(saved, reason): failed.append({"saved": saved, "reason": reason}))
 	root.add_child(damaged)
 	await process_frame
-	check(failed.size() == 1 and damaged.run_state().is_empty(), "a damaged record fails straight away")
+	check(failed.size() == 1 and failed[0].reason == "damaged" and damaged.run_state().is_empty(), "a damaged record fails straight away")
 	damaged.free()
+
+
+func test_the_game_opens_into_a_saved_run_and_gives_up_one_it_cant_replay() -> void:
+	_clear_test_saves()
+	_clear_test_logs()
+	var workshop := Workshop.new()
+	workshop.coins = 60.0
+	var played := _played_run(31, 45.0)
+	var run := RunReport.build(played)
+	run["banked"] = played.coins
+	Save.save_workshop(workshop, TEST_SAVE, run)
+	var game = _game()
+	for _frame in range(30):
+		await process_frame
+	check(game._screen is BattleScreen and game._screen.sim != null and game._screen.sim.ticks >= played.ticks, "the game opens straight into the saved run")
+	game._save()
+	check(int(Save.load_run(TEST_SAVE).result.ticks) >= played.ticks and is_equal_approx(Save.load_workshop(TEST_SAVE).coins, 60.0), "and keeps saving it, Coins unchanged")
+	game.free()
+	for reason in ["changed", "damaged"]:
+		var bad := _through_json(run)
+		if reason == "changed":
+			bad.result.kills = float(played.kills + 2)
+		else:
+			bad.start.groups = [5.0]
+		Save.save_workshop(workshop, TEST_SAVE, bad)
+		game = _game()
+		for _frame in range(10):
+			await process_frame
+		var loaded := Save.load_workshop(TEST_SAVE)
+		check(game._screen is HomeScreen, "a %s run ends and the game goes Home" % reason)
+		check(game._screen._note.text.begins_with("Your run at wave %d" % played.wave), "saying so: %s" % game._screen._note.text)
+		check(Save.load_run(TEST_SAVE).is_empty() and loaded.runs == 1 and loaded.best_wave == played.wave and is_equal_approx(loaded.coins, 60.0),
+			"the run is cleared, counted at its wave, and its Coins kept")
+		var entries := ActivityLog.read(TEST_LOG)
+		check(entries.size() == 1 and entries[0].resume_failed == reason, "and logged as lost: %s" % [entries.map(func(entry): return entry.get("resume_failed"))])
+		game.free()
+		_clear_test_logs()
+	_clear_test_saves()
+
+
+func test_every_run_on_a_battle_screen_is_logged() -> void:
+	_clear_test_saves()
+	_clear_test_logs()
+	var game = _game()
+	await process_frame
+	game._show_battle()
+	var battle = game._screen
+	for seed_value in [1, 2]:
+		battle.start_run(seed_value)
+		battle.sim.end_run()
+		battle._process(0.0)
+	var entries := ActivityLog.read(TEST_LOG)
+	check(entries.size() == 2 and int(entries[0].seed) == 1 and int(entries[1].seed) == 2, "a run and its Battle again are both logged: %d" % entries.size())
+	check(Save.load_run(TEST_SAVE).is_empty(), "and neither stays in the save")
+	game.free()
+	_clear_test_logs()
+	_clear_test_saves()
 
 
 func test_numbers_read_as_the_towers() -> void:
@@ -1334,3 +1424,12 @@ func _through_json(record: Dictionary) -> Dictionary:
 	var json := JSON.new()
 	json.parse(JSON.stringify(record, "", false, true))
 	return json.data
+
+
+## The game itself, saving and logging to the tests' own files.
+func _game():
+	var game = Main.new()
+	game.save_path = TEST_SAVE
+	game.log_path = TEST_LOG
+	root.add_child(game)
+	return game

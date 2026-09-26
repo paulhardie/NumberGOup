@@ -918,10 +918,16 @@ Rules:
 - **Decision:**
   1. The save carries the run in progress under an optional `"run"` key: D077's run record plus the Coins it has banked into the Workshop. It sits in the same file and the same write as the Workshop, so those two can't disagree, and a crash can't bank Coins twice or lose them. The save stays version 1: a save without `"run"` loads as before, and an older game ignores the key.
   2. The game opens straight into a saved run, as The Tower does, replaying it from its seed and inputs 2,000 ticks a frame behind "Resuming your run…", with the screen live.
-  3. The replay must end exactly where the save says (tick, wave, kills, Cash earned, Coins, health). If it doesn't (usually because the game updated in between, since the rules changed under it), or the record is damaged, the run ends at its saved wave. It counts towards best wave and runs, keeps its Coins, is logged as lost, and Home says so. A run is never played on from a state it didn't reach.
+  3. The replay must end exactly where the save says: the same tick, wave, kills, Cash held and earned, Coins, health, run levels and enemies; every recorded input applied; and both random streams at the same place, so it drew exactly the same numbers. If it doesn't (usually because the game updated in between, since the rules changed under it), or the record is damaged, the run ends at its saved wave. It counts towards best wave and runs, keeps its Coins, is logged as lost, and Home says so. A run is never played on from a state it didn't reach.
   4. Closing mid-run no longer logs the run (D077); it's logged once, when it finally ends.
 - **Consequences:**
   - Resuming takes time in proportion to the run's length: about 4.6 seconds for an hour of game time in the agent's container. Several-hour runs will want a snapshot of the whole battle state instead of a replay.
   - Merging a change while a run is saved may end that run; the Mac's sync pulls merges every minute.
   - The battle doesn't advance while the game is closed.
+- **Independent review (2026-09-26):** a separate reviewer found that the first version's match check compared only totals, so a price change could let a run "match" and play on with different Cash. That's why the check is now as in 3. It also found:
+  - a damaged record could lock the game on the resuming screen;
+  - runs after "Battle again" weren't logged (a D077 bug);
+  - a damaged wave or banked figure could crash the handling or bank Coins twice.
+
+  All were fixed with tests, and each record is now checked whole before a replay.
 - **Revisit when:** runs get long enough that resuming is slow, or the owner wants runs to survive updates.

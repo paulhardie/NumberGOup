@@ -47,15 +47,11 @@ Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Worksh
 
 ## How to measure
 
-- **Ran on this branch (26 September, D078):** `bash run_tests.sh`: `PASS: tower tests (2290 checks)`. New checks cover:
-  - a replay in slices ending where one in one go does;
-  - damaged records rejected (missing parts, negative or absurd ticks, inputs out of order or past the end, a row this version doesn't know);
-  - the save round trip with a run, and with none;
-  - an old version-1 save with no run, and a `"run"` that isn't one;
-  - a battle screen resuming another's run at the same tick, wave, Cash, health and enemies, without banking Coins twice, keeping its play time and playing on;
-  - a tampered record given up once, with nothing played or saved from it.
-
-  Headless smoke of the real entry point with a scratch save: a good saved run opened straight into the battle and resumed; a tampered one ended at its wave, kept the Coins, cleared the run and said so on Home. **Not run:** an independent review by someone other than the author (the save is high risk per `QUALITY_GATES.md`; only the author's adversarial pass was done); a real close and reopen on the Mac.
+- **Ran on this branch (26 September, D078):** `bash run_tests.sh`: `PASS: tower tests (2320 checks)`.
+  - **Independent review done:** a separate agent session reviewed the diff and reproduced its findings. Every finding was fixed, with a test each (see D078): the match check now compares Cash, levels, enemies, inputs and the random streams; damaged records are rejected whole; runs after "Battle again" are logged; the failure handling can't be crashed by a damaged wave; and a lost run's log entry keeps the version that recorded it.
+  - The reviewer's price-change reproduction now fails the match, as it should.
+  - New checks drive the game's real entry point with test files: opening into a saved run, and ending a changed or damaged one. They check that each is counted at its wave, keeps its Coins, is logged as lost and shows the note on Home.
+  - **Not run:** a real close and reopen on the Mac.
 - **Ran for D077:** `bash run_tests.sh`: `PASS: tower tests (2254 checks)`. New checks cover:
   - inputs and wave snapshots being recorded;
   - a 15-minute run with every multiplier going through JSON and replaying to the same ticks, wave, kills, Cash, Coins and health, while another seed doesn't match;
