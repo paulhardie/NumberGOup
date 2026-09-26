@@ -1127,7 +1127,7 @@ Rules:
 - **Decision:**
   1. **The Number is white, always** (`Palette.NUMBER`). It no longer turns gold at a new peak, orange below a quarter of it, or orange on a hit. It still shakes when a ÷ lands.
   2. **The ground is pure black on every screen** (`Palette.GROUND`). The panels keep their raised greys. The arena's grey floor disc is gone; the faint range ring stays.
-  3. **A soft white light sits behind the Number**, fading into the black, with fine film grain in it (per screen pixel, reseeded 24 times a second) that never touches the black. It breathes ±15% over 4 seconds. It is one shader quad behind the arena (`src/ui/number_glow.gdshader`).
+  3. **A soft white light sits behind the Number**, fading into the black, with fine grain in it (per screen pixel) that never touches the black. The owner found the first grain, ±30% reseeded 24 times a second, "too aggressive"; it is ±12%, easing from one pattern to the next six times a second, so it drifts like haze rather than flickering like static. It breathes ±15% over 4 seconds. It is one shader quad behind the arena (`src/ui/number_glow.gdshader`).
   4. **The light stays white.** Only a ÷ changes it: a violet flare that fades back over 0.8 s, in place of the old violet flash on the digits. That flare is `ArenaView.flare(colour, strength, seconds)`, which the owner's later ideas (Ultimate Weapons, hit states) can use as they come.
 - **Consequences:**
   - "At a new peak" and "below a quarter of peak" no longer show at the Number; the panel's bar still shows the Number against its peak.
