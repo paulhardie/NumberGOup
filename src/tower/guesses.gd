@@ -43,7 +43,9 @@ const SHOT_SPEED_M := 80.0
 ## research). The boss's 20 is ours until the owner reads one boss kill.
 const CASH_BY_TYPE := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "boss": 20.0}
 
-## Coins a kill pays, times its wave (the owner's reference table, D066).
+## Coins a kill pays, flat, whatever its wave (the owner's reference table;
+## D074). Paid times the wave, as the SDK's model has it, a wave-22 run earned
+## about 14 times the owner's Tower report; flat is within 2 times.
 const COINS_BY_TYPE := {"basic": 0.0, "fast": 2.0, "ranged": 3.0, "tank": 4.0, "boss": 5.0}
 
 
