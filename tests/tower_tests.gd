@@ -12,8 +12,13 @@ const BattleScreen = preload("res://src/ui/battle_screen.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 const Save = preload("res://src/tower/save.gd")
+const RunReport = preload("res://src/tower/run_report.gd")
+const ActivityLog = preload("res://src/tower/activity_log.gd")
+const HomeScreen = preload("res://src/ui/home_screen.gd")
 
 const TEST_SAVE := "user://test_tower_save.json"
+const TEST_LOG := "user://test_activity.jsonl"
+const TEST_REPORTS := "user://test_reports"
 
 var _failures: Array[String] = []
 var _checks := 0
@@ -1014,6 +1019,110 @@ func test_enemy_level_skip_holds_back_a_share_of_waves() -> void:
 	check_near(tank.attack, TowerData.enemy_attack(sim.attack_level, "tank"), 0.0001, "and attack")
 
 
+func test_a_run_records_its_inputs_and_waves() -> void:
+	var sim := _quiet_sim()
+	sim.step()
+	sim.step()
+	check(not sim.buy("damage") and sim.inputs.is_empty(), "a buy that fails isn't an input")
+	sim.cash = 1000.0
+	check(sim.buy("damage", 5), "a ×5 buy")
+	check(sim.inputs == [{"tick": 2, "buy": "damage", "count": 5}], "is recorded with its tick and count: %s" % [sim.inputs])
+	sim._pay_wave_end()
+	check(sim.wave_log.size() == 1 and int(sim.wave_log[0].bought.damage) == 5, "a wave's end is snapshotted, with what was bought")
+	sim.end_run()
+	check(sim.inputs[-1] == {"tick": 2, "end": true}, "ending the run is an input too")
+
+
+func test_a_recorded_run_replays_exactly() -> void:
+	var workshop := Workshop.new()
+	workshop.coins = 1e7
+	for group in ["range", "multishot", "defense", "thorns", "cash", "coins", "free_upgrades", "rapid_fire", "lifesteal", "knockback", "orbs", "shockwave", "land_mines"]:
+		workshop.open_group(group)
+	workshop.levels = {"damage": 30, "health": 30, "defense_absolute": 10, "thorns": 5, "free_attack_upgrade": 20,
+		"land_mine_chance": 10, "orbs": 1, "multishot_chance": 20, "knockback_chance": 10}
+	var played := BattleSim.new(20260926, workshop.levels, workshop.open_groups)
+	var amounts := [1, 5, 10, 0]
+	var rows := ["damage", "attack_speed", "health", "defense_absolute", "health_regen", "thorns"]
+	var turn := 0
+	while played.alive and played.time < 900.0:
+		played.step()
+		# Buy something every few seconds, with every multiplier.
+		if played.ticks % 97 == 0:
+			played.buy(rows[turn % rows.size()], amounts[turn % amounts.size()])
+			turn += 1
+	if played.alive:
+		played.end_run()
+	var run := RunReport.build(played, {"real_seconds": 12.0})
+	check(run.inputs.size() > 10, "the run made plenty of inputs: %d" % run.inputs.size())
+	# Through JSON and back, as the log stores it.
+	var json := JSON.new()
+	check(json.parse(JSON.stringify(run, "", false, true)) == OK, "the run writes and reads as JSON")
+	var again := RunReport.replay(json.data)
+	check(RunReport.matches(json.data, again), "the replay ends where the run did: wave %d/%d, ticks %d/%d, kills %d/%d, coins %s/%s" % [
+		again.wave, played.wave, again.ticks, played.ticks, again.kills, played.kills, again.coins, played.coins])
+	check(again.wave_log.size() == played.wave_log.size() and is_equal_approx(again.cash, played.cash), "wave by wave, down to the Cash")
+	var other: Dictionary = json.data.duplicate(true)
+	other.seed = float(int(other.seed) + 1)
+	check(not RunReport.matches(other, RunReport.replay(other)), "and another seed doesn't match")
+
+
+func test_the_activity_log_appends_reads_and_exports() -> void:
+	_clear_test_logs()
+	check(ActivityLog.read(TEST_LOG).is_empty(), "no log, no entries")
+	check(ActivityLog.append({"kind": "workshop_buy", "id": "damage", "cost": 30.0}, TEST_LOG), "an entry is written")
+	var sim := _quiet_sim()
+	sim.end_run()
+	check(ActivityLog.append(RunReport.build(sim), TEST_LOG), "and a run")
+	# A crash mid-write can leave a torn last line.
+	var file := FileAccess.open(TEST_LOG, FileAccess.READ_WRITE)
+	file.seek_end()
+	file.store_string("{\"kind\": \"ru")
+	file.close()
+	var entries := ActivityLog.read(TEST_LOG)
+	check(entries.size() == 2 and entries[0].id == "damage" and entries[1].kind == "run", "both read back, the torn line skipped")
+	check(String(entries[0].at).length() >= 19 and entries[0].has("game"), "each is stamped with the time and the game version")
+	var version := ActivityLog.game_version()
+	check(version == "unknown" or (version.length() == 12 and version.is_valid_hex_number()), "the version is a commit or unknown: %s" % version)
+	var result := ActivityLog.export_report({"coins": 5.0}, TEST_LOG, TEST_REPORTS)
+	check(int(result.get("runs", 0)) == 1 and int(result.get("entries", 0)) == 2, "the export counts what it holds: %s" % [result])
+	var json := JSON.new()
+	check(json.parse(FileAccess.get_file_as_string(result.path)) == OK and json.data.format == ActivityLog.FORMAT, "the report reads as one JSON file")
+	check(json.data.entries.size() == 2 and json.data.workshop.coins == 5.0, "with the log and the Workshop")
+	var second := ActivityLog.export_report({}, TEST_LOG, TEST_REPORTS)
+	check(second.path != result.path, "a second export in the same second gets its own file")
+	_clear_test_logs()
+
+
+func test_screens_report_what_the_log_needs() -> void:
+	var workshop := Workshop.new()
+	workshop.coins = 100.0
+	var shop = WorkshopScreen.new()
+	shop.workshop = workshop
+	root.add_child(shop)
+	var seen: Array[Dictionary] = []
+	shop.activity.connect(func(entry): seen.append(entry))
+	shop._cards[0].button.pressed.emit()
+	check(seen.size() == 1 and seen[0].kind == "workshop_buy" and seen[0].id == "damage" and seen[0].to == 1 and seen[0].cost == 30.0, "a Workshop buy is reported: %s" % [seen])
+	_unlock_cards(shop)[0].pressed.emit()
+	check(seen.size() == 2 and seen[1].kind == "workshop_open" and seen[1].group == "range" and seen[1].cost == 50.0, "and an unlock: %s" % [seen])
+	shop.free()
+	var screen = BattleScreen.new()
+	root.add_child(screen)
+	screen._process(0.5)
+	var run: Dictionary = screen.report()
+	check(run.kind == "run" and run.seed == screen.sim.run_seed and is_equal_approx(float(run.play.real_seconds), 0.5), "a battle reports its run and play time")
+	check(bool(run.result.closed_mid_run), "a run still going is marked as closed mid-run")
+	screen.free()
+	var home = HomeScreen.new()
+	home.workshop = workshop
+	root.add_child(home)
+	home.show_exported({"path": "user://reports/number_go_up_report-x.json", "runs": 3, "entries": 9})
+	check(home._exported.text.begins_with("Saved number_go_up_report-x.json (3 runs)"), "Home says where the report went: %s" % home._exported.text)
+	home.show_exported({})
+	check(home._exported.text == "Couldn't write the report.", "or that it couldn't")
+	home.free()
+
+
 func test_numbers_read_as_the_towers() -> void:
 	check(Palette.number(2.35) == "2.35", "two decimals while small")
 	check(Palette.number(3.0) == "3", "whole numbers stay whole")
@@ -1060,3 +1169,12 @@ func _test_save_copies() -> Array[String]:
 func _clear_test_saves() -> void:
 	for name in _test_save_copies():
 		DirAccess.remove_absolute("user://" + name)
+
+
+func _clear_test_logs() -> void:
+	if FileAccess.file_exists(TEST_LOG):
+		DirAccess.remove_absolute(TEST_LOG)
+	if DirAccess.dir_exists_absolute(TEST_REPORTS):
+		for name in DirAccess.get_files_at(TEST_REPORTS):
+			DirAccess.remove_absolute(TEST_REPORTS + "/" + name)
+		DirAccess.remove_absolute(TEST_REPORTS)

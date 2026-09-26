@@ -10,6 +10,8 @@ const Palette = preload("res://src/ui/palette.gd")
 
 ## A purchase or an opened group, so the game can save.
 signal changed
+## What was bought or opened, for the activity log (D077).
+signal activity(entry: Dictionary)
 signal home_pressed
 
 const TABS := [["Attack", "attack"], ["Defense", "defense"], ["Utility", "utility"]]
@@ -133,7 +135,11 @@ func _row_card(id: String) -> Button:
 	var button := _card_button()
 	var parts := _card_parts(button, String(TowerData.upgrade(id).title).capitalize())
 	button.pressed.connect(func():
+		var coins_before := workshop.coins
+		var from := workshop.level(id)
 		if workshop.buy(id, _amount):
+			activity.emit({"kind": "workshop_buy", "id": id, "from": from, "to": workshop.level(id),
+				"cost": coins_before - workshop.coins, "coins_left": workshop.coins})
 			changed.emit()
 		refresh())
 	_cards.append({"button": button, "refresh": func():
@@ -176,7 +182,9 @@ func _unlock_card(group: String) -> Button:
 	unlock.text = "Unlock  ● " + Palette.number(TowerData.group_price(group))
 	column.add_child(unlock)
 	button.pressed.connect(func():
+		var coins_before := workshop.coins
 		if workshop.open_group(group):
+			activity.emit({"kind": "workshop_open", "group": group, "cost": coins_before - workshop.coins, "coins_left": workshop.coins})
 			changed.emit()
 			show_tab(_tab))
 	_cards.append({"button": button, "refresh": func():

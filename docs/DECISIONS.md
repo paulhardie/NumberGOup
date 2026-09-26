@@ -898,3 +898,15 @@ Rules:
   3. The Workshop and the run's upgrade panel carry D018's buy multiplier, `×1 · ×5 · ×10 · Max`, one per screen, labelled "Buy" so it isn't read as the game speed. Levels are priced one at a time and summed; a ×N press it can't afford buys nothing and says what it would cost; Max buys as many as the Coins or Cash cover. The multiplier isn't saved.
 - **Consequences:** no Workshop group is left unbuilt, so the "built groups" list is gone. The later groups cost 100K to 500B Coins, far past where careers reach today, so they change nothing in the first hours; `--seeds 10 --buy even` still dies on wave 8. The save is unchanged.
 - **Revisit when:** the owner reads how any of the new mechanics behave in The Tower (the wall's distance and whether ranged shots hit it, mine placement, whether shockwaves move bosses).
+
+## D077 — An activity log the owner exports for agents
+
+- **Status:** Accepted (2026-09-26) on owner direction ("go with A, build it now"), after asking for "a game reporter so I can export my activity to you, so you get actual data to work with". Implemented (2026-09-26) on `claude/great-tesla-9kfp95`.
+- **Context:** tuning so far rests on the owner's screenshots and statements plus headless runs by agents. Every run is already deterministic from its seed and inputs, so a record of those replays the owner's real run exactly.
+- **Decision:**
+  1. The battle records its inputs (each buy with its tick and multiplier, and End run) and a snapshot at each wave's end (health, Cash, Coins, kills, enemy Attack and Health, run levels bought).
+  2. Each finished run, each run the window closes on, and each Workshop buy and unlock go as one JSON line into `user://number_go_up_activity.jsonl`, beside the save and separate from it, stamped with the time (UTC) and the game's commit, read from the checkout's `.git`.
+  3. Home's **Export report** writes the whole log and the Workshop to one file in `user://reports/` and shows it in Finder; the owner drops it into the chat. Option A of two: nothing is uploaded automatically. B, where the Mac's sync job pushes reports to a branch, waits on the owner.
+  4. `tools/read_report.gd` reads a report: runs as a table, each replayed to check it matches, one run wave by wave, and Workshop spending.
+- **Consequences:** a replay only matches on the commit that recorded it; the snapshots still read after the rules change. The log holds game numbers and times only, grows by a few KB a run, and is never trimmed. The inputs are also what saving a run in progress needs.
+- **Revisit when:** the log grows past a few MB, dragging a file in gets tedious (option B), or the game is exported without its `.git` (the version reads "unknown").

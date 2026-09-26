@@ -10,6 +10,7 @@ const Palette = preload("res://src/ui/palette.gd")
 const ArenaView = preload("res://src/ui/arena_view.gd")
 const UpgradePanel = preload("res://src/ui/upgrade_panel.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
+const RunReport = preload("res://src/tower/run_report.gd")
 
 ## The run is over and its record is in the Workshop, so the game can save.
 signal run_finished
@@ -27,6 +28,10 @@ var _speed_index := 0
 ## The run's Coins already moved into the Workshop.
 var _banked := 0.0
 var _carry := 0.0
+## Real seconds the run has been played, and how many at each game speed,
+## for the activity log.
+var _real_seconds := 0.0
+var _seconds_at_speed := {}
 
 var _arena: ArenaView
 var _cash: Label
@@ -62,12 +67,18 @@ func start_run(seed_value: int) -> void:
 	_arena.sim = sim
 	_upgrades.set_sim(sim)
 	_carry = 0.0
+	_real_seconds = 0.0
+	_seconds_at_speed = {}
 	_over.visible = false
 
 
 func _process(delta: float) -> void:
 	if sim == null:
 		return
+	if sim.alive:
+		_real_seconds += delta
+		var speed := "×%d" % int(SPEEDS[_speed_index])
+		_seconds_at_speed[speed] = float(_seconds_at_speed.get(speed, 0.0)) + delta
 	_carry += delta * float(SPEEDS[_speed_index])
 	var ticks := 0
 	while sim.alive and _carry >= BattleSim.TICK and ticks < MAX_TICKS_PER_FRAME:
@@ -88,6 +99,11 @@ func _process(delta: float) -> void:
 		workshop.finish_run(sim.wave)
 		run_finished.emit()
 		_show_run_over()
+
+
+## The run for the activity log: replayable, with its real play time.
+func report() -> Dictionary:
+	return RunReport.build(sim, {"real_seconds": _real_seconds, "seconds_at_speed": _seconds_at_speed.duplicate()})
 
 
 func _bank_coins() -> void:

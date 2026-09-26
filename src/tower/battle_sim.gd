@@ -100,6 +100,14 @@ var shots: Array[Shot] = []
 var record_events := false
 var events: Array[Dictionary] = []
 
+## Ticks stepped so far, and every input that changed the run with the tick
+## it came after: {tick, buy, count} or {tick, end}. With the seed and the
+## starting Workshop they replay the run exactly (src/tower/run_report.gd).
+var ticks := 0
+var inputs: Array[Dictionary] = []
+## How the run stood as each wave ended, for the activity log.
+var wave_log: Array[Dictionary] = []
+
 var _spawn_rng := RandomNumberGenerator.new()
 var _combat_rng := RandomNumberGenerator.new()
 var _schedule: Array[Dictionary] = []
@@ -186,6 +194,7 @@ func buy(id: String, count: int = 1) -> bool:
 	cash -= float(buying.cost)
 	for _level in range(int(buying.levels)):
 		_raise(id)
+	inputs.append({"tick": ticks, "buy": id, "count": count})
 	return true
 
 
@@ -228,6 +237,7 @@ func enemy_attack_now(kind: String) -> float:
 func step() -> void:
 	if not alive:
 		return
+	ticks += 1
 	time += TICK
 	wave_clock += TICK
 	for enemy in enemies:
@@ -259,6 +269,7 @@ func end_run() -> void:
 	if alive:
 		alive = false
 		killed_by = "ended"
+		inputs.append({"tick": ticks, "end": true})
 
 
 ## Runs until the tower falls or `max_seconds` of game time pass.
@@ -555,6 +566,9 @@ func _pay_wave_end() -> void:
 		_raise(chosen)
 		if record_events:
 			events.append({"type": "free_upgrade", "id": chosen})
+	wave_log.append({"wave": wave, "time": time, "health": health, "max_health": max_health(), "cash": cash,
+		"cash_earned": cash_earned, "coins": coins, "kills": kills, "enemy_attack": enemy_attack_now("basic"),
+		"enemy_health": enemy_health_now("basic"), "bought": run_levels.duplicate()})
 
 
 ## Orbs circle on the edge of the tower's Range and kill any enemy but a boss
