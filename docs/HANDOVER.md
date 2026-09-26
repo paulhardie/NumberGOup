@@ -2,7 +2,7 @@
 
 **Last updated:** 26 September 2026 (D085 and D086 built: each enemy is one number, its health and then its hit, with a colour each, and a coming ÷ previewed), by Claude, handing on to the next agent.
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #73 (D084) merged. It carries D085 and D086, recorded and built: enemies drawn as numbers, with Anybody and Fraunces bundled, and the Divider preview. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #73 (D084) merged. D085 and D086 (enemies as numbers, the Divider preview) merged as #74. The branch now carries the sync job's import fix. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -51,7 +51,7 @@
 
 ## Next steps, in order
 
-0. **Owner:** merge this branch. Reduced motion is not built (no setting exists; D085 says why).
+0. **Owner:** merge this branch: the sync job then imports new files in the play folder by itself, which is why the game stopped starting after #74 (two new fonts, never imported). Until it's merged, open the project once in the Godot editor, or run `bash run_godot.sh --headless --path . --import` in `~/NumberGOup-main`. Reduced motion is not built (no setting exists; D085 says why).
 
 1. **Owner:** play `main`, and export a report. Say too whether the enemy types read at a glance, whether the flip from health to hit reads, whether the ÷ preview is noticed in time, and how the crowd bunched at the Number looks. Say whether the Number in the centre and the ÷ moments feel right, and how often they come. Done when the owner has played it.
 2. **Agent:** read the report. It records each run's peak Number, what Dividers took, and how many came and landed. Tune `Guesses.DIVIDER` from it with `sim_runs.gd` against the benchmarks (THE_NUMBER.md 5).
