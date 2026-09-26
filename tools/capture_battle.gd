@@ -89,8 +89,9 @@ func _capture() -> void:
 	var landed := false
 	var walking_shot := false
 	while divided.sim.alive and not landed and divided.sim.time < 3600.0:
-		# One frame of a Divider on its way in, before any has landed.
-		if not walking_shot and divided.sim.enemies.any(func(enemy): return enemy.kind == "divider" and enemy.distance < 35.0):
+		# One frame of a Divider on its way in, before any has landed: inside
+		# the range, so its preview shows above the Number (D085).
+		if not walking_shot and divided.sim.enemies.any(func(enemy): return enemy.kind == "divider" and enemy.distance < divided.sim.stat("range") * 0.7):
 			walking_shot = true
 			divided._refresh()
 			divided._arena.queue_redraw()
@@ -107,6 +108,29 @@ func _capture() -> void:
 	await _frames()
 	_save_png("battle_divided")
 	divided.queue_free()
+	await process_frame
+
+	# A crowd with the wave-10 boss in it, to see every enemy type's number
+	# side by side (D085).
+	var crowd := BattleScreen.new()
+	crowd.workshop = middling
+	root.add_child(crowd)
+	await process_frame
+	crowd.start_run(11)
+	crowd.set_process(false)
+	var crowd_events: Array[Dictionary] = []
+	# The first boss once it is well inside the view.
+	while crowd.sim.alive and crowd.sim.time < 3600.0 and not crowd.sim.enemies.any(
+			func(enemy): return enemy.kind == "boss" and enemy.distance < crowd.sim.stat("range") * 0.8):
+		crowd.sim.step()
+		crowd_events.append_array(crowd.sim.events)
+		crowd.sim.events.clear()
+	crowd._arena.absorb(crowd_events.slice(maxi(0, crowd_events.size() - 6)), 0.0)
+	crowd._refresh()
+	crowd._arena.queue_redraw()
+	await _frames()
+	_save_png("battle_crowd")
+	crowd.queue_free()
 	await process_frame
 
 	var screen := BattleScreen.new()

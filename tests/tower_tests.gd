@@ -9,6 +9,7 @@ const TowerData = preload("res://src/tower/tower_data.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Palette = preload("res://src/ui/palette.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
+const ArenaView = preload("res://src/ui/arena_view.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 const Save = preload("res://src/tower/save.gd")
@@ -1502,6 +1503,45 @@ func test_numbers_read_as_the_towers() -> void:
 	check(Palette.number(402.9) == "402", "whole past 100")
 	check(Palette.number(1460.0) == "1.46K", "K past a thousand")
 	check(Palette.number(7.42e8) == "742.00M", "M past a million")
+
+
+## An enemy is one number (D085): its health while it walks in, what each hit
+## takes once it's hitting, and a Divider in range is previewed at the Number.
+func test_an_enemy_shows_one_number() -> void:
+	check(Palette.short(1.64) == "1.6", "one decimal under 10: %s" % Palette.short(1.64))
+	check(Palette.short(4.0) == "4", "no trailing .0: %s" % Palette.short(4.0))
+	check(Palette.short(13.65) == "14", "whole from 10: %s" % Palette.short(13.65))
+	check(Palette.short(1084.0) == "1.08K", "K past a thousand: %s" % Palette.short(1084.0))
+	check(Palette.enemy_health(4.4) == "4.4", "health as it is: %s" % Palette.enemy_health(4.4))
+	check(Palette.enemy_health(0.03) == "0.1", "a living enemy never reads 0: %s" % Palette.enemy_health(0.03))
+	check(Palette.enemy_health(9.97) == "10", "rounding up past 10 reads whole: %s" % Palette.enemy_health(9.97))
+	check(Palette.enemy_health(0.0) == "0", "a dead one does")
+
+	var sim := _quiet_sim({"defense_absolute": 10})
+	var basic := _place(sim, "basic", 20.0)
+	basic.attack = 20.0
+	check(ArenaView.shown_text(sim, basic) == Palette.enemy_health(basic.health), "walking in, it shows its health: %s" % ArenaView.shown_text(sim, basic))
+	basic.distance = basic.stop_at
+	var first := sim.landed_damage(20.0)
+	check(ArenaView.shown_text(sim, basic) == "−" + Palette.short(first), "arrived, it shows its next hit after defences: %s" % ArenaView.shown_text(sim, basic))
+	basic.hits = 10
+	var tenth := sim.landed_damage(20.0 * pow(Guesses.HEAT_UP_PER_HIT, 10))
+	check(tenth > first and ArenaView.shown_text(sim, basic) == "−" + Palette.short(tenth), "and it grows with each hit it lands: %s" % ArenaView.shown_text(sim, basic))
+
+	var far := _place(sim, "divider", sim.stat("range") + 5.0)
+	far.divisor = 1.25
+	check(ArenaView.divider_preview(sim).is_empty(), "no preview while the Divider is out of range")
+	var near := _place(sim, "divider", sim.stat("range") - 1.0)
+	near.divisor = 1.5
+	near.distance = near.stop_at
+	check(ArenaView.shown_text(sim, near) == Palette.enemy_health(near.health), "a Divider shows its health even at the Number")
+	var preview := ArenaView.divider_preview(sim)
+	var expected := sim.health - sim.divide_loss(1.5)
+	check(preview.get("sign") == "÷1.5", "the nearest in range is previewed: %s" % preview)
+	check(preview.get("after") == Palette.number(Palette.number_shown(expected, sim.max_health(), true)), "with what it will leave: %s" % preview)
+	sim.enemies.erase(far)
+	sim._divide(near)
+	check(Palette.number(Palette.number_shown(sim.health, sim.max_health(), true)) == preview.after, "and the landing leaves exactly that: %s" % sim.health)
 
 
 ## A sim with nothing spawning, for placing enemies by hand.
