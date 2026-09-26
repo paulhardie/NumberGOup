@@ -45,6 +45,11 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 				_floats.append({"text": "$" + Palette.number(event.cash), "at": event.enemy.position(), "age": 0.0, "colour": Palette.ACCENT})
 			"tower_hit":
 				_tower_flash = FLASH_SECONDS
+			"free_upgrade":
+				var name := String(TowerData.upgrade(event.id).title).capitalize()
+				_floats.append({"text": "Free: " + name, "at": Vector2(0, -8), "age": 0.0, "colour": Palette.COIN})
+			"rapid_fire":
+				_floats.append({"text": "Rapid Fire", "at": Vector2(0, -8), "age": 0.0, "colour": Palette.TEXT})
 
 
 func _draw() -> void:
@@ -56,6 +61,9 @@ func _draw() -> void:
 	_draw_tower()
 	for enemy in sim.enemies:
 		_draw_enemy(enemy)
+	var orb_radius_px := sim.orb_radius() * px_per_metre()
+	for angle in sim.orb_angles():
+		draw_circle(centre + Vector2.from_angle(angle) * orb_radius_px, 5.0, Palette.ACCENT)
 	for shot in sim.shots:
 		draw_circle(to_view(shot.last_position.lerp(shot.position, blend)), 3.0 if shot.critical else 2.0, Palette.TEXT if shot.critical else Palette.ACCENT)
 	for item in _floats:
@@ -69,7 +77,8 @@ func _draw_tower() -> void:
 	for corner in range(7):
 		points.append(centre + Vector2.from_angle(TAU * corner / 6.0) * TOWER_RADIUS_PX)
 	var colour := Palette.WARNING.lerp(Palette.ACCENT, 1.0 - _tower_flash / FLASH_SECONDS) if _tower_flash > 0.0 else Palette.ACCENT
-	draw_polyline(points, colour, 2.0, true)
+	# Thicker while Rapid Fire runs.
+	draw_polyline(points, colour, 4.0 if sim.rapid_fire_left > 0.0 else 2.0, true)
 	# The tower's health, as the hexagon filling from below.
 	var share := clampf(sim.health / sim.max_health(), 0.0, 1.0)
 	draw_circle(centre, TOWER_RADIUS_PX * 0.55 * share, Color(colour, 0.5))

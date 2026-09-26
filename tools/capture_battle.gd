@@ -39,6 +39,30 @@ func _capture() -> void:
 	shop.ready.connect(func(): shop.show_tab("utility"))
 	await _shoot(shop, "workshop_utility")
 
+	# A strong tower, to show the later groups: orbs, Rapid Fire, bounces.
+	var strong := Workshop.new()
+	strong.open_groups.append_array(["range", "multishot", "rapid_fire", "bounce_shot", "defense", "thorns", "lifesteal", "knockback", "orbs"])
+	strong.levels = {"damage": 60, "attack_speed": 30, "health": 60, "orbs": 4, "orb_speed": 20, "rapid_fire_chance": 40,
+		"rapid_fire_duration": 40, "multishot_chance": 60, "bounce_shot_chance": 60, "knockback_chance": 40}
+	var showcase := BattleScreen.new()
+	showcase.workshop = strong
+	root.add_child(showcase)
+	await process_frame
+	showcase.start_run(3)
+	showcase.set_process(false)
+	var shown: Array[Dictionary] = []
+	while showcase.sim.time < 420.0 and showcase.sim.alive:
+		showcase.sim.step()
+		shown.append_array(showcase.sim.events)
+		showcase.sim.events.clear()
+	showcase._arena.absorb(shown.slice(maxi(0, shown.size() - 10)), 0.0)
+	showcase._refresh()
+	showcase._arena.queue_redraw()
+	await _frames()
+	_save_png("battle_strong")
+	showcase.queue_free()
+	await process_frame
+
 	var screen := BattleScreen.new()
 	screen.workshop = Workshop.new()
 	root.add_child(screen)

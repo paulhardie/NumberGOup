@@ -6,10 +6,11 @@ extends RefCounted
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 
-## Groups whose mechanics the battle has. The Tower's later groups (Rapid Fire,
-## Lifesteal, Free Upgrades and on) come with milestone 4 of the rebuild, so
-## they show but can't be opened yet.
-const BUILT_GROUPS := ["attack_start", "range", "multishot", "defense_start", "defense", "thorns", "cash", "coins"]
+## Groups whose mechanics the battle has. The rest (Super Crit, Death Defy)
+## show but can't be opened yet.
+const BUILT_GROUPS := ["attack_start", "range", "multishot", "rapid_fire", "bounce_shot",
+	"defense_start", "defense", "thorns", "lifesteal", "knockback", "orbs",
+	"cash", "coins", "free_upgrades", "interest"]
 
 var coins := 0.0
 ## Row id → Workshop level. Rows not listed are at level 0.

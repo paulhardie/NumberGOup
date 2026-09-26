@@ -36,6 +36,21 @@ const DEEP_ENEMIES_FROM := 1000
 const DEEP_ENEMIES_PER_WAVE := 0.0145
 const MAX_WAVE_ENEMIES := 220
 
+## Cash every run starts with: none, until the Starting Cash lab (not built;
+## The Tower opens it at Tier 1 wave 30, $5 a level). The owner, 26 September.
+## TheTowerSDK's $80 is its figure for Utility Dissonance runs, and the $93 on
+## the owner's first Tower screen is likely a pack's; neither is a new run's.
+const STARTING_CASH := 0.0
+
+## Knockback: metres a unit of force pushes a basic enemy; heavier enemies go
+## as much less far as their mass is greater (D068). The Tower gives no units.
+const KNOCKBACK_METRES_PER_FORCE := 5.0
+
+## Orbs circle at 60 m, or halfway to the Range beyond it, and kill a walking
+## enemy that comes within 3 m of one (D068). Ours; The Tower gives no units.
+const ORB_MIN_RADIUS_M := 60.0
+const ORB_HIT_M := 3.0
+
 ## A shot's flight speed, metres a second.
 const SHOT_SPEED_M := 80.0
 

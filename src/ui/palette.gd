@@ -89,6 +89,10 @@ static func row_value(id: String, value: float) -> String:
 			return "%s m" % number(value)
 		"per_metre":
 			return "%.2f%%/m" % (value * 100.0)
+		"seconds":
+			return "%.2fs" % value
+		"rpm":
+			return "%.2f/min" % value
 	return number(value)
 
 
