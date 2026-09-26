@@ -32,18 +32,18 @@ bash run_tests.sh
 Supporting checks:
 
 ```bash
-bash run_balance.sh
+bash run_godot.sh --headless --path . -s res://tools/sim_runs.gd
 bash run_godot.sh --headless --path . --quit
-bash run_godot.sh --path . -s res://tools/capture_ui.gd
+bash run_godot.sh --path . -s res://tools/capture_battle.gd
 ```
 
 - Every Godot run goes through `run_godot.sh`, which keeps it away from the live save (see "Protect the real save" in [`AGENTS.md`](../AGENTS.md)).
 
-- `run_tests.sh` runs the whole headless economy suite. A green count printed alongside errors is not a pass, and the script enforces it: any `SCRIPT ERROR`, parse error or `ERROR:` line fails the run, because a runtime error aborts only the test it happens in and the suite still prints PASS. A stale `.godot` class cache shows up the same way; `bash run_godot.sh --headless --path . --import` refreshes it.
+- `run_tests.sh` runs the whole headless suite (`tests/tower_tests.gd`). A green count printed alongside errors is not a pass, and the script enforces it: any `SCRIPT ERROR`, parse error or `ERROR:` line fails the run, because a runtime error aborts only the test it happens in and the suite still prints PASS. A stale `.godot` class cache shows up the same way; `bash run_godot.sh --headless --path . --import` refreshes it.
 - The headless project run imports and parses every script and builds the main scene; it catches UI-script and scene errors the suite does not load.
-- **A new script is loaded by path where it is used** (`const FooClass = preload("res://src/foo.gd")`), as `GameState` does for its collaborators, not by its global `class_name`. The owner's play folder keeps the editor's class cache across pulls, and a cache that predates the new script fails to parse whatever names it, so the game opens to a blank window (it did after D051 added `ArenaFx`). CI and the headless run import fresh, so they cannot catch this; the check is reading the diff for a new `class_name` used by name elsewhere.
-- `run_balance.sh` is a measurement tool, not a gate.
-- The capture tool renders the main screens at four window sizes into `user://ui_capture`. Inspect the PNGs; never assert pixel equality.
+- **A new script is loaded by path where it is used** (`const Foo = preload("res://src/foo.gd")`), as every script in `src/` does, not by a global `class_name`. The owner's play folder keeps the editor's class cache across pulls, and a cache that predates the new script fails to parse whatever names it, so the game opens to a blank window (it did after D051 added `ArenaFx`). CI and the headless run import fresh, so they cannot catch this; the check is reading the diff for a new `class_name` used by name elsewhere.
+- `tools/sim_runs.gd` is a measurement tool, not a gate.
+- The capture tool renders a seeded run's battle screen at a few moments into `user://capture`. Inspect the PNGs; never assert pixel equality.
 - Documentation-only changes do not need the suite. They still need path, link, scope and contradiction checks against the current repository.
 
 The same baseline runs in CI (`.github/workflows/verify.yml`) on every pull request and push to `main`, using a pinned Godot build with its release checksum verified. `main` requires a pull request and a passing "Economy tests and headless boot" check before a normal merge; repository admins can bypass the requirement. The local checks above remain the developer-side gate; CI is the enforced copy.
@@ -137,7 +137,7 @@ A change is complete only when:
 
 - its intended outcome is present;
 - directly affected and plausible adjacent behaviour has been checked;
-- accepted invariants in [`GAME_INVARIANTS.md`](GAME_INVARIANTS.md) remain true;
+- the tests' contracts and the accepted decisions remain true (the pre-rebuild invariants are in [`archive/GAME_INVARIANTS.md`](archive/GAME_INVARIANTS.md), as history);
 - evidence is reported at the correct level;
 - remaining uncertainty is explicit;
 - the documents the change made stale are updated in the same change.

@@ -41,7 +41,7 @@ jobs:
       - name: Import project
         run: bash run_godot.sh --headless --path . --import
 
-      - name: Economy tests
+      - name: Tests
         run: bash run_tests.sh
 
       - name: Headless boot
