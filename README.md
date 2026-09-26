@@ -17,6 +17,16 @@ Milestone 1 of the rebuild: the battle alone. A fresh tower (Damage 3, one shot 
 
 The game doesn't save yet. When it does, it will use a new file and leave the old save alone.
 
+## Playing on the Mac
+
+To keep a folder on the Mac always on the latest merged game, run this once in Terminal, changing the path to the folder you open in Godot:
+
+```bash
+git -C ~/NumberGOup-main fetch origin main && git -C ~/NumberGOup-main show origin/main:tools/mac/install_sync.sh | bash -s -- ~/Desktop/NumberGOup
+```
+
+After that it checks GitHub every minute and shows a notification when it updates; reopen the game to play the new version. If the folder isn't a checkout of the game, it's renamed with `-old-` and a fresh copy takes its place. Local changes are never thrown away: they go to a `local-backup/` branch. The log is `~/Library/Logs/ngu-sync.log`.
+
 ## Where the numbers come from
 
 - `data/tower/enemies.json`: The Tower's Tier 1 enemies, wave by wave, generated from TheTowerSDK by `tools/import_tower_enemies.mjs` and checked against the owner's screens.

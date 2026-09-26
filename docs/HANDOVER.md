@@ -2,7 +2,9 @@
 
 **Last updated:** 25 September 2026, by Claude, handing on to the next agent.
 
-**Branch:** `claude/great-tesla-9kfp95`, unmerged, no PR. It carries the rebuild (D073): the spec, then milestone 1. `main` still has the old game, which the owner's local checkout plays until this merges. The old game is commit `f4f1e95`; a `pre-rebuild` tag for it exists only in the session that made it (the push was refused), so push it from a machine that can: `git tag -a pre-rebuild f4f1e95 -m "The game before the rebuild" && git push origin pre-rebuild`.
+**Branch:** `claude/great-tesla-9kfp95`. Milestone 1 merged to `main` in [paulhardie/NumberGOup#61](https://github.com/paulhardie/NumberGOup/pull/61). On top of it the branch adds the Mac sync (`tools/mac/`), not yet merged. The old game is commit `f4f1e95`; a `pre-rebuild` tag for it can be pushed from the Mac: `git tag -a pre-rebuild f4f1e95 -m "The game before the rebuild" && git push origin pre-rebuild`.
+
+**The owner's play folder:** after a merge, the owner still saw the old game. The old auto-updater only fast-forwards `~/NumberGOup-main` when its tree is clean, and the owner may play from another folder on the Desktop. `tools/mac/install_sync.sh <folder>` makes any folder follow `origin/main` every minute, keeping local changes on a `local-backup/` branch (README, "Playing on the Mac"). Tested on Linux against a local stand-in for GitHub, with `launchctl` stubbed; **not yet run on the Mac.**
 
 **Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git.
 
