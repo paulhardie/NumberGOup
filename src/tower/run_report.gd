@@ -23,6 +23,8 @@ static func build(sim: BattleSim, play: Dictionary = {}) -> Dictionary:
 			"closed_mid_run": sim.alive, "health": sim.health, "cash": sim.cash,
 			"cash_earned": sim.cash_earned, "coins": sim.coins, "kills": sim.kills,
 			"bought": sim.run_levels.duplicate(), "enemies": sim.enemies.size(), "rng": sim.rng_state(),
+			"peak_number": sim.peak_number, "lost_to": sim.lost_to.duplicate(),
+			"dividers": {"spawned": sim.dividers_spawned, "landed": sim.dividers_landed},
 		},
 		"play": play.duplicate(true),
 	}

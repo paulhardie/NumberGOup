@@ -979,9 +979,46 @@ Rules:
   3. The Tower's enemies stay flat, and new operator enemies are added on top at a small share.
   4. Health is renamed Number, and Health Regen Number Regen.
 
-  The recommendations listed with them are taken as agreed: operator enemies used up on contact, one defence pipeline, heat-up on flat hits only, flat bosses and ranged enemies in Tier 1, ÷2, nearest-first targeting, the Number never spent, peak Number as a record, whole numbers shown rounded up, and scale 1:1.
+  The recommendations listed with them are taken as agreed: operator enemies used up on contact, one defence pipeline, heat-up on flat hits only, flat bosses and ranged enemies in Tier 1, ÷2, nearest-first targeting, the Number never spent, peak Number as a record, whole numbers shown (never 0 while standing), and scale 1:1.
 - **Consequences:**
   - Tier 1's benchmarks stay The Tower's, and any divide enemy is balanced by its share, health and divisor, in that order.
   - Renaming Health changes Workshop and run labels only; the row ids and the save stay the same.
   - The enemy design is proposed in [`THE_NUMBER.md`](THE_NUMBER.md) section 7, pending the owner.
 - **Revisit when:** measurement or play shows one of these doesn't hold up.
+
+## D082 — The Divider, and the Number on screen
+
+- **Status:** Accepted (2026-09-26) on owner direction: "yes to all three, ranged 2 coins, go build it", answering [`THE_NUMBER.md`](THE_NUMBER.md) section 7's questions. The owner asked whether Dividers should move at a basic enemy's speed; the answer was yes, as the start, measured below. Implemented (2026-09-26) on `claude/great-tesla-9kfp95`.
+- **Decision:**
+  1. The Tower's five launch enemies stay as they are and subtract.
+  2. One new enemy, the **Divider**, comes on top of them:
+     - It walks at a basic enemy's speed.
+     - On reaching the Number (or the Wall) it takes half of it through the defences, and is used up without paying.
+     - Killed, it pays 2× Cash and 2 Coins.
+     - None come before wave 5. From there they are 3% of a wave's count, rising to 6% by wave 30. They are drawn from their own random stream, so The Tower's enemies come exactly as before.
+     - Its health ramps from 2× a basic enemy's at wave 5 to 4× by wave 30.
+  3. Only the Divider shows its operator ("÷2") on its body. Each contact shows at the Number: "−x" for flat hits summed per frame, and "÷2 −x" for a Divider.
+  4. There is no "plus" enemy in 1.0.
+  5. Ranged enemies pay 2 Coins, as The Tower's own enemy list says, not the 3 of D074's table.
+  6. With D081, Health reads as Number and Health Regen as Number Regen: the titles changed in the importer, and the row ids and save are unchanged.
+  7. The Number is drawn in the centre in a body with a ring for how full it is. It turns warning-coloured when low and Coin-coloured when overhealed, and flashes and shakes on a ÷.
+  8. The run-over screen shows the peak Number and what Dividers took. Home and the save keep the best Number (`best_number`, additive, 0 in older saves).
+- **Evidence** (`tools/sim_runs.gd`, 20 seeds; careers of 30 runs buying `core`):
+  - Single runs are unchanged: buying nothing dies at wave 3 (2–5), spreading Cash at wave 8 (5–10), and `core` at wave 6 (2–10), the same as without Dividers.
+  - Careers are unchanged: the wave-10 boss breaks on run 12 (1.1 hours), and runs plateau at waves 20–21.
+  - Dividers' health decides how often they land, not how far careers get:
+
+    | Health | Reach the Number | In middle waves |
+    |---|---|---|
+    | 2× | 21% | one every 7 min |
+    | 4× | 58% | one every 3 min |
+    | 6× | 91% | one every 2 min |
+    | 10× | all | about one a minute |
+
+  - Flat 4× from wave 5 cost a fresh tower a wave (spreading Cash died at a median of 7), because early Dividers all got through, hence the ramp. As built, 32% land, about one every 6 minutes in the middle waves.
+  - Slower Dividers (0.75×) landed less often, so speed stays at a basic enemy's.
+- **Consequences:**
+  - The ÷ moment is rarer than the design's first target of one a minute. Reaching that needs a higher share, which puts more enemies on top of The Tower's, or more health, which costs the first-run benchmark. The owner judges it in play, and the levers are in `Guesses.DIVIDER`.
+  - The Number's body is drawn wider (30 px) than the tower's 3 m contact edge, with enemies drawn touching it. That's only drawing; the rules are unchanged.
+  - Saved runs from before this change end at their saved wave when resumed (D078), as intended.
+- **Revisit when:** the owner has played it: whether ÷ moments feel too rare, too harsh or right.

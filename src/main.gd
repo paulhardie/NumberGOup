@@ -99,7 +99,8 @@ func _resume_failed(saved: Dictionary, reason: String) -> void:
 	var wave = result.get("wave", 0) if result is Dictionary else 0
 	# A damaged record can hold anything here.
 	var reached := int(wave) if (wave is float or wave is int) and is_finite(float(wave)) and float(wave) >= 0.0 else 0
-	workshop.finish_run(reached)
+	var peak = result.get("peak_number", 0.0) if result is Dictionary else 0.0
+	workshop.finish_run(reached, float(peak) if (peak is float or peak is int) and is_finite(float(peak)) and float(peak) >= 0.0 else 0.0)
 	var entry := saved.duplicate(true)
 	entry["kind"] = "run"
 	entry["resume_failed"] = reason

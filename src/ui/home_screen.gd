@@ -86,7 +86,7 @@ func _ready() -> void:
 
 func refresh() -> void:
 	_coins.text = "● " + Palette.number(workshop.coins)
-	_record.text = "Best wave %d · %d runs" % [workshop.best_wave, workshop.runs] if workshop.runs > 0 else "Tier 1"
+	_record.text = "Best wave %d · best Number %s · %d runs" % [workshop.best_wave, Palette.number(ceilf(workshop.best_number)), workshop.runs] if workshop.runs > 0 else "Tier 1"
 
 
 ## Says where the report went, from ActivityLog.export_report's result.

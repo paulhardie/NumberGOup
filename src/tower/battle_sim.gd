@@ -1,5 +1,7 @@
 extends RefCounted
-## One run of the battle: the tower in the centre, Tier 1's waves walking in.
+## One run of the battle: the Number in the centre (the tower, D080), Tier 1's
+## waves walking in. Its health is the Number: The Tower's flat enemies take
+## from it, and Dividers (D082) take a share of it.
 ## It is the only owner of combat rules. The battle screen draws it and the
 ## headless tools run it, so what is measured is exactly what is played.
 ## It steps in fixed ticks from a seed, so the same seed and the same inputs
@@ -110,6 +112,22 @@ var wave_log: Array[Dictionary] = []
 
 var _spawn_rng := RandomNumberGenerator.new()
 var _combat_rng := RandomNumberGenerator.new()
+## Dividers draw from their own stream, so The Tower's enemies, where and when
+## they come, are exactly what they were without them.
+var _divider_rng := RandomNumberGenerator.new()
+## Dividers owed but not yet due: a wave's share of a Divider carries to the next.
+var _divider_due := 0.0
+## The Divider's numbers for this run (Guesses.DIVIDER), which the measuring
+## tools may change before the first step to try others.
+var divider: Dictionary = Guesses.DIVIDER.duplicate()
+
+## The highest the Number has stood this run: the run's record (D081).
+var peak_number := 0.0
+## What the Number has lost to each kind of enemy, after defences.
+var lost_to: Dictionary = {}
+## Dividers that came, and the ones that reached the Number or the Wall.
+var dividers_spawned := 0
+var dividers_landed := 0
 var _schedule: Array[Dictionary] = []
 var _next_spawn := 0
 var _next_id := 1
@@ -142,7 +160,9 @@ func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_G
 	# changes which enemies a wave sends.
 	_spawn_rng.seed = hash([seed_value, "spawn"])
 	_combat_rng.seed = hash([seed_value, "combat"])
+	_divider_rng.seed = hash([seed_value, "divider"])
 	health = max_health()
+	peak_number = health
 	if is_open("wall_health"):
 		wall_health = wall_max_health()
 	if is_open("shockwave_frequency"):
@@ -154,7 +174,7 @@ func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_G
 ## than JSON's numbers hold exactly. A replay that drew exactly the same
 ## numbers ends with the same states.
 func rng_state() -> Array[String]:
-	return [str(_spawn_rng.state), str(_combat_rng.state)]
+	return [str(_spawn_rng.state), str(_combat_rng.state), str(_divider_rng.state)]
 
 
 func level(id: String) -> int:
@@ -233,12 +253,42 @@ func wall_up() -> bool:
 
 
 ## The health and attack a `kind` has right now, Enemy Level Skip included.
+## The Divider isn't The Tower's, so its numbers are a basic enemy's times ours.
 func enemy_health_now(kind: String) -> float:
+	if kind == "divider":
+		return TowerData.enemy_health(health_level, "basic") * lerpf(float(divider.health_first), float(divider.health_full), _divider_ramp(wave))
 	return TowerData.enemy_health(health_level, kind)
 
 
 func enemy_attack_now(kind: String) -> float:
+	# A Divider doesn't subtract: it takes a share (_divide).
+	if kind == "divider":
+		return 0.0
 	return TowerData.enemy_attack(attack_level, kind)
+
+
+func _speed_m(kind: String) -> float:
+	if kind == "divider":
+		return TowerData.enemy_speed_m(wave, "basic") * float(divider.speed)
+	return TowerData.enemy_speed_m(wave, kind)
+
+
+func _mass_ratio(kind: String) -> float:
+	return 1.0 if kind == "divider" else TowerData.mass_ratio(kind)
+
+
+## The share of a wave's enemies that come as Dividers on top of it.
+func divider_share(at_wave: int) -> float:
+	if at_wave < int(divider.from_wave):
+		return 0.0
+	return lerpf(float(divider.share_first), float(divider.share_full), _divider_ramp(at_wave))
+
+
+## How far along its ramp the Divider is at `at_wave`: 0 at its first wave,
+## 1 from FULL_WAVE on.
+func _divider_ramp(at_wave: int) -> float:
+	var first := int(divider.from_wave)
+	return clampf(float(at_wave - first) / float(maxi(1, int(divider.full_wave) - first)), 0.0, 1.0)
 
 
 func step() -> void:
@@ -259,6 +309,7 @@ func step() -> void:
 		_schedule_wave()
 	_spawn_due()
 	_heal(stat("health_regen") * TICK)
+	peak_number = maxf(peak_number, health)
 	_tick_wall()
 	_tick_shockwave()
 	_move_enemies()
@@ -294,6 +345,19 @@ func _schedule_wave() -> void:
 		_schedule.append({"kind": "boss", "at": 0.0})
 	for index in range(count):
 		_schedule.append({"kind": _draw_kind(mix), "at": TowerData.spawn_seconds() * float(index) / float(count)})
+	# Dividers come on top of The Tower's enemies, at a random moment of the
+	# spawning, slotted in after anything due at the same moment so The
+	# Tower's order is untouched.
+	_divider_due += divider_share(wave) * float(count)
+	while _divider_due >= 1.0 - SKIP_SLACK:
+		_divider_due -= 1.0
+		var at := _divider_rng.randf() * TowerData.spawn_seconds()
+		var slot := _schedule.size()
+		for index in range(_schedule.size()):
+			if float(_schedule[index].at) > at:
+				slot = index
+				break
+		_schedule.insert(slot, {"kind": "divider", "at": at})
 
 
 func _draw_kind(mix: Dictionary) -> String:
@@ -317,8 +381,12 @@ func _spawn_due() -> void:
 		enemy.max_health = enemy_health_now(kind)
 		enemy.health = enemy.max_health
 		enemy.attack = enemy_attack_now(kind)
-		enemy.speed = TowerData.enemy_speed_m(wave, kind)
-		enemy.angle = _spawn_rng.randf() * TAU
+		enemy.speed = _speed_m(kind)
+		if kind == "divider":
+			enemy.angle = _divider_rng.randf() * TAU
+			dividers_spawned += 1
+		else:
+			enemy.angle = _spawn_rng.randf() * TAU
 		enemy.distance = Guesses.SPAWN_DISTANCE_M
 		enemy.last_distance = enemy.distance
 		enemy.stop_at = stat("range") if kind == "ranged" else Guesses.CONTACT_DISTANCE_M
@@ -345,8 +413,12 @@ func _move_enemies() -> void:
 ## defences took off, because the contact still happened.
 func _enemies_hit() -> void:
 	var thorned: Array[Enemy] = []
+	var spent: Array[Enemy] = []
 	for enemy in enemies:
 		if not enemy.arrived():
+			continue
+		if enemy.kind == "divider":
+			spent.append(enemy)
 			continue
 		enemy.hit_in -= TICK
 		if enemy.hit_in > 0.0:
@@ -370,6 +442,7 @@ func _enemies_hit() -> void:
 			if record_events:
 				events.append({"type": "death_defy"})
 		health -= damage
+		lost_to[enemy.kind] = float(lost_to.get(enemy.kind, 0.0)) + damage
 		if record_events:
 			events.append({"type": "tower_hit", "enemy": enemy, "damage": damage})
 		if health <= 0.0:
@@ -382,9 +455,38 @@ func _enemies_hit() -> void:
 			enemy.health -= enemy.max_health * thorns
 			if enemy.health <= 0.0:
 				thorned.append(enemy)
-	# Killed after the loop, which mustn't lose enemies from under it.
+	# Removed after the loop, which mustn't lose enemies from under it.
+	for enemy in spent:
+		_divide(enemy)
 	for enemy in thorned:
 		_kill(enemy)
+
+
+## A Divider reaches the Number, or the Wall in front of it, and takes
+## 1 - 1/divisor of it through the defences (D081's single pipeline), then is
+## used up: gone, unpaid, and no longer a target for shots already flying.
+## Half of anything is never all of it, so it can't end a run on its own.
+func _divide(enemy: Enemy) -> void:
+	var share := 1.0 - 1.0 / maxf(1.0, float(divider.divisor))
+	var at_wall := wall_up() and enemy.distance > Guesses.CONTACT_DISTANCE_M
+	var loss := 0.0
+	if at_wall:
+		loss = minf(wall_health, landed_damage(wall_health * share))
+		wall_health -= loss
+		if wall_health <= 0.0:
+			wall_health = 0.0
+			wall_rebuild_in = stat("wall_rebuild")
+			if record_events:
+				events.append({"type": "wall_down"})
+	else:
+		loss = minf(health, landed_damage(health * share))
+		health -= loss
+		lost_to["divider"] = float(lost_to.get("divider", 0.0)) + loss
+	dividers_landed += 1
+	enemy.health = 0.0
+	enemies.erase(enemy)
+	if record_events:
+		events.append({"type": "divided", "enemy": enemy, "damage": loss, "at_wall": at_wall})
 
 
 ## What a hit of `raw` leaves after the tower's defences.
@@ -519,7 +621,7 @@ func _strike(enemy: Enemy, shot_damage: float, critical: bool) -> void:
 		enemy.rend = minf(REND_CAP, enemy.rend + stat("rend_armor_mult"))
 	_heal(stat("lifesteal") * minf(damage, maxf(enemy.health, 0.0)))
 	if enemy.health > damage and stat("knockback_chance") > 0.0 and _combat_rng.randf() < stat("knockback_chance"):
-		var push := stat("knockback_force") * Guesses.KNOCKBACK_METRES_PER_FORCE / TowerData.mass_ratio(enemy.kind)
+		var push := stat("knockback_force") * Guesses.KNOCKBACK_METRES_PER_FORCE / _mass_ratio(enemy.kind)
 		enemy.distance = minf(Guesses.SPAWN_DISTANCE_M, enemy.distance + push)
 	enemy.health -= damage
 	if record_events:

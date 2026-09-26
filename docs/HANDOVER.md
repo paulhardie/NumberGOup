@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 26 September 2026 (D081, the Number's four answers, and the enemy brainstorm), by Claude, handing on to the next agent.
+**Last updated:** 26 September 2026 (D082, the Divider and the Number on screen), by Claude, handing on to the next agent.
 
-**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after D078–D080 merged ([paulhardie/NumberGOup#70](https://github.com/paulhardie/NumberGOup/pull/70)). It carries D081 and the enemy brainstorm in [`THE_NUMBER.md`](THE_NUMBER.md) (docs only), not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after #70 merged. It carries D081 and D082: the Number in the centre, the Divider, Health reading as Number, the peak Number record and Ranged's 2 Coins. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -22,7 +22,7 @@
 
 ## Where the game is
 
-**Version 0.9.** Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Workshop groups (D076, merged). The owner played milestone 4.
+**Version 0.9, with 1.0's Number built (D082).** The Number sits in the centre as the tower. The Tower's enemies subtract ("−x"), and from wave 5 a Divider can halve it ("÷2"), about one every 6 minutes in the middle waves. Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Workshop groups (D076, merged). The owner played milestone 4.
 
 - **Resuming (D078, merged):** the save carries the run in progress; the game opens back into it by replaying it. If an update means it no longer replays the same, it ends at its saved wave with its Coins kept.
 - **Activity report (D077):** every run (seed, starting Workshop, each buy with its tick, a snapshot per wave) and every Workshop buy and unlock is logged to `user://number_go_up_activity.jsonl`. Home's Export report writes it to `user://reports/` and opens the folder. `tools/read_report.gd` reads and replays it.
@@ -41,22 +41,32 @@
 
 1. **How should a pack-free account pace?** Under D075, a focused pack-free career spends about 1.3 hours at the wave 10 boss and about 5½ hours reaching wave 30. With ×9 Coins it matches the owner's own account. The "wave 100 in an hour" research is unverified. **Recommend** keeping The Tower's rules and deciding the target by playing: if the first hours feel slow without packs, the lever is Coins per kill or Coins / Wave, not the enemy rules.
 2. **The Number's four decisions:** answered (D081): ceiling at Health, subtract and divide, new operator enemies on top of The Tower's, and Health renamed Number.
-2a. **The enemy brainstorm** ([`THE_NUMBER.md`](THE_NUMBER.md) section 7): **the Divider as proposed** (2× basic health, basic speed, from wave 5 at about 3% rising to about 6%, ÷2, used up on contact); **show hits on enemies' bodies** (recommend only the Divider's "÷2"); and **a "plus" enemy** (recommend not for 1.0).
-2b. **Three figures in The Tower's own enemy list differ from our data:** Ranged pays 2 Coins there against our 3 (D074), Tank is "50% speed" against the SDK's 0.34, and Fast is "2×" against 2.31. **Recommend** the owner's screen wins on Coins (Ranged 2). Keep the SDK's speeds, since the encyclopedia rounds, unless a timed walk says otherwise.
+2a. **The enemy brainstorm:** answered and built (D082).
+2b. **The Tower's enemy list against our data:** Ranged now pays 2 Coins (D082); the speeds stay the SDK's.
+2c. **Is one ÷ every 6 minutes right?** As built, about a third of Dividers get through in the middle waves. **Recommend** judging it in play. If it's too rare, raise the Divider's share first (a single number), and watch the first-run benchmark.
 3. **Cheaper Workshop prices?** Answered: keep The Tower's (the owner, 26 September: "fair enough").
 4. **Lighter process while rebuilding.** **Recommend yes.**
 5. **AGENTS.md's architectural law 3** (the modifier pipeline) names removed code. **Recommend** dropping it until a system needs stacked rules.
 
 ## Next steps, in order
 
-1. **Owner:** play a session on D077 as merged, export a report and drop it into the chat. Done when a report arrives.
-2. **Agent:** read that report and answer decision 1 from the owner's real runs: where they die, what they buy, Coins an hour. That decides whether 1.0 is signed off or needs tuning first.
-3. **Owner:** with #70 merged, close the game mid-run and reopen it. Done when a real run resumes on the Mac and Home shows "v0.9" in its corner.
-4. **Owner:** answer the brainstorm's three questions and the three figures (open decisions 2a and 2b).
-5. **Agent, then:** build the Number's rules in `BattleSim`: the rename, the defence pipeline and the Divider. Measure them headless against the benchmarks and the Divider's targets before any screen work (THE_NUMBER.md 5.4 and 7).
+1. **Owner:** merge this, play, and export a report. Say whether the Number in the centre and the ÷ moments feel right, and how often they come. Done when the owner has played it.
+2. **Agent:** read the report. It records each run's peak Number, what Dividers took, and how many came and landed. Tune `Guesses.DIVIDER` from it with `sim_runs.gd` against the benchmarks (THE_NUMBER.md 5).
+3. **Owner, then:** sign off 1.0, or name what's missing. After that comes Cards (1.1).
 
 ## How to measure
 
+- **Ran on this branch (26 September, D082):** `bash run_tests.sh`: `PASS: tower tests (2385 checks)`. New checks cover:
+  - Dividers coming on top of The Tower's enemies without changing them, in time order, as many as their share adds up to;
+  - ÷2 through the defences, used up, unpaid, never ending a run;
+  - shots at a landed Divider being lost;
+  - a killed Divider's pay;
+  - the Wall halving;
+  - the peak Number and best Number through a save and from an older save;
+  - Health reading as Number, and Ranged's 2 Coins.
+
+  `sim_runs.gd`, 20 seeds each for `none`, `even` and `core`, and 30-run `core` careers at Divider health 2×, 4×, 6× and 10×, 0.75× speed, none, and the ramp as built (figures in D082). The headless boot is clean. The capture's new `battle_divided.png` shows a ÷ landing; the strong tower, a fresh run and the run-over panel were inspected.
+- **Not run for D082:** play on the Mac, and how ÷ moments feel. The simulation measures balance, not fun.
 - **Ran on this branch (26 September, D078):** `bash run_tests.sh`: `PASS: tower tests (2320 checks)`.
   - **Independent review done:** a separate agent session reviewed the diff and reproduced its findings. Every finding was fixed, with a test each (see D078): the match check now compares Cash, levels, enemies, inputs and the random streams; damaged records are rejected whole; runs after "Battle again" are logged; the failure handling can't be crashed by a damaged wave; and a lost run's log entry keeps the version that recorded it.
   - The reviewer's price-change reproduction now fails the match, as it should.

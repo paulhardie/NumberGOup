@@ -1,6 +1,6 @@
 # The Number: design considerations
 
-**Status:** the direction is decided (D080), and its four decisions are answered (D081, section 6). The enemy design is proposed (section 7) and waiting on the owner. Nothing here is built. This page is the working list of everything that changes now that the tower *is* a number; the owner's answers go into [`DECISIONS.md`](DECISIONS.md), and this page is updated to match.
+**Status:** the direction is decided (D080), its four decisions are answered (D081, section 6), and the enemy design is answered and built (D082, section 7): the Number in the centre, and the Divider. What's left for 1.0 is the owner playing it. This page is the working list of everything that changes now that the tower *is* a number; the owner's answers go into [`DECISIONS.md`](DECISIONS.md), and this page is updated to match.
 
 ## The direction, in the owner's words
 
@@ -39,7 +39,7 @@ The vision's test still applies: **honest.** Every number that kills you should 
 
 **1.4 What is the score?** **Recommend:** keep the best wave as the record, and add the run's **peak Number**, shown on the run-over screen and kept as a best on Home. Option A's idea survives as a record, not as the centrepiece.
 
-**1.5 Whole numbers or decimals?** The Tower's Health has decimals (5.00 at the start; regen 0.04 a second). **Recommend:** keep full precision in the simulation, and show whole numbers, rounded up, so a standing tower never reads 0 (today's rule). Death stays at ≤ 0 exactly.
+**1.5 Whole numbers or decimals?** The Tower's Health has decimals (5.00 at the start; regen 0.04 a second). **Recommend:** keep full precision in the simulation, and show whole numbers rounded to the nearest, never 0 while the tower stands, and never above Health unless overhealed (today's rule, `Palette.number_shown`, the same in the centre and the panel). Death stays at ≤ 0 exactly.
 
 **1.6 Scale.** A Number of 5 is small for a centrepiece. We could multiply Tier 1 by a constant (start 50, hits ×10), which balances identically.
 - **Recommend 1:1,** so the owner's Tower screens compare directly. The Number reaches the hundreds within minutes anyway.
@@ -182,7 +182,7 @@ Taken as agreed with them:
 - nearest-first targeting for 1.0 (2.11);
 - the Number isn't spent (1.3);
 - peak Number as a record (1.4);
-- whole numbers shown, rounded up (1.5);
+- whole numbers shown, never 0 while standing (1.5);
 - scale 1:1 (1.6).
 
 The owner also asked for divide enemies to be "balanced carefully".
@@ -254,8 +254,15 @@ The numbers to tune are its share by wave, its health and the divisor. **Tune sh
 - **The Ray** as a charged ×2 hit.
 - **The Protector** as a shield that makes Dividers harder to stop.
 
-### Questions for the owner
+### Answered and built (D082)
 
-1. **The Divider as proposed** (2× health, basic speed, from wave 5 at about 3% rising to about 6%, ÷2, used up on contact)? Recommend yes, as the starting point to measure from.
-2. **Show every enemy's hit on its body** ("−1.64" on each square), or only on the Divider? Recommend only the Divider, and each contact at the Number: 11 to 130 enemies each carrying a number would crowd the arena.
-3. **A "plus" enemy**, whose kill adds to the Number? It fits "number go up", but it's a second new rule in 1.0 and brushes against D037. Recommend not for 1.0: measure the Divider alone first.
+The owner said yes to all three questions: the Divider as proposed, "÷2" shown only on the Divider, and no "plus" enemy in 1.0. Ranged pays 2 Coins, and Dividers walk at a basic enemy's speed.
+
+Measuring changed one number. **Its health ramps from 2× at wave 5 to 4× by wave 30,** instead of a flat 2×:
+- at 2×, almost none got through in the middle waves;
+- a flat 4× cost a fresh tower a wave.
+
+As built:
+- The Tower's benchmarks are unchanged, for single runs and careers.
+- About a third of Dividers reach the Number: one every 6 minutes or so in the middle waves.
+- That's rarer than 5.2's first target of one a minute. Getting there needs more Dividers or tougher ones, and the owner judges that in play. The figures are in D082, and the levers are in `Guesses.DIVIDER`.

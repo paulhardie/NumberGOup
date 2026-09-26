@@ -67,12 +67,34 @@ const SHOT_SPEED_M := 80.0
 
 ## Cash a kill pays, times $1 plus $1 every ten waves (D071, from community
 ## research). The boss's 20 is ours until the owner reads one boss kill.
-const CASH_BY_TYPE := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "boss": 20.0}
+const CASH_BY_TYPE := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "boss": 20.0, "divider": 2.0}
 
 ## Coins a kill pays, flat, whatever its wave (the owner's reference table;
 ## D074). Paid times the wave, as the SDK's model has it, a wave-22 run earned
-## about 14 times the owner's Tower report; flat is within 2 times.
-const COINS_BY_TYPE := {"basic": 0.0, "fast": 2.0, "ranged": 3.0, "tank": 4.0, "boss": 5.0}
+## about 14 times the owner's Tower report; flat is within 2 times. Ranged pays
+## 2, as The Tower's own enemy list says (D082).
+const COINS_BY_TYPE := {"basic": 0.0, "fast": 2.0, "ranged": 2.0, "tank": 4.0, "boss": 5.0, "divider": 2.0}
+
+## The Divider (D082, docs/THE_NUMBER.md section 7): ours, not The Tower's. It
+## walks in at a basic enemy's speed and, on reaching the Number, takes away
+## 1 - 1/divisor of it (half, at ÷2) through the defences, and is used up.
+## None before FROM_WAVE; from there a share of each wave's count, on top of
+## The Tower's enemies, rising in a straight line from SHARE_FIRST to
+## SHARE_FULL at FULL_WAVE and holding there. Its health, in basic enemies',
+## rises the same way from HEALTH_FIRST to HEALTH_FULL: measured, 2× lets a
+## fresh tower keep The Tower's wave-8 death, and 4× by the middle waves lets
+## about half through, a ÷ every few minutes. Tune the share first, then
+## health or speed, and the divisor last: ÷2 is the identity.
+const DIVIDER := {
+	"divisor": 2.0,
+	"health_first": 2.0,
+	"health_full": 4.0,
+	"speed": 1.0,
+	"from_wave": 5,
+	"full_wave": 30,
+	"share_first": 0.03,
+	"share_full": 0.06,
+}
 
 
 static func enemies_in_wave(wave: int) -> int:

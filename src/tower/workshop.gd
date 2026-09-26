@@ -12,6 +12,8 @@ var levels: Dictionary = {}
 ## Every group opened, the free starting ones included.
 var open_groups: Array = []
 var best_wave := 0
+## The highest the Number has stood in any run (D081).
+var best_number := 0.0
 var runs := 0
 
 
@@ -83,13 +85,15 @@ func add_coins(amount: float) -> void:
 		coins += amount
 
 
-func finish_run(wave: int) -> void:
+func finish_run(wave: int, peak_number: float = 0.0) -> void:
 	runs += 1
 	best_wave = maxi(best_wave, wave)
+	if is_finite(peak_number):
+		best_number = maxf(best_number, peak_number)
 
 
 func to_dict() -> Dictionary:
-	return {"coins": coins, "levels": levels.duplicate(), "open_groups": open_groups.duplicate(), "best_wave": best_wave, "runs": runs}
+	return {"coins": coins, "levels": levels.duplicate(), "open_groups": open_groups.duplicate(), "best_wave": best_wave, "best_number": best_number, "runs": runs}
 
 
 ## Takes saved data into this fresh Workshop, keeping only what still makes
@@ -109,6 +113,8 @@ func restore(data: Dictionary) -> void:
 			if group is String and TowerData.has_group(group) and not is_group_open(group):
 				open_groups.append(group)
 	best_wave = int(_amount(data.get("best_wave")))
+	# Saves from before D081 have none, and start from 0.
+	best_number = _amount(data.get("best_number"))
 	runs = int(_amount(data.get("runs")))
 
 

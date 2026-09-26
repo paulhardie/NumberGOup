@@ -1350,6 +1350,119 @@ func test_every_run_on_a_battle_screen_is_logged() -> void:
 	_clear_test_saves()
 
 
+func test_dividers_come_on_top_of_the_towers_enemies_and_leave_them_untouched() -> void:
+	var sim := BattleSim.new(8)
+	var plain := BattleSim.new(8)
+	plain.divider.share_first = 0.0
+	plain.divider.share_full = 0.0
+	check(sim.divider_share(4) == 0.0 and is_equal_approx(sim.divider_share(5), 0.03), "none before wave 5, then 3%")
+	check(is_equal_approx(sim.divider_share(30), 0.06) and is_equal_approx(sim.divider_share(200), 0.06), "rising to 6% by wave 30, and holding")
+	var counted := 0
+	var expected := 0.0
+	for at_wave in range(2, 41):
+		for each in [sim, plain]:
+			each.wave = at_wave
+			each._schedule_wave()
+		var theirs: Array = sim._schedule.filter(func(entry): return entry.kind != "divider")
+		counted += sim._schedule.size() - theirs.size()
+		expected += sim.divider_share(at_wave) * float(theirs.size() - (1 if TowerData.is_boss_wave(at_wave) else 0))
+		check(theirs == plain._schedule, "wave %d: The Tower's enemies come exactly as without Dividers" % at_wave)
+		for index in range(sim._schedule.size() - 1):
+			if float(sim._schedule[index].at) > float(sim._schedule[index + 1].at):
+				check(false, "wave %d: the schedule stays in time order" % at_wave)
+	check(absi(counted - roundi(expected)) <= 1, "as many Dividers as their share adds up to: %d against %.1f" % [counted, expected])
+
+
+func test_a_divider_halves_the_number_through_the_defences_and_is_used_up() -> void:
+	var sim := _quiet_sim({"health": 400})
+	sim.record_events = true
+	sim.health = 100.0
+	var cash := sim.cash
+	var kills := sim.kills
+	var divider := _place(sim, "divider", Guesses.CONTACT_DISTANCE_M)
+	sim.step()
+	check_near(sim.health, 50.0 + sim.stat("health_regen") * BattleSim.TICK, 0.0001, "÷2 takes half the Number")
+	check(not sim.enemies.has(divider) and divider.health == 0.0, "and the Divider is used up")
+	check(sim.kills == kills and sim.cash == cash and sim.dividers_landed == 1, "without paying or counting as a kill")
+	check_near(float(sim.lost_to.divider), 50.0, 0.0001, "the loss is put down to Dividers")
+	check(not sim.events.filter(func(event): return event.type == "divided").is_empty(), "and the screen hears of it")
+	var guarded := _quiet_sim({"health": 400, "defense_percent": 40, "defense_absolute": 10})
+	guarded.health = 100.0
+	_place(guarded, "divider", Guesses.CONTACT_DISTANCE_M)
+	guarded.step()
+	var took := 100.0 + guarded.stat("health_regen") * BattleSim.TICK - guarded.health
+	check_near(took, guarded.landed_damage(50.0), 0.0001, "the same defences as any hit, Defense %% then Absolute: %.2f" % took)
+	var tiny := _quiet_sim()
+	tiny.health = 0.01
+	_place(tiny, "divider", Guesses.CONTACT_DISTANCE_M)
+	tiny.step()
+	check(tiny.alive and tiny.health > 0.0, "half of anything is never all of it: a Divider can't end a run")
+
+
+func test_a_divider_in_flight_is_lost_to_shots_and_pays_when_killed() -> void:
+	var sim := _quiet_sim()
+	var divider := _place(sim, "divider", 20.0)
+	check_near(divider.max_health, TowerData.enemy_health(sim.wave, "basic") * 2.0, 0.0001, "twice a basic enemy's health at first")
+	sim.wave = 30
+	sim.health_level = 30
+	check_near(sim.enemy_health_now("divider"), TowerData.enemy_health(30, "basic") * 4.0, 0.0001, "four times by wave 30")
+	sim.wave = 1
+	sim.health_level = 1
+	check(sim.enemy_attack_now("divider") == 0.0, "and no flat hit of its own")
+	divider.health = 0.5
+	var cash := sim.cash
+	while sim.enemies.has(divider):
+		sim.step()
+	check(sim.kills == 1 and is_equal_approx(sim.cash - cash, 2.0 * sim.stat("cash_bonus")) and sim.coins == 2.0, "killed, it pays twice a basic's Cash and 2 Coins")
+	var walker := _quiet_sim()
+	var near := _place(walker, "divider", Guesses.CONTACT_DISTANCE_M + 0.5)
+	near.speed = 30.0
+	near.stop_at = Guesses.CONTACT_DISTANCE_M
+	near.max_health = 1e9
+	near.health = 1e9
+	walker.levels = {"damage": 50}
+	for _i in range(40):
+		walker.step()
+	check(walker.kills == 0 and walker.dividers_landed == 1, "shots still flying at a Divider that landed are lost, not paid")
+
+
+func test_a_divider_breaks_on_the_wall() -> void:
+	var sim := _quiet_sim({"health": 100}, BattleSim.START_GROUPS + ["wall"])
+	var number := sim.health
+	var wall := sim.wall_health
+	_place(sim, "divider", Guesses.WALL_DISTANCE_M)
+	sim.step()
+	check_near(sim.wall_health, wall / 2.0, 0.0001, "the Wall loses half")
+	check(sim.health >= number and sim.dividers_landed == 1, "and the Number nothing")
+
+
+func test_the_number_keeps_its_peak_as_a_record() -> void:
+	var sim := _quiet_sim({"health": 50})
+	var start := sim.health
+	check_near(sim.peak_number, start, 0.0, "a run's peak starts at its Number")
+	sim.cash = 1e6
+	sim.buy("health", 10)
+	sim.step()
+	var high := sim.peak_number
+	check(high > start, "buying Health raises it")
+	sim.health = 1.0
+	sim.step()
+	check_near(sim.peak_number, high, 0.0, "and a hit never lowers it")
+	var workshop := Workshop.new()
+	workshop.finish_run(5, 12.5)
+	workshop.finish_run(3, 7.0)
+	workshop.finish_run(4, INF)
+	check(workshop.best_number == 12.5 and workshop.best_wave == 5, "the Workshop keeps the best Number")
+	var again := Workshop.new()
+	again.restore(workshop.to_dict())
+	check(again.best_number == 12.5, "through a save")
+	var older := Workshop.new()
+	older.restore({"coins": 5.0, "best_wave": 4, "runs": 2})
+	check(older.best_number == 0.0 and older.best_wave == 4, "and a save from before it starts at 0")
+	check(TowerData.upgrade("health").title == "NUMBER" and TowerData.upgrade("health_regen").title == "NUMBER REGEN", "Health reads as Number")
+	check(Guesses.COINS_BY_TYPE.ranged == 2.0, "a ranged enemy pays 2 Coins, as The Tower's list says")
+
+
 func test_numbers_read_as_the_towers() -> void:
 	check(Palette.number(2.35) == "2.35", "two decimals while small")
 	check(Palette.number(3.0) == "3", "whole numbers stay whole")
@@ -1373,9 +1486,9 @@ func _place(sim: BattleSim, kind: String, distance: float) -> BattleSim.Enemy:
 	sim._next_id += 1
 	enemy.kind = kind
 	enemy.wave = sim.wave
-	enemy.max_health = TowerData.enemy_health(sim.wave, kind)
+	enemy.max_health = sim.enemy_health_now(kind)
 	enemy.health = enemy.max_health
-	enemy.attack = TowerData.enemy_attack(sim.wave, kind)
+	enemy.attack = sim.enemy_attack_now(kind)
 	enemy.speed = 0.0
 	enemy.angle = 0.0
 	enemy.distance = distance
