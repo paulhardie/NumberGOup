@@ -6,12 +6,6 @@ extends RefCounted
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 
-## Groups whose mechanics the battle has. The rest (Super Crit, Death Defy)
-## show but can't be opened yet.
-const BUILT_GROUPS := ["attack_start", "range", "multishot", "rapid_fire", "bounce_shot",
-	"defense_start", "defense", "thorns", "lifesteal", "knockback", "orbs",
-	"cash", "coins", "free_upgrades", "interest"]
-
 var coins := 0.0
 ## Row id → Workshop level. Rows not listed are at level 0.
 var levels: Dictionary = {}
@@ -45,7 +39,7 @@ func next_group(category: String) -> String:
 
 func can_open(group: String) -> bool:
 	var category := TowerData.group_category(group)
-	return group == next_group(category) and group in BUILT_GROUPS and coins >= TowerData.group_price(group)
+	return group == next_group(category) and coins >= TowerData.group_price(group)
 
 
 func open_group(group: String) -> bool:
@@ -60,15 +54,25 @@ func price(id: String) -> float:
 	return TowerData.coin_price(id, level(id))
 
 
-func can_buy(id: String) -> bool:
-	return is_group_open(TowerData.group(id)) and level(id) < TowerData.max_level(id) and coins >= price(id)
+## What a buy of `count` levels of `id` gets and costs; 0 is Max, as many as
+## the Coins cover (TowerData.plan_buy).
+func plan(id: String, count: int = 1) -> Dictionary:
+	return TowerData.plan_buy(TowerData.upgrade(id)["coin_prices"], level(id), TowerData.max_level(id) - level(id), count, coins)
 
 
-func buy(id: String) -> bool:
-	if not can_buy(id):
+func can_buy(id: String, count: int = 1) -> bool:
+	var buying := plan(id, count)
+	return is_group_open(TowerData.group(id)) and int(buying.levels) > 0 and coins >= float(buying.cost)
+
+
+## Buys `count` levels of `id` (0: Max) with Coins; false, and nothing
+## changes, if it can't.
+func buy(id: String, count: int = 1) -> bool:
+	if not can_buy(id, count):
 		return false
-	coins -= price(id)
-	levels[id] = level(id) + 1
+	var buying := plan(id, count)
+	coins -= float(buying.cost)
+	levels[id] = level(id) + int(buying.levels)
 	return true
 
 

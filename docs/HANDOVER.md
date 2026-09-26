@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 26 September 2026 (D075, the owner's timings), by Claude, handing on to the next agent.
+**Last updated:** 26 September 2026 (D076, every Workshop group and multi-buy), by Claude, handing on to the next agent.
 
-**Branch:** `claude/great-tesla-9kfp95`, restarted from `main` after milestone 4 merged ([paulhardie/NumberGOup#66](https://github.com/paulhardie/NumberGOup/pull/66)). It carries D075, not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/great-tesla-9kfp95`, restarted from `main` after D075 merged ([paulhardie/NumberGOup#67](https://github.com/paulhardie/NumberGOup/pull/67)). It carries D076, not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -12,15 +12,16 @@
 
 1. Read [`AGENTS.md`](../AGENTS.md), [D073](DECISIONS.md#d073--rebuild-the-tower-first-the-number-second) and [`REBUILD_SPEC.md`](REBUILD_SPEC.md) (its Progress, Milestones, Benchmarks and Guesses). Fetch and check the branch against `origin` before new work.
 2. **Owner direction:** "go ahead with the rebuild". The Tower is the spec; copy it, and put anything unknown in `src/tower/guesses.gd` rather than debating it. The owner plays each milestone before the next starts.
-3. **Next:** the owner plays D075's rules; the open question is how a pack-free account paces (decision 1).
+3. **Next:** the owner plays D076 (the Unlock card and the Buy button are the parts they'll touch first); the open question is still how a pack-free account paces (decision 1).
 
 ## Where the game is
 
-Milestone 4: home, battle and Workshop on Tier 1, saved, with every Workshop group up to Orbs. The owner played milestone 3 and merged flat Coins (D074).
+Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Workshop groups. The owner played milestone 4 and merged D075.
 
-- **Workshop groups that open and work:** Range and Damage / Meter, Multishot, Rapid Fire, Bounce Shot (Attack); Defense % and Absolute, Thorns, Lifesteal, Knockback, Orbs (Defense); Cash rows, Coins rows, Free Upgrades, Interest (Utility). Super Crit and Death Defy show "Coming soon".
+- **Workshop groups, all of them open and work:** Range and Damage / Meter, Multishot, Rapid Fire, Bounce Shot, Super Crit, Rend Armor (Attack); Defense % and Absolute, Thorns, Lifesteal, Knockback, Orbs, Shockwave, Land Mines, Death Defy, the Wall (Defense); Cash rows, Coins rows, Free Upgrades, Interest, Recovery Packages, Enemy Level Skip (Utility). A tab shows only its next locked group, as a big Unlock card (D076).
+- **Multi-buy:** a Buy button on the Workshop and the run's panel cycles ×1, ×5, ×10 and Max; cards quote what the press buys ("+5 $123").
 - **A run** starts from the Workshop's levels, with $0 Cash, and sells its open groups, priced by the run's own purchases. The upgrade panel scrolls at three rows. An End run button ends a run early.
-- **Battle rules:** Defense % then Absolute; Thorns (half on bosses); Multishot; Damage / Meter; Rapid Fire (×4 fire rate for its duration, rolled per volley); Bounce Shot (first strike rolls, then nearest within range, up to its targets, never twice); Lifesteal (share of what strikes take off); Knockback (force × 5 m over mass, never past the spawn); Orbs (kill walking non-boss enemies within 3 m of one); Cash Bonus, Cash / Wave, Interest (cap $50), Coins / Kill Bonus, Coins / Wave, Free Upgrades (a random open row of the tab, per wave).
+- **Battle rules:** Defense % then Absolute; Thorns (half on bosses); Multishot; Damage / Meter; Rapid Fire (×4 fire rate for its duration, rolled per volley); Bounce Shot (first strike rolls, then nearest within range, up to its targets, never twice); Lifesteal (share of what strikes take off); Knockback (force × 5 m over mass, never past the spawn); Orbs (kill walking non-boss enemies within 3 m of one); Cash Bonus, Cash / Wave, Interest (cap $50), Coins / Kill Bonus, Coins / Wave, Free Upgrades (a random open row of the tab, per wave). New in D076: Super Crit; Rend Armor (stacks per enemy to 800% more); Shockwave (pushes non-bosses in range); Land Mines (laid per volley, set off by walkers, blast a radius); Death Defy; the Wall (10 m ring melee enemies stop at, rebuilds); Recovery Packages (at a wave's end, overheal to Max Recovery; regen never cuts it); Enemy Level Skip (steady, not random). Our own rules for these are in the spec's Guesses.
 - **Pay:** a kill pays $1 plus $1 every ten waves times its type's Cash multiplier, and its type's Coins flat (D074).
 - **Saving:** `user://number_go_up_tower.json`, version 1 (unchanged by milestone 4).
 - **The owner's timings (D075):** 11 enemies in wave 1, an enemy in place hits once a second, ranged enemies and orbs sit on the Range edge, and orbs turn once a second at their first level.
@@ -36,11 +37,13 @@ Milestone 4: home, battle and Workshop on Tier 1, saved, with every Workshop gro
 
 ## Next steps, in order
 
-1. **Owner:** merge D075 and play; say whether the first hour feels right (decision 1).
-2. **Agent: the next piece of the plan:** multi-buy (×10, Max) in the Workshop and the run, saving a run in progress, then Super Crit and Death Defy. Or the Number (milestone 5, REBUILD_SPEC), once the owner picks A, B or C.
+1. **Owner:** merge D076 and play; try the Buy button and the Unlock card, and say whether the first hour feels right (decision 1). Done when the owner has played it.
+2. **Agent: saving a run in progress**, as The Tower resumes one. It's the one gap a player hits every session (closing mid-run loses the run), and the save is high risk, so it needs round-trip and old-save checks. Done when a run closed mid-wave resumes identically from its seed and RNG state.
+3. **Agent, after that:** Labs (The Tower's next system, which Starting Cash and Wall Regen need), or the Number (milestone 5), once the owner picks A, B or C.
 
 ## How to measure
 
+- **Ran on this branch (26 September, D076):** `bash run_tests.sh`: `PASS: tower tests (2228 checks)`. New checks cover every group opening in order and every row buyable in the Workshop and a run; multi-buy's ×5, ×10 it can't afford, Max, and stopping at a row's last level, in both; the Buy button cycling and a card buying five; the Workshop showing only each tab's next group; an overhealed health readout; and each new mechanic, including that none acts before its group opens. The headless boot is clean. `sim_runs.gd --seeds 10 --buy even` still gives median wave 8. `capture_battle.gd` under xvfb: the strong tower now shows the wall, a mine, a shockwave ring and overheal; `workshop_defense_x5.png` shows the Unlock card and Buy ×5 quotes.
 - **Ran on this branch (26 September, D075):** `bash run_tests.sh`: `PASS: tower tests (1290 checks)`; new checks cover orbs on the Range edge at a turn a second, one orb sweeping a ranged enemy off the edge within a second, ranged enemies stopping on the edge as Range grows, and a hit a second. `sim_runs.gd` with `none`, `even`, `attack` and the new `core`, and careers with `attack` and `core`, plus two measurements patched locally and not committed (no per-hit heat-up; ×9 Coins). The strong-tower capture shows the orbs on the range circle.
 - **Milestone 4's checks:** `bash run_tests.sh`: `PASS: tower tests (1281 checks)` (some new tests check every tick). New checks: Rapid Fire's rate and start; Bounce Shot to the nearest in range and not past it; Lifesteal's heal; Knockback by mass and never past the spawn; Interest and its cap; Free Upgrades' rows, count and cost; Orbs killing walkers but not bosses; Rapid Fire and Bounce Shot openable, Super Crit not. `--careers 40 --buy attack` and `--seeds 10 --buy even` (still wave 8). `capture_battle.gd` adds a strong tower (`battle_strong.png`).
 - **Milestone 3's checks:** `bash run_tests.sh` gives `PASS: tower tests (356 checks)`. The new checks cover Workshop prices and group order; a run starting from the Workshop; save round trip, no save, three unreadable saves (broken JSON, another version, not an object) kept aside whole, and a damaged save cleaned; Defense, Thorns, Multishot volleys, Damage / Meter, the Cash and Coin rows, ending a run; and the battle banking Coins once. The headless boot is clean. `tools/sim_runs.gd --careers 12` with `even` and `attack`, and (patched locally, not committed) with flat Coins for decision 1. `tools/capture_battle.gd` under xvfb: the home screen, the Workshop's Attack and Utility tabs, and battle moments were inspected.
@@ -50,13 +53,13 @@ Milestone 4: home, battle and Workshop on Tier 1, saved, with every Workshop gro
 
 ## Known issues and risks
 
-- **Enemy count per wave is a guess** (20 at wave 1, D065). The SDK says about 4, which the owner's screens contradict.
+- **Enemy count per wave** is the owner's 11 at wave 1 (D075); the 0.123 more a wave is ours.
+- **The D076 mechanics follow The Tower where it says, and our guesses where it doesn't** (the spec's Guesses): the wall's distance, ranged shots passing the wall, mine placement and trigger distance, shockwaves sparing bosses. None of these groups is reachable in the first hours (100K Coins and up).
 - **Enemy health past wave 22 is a guess:** the correction fitted to the owner's readings is held at wave 22's value beyond it, so health may run up to 10% high or low there.
 - **The Tower's data is its own,** under the SDK's MIT licence: fine privately; publishing needs a decision.
 - A shot whose target dies first is lost, and the tower doesn't avoid overkill. That's our reading of The Tower, not checked.
 - Past wave 6,500 the enemy data holds its last value; generate more before a run can reach it.
 - **Boss waves are the walls:** careers end on or just after every tenth wave. That's The Tower's design (bosses are walls, D063), but worth watching in play.
-- **The Workshop buys one level per tap;** The Tower has ×10 and Max buttons. Fine early, tedious later.
 - **A run in progress isn't saved** (The Tower resumes one). Closing mid-run loses the run but not its Coins.
 
 ## Handing on

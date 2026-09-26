@@ -81,6 +81,24 @@ static func cash_price(id: String, bought: int) -> float:
 	return float(prices[bought]) if bought < prices.size() else INF
 
 
+## A multi-buy: `count` levels (fewer if `room` or the price list runs out),
+## or for `count` 0 (Max) as many as `budget` covers. Levels are priced one at
+## a time from `prices[first]` and summed, so a press costs exactly what the
+## same levels cost bought singly. {levels, cost}; affording it is the caller's
+## check, since a ×10 it can't afford still quotes its price.
+static func plan_buy(prices: Array, first: int, room: int, count: int, budget: float) -> Dictionary:
+	var most := room if count <= 0 else mini(count, room)
+	var levels := 0
+	var cost := 0.0
+	while levels < most and first + levels < prices.size():
+		var next := cost + float(prices[first + levels])
+		if count <= 0 and next > budget:
+			break
+		cost = next
+		levels += 1
+	return {"levels": levels, "cost": cost}
+
+
 ## Every Workshop row, in The Tower's order.
 static func rows() -> Array[String]:
 	upgrade("damage")

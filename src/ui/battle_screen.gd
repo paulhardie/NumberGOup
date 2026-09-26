@@ -100,18 +100,19 @@ func _refresh() -> void:
 	_coins.text = "● " + Palette.number(workshop.coins)
 	_tower_damage.text = "Damage " + Palette.row_value("damage", sim.stat("damage"))
 	_tower_regen.text = "Regen %.2f/s" % sim.stat("health_regen")
-	_health_bar.max_value = sim.max_health()
+	# A recovery package can heal past the most; the bar stays full then.
+	_health_bar.max_value = maxf(sim.max_health(), sim.health)
 	_health_bar.value = sim.health
 	# Whole, as The Tower shows it. A tower still standing never reads 0, and
-	# full health never reads more than the most.
+	# full health never reads more than the most, except when overhealed.
 	var most := roundf(sim.max_health())
-	var now := minf(roundf(sim.health), most)
+	var now := roundf(sim.health) if sim.health > sim.max_health() else minf(roundf(sim.health), most)
 	if sim.alive:
 		now = maxf(now, 1.0)
 	_health_text.text = "%s / %s" % [Palette.number(now), Palette.number(most)]
 	_wave_title.text = "Wave %d" % sim.wave
-	_enemy_attack.text = "Attack " + Palette.number(TowerData.enemy_attack(sim.wave, "basic"))
-	_enemy_health.text = "Health " + Palette.number(TowerData.enemy_health(sim.wave, "basic"))
+	_enemy_attack.text = "Attack " + Palette.number(sim.enemy_attack_now("basic"))
+	_enemy_health.text = "Health " + Palette.number(sim.enemy_health_now("basic"))
 	_wave_bar.value = sim.wave_clock / TowerData.wave_seconds()
 	_upgrades.refresh()
 

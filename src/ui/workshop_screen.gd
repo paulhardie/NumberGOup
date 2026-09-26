@@ -1,7 +1,8 @@
 extends Control
 ## The Workshop between runs: Attack, Defense and Utility tabs of permanent
-## levels bought with Coins, and the next group of rows each tab opens, in The
-## Tower's order. The rules are the Workshop's; this only shows and asks.
+## levels bought with Coins. As in The Tower, a tab shows only the next group
+## it opens, as one big Unlock card, never the ones after it. The rules are
+## the Workshop's; this only shows and asks.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
@@ -12,10 +13,14 @@ signal changed
 signal home_pressed
 
 const TABS := [["Attack", "attack"], ["Defense", "defense"], ["Utility", "utility"]]
+## The buy multiplier's steps; 0 is Max. Presentation only, never saved (D018).
+const AMOUNTS := [1, 5, 10, 0]
 
 var workshop: Workshop
 var _tab := "attack"
 var _tab_buttons: Dictionary = {}
+var _amount := 1
+var _amount_button: Button
 var _coins: Label
 var _list: VBoxContainer
 ## Refreshed every frame: [{button, refresh: Callable}].
@@ -67,6 +72,11 @@ func _ready() -> void:
 		button.pressed.connect(show_tab.bind(tab[1]))
 		tabs.add_child(button)
 		_tab_buttons[tab[1]] = button
+	_amount_button = Button.new()
+	_amount_button.custom_minimum_size = Vector2(88, 0)
+	_amount_button.add_theme_font_override("font", Palette.NUMBER_FONT)
+	_amount_button.pressed.connect(_next_amount)
+	tabs.add_child(_amount_button)
 
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -90,67 +100,88 @@ func show_tab(tab: String) -> void:
 	for child in _list.get_children():
 		child.queue_free()
 	_cards.clear()
-	var grid: GridContainer = null
+	var grid := GridContainer.new()
+	grid.columns = 2
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	_list.add_child(grid)
 	for group in TowerData.groups():
 		var id := String(group.id)
-		if String(group.workshop_category) != tab:
-			continue
-		if workshop.is_group_open(id):
-			if grid == null:
-				grid = GridContainer.new()
-				grid.columns = 2
-				grid.add_theme_constant_override("h_separation", 8)
-				grid.add_theme_constant_override("v_separation", 8)
-				_list.add_child(grid)
+		if String(group.workshop_category) == tab and workshop.is_group_open(id):
 			for row in TowerData.group_rows(id):
 				grid.add_child(_row_card(row))
-		else:
-			_list.add_child(_group_card(id))
+	var next := workshop.next_group(tab)
+	if next != "":
+		_list.add_child(_unlock_card(next))
+	refresh()
+
+
+func _next_amount() -> void:
+	_amount = AMOUNTS[(AMOUNTS.find(_amount) + 1) % AMOUNTS.size()]
 	refresh()
 
 
 func refresh() -> void:
 	_coins.text = "● " + Palette.number(workshop.coins)
+	_amount_button.text = "Buy Max" if _amount == 0 else "Buy ×%d" % _amount
 	for card in _cards:
 		card.refresh.call()
 
 
-## One row: its value, its level and the Coins for the next level.
+## One row: its value, its level and the Coins the multiplier's press costs.
 func _row_card(id: String) -> Button:
 	var button := _card_button()
 	var parts := _card_parts(button, String(TowerData.upgrade(id).title).capitalize())
 	button.pressed.connect(func():
-		if workshop.buy(id):
+		if workshop.buy(id, _amount):
 			changed.emit()
 		refresh())
 	_cards.append({"button": button, "refresh": func():
 		var maxed := workshop.level(id) >= TowerData.max_level(id)
+		var affordable := workshop.can_buy(id, _amount)
 		parts.value.text = Palette.row_value(id, TowerData.value(id, workshop.level(id)))
-		parts.detail.text = "Lv %d · %s" % [workshop.level(id), "MAX" if maxed else "● " + Palette.number(workshop.price(id))]
-		button.disabled = not workshop.can_buy(id)
-		parts.detail.add_theme_color_override("font_color", Palette.COIN if workshop.can_buy(id) else Palette.MUTED)})
+		parts.detail.text = "Lv %d · %s" % [workshop.level(id), "MAX" if maxed else Palette.quote(workshop.plan(id, _amount), workshop.price(id), "● ")]
+		button.disabled = not affordable
+		parts.detail.add_theme_color_override("font_color", Palette.COIN if affordable else Palette.MUTED)})
 	return button
 
 
-## A group not yet open: the next in line can be opened for its Coins; the
-## ones after it wait their turn, and groups the battle can't use yet say so.
-func _group_card(group: String) -> Button:
-	var button := _card_button()
+## The tab's next group, The Tower's big Unlock card: what it opens and its
+## Coins. The groups after it stay hidden until it is open.
+func _unlock_card(group: String) -> Button:
+	var button := Button.new()
+	button.custom_minimum_size = Vector2(0, 96)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var column := VBoxContainer.new()
+	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	column.alignment = BoxContainer.ALIGNMENT_CENTER
+	column.add_theme_constant_override("separation", 2)
+	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(column)
 	var names: Array[String] = []
 	for row in TowerData.group_rows(group):
 		names.append(String(TowerData.upgrade(row).title).capitalize())
-	var parts := _card_parts(button, " · ".join(names))
+	var opens := Label.new()
+	opens.text = " · ".join(names)
+	opens.add_theme_color_override("font_color", Palette.MUTED)
+	opens.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	opens.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	opens.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(opens)
+	var unlock := Label.new()
+	unlock.add_theme_font_override("font", Palette.NUMBER_FONT)
+	unlock.add_theme_font_size_override("font_size", 22)
+	unlock.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	unlock.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	unlock.text = "Unlock  ● " + Palette.number(TowerData.group_price(group))
+	column.add_child(unlock)
 	button.pressed.connect(func():
 		if workshop.open_group(group):
 			changed.emit()
 			show_tab(_tab))
 	_cards.append({"button": button, "refresh": func():
-		var built: bool = group in Workshop.BUILT_GROUPS
-		var next := workshop.next_group(TowerData.group_category(group)) == group
-		parts.value.text = "● " + Palette.number(TowerData.group_price(group))
-		parts.detail.text = "Open" if built and next else ("Coming soon" if not built else "Opens after the one above")
 		button.disabled = not workshop.can_open(group)
-		parts.value.add_theme_color_override("font_color", Palette.COIN if workshop.can_open(group) else Palette.MUTED)})
+		unlock.add_theme_color_override("font_color", Palette.COIN if workshop.can_open(group) else Palette.MUTED)})
 	return button
 
 

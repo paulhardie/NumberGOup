@@ -94,6 +94,17 @@ static func row_value(id: String, value: float) -> String:
 	return number(value)
 
 
+## What a multi-buy press buys and costs, after `symbol`: "+3 $539" when it
+## lands more than one level, a bare price for one. A Max that can't afford a
+## level quotes the next one's price.
+static func quote(buying: Dictionary, next_price: float, symbol: String) -> String:
+	var bought := int(buying.levels)
+	if bought == 0:
+		return symbol + number(next_price)
+	var cost := symbol + number(float(buying.cost))
+	return cost if bought == 1 else "+%d %s" % [bought, cost]
+
+
 static func clock(seconds: float) -> String:
 	var whole := int(seconds)
 	if whole >= 3600:
