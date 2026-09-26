@@ -17,6 +17,8 @@ The rebuild so far: the battle, run upgrades, and the Workshop between runs with
 
 The game saves the Workshop (Coins, levels, opened groups, best wave) to `user://number_go_up_tower.json`, a new file that leaves the old save alone. A run in progress isn't saved: closing the game mid-run keeps its Coins but not the run. A save the game can't read is moved aside as `number_go_up_tower.unreadable-<time>.json`, never written over.
 
+Every run and Workshop purchase is also logged to `user://number_go_up_activity.jsonl` (D077). **Export report** on the home screen writes it all to one file in `user://reports/` and opens the folder; drop that file into a chat with an agent, which reads and replays it with `tools/read_report.gd`. Nothing is sent anywhere by the game itself.
+
 ## Playing on the Mac
 
 To keep a folder on the Mac always on the latest merged game, run this once in Terminal, changing the path to the folder you open in Godot:

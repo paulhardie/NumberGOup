@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 26 September 2026 (D076, every Workshop group and multi-buy), by Claude, handing on to the next agent.
+**Last updated:** 26 September 2026 (D077, the activity report), by Claude, handing on to the next agent.
 
-**Branch:** `claude/great-tesla-9kfp95`, restarted from `main` after D075 merged ([paulhardie/NumberGOup#67](https://github.com/paulhardie/NumberGOup/pull/67)). It carries D076, not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after D076 merged ([paulhardie/NumberGOup#68](https://github.com/paulhardie/NumberGOup/pull/68)). It carries D077 and the owner's reference [`TOWER_EARLY_PROGRESSION.md`](TOWER_EARLY_PROGRESSION.md), not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -12,11 +12,13 @@
 
 1. Read [`AGENTS.md`](../AGENTS.md), [D073](DECISIONS.md#d073--rebuild-the-tower-first-the-number-second) and [`REBUILD_SPEC.md`](REBUILD_SPEC.md) (its Progress, Milestones, Benchmarks and Guesses). Fetch and check the branch against `origin` before new work.
 2. **Owner direction:** "go ahead with the rebuild". The Tower is the spec; copy it, and put anything unknown in `src/tower/guesses.gd` rather than debating it. The owner plays each milestone before the next starts.
-3. **Next:** the owner plays D076 (the Unlock card and the Buy button are the parts they'll touch first); the open question is still how a pack-free account paces (decision 1).
+3. **Next:** the owner plays and exports a report (D077). **When one arrives, read it first:** `tools/read_report.gd -- --file <report>` on the commit it names. It is the best evidence there is for decision 1.
 
 ## Where the game is
 
-Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Workshop groups. The owner played milestone 4 and merged D075.
+Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Workshop groups (D076, merged). The owner played milestone 4.
+
+- **Activity report (D077):** every run (seed, starting Workshop, each buy with its tick, a snapshot per wave) and every Workshop buy and unlock is logged to `user://number_go_up_activity.jsonl`. Home's Export report writes it to `user://reports/` and opens the folder. `tools/read_report.gd` reads and replays it.
 
 - **Workshop groups, all of them open and work:** Range and Damage / Meter, Multishot, Rapid Fire, Bounce Shot, Super Crit, Rend Armor (Attack); Defense % and Absolute, Thorns, Lifesteal, Knockback, Orbs, Shockwave, Land Mines, Death Defy, the Wall (Defense); Cash rows, Coins rows, Free Upgrades, Interest, Recovery Packages, Enemy Level Skip (Utility). A tab shows only its next locked group, as a big Unlock card (D076).
 - **Multi-buy:** a Buy button on the Workshop and the run's panel cycles ×1, ×5, ×10 and Max; cards quote what the press buys ("+5 $123").
@@ -37,12 +39,22 @@ Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Worksh
 
 ## Next steps, in order
 
-1. **Owner:** merge D076 and play; try the Buy button and the Unlock card, and say whether the first hour feels right (decision 1). Done when the owner has played it.
-2. **Agent: saving a run in progress**, as The Tower resumes one. It's the one gap a player hits every session (closing mid-run loses the run), and the save is high risk, so it needs round-trip and old-save checks. Done when a run closed mid-wave resumes identically from its seed and RNG state.
-3. **Agent, after that:** Labs (The Tower's next system, which Starting Cash and Wall Regen need), or the Number (milestone 5), once the owner picks A, B or C.
+1. **Owner:** merge D077, play a session as normal, then press Export report on Home and drop the file into the chat. Done when a report arrives.
+2. **Agent:** read that report and answer decision 1 from the owner's real runs: where they die, what they buy, Coins an hour.
+3. **Agent: saving a run in progress**, as The Tower resumes one. It's the one gap a player hits every session (closing mid-run loses the run), and the save is high risk, so it needs round-trip and old-save checks. Done when a run closed mid-wave resumes identically from its seed and RNG state.
+4. **Agent, after that:** Labs (The Tower's next system, which Starting Cash and Wall Regen need), or the Number (milestone 5), once the owner picks A, B or C.
 
 ## How to measure
 
+- **Ran on this branch (26 September, D077):** `bash run_tests.sh`: `PASS: tower tests (2254 checks)`. New checks cover:
+  - inputs and wave snapshots being recorded;
+  - a 15-minute run with every multiplier going through JSON and replaying to the same ticks, wave, kills, Cash, Coins and health, while another seed doesn't match;
+  - the log appending, skipping a torn last line, stamping the version and exporting;
+  - the Workshop screen and the battle reporting what the log needs;
+  - Home's export message.
+
+  The headless boot is clean. A sample export was made with two 10-wave runs (about 3.7 KB each) and read with `read_report.gd`: both replays match. The Home screen capture shows the Export report button.
+- **Not run for D077:** a real export on the Mac (Finder opening, and the commit read from `~/NumberGOup-main/.git`), and quitting with Cmd+Q mid-run. Godot should send the same close notification, so the run is logged as closed, but that's unverified.
 - **Ran on this branch (26 September, D076):** `bash run_tests.sh`: `PASS: tower tests (2228 checks)`. New checks cover every group opening in order and every row buyable in the Workshop and a run; multi-buy's ×5, ×10 it can't afford, Max, and stopping at a row's last level, in both; the Buy button cycling and a card buying five; the Workshop showing only each tab's next group; an overhealed health readout; and each new mechanic, including that none acts before its group opens. The headless boot is clean. `sim_runs.gd --seeds 10 --buy even` still gives median wave 8. `capture_battle.gd` under xvfb: the strong tower now shows the wall, a mine, a shockwave ring and overheal; `workshop_defense_x5.png` shows the Unlock card and Buy ×5 quotes.
 - **Ran on this branch (26 September, D075):** `bash run_tests.sh`: `PASS: tower tests (1290 checks)`; new checks cover orbs on the Range edge at a turn a second, one orb sweeping a ranged enemy off the edge within a second, ranged enemies stopping on the edge as Range grows, and a hit a second. `sim_runs.gd` with `none`, `even`, `attack` and the new `core`, and careers with `attack` and `core`, plus two measurements patched locally and not committed (no per-hit heat-up; ×9 Coins). The strong-tower capture shows the orbs on the range circle.
 - **Milestone 4's checks:** `bash run_tests.sh`: `PASS: tower tests (1281 checks)` (some new tests check every tick). New checks: Rapid Fire's rate and start; Bounce Shot to the nearest in range and not past it; Lifesteal's heal; Knockback by mass and never past the spawn; Interest and its cap; Free Upgrades' rows, count and cost; Orbs killing walkers but not bosses; Rapid Fire and Bounce Shot openable, Super Crit not. `--careers 40 --buy attack` and `--seeds 10 --buy even` (still wave 8). `capture_battle.gd` adds a strong tower (`battle_strong.png`).

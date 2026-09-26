@@ -7,10 +7,13 @@ const Palette = preload("res://src/ui/palette.gd")
 
 signal battle_pressed
 signal workshop_pressed
+## The owner wants the activity log as a report file (D077).
+signal export_pressed
 
 var workshop: Workshop
 var _coins: Label
 var _record: Label
+var _exported: Label
 
 
 func _ready() -> void:
@@ -53,9 +56,28 @@ func _ready() -> void:
 	shop.custom_minimum_size = Vector2(0, 48)
 	shop.pressed.connect(func(): workshop_pressed.emit())
 	column.add_child(shop)
+	var export := Button.new()
+	export.text = "Export report"
+	export.pressed.connect(func(): export_pressed.emit())
+	column.add_child(export)
+	_exported = Label.new()
+	_exported.add_theme_color_override("font_color", Palette.MUTED)
+	_exported.add_theme_font_size_override("font_size", 12)
+	_exported.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_exported.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column.add_child(_exported)
 	refresh()
 
 
 func refresh() -> void:
 	_coins.text = "● " + Palette.number(workshop.coins)
 	_record.text = "Best wave %d · %d runs" % [workshop.best_wave, workshop.runs] if workshop.runs > 0 else "Tier 1"
+
+
+## Says where the report went, from ActivityLog.export_report's result.
+func show_exported(result: Dictionary) -> void:
+	if result.is_empty():
+		_exported.text = "Couldn't write the report."
+		return
+	_exported.text = "Saved %s (%d runs). Drop it into the chat.\n%s" % [
+		String(result.path).get_file(), int(result.runs), ProjectSettings.globalize_path(String(result.path)).get_base_dir()]
