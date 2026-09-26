@@ -1054,3 +1054,13 @@ Rules:
   - A very high Regen can make the Number run into the tens of thousands in early waves, as the capture's tower with 40 Regen levels shows. Runs still end, but watch it in play.
   - Saved runs from before end at their saved wave when resumed (D078).
 - **Revisit when:** the owner has played it: whether the Number's climb feels right, and whether ÷ moments teach without punishing.
+
+## D084 — The Number stands alone, and enemies become numbers
+
+- **Status:** Accepted (2026-09-26) on owner direction: "Number doesn't need to have a ring around it. Also can we change the enemies into actual numbers now. Possibly different fonts per enemy type, and different colours each. If you write me a design brief I will send it over to Claude Design." The ring's removal is implemented. The enemies wait on the design.
+- **Decision:**
+  1. The Number in the centre has no ring. It keeps its colour states (gold at a new peak, orange below a quarter of it, the violet flash on a ÷), and grows a size while Rapid Fire runs, which the ring used to show.
+  2. Enemies will be drawn as numbers, each type with its own typeface and colour. The design is briefed in [`design/ENEMY_NUMBERS_BRIEF.md`](design/ENEMY_NUMBERS_BRIEF.md) for Claude Design.
+  3. The brief's open question is whether an enemy shows its operation ("−3", "÷1.25"; recommended) or its health counting down.
+- **Consequences:** a presentation change only. No rule, number or save is touched. When the design comes back, building it is drawing work in `src/ui/arena_view.gd`, plus bundled font files.
+- **Revisit when:** the design returns.

@@ -146,10 +146,10 @@ func _draw() -> void:
 
 
 ## The tower is the Number: whole, as Palette.number_shown has it (a standing
-## tower never reads 0), in a body whose ring shows it against this run's peak
-## (D083: it has no ceiling). It is the Coin colour while it stands at a new
-## peak, the warning colour below a quarter of its peak, and flashes and shakes
-## when a ÷ lands.
+## tower never reads 0), on its own with no ring (the owner, D084). It is the
+## Coin colour while it stands at a new peak (D083: it has no ceiling), the
+## warning colour below a quarter of its peak, a size larger while Rapid Fire
+## runs, and flashes and shakes when a ÷ lands.
 func _draw_tower() -> void:
 	var shake := Vector2.ZERO
 	if _divide_left > 0.0:
@@ -166,15 +166,13 @@ func _draw_tower() -> void:
 		colour = Palette.WARNING.lerp(colour, 1.0 - _tower_flash / FLASH_SECONDS)
 	if _divide_left > 0.0:
 		colour = Palette.DIVIDER.lerp(colour, 1.0 - _divide_left / SHAKE_SECONDS)
-	draw_circle(at, BODY_RADIUS_PX, Palette.GROUND)
-	draw_arc(at, BODY_RADIUS_PX, 0.0, TAU, 48, Color(Palette.LINE, 1.0), 2.0, true)
-	# Thicker while Rapid Fire runs.
-	var fill := clampf(sim.health / peak, 0.0, 1.0)
-	draw_arc(at, BODY_RADIUS_PX, -PI * 0.5, -PI * 0.5 + TAU * fill, 48, colour, 4.0 if sim.rapid_fire_left > 0.0 else 2.5, true)
+	# The arena's own floor behind the digits, unseen, so shots and enemies never
+	# draw across them.
+	draw_circle(at, BODY_RADIUS_PX, Palette.SURFACE)
 	var text := Palette.number(Palette.number_shown(sim.health, sim.max_health(), sim.alive))
 	# Shrink to fit the body as the digits grow.
-	var font_size := NUMBER_FONT_PX
-	while font_size > 10 and Palette.NUMBER_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > BODY_RADIUS_PX * 1.7:
+	var font_size := NUMBER_FONT_PX + (3 if sim.rapid_fire_left > 0.0 else 0)
+	while font_size > 10 and Palette.NUMBER_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > BODY_RADIUS_PX * 1.9:
 		font_size -= 1
 	var size := Palette.NUMBER_FONT.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
 	draw_string(Palette.NUMBER_FONT, at + Vector2(-size.x * 0.5, font_size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, colour)
