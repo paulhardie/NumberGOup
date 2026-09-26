@@ -13,14 +13,26 @@ const MUTED := Color("8b8c88")
 const ACCENT := Color("8fbfa8")
 const WARNING := Color("d68e5c")
 const COIN := Color("d4b04e")
+## Each enemy type's colour (D085): one hue apiece, spread in lightness too so
+## they stay apart for colour-blind players. None is the player's mint, gold
+## or orange. ENEMY is the basic enemy's red.
 const ENEMY := Color("e0625a")
-const BOSS := Color("ff4a3d")
-## The Divider (D082): its own colour, so a ÷ reads apart from the squares
+const FAST := Color("4dd6e8")
+const TANK := Color("ff7ac0")
+const RANGED := Color("c8e05a")
+## The boss is the crowd's red burnt white: a white-hot number in a red glow.
+const BOSS := Color("fff0ea")
+const BOSS_GLOW := Color("ff4a3d")
+## The Divider (D082): its own colour, so a ÷ reads apart from the enemies
 ## that subtract.
 const DIVIDER := Color("b48cf2")
 
 const WORD_FONT := preload("res://assets/fonts/Geist.ttf")
 const NUMBER_FONT := preload("res://assets/fonts/GeistMono.ttf")
+## The crowd's typeface, cut by width and weight per enemy type, and the
+## Divider's alone (D085). Both are variable fonts under the SIL OFL.
+const CROWD_FONT := preload("res://assets/fonts/Anybody.ttf")
+const DIVIDER_FONT := preload("res://assets/fonts/Fraunces.ttf")
 
 const SUFFIXES := ["", "K", "M", "B", "T", "q", "Q", "s", "S", "O", "N", "D"]
 
@@ -71,6 +83,24 @@ static func number(value: float) -> String:
 		return "%d" % int(floorf(value))
 	var tier := mini(int(floorf(log(size) / log(1000.0))), SUFFIXES.size() - 1)
 	return "%.2f%s" % [value / pow(1000.0, tier), SUFFIXES[tier]]
+
+
+## An enemy's numbers, kept short for a crowd (D085): one decimal under 10
+## ("1.6", "4"), whole from there ("14"), then as `number` writes them ("1.08K").
+static func short(value: float) -> String:
+	if absf(value) >= 1000.0:
+		return number(value)
+	if absf(value) >= 9.95:
+		return "%d" % int(roundf(value))
+	return String.num(snappedf(value, 0.1), 1).trim_suffix(".0")
+
+
+## An enemy's health as it shows: `short`, but rounded up while small, so a
+## living enemy never reads 0.
+static func enemy_health(value: float) -> String:
+	if value <= 0.0:
+		return "0"
+	return short(ceilf(value * 10.0 - 1e-6) / 10.0) if value < 9.95 else short(value)
 
 
 ## A row's value the way The Tower writes it.

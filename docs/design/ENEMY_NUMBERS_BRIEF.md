@@ -1,5 +1,7 @@
 # Design brief: enemies as numbers
 
+**Answered:** the design returned, and the owner chose option B, enemies showing their health, with a colour per type: [D085](../DECISIONS.md#d085--enemies-show-their-health-with-a-colour-each).
+
 **For:** Claude Design. **From:** the owner of *Number Go Up*, via the development agent. **Date:** 26 September 2026.
 **Attached:** four screenshots of the battle as it stands:
 - `battle_120s.png`: a fresh run, wave 4;
