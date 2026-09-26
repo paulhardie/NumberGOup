@@ -9,6 +9,7 @@ const TowerData = preload("res://src/tower/tower_data.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Palette = preload("res://src/ui/palette.gd")
 const ArenaView = preload("res://src/ui/arena_view.gd")
+const Settings = preload("res://src/settings.gd")
 const UpgradePanel = preload("res://src/ui/upgrade_panel.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 const RunReport = preload("res://src/tower/run_report.gd")
@@ -33,6 +34,8 @@ const RESUME_TICKS_PER_FRAME := 2000
 var sim: BattleSim
 ## Set before the screen is added; a fresh one if not.
 var workshop: Workshop
+## The player's settings (D088), set before the screen is added; defaults if not.
+var settings: Settings
 ## The saved run to resume (Save.load_run), set before the screen is added;
 ## empty for a new run.
 var resume: Dictionary = {}
@@ -248,6 +251,7 @@ func _build() -> void:
 	add_child(column)
 
 	_arena = ArenaView.new()
+	_arena.show_range = settings != null and settings.show_range
 	_arena.clip_contents = true
 	_arena.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_arena.custom_minimum_size = Vector2(0, 320)

@@ -32,6 +32,17 @@ const HIT_FLASH_SECONDS := 0.05
 const POP_SECONDS := 0.12
 ## A ranged enemy's shot shows as a line to the Number for this long.
 const RANGED_SHOT_SECONDS := 0.2
+## The light behind the Number (D087): white, breathing gently over this
+## many seconds between these strengths, over this radius.
+const GLOW_BREATH_SECONDS := 4.0
+const GLOW_STRENGTH := 0.22
+const GLOW_BREATH := 0.15
+const GLOW_RADIUS_PX := 110.0
+## A ÷ flares the light violet, this much stronger, fading over this long.
+const DIVIDE_FLARE := 0.5
+const DIVIDE_FLARE_SECONDS := 0.8
+## The range, when shown: a haze this strong at its edge (D088).
+const RANGE_HAZE := 0.1
 ## A ÷ float lasts longer and rises further than the others.
 const DIVIDE_FLOAT_SECONDS := 1.2
 const DIVIDE_FLOAT_RISE_PX := 30.0
@@ -52,13 +63,15 @@ const LOOKS := {
 const FLASH := Color("f4f3ef")
 
 var sim: BattleSim
+## The range as a faint band of light at its edge, when the player asks for it
+## (D088); no line at all otherwise.
+var show_range := false
 ## How far between the sim's last tick and its current one to draw things.
 var blend := 1.0
 ## Where the tower stands, in the view.
 var centre := Vector2.ZERO
 
 var _floats: Array[Dictionary] = []
-var _tower_flash := 0.0
 ## Seconds left of the flash and shake a ÷ sets off.
 var _divide_left := 0.0
 ## Seconds since the last shockwave went out, while its ring is drawn.
@@ -76,12 +89,24 @@ var _cuts := {}
 var _number_cut := _cut(Palette.NUMBER_FONT, {"wght": 600})
 var _hit_cut := _cut(Palette.NUMBER_FONT, {"wght": 500})
 var _divide_cut := _cut(Palette.DIVIDER_FONT, LOOKS.divider.axes)
+## The light behind the Number, and what's flaring it: {colour, strength,
+## seconds, left}, or empty.
+var _glow := ColorRect.new()
+var _flare := {}
+var _glow_time := 0.0
 ## Half the Number's drawn width and height this frame, which enemies at the
 ## tower stand clear of.
 var _number_half := Vector2.ZERO
 
 
 func _init() -> void:
+	# Drawn behind the arena's own drawing, over the black ground.
+	_glow.show_behind_parent = true
+	_glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_glow.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	_glow.material = ShaderMaterial.new()
+	(_glow.material as ShaderMaterial).shader = preload("res://src/ui/number_glow.gdshader")
+	add_child(_glow)
 	for kind in LOOKS:
 		var look: Dictionary = LOOKS[kind]
 		var base: Font = Palette.DIVIDER_FONT if look.get("divider", false) else Palette.CROWD_FONT
@@ -114,7 +139,11 @@ func to_view(world: Vector2) -> Vector2:
 
 ## Takes the sim's events for this frame and turns them into what fades.
 func absorb(events: Array[Dictionary], delta: float) -> void:
-	_tower_flash = maxf(0.0, _tower_flash - delta)
+	_glow_time += delta
+	if not _flare.is_empty():
+		_flare.left -= delta
+		if _flare.left <= 0.0:
+			_flare = {}
 	_divide_left = maxf(0.0, _divide_left - delta)
 	_shockwave_age += delta
 	for blast in _blasts:
@@ -145,7 +174,6 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 			"enemy_hit":
 				_flashes[event.enemy.id] = HIT_FLASH_SECONDS
 			"tower_hit":
-				_tower_flash = FLASH_SECONDS
 				hit_total += float(event.damage)
 				if event.enemy.kind == "ranged":
 					_ranged_shots.append({"enemy": event.enemy, "age": 0.0})
@@ -157,6 +185,7 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 						"colour": Palette.DIVIDER})
 				else:
 					_divide_left = SHAKE_SECONDS
+					flare(Palette.DIVIDER, DIVIDE_FLARE, DIVIDE_FLARE_SECONDS)
 					_floats.append({"parts": [[sign, _divide_cut, 22], ["  −" + Palette.number(float(event.damage)), _number_cut, 15]], "at": Vector2(0, -6),
 						"age": 0.0, "colour": Palette.DIVIDER, "life": DIVIDE_FLOAT_SECONDS, "rise": DIVIDE_FLOAT_RISE_PX, "divide": true})
 			"free_upgrade":
@@ -182,6 +211,14 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 			"font": _hit_cut})
 
 
+## Flares the light behind the Number: `colour`, `strength` stronger, easing
+## back to white over `seconds`. A ÷ uses it; anything else that should light
+## the Number (a hit, an Ultimate Weapon) can too. A new flare replaces one
+## still fading.
+func flare(colour: Color, strength: float, seconds: float) -> void:
+	_flare = {"colour": colour, "strength": strength, "seconds": seconds, "left": seconds}
+
+
 ## "2", "1.5", "1.25", "1.38": at most two decimals, none trailing.
 static func _divisor_text(divisor: float) -> String:
 	return String.num(snappedf(divisor, 0.01), 2)
@@ -196,8 +233,7 @@ func _draw() -> void:
 	if sim == null:
 		return
 	var reach_px := sim.stat("range") * px_per_metre()
-	draw_circle(centre, reach_px, Palette.SURFACE)
-	draw_arc(centre, reach_px, 0.0, TAU, 96, Color(Palette.ACCENT, 0.28), 2.0, true)
+	_light_glow(reach_px)
 	if _shockwave_age < SHOCKWAVE_SECONDS:
 		# The ring runs out to the edge of range and fades as it goes.
 		var spread := _shockwave_age / SHOCKWAVE_SECONDS
@@ -260,29 +296,36 @@ func _number_layout() -> Dictionary:
 
 ## The tower is the Number, on its own with no ring (the owner, D084), drawn
 ## over everything but the floats: the most important thing on screen (D085).
-## It is the Coin colour while it stands at a new peak (D083: it has no
-## ceiling), the warning colour below a quarter of its peak, and flashes and
-## shakes when a ÷ lands.
+## White, always (D087), in its own light; it shakes when a ÷ lands.
 func _draw_tower(number: Dictionary) -> void:
 	var shake := Vector2.ZERO
 	if _divide_left > 0.0:
 		var strength := _divide_left / SHAKE_SECONDS
 		shake = Vector2(sin(_divide_left * 90.0), cos(_divide_left * 70.0)) * SHAKE_PX * strength
 	var at := centre + shake
-	var peak := maxf(sim.peak_number, 0.001)
-	var colour := Palette.ACCENT
-	if sim.health >= peak * 0.999:
-		colour = Palette.COIN
-	elif sim.health < peak * 0.25:
-		colour = Palette.WARNING
-	if _tower_flash > 0.0:
-		colour = Palette.WARNING.lerp(colour, 1.0 - _tower_flash / FLASH_SECONDS)
-	if _divide_left > 0.0:
-		colour = Palette.DIVIDER.lerp(colour, 1.0 - _divide_left / SHAKE_SECONDS)
-	# The arena's own floor behind the digits, unseen, so shots never draw across them.
-	draw_circle(at, _number_half.x + 4.0, Palette.SURFACE)
 	var font_size: int = number.size
-	draw_string(_number_cut, at + Vector2(-number.width * 0.5, font_size * 0.35), number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, colour)
+	draw_string(_number_cut, at + Vector2(-number.width * 0.5, font_size * 0.35), number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Palette.NUMBER)
+
+
+## Sets the light behind the Number for this frame: white, breathing slowly,
+## tinted and brightened by a flare while one fades, and the range's haze at
+## `reach_px` when it's shown.
+func _light_glow(reach_px: float) -> void:
+	var breath := sin(_glow_time * TAU / GLOW_BREATH_SECONDS)
+	var strength := GLOW_STRENGTH * (1.0 + GLOW_BREATH * breath)
+	var tint := Color.WHITE
+	if not _flare.is_empty():
+		var left: float = _flare.left / _flare.seconds
+		strength += _flare.strength * left
+		tint = Color.WHITE.lerp(_flare.colour, left)
+	var light := _glow.material as ShaderMaterial
+	light.set_shader_parameter("centre_px", centre)
+	light.set_shader_parameter("rect_px", size)
+	light.set_shader_parameter("radius_px", GLOW_RADIUS_PX)
+	light.set_shader_parameter("tint", tint)
+	light.set_shader_parameter("strength", strength)
+	light.set_shader_parameter("range_px", reach_px)
+	light.set_shader_parameter("range_strength", RANGE_HAZE if show_range else 0.0)
 
 
 ## An enemy is one number (D085): its health, counting down as it's shot,

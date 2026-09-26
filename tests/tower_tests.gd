@@ -17,9 +17,11 @@ const RunReport = preload("res://src/tower/run_report.gd")
 const ActivityLog = preload("res://src/tower/activity_log.gd")
 const HomeScreen = preload("res://src/ui/home_screen.gd")
 const Main = preload("res://src/main.gd")
+const Settings = preload("res://src/settings.gd")
 
 const TEST_SAVE := "user://test_tower_save.json"
 const TEST_LOG := "user://test_activity.jsonl"
+const TEST_SETTINGS := "user://test_settings.json"
 const TEST_REPORTS := "user://test_reports"
 
 var _failures: Array[String] = []
@@ -1544,6 +1546,70 @@ func test_an_enemy_shows_one_number() -> void:
 	check(Palette.number(Palette.number_shown(sim.health, sim.max_health(), true)) == preview.after, "and the landing leaves exactly that: %s" % sim.health)
 
 
+## The light behind the Number (D087) flares for a ÷ and fades back to white.
+func test_the_light_behind_the_number_flares_and_fades() -> void:
+	var arena := ArenaView.new()
+	var divider := BattleSim.Enemy.new()
+	divider.kind = "divider"
+	var landed: Array[Dictionary] = [{"type": "divided", "enemy": divider, "damage": 10.0, "at_wall": false, "divisor": 1.5}]
+	arena.absorb(landed, 0.0)
+	check(arena._flare.get("colour") == Palette.DIVIDER, "a ÷ landing flares the light violet")
+	arena.absorb([], ArenaView.DIVIDE_FLARE_SECONDS * 0.5)
+	check(not arena._flare.is_empty(), "still fading part way")
+	arena.absorb([], ArenaView.DIVIDE_FLARE_SECONDS * 0.6)
+	check(arena._flare.is_empty(), "and back to white once its time is up")
+	arena.free()
+
+
+## The player's settings (D088): the range is off unless they turn it on, and
+## the choice outlives the game closing, apart from the save.
+func test_the_range_shows_only_when_the_player_asks() -> void:
+	DirAccess.remove_absolute(TEST_SETTINGS)
+	var settings := Settings.new()
+	settings.read(TEST_SETTINGS)
+	check(not settings.show_range, "the range is off by default")
+	settings.show_range = true
+	check(settings.write(TEST_SETTINGS), "the settings are written")
+	var again := Settings.new()
+	again.read(TEST_SETTINGS)
+	check(again.show_range, "and read back on")
+	var file := FileAccess.open(TEST_SETTINGS, FileAccess.WRITE)
+	file.store_string("{not json")
+	file.close()
+	var broken := Settings.new()
+	broken.read(TEST_SETTINGS)
+	check(not broken.show_range, "a damaged file falls back to off")
+	file = FileAccess.open(TEST_SETTINGS, FileAccess.WRITE)
+	file.store_string('{"version": 1, "show_range": "yes"}')
+	file.close()
+	broken.read(TEST_SETTINGS)
+	check(not broken.show_range, "so does a value of the wrong kind")
+	DirAccess.remove_absolute(TEST_SETTINGS)
+
+	var home := HomeScreen.new()
+	home.workshop = Workshop.new()
+	var chosen := Settings.new()
+	home.settings = chosen
+	var changed := [0]
+	home.settings_changed.connect(func(): changed[0] += 1)
+	root.add_child(home)
+	await process_frame
+	var toggles := home.find_children("*", "CheckButton", true, false)
+	check(toggles.size() == 1 and not (toggles[0] as CheckButton).button_pressed, "Home has the range switch, off")
+	(toggles[0] as CheckButton).button_pressed = true
+	check(chosen.show_range and changed[0] == 1, "turning it on changes the setting, to be written")
+	home.queue_free()
+	await process_frame
+
+	var screen := BattleScreen.new()
+	screen.settings = chosen
+	root.add_child(screen)
+	await process_frame
+	check(screen._arena.show_range, "and the battle shows the range")
+	screen.queue_free()
+	await process_frame
+
+
 ## A sim with nothing spawning, for placing enemies by hand.
 func _quiet_sim(row_levels: Dictionary = {}, groups: Array = BattleSim.START_GROUPS) -> BattleSim:
 	var sim := BattleSim.new(1, row_levels, groups)
@@ -1618,5 +1684,6 @@ func _game():
 	var game = Main.new()
 	game.save_path = TEST_SAVE
 	game.log_path = TEST_LOG
+	game.settings_path = TEST_SETTINGS
 	root.add_child(game)
 	return game

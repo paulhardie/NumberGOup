@@ -5,13 +5,18 @@ extends Control
 const Workshop = preload("res://src/tower/workshop.gd")
 const ActivityLog = preload("res://src/tower/activity_log.gd")
 const Palette = preload("res://src/ui/palette.gd")
+const Settings = preload("res://src/settings.gd")
 
 signal battle_pressed
 signal workshop_pressed
 ## The owner wants the activity log as a report file (D077).
 signal export_pressed
+## A setting was changed here, to be written.
+signal settings_changed
 
 var workshop: Workshop
+## The player's settings, changed in place; fresh ones if not set.
+var settings: Settings
 var _coins: Label
 var _record: Label
 ## A line under the buttons: where a report went, or what happened to a run.
@@ -20,6 +25,8 @@ var _note: Label
 
 func _ready() -> void:
 	theme = Palette.make_theme()
+	if settings == null:
+		settings = Settings.new()
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	var ground := ColorRect.new()
 	ground.color = Palette.GROUND
@@ -75,6 +82,15 @@ func _ready() -> void:
 	export.text = "Export report"
 	export.pressed.connect(func(): export_pressed.emit())
 	column.add_child(export)
+	# The range is off by default; showing it is the player's choice (D088).
+	var range_toggle := CheckButton.new()
+	range_toggle.text = "Show range"
+	range_toggle.button_pressed = settings.show_range
+	range_toggle.add_theme_color_override("font_color", Palette.MUTED)
+	range_toggle.toggled.connect(func(on: bool):
+		settings.show_range = on
+		settings_changed.emit())
+	column.add_child(range_toggle)
 	_note = Label.new()
 	_note.add_theme_color_override("font_color", Palette.MUTED)
 	_note.add_theme_font_size_override("font_size", 12)

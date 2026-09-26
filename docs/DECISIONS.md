@@ -1057,7 +1057,7 @@ Rules:
 
 ## D084 — The Number stands alone, and enemies become numbers
 
-- **Status:** Accepted (2026-09-26) on owner direction: "Number doesn't need to have a ring around it. Also can we change the enemies into actual numbers now. Possibly different fonts per enemy type, and different colours each. If you write me a design brief I will send it over to Claude Design." The ring's removal is implemented. The design returned, and [D085](#d085--enemies-show-their-health-with-a-colour-each) answers its open question: enemies show their health.
+- **Status:** Accepted (2026-09-26) on owner direction: "Number doesn't need to have a ring around it. Also can we change the enemies into actual numbers now. Possibly different fonts per enemy type, and different colours each. If you write me a design brief I will send it over to Claude Design." The ring's removal is implemented. The design returned, and [D085](#d085--enemies-show-their-health-with-a-colour-each) answers its open question: enemies show their health. Its colour states (item 1) are superseded by [D087](#d087--a-white-number-in-its-own-light-on-black): the Number is white.
 - **Decision:**
   1. The Number in the centre has no ring. It keeps its colour states (gold at a new peak, orange below a quarter of it, the violet flash on a ÷), and grows a size while Rapid Fire runs, which the ring used to show.
   2. Enemies will be drawn as numbers, each type with its own typeface and colour. The design is briefed in [`design/ENEMY_NUMBERS_BRIEF.md`](design/ENEMY_NUMBERS_BRIEF.md) for Claude Design.
@@ -1118,3 +1118,31 @@ Rules:
   - Enemies are drawn clear of the Number's digits some metres before they truly arrive, so one can sit at the Number showing its health for a moment before it flips.
   - Anybody's minus is short, so an arrived enemy reads more like "-14" than "−14".
 - **Revisit when:** the owner has played it: whether the flip reads, and whether the preview is noticed in time.
+
+## D087 — A white Number in its own light, on black
+
+- **Status:** Accepted (2026-09-26) on owner direction, and implemented the same day on `claude/dazzling-gates-54ahbr`. Supersedes D084's colour states for the Number and D049's near-black ground.
+  - The owner: "I want the middle number to be white, and I want a pure black background, with that almost grainy white light behind it. Think about the orange light that pulses behind the suno logo, but white, and gentle pulsing behind the main number, to give a slightly cinematic feel."
+  - Then, to moving the Number's states into the light: "yes, go. The glow should be white, but I have ideas on how we can use the light behind the number for some future ultimate weapons, and also hit states etc".
+- **Decision:**
+  1. **The Number is white, always** (`Palette.NUMBER`). It no longer turns gold at a new peak, orange below a quarter of it, or orange on a hit. It still shakes when a ÷ lands.
+  2. **The ground is pure black on every screen** (`Palette.GROUND`). The panels keep their raised greys. The arena's grey floor disc is gone; the faint range ring stays.
+  3. **A soft white light sits behind the Number**, fading into the black, with fine film grain in it (per screen pixel, reseeded 24 times a second) that never touches the black. It breathes ±15% over 4 seconds. It is one shader quad behind the arena (`src/ui/number_glow.gdshader`).
+  4. **The light stays white.** Only a ÷ changes it: a violet flare that fades back over 0.8 s, in place of the old violet flash on the digits. That flare is `ArenaView.flare(colour, strength, seconds)`, which the owner's later ideas (Ultimate Weapons, hit states) can use as they come.
+- **Consequences:**
+  - "At a new peak" and "below a quarter of peak" no longer show at the Number; the panel's bar still shows the Number against its peak.
+  - A hit no longer flashes the Number; the orange "−x" float under it is the hit's only sign until the owner's hit states come.
+  - Reduced motion is still not built: the breathing and the grain move.
+- **Revisit when:** the owner has played it: the light's strength, size and grain, and what the hit states and Ultimate Weapons should do with the light.
+
+## D088 — No range ring, unless the player asks, and settings of their own
+
+- **Status:** Accepted (2026-09-26) on owner direction, and implemented the same day on `claude/dazzling-gates-54ahbr`. The owner: "I say we get rid of the range ring. It spoils the aesthetic in my opinion. I think it's off by default, but if the user opts into it, I'd want a more subtle atmospheric range line".
+- **Decision:**
+  1. **The range ring is gone by default.** The arena is the Number in its light on black (D087), with nothing drawn at the range's edge.
+  2. **A "Show range" switch on Home turns it on.** It shows as a haze of the same grainy light, thickening toward the range's edge from inside and stopping just past it, drawn by the light's shader (`range_px`, `range_strength`), not as a line.
+  3. **Settings live in their own file**, `user://number_go_up_settings.json` (`src/settings.gd`: `{"version": 1, "show_range": false}`), written only when the player changes one. A preference can then never put the save's progress at risk (law 5). A missing or damaged file, or a value of the wrong kind, means the default.
+- **Consequences:**
+  - This is the game's first player setting. The switch sits on Home under Export report, with no settings screen yet; one is worth building when a second setting comes. Reduced motion (D085, D087) is the likely next.
+  - The Wall's ring, the shockwave and mine blasts still draw as before.
+- **Revisit when:** a second setting arrives, or the owner has played it with the range on.

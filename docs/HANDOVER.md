@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 26 September 2026 (D085 and D086 built: each enemy is one number, its health and then its hit, with a colour each, and a coming ÷ previewed), by Claude, handing on to the next agent.
+**Last updated:** 26 September 2026 (D087 and D088 built: a white Number in a grainy, breathing white light on pure black, and no range ring unless the player switches it on; before them, D085 and D086, enemies as numbers), by Claude, handing on to the next agent.
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #73 (D084) merged. It carries D085 and D086, recorded and built: enemies drawn as numbers, with Anybody and Fraunces bundled, and the Divider preview. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #73 (D084) merged. D085 and D086 (enemies as numbers, the Divider preview) merged as #74. The branch carries the sync job's import fix and its warning about unmerged work, D087 (the white Number in its light on black) and D088 (the range ring off by default, a Show range switch on Home, and the game's first settings file). Its pull request is the one to merge; these commits once sat pushed with no pull request, which is why AGENTS.md now has the hand-off agent open one every time. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -51,9 +51,9 @@
 
 ## Next steps, in order
 
-0. **Owner:** merge this branch. Reduced motion is not built (no setting exists; D085 says why).
+0. **Owner:** merge this branch: the sync job then imports new files in the play folder by itself, which is why the game stopped starting after #74 (two new fonts, never imported). Until it's merged, open the project once in the Godot editor, or run `bash run_godot.sh --headless --path . --import` in `~/NumberGOup-main`. Reduced motion is not built (no setting exists; D085 says why).
 
-1. **Owner:** play `main`, and export a report. Say too whether the enemy types read at a glance, whether the flip from health to hit reads, whether the ÷ preview is noticed in time, and how the crowd bunched at the Number looks. Say whether the Number in the centre and the ÷ moments feel right, and how often they come. Done when the owner has played it.
+1. **Owner:** play `main`, and export a report. Say too how the light behind the Number feels (strength, size, grain, the breathing), and the range's haze with Show range on, whether the enemy types read at a glance, whether the flip from health to hit reads, whether the ÷ preview is noticed in time, and how the crowd bunched at the Number looks. Say whether the Number in the centre and the ÷ moments feel right, and how often they come. Done when the owner has played it.
 2. **Agent:** read the report. It records each run's peak Number, what Dividers took, and how many came and landed. Tune `Guesses.DIVIDER` from it with `sim_runs.gd` against the benchmarks (THE_NUMBER.md 5).
 3. **Owner, then:** sign off 1.0, or name what's missing. After that comes Cards (1.1).
 
