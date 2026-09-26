@@ -1463,6 +1463,22 @@ func test_the_number_keeps_its_peak_as_a_record() -> void:
 	check(Guesses.COINS_BY_TYPE.ranged == 2.0, "a ranged enemy pays 2 Coins, as The Tower's list says")
 
 
+func test_overfill_decides_how_far_past_its_ceiling_the_number_can_rise() -> void:
+	var sim := _quiet_sim()
+	check(sim.overfill == Guesses.NUMBER_OVERFILL and sim.overfill == 0.0, "the game keeps the ceiling for now")
+	var most := sim.max_health()
+	sim.health = most - 1.0
+	sim._heal(3.0)
+	check_near(sim.health, most, 0.0, "with a ceiling, healing stops at Health")
+	sim.overfill = 0.5
+	sim.health = most - 1.0
+	sim._heal(3.0)
+	check_near(sim.health, most + 1.0, 0.0001, "at half, what's past Health counts half")
+	sim.overfill = 1.0
+	sim._heal(4.0)
+	check_near(sim.health, most + 5.0, 0.0001, "with none, the Number keeps rising")
+
+
 func test_numbers_read_as_the_towers() -> void:
 	check(Palette.number(2.35) == "2.35", "two decimals while small")
 	check(Palette.number(3.0) == "3", "whole numbers stay whole")

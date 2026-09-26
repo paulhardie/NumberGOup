@@ -75,6 +75,11 @@ const CASH_BY_TYPE := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "b
 ## 2, as The Tower's own enemy list says (D082).
 const COINS_BY_TYPE := {"basic": 0.0, "fast": 2.0, "ranged": 2.0, "tank": 4.0, "boss": 5.0, "divider": 2.0}
 
+## How much of Regen and Lifesteal still works once the Number is past Health,
+## its ceiling: 0 keeps the ceiling (D081), 1 lets the Number keep rising for
+## as long as the tower survives (the owner's option 1, being measured).
+const NUMBER_OVERFILL := 0.0
+
 ## The Divider (D082, docs/THE_NUMBER.md section 7): ours, not The Tower's. It
 ## walks in at a basic enemy's speed and, on reaching the Number, takes away
 ## 1 - 1/divisor of it (half, at ÷2) through the defences, and is used up.

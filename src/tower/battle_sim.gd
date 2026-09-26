@@ -120,6 +120,8 @@ var _divider_due := 0.0
 ## The Divider's numbers for this run (Guesses.DIVIDER), which the measuring
 ## tools may change before the first step to try others.
 var divider: Dictionary = Guesses.DIVIDER.duplicate()
+## Guesses.NUMBER_OVERFILL for this run, which the measuring tools may change.
+var overfill := Guesses.NUMBER_OVERFILL
 
 ## The highest the Number has stood this run: the run's record (D081).
 var peak_number := 0.0
@@ -237,11 +239,12 @@ func max_health() -> float:
 	return stat("health")
 
 
-## Healing that stops at the most health: Regen and Lifesteal never take away
-## a recovery package's overheal.
+## Regen and Lifesteal: in full up to Health, and past it at `overfill`'s
+## share (Guesses.NUMBER_OVERFILL; 0 is a ceiling). They never take away a
+## recovery package's overheal.
 func _heal(amount: float) -> void:
-	if health < max_health():
-		health = minf(max_health(), health + amount)
+	var room := maxf(0.0, max_health() - health)
+	health += minf(amount, room) + maxf(0.0, amount - room) * overfill
 
 
 func wall_max_health() -> float:
