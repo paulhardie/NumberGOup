@@ -1,6 +1,6 @@
 # The Number: design considerations
 
-**Status:** open. This is the owner's direction of 26 September 2026 (D080), and the working list of everything that changes now that the tower *is* a number. Nothing here is built. Each question has a recommendation; the owner's answers go into [`DECISIONS.md`](DECISIONS.md), and this page is updated to match.
+**Status:** the direction is decided (D080), and its four decisions are answered (D081, section 6). The enemy design is proposed (section 7) and waiting on the owner. Nothing here is built. This page is the working list of everything that changes now that the tower *is* a number; the owner's answers go into [`DECISIONS.md`](DECISIONS.md), and this page is updated to match.
 
 ## The direction, in the owner's words
 
@@ -164,14 +164,16 @@ If operator enemies move these, their share or divisor is tuned, not The Tower's
 
 ---
 
-## 6. Decisions for the owner
+## 6. Decisions
 
-1. **Does the Number have a ceiling?** Recommend: yes in Tier 1, The Tower's Health (1.2).
-2. **Which operators?** Recommend: subtract and divide; percent of Health rare or not at all (2.1).
-3. **New operator enemies on top of The Tower's, or converting its types?** Recommend: new ones on top, a small share from wave 3 (2.6).
-4. **Rename Health to Number?** Recommend: yes, Health → Number and Health Regen → Number Regen, since this is the identity (3).
+**Answered by the owner on 26 September 2026 (D081): "go with your recommendations on all four."**
 
-Also recommended, and taken as agreed unless the owner says otherwise:
+1. **The Number has a ceiling in Tier 1:** The Tower's Health (1.2).
+2. **Operators: subtract and divide.** Percent of Health is rare or left out; The Tower's own Vampire is the model if it comes (2.1, section 7).
+3. **The Tower's enemies stay flat, and new operator enemies are added on top,** at a small share (2.6).
+4. **Health is renamed Number, and Health Regen Number Regen** (3).
+
+Taken as agreed with them:
 - operator enemies are used up on contact (2.4);
 - one defence pipeline for every hit (2.3);
 - heat-up applies to flat hits only (2.5);
@@ -182,3 +184,78 @@ Also recommended, and taken as agreed unless the owner says otherwise:
 - peak Number as a record (1.4);
 - whole numbers shown, rounded up (1.5);
 - scale 1:1 (1.6).
+
+The owner also asked for divide enemies to be "balanced carefully".
+
+---
+
+## 7. Enemies: the brainstorm (proposed, 26 September 2026)
+
+The owner shared The Tower's in-game enemy list and asked for a brainstorm on how enemies work, **focused on the ones The Tower launched with** (Basic, Fast, Tank, Ranged, Boss). The later ones are for later tiers. This section is a proposal until the owner answers its questions.
+
+### What The Tower's list says
+
+| Enemy | The Tower | Tier | Fits the Number as |
+|---|---|---|---|
+| Basic | "Just a basic enemy" | Launch | Subtract |
+| Fast | 2× speed; 2 Coins | Launch | Subtract, sooner |
+| Tank | 50% speed, 5× health; 4 Coins | Launch | Subtract, soaks shots |
+| Ranged | Shoots projectiles from range; 2 Coins | Launch | Subtract, from the Range edge |
+| Boss | 30% speed, 20× health; 5 Coins | Launch | Subtract, stays and hits |
+| Protector | Enemies near it can't be insta-killed and take 60% less damage; 3 Coins | Later | A shield around operators |
+| Vampire | 2× health; drains 2% of the tower's max health a second and disables regen; 4 Coins | Later (elite) | **Percent of Health**: The Tower's own percent enemy |
+| Ray | Basic health; charges 30 s, then fires ×2 basic damage; 4 Coins | Later (elite) | A telegraphed big hit |
+| Scatter | 2× health; splits in half 4 times, halving its health each time; 4 Coins | Later (elite) | **Divide, on itself** |
+| Commander, Overcharge, Saboteur | 20× health; buff enemies, exponential shots, lower Ultimate Weapon levels | Late game | Out of scope |
+
+Three things stand out:
+- **The Tower already has one of each of our operators in its later enemies.** The Vampire is a percent drain, and the Scatter divides itself. So operators aren't foreign to The Tower's shape; they arrive with its elites.
+- **Its figures differ from our data in three places:**
+  - Ranged is worth 2 Coins here against our 3 (D074, from the owner's earlier table).
+  - Tank is "50% speed" against TheTowerSDK's 0.34.
+  - Fast is "2×" against the SDK's 2.31.
+
+  The encyclopedia may round, so these need a decision rather than a quiet change (see the handover).
+- **Launch Tower enemies are all squares,** elites are triangles and the late game are pentagons. The shape tells you the class before you read anything. Ours should keep that grammar.
+
+### The proposal for 1.0 (Tier 1)
+
+**A. The five launch enemies stay The Tower's, and flat.** Their stats, mix and pay are unchanged, so the Tier 1 benchmarks hold. What changes is how they read:
+- each contact shows as "−1.64" at the Number;
+- the enemy's shape says "subtract";
+- the Tank and the Boss get the biggest numbers.
+
+**B. One new enemy: the Divider (÷2).** The only new rule in 1.0, so it can be balanced on its own, as the owner asked.
+
+| | Proposal | Why |
+|---|---|---|
+| **What it does** | On contact, the Number loses half of itself (through the defence pipeline), and the Divider is used up | The identity beat; used up so it can't halve every second |
+| **Shape** | A diamond (a square turned 45°) with "÷2" on it, in its own colour | Reads as related to the launch squares but different, and the symbol is always visible (honesty) |
+| **Health** | 2× a basic enemy of its wave | Survives the first shot, so it isn't trivially one-shot; not a tank |
+| **Speed** | A basic enemy's | Arrives mixed in with the basics, as a threat you can see coming for the whole walk (about 10 s from spawn) |
+| **When** | Not before wave 5; about 3% of a wave there, rising to about 6% by wave 30 | Roughly one every 3 waves at first, about one a minute by the middle waves (THE_NUMBER.md 5.2). Wave 5 is after a fresh player has learnt the basics |
+| **Pay** | Cash as a fast enemy (2×) and 2 Coins | Worth killing first. It pays only if killed, since a used-up one pays nothing |
+| **Heat-up, Thorns** | None (used up on contact) | Rules 2.4 and 2.5 |
+| **Knockback, Shockwave, Orbs, Mines** | Work on it like any non-boss | These become the ways to stop it |
+| **The Wall** | Breaks on it: the Wall loses half its health instead of the Number | Rule 3 |
+
+The numbers to tune are its share by wave, its health and the divisor. **Tune share first, then health, then divisor last:** ÷2 is the identity, so it moves only if the other two can't balance it.
+
+**How we'll know it's balanced** (5.2's targets, applied to the Divider):
+- The Tier 1 benchmarks still hold: buy nothing and die on waves 2–5, spread your Cash and die around wave 8.
+- A Divider reaches the Number about once a minute in middle waves, not more.
+- Most Dividers are killed before contact in a sensible build, and fewer still reach the Number as Range, Orbs and Knockback are bought.
+- A Divider never ends a run on its own (it can't), and what does end runs is still mostly flat hits and bosses.
+- Buying Health still lengthens runs, and Defense % becomes the answer to Dividers, as planned.
+
+**C. Parked for later tiers, not 1.0:**
+- **The Vampire as percent:** drains a share of the Number's ceiling each second while in range, and stops regen. It's The Tower's own design and the only percent enemy we'd keep, placed where D001's lesson can be watched.
+- **The Scatter as a divide pun:** it halves into two on each hit.
+- **The Ray** as a charged ×2 hit.
+- **The Protector** as a shield that makes Dividers harder to stop.
+
+### Questions for the owner
+
+1. **The Divider as proposed** (2× health, basic speed, from wave 5 at about 3% rising to about 6%, ÷2, used up on contact)? Recommend yes, as the starting point to measure from.
+2. **Show every enemy's hit on its body** ("−1.64" on each square), or only on the Divider? Recommend only the Divider, and each contact at the Number: 11 to 130 enemies each carrying a number would crowd the arena.
+3. **A "plus" enemy**, whose kill adds to the Number? It fits "number go up", but it's a second new rule in 1.0 and brushes against D037. Recommend not for 1.0: measure the Divider alone first.

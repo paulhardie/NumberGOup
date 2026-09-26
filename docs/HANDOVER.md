@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 26 September 2026 (D080, the Number is the tower), by Claude, handing on to the next agent.
+**Last updated:** 26 September 2026 (D081, the Number's four answers, and the enemy brainstorm), by Claude, handing on to the next agent.
 
-**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after D077 merged ([paulhardie/NumberGOup#69](https://github.com/paulhardie/NumberGOup/pull/69)). It carries D078 (resuming), D079 (the roadmap, and the version shown on Home and in reports) and D080 (the Number's direction and [`THE_NUMBER.md`](THE_NUMBER.md)), not yet merged, in [paulhardie/NumberGOup#70](https://github.com/paulhardie/NumberGOup/pull/70). The old game is commit `f4f1e95`.
+**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after D078–D080 merged ([paulhardie/NumberGOup#70](https://github.com/paulhardie/NumberGOup/pull/70)). It carries D081 and the enemy brainstorm in [`THE_NUMBER.md`](THE_NUMBER.md) (docs only), not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -24,7 +24,7 @@
 
 **Version 0.9.** Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Workshop groups (D076, merged). The owner played milestone 4.
 
-- **Resuming (D078, not merged):** the save carries the run in progress; the game opens back into it by replaying it. If an update means it no longer replays the same, it ends at its saved wave with its Coins kept.
+- **Resuming (D078, merged):** the save carries the run in progress; the game opens back into it by replaying it. If an update means it no longer replays the same, it ends at its saved wave with its Coins kept.
 - **Activity report (D077):** every run (seed, starting Workshop, each buy with its tick, a snapshot per wave) and every Workshop buy and unlock is logged to `user://number_go_up_activity.jsonl`. Home's Export report writes it to `user://reports/` and opens the folder. `tools/read_report.gd` reads and replays it.
 
 - **Workshop groups, all of them open and work:** Range and Damage / Meter, Multishot, Rapid Fire, Bounce Shot, Super Crit, Rend Armor (Attack); Defense % and Absolute, Thorns, Lifesteal, Knockback, Orbs, Shockwave, Land Mines, Death Defy, the Wall (Defense); Cash rows, Coins rows, Free Upgrades, Interest, Recovery Packages, Enemy Level Skip (Utility). A tab shows only its next locked group, as a big Unlock card (D076).
@@ -40,11 +40,9 @@
 ## Open decisions for the owner
 
 1. **How should a pack-free account pace?** Under D075, a focused pack-free career spends about 1.3 hours at the wave 10 boss and about 5½ hours reaching wave 30. With ×9 Coins it matches the owner's own account. The "wave 100 in an hour" research is unverified. **Recommend** keeping The Tower's rules and deciding the target by playing: if the first hours feel slow without packs, the lever is Coins per kill or Coins / Wave, not the enemy rules.
-2. **The Number's four decisions** ([`THE_NUMBER.md`](THE_NUMBER.md#6-decisions-for-the-owner), D080):
-   - **Ceiling:** recommend The Tower's Health in Tier 1.
-   - **Operators:** recommend subtract and divide.
-   - **New or converted enemies:** recommend new operator enemies on top of The Tower's.
-   - **Rename Health to Number:** recommend yes.
+2. **The Number's four decisions:** answered (D081): ceiling at Health, subtract and divide, new operator enemies on top of The Tower's, and Health renamed Number.
+2a. **The enemy brainstorm** ([`THE_NUMBER.md`](THE_NUMBER.md) section 7): **the Divider as proposed** (2× basic health, basic speed, from wave 5 at about 3% rising to about 6%, ÷2, used up on contact); **show hits on enemies' bodies** (recommend only the Divider's "÷2"); and **a "plus" enemy** (recommend not for 1.0).
+2b. **Three figures in The Tower's own enemy list differ from our data:** Ranged pays 2 Coins there against our 3 (D074), Tank is "50% speed" against the SDK's 0.34, and Fast is "2×" against 2.31. **Recommend** the owner's screen wins on Coins (Ranged 2). Keep the SDK's speeds, since the encyclopedia rounds, unless a timed walk says otherwise.
 3. **Cheaper Workshop prices?** Answered: keep The Tower's (the owner, 26 September: "fair enough").
 4. **Lighter process while rebuilding.** **Recommend yes.**
 5. **AGENTS.md's architectural law 3** (the modifier pipeline) names removed code. **Recommend** dropping it until a system needs stacked rules.
@@ -53,9 +51,9 @@
 
 1. **Owner:** play a session on D077 as merged, export a report and drop it into the chat. Done when a report arrives.
 2. **Agent:** read that report and answer decision 1 from the owner's real runs: where they die, what they buy, Coins an hour. That decides whether 1.0 is signed off or needs tuning first.
-3. **Owner:** review and merge #70 (D078 and D079). Do it between runs: a run saved when a merge lands is likely to end at its saved wave. Then close the game mid-run and reopen it. Done when a real run resumes on the Mac, and Home shows "v0.9" in its corner.
-4. **Owner:** answer the four decisions in [`THE_NUMBER.md`](THE_NUMBER.md#6-decisions-for-the-owner): the Number's ceiling, which operators, new or converted enemies, and renaming Health.
-5. **Agent, then:** build the Number's rules in `BattleSim`, measured headless against the benchmarks and the Number's targets, before any screen work (THE_NUMBER.md 5.4).
+3. **Owner:** with #70 merged, close the game mid-run and reopen it. Done when a real run resumes on the Mac and Home shows "v0.9" in its corner.
+4. **Owner:** answer the brainstorm's three questions and the three figures (open decisions 2a and 2b).
+5. **Agent, then:** build the Number's rules in `BattleSim`: the rename, the defence pipeline and the Divider. Measure them headless against the benchmarks and the Divider's targets before any screen work (THE_NUMBER.md 5.4 and 7).
 
 ## How to measure
 

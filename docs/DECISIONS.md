@@ -969,3 +969,19 @@ Rules:
   - Options B and C from the spec are superseded; the Number is closest to B (the tower's Health), with operator enemies on top.
   - The old game's lessons apply (D001: percentage hits make upgrades pointless; D037: a Number fed by its own output never falls).
 - **Revisit when:** the owner answers the design's decisions, or play shows the operators don't make the loop more fun.
+
+## D081 — The Number's first four answers
+
+- **Status:** Accepted (2026-09-26) on owner direction: "go with your recommendations on all four. in terms of divide enemies we should balance them carefully."
+- **Decision** ([`THE_NUMBER.md`](THE_NUMBER.md) section 6):
+  1. In Tier 1 the Number's ceiling is The Tower's Health.
+  2. The operators are subtract and divide; percent of Health is rare or left out.
+  3. The Tower's enemies stay flat, and new operator enemies are added on top at a small share.
+  4. Health is renamed Number, and Health Regen Number Regen.
+
+  The recommendations listed with them are taken as agreed: operator enemies used up on contact, one defence pipeline, heat-up on flat hits only, flat bosses and ranged enemies in Tier 1, ÷2, nearest-first targeting, the Number never spent, peak Number as a record, whole numbers shown rounded up, and scale 1:1.
+- **Consequences:**
+  - Tier 1's benchmarks stay The Tower's, and any divide enemy is balanced by its share, health and divisor, in that order.
+  - Renaming Health changes Workshop and run labels only; the row ids and the save stay the same.
+  - The enemy design is proposed in [`THE_NUMBER.md`](THE_NUMBER.md) section 7, pending the owner.
+- **Revisit when:** measurement or play shows one of these doesn't hold up.
