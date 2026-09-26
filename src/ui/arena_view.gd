@@ -20,8 +20,6 @@ const NUMBER_MIN_PX := 18
 ## Enemies at the tower are drawn this clear of the Number's digits, which is
 ## only drawing: the sim's contact distance is unchanged.
 const CONTACT_GAP_PX := 3.0
-## An enemy's operation tag sits this far right of its health.
-const TAG_GAP_PX := 2.0
 ## How long the Number shakes after a ÷, in seconds, and by how many pixels.
 const SHAKE_SECONDS := 0.3
 const SHAKE_PX := 4.0
@@ -40,19 +38,16 @@ const DIVIDE_FLOAT_RISE_PX := 30.0
 
 ## How each enemy type is drawn (D085): its cut of the crowd's typeface
 ## (Anybody's width and weight; the Divider has Fraunces to itself), its size
-## in points, and its colour. The number is its health; a tag beside it says
-## what it does on contact.
+## in points, and its colour.
 const LOOKS := {
 	"basic": {"axes": {"wdth": 100, "wght": 650}, "size": 14, "colour": Palette.ENEMY},
 	"fast": {"axes": {"wdth": 62, "wght": 720}, "slant": 0.21, "size": 13, "colour": Palette.FAST},
 	"tank": {"axes": {"wdth": 150, "wght": 900}, "size": 18, "colour": Palette.TANK},
 	"ranged": {"axes": {"wdth": 125, "wght": 380}, "spacing": 1, "size": 14, "colour": Palette.RANGED},
-	"boss": {"axes": {"wdth": 150, "wght": 900}, "size": 24, "colour": Palette.BOSS, "glow": Palette.BOSS_GLOW,
-		"tag_colour": Palette.BOSS_GLOW, "tag_size": 14, "flash": Palette.BOSS_GLOW},
+	"boss": {"axes": {"wdth": 150, "wght": 900}, "size": 24, "colour": Palette.BOSS, "glow": Palette.BOSS_GLOW, "flash": Palette.BOSS_GLOW},
 	"divider": {"axes": {"opsz": 48, "wght": 640, "WONK": 0, "SOFT": 0}, "divider": true, "size": 18, "colour": Palette.DIVIDER,
 		"glow": Palette.DIVIDER},
 }
-const TAG_SIZE := 11
 ## A hit lights the outline this colour, unless the type says otherwise.
 const FLASH := Color("f4f3ef")
 
@@ -78,7 +73,6 @@ var _pops: Array[Dictionary] = []
 var _ranged_shots: Array[Dictionary] = []
 ## The fonts each enemy type is drawn in, built once from LOOKS.
 var _cuts := {}
-var _tag_cuts := {}
 var _number_cut := _cut(Palette.NUMBER_FONT, {"wght": 600})
 var _hit_cut := _cut(Palette.NUMBER_FONT, {"wght": 500})
 var _divide_cut := _cut(Palette.DIVIDER_FONT, LOOKS.divider.axes)
@@ -92,8 +86,6 @@ func _init() -> void:
 		var look: Dictionary = LOOKS[kind]
 		var base: Font = Palette.DIVIDER_FONT if look.get("divider", false) else Palette.CROWD_FONT
 		_cuts[kind] = _cut(base, look.axes, look.get("slant", 0.0), look.get("spacing", 0))
-		var tag_axes := {"opsz": 48, "wght": 600, "WONK": 0, "SOFT": 0} if look.get("divider", false) else {"wdth": 100, "wght": 600}
-		_tag_cuts[kind] = _cut(base, tag_axes, look.get("slant", 0.0))
 
 
 ## One cut of a variable font: its axes, a synthetic slant for Fast (no
@@ -166,7 +158,7 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 				else:
 					_divide_left = SHAKE_SECONDS
 					_floats.append({"parts": [[sign, _divide_cut, 22], ["  −" + Palette.number(float(event.damage)), _number_cut, 15]], "at": Vector2(0, -6),
-						"age": 0.0, "colour": Palette.DIVIDER, "life": DIVIDE_FLOAT_SECONDS, "rise": DIVIDE_FLOAT_RISE_PX})
+						"age": 0.0, "colour": Palette.DIVIDER, "life": DIVIDE_FLOAT_SECONDS, "rise": DIVIDE_FLOAT_RISE_PX, "divide": true})
 			"free_upgrade":
 				var name := String(TowerData.upgrade(event.id).title).capitalize()
 				_floats.append({"text": "Free: " + name, "at": Vector2(0, -8), "age": 0.0, "colour": Palette.COIN})
@@ -223,7 +215,7 @@ func _draw() -> void:
 	var number := _number_layout()
 	for shot in _ranged_shots:
 		# The ranged enemy's shot: a dotted line in its colour to the Number.
-		var from := _enemy_at(shot.enemy.angle, shot.enemy.distance, _enemy_half(shot.enemy.kind, "0", ""))
+		var from := _enemy_at(shot.enemy.angle, shot.enemy.distance, _enemy_half(shot.enemy.kind, "0"))
 		var toward := Vector2.from_angle(shot.enemy.angle)
 		draw_dashed_line(from - toward * 12.0, centre + toward * _number_half.x, Color(Palette.RANGED, 0.45 * (1.0 - shot.age / RANGED_SHOT_SECONDS)), 1.0, 2.0)
 	for enemy in sim.enemies:
@@ -236,6 +228,7 @@ func _draw() -> void:
 	for shot in sim.shots:
 		draw_circle(to_view(shot.last_position.lerp(shot.position, blend)), 3.0 if shot.critical else 2.0, Palette.TEXT if shot.critical else Palette.ACCENT)
 	_draw_tower(number)
+	_draw_divider_preview()
 	for item in _floats:
 		var rise: float = item.age / item.get("life", FLOAT_SECONDS)
 		var at: Vector2 = to_view(item.at) + Vector2(0, -14.0 - item.get("rise", 18.0) * rise)
@@ -292,14 +285,13 @@ func _draw_tower(number: Dictionary) -> void:
 	draw_string(_number_cut, at + Vector2(-number.width * 0.5, font_size * 0.35), number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, colour)
 
 
-## An enemy is a number (D085): its health, counting down as it's shot, with
-## what it does on contact as a small tag beside it. Its type shows in its
-## typeface and colour.
+## An enemy is one number (D085): its health, counting down as it's shot,
+## until it reaches the Number and starts hitting, when it shows what each hit
+## takes instead. Its type shows in its typeface and colour.
 func _draw_enemy(enemy: BattleSim.Enemy) -> void:
 	var look: Dictionary = LOOKS[enemy.kind]
-	var text := Palette.enemy_health(enemy.health)
-	var tag := tag_text(sim, enemy)
-	var half := _enemy_half(enemy.kind, text, tag)
+	var text := shown_text(sim, enemy)
+	var half := _enemy_half(enemy.kind, text)
 	var at := _enemy_at(enemy.angle, enemy.drawn_at(blend).length(), half)
 	var font: Font = _cuts[enemy.kind]
 	var font_size: int = look.size
@@ -311,15 +303,33 @@ func _draw_enemy(enemy: BattleSim.Enemy) -> void:
 	if _flashes.has(enemy.id):
 		draw_string_outline(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 3, look.get("flash", FLASH))
 	draw_string(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, look.colour)
-	var tag_size: int = look.get("tag_size", TAG_SIZE)
-	var tag_at := baseline + Vector2(font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x + TAG_GAP_PX, -font_size * 0.4)
-	draw_string(_tag_cuts[enemy.kind], tag_at, tag, HORIZONTAL_ALIGNMENT_LEFT, -1, tag_size, Color(look.get("tag_colour", look.colour), 0.85))
+
+
+## The nearest Divider inside the range shows what it will do above the
+## Number, "÷1.5 → 301", so a ÷ never lands unseen (D085). It makes way while
+## a ÷ that has just landed floats up from the same spot.
+func _draw_divider_preview() -> void:
+	if _floats.any(func(item): return item.get("divide", false) and item.age < DIVIDE_FLOAT_SECONDS * 0.5):
+		return
+	var preview := divider_preview(sim)
+	if preview.is_empty():
+		return
+	var parts := [[preview.sign, _divide_cut, 13], ["  → " + preview.after, _number_cut, 11]]
+	var width := 0.0
+	for part in parts:
+		width += (part[1] as Font).get_string_size(part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, part[2]).x
+	# Where the ÷ float starts, so the landing turns one into the other.
+	var at := to_view(Vector2(0, -6)) + Vector2(-width * 0.5, -14.0)
+	for part in parts:
+		var font: Font = part[1]
+		draw_string(font, at, part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, part[2], Color(Palette.DIVIDER, 0.85))
+		at.x += font.get_string_size(part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, part[2]).x
 
 
 ## A killed enemy's "0" swells to 1.3× and fades.
 func _draw_pop(pop: Dictionary) -> void:
 	var look: Dictionary = LOOKS[pop.kind]
-	var half := _enemy_half(pop.kind, "0", "")
+	var half := _enemy_half(pop.kind, "0")
 	var at := _enemy_at(pop.angle, pop.distance, half)
 	var done: float = pop.age / POP_SECONDS
 	var grow := 1.0 + 0.3 * done
@@ -328,13 +338,10 @@ func _draw_pop(pop: Dictionary) -> void:
 	draw_set_transform(Vector2.ZERO)
 
 
-## Half an enemy's drawn width and height, its tag included.
-func _enemy_half(kind: String, text: String, tag: String) -> Vector2:
-	var look: Dictionary = LOOKS[kind]
-	var font_size: int = look.size
+## Half an enemy's drawn width and height.
+func _enemy_half(kind: String, text: String) -> Vector2:
+	var font_size: int = LOOKS[kind].size
 	var width: float = (_cuts[kind] as Font).get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-	if tag != "":
-		width += TAG_GAP_PX + (_tag_cuts[kind] as Font).get_string_size(tag, HORIZONTAL_ALIGNMENT_LEFT, -1, look.get("tag_size", TAG_SIZE)).x
 	return Vector2(width, font_size * 0.7) * 0.5
 
 
@@ -352,10 +359,36 @@ func _enemy_at(angle: float, distance_m: float, half: Vector2) -> Vector2:
 	return centre + toward * maxf(distance_m * px_per_metre(), nearest)
 
 
-## What an enemy shows beside its health (D085): what its next hit will take
-## off the Number, after the tower's defences and growing 4% a hit (it ticks
-## up while it stands at the tower), or a Divider's ÷.
-static func tag_text(battle: BattleSim, enemy: BattleSim.Enemy) -> String:
+## The one number an enemy shows (D085): its health while it walks in, and
+## what each hit takes once it has arrived and is hitting. A Divider never
+## stands and hits, so it always shows its health; the preview carries its ÷.
+static func shown_text(battle: BattleSim, enemy: BattleSim.Enemy) -> String:
+	if enemy.kind != "divider" and enemy.arrived():
+		return operation_text(battle, enemy)
+	return Palette.enemy_health(enemy.health)
+
+
+## What an enemy does: its next hit off the Number, after the tower's
+## defences and growing 4% a hit (so it ticks up while it stands there), or a
+## Divider's ÷.
+static func operation_text(battle: BattleSim, enemy: BattleSim.Enemy) -> String:
 	if enemy.kind == "divider":
 		return "÷" + _divisor_text(enemy.divisor)
 	return "−" + Palette.short(battle.landed_damage(enemy.attack * pow(Guesses.HEAT_UP_PER_HIT, enemy.hits)))
+
+
+## The nearest Divider inside the range and what it will leave: {sign, after},
+## where after is the Number as it will read, or "Wall" while the Wall stands
+## to take it. Empty when none is in range.
+static func divider_preview(battle: BattleSim) -> Dictionary:
+	var nearest: BattleSim.Enemy = null
+	for enemy in battle.enemies:
+		if enemy.kind == "divider" and enemy.distance <= battle.stat("range") and (nearest == null or enemy.distance < nearest.distance):
+			nearest = enemy
+	if nearest == null:
+		return {}
+	var after := "Wall"
+	if not battle.wall_up():
+		var left := battle.health - battle.divide_loss(nearest.divisor)
+		after = Palette.number(Palette.number_shown(left, battle.max_health(), true))
+	return {"sign": operation_text(battle, nearest), "after": after}

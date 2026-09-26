@@ -1067,7 +1067,7 @@ Rules:
 
 ## D085 — Enemies show their health, with a colour each
 
-- **Status:** Accepted (2026-09-26) on owner direction, answering D084's open question from Claude Design's mockups (the canvas "Enemies as Numbers", https://claude.ai/artifact/XWyQksmvMxMGnPANFr6f7d, private to the owner). The owner: "I prefer B", then "can we take that style and decide on colours for each of the standard enemies so they are all distinctive", then "keep the white boss, record the decision". Implemented (2026-09-26) on `claude/dazzling-gates-54ahbr`, the owner saying "go".
+- **Status:** Accepted (2026-09-26) on owner direction, answering D084's open question from Claude Design's mockups (the canvas "Enemies as Numbers", https://claude.ai/artifact/XWyQksmvMxMGnPANFr6f7d, private to the owner). The owner: "I prefer B", then "can we take that style and decide on colours for each of the standard enemies so they are all distinctive", then "keep the white boss, record the decision". Implemented (2026-09-26) on `claude/dazzling-gates-54ahbr`, the owner saying "go". Its tag (item 1) is superseded by [D086](#d086--one-number-per-enemy-and-a-dividers--previewed) the same day, which also answers its two open items; everything else stands.
 - **Decision:**
   1. **An enemy shows its health**, counting down as it's shot, and pops at 0. What it does on contact ("−14", "÷1.5") rides beside it as a small tag, top right, at 85% of its colour: 11 pt, 14 pt on a boss. The recommended alternative, an enemy showing its operation, was not chosen.
   2. **Three typefaces, four font files, all SIL OFL:** Geist Mono is the player's (the Number and every float); Anybody (variable width and weight) is the crowd; Fraunces (variable optical size and weight) is the Divider alone; Geist stays for the panels. In Godot, one `FontVariation` per enemy type; Fast's slant is a synthetic oblique (`variation_transform`), not an italic file.
@@ -1102,3 +1102,19 @@ Rules:
   - `tools/capture_battle.gd` now also shoots `battle_crowd`, the first boss once it is inside the view.
 - **Not built:** reduced motion. The game has no such setting yet, so the ÷ shake and the pops have no still alternative. A setting would be the first consumer of a preferences store, which is a foundation gap to decide on, not part of this change.
 - **Revisit when:** the owner has played it: whether the types read at a glance in a crowd, whether the white boss steals the eye from the Number, and how bunched enemies at the tower read, since those on the same side overlap each other as the squares did.
+
+## D086 — One number per enemy, and a Divider's ÷ previewed
+
+- **Status:** Accepted (2026-09-26) on owner direction, and implemented the same day on `claude/dazzling-gates-54ahbr`. Supersedes D085's tag. The owner, on D085 as built: "I'm not a huge fan of the number having a second number next to it. Will get very messy in later waves. Options?", then, to the recommendation below, "yes, do both".
+- **Decision:**
+  1. **An enemy shows one number.** While it walks in and is shot, that is its health, counting down. Once it arrives and starts hitting, it shows what each hit takes off the Number instead ("−14", after the tower's defences), ticking up 4% with every hit it lands. A ranged enemy flips when it stops at the range edge and starts firing. No tag is drawn.
+  2. **A Divider always shows its health**, since it never stands and hits; it lands once and is gone.
+  3. **The nearest Divider inside the range is previewed above the Number:** "÷1.5 → 301", the ÷ in Fraunces and what the Number will read in Geist Mono, violet at 85%. It reads "→ Wall" while the Wall stands to take the ÷. It sits where the ÷ float starts, so a landing turns one into the other, and it makes way while a fresh ÷ float rises.
+  4. D085's other open item, a standing enemy growing as its hit grows, is dropped: the flipped number ticking up already shows it.
+- **Why:** within a wave, every enemy of a type hits the same, and the wave panel already shows it ("Attack 13.65"), so a tag on every walking enemy mostly repeated the panel, 30 times over. One number keeps the crowd readable and keeps shooting numbers down, and an enemy's hit shows at the moment it happens.
+- **Built:** `BattleSim.divide_loss` is the one place a ÷'s loss is worked out: the landing and the preview both read it, so the preview can't disagree with what lands (tested). `ArenaView.shown_text` and `divider_preview` hold the display rules, with tests; the tag and its constants are gone.
+- **Consequences:**
+  - A walking enemy's hit is not on its body; the wave panel and its type (a tank hits for half) carry it.
+  - Enemies are drawn clear of the Number's digits some metres before they truly arrive, so one can sit at the Number showing its health for a moment before it flips.
+  - Anybody's minus is short, so an arrived enemy reads more like "-14" than "−14".
+- **Revisit when:** the owner has played it: whether the flip reads, and whether the preview is noticed in time.

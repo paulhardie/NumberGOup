@@ -493,7 +493,7 @@ func _divide(enemy: Enemy) -> void:
 			if record_events:
 				events.append({"type": "wall_down"})
 	else:
-		loss = minf(health, landed_damage(health * share))
+		loss = divide_loss(divisor)
 		health -= loss
 		lost_to["divider"] = float(lost_to.get("divider", 0.0)) + loss
 	dividers_landed += 1
@@ -501,6 +501,14 @@ func _divide(enemy: Enemy) -> void:
 	enemies.erase(enemy)
 	if record_events:
 		events.append({"type": "divided", "enemy": enemy, "damage": loss, "at_wall": at_wall, "divisor": divisor})
+
+
+## What a Divider of `divisor` landing now would take off the Number: 1 -
+## 1/divisor of it, through the defences, never all of it. The arena's
+## preview of a coming ÷ reads this too.
+func divide_loss(divisor: float) -> float:
+	var share := 1.0 - 1.0 / maxf(1.0, divisor)
+	return minf(health, landed_damage(health * share))
 
 
 ## What a hit of `raw` leaves after the tower's defences.

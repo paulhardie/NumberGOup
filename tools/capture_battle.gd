@@ -89,8 +89,9 @@ func _capture() -> void:
 	var landed := false
 	var walking_shot := false
 	while divided.sim.alive and not landed and divided.sim.time < 3600.0:
-		# One frame of a Divider on its way in, before any has landed.
-		if not walking_shot and divided.sim.enemies.any(func(enemy): return enemy.kind == "divider" and enemy.distance < 35.0):
+		# One frame of a Divider on its way in, before any has landed: inside
+		# the range, so its preview shows above the Number (D085).
+		if not walking_shot and divided.sim.enemies.any(func(enemy): return enemy.kind == "divider" and enemy.distance < divided.sim.stat("range") * 0.7):
 			walking_shot = true
 			divided._refresh()
 			divided._arena.queue_redraw()

@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 26 September 2026 (D085 built: enemies are numbers, showing their health with a colour each), by Claude, handing on to the next agent.
+**Last updated:** 26 September 2026 (D085 and D086 built: each enemy is one number, its health and then its hit, with a colour each, and a coming ÷ previewed), by Claude, handing on to the next agent.
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #73 (D084) merged. It carries D085, recorded and built: enemies drawn as numbers, with Anybody and Fraunces bundled. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #73 (D084) merged. It carries D085 and D086, recorded and built: enemies drawn as numbers, with Anybody and Fraunces bundled, and the Divider preview. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -51,9 +51,9 @@
 
 ## Next steps, in order
 
-0. **Owner:** merge this branch, then decide D085's two open items: the Divider's preview above the Number ("÷1.5 → 301"), and a standing enemy's tag growing. Both are drawing work if yes. Reduced motion is not built (no setting exists; D085 says why).
+0. **Owner:** merge this branch. Reduced motion is not built (no setting exists; D085 says why).
 
-1. **Owner:** play `main`, and export a report. Say too whether the enemy types read at a glance, and how the crowd bunched at the Number looks. Say whether the Number in the centre and the ÷ moments feel right, and how often they come. Done when the owner has played it.
+1. **Owner:** play `main`, and export a report. Say too whether the enemy types read at a glance, whether the flip from health to hit reads, whether the ÷ preview is noticed in time, and how the crowd bunched at the Number looks. Say whether the Number in the centre and the ÷ moments feel right, and how often they come. Done when the owner has played it.
 2. **Agent:** read the report. It records each run's peak Number, what Dividers took, and how many came and landed. Tune `Guesses.DIVIDER` from it with `sim_runs.gd` against the benchmarks (THE_NUMBER.md 5).
 3. **Owner, then:** sign off 1.0, or name what's missing. After that comes Cards (1.1).
 
