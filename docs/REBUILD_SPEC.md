@@ -115,6 +115,7 @@ Versions, each one a playable thing the owner plays and signs off (D079). The nu
 | **1.3** | Ultimate Weapons | The owner plays to them |
 | **1.4** | Tier 2 and up, where the Tier 1 turtle breaks | A Tier 1 turtle fails in Tier 2 and a pivot wins, as The Tower intends |
 | Later, unscheduled | Perks, Modules | The owner asks |
+| Later, with servers | Idle play (D089): a closed game keeps its run going, slower, and the phone says when it ends; getting strong enough to be idle is an early goal | The owner can close the game on a phone and not lose out |
 | Out | Tournaments: they need other players and servers | — |
 
 Each version still ends with the owner playing it.
