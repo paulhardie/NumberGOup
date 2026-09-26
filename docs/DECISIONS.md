@@ -1146,3 +1146,24 @@ Rules:
   - This is the game's first player setting. The switch sits on Home under Export report, with no settings screen yet; one is worth building when a second setting comes. Reduced motion (D085, D087) is the likely next.
   - The Wall's ring, the shockwave and mine blasts still draw as before.
 - **Revisit when:** a second setting arrives, or the owner has played it with the range on.
+
+## D089 — Idle play: a closed game keeps its run going, slower, and says when it ends
+
+- **Status:** Accepted (2026-09-26) as direction, on owner direction. **Not scheduled and nothing is built:** the owner will come back to it "once we start bringing in servers". The owner: "I loved the tower and played for 3 years, but I essentially needed a second device so I could keep runs going. I want a situation like the other non tower tech tree games where you can close the app off and still not be out of pocket (obviously slower progression, although we'd need a mechanic so if you die, the game sends you a notification to let you know your run is over)", and "Early doors one of the big goals should be, 'I want to get strong enough that I can be more idle'". Asked where they'll mainly play: "Phone".
+- **Context:** The Tower only progresses with the app open (Labs aside), and its runs grow to 8 hours and more. The rebuild copies it: a closed run is frozen and resumes where it was ([D078](#d078--a-run-closed-mid-way-resumes-by-replaying-it)), as the old game's D003 also said.
+- **Decision:**
+  1. **Closing the game doesn't leave the player out of pocket.** A run carries on while the game is closed, more slowly than open play.
+  2. **When a run ends while the game is closed, the phone gets a notification** saying so.
+  3. **"Get strong enough to be more idle" is one of the first goals the player works towards**, not a late unlock.
+  4. **The phone is the platform this is designed for.**
+- **How it could work** (the agent's proposal, 26 September; open until the work starts):
+  - **Catch-up on return.** The game notes when it closed. On reopening it replays the run as D078 does, then plays the time away forward with no buys, at a reduced rate, and shows what happened. The time away goes into the run record as an input, so later resumes and reports replay the same. A cap on time away limits what changing the phone's clock can do.
+  - **The notification.** With no inputs while closed the battle is deterministic, so at closing the game can simulate ahead to find when the run will end and book a local notification for then. Once there are servers, a server can do it instead. As far as the agent knows, Godot has no built-in local notifications on phones, so this needs a plugin; unverified.
+  - **Where idle strength comes from:** a tower that holds without help (defence, regen, lifesteal); the away rate itself as something the player upgrades; and rules for spending Cash while away (for example "keep Damage and Health even"). Without the last, a closed run only coasts to its wall.
+  - **Cost.** A run with nobody buying stalls, so catching up should take about as long as that run lasts, not as long as the game was closed. That is inferred from `sim_runs.gd`, not measured from a mid-run save.
+- **Consequences:**
+  - This departs from The Tower, which the rebuild otherwise copies (D073). When built, it replaces D078's "the battle doesn't advance while the game is closed".
+  - It needs a phone build. The only export set up today is Web, and browsers can't fire a notification at a set time with the page closed unless a server pushes it.
+  - It touches saving, so the work goes through the high-risk gate: old-save fixtures and an independent review.
+  - Labs (1.2) also need time to pass while the game is closed, so they should use the same clock.
+- **Revisit when:** servers come in, or earlier if Labs need time passing while closed.
