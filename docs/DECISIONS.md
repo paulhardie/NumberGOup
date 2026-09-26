@@ -972,7 +972,7 @@ Rules:
 
 ## D081 — The Number's first four answers
 
-- **Status:** Accepted (2026-09-26) on owner direction: "go with your recommendations on all four. in terms of divide enemies we should balance them carefully."
+- **Status:** Accepted (2026-09-26) on owner direction: "go with your recommendations on all four. in terms of divide enemies we should balance them carefully." Its first answer (a ceiling at Health) is superseded by [D083](#d083--no-ceiling-on-the-number-and-a-gentle-divider-for-tier-1) the same day.
 - **Decision** ([`THE_NUMBER.md`](THE_NUMBER.md) section 6):
   1. In Tier 1 the Number's ceiling is The Tower's Health.
   2. The operators are subtract and divide; percent of Health is rare or left out.
@@ -988,7 +988,7 @@ Rules:
 
 ## D082 — The Divider, and the Number on screen
 
-- **Status:** Accepted (2026-09-26) on owner direction: "yes to all three, ranged 2 coins, go build it", answering [`THE_NUMBER.md`](THE_NUMBER.md) section 7's questions. The owner asked whether Dividers should move at a basic enemy's speed; the answer was yes, as the start, measured below. Implemented (2026-09-26) on `claude/great-tesla-9kfp95`.
+- **Status:** Its ÷2 and health ramp are superseded by [D083](#d083--no-ceiling-on-the-number-and-a-gentle-divider-for-tier-1) the same day (÷1.25 then ÷1.5, 4× health, no ceiling). Accepted (2026-09-26) on owner direction: "yes to all three, ranged 2 coins, go build it", answering [`THE_NUMBER.md`](THE_NUMBER.md) section 7's questions. The owner asked whether Dividers should move at a basic enemy's speed; the answer was yes, as the start, measured below. Implemented (2026-09-26) on `claude/great-tesla-9kfp95`.
 - **Decision:**
   1. The Tower's five launch enemies stay as they are and subtract.
   2. One new enemy, the **Divider**, comes on top of them:
@@ -1022,3 +1022,35 @@ Rules:
   - The Number's body is drawn wider (30 px) than the tower's 3 m contact edge, with enemies drawn touching it. That's only drawing; the rules are unchanged.
   - Saved runs from before this change end at their saved wave when resumed (D078), as intended.
 - **Revisit when:** the owner has played it: whether ÷ moments feel too rare, too harsh or right.
+
+## D083 — No ceiling on the Number, and a gentle Divider for Tier 1
+
+- **Status:** Accepted (2026-09-26) on owner direction. Supersedes D081's first answer (a ceiling at Health), and D082's ÷2 and health ramp.
+  - The owner, on playing D082: "it appears number is literally just a swap of health", and "are we going to have number continually go up?". Then, after the measurements: "go with all, no ceiling".
+  - On the Divider: "divider enemies don't need to divide by half. They could start off by dividing by a higher number so they're not obliterating you early. Higher tiers we could ramp them up, but tier 1 should be the tutorial level effectively. Always have the mathematical side considered."
+- **The maths:** a bigger divisor takes more, not less. ÷2 keeps half, ÷3 a third and ÷4 a quarter, while ÷1.5 keeps two thirds and ÷1.25 four fifths. So a gentle Tier 1 Divider needs a divisor *closer to 1*, which is what the owner meant, and what's built.
+- **Decision:**
+  1. **The Number has no ceiling** (`Guesses.NUMBER_OVERFILL` 1). Regen and Lifesteal keep raising it past Health for as long as the tower survives. Health (reading as Number) is where the Number starts and what buying Number adds to, not a limit. Recovery Packages keep their Max Recovery.
+  2. **Tier 1's Divider is gentle:** ÷1.25 (takes a fifth) until wave 17, then ÷1.5 (a third). Divisors come in steps of 0.25, so they always read cleanly. Each Divider keeps and shows the divisor it spawned with. ÷2 and beyond are for later tiers.
+  3. **With the gentler divisor, a Divider has 4× a basic enemy's health throughout**, so most land: frequent, small ÷ moments that teach the enemy.
+  4. The ring round the Number, and the panel under the arena, show it against **this run's peak**. The ring is Coin-coloured while the Number stands at a new peak, and warning-coloured below a quarter of it.
+- **Evidence** (20-seed single runs; 30-run `core` careers, `--curve`):
+  - Fresh runs are unchanged: buying nothing dies at wave 3 (2–5), and spreading Cash at wave 8 (5–10). `core` reaches wave 8 (2–10), against 6 with a ceiling, since Regen keeps paying.
+  - Every run still ends.
+  - The Number climbs through a run and falls as the waves overtake it. Median Number in the last ten career runs at waves 5, 10, 15, 20, 25 and 30: 113, 236, 459, 392, 408 and 151. With the ceiling it was 33, 49 and 78, then fell to 44 at wave 20.
+  - Careers break the wave-10 boss on run 11 and reach wave 30 on run 24, against run 12 and never with the ceiling.
+  - 67 of 114 Dividers landed in the last ten runs.
+  - Compared along the way:
+
+    | Setting | Wave 30 reached | Number at wave 20 |
+    |---|---|---|
+    | ÷2, health 2×→4× | run 21 | 359 |
+    | ÷1.25→÷1.5, health 2×→4× | run 19 | 587 |
+    | ÷1.25→÷1.5, health 4× (built) | run 24 | 392 |
+
+    The built setting keeps progression nearest The Tower's pace.
+- **Consequences:**
+  - Careers get past the wave-20 wall that used to hold them, which also answers some of the owner's worry that pack-free play is slow.
+  - A very high Regen can make the Number run into the tens of thousands in early waves, as the capture's tower with 40 Regen levels shows. Runs still end, but watch it in play.
+  - Saved runs from before end at their saved wave when resumed (D078).
+- **Revisit when:** the owner has played it: whether the Number's climb feels right, and whether ÷ moments teach without punishing.

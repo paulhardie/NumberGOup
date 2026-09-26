@@ -276,10 +276,10 @@ func test_pressing_an_upgrade_card_buys_it() -> void:
 	screen.sim.run_levels = {"health": 2}
 	screen.sim.health = screen.sim.max_health()
 	screen._refresh()
-	check(screen._health_text.text == "15 / 15", "full health 15.08 reads 15 / 15: %s" % screen._health_text.text)
+	check(screen._health_text.text.begins_with("15 · peak"), "full health 15.08 reads 15: %s" % screen._health_text.text)
 	screen.sim.health = 0.3
 	screen._refresh()
-	check(screen._health_text.text.begins_with("1 /"), "a tower still standing never reads 0: %s" % screen._health_text.text)
+	check(screen._health_text.text.begins_with("1 · "), "a tower still standing never reads 0: %s" % screen._health_text.text)
 	screen.sim.health = screen.sim.max_health() * 1.5
 	screen._refresh()
 	check(screen._health_text.text.begins_with(Palette.number(roundf(screen.sim.health))), "overhealed health reads above the most: %s" % screen._health_text.text)
@@ -1357,6 +1357,20 @@ func test_dividers_come_on_top_of_the_towers_enemies_and_leave_them_untouched() 
 	plain.divider.share_full = 0.0
 	check(sim.divider_share(4) == 0.0 and is_equal_approx(sim.divider_share(5), 0.03), "none before wave 5, then 3%")
 	check(is_equal_approx(sim.divider_share(30), 0.06) and is_equal_approx(sim.divider_share(200), 0.06), "rising to 6% by wave 30, and holding")
+	check(is_equal_approx(sim.divider_divisor(5), 1.25) and is_equal_approx(sim.divider_divisor(30), 1.5) and is_equal_approx(sim.divider_divisor(99), 1.5),
+		"their divisor rises from ÷1.25 to ÷1.5 by wave 30: gentle, since Tier 1 is the tutorial")
+	for at_wave in range(5, 40):
+		var divisor := sim.divider_divisor(at_wave)
+		check(is_equal_approx(divisor, 1.25) or is_equal_approx(divisor, 1.5), "wave %d's divisor reads cleanly: %s" % [at_wave, divisor])
+	check(is_equal_approx(sim.divider_divisor(17), 1.25) and is_equal_approx(sim.divider_divisor(18), 1.5), "÷1.25 to wave 17, then ÷1.5")
+	var walking := BattleSim.new(8)
+	walking._schedule.clear()
+	walking.wave = 17
+	walking._schedule = [{"kind": "divider", "at": 0.0}]
+	walking._next_spawn = 0
+	walking.wave_clock = 0.0
+	walking._spawn_due()
+	check_near(walking.enemies[-1].divisor, walking.divider_divisor(17), 0.0, "a Divider carries the divisor of the wave it came in")
 	var counted := 0
 	var expected := 0.0
 	for at_wave in range(2, 41):
@@ -1381,17 +1395,19 @@ func test_a_divider_halves_the_number_through_the_defences_and_is_used_up() -> v
 	var kills := sim.kills
 	var divider := _place(sim, "divider", Guesses.CONTACT_DISTANCE_M)
 	sim.step()
-	check_near(sim.health, 50.0 + sim.stat("health_regen") * BattleSim.TICK, 0.0001, "÷2 takes half the Number")
+	# Tier 1 starts at ÷1.25: a fifth of the Number, since a bigger divisor takes more.
+	check_near(sim.divider_divisor(1), 1.25, 0.0, "Tier 1's first Dividers are ÷1.25")
+	check_near(sim.health, 80.0 + sim.stat("health_regen") * BattleSim.TICK, 0.0001, "÷1.25 takes a fifth of the Number")
 	check(not sim.enemies.has(divider) and divider.health == 0.0, "and the Divider is used up")
 	check(sim.kills == kills and sim.cash == cash and sim.dividers_landed == 1, "without paying or counting as a kill")
-	check_near(float(sim.lost_to.divider), 50.0, 0.0001, "the loss is put down to Dividers")
+	check_near(float(sim.lost_to.divider), 20.0, 0.0001, "the loss is put down to Dividers")
 	check(not sim.events.filter(func(event): return event.type == "divided").is_empty(), "and the screen hears of it")
 	var guarded := _quiet_sim({"health": 400, "defense_percent": 40, "defense_absolute": 10})
 	guarded.health = 100.0
 	_place(guarded, "divider", Guesses.CONTACT_DISTANCE_M)
 	guarded.step()
 	var took := 100.0 + guarded.stat("health_regen") * BattleSim.TICK - guarded.health
-	check_near(took, guarded.landed_damage(50.0), 0.0001, "the same defences as any hit, Defense %% then Absolute: %.2f" % took)
+	check_near(took, guarded.landed_damage(20.0), 0.0001, "the same defences as any hit, Defense %% then Absolute: %.2f" % took)
 	var tiny := _quiet_sim()
 	tiny.health = 0.01
 	_place(tiny, "divider", Guesses.CONTACT_DISTANCE_M)
@@ -1402,7 +1418,7 @@ func test_a_divider_halves_the_number_through_the_defences_and_is_used_up() -> v
 func test_a_divider_in_flight_is_lost_to_shots_and_pays_when_killed() -> void:
 	var sim := _quiet_sim()
 	var divider := _place(sim, "divider", 20.0)
-	check_near(divider.max_health, TowerData.enemy_health(sim.wave, "basic") * 2.0, 0.0001, "twice a basic enemy's health at first")
+	check_near(divider.max_health, TowerData.enemy_health(sim.wave, "basic") * 4.0, 0.0001, "four times a basic enemy's health")
 	sim.wave = 30
 	sim.health_level = 30
 	check_near(sim.enemy_health_now("divider"), TowerData.enemy_health(30, "basic") * 4.0, 0.0001, "four times by wave 30")
@@ -1432,7 +1448,7 @@ func test_a_divider_breaks_on_the_wall() -> void:
 	var wall := sim.wall_health
 	_place(sim, "divider", Guesses.WALL_DISTANCE_M)
 	sim.step()
-	check_near(sim.wall_health, wall / 2.0, 0.0001, "the Wall loses half")
+	check_near(sim.wall_health, wall / 1.25, 0.0001, "the Wall loses what the Number would")
 	check(sim.health >= number and sim.dividers_landed == 1, "and the Number nothing")
 
 
@@ -1465,8 +1481,9 @@ func test_the_number_keeps_its_peak_as_a_record() -> void:
 
 func test_overfill_decides_how_far_past_its_ceiling_the_number_can_rise() -> void:
 	var sim := _quiet_sim()
-	check(sim.overfill == Guesses.NUMBER_OVERFILL and sim.overfill == 0.0, "the game keeps the ceiling for now")
+	check(sim.overfill == Guesses.NUMBER_OVERFILL and sim.overfill == 1.0, "the game has no ceiling (D083)")
 	var most := sim.max_health()
+	sim.overfill = 0.0
 	sim.health = most - 1.0
 	sim._heal(3.0)
 	check_near(sim.health, most, 0.0, "with a ceiling, healing stops at Health")

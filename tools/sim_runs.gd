@@ -15,7 +15,8 @@ extends SceneTree
 ## --divider-share N scales how many Dividers come (1 is Guesses.DIVIDER's,
 ## 0 none) and --divider-speed N sets their speed as a share of a basic
 ## enemy's, and --divider-health N its health in basic enemies', for trying
-## the Divider's tuning without changing the game. --overfill N sets how much
+## the Divider's tuning without changing the game; --divider-divisor N fixes
+## its divisor at every wave. --overfill N sets how much
 ## of Regen and Lifesteal works past Health (0 a ceiling, 1 none), and --curve
 ## adds the Number at the end of every fifth wave to each run's line.
 ##
@@ -173,6 +174,9 @@ func _tune(sim: BattleSim, options: Dictionary) -> void:
 		sim.divider.speed = float(options["divider-speed"])
 	if options.has("overfill"):
 		sim.overfill = float(options.overfill)
+	if options.has("divider-divisor"):
+		sim.divider.divisor_first = float(options["divider-divisor"])
+		sim.divider.divisor_full = float(options["divider-divisor"])
 	if options.has("divider-health"):
 		sim.divider.health_first = float(options["divider-health"])
 		sim.divider.health_full = float(options["divider-health"])

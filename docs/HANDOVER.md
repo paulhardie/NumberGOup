@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 26 September 2026 (D082, the Divider and the Number on screen), by Claude, handing on to the next agent.
+**Last updated:** 26 September 2026 (D083, no ceiling and a gentle Divider), by Claude, handing on to the next agent.
 
-**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after #70 merged. It carries D081 and D082: the Number in the centre, the Divider, Health reading as Number, the peak Number record and Ranged's 2 Coins. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/great-tesla-9kfp95`, brought up to `main` after #71 merged. It carries D083: no ceiling on the Number, Tier 1's gentle Divider, the ring against the run's peak, and the tools to measure them. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -22,7 +22,7 @@
 
 ## Where the game is
 
-**Version 0.9, with 1.0's Number built (D082).** The Number sits in the centre as the tower. The Tower's enemies subtract ("−x"), and from wave 5 a Divider can halve it ("÷2"), about one every 6 minutes in the middle waves. Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Workshop groups (D076, merged). The owner played milestone 4.
+**Version 0.9, with 1.0's Number built (D082, D083).** The Number sits in the centre as the tower, with no ceiling: regen keeps raising it. The Tower's enemies subtract ("−x"), and from wave 5 a Divider divides it, ÷1.25 then ÷1.5 from wave 18, most of them landing. Home, battle and Workshop on Tier 1, saved, with every one of The Tower's Workshop groups (D076, merged). The owner played milestone 4.
 
 - **Resuming (D078, merged):** the save carries the run in progress; the game opens back into it by replaying it. If an update means it no longer replays the same, it ends at its saved wave with its Coins kept.
 - **Activity report (D077):** every run (seed, starting Workshop, each buy with its tick, a snapshot per wave) and every Workshop buy and unlock is logged to `user://number_go_up_activity.jsonl`. Home's Export report writes it to `user://reports/` and opens the folder. `tools/read_report.gd` reads and replays it.
@@ -44,7 +44,7 @@
 2a. **The enemy brainstorm:** answered and built (D082).
 2b. **The Tower's enemy list against our data:** Ranged now pays 2 Coins (D082); the speeds stay the SDK's.
 2d. **A Number with no ceiling (option b, THE_NUMBER.md 1.2):** the owner chose it for 1.0, to be measured first. It's measured, and **waiting on the owner's pick of setting**. Recommend all of Regen past Health (no ceiling): runs still end, fresh runs are unchanged, and the Number climbs about fourfold before the waves overtake it. Trade-off: careers reach wave 30 by run 21. The game still has the ceiling (`NUMBER_OVERFILL` 0) until the owner says.
-2c. **Is one ÷ every 6 minutes right?** As built, about a third of Dividers get through in the middle waves. **Recommend** judging it in play. If it's too rare, raise the Divider's share first (a single number), and watch the first-run benchmark.
+2c. **Do the Number's climb and the ÷ moments feel right?** Built as D083 decided: no ceiling, and ÷1.25 then ÷1.5. Only play answers it. The levers are `Guesses.NUMBER_OVERFILL` and `Guesses.DIVIDER`, measured with `sim_runs.gd --curve`.
 3. **Cheaper Workshop prices?** Answered: keep The Tower's (the owner, 26 September: "fair enough").
 4. **Lighter process while rebuilding.** **Recommend yes.**
 5. **AGENTS.md's architectural law 3** (the modifier pipeline) names removed code. **Recommend** dropping it until a system needs stacked rules.
@@ -57,9 +57,16 @@
 
 ## How to measure
 
+- **Ran on this branch (26 September, D083):** `bash run_tests.sh`: `PASS: tower tests (2428 checks)`. New checks cover:
+  - the overfill rule;
+  - Tier 1's divisors (÷1.25 to wave 17, ÷1.5 after, always clean);
+  - a Divider keeping the divisor of its wave;
+  - a fifth taken at ÷1.25, the Wall included.
+
+  `sim_runs.gd`: 20 seeds each for `none`, `even` and `core`, and 30-run `core` careers with `--curve` at overfill 0, ¼, ½ and 1 (with ÷2), then the gentle divisor with health 2×→4× and 4× (figures in D083 and THE_NUMBER.md 1.2). Captures inspected: a Divider walking in with its divisor under it, and the Number against its peak.
 - **Ran on this branch (26 September, D082):** `bash run_tests.sh`: `PASS: tower tests (2385 checks)`. New checks cover:
   - Dividers coming on top of The Tower's enemies without changing them, in time order, as many as their share adds up to;
-  - ÷2 through the defences, used up, unpaid, never ending a run;
+  - a Divider's share through the defences, used up, unpaid, never ending a run;
   - shots at a landed Divider being lost;
   - a killed Divider's pay;
   - the Wall halving;
