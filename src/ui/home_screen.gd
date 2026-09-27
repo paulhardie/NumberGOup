@@ -2,13 +2,15 @@ extends Control
 ## Between runs, laid out after The Tower's home (D096): Coins and the top
 ## pills, the game's name over the best Number in its light, the Coin bonus
 ## and the tier, and the Battle button, with the bar to the Workshop below.
-## Placeholders stand where the roadmap's later pieces will go (Milestones,
+## Milestones open over the screen (D107). Placeholders stand where the
+## roadmap's later pieces will go (
 ## Missions, tiers past 1, and Cards, Labs and Weapons in the bar); they are
 ## shown, locked, and do nothing. Settings (Music, Export report and the
 ## build) open over the screen.
 
 const Workshop = preload("res://src/tower/workshop.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
+const Guesses = preload("res://src/tower/guesses.gd")
 const ActivityLog = preload("res://src/tower/activity_log.gd")
 const Palette = preload("res://src/ui/palette.gd")
 const Settings = preload("res://src/settings.gd")
@@ -39,6 +41,8 @@ var _best_number: Label
 var _coin_bonus: Label
 var _best_wave: Label
 var _settings_panel: PanelContainer
+var _milestones_panel: PanelContainer
+var _milestones_list: VBoxContainer
 var _reset: Button
 ## Reset asks twice: the first press arms it, the second resets.
 var _reset_armed := false
@@ -118,8 +122,9 @@ func _ready() -> void:
 	emblem.add_child(_best_number)
 
 	var milestones := Palette.pill("Milestones", Palette.SOFT, null, 40)
-	milestones.disabled = true
-	milestones.tooltip_text = "Coming later"
+	milestones.pressed.connect(func():
+		_fill_milestones()
+		_milestones_panel.visible = true)
 	milestones.custom_minimum_size = Vector2(200, 40)
 	milestones.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	body.add_child(milestones)
@@ -149,6 +154,11 @@ func _ready() -> void:
 	higher.disabled = true
 	higher.tooltip_text = "Tier 2 comes in 1.4"
 	chooser.add_child(higher)
+	# The Tower's gate (D107): Tier 2 opens once Tier 1's wave 100 is cleared.
+	var gate := _figure(12, Palette.MUTED)
+	gate.add_theme_font_override("font", Palette.WORD_FONT)
+	gate.text = "Tier 2 opens after wave 100"
+	tier.column.add_child(gate)
 	_best_wave = _figure(13, Palette.MUTED)
 	_best_wave.add_theme_font_override("font", _mono)
 	tier.column.add_child(_best_wave)
@@ -181,6 +191,7 @@ func _ready() -> void:
 	screen.add_child(nav)
 
 	_build_settings()
+	_build_milestones()
 	refresh()
 
 
@@ -214,6 +225,91 @@ func show_exported(result: Dictionary) -> void:
 
 func show_note(text: String) -> void:
 	_note.text = text
+
+
+## Milestones, over the screen (D107): each new digit the best Number reaches
+## for the first time pays its Coins once. Reached ones are ticked, and the
+## next shows how far the best Number has come towards it.
+func _build_milestones() -> void:
+	_milestones_panel = _overlay()
+	var column: VBoxContainer = _milestones_panel.get_meta("column")
+	var head := HBoxContainer.new()
+	column.add_child(head)
+	var heading := Label.new()
+	heading.text = "Milestones"
+	heading.add_theme_font_size_override("font_size", 16)
+	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(heading)
+	var close := Palette.pill("Close", Palette.SOFT, null, 30)
+	close.pressed.connect(func(): _milestones_panel.visible = false)
+	head.add_child(close)
+	var about := Label.new()
+	about.text = "Your best Number's first new digit pays once."
+	about.add_theme_font_size_override("font_size", 12)
+	about.add_theme_color_override("font_color", Palette.MUTED)
+	column.add_child(about)
+	column.add_child(Palette.hairline())
+	_milestones_list = VBoxContainer.new()
+	_milestones_list.add_theme_constant_override("separation", 10)
+	column.add_child(_milestones_list)
+	_fill_milestones()
+
+
+func _fill_milestones() -> void:
+	for child in _milestones_list.get_children():
+		_milestones_list.remove_child(child)
+		child.queue_free()
+	var next := workshop.next_milestone()
+	for milestone in Guesses.MILESTONES:
+		var reached := workshop.best_number >= float(milestone.number)
+		var row := HBoxContainer.new()
+		_milestones_list.add_child(row)
+		var number := _figure(16, Palette.TEXT if reached or milestone == next else Palette.MUTED)
+		# Written out whole, however big: a milestone is a round number.
+		number.text = Palette.full(float(milestone.number), INF)
+		number.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		number.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		row.add_child(number)
+		var reward := _figure(13, Palette.COIN if not reached else Palette.MUTED)
+		reward.text = ("✓  " if reached else "") + "● " + Palette.money(float(milestone.coins))
+		reward.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+		row.add_child(reward)
+		if milestone == next:
+			var progress := ProgressBar.new()
+			progress.show_percentage = false
+			progress.custom_minimum_size = Vector2(0, 3)
+			progress.max_value = float(milestone.number)
+			progress.value = workshop.best_number
+			var back := StyleBoxFlat.new()
+			back.bg_color = Palette.HAIRLINE
+			var fill := StyleBoxFlat.new()
+			fill.bg_color = Palette.ACCENT
+			progress.add_theme_stylebox_override("background", back)
+			progress.add_theme_stylebox_override("fill", fill)
+			_milestones_list.add_child(progress)
+
+
+## A panel over the whole screen, shaded, with a card in the middle; its
+## column is kept as the panel's "column" meta.
+func _overlay() -> PanelContainer:
+	var panel := PanelContainer.new()
+	panel.visible = false
+	var shade := StyleBoxFlat.new()
+	shade.bg_color = Color(0, 0, 0, 0.6)
+	panel.add_theme_stylebox_override("panel", shade)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(panel)
+	var centre := CenterContainer.new()
+	panel.add_child(centre)
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", Palette.panel_box())
+	card.custom_minimum_size = Vector2(300, 0)
+	centre.add_child(card)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 12)
+	card.add_child(column)
+	panel.set_meta("column", column)
+	return panel
 
 
 ## Settings, over the screen: the music, the report, and which build this is.

@@ -1434,3 +1434,16 @@ Rules:
   - With a six-digit Number the brackets reach close to the range ring (the Number alone fills most of it already), and enemies held at the Wall stand just inside the ring there. Watch it in play.
   - The orb's trail is faint at 35%; at the slowest Orb Speed it barely shows movement.
 - **Revisit when:** the owner has seen it in a run with the Wall and orbs open.
+
+## D107 — Tier 2 after wave 100, a five-digit Number by then, and milestones that pay
+
+- **Status:** Accepted (2026-09-27) on owner direction: "yes, go with all three. Tier 2 will follow a similar difficulty jump like the tower (20x harder than tier 1 if i remember correctly)". It answers the owner's questions of what Number a player should have before Tier 2, and whether unlocks should need a best Number.
+- **Decision:**
+  1. **Tier 2 opens when Tier 1's wave 100 is cleared**, as The Tower's does. Tier 2's enemies have 20 times Tier 1's health and attack, for 1.8 times the Coins, and Tier 3 opens after Tier 2's wave 100 at 60 times and 2.6 times (TOWER_SCALING_FOUNDATION.md's research table, as a starting calibration). Built in 1.4 (D079), not before; Home's Difficulty card says "Tier 2 opens after wave 100" meanwhile.
+  2. **A pacing target, not a gate:** a player ready for Tier 2 has a best Number around five digits, 10,000–50,000. A basic enemy hits for about 400 at Tier 1's wave 100, and Tier 2's first waves for about 25–500. Tier 1 is the journey from one digit to five, and each later tier adds a digit or two. The target is how the growth rules still being tested (D097, D098) are judged. No simulated career has reached wave 100 yet: careers stall at the wave-31 boss by run 40.
+  3. **Milestones pay rewards; they never gate a system.** The Number is also health, so gating Cards, Labs or tiers on it would lock out damage builds and reward stacking Health and Regen. Systems keep The Tower's wave gates.
+     - The first time the best Number reaches 10, 100, 1,000, 10,000, 100,000 and 1,000,000, the Workshop gets 10, 50, 250, 2,500, 10,000 and 50,000 Coins, once (`Guesses.MILESTONES`, ours; The Tower's milestones are by wave and pay other currencies).
+     - They're paid as a run ends (`Workshop.finish_run`), shown on the run-over panel, and logged apart (`milestone`) so a report never counts them as earned.
+     - They're worked out from the best Number the save already keeps, so the save format is unchanged. A save whose best is already past a milestone gets nothing for it.
+     - Home's Milestones button, a placeholder since D096, now opens the list: reached ones ticked, and progress towards the next.
+- **Measured:** 40-run careers, core and spread, reach the boss and waves 21 and 30 on the same runs as without milestones. The three reached by then add 310 Coins against about 4,900 earned.

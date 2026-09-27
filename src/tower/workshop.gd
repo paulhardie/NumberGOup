@@ -5,6 +5,7 @@ extends RefCounted
 ## here; src/tower/save.gd writes it to disk.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
+const Guesses = preload("res://src/tower/guesses.gd")
 
 var coins := 0.0
 ## Row id → Workshop level. Rows not listed are at level 0.
@@ -85,11 +86,29 @@ func add_coins(amount: float) -> void:
 		coins += amount
 
 
-func finish_run(wave: int, peak_number: float = 0.0) -> void:
+## Counts a run as it ends: its wave and its peak Number against the bests.
+## A peak that takes the best Number past a milestone for the first time pays
+## that milestone's Coins (D107); the milestones reached are returned, as
+## {number, coins}, for the run's end to show and the log to keep.
+func finish_run(wave: int, peak_number: float = 0.0) -> Array[Dictionary]:
 	runs += 1
 	best_wave = maxi(best_wave, wave)
+	var reached: Array[Dictionary] = []
 	if is_finite(peak_number):
+		for milestone in Guesses.MILESTONES:
+			if best_number < float(milestone.number) and peak_number >= float(milestone.number):
+				reached.append(milestone.duplicate())
+				coins += float(milestone.coins)
 		best_number = maxf(best_number, peak_number)
+	return reached
+
+
+## The next milestone the best Number hasn't reached, or empty past the last.
+func next_milestone() -> Dictionary:
+	for milestone in Guesses.MILESTONES:
+		if best_number < float(milestone.number):
+			return milestone
+	return {}
 
 
 func to_dict() -> Dictionary:

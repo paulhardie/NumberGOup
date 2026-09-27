@@ -35,6 +35,8 @@ const MAX_TICKS_PER_FRAME := 400
 const RESUME_TICKS_PER_FRAME := 2000
 
 var sim: BattleSim
+## The milestones the run just ended reached, for its panel and the log (D107).
+var milestones: Array[Dictionary] = []
 ## Set before the screen is added; a fresh one if not.
 var workshop: Workshop
 ## The player's settings (D088), set before the screen is added; defaults if not.
@@ -176,7 +178,7 @@ func _process(delta: float) -> void:
 	_bank_coins()
 	_refresh()
 	if not sim.alive and not _over.visible:
-		workshop.finish_run(sim.wave, sim.peak_number)
+		milestones = workshop.finish_run(sim.wave, sim.peak_number)
 		run_finished.emit()
 		_show_run_over()
 
@@ -243,6 +245,8 @@ func _show_run_over() -> void:
 			Palette.amount(float(sim.gained_from.get("multiplier", 0.0)))]
 	if sim.kill_growth:
 		_over_text.text += "\nKills grew the Number by %s" % Palette.amount(float(sim.gained_from.get("kills", 0.0)))
+	for milestone in milestones:
+		_over_text.text += "\nMilestone: %s reached · +● %s" % [Palette.full(float(milestone.number), INF), Palette.money(float(milestone.coins))]
 	_over.visible = true
 
 

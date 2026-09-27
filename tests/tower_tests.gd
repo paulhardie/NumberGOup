@@ -1784,6 +1784,31 @@ func test_the_view_zooms_out_to_keep_the_range_on_screen() -> void:
 	arena.free()
 
 
+## Milestones (D107): the first time the best Number reaches each new digit,
+## the Workshop gets its Coins, once; a best already past a milestone pays
+## nothing more, and Home lists them.
+func test_milestones_pay_once_when_the_best_number_reaches_a_new_digit() -> void:
+	var workshop := Workshop.new()
+	check(workshop.finish_run(3, 9.0).is_empty() and workshop.coins == 0.0, "a best Number under 10 reaches none")
+	var first := workshop.finish_run(5, 12.0)
+	check(first.size() == 1 and float(first[0].number) == 10.0 and workshop.coins == 10.0, "reaching 10 pays its Coins: %s" % [first])
+	check(workshop.finish_run(5, 40.0).is_empty() and workshop.coins == 10.0, "and never again")
+	var jump := workshop.finish_run(20, 1500.0)
+	check(jump.size() == 2 and workshop.coins == 10.0 + 50.0 + 250.0, "a jump past two digits pays both: %s" % [jump])
+	check(float(workshop.next_milestone().number) == 10000.0, "the next is 10,000")
+	check(workshop.finish_run(1, INF).is_empty(), "a peak that isn't a number reaches nothing")
+	var home := HomeScreen.new()
+	home.workshop = workshop
+	root.add_child(home)
+	await process_frame
+	var buttons := home.find_children("*", "Button", true, false).filter(func(button): return button.text == "Milestones")
+	check(buttons.size() == 1 and not buttons[0].disabled, "Home's Milestones opens")
+	buttons[0].pressed.emit()
+	check(home._milestones_panel.visible and home._milestones_list.get_child_count() == Guesses.MILESTONES.size() + 1, "listing every milestone, with progress to the next")
+	home.queue_free()
+	await process_frame
+
+
 func test_numbers_read_as_the_towers() -> void:
 	check(Palette.number(2.35) == "2.35", "two decimals while small")
 	check(Palette.number(3.0) == "3", "whole numbers stay whole")
@@ -1795,6 +1820,7 @@ func test_numbers_read_as_the_towers() -> void:
 	check(Palette.full(1460.0) == "1,460" and Palette.full(999999.4) == "999,999", "and in full, with commas, up to 999,999")
 	check(Palette.full(12345.9) == "12,345" and Palette.full(-5000.0) == "-5,000", "whole, never rounded up past what it is")
 	check(Palette.full(1e6) == "1.00M" and Palette.full(7.42e8) == "742.00M", "shortening only from a million")
+	check(Palette.full(1e6, INF) == "1,000,000", "or never, when asked, as a milestone is")
 
 
 ## An enemy shows what it does to the Number (D085, D102), with the damage
@@ -2001,7 +2027,7 @@ func test_the_bottom_bar_and_placeholders() -> void:
 	home.workshop_pressed.connect(func(): went[0] = "workshop")
 	bar.buttons["workshop"].pressed.emit()
 	check(went[0] == "workshop", "the bar takes Home to the Workshop")
-	for name in ["Missions", "Milestones", "‹", "›"]:
+	for name in ["Missions", "‹", "›"]:
 		var found := home.find_children("*", "Button", true, false).filter(func(button): return button.text == name)
 		check(found.size() == 1 and found[0].disabled, "%s stands locked" % name)
 	home.queue_free()
