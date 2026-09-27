@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session made a design canvas for the owner, "Number Go Up — Design System" (https://claude.ai/artifact/SxFKJQVDmbjVsAqGmnDRDW): the game's type voices, colour roles, the Number's states, the crowd, proposed elites, assets as maths notation and sketches of the Ultimate Weapons. On the owner's word it built two of its proposals: orbs drawn as 0 and the Wall as brackets round the Number (D105). The session before read the first activity reports and built D094–D104.
+**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports, moved the Divider into The Tower's Protector slot (D094), restyled the battle screen to the owner's main-screen design (D095), carried it to Home and the Workshop (D096), measured where the Number's growth comes from (THE_NUMBER.md 5.2b), built the Multiplier as a switch to test, with free Coins and a reset for testing (D097), added two more switches, regen stopping at the Number's best and kills growing it (D098), made each new digit a moment (D099), wrote the Number out in full below a million (D100), made the view zoom out as Range grows (D101), made enemies show what they do to the Number, dropping the hitbox prototype (D102), gave the Number and enemies motion with weight (D103), split the arena's drawing into three files, tamed orbs (D104), moved the Wall, orbs, shockwaves and mines out of the battle simulation, and took the decimal points off money and damage (D105).
 
-**Branch:** `claude/notation-orb-wall`, from `main` after #90 merged (D102–D104). It carries D105 only. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #90 (D102–D104) merged. It carries the defences split and D105 (no decimal points on money and damage); not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -57,8 +57,9 @@
 1. **Owner:** play runs with Settings → Testing's switches in a few combinations (none; regen at best and kills; all three), using free Coins or a reset to try different stages. Done when the owner says which to keep.
 1a. **Owner:** sign off 1.0 or name what's missing (decision 2).
 2. **Agent, on the owner's word:** tune the Divider's health with `sim_runs.gd --careers 40 --buy core --divider-health N` if play says so. Then raise `application/config/version` to 1.0 when the owner signs it off. `--careers` always plays the same seeds (run N is seed N), so a second career needs a seed option first.
+2a. **Owner:** send [`design/GAME_STAGE_BRIEF.md`](design/GAME_STAGE_BRIEF.md) to Claude Design with its screenshots (`capture_battle.gd` makes them), and choose from what comes back. **Agent, then:** record the choices as the next D-number and build them in `arena_view.gd`, `arena_effects.gd` and `number_motion.gd`; drawing only. Done when the owner has played the new stage.
 3. **Owner:** try the web build on a phone. The light's shader, the music and the portrait layout have never run there.
-4. **Then Cards (1.1).** `src/ui/arena_view.gd` is split (27 September): the battle's drawing stays there (401 lines), what fades around it is `arena_effects.gd` and the Number's motion and light `number_motion.gd`. Before Cards, consider moving the later Workshop mechanics (Wall, Mines, Orbs, Shockwave) out of `battle_sim.gd` (974 lines), per AGENTS.md's law 7.
+4. **Then Cards (1.1).** The two splits before them are done: the arena's drawing is three files (`arena_view.gd`, `arena_effects.gd`, `number_motion.gd`), and the Wall, orbs, shockwaves and land mines live in `src/tower/battle_defences.gd`, out of `battle_sim.gd` (now 850 lines).
 
 ## How to measure
 
@@ -66,6 +67,8 @@
 - **The session before (27 September):**
   - `read_report.gd` on the owner's latest report: runs 20 and 21, recorded on `af32bb6`, **match** on replay. The others were recorded on older commits.
   - The report figures above come from the four exported reports, with runs deduplicated by time and seed.
+  - D105: `bash run_tests.sh` passes (2811 checks); captures of a crowd, a battle and the Workshop checked by eye.
+  - The defences split: `bash run_tests.sh` passes (2810 checks). Ordinary runs, a 40-run career and eight runs with every defence open print identically to `main`, RNG states included.
   - D104: `bash run_tests.sh` passes (2810 checks). Orbs measured at four speeds on a 40-run core career's Workshop (20 seeds each; table in D104). Fresh runs unchanged.
   - The arena split: `bash run_tests.sh` passes (2808 checks, as before). Every `capture_battle.gd` screen captured before and after and compared pixel by pixel: the differences match those between two runs of the same code (chips scatter at random), so nothing visible changed.
   - D103: `bash run_tests.sh` passes (2808 checks). Five seconds of live battle were recorded frame by frame from a scratch script (not committed) and looked at: the Number stays anchored as it climbs.

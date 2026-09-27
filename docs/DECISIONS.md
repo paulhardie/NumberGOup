@@ -1408,16 +1408,15 @@ Rules:
   - Fresh runs are untouched (buying nothing 3, spreading Cash 8, core 8), since orbs open at 15,000 Coins, around run 100.
 - **What it leaves:** orbs now grow with what's spent on them, from barely there to the full wall of fully upgraded orbs, instead of being a switch that ends the regular enemies. Fully upgraded, runs still end at the boss orbs can't touch (wave 61 here).
 
-## D105 — Orbs are drawn as 0, and the Wall as brackets round the Number
+## D105 — No decimal points on money and damage
 
-- **Status:** Accepted (2026-09-27) on owner direction: "build the orb 0 and wall brackets", from the design canvas "Number Go Up — Design System" (https://claude.ai/artifact/SxFKJQVDmbjVsAqGmnDRDW, private to the owner), board "Assets as notation". Its idea: the tower's own things are drawn from maths notation rather than dots and rings. The canvas's other proposals (a heavier Number as digits arrive, elites in one blue with a typeface each, crits as a double streak, chips as dots, mines as ×, Thorns and Lifesteal floats, the Ultimate Weapons sketches) are not decided.
-- **Decision** (drawing only; no rule, number or save changes):
-  - **An orb is a mint 0**, since it sets what it touches to zero: Geist Mono 500 at 16 pt in the shots' colour on the range's edge, with a 28 pt arc of trail fading behind it. It stays upright as it turns. An enemy an orb kills pops as "0" rather than its own number.
-  - **The Wall is a pair of brackets round the Number**, since brackets are worked out first and the Wall is hit first: Geist 100, 1.1 times the Number's size, 4 pt clear of its digits, brighter the more of its health is left (25% to 75% white, as the ring was). They hold still while the Number is nudged and shaken.
-  - **When the Wall falls** its brackets tip outward and drop in the warning colour over 0.7 s; rebuilt, they slide back in over 0.4 s. The "Wall down" and "Wall rebuilt" notes stay.
-  - **Enemies held at the Wall stand clear of the brackets**, not in them, and the hit float beside the Number starts outside them. Once it falls, enemies come in to the digits as before.
-- **Built:** the sim's kill event now says what killed it (`"by": "orb"`), which the pop reads; nothing else in the battle changed. `ArenaView._draw_wall` and `_draw_orbs`; `ArenaEffects` times the Wall's fall and rise. `capture_battle.gd` also shoots the Wall falling (`battle_wall_down`).
-- **Consequences:**
-  - With a six-digit Number the brackets reach close to the range ring (the Number alone fills most of it already), and enemies held at the Wall stand just inside the ring there. Watch it in play.
-  - The orb's trail is faint at 35%; at the slowest Orb Speed it barely shows movement.
-- **Revisit when:** the owner has seen it in a run with the Wall and orbs open.
+- **Status:** Accepted (2026-09-27) on owner direction: "Can we also remove the decimal point for in run cash or any enemy damage etc to keep it cleaner looking".
+- **Decision:**
+  - Written whole, in full with commas up to 999,999 (like the Number, D100), shortening only from a million:
+    - **Money:** Cash, Coins, kill payouts, the free-Coins pills, and Cash and Coins earned. Rounded down, so it never shows more than there is (`Palette.money`).
+    - **Prices:** Cash and Coin prices and Unlock cards. Rounded up, so a price never looks affordable when it isn't.
+    - **Damage and amounts:** enemies' hits ("−2", "−14"), the damage dealt under an enemy, the floats of hits, ÷ losses and × gains, the readout's enemy Attack and Health, and the run-over panel's losses and gains. Rounded to the nearest, but anything that happened never reads 0 (`Palette.amount`).
+    - A frame's growth from kills (D098) shows only once it's worth at least half of one; smaller, the Number's roll shows it.
+  - **Kept as they were:** rates and percentages, where a whole number would lose the meaning: Attack Speed "1.50", Critical Chance "1.00%", "×1.20", Regen "+0.15/s", the Workshop's row values, and the ÷ and × operators ("÷1.25", "×1.1").
+  - `Palette.short`, which only served the enemies' one-decimal numbers, is gone.
+- **Trade-off:** a hit smaller than half a point now reads "−1", the nearest honest whole number, rather than "−0.3". That shows most in the first waves.

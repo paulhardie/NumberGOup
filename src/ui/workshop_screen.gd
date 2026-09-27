@@ -136,7 +136,7 @@ func _next_amount() -> void:
 
 
 func refresh() -> void:
-	_coins.text = Palette.number(workshop.coins)
+	_coins.text = Palette.money(workshop.coins)
 	_amount_button.text = "buy max" if _amount == 0 else "buy ×%d" % _amount
 	for card in _cards:
 		card.refresh.call()
@@ -196,7 +196,7 @@ func _unlock_card(group: String) -> Button:
 	unlock.add_theme_font_size_override("font_size", 18)
 	unlock.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	unlock.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	unlock.text = "Unlock  ● " + Palette.number(TowerData.group_price(group))
+	unlock.text = "Unlock  ● " + Palette.money(TowerData.group_price(group), true)
 	column.add_child(unlock)
 	button.pressed.connect(func():
 		var coins_before := workshop.coins
