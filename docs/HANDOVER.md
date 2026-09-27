@@ -2,7 +2,7 @@
 
 **Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports, cleaned up the docs, and moved the Divider into The Tower's Protector slot (D094).
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #82 (the reports and cleanup) merged. It carries the owner's wave-31 run in the docs and D094: the Divider now replaces a basic, at most once a wave. Open as [PR #83](https://github.com/paulhardie/NumberGOup/pull/83), not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #83 (the owner's wave-31 run) merged. It carries D094: the Divider now replaces a basic, at most once a wave. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
