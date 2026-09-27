@@ -136,7 +136,7 @@ Every Workshop row needs a line on what it now does. Most are unchanged in meani
 - **4.1 The Number sits in the middle, in place of the hexagon,** big, in Geist Mono, whole and rounded up.
   - Its size must fit from "5" to "1.23M" without jumping about. The suffixes start at 1,000 as they do now; the full digits up to 99,999 may read better in the centre. To be decided on a screenshot.
 - **4.2 (Superseded, D083 and D084: no ceiling and no ring; the Number stands alone.)** Health (the ceiling) shows small beneath it, or as a ring around it that empties. **Recommend a ring:** it reads at a glance without a second big number.
-- **4.3 Every contact shows its operator** as floating text at the Number: "−3", "÷2", "−10%". A ÷ gets the biggest moment (a flash and a short shake), because it's the identity beat. Reduced motion turns the shake off.
+- **4.3 Every contact shows its operator** as floating text at the Number: "−3", "÷2", "−10%". A ÷ gets the biggest moment (a flash and a short shake), because it's the identity beat. (No reduced-motion option: D093.)
 - **4.4 The Number animates to its new value** (counting, not jumping) over a fraction of a second, fast enough never to lie about the real value when it matters.
 - **4.5 The enemy's collision point is the tower's edge (3 m),** not the Number's text, which grows as digits are added.
 - **4.6 Colour:** the Number turns warning-coloured when low, and has its own tint when overhealed past Health.
@@ -161,6 +161,12 @@ If operator enemies move these, their share or divisor is tuned, not The Tower's
 - **Operators kill honestly.** A ÷ never ends a run alone (by design). Flat hits end most runs, as in The Tower. What ended each run is recorded and counted.
 - **No row becomes useless (D001's test).** For each operator, buying more Health or Defense must still lengthen runs. Measure the waves gained per 1,000 Coins on each Defense row with and without operators.
 - **No row becomes compulsory.** Orbs and the like help against operators, but a run without them still reaches the same benchmark waves.
+
+**5.2a What the owner's runs show** (reports of 26–27 September: 12 runs with the Number, on a Workshop of 37 runs):
+- **The Number goes up: met.** Its median at the end of waves 1, 5, 10, 15 and 19 is 16, 27, 40, 156 and 332. It dips at boss waves (wave 10 below wave 9, wave 20 below 19).
+- **Divide moments are rarer than the target.** From wave 5, 0.73 Dividers came a minute and 0.31 landed: about one ÷ every three minutes, against "roughly one a minute". The owner's builds kill more of them (16 of 38 landed, 42%) than `sim_runs.gd`'s did (59%). The levers are `Guesses.DIVIDER`'s share and health.
+- **Operators kill honestly: met.** No run ended on a ÷. Basic enemies ended 5, bosses 3, ranged 2, tank and fast 1 each. Of the Number lost, basic took 36%, ranged 24%, bosses 18%, Dividers 16%.
+- **The wave-10 boss wall holds** in 9 of the 12, as The Tower's design intends. Coins per run fit The Tower (the spec's [Benchmarks](REBUILD_SPEC.md#benchmarks)).
 
 **5.3 Tools.** Nothing ships on feel alone.
 - `tools/sim_runs.gd` gains columns for the peak Number, the Number by wave, losses by operator and deaths by cause.
