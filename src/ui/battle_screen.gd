@@ -19,6 +19,8 @@ const ActivityLog = preload("res://src/tower/activity_log.gd")
 ## The run is over and its record is in the Workshop, so the game can save.
 signal run_finished
 signal home_pressed
+## The Number reached a new digit (D099), for the music's chime.
+signal digit_reached(power: int)
 ## A saved run couldn't be brought back: its record is damaged ("damaged"),
 ## or the game changed so its replay no longer ends where it was left
 ## ("changed").
@@ -261,6 +263,7 @@ func _build() -> void:
 	add_child(column)
 
 	_arena = ArenaView.new()
+	_arena.digit_reached.connect(func(power: int): digit_reached.emit(power))
 	_arena.clip_contents = true
 	_arena.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_arena.custom_minimum_size = Vector2(0, 320)

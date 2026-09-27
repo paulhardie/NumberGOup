@@ -1768,6 +1768,66 @@ func test_an_enemy_shows_one_number() -> void:
 
 
 ## The light behind the Number (D087) flares for a ÷ and fades back to white.
+## A new digit (D099) is a moment the first time a run reaches it: 10, 100,
+## 1K. Falling back and climbing past it again isn't; a new or resumed run
+## starts from where its Number stands.
+func test_a_new_digit_is_a_moment_once_a_run() -> void:
+	check(ArenaView.power_of(9.4) == 0 and ArenaView.power_of(9.6) == 1 and ArenaView.power_of(100.0) == 2, "9 has no noughts; 10 (shown whole) has one; 100 two")
+	check(ArenaView.power_of(999.0) == 2 and ArenaView.power_of(1000.0) == 3 and ArenaView.power_of(1e15) == 15, "and on, however big")
+	var arena := ArenaView.new()
+	var reached: Array[int] = []
+	arena.digit_reached.connect(func(power: int): reached.append(power))
+	var sim := _quiet_sim()
+	sim.peak_number = 8.0
+	arena.sim = sim
+	arena.absorb([], 0.0)
+	check(reached.is_empty(), "a run starts from where its Number stands")
+	sim.peak_number = 12.0
+	arena.absorb([], 0.1)
+	check(reached == [1] and arena._digit_left > 0.0 and arena._flare.get("colour") == Palette.NUMBER, "reaching 10 is a moment: the light flares white: %s" % [reached])
+	arena.absorb([], ArenaView.DIGIT_SECONDS)
+	check(arena._digit_left == 0.0, "which passes")
+	sim.peak_number = 1200.0
+	arena.absorb([], 0.1)
+	check(reached == [1, 3], "a jump past two digits at once is one moment, for the new one: %s" % [reached])
+	arena.absorb([], 0.1)
+	check(reached == [1, 3], "and it doesn't repeat")
+	var resumed := _quiet_sim()
+	resumed.peak_number = 5000.0
+	arena.sim = resumed
+	arena.absorb([], 0.1)
+	check(reached == [1, 3], "a resumed or new run doesn't celebrate what it already had")
+	arena.free()
+
+	var music := AmbientMusic.new()
+	root.add_child(music)
+	await process_frame
+	await process_frame
+	var before := music._voices.size()
+	music.chime()
+	await create_timer(AmbientMusic.CHIME_GAP_SECONDS * AmbientMusic.CHIME_NOTES + 0.1).timeout
+	check(music._voices.size() >= before + AmbientMusic.CHIME_NOTES, "the music chimes a run of notes: %d → %d" % [before, music._voices.size()])
+	music.set_playing(false)
+	music.chime()
+	await create_timer(AmbientMusic.CHIME_GAP_SECONDS * AmbientMusic.CHIME_NOTES + 0.1).timeout
+	check(music._voices.is_empty(), "and stays silent while the music is off")
+	music.queue_free()
+	await process_frame
+
+	var game = _game()
+	await process_frame
+	game._show_battle()
+	await process_frame
+	game.music.set_playing(true)
+	var voices: int = game.music._voices.size()
+	game._screen.digit_reached.emit(2)
+	await create_timer(AmbientMusic.CHIME_GAP_SECONDS * AmbientMusic.CHIME_NOTES + 0.1).timeout
+	check(game.music._voices.size() > voices, "a battle's new digit reaches the music")
+	game.free()
+	_clear_test_saves()
+	_clear_test_logs()
+
+
 func test_the_light_behind_the_number_flares_and_fades() -> void:
 	var arena := ArenaView.new()
 	var divider := BattleSim.Enemy.new()

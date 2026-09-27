@@ -9,6 +9,10 @@ const Guesses = preload("res://src/tower/guesses.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Palette = preload("res://src/ui/palette.gd")
 
+## The Number reached a new digit this run (D099): 10, 100, 1K and on. `power`
+## is how many noughts, 1 for 10.
+signal digit_reached(power: int)
+
 ## The range circle's radius as a share of half the view's width, as on The
 ## Tower's screen (292 px of 460 in the owner's screenshots).
 const RANGE_SHARE := 0.64
@@ -39,6 +43,12 @@ const RANGED_SHOT_SECONDS := 0.2
 ## breathes over this many seconds, and a ÷ flaring it violet, this much
 ## stronger, fading over DIVIDE_FLARE_SECONDS.
 const GLOW_BREATH_SECONDS := 5.5
+## A new digit (D099): the light flares white this much stronger, a ring
+## spreads from the Number to near the range's edge, and the Number swells by
+## DIGIT_SWELL and settles, all over DIGIT_SECONDS.
+const DIGIT_FLARE := 2.0
+const DIGIT_SECONDS := 1.4
+const DIGIT_SWELL := 0.14
 ## A ÷ flares the light violet, this much stronger, fading over this long.
 const DIVIDE_FLARE := 1.5
 const DIVIDE_FLARE_SECONDS := 0.8
@@ -110,6 +120,11 @@ var _divide_cut := _cut(Palette.DIVIDER_FONT, LOOKS.divider.axes)
 ## seconds, left}, or empty.
 var _glow := ColorRect.new()
 var _flare := {}
+## The run whose digits are being watched, the most it has reached, and the
+## seconds left of a new digit's moment.
+var _watched: BattleSim
+var _best_power := 0
+var _digit_left := 0.0
 var _glow_time := 0.0
 ## Half the Number's drawn width and height this frame: the box enemies at
 ## the tower stand clear of, and floats start from.
@@ -162,6 +177,8 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 		if _flare.left <= 0.0:
 			_flare = {}
 	_divide_left = maxf(0.0, _divide_left - delta)
+	_digit_left = maxf(0.0, _digit_left - delta)
+	_watch_digits()
 	_shockwave_age += delta
 	for blast in _blasts:
 		blast.age += delta
@@ -247,6 +264,33 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 			"font": _hit_cut})
 
 
+## A new digit is a moment only the first time a run reaches it: a Number
+## knocked back below 100 and climbing past it again has done that already.
+## A new run, or one resumed, starts from where its Number already stands.
+func _watch_digits() -> void:
+	if sim == null:
+		return
+	if sim != _watched:
+		_watched = sim
+		_best_power = power_of(sim.peak_number)
+		_digit_left = 0.0
+		return
+	var power := power_of(sim.peak_number)
+	if power > _best_power:
+		_best_power = power
+		_digit_left = DIGIT_SECONDS
+		flare(Palette.NUMBER, DIGIT_FLARE, DIGIT_SECONDS)
+		digit_reached.emit(power)
+
+
+## How many noughts a Number has as it's shown whole: 1 for 10 to 99.
+static func power_of(value: float) -> int:
+	var whole := roundf(value)
+	if whole < 1.0:
+		return 0
+	return int(floorf(log(whole) / log(10.0) + 1e-9))
+
+
 ## Flares the light behind the Number: `colour`, `strength` stronger, easing
 ## back to white over `seconds`. A ÷ uses it; anything else that should light
 ## the Number (a hit, an Ultimate Weapon) can too. A new flare replaces one
@@ -283,6 +327,13 @@ func _draw() -> void:
 		return
 	var reach_px := sim.stat("range") * px_per_metre()
 	_light_glow()
+	if _digit_left > 0.0:
+		# The new digit's ring: out from the Number towards the range's edge,
+		# fading as it goes.
+		var spread := 1.0 - _digit_left / DIGIT_SECONDS
+		var from := _number_half.length()
+		var eased := 1.0 - pow(1.0 - spread, 3.0)
+		draw_arc(centre, lerpf(from, reach_px * 0.95, eased), 0.0, TAU, 128, Color(Palette.NUMBER, 0.5 * (1.0 - spread)), 1.5, true)
 	draw_arc(centre, reach_px, 0.0, TAU, 128, RANGE_LINE, 1.0, true)
 	if _shockwave_age < SHOCKWAVE_SECONDS:
 		# The ring runs out to the edge of range and fades as it goes.
@@ -360,11 +411,16 @@ func _draw_tower(number: Dictionary) -> void:
 		shake = Vector2(sin(_divide_left * 90.0), cos(_divide_left * 70.0)) * SHAKE_PX * strength
 	var at := centre + shake
 	var font_size: int = number.size
+	# A new digit swells the Number at once, and it eases back as the moment passes.
+	var swell := 1.0 + DIGIT_SWELL * pow(_digit_left / DIGIT_SECONDS, 2.0)
+	draw_set_transform(at, 0.0, Vector2(swell, swell))
+	at = Vector2.ZERO
 	var baseline := at + Vector2(-number.width * 0.5, font_size * 0.35)
 	# The design's text-shadow, faked with wide faint outlines rather than a blur.
 	for glow in [[22, 0.025], [12, 0.04], [5, 0.06]]:
 		draw_string_outline(_number_cut, baseline, number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, glow[0], Color(1.0, 0.98, 0.94, glow[1]))
 	draw_string(_number_cut, baseline, number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Palette.NUMBER)
+	draw_set_transform(Vector2.ZERO)
 
 
 ## Sets the light behind the Number for this frame: breathing slowly, tinted

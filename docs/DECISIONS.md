@@ -1315,3 +1315,17 @@ Rules:
   - The boss falls on run 11 (The Tower's is 10–13), and wave 30 comes four runs later than without.
 - **Consequences:** Settings → Testing has three switches. None ships as it is. The owner plays combinations and says which to keep.
 - **Revisit when:** the owner has played them.
+
+## D099 — A new digit is a moment
+
+- **Status:** Accepted (2026-09-27) on owner direction: "merged, add the new digit moments". From the brainstorm reviewed alongside D098: reaching a new digit, 9 → 10 or 99 → 100, "deserves a distinct visual and musical moment" without any boost to the battle.
+- **Decision:**
+  - The first time in a run that the Number, shown whole, reaches a new digit (10, 100, 1K, 10K and on), three things happen over 1.4 s:
+    - the light flares white, twice as strong;
+    - a thin ring spreads from the Number to near the range's edge, fading;
+    - the Number swells 14% at once and eases back.
+  - The music plays a rising run of three glassy notes from the chord sounding then, struck rather than swelled, a little louder than the lone glassy notes. It stays silent while music is off.
+  - It counts the run's peak, so falling back below 100 and climbing past it again is no second moment. A jump past two digits at once is one moment. A new run, or one resumed, starts from where its Number stands.
+  - Drawing and sound only (`arena_view.gd`, `ambient_music.gd`, wired through `battle_screen.gd` and `main.gd`). The battle is unchanged, and nothing is saved.
+- **Consequences:** `capture_battle.gd` shoots the moment (`battle_new_digit`).
+- **Revisit when:** the owner has seen and heard it, or digits come so often in later tiers that they need thinning.
