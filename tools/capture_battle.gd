@@ -75,6 +75,14 @@ func _capture() -> void:
 	showcase._arena.queue_redraw()
 	await _frames()
 	_save_png("battle_strong")
+	# The Wall falling (D106): its brackets tipping away, part way down.
+	showcase.sim.defences.wall_health = 0.0
+	showcase.sim.defences.wall_rebuild_in = showcase.sim.stat("wall_rebuild")
+	showcase._arena.absorb([{"type": "wall_down"}], 0.0)
+	showcase._arena.absorb([], showcase._arena.WALL_FALL_SECONDS * 0.35)
+	showcase._arena.queue_redraw()
+	await _frames()
+	_save_png("battle_wall_down")
 	showcase.queue_free()
 	await process_frame
 

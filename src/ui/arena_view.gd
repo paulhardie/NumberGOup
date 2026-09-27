@@ -1,8 +1,8 @@
 extends Control
 ## Draws a BattleSim: the Number in the centre (the tower, D080), its range
-## and wall, enemies walking in, shots in flight, land mines and orbs. What
-## fades around them lives in ArenaEffects, and how the Number moves and its
-## light in NumberMotion. It reads the sim and never changes it.
+## and the Wall's brackets, enemies walking in, shots in flight, land mines
+## and orbs. What fades around them lives in ArenaEffects, and how the Number
+## moves and its light in NumberMotion. It reads the sim and never changes it.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 const Guesses = preload("res://src/tower/guesses.gd")
@@ -39,6 +39,21 @@ const CONTACT_GAP_PX := 3.0
 ## A shot's trail in points, longer on a critical (D090).
 const TRAIL_PX := 9.0
 const CRIT_TRAIL_PX := 15.0
+## The game's own things are drawn as notation (D106). An orb is a 0, since it
+## sets what it touches to zero: ORB_PX tall in the shots' mint, with an arc of
+## trail ORB_TRAIL_PX long behind it round the range.
+const ORB_PX := 16
+const ORB_TRAIL_PX := 28.0
+const ORB_TRAIL_ALPHA := 0.35
+## The Wall is a pair of brackets round the Number, since brackets are worked
+## out first and the Wall is hit first: BRACKET_SCALE times the Number's size,
+## in Geist at its thinnest, WALL_GAP_PX clear of its digits. When it falls
+## they tip outward and drop in the warning colour over WALL_FALL_SECONDS;
+## rebuilt, they slide back in over WALL_RISE_SECONDS.
+const BRACKET_SCALE := 1.1
+const WALL_GAP_PX := 4.0
+const WALL_FALL_SECONDS := 0.7
+const WALL_RISE_SECONDS := 0.4
 
 ## How each enemy type is drawn (D085): its cut of the crowd's typeface
 ## (Anybody's width and weight; the Divider has Fraunces to itself), its size
@@ -74,6 +89,7 @@ var _number_cut := _cut(Palette.WORD_FONT, {"wght": 200})
 var mono_cut := _cut(Palette.NUMBER_FONT, {"wght": 500})
 var hit_cut := _cut(Palette.NUMBER_FONT, {"wght": 400})
 var divide_cut := _cut(Palette.DIVIDER_FONT, LOOKS.divider.axes)
+var _bracket_cut := _cut(Palette.WORD_FONT, {"wght": 100})
 ## The light behind the Number, drawn by its shader.
 var _glow := ColorRect.new()
 ## How the Number moves and its light behaves, and what fades around the battle.
@@ -85,6 +101,11 @@ var _zoom := 0.0
 ## Half the Number's drawn width and height this frame: the box enemies at
 ## the tower stand clear of, and floats start from.
 var _number_half := Vector2.ZERO
+## The box enemies at the tower stand clear of: the Number's, widened to take
+## in the Wall's brackets while it stands.
+var _clear_half := Vector2.ZERO
+## The brackets' size in points this frame.
+var _bracket_px := 0
 
 
 func _init() -> void:
@@ -167,10 +188,16 @@ func float_start(item: Dictionary) -> Vector2:
 		"above":
 			return centre + Vector2(0, -_number_half.y - 8.0)
 		"beside":
-			return centre + Vector2(_number_half.x + 48.0, -_number_half.y * 0.55)
+			return centre + Vector2(_float_side(), -_number_half.y * 0.55)
 		"growing":
-			return centre + Vector2(-_number_half.x - 48.0, -_number_half.y * 0.55)
+			return centre + Vector2(-_float_side(), -_number_half.y * 0.55)
 	return to_view(item.at)
+
+
+## How far out beside the Number a float starts: clear of its digits, and of
+## the Wall's brackets while they stand.
+func _float_side() -> float:
+	return maxf(_number_half.x + 48.0, _clear_half.x + 16.0)
 
 
 func _draw() -> void:
@@ -191,19 +218,12 @@ func _draw() -> void:
 		draw_circle(to_view(mine), 3.0, Palette.WARNING)
 	effects.draw_blasts(sim.stat("land_mine_radius") * px_per_metre())
 	var number := _number_layout()
-	if sim.defences.wall_up():
-		# Brighter the more of its health it has left. Drawn clear of a large
-		# Number rather than through its digits, as the enemies stopped at it are.
-		var standing := sim.defences.wall_health / maxf(sim.defences.wall_max_health(), 0.001)
-		var wall_px := maxf(Guesses.WALL_DISTANCE_M * px_per_metre(), _number_half.length() + 6.0)
-		draw_arc(centre, wall_px, 0.0, TAU, 64, Color(Palette.TEXT, 0.25 + 0.5 * standing), 3.0, true)
+	_draw_wall()
 	effects.draw_ranged_shots(_number_half)
 	for enemy in sim.enemies:
 		_draw_enemy(enemy)
 	effects.draw_pops()
-	var orb_radius_px := sim.defences.orb_radius() * px_per_metre()
-	for angle in sim.defences.orb_angles():
-		draw_circle(centre + Vector2.from_angle(angle) * orb_radius_px, 5.0, Palette.ACCENT)
+	_draw_orbs()
 	for shot in sim.shots:
 		_draw_shot(shot)
 	effects.draw_chips()
@@ -226,6 +246,12 @@ func _number_layout() -> Dictionary:
 	var width := _number_cut.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
 	# Digits stand about 0.7 of the font size tall.
 	_number_half = Vector2(width * 0.5, font_size * 0.35) * scale
+	_bracket_px = maxi(1, roundi(float(font_size) * scale * BRACKET_SCALE))
+	_clear_half = _number_half
+	if sim.defences.wall_up():
+		# Enemies held at the Wall stand clear of its brackets, not in them.
+		var bracket := _bracket_cut.get_string_size("(", HORIZONTAL_ALIGNMENT_LEFT, -1, _bracket_px).x
+		_clear_half = Vector2(_number_half.x + WALL_GAP_PX + bracket, maxf(_number_half.y, _bracket_px * 0.5))
 	return {"text": text, "size": font_size, "width": width, "scale": scale}
 
 
@@ -254,6 +280,62 @@ func _draw_tower(number: Dictionary) -> void:
 		draw_string_outline(_number_cut, baseline, number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, glow[0], Color(1.0, 0.98, 0.94, glow[1]))
 	draw_string(_number_cut, baseline, number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Palette.NUMBER)
 	draw_set_transform(Vector2.ZERO)
+
+
+## The Wall as brackets round the Number (D106), brighter the more of its
+## health it has left. They hold still while the Number is nudged and shaken,
+## as a wall would. Falling, they tip outward and drop in the warning colour;
+## rebuilt, they slide back in.
+func _draw_wall() -> void:
+	var since: float = effects.wall_changed_age
+	var falling: bool = not sim.defences.wall_up() and effects.wall_fell and since < WALL_FALL_SECONDS
+	if not sim.defences.wall_up() and not falling:
+		return
+	var standing: float = sim.defences.wall_health / maxf(sim.defences.wall_max_health(), 0.001)
+	var colour := Color(Palette.TEXT, 0.25 + 0.5 * standing)
+	var out := 0.0
+	var tip := 0.0
+	var drop := 0.0
+	if falling:
+		var done := since / WALL_FALL_SECONDS
+		colour = Color(Palette.WARNING, 0.6 * (1.0 - done))
+		out = 10.0 * done
+		tip = 0.5 * done
+		drop = 28.0 * done * done
+	elif not effects.wall_fell and since < WALL_RISE_SECONDS:
+		var done := since / WALL_RISE_SECONDS
+		colour.a *= done
+		out = 12.0 * (1.0 - done)
+	for side in [-1.0, 1.0]:
+		var glyph := "(" if side < 0.0 else ")"
+		var width := _bracket_cut.get_string_size(glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, _bracket_px).x
+		var middle := centre + Vector2(side * (_number_half.x + WALL_GAP_PX + out + width * 0.5), drop)
+		draw_set_transform(middle, side * tip, Vector2.ONE)
+		# A bracket's middle sits about 0.3 of its size above the baseline.
+		draw_string(_bracket_cut, Vector2(-width * 0.5, _bracket_px * 0.3), glyph, HORIZONTAL_ALIGNMENT_LEFT, -1, _bracket_px, colour)
+	draw_set_transform(Vector2.ZERO)
+
+
+## Orbs as a mint 0 each on the range's edge (D106), with a short arc of trail
+## fading behind as they turn.
+func _draw_orbs() -> void:
+	var radius_px: float = sim.defences.orb_radius() * px_per_metre()
+	if radius_px <= 0.0:
+		return
+	var zero := mono_cut.get_string_size("0", HORIZONTAL_ALIGNMENT_LEFT, -1, ORB_PX)
+	# The trail stops short of the 0 rather than running through it.
+	var gap: float = zero.x * 0.7 / radius_px
+	var span: float = ORB_TRAIL_PX / radius_px
+	for angle in sim.defences.orb_angles():
+		var points := PackedVector2Array()
+		var colours := PackedColorArray()
+		for step in range(9):
+			var along := step / 8.0
+			points.append(centre + Vector2.from_angle(angle - gap - span * (1.0 - along)) * radius_px)
+			colours.append(Color(Palette.ACCENT, ORB_TRAIL_ALPHA * along))
+		draw_polyline_colors(points, colours, 1.2, true)
+		var at: Vector2 = centre + Vector2.from_angle(angle) * radius_px
+		draw_string(mono_cut, at + Vector2(-zero.x * 0.5, ORB_PX * 0.35), "0", HORIZONTAL_ALIGNMENT_LEFT, -1, ORB_PX, Palette.ACCENT)
 
 
 ## Sets the light behind the Number for this frame, as NumberMotion has it.
@@ -343,10 +425,11 @@ func enemy_half(kind: String, text: String) -> Vector2:
 
 
 ## Where an enemy is drawn: where it stands, or, at the tower, just clear of
-## the Number's digits on its own side.
+## the Number's digits on its own side, and of the Wall's brackets while it
+## stands.
 func enemy_at(angle: float, distance_m: float, half: Vector2) -> Vector2:
 	var toward := Vector2.from_angle(angle)
-	var clear := _number_half + half + Vector2(CONTACT_GAP_PX, CONTACT_GAP_PX)
+	var clear := _clear_half + half + Vector2(CONTACT_GAP_PX, CONTACT_GAP_PX)
 	# The nearest it can come along its line without the two boxes touching.
 	var nearest := INF
 	if absf(toward.x) > 0.001:

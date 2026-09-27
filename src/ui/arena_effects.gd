@@ -66,6 +66,10 @@ var eased := {}
 var recoil := {}
 ## Ranged enemies' shots at the Number: {enemy, age}.
 var ranged_shots: Array[Dictionary] = []
+## Seconds since the Wall last fell or was rebuilt, and whether it fell, so
+## its brackets can fall away or slide back in (D106).
+var wall_changed_age := INF
+var wall_fell := false
 ## Chips scatter at random; only the look, never the battle, draws on this.
 var _look_rng := RandomNumberGenerator.new()
 
@@ -78,6 +82,7 @@ func _init(arena) -> void:
 ## effects.
 func absorb(events: Array[Dictionary], delta: float) -> void:
 	shockwave_age += delta
+	wall_changed_age += delta
 	for blast in blasts:
 		blast.age += delta
 	blasts = blasts.filter(func(blast): return blast.age < FLASH_SECONDS * 2.0)
@@ -187,9 +192,11 @@ func _take(events: Array[Dictionary]) -> void:
 			"kill":
 				floats.append({"text": "$" + Palette.money(event.cash), "at": event.enemy.position(), "age": 0.0, "colour": Palette.ACCENT,
 					"font": view.mono_cut})
-				# The killed enemy's own number swells and fades where it died.
+				# The killed enemy's own number swells and fades where it died; an
+				# orb's kill reads 0, since an orb sets it to zero (D106).
+				var last: String = "0" if event.get("by", "") == "orb" else (view.shown_text(view.sim, event.enemy) if view.sim != null else "")
 				pops.append({"kind": event.enemy.kind, "angle": event.enemy.angle, "distance": event.enemy.distance, "age": 0.0,
-					"text": view.shown_text(view.sim, event.enemy) if view.sim != null else ""})
+					"text": last})
 				flashes.erase(event.enemy.id)
 			"enemy_hit":
 				flashes[event.enemy.id] = HIT_FLASH_SECONDS
@@ -232,8 +239,12 @@ func _take(events: Array[Dictionary]) -> void:
 				_tower_note("Death Defied", Palette.COIN)
 			"wall_down":
 				_tower_note("Wall down", Palette.WARNING)
+				wall_changed_age = 0.0
+				wall_fell = true
 			"wall_up":
 				_tower_note("Wall rebuilt", Palette.ACCENT)
+				wall_changed_age = 0.0
+				wall_fell = false
 			"shockwave":
 				shockwave_age = 0.0
 			"mine":

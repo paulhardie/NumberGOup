@@ -125,7 +125,7 @@ func sweep_orbs() -> void:
 				break
 	for enemy in touched:
 		enemy.health = 0.0
-		sim._kill(enemy)
+		sim._kill(enemy, "orb")
 
 
 ## A shot may lay a land mine, by Land Mine Chance, somewhere between the

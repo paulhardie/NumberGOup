@@ -778,9 +778,17 @@ func test_orbs_kill_walking_enemies_but_not_bosses() -> void:
 	boss.angle = orb + 0.05
 	boss.stop_at = Guesses.CONTACT_DISTANCE_M
 	var kills := sim.kills
+	sim.record_events = true
 	sim.step()
 	check(not sim.enemies.has(walker) and sim.kills == kills + 1, "an orb kills the enemy it sweeps past, and it pays")
 	check(sim.enemies.has(boss) and boss.health == boss.max_health, "but never a boss")
+	var killed := sim.events.filter(func(event): return event.type == "kill")
+	check(killed.size() == 1 and killed[0].by == "orb", "the kill says an orb did it")
+	var arena := ArenaView.new()
+	arena.sim = sim
+	arena.absorb(sim.events, 0.0)
+	check(arena.effects.pops.size() == 1 and arena.effects.pops[0].text == "0", "so it pops as a 0, set to zero (D106): %s" % [arena.effects.pops])
+	arena.free()
 	check(Guesses.ORB_IMMUNE.has("boss"), "bosses are the first enemy orbs can't kill; later ones join them there")
 	check(sim.defences.orb_angles().size() == 4, "four orbs, spaced evenly")
 
@@ -986,6 +994,29 @@ func test_the_wall_stops_melee_enemies_until_it_falls_then_rebuilds() -> void:
 	for _i in range(16):
 		sim.step()
 	check(sim.defences.wall_up() and is_equal_approx(sim.defences.wall_health, sim.defences.wall_max_health()), "a rebuilt wall is whole")
+
+
+## The Wall is drawn as brackets round the Number (D106): enemies held at it
+## stand clear of the brackets, and once it falls they come in to the digits.
+func test_enemies_at_the_wall_stand_clear_of_its_brackets() -> void:
+	var sim := _quiet_sim({"health": 100}, BattleSim.START_GROUPS + ["wall"])
+	var arena := ArenaView.new()
+	arena.size = Vector2(390, 440)
+	arena.centre = Vector2(195, 242)
+	arena.sim = sim
+	var half := arena.enemy_half("basic", "−1")
+	arena._number_layout()
+	var digits: float = arena._number_half.x
+	var held := arena.enemy_at(0.0, 0.0, half).x - arena.centre.x
+	check(held - half.x > digits + ArenaView.WALL_GAP_PX + 2.0, "with the Wall up an arriving enemy stands outside the brackets: %.0f against digits to %.0f" % [held, digits])
+	check(arena._float_side() > arena._clear_half.x, "and the hit float starts outside them too")
+	sim.defences.wall_health = 0.0
+	arena._number_layout()
+	var through := arena.enemy_at(0.0, 0.0, half).x - arena.centre.x
+	check(through < held and is_equal_approx(through - half.x, digits + ArenaView.CONTACT_GAP_PX), "with it down, just clear of the digits: %.0f" % through)
+	arena.absorb([{"type": "wall_down"}], 0.0)
+	check(arena.effects.wall_fell and arena.effects.wall_changed_age == 0.0, "its fall is timed, so the brackets can drop away")
+	arena.free()
 
 
 func test_recovery_packages_heal_past_health_up_to_max_recovery() -> void:
