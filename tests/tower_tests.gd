@@ -1554,7 +1554,7 @@ func test_gains_are_booked_by_source_and_new_highs() -> void:
 ## kill multiplies the Number, and one that reaches the Number does nothing.
 func test_multipliers_only_when_switched_on() -> void:
 	var off := BattleSim.new(8)
-	var on := BattleSim.new(8, {}, BattleSim.START_GROUPS, true)
+	var on := BattleSim.new(8, {}, BattleSim.START_GROUPS, {"multipliers": true})
 	check(off.rng_state().size() == 3 and on.rng_state().size() == 4, "only a run with Multipliers has their stream")
 	check(off.multiplier_rate(10) == 0.0 and is_equal_approx(on.multiplier_rate(3), 1.0 / 3.0) and is_equal_approx(on.multiplier_rate(40), 0.5),
 		"none when off; a third of one a wave from wave 3, half by wave 30")
@@ -1600,15 +1600,96 @@ func test_multipliers_only_when_switched_on() -> void:
 	check_near(sim.health, 110.0, 0.0001, "one that reaches the Number does nothing")
 	check(not sim.enemies.has(walker), "and is used up")
 
-	var played := BattleSim.new(12, {}, BattleSim.START_GROUPS, true)
+	var played := BattleSim.new(12, {}, BattleSim.START_GROUPS, {"multipliers": true})
 	played.record_events = true
 	played.run_until_dead(300.0)
 	var record := _through_json(RunReport.build(played))
-	check(record.start.multipliers == true, "the run's record keeps the switch")
+	check(record.start.switches.multipliers == true, "the run's record keeps the switch")
 	var again := RunReport.Replay.new(record)
 	while not again.advance(100000):
 		pass
 	check(again.sim.multipliers and RunReport.matches(record, again.sim), "and a replay sends them too, ending the same")
+
+
+## Regen stopping at the Number's best and kills growing it (D098) are tests
+## the player switches on: each changes nothing while off, and a run's record
+## keeps them.
+func test_peak_regen_and_kill_growth_only_when_switched_on() -> void:
+	var sim := _quiet_sim()
+	sim.health = 10.0
+	sim.peak_number = 20.0
+	sim._heal(15.0, "regen")
+	check_near(sim.health, 25.0, 0.0001, "off, regen climbs past the best as before")
+	sim.peak_regen = true
+	sim.health = 10.0
+	sim._heal(15.0, "regen")
+	check_near(sim.health, 20.0, 0.0001, "on, regen restores up to the best and stops")
+	sim.peak_drift = 0.5
+	sim.health = 10.0
+	sim._heal(14.0, "regen")
+	check_near(sim.health, 22.0, 0.0001, "past it only at the drift's share")
+	sim.peak_drift = 0.0
+	sim.health = 20.0
+	sim._heal(2.0, "lifesteal")
+	check(sim.health > 20.0, "lifesteal still climbs past the best")
+
+	var grower := _quiet_sim()
+	var clean := BattleSim.Enemy.new()
+	clean.kind = "basic"
+	clean.attack = 10.0
+	grower.enemies.append(clean)
+	var start := grower.health
+	grower._kill(clean)
+	check_near(grower.health, start, 0.0, "off, a kill doesn't grow the Number")
+	grower.kill_growth = true
+	var another := BattleSim.Enemy.new()
+	another.kind = "basic"
+	another.attack = 10.0
+	grower.enemies.append(another)
+	grower._kill(another)
+	check_near(grower.health, start + 10.0 * Guesses.KILL_GROWTH, 0.0001, "on, a kill before it lands a hit adds a share of its Attack")
+	var hitter := BattleSim.Enemy.new()
+	hitter.kind = "basic"
+	hitter.attack = 10.0
+	hitter.hits = 1
+	grower.enemies.append(hitter)
+	var before := grower.health
+	grower._kill(hitter)
+	check_near(grower.health, before, 0.0, "one that has hit you adds nothing")
+	check(float(grower.gained_from.kills) > 0.0, "and kills' growth is booked")
+	var arena := ArenaView.new()
+	arena.absorb([{"type": "grown", "enemy": clean, "gain": 0.25}, {"type": "grown", "enemy": another, "gain": 0.5}], 0.0)
+	var pluses := arena._floats.filter(func(item): return item.get("anchor") == "growing")
+	check(pluses.size() == 1 and pluses[0].text == "+0.75", "a frame's kills show as one \"+\" by the Number: %s" % [pluses])
+	arena.free()
+
+	var switched := {"multipliers": false, "peak_regen": true, "kill_growth": true}
+	var played := BattleSim.new(13, {}, BattleSim.START_GROUPS, switched)
+	played.run_until_dead(300.0)
+	var record := _through_json(RunReport.build(played))
+	check(record.start.switches.peak_regen == true and record.start.switches.kill_growth == true, "the run's record keeps both")
+	var again := RunReport.Replay.new(record)
+	while not again.advance(100000):
+		pass
+	check(again.sim.peak_regen and again.sim.kill_growth and RunReport.matches(record, again.sim), "and a replay plays by them, ending the same")
+
+	DirAccess.remove_absolute(TEST_SETTINGS)
+	var settings := Settings.new()
+	settings.peak_regen = true
+	settings.write(TEST_SETTINGS)
+	var read := Settings.new()
+	read.read(TEST_SETTINGS)
+	check(read.peak_regen and not read.kill_growth and not read.multipliers, "the switches outlive the game closing")
+	DirAccess.remove_absolute(TEST_SETTINGS)
+	var home := HomeScreen.new()
+	home.workshop = Workshop.new()
+	home.settings = read
+	root.add_child(home)
+	await process_frame
+	var names := home.find_children("*", "CheckButton", true, false).map(func(toggle): return toggle.text)
+	check(names.has("Regen stops at your best") and names.has("Kills grow the Number") and names.has("Multiplier enemies"), "Home's Testing has all three: %s" % [names])
+	home.queue_free()
+	await process_frame
 
 
 ## Testing tools on Home (D097): free Coins, logged as such, and a reset that

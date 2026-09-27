@@ -115,6 +115,19 @@ const DIVIDER := {
 }
 
 
+## Two more tests the player can switch on (D098), after the owner's idea
+## and a brainstorm: growth that comes from fighting, and regen that restores.
+## With "regen stops at your best" on, Regen fills the Number in full up to
+## the highest it has stood this run, and past that only at this share (0: it
+## never makes a new high). Lifesteal, bought Health, kills and Multipliers
+## still can.
+const PEAK_REGEN_DRIFT := 0.0
+## With "kills grow the Number" on, an enemy killed before it has landed a
+## hit adds this share of its Attack to the Number; one that has hit you
+## adds nothing. Its Attack grows with the waves as The Tower's does, so the
+## growth does too, and a boss is a big moment.
+const KILL_GROWTH := 0.05
+
 ## The Multiplier (D097): the Divider's mirror, ours, and a test for now,
 ## off unless the player turns it on in Settings. Kill it and the Number is
 ## multiplied by its factor, past Health like any gain; let it reach the

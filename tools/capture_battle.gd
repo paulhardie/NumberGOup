@@ -111,11 +111,14 @@ func _capture() -> void:
 	divided.queue_free()
 	await process_frame
 
-	# A Multiplier (D097) walking in, then the moment one is killed.
+	# A Multiplier (D097) walking in, then the moment one is killed, with the
+	# other two tests (D098) on too, so kills' "+" shows.
 	var multiplied := BattleScreen.new()
 	multiplied.workshop = middling
 	multiplied.settings = Settings.new()
 	multiplied.settings.multipliers = true
+	multiplied.settings.peak_regen = true
+	multiplied.settings.kill_growth = true
 	root.add_child(multiplied)
 	await process_frame
 	multiplied.start_run(11)

@@ -287,16 +287,18 @@ func _build_testing(column: VBoxContainer) -> void:
 	heading.add_theme_font_size_override("font_size", 12)
 	heading.add_theme_color_override("font_color", Palette.MUTED)
 	column.add_child(heading)
-	var multipliers := CheckButton.new()
-	multipliers.text = "Multiplier enemies"
-	multipliers.button_pressed = settings.multipliers
-	multipliers.add_theme_color_override("font_color", Palette.TEXT)
-	multipliers.add_theme_color_override("font_hover_color", Palette.TEXT)
-	multipliers.add_theme_color_override("font_pressed_color", Palette.TEXT)
-	multipliers.toggled.connect(func(on: bool):
-		settings.multipliers = on
-		settings_changed.emit())
-	column.add_child(multipliers)
+	# Each switch is one of Settings' tests; a new battle plays by them.
+	for test in [["multipliers", "Multiplier enemies"], ["peak_regen", "Regen stops at your best"], ["kill_growth", "Kills grow the Number"]]:
+		var toggle := CheckButton.new()
+		toggle.text = test[1]
+		toggle.button_pressed = settings.get(test[0])
+		toggle.add_theme_color_override("font_color", Palette.TEXT)
+		toggle.add_theme_color_override("font_hover_color", Palette.TEXT)
+		toggle.add_theme_color_override("font_pressed_color", Palette.TEXT)
+		toggle.toggled.connect(func(on: bool):
+			settings.set(test[0], on)
+			settings_changed.emit())
+		column.add_child(toggle)
 	var gifts := HBoxContainer.new()
 	gifts.add_theme_constant_override("separation", 8)
 	column.add_child(gifts)

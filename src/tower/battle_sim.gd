@@ -122,9 +122,17 @@ var _combat_rng := RandomNumberGenerator.new()
 var _divider_rng := RandomNumberGenerator.new()
 ## The Divider owed but not yet due: a wave's share carries to the next.
 var _divider_due := 0.0
-## Whether this run sends Multipliers (D097), a test the player switches on;
-## the run's record keeps it, so a replay sends them too.
+## The tests the player can switch on, which the run's record keeps so a
+## replay plays by them too: Multipliers (D097), and regen stopping at the
+## Number's best and kills growing it (D098).
+const SWITCHES := ["multipliers", "peak_regen", "kill_growth"]
 var multipliers := false
+var peak_regen := false
+var kill_growth := false
+## Their numbers (Guesses), which the measuring tools may change before the
+## first step to try others.
+var peak_drift := Guesses.PEAK_REGEN_DRIFT
+var kill_share := Guesses.KILL_GROWTH
 ## Which basic a Multiplier replaces is drawn from its own stream, touched
 ## only when Multipliers are on, so a run without them is exactly as before.
 var _multiplier_rng := RandomNumberGenerator.new()
@@ -177,9 +185,11 @@ var _attack_skip := 0.0
 
 ## `row_levels` and `groups` are the Workshop's: the levels a run starts from
 ## and the groups it may buy from.
-func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_GROUPS, with_multipliers := false) -> void:
+func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_GROUPS, switched: Dictionary = {}) -> void:
 	run_seed = seed_value
-	multipliers = with_multipliers
+	multipliers = switched.get("multipliers", false) == true
+	peak_regen = switched.get("peak_regen", false) == true
+	kill_growth = switched.get("kill_growth", false) == true
 	levels = row_levels.duplicate()
 	open_groups = groups.duplicate()
 	# Two streams, so a change in how often the tower fires or crits never
@@ -207,6 +217,11 @@ func rng_state() -> Array[String]:
 	if multipliers:
 		states.append(str(_multiplier_rng.state))
 	return states
+
+
+## The tests this run plays by, as its record keeps them.
+func switches() -> Dictionary:
+	return {"multipliers": multipliers, "peak_regen": peak_regen, "kill_growth": kill_growth}
 
 
 func level(id: String) -> int:
@@ -276,8 +291,14 @@ func max_health() -> float:
 ## recovery package's overheal.
 func _heal(amount: float, source: String) -> void:
 	var before := health
-	var room := maxf(0.0, max_health() - health)
-	health += minf(amount, room) + maxf(0.0, amount - room) * overfill
+	if source == "regen" and peak_regen:
+		# Regen restores what enemies took, up to the best this run, and
+		# past it only at the drift's share (D098).
+		var to_best := maxf(0.0, maxf(max_health(), peak_number) - health)
+		health += minf(amount, to_best) + maxf(0.0, amount - to_best) * peak_drift
+	else:
+		var room := maxf(0.0, max_health() - health)
+		health += minf(amount, room) + maxf(0.0, amount - room) * overfill
 	_count_gain(source, before)
 
 
@@ -776,6 +797,14 @@ func _kill(enemy: Enemy) -> void:
 	kills += 1
 	if enemy.kind == "multiplier":
 		_multiply(enemy)
+	elif kill_growth and enemy.hits == 0 and enemy.attack > 0.0:
+		# Killed before it could land a hit: a share of the hit it never
+		# landed grows the Number, past Health too (D098).
+		var before := health
+		health += enemy.attack * kill_share
+		_count_gain("kills", before)
+		if record_events:
+			events.append({"type": "grown", "enemy": enemy, "gain": health - before})
 	var paid_cash := (1.0 + floorf(enemy.wave / 10.0)) * float(Guesses.CASH_BY_TYPE[enemy.kind]) * stat("cash_bonus")
 	var paid_coins := float(Guesses.COINS_BY_TYPE[enemy.kind]) * stat("coins_per_kill")
 	cash += paid_cash

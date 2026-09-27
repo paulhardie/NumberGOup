@@ -15,7 +15,7 @@ static func build(sim: BattleSim, play: Dictionary = {}) -> Dictionary:
 	return {
 		"kind": "run",
 		"seed": sim.run_seed,
-		"start": {"levels": sim.levels.duplicate(), "groups": sim.open_groups.duplicate(), "multipliers": sim.multipliers},
+		"start": {"levels": sim.levels.duplicate(), "groups": sim.open_groups.duplicate(), "switches": sim.switches()},
 		"inputs": sim.inputs.duplicate(true),
 		"waves": sim.wave_log.duplicate(true),
 		"result": {
@@ -58,8 +58,9 @@ class Replay:
 		for group in start.get("groups", []):
 			groups.append(String(group))
 		# The seed must go back to an int: the RNGs are seeded from its hash.
-		# Runs recorded before Multipliers (D097) had none.
-		sim = BattleSim.new(int(run.get("seed", 0)), levels, groups, start.get("multipliers", false) == true)
+		# Runs recorded before the testing switches (D097, D098) had none on.
+		var switched = start.get("switches", {})
+		sim = BattleSim.new(int(run.get("seed", 0)), levels, groups, switched if switched is Dictionary else {})
 
 	## Steps at most `budget` ticks, applying each input at its tick; true once
 	## the run is back at the tick it was left at (or has ended).

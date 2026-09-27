@@ -185,8 +185,10 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 	_chips = _chips.filter(func(chip): return chip.age < CHIP_SECONDS)
 	_ease_shoves(delta)
 	_ranged_shots = _ranged_shots.filter(func(shot): return shot.age < RANGED_SHOT_SECONDS)
-	# Flat hits in one frame show as one "−" at the Number, not a pile.
+	# Flat hits in one frame show as one "−" at the Number, not a pile, and
+	# growth from kills (D098) as one "+".
 	var hit_total := 0.0
+	var grown_total := 0.0
 	for event in events:
 		match event.type:
 			"kill":
@@ -212,6 +214,8 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 					flare(Palette.DIVIDER, DIVIDE_FLARE, DIVIDE_FLARE_SECONDS)
 					_floats.append({"parts": [[sign, _divide_cut, 22], ["  −" + Palette.number(float(event.damage)), _mono_cut, 15]], "anchor": "above",
 						"age": 0.0, "colour": Palette.DIVIDER, "life": DIVIDE_FLOAT_SECONDS, "rise": DIVIDE_FLOAT_RISE_PX, "divide": true})
+			"grown":
+				grown_total += float(event.gain)
 			"multiplied":
 				# The × in the operators' typeface, what it added in the Number's.
 				flare(Palette.MULTIPLIER, DIVIDE_FLARE, DIVIDE_FLARE_SECONDS)
@@ -234,6 +238,9 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 				_shockwave_age = 0.0
 			"mine":
 				_blasts.append({"at": event.at, "age": 0.0})
+	if grown_total > 0.0:
+		_floats.append({"text": "+" + Palette.number(grown_total), "anchor": "growing", "age": 0.0, "colour": Palette.ACCENT, "size": 12,
+			"font": _hit_cut})
 	if hit_total > 0.0:
 		# Beside the Number's shoulder, as the design has it, never over its digits.
 		_floats.append({"text": "−" + Palette.number(hit_total), "anchor": "beside", "age": 0.0, "colour": Palette.HIT, "size": 12,
@@ -266,6 +273,8 @@ func _float_start(item: Dictionary) -> Vector2:
 			return centre + Vector2(0, -_number_half.y - 8.0)
 		"beside":
 			return centre + Vector2(_number_half.x + 48.0, -_number_half.y * 0.55)
+		"growing":
+			return centre + Vector2(-_number_half.x - 48.0, -_number_half.y * 0.55)
 	return to_view(item.at)
 
 

@@ -19,7 +19,9 @@ extends SceneTree
 ## its divisor at every wave. --overfill N sets how much
 ## of Regen and Lifesteal works past Health (0 a ceiling, 1 none), and --curve
 ## adds the Number at the end of every fifth wave to each run's line.
-## --multipliers sends the Multiplier (D097), the test the player can switch on.
+## --multipliers, --peak-regen and --kill-growth play by the tests the player
+## can switch on (D097, D098); --peak-drift N and --kill-share N try other
+## numbers for the last two.
 ## --gains adds where the Number's gains came from: each source's share of
 ## all it gained, and after the slash its share of the new highs, the gains
 ## that lifted the Number past its best so far rather than refilling it.
@@ -56,7 +58,7 @@ func _init() -> void:
 	print("buying: %s" % strategy)
 	print("seed  wave  game time  kills  cash earned  coins  peak Number  ÷ came/landed  ÷ took  killed by  levels bought")
 	for index in range(seeds):
-		var sim := BattleSim.new(index + 1, {}, BattleSim.START_GROUPS, options.has("multipliers"))
+		var sim := BattleSim.new(index + 1, {}, BattleSim.START_GROUPS, _switches(options))
 		_tune(sim, options)
 		while sim.alive and sim.time < cap_seconds:
 			_spend(sim, strategy)
@@ -76,7 +78,7 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 	print("career, buying %s in each run, %d-minute cap" % [strategy, int(cap_seconds / 60.0)])
 	print("run  wave  game time  hours  coins earned  coins left  ÷ came/landed  killed by  Workshop")
 	for run in range(runs):
-		var sim := BattleSim.new(run + 1, workshop.levels, workshop.open_groups, options.has("multipliers"))
+		var sim := BattleSim.new(run + 1, workshop.levels, workshop.open_groups, _switches(options))
 		_tune(sim, options)
 		while sim.alive and sim.time < cap_seconds:
 			_spend(sim, strategy)
@@ -181,7 +183,7 @@ func _gains(sim: BattleSim, options: Dictionary) -> String:
 	for source in sim.raised_by:
 		highs += float(sim.raised_by[source])
 	var parts: Array[String] = []
-	for source in ["regen", "health", "lifesteal", "package", "multiplier"]:
+	for source in ["regen", "health", "lifesteal", "package", "multiplier", "kills"]:
 		if sim.gained_from.has(source):
 			parts.append("%s %.0f%%/%.0f%%" % [source, 100.0 * float(sim.gained_from[source]) / total,
 				100.0 * float(sim.raised_by.get(source, 0.0)) / highs if highs > 0.0 else 0.0])
@@ -189,7 +191,15 @@ func _gains(sim: BattleSim, options: Dictionary) -> String:
 	return "  | gained %.0f, highs %.0f: %s%s" % [total, highs, " ".join(parts), multiplied]
 
 
+func _switches(options: Dictionary) -> Dictionary:
+	return {"multipliers": options.has("multipliers"), "peak_regen": options.has("peak-regen"), "kill_growth": options.has("kill-growth")}
+
+
 func _tune(sim: BattleSim, options: Dictionary) -> void:
+	if options.has("peak-drift"):
+		sim.peak_drift = float(options["peak-drift"])
+	if options.has("kill-share"):
+		sim.kill_share = float(options["kill-share"])
 	if options.has("divider-share"):
 		var scale := float(options["divider-share"])
 		sim.divider.rate_first = minf(1.0, float(sim.divider.rate_first) * scale)

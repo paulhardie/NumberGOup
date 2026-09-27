@@ -84,7 +84,7 @@ func _ready() -> void:
 
 
 func start_run(seed_value: int) -> void:
-	_adopt(BattleSim.new(seed_value, workshop.levels, workshop.open_groups, settings != null and settings.multipliers))
+	_adopt(BattleSim.new(seed_value, workshop.levels, workshop.open_groups, settings.switches() if settings != null else {}))
 
 
 func _begin_resume() -> void:
@@ -239,6 +239,8 @@ func _show_run_over() -> void:
 	if sim.multipliers:
 		_over_text.text += "\nMultipliers killed %d of %d, adding %s" % [sim.multipliers_killed, sim.multipliers_spawned,
 			Palette.number(float(sim.gained_from.get("multiplier", 0.0)))]
+	if sim.kill_growth:
+		_over_text.text += "\nKills grew the Number by %s" % Palette.number(float(sim.gained_from.get("kills", 0.0)))
 	_over.visible = true
 
 

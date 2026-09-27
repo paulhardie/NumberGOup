@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports, moved the Divider into The Tower's Protector slot (D094), restyled the battle screen to the owner's main-screen design (D095), carried it to Home and the Workshop (D096), measured where the Number's growth comes from (THE_NUMBER.md 5.2b), and built the Multiplier as a switch to test, with free Coins and a reset for testing (D097).
+**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports, moved the Divider into The Tower's Protector slot (D094), restyled the battle screen to the owner's main-screen design (D095), carried it to Home and the Workshop (D096), measured where the Number's growth comes from (THE_NUMBER.md 5.2b), built the Multiplier as a switch to test, with free Coins and a reset for testing (D097), and added two more switches, regen stopping at the Number's best and kills growing it (D098).
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #86 (D096) merged. It carries the gains measurement (`sim_runs.gd --gains`) and D097: the Multiplier behind a Settings switch, off by default, plus free Coins and Reset progress under Settings → Testing. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #86 (D096) merged. It carries the gains measurement (`sim_runs.gd --gains`) D097 (the Multiplier switch, free Coins, Reset progress) and D098 (the regen-at-best and kill-growth switches), all under Settings → Testing and off by default. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -41,7 +41,7 @@
 
 ## Open decisions for the owner
 
-1. **Keep the Multiplier or not** (D097). Regen makes about nine tenths of the Number's new highs without it (THE_NUMBER.md 5.2b), and about half with it, with The Tower's benchmarks and the career's pace unchanged. The owner is playing runs both ways to judge the fun. **Recommend** keeping it if the ×-moments feel good, then deciding on regen's reach past Health (`NUMBER_OVERFILL`) as a separate test.
+1. **Which of the three testing switches to keep** (D097, D098). Measured: regen at best plus kills together make the Number's growth come from fighting and buying, not waiting, and keep The Tower's benchmarks at a 5% kill share, but the Number is smaller and the career about four runs slower to wave 30. **Recommend** playing "both on" and "all three on"; D098's table has the numbers. Earlier note on the Multiplier alone: Regen makes about nine tenths of the Number's new highs without it (THE_NUMBER.md 5.2b), and about half with it, with The Tower's benchmarks and the career's pace unchanged. The owner is playing runs both ways to judge the fun. **Recommend** keeping it if the ×-moments feel good, then deciding on regen's reach past Health (`NUMBER_OVERFILL`) as a separate test.
 2. **Sign off 1.0, or name what's missing,** after playing D094. The Tower's benchmarks hold and the Number climbs. In simulation, D094 left fresh runs as they were but a core career beat the wave-10 boss on run 9 (it was 11; The Tower's is 10–13), and ÷ landings sit about 0.3 a minute. **If that feels too easy or ÷ too rare, recommend** raising the Divider's health from 4× to 5× before its rate, since the owner set the rate's ceiling.
 3. **Game speed.** The spec calls the 1×/2×/5× switch a testing tool, yet it's half of how the owner plays. **Recommend** keeping it as a player feature, since The Tower's first hours are long.
 4. **Updates mid-run.** Two runs were lost when a merge landed while a run was saved. **Recommend** the Mac's sync job wait to update while the save holds a run in progress, and say so in its notification. It's small, and changes nothing in the game.
@@ -53,7 +53,7 @@
 
 ## Next steps, in order
 
-1. **Owner:** play a few runs with Settings → Testing → Multiplier enemies on and a few off, using free Coins or a reset to try different stages. Done when the owner says keep, change or drop it.
+1. **Owner:** play runs with Settings → Testing's switches in a few combinations (none; regen at best and kills; all three), using free Coins or a reset to try different stages. Done when the owner says which to keep.
 1a. **Owner:** sign off 1.0 or name what's missing (decision 2).
 2. **Agent, on the owner's word:** tune the Divider's health with `sim_runs.gd --careers 40 --buy core --divider-health N` if play says so. Then raise `application/config/version` to 1.0 when the owner signs it off. `--careers` always plays the same seeds (run N is seed N), so a second career needs a seed option first.
 3. **Owner:** try the web build on a phone. The light's shader, the music and the portrait layout have never run there.
@@ -64,6 +64,7 @@
 - **This session (27 September):**
   - `read_report.gd` on the owner's latest report: runs 20 and 21, recorded on `af32bb6`, **match** on replay. The others were recorded on older commits.
   - The report figures above come from the four exported reports, with runs deduplicated by time and seed.
+  - D098: `bash run_tests.sh` passes (2781 checks). The grid in D098: each switch alone, both, and all three, on 20-seed fresh runs (40 for core) and 40-run core careers, plus kill shares of 3%, 5%, 7% and 10%. With every switch off, 20 core runs print identically.
   - D097: `bash run_tests.sh` passes (2768 checks). `sim_runs.gd --multipliers --gains` measurements are in D097. With the switch off, 20 core runs print identically to before. `capture_battle.gd` now also shoots a Multiplier walking in and one killed, both checked by eye.
   - Gains: `bash run_tests.sh` passes (2617 checks). `sim_runs.gd --gains` on 10 seeds each of even and core, a 40-run core career, a 60-run even career, and three scratch careers opening Lifesteal free at run 31 (levels 10, 40, 80). With and without the bookkeeping, 20 core runs print identically.
   - D096: `bash run_tests.sh` passes (2610 checks); `capture_battle.gd` screenshots of Home, the Workshop's tabs, a battle, a ÷ and the run-over panel checked by eye.
@@ -90,7 +91,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D097), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D098), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.

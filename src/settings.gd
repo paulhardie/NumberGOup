@@ -10,8 +10,16 @@ const VERSION := 1
 
 ## The generative music (D092); on by default. Missing from older files, so on.
 var music := true
-## A test (D097): battles send Multipliers, the Divider's mirror. Off by default.
+## Tests (D097, D098), all off by default: battles send Multipliers, the
+## Divider's mirror; regen stops at the Number's best; kills grow the Number.
 var multipliers := false
+var peak_regen := false
+var kill_growth := false
+
+
+## The tests a new battle plays by, as BattleSim takes them.
+func switches() -> Dictionary:
+	return {"multipliers": multipliers, "peak_regen": peak_regen, "kill_growth": kill_growth}
 
 
 func read(path: String = PATH) -> void:
@@ -22,8 +30,9 @@ func read(path: String = PATH) -> void:
 		return
 	var playing = json.data.get("music", true)
 	music = playing if playing is bool else true
-	var multiplying = json.data.get("multipliers", false)
-	multipliers = multiplying is bool and multiplying
+	multipliers = json.data.get("multipliers", false) == true
+	peak_regen = json.data.get("peak_regen", false) == true
+	kill_growth = json.data.get("kill_growth", false) == true
 
 
 ## Writes to a temporary file first and then swaps it in, as the save does.
@@ -33,6 +42,7 @@ func write(path: String = PATH) -> bool:
 	if file == null:
 		push_warning("Couldn't write the settings to %s." % temporary)
 		return false
-	file.store_string(JSON.stringify({"version": VERSION, "music": music, "multipliers": multipliers}, "\t"))
+	file.store_string(JSON.stringify({"version": VERSION, "music": music, "multipliers": multipliers, "peak_regen": peak_regen,
+		"kill_growth": kill_growth}, "\t"))
 	file.close()
 	return DirAccess.rename_absolute(temporary, path) == OK
