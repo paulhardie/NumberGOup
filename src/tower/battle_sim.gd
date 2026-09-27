@@ -9,6 +9,7 @@ extends RefCounted
 
 const Guesses = preload("res://src/tower/guesses.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
+const BattleDefences = preload("res://src/tower/battle_defences.gd")
 
 const TICK := 1.0 / 30.0
 
@@ -143,9 +144,6 @@ var multipliers_killed := 0
 ## The Divider's numbers for this run (Guesses.DIVIDER), which the measuring
 ## tools may change before the first step to try others.
 var divider: Dictionary = Guesses.DIVIDER.duplicate()
-## How fast orbs turn at Orb Speed's first level (Guesses), which the
-## measuring tools may change before the first step to try others.
-var orb_turns_first := Guesses.ORB_TURNS_PER_SECOND_AT_FIRST_LEVEL
 ## Guesses.NUMBER_OVERFILL for this run, which the measuring tools may change.
 var overfill := Guesses.NUMBER_OVERFILL
 
@@ -171,13 +169,8 @@ var _shot_charge := 0.0
 ## Seconds of Rapid Fire left.
 var rapid_fire_left := 0.0
 
-## The Wall's health now, and seconds until a fallen one is rebuilt.
-var wall_health := 0.0
-var wall_rebuild_in := 0.0
-## Seconds until the next shockwave.
-var shockwave_in := 0.0
-## Land mines lying in range, as positions.
-var mines: Array[Vector2] = []
+## The Wall, orbs, shockwaves and land mines, with their own state.
+var defences := BattleDefences.new(self)
 ## Enemy Level Skip: the wave whose health and attack enemies have, which
 ## lags the wave by every level skipped.
 var health_level := 1
@@ -204,10 +197,7 @@ func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_G
 	health = max_health()
 	peak_number = health
 	_high = health
-	if is_open("wall_health"):
-		wall_health = wall_max_health()
-	if is_open("shockwave_frequency"):
-		shockwave_in = stat("shockwave_frequency")
+	defences.start()
 	_schedule_wave()
 
 
@@ -317,14 +307,6 @@ func _count_gain(source: String, before: float) -> void:
 		_high = health
 
 
-func wall_max_health() -> float:
-	return stat("wall_health") * max_health() if is_open("wall_health") else 0.0
-
-
-func wall_up() -> bool:
-	return wall_health > 0.0
-
-
 ## The health and attack a `kind` has right now, Enemy Level Skip included.
 ## The Divider isn't The Tower's, so its numbers are a basic enemy's times ours.
 func enemy_health_now(kind: String) -> float:
@@ -412,16 +394,16 @@ func step() -> void:
 	_spawn_due()
 	_heal(stat("health_regen") * TICK, "regen")
 	peak_number = maxf(peak_number, health)
-	_tick_wall()
-	_tick_shockwave()
+	defences.tick_wall()
+	defences.tick_shockwave()
 	_move_enemies()
 	_enemies_hit()
 	if not alive:
 		return
 	_fire()
 	_move_shots()
-	_sweep_orbs()
-	_trigger_mines()
+	defences.sweep_orbs()
+	defences.trigger_mines()
 
 
 ## The player stops the run; it ends as if the tower fell, keeping what it earned.
@@ -535,7 +517,7 @@ func _move_enemies() -> void:
 			enemy.stop_at = stat("range")
 		# Melee enemies stop at a standing Wall, and walk on when it falls.
 		elif enemy.kind != "ranged":
-			var at_wall := wall_up() and enemy.distance >= Guesses.WALL_DISTANCE_M
+			var at_wall := defences.wall_up() and enemy.distance >= Guesses.WALL_DISTANCE_M
 			enemy.stop_at = Guesses.WALL_DISTANCE_M if at_wall else Guesses.CONTACT_DISTANCE_M
 		if not enemy.arrived():
 			enemy.distance = maxf(enemy.stop_at, enemy.distance - enemy.speed * TICK)
@@ -562,13 +544,8 @@ func _enemies_hit() -> void:
 		enemy.hits += 1
 		# An enemy standing at the Wall hits the Wall. When it falls, it
 		# rebuilds after Wall Rebuild seconds.
-		if enemy.kind != "ranged" and wall_up() and enemy.distance > Guesses.CONTACT_DISTANCE_M:
-			wall_health -= damage
-			if wall_health <= 0.0:
-				wall_health = 0.0
-				wall_rebuild_in = stat("wall_rebuild")
-				if record_events:
-					events.append({"type": "wall_down"})
+		if enemy.kind != "ranged" and defences.wall_up() and enemy.distance > Guesses.CONTACT_DISTANCE_M:
+			defences.hit_wall(damage)
 			continue
 		# Death Defy: by its chance a hit that would end the run is ignored.
 		if health - damage <= 0.0 and stat("death_defy") > 0.0 and _combat_rng.randf() < stat("death_defy"):
@@ -625,16 +602,11 @@ func _escape(enemy: Enemy) -> void:
 func _divide(enemy: Enemy) -> void:
 	var divisor := enemy.divisor if enemy.divisor > 0.0 else divider_divisor(wave)
 	var share := 1.0 - 1.0 / maxf(1.0, divisor)
-	var at_wall := wall_up() and enemy.distance > Guesses.CONTACT_DISTANCE_M
+	var at_wall := defences.wall_up() and enemy.distance > Guesses.CONTACT_DISTANCE_M
 	var loss := 0.0
 	if at_wall:
-		loss = minf(wall_health, landed_damage(wall_health * share))
-		wall_health -= loss
-		if wall_health <= 0.0:
-			wall_health = 0.0
-			wall_rebuild_in = stat("wall_rebuild")
-			if record_events:
-				events.append({"type": "wall_down"})
+		loss = minf(defences.wall_health, landed_damage(defences.wall_health * share))
+		defences.hit_wall(loss)
 	else:
 		loss = divide_loss(divisor)
 		health -= loss
@@ -691,9 +663,7 @@ func _fire() -> void:
 			if record_events:
 				events.append({"type": "rapid_fire"})
 		# Land Mines: each volley may lay one somewhere in range.
-		if stat("land_mine_chance") > 0.0 and mines.size() < Guesses.MAX_LAND_MINES and _combat_rng.randf() < stat("land_mine_chance"):
-			var reach := _combat_rng.randf_range(Guesses.CONTACT_DISTANCE_M, stat("range"))
-			mines.append(Vector2.from_angle(_combat_rng.randf() * TAU) * reach)
+		defences.maybe_lay_mine()
 
 
 func _launch(target: Enemy, from: Vector2, damage: float, critical: bool) -> Shot:
@@ -857,47 +827,6 @@ func _pay_wave_end() -> void:
 		"enemy_health": enemy_health_now("basic"), "bought": run_levels.duplicate()})
 
 
-## Orbs circle on the edge of the tower's Range and kill any enemy but a boss
-## that comes within Guesses.ORB_HIT_M of one, walking or standing. They turn
-## on the run's clock, fast enough to pass several metres a tick, so each tick
-## checks the whole arc an orb swept, not just where it ends up.
-func orb_radius() -> float:
-	return stat("range")
-
-
-func orb_turns_per_second() -> float:
-	return orb_turns_first * stat("orb_speed") / TowerData.value("orb_speed", 0)
-
-
-func orb_angles(at_time: float = time) -> Array[float]:
-	var angles: Array[float] = []
-	var count := int(stat("orbs"))
-	for orb in range(count):
-		angles.append(fposmod(TAU * orb_turns_per_second() * at_time + TAU * float(orb) / float(count), TAU))
-	return angles
-
-
-func _sweep_orbs() -> void:
-	var starts := orb_angles(time - TICK)
-	if starts.is_empty():
-		return
-	var radius := orb_radius()
-	var sweep := TAU * orb_turns_per_second() * TICK
-	var slack := Guesses.ORB_HIT_M / radius
-	var touched: Array[Enemy] = []
-	for enemy in enemies:
-		if enemy.kind in Guesses.ORB_IMMUNE or absf(enemy.distance - radius) > Guesses.ORB_HIT_M:
-			continue
-		for start in starts:
-			# How far ahead of the orb's starting angle the enemy sits.
-			if fposmod(enemy.angle - start + slack, TAU) <= sweep + 2.0 * slack:
-				touched.append(enemy)
-				break
-	for enemy in touched:
-		enemy.health = 0.0
-		_kill(enemy)
-
-
 ## Enemy Level Skip: each new wave's enemies are a level tougher and a level
 ## harder-hitting, except that each skip row's share of waves stays put. The
 ## Tower made it steady rather than random, so it adds its share every wave
@@ -919,58 +848,3 @@ func _advance_levels() -> void:
 		_attack_skip -= 1.0
 	else:
 		attack_level += 1
-
-
-func _tick_wall() -> void:
-	if not is_open("wall_health"):
-		return
-	wall_health = minf(wall_health, wall_max_health())
-	if wall_up():
-		return
-	wall_rebuild_in -= TICK
-	if wall_rebuild_in <= 0.0:
-		wall_health = wall_max_health()
-		if record_events:
-			events.append({"type": "wall_up"})
-
-
-## Shockwave: every Shockwave Frequency seconds, every enemy in range but a
-## boss is pushed back by Shockwave Size, never past where enemies set off.
-func _tick_shockwave() -> void:
-	if not is_open("shockwave_frequency"):
-		return
-	shockwave_in -= TICK
-	if shockwave_in > 0.0:
-		return
-	shockwave_in += stat("shockwave_frequency")
-	for enemy in enemies:
-		if enemy.kind != "boss" and enemy.distance <= stat("range"):
-			enemy.distance = minf(Guesses.SPAWN_DISTANCE_M, enemy.distance + stat("shockwave_size"))
-	if record_events:
-		events.append({"type": "shockwave"})
-
-
-## A walking enemy that comes within LAND_MINE_TRIGGER_M of a mine sets it off:
-## every enemy within Land Mine Radius takes Land Mine Damage's share of Damage.
-func _trigger_mines() -> void:
-	if mines.is_empty():
-		return
-	var blasts: Array[Vector2] = []
-	for mine in mines:
-		for enemy in enemies:
-			if not enemy.arrived() and enemy.position().distance_to(mine) <= Guesses.LAND_MINE_TRIGGER_M:
-				blasts.append(mine)
-				break
-	for mine in blasts:
-		mines.erase(mine)
-		var fallen: Array[Enemy] = []
-		for enemy in enemies:
-			if enemy.position().distance_to(mine) <= stat("land_mine_radius"):
-				enemy.health -= stat("damage") * stat("land_mine_damage")
-				if enemy.health <= 0.0:
-					fallen.append(enemy)
-		for enemy in fallen:
-			_kill(enemy)
-		if record_events:
-			events.append({"type": "mine", "at": mine})
-

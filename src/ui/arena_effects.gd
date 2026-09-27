@@ -185,7 +185,7 @@ func _take(events: Array[Dictionary]) -> void:
 	for event in events:
 		match event.type:
 			"kill":
-				floats.append({"text": "$" + Palette.number(event.cash), "at": event.enemy.position(), "age": 0.0, "colour": Palette.ACCENT,
+				floats.append({"text": "$" + Palette.money(event.cash), "at": event.enemy.position(), "age": 0.0, "colour": Palette.ACCENT,
 					"font": view.mono_cut})
 				# The killed enemy's own number swells and fades where it died.
 				pops.append({"kind": event.enemy.kind, "angle": event.enemy.angle, "distance": event.enemy.distance, "age": 0.0,
@@ -210,7 +210,7 @@ func _take(events: Array[Dictionary]) -> void:
 				else:
 					motion.shake()
 					motion.flare(Palette.DIVIDER, DIVIDE_FLARE, DIVIDE_FLARE_SECONDS)
-					floats.append({"parts": [[sign, view.divide_cut, 22], ["  −" + Palette.full(float(event.damage)), view.mono_cut, 15]], "anchor": "above",
+					floats.append({"parts": [[sign, view.divide_cut, 22], ["  −" + Palette.amount(float(event.damage)), view.mono_cut, 15]], "anchor": "above",
 						"age": 0.0, "colour": Palette.DIVIDER, "life": DIVIDE_FLOAT_SECONDS, "rise": DIVIDE_FLOAT_RISE_PX, "divide": true})
 			"grown":
 				grown_total += float(event.gain)
@@ -219,7 +219,7 @@ func _take(events: Array[Dictionary]) -> void:
 				motion.raise(float(event.gain))
 				# The × in the operators' typeface, what it added in the Number's.
 				motion.flare(Palette.MULTIPLIER, DIVIDE_FLARE, DIVIDE_FLARE_SECONDS)
-				floats.append({"parts": [["×" + view.divisor_text(event.factor), view.divide_cut, 22], ["  +" + Palette.full(float(event.gain)), view.mono_cut, 15]],
+				floats.append({"parts": [["×" + view.divisor_text(event.factor), view.divide_cut, 22], ["  +" + Palette.amount(float(event.gain)), view.mono_cut, 15]],
 					"anchor": "above", "age": 0.0, "colour": Palette.MULTIPLIER, "life": DIVIDE_FLOAT_SECONDS, "rise": DIVIDE_FLOAT_RISE_PX, "divide": true})
 			"free_upgrade":
 				var name := String(TowerData.upgrade(event.id).title).capitalize()
@@ -238,12 +238,14 @@ func _take(events: Array[Dictionary]) -> void:
 				shockwave_age = 0.0
 			"mine":
 				blasts.append({"at": event.at, "age": 0.0})
-	if grown_total > 0.0:
-		floats.append({"text": "+" + Palette.full(grown_total), "anchor": "growing", "age": 0.0, "colour": Palette.ACCENT, "size": 12,
+	# Kills' growth shows once it's worth a whole one; smaller, the Number's
+	# roll shows it (D105).
+	if grown_total >= 0.5:
+		floats.append({"text": "+" + Palette.amount(grown_total), "anchor": "growing", "age": 0.0, "colour": Palette.ACCENT, "size": 12,
 			"font": view.hit_cut})
 	if hit_total > 0.0:
 		# Beside the Number's shoulder, as the design has it, never over its digits.
-		floats.append({"text": "−" + Palette.full(hit_total), "anchor": "beside", "age": 0.0, "colour": Palette.HIT, "size": 12,
+		floats.append({"text": "−" + Palette.amount(hit_total), "anchor": "beside", "age": 0.0, "colour": Palette.HIT, "size": 12,
 			"font": view.hit_cut})
 
 

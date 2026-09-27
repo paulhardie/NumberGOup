@@ -206,8 +206,8 @@ func _bank_coins() -> void:
 
 
 func _refresh() -> void:
-	_cash.text = Palette.number(sim.cash)
-	_coins.text = Palette.number(workshop.coins)
+	_cash.text = Palette.money(sim.cash)
+	_coins.text = Palette.money(workshop.coins)
 	_tower_damage.text = "dmg " + Palette.row_value("damage", sim.stat("damage"))
 	_tower_regen.text = "+%.2f/s" % sim.stat("health_regen")
 	# The Number against this run's peak (D083: it has no ceiling).
@@ -218,8 +218,8 @@ func _refresh() -> void:
 	_wave_title.text = "Wave %d" % sim.wave
 	var through := clampf(sim.wave_clock / TowerData.wave_seconds(), 0.0, 1.0)
 	# The basic enemy's Attack and Health this wave, as values, not multipliers.
-	_enemy_attack.text = "atk " + Palette.number(sim.enemy_attack_now("basic"))
-	_enemy_health.text = "hp " + Palette.number(sim.enemy_health_now("basic"))
+	_enemy_attack.text = "atk " + Palette.amount(sim.enemy_attack_now("basic"))
+	_enemy_health.text = "hp " + Palette.amount(sim.enemy_health_now("basic"))
 	_wave_bar.value = through
 	_upgrades.refresh()
 
@@ -234,15 +234,15 @@ func _show_run_over() -> void:
 		lost += float(sim.lost_to[kind])
 	var divided := float(sim.lost_to.get("divider", 0.0))
 	var dividers := "%d Divider%s reached you, taking %s of the %s you lost" % [sim.dividers_landed, "" if sim.dividers_landed == 1 else "s",
-		Palette.full(divided), Palette.full(lost)] if sim.dividers_landed > 0 else "No Divider reached you"
+		Palette.amount(divided), Palette.amount(lost)] if sim.dividers_landed > 0 else "No Divider reached you"
 	_over_text.text = "%s\n%s of game time · %d kills\nPeak Number %s · %s\nCash earned $%s · Coins earned %s\nBest wave %d · best Number %s" % [
-		how, Palette.clock(sim.time), sim.kills, Palette.full(ceilf(sim.peak_number)), dividers, Palette.number(sim.cash_earned),
-		Palette.number(sim.coins), workshop.best_wave, Palette.full(ceilf(workshop.best_number))]
+		how, Palette.clock(sim.time), sim.kills, Palette.full(ceilf(sim.peak_number)), dividers, Palette.money(sim.cash_earned),
+		Palette.money(sim.coins), workshop.best_wave, Palette.full(ceilf(workshop.best_number))]
 	if sim.multipliers:
 		_over_text.text += "\nMultipliers killed %d of %d, adding %s" % [sim.multipliers_killed, sim.multipliers_spawned,
-			Palette.full(float(sim.gained_from.get("multiplier", 0.0)))]
+			Palette.amount(float(sim.gained_from.get("multiplier", 0.0)))]
 	if sim.kill_growth:
-		_over_text.text += "\nKills grew the Number by %s" % Palette.full(float(sim.gained_from.get("kills", 0.0)))
+		_over_text.text += "\nKills grew the Number by %s" % Palette.amount(float(sim.gained_from.get("kills", 0.0)))
 	_over.visible = true
 
 

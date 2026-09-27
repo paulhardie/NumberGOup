@@ -770,11 +770,11 @@ func test_free_upgrades_raise_open_rows_of_their_category() -> void:
 func test_orbs_kill_walking_enemies_but_not_bosses() -> void:
 	var sim := _quiet_sim()
 	sim.levels = {"orbs": 4}
-	var orb: float = sim.orb_angles(sim.time)[0]
-	var walker := _place(sim, "basic", sim.orb_radius())
+	var orb: float = sim.defences.orb_angles(sim.time)[0]
+	var walker := _place(sim, "basic", sim.defences.orb_radius())
 	walker.angle = orb + 0.05
 	walker.stop_at = Guesses.CONTACT_DISTANCE_M
-	var boss := _place(sim, "boss", sim.orb_radius())
+	var boss := _place(sim, "boss", sim.defences.orb_radius())
 	boss.angle = orb + 0.05
 	boss.stop_at = Guesses.CONTACT_DISTANCE_M
 	var kills := sim.kills
@@ -782,25 +782,25 @@ func test_orbs_kill_walking_enemies_but_not_bosses() -> void:
 	check(not sim.enemies.has(walker) and sim.kills == kills + 1, "an orb kills the enemy it sweeps past, and it pays")
 	check(sim.enemies.has(boss) and boss.health == boss.max_health, "but never a boss")
 	check(Guesses.ORB_IMMUNE.has("boss"), "bosses are the first enemy orbs can't kill; later ones join them there")
-	check(sim.orb_angles().size() == 4, "four orbs, spaced evenly")
+	check(sim.defences.orb_angles().size() == 4, "four orbs, spaced evenly")
 
 
 func test_orbs_circle_on_the_range_edge_at_orb_speed_in_radians() -> void:
 	var sim := _quiet_sim()
 	sim.levels = {"orbs": 1}
-	check_near(sim.orb_radius(), sim.stat("range"), 0.0, "on the edge of Range")
-	check_near(sim.orb_turns_per_second() * TAU, TowerData.value("orb_speed", 0), 0.0001, "Orb Speed's value is radians a second (D104)")
-	check(1.0 / sim.orb_turns_per_second() > 15.0, "a turn about every 16 seconds at its first level: %.1f s" % (1.0 / sim.orb_turns_per_second()))
+	check_near(sim.defences.orb_radius(), sim.stat("range"), 0.0, "on the edge of Range")
+	check_near(sim.defences.orb_turns_per_second() * TAU, TowerData.value("orb_speed", 0), 0.0001, "Orb Speed's value is radians a second (D104)")
+	check(1.0 / sim.defences.orb_turns_per_second() > 15.0, "a turn about every 16 seconds at its first level: %.1f s" % (1.0 / sim.defences.orb_turns_per_second()))
 	sim.levels["range"] = 20
-	check_near(sim.orb_radius(), sim.stat("range"), 0.0, "and out with more Range")
+	check_near(sim.defences.orb_radius(), sim.stat("range"), 0.0, "and out with more Range")
 	sim.levels["orb_speed"] = TowerData.max_level("orb_speed")
-	check(sim.orb_turns_per_second() > 0.9 and sim.orb_turns_per_second() < 1.1, "about a turn a second at its last: %.2f" % sim.orb_turns_per_second())
+	check(sim.defences.orb_turns_per_second() > 0.9 and sim.defences.orb_turns_per_second() < 1.1, "about a turn a second at its last: %.2f" % sim.defences.orb_turns_per_second())
 
 
 func test_one_orb_sweeps_a_ranged_enemy_off_the_range_edge_within_a_turn() -> void:
 	var sim := _quiet_sim()
 	sim.levels = {"orbs": 1}
-	var turn := 1.0 / sim.orb_turns_per_second()
+	var turn := 1.0 / sim.defences.orb_turns_per_second()
 	var ranged := _place(sim, "ranged", sim.stat("range"))
 	ranged.angle = 2.0
 	ranged.max_health = 1e9
@@ -937,12 +937,12 @@ func test_land_mines_are_laid_in_range_and_blast_what_walks_onto_them() -> void:
 	target.health = 1e12
 	for _i in range(roundi(60.0 / BattleSim.TICK)):
 		sim.step()
-	check(not sim.mines.is_empty(), "shots lay mines: %d" % sim.mines.size())
-	for mine in sim.mines:
+	check(not sim.defences.mines.is_empty(), "shots lay mines: %d" % sim.defences.mines.size())
+	for mine in sim.defences.mines:
 		check(mine.length() >= Guesses.CONTACT_DISTANCE_M - 0.0001 and mine.length() <= sim.stat("range") + 0.0001, "a mine lies in range: %s" % mine.length())
 	sim = _quiet_sim({}, BattleSim.START_GROUPS + ["land_mines"])
 	sim.record_events = true
-	sim.mines = [Vector2(20.0, 0.0)]
+	sim.defences.mines = [Vector2(20.0, 0.0)]
 	var walker := _place(sim, "basic", 21.0)
 	var beside := _place(sim, "basic", 20.0)
 	beside.angle = 0.2
@@ -954,17 +954,17 @@ func test_land_mines_are_laid_in_range_and_blast_what_walks_onto_them() -> void:
 	beside.health = 1.0
 	var kills := sim.kills
 	sim.step()
-	check(sim.mines.is_empty(), "a walking enemy within 2 m sets the mine off")
+	check(sim.defences.mines.is_empty(), "a walking enemy within 2 m sets the mine off")
 	check_near(walker.health, 1000.0 - sim.stat("damage") * sim.stat("land_mine_damage"), 0.0001, "the blast deals Land Mine Damage's share of Damage")
 	check(not sim.enemies.has(beside) and sim.kills == kills + 1, "an enemy within Land Mine Radius it kills is paid for")
 	check_near(away.health, 1000.0, 0.0, "one out of the radius is untouched")
 
 
 func test_the_wall_stops_melee_enemies_until_it_falls_then_rebuilds() -> void:
-	check(not _quiet_sim().wall_up(), "no wall before Wall opens")
+	check(not _quiet_sim().defences.wall_up(), "no wall before Wall opens")
 	var sim := _quiet_sim({"health": 100}, BattleSim.START_GROUPS + ["wall"])
 	sim.record_events = true
-	check(sim.wall_up() and is_equal_approx(sim.wall_health, sim.max_health() * sim.stat("wall_health")), "the wall starts at Wall Health's share of Health")
+	check(sim.defences.wall_up() and is_equal_approx(sim.defences.wall_health, sim.max_health() * sim.stat("wall_health")), "the wall starts at Wall Health's share of Health")
 	var walker := _place(sim, "basic", 12.0)
 	walker.speed = 30.0
 	walker.max_health = 1e12
@@ -972,20 +972,20 @@ func test_the_wall_stops_melee_enemies_until_it_falls_then_rebuilds() -> void:
 	for _i in range(30):
 		sim.step()
 	check_near(walker.distance, Guesses.WALL_DISTANCE_M, 0.0, "a melee enemy stops at the wall")
-	check(sim.wall_health < sim.wall_max_health() and is_equal_approx(sim.health, sim.max_health()), "and hits the wall, not the tower")
-	sim.wall_health = 0.01
-	while sim.wall_up():
+	check(sim.defences.wall_health < sim.defences.wall_max_health() and is_equal_approx(sim.health, sim.max_health()), "and hits the wall, not the tower")
+	sim.defences.wall_health = 0.01
+	while sim.defences.wall_up():
 		sim.step()
 	check(not sim.events.filter(func(event): return event.type == "wall_down").is_empty(), "the wall falls")
-	check_near(sim.wall_rebuild_in, sim.stat("wall_rebuild"), BattleSim.TICK, "and rebuilds after Wall Rebuild seconds")
+	check_near(sim.defences.wall_rebuild_in, sim.stat("wall_rebuild"), BattleSim.TICK, "and rebuilds after Wall Rebuild seconds")
 	for _i in range(15):
 		sim.step()
 	check(walker.distance < Guesses.WALL_DISTANCE_M, "the enemy walks on once the wall is down")
 	sim.enemies.clear()
-	sim.wall_rebuild_in = 0.5
+	sim.defences.wall_rebuild_in = 0.5
 	for _i in range(16):
 		sim.step()
-	check(sim.wall_up() and is_equal_approx(sim.wall_health, sim.wall_max_health()), "a rebuilt wall is whole")
+	check(sim.defences.wall_up() and is_equal_approx(sim.defences.wall_health, sim.defences.wall_max_health()), "a rebuilt wall is whole")
 
 
 func test_recovery_packages_heal_past_health_up_to_max_recovery() -> void:
@@ -1485,10 +1485,10 @@ func test_a_divider_in_flight_is_lost_to_shots_and_pays_when_killed() -> void:
 func test_a_divider_breaks_on_the_wall() -> void:
 	var sim := _quiet_sim({"health": 100}, BattleSim.START_GROUPS + ["wall"])
 	var number := sim.health
-	var wall := sim.wall_health
+	var wall := sim.defences.wall_health
 	_place(sim, "divider", Guesses.WALL_DISTANCE_M)
 	sim.step()
-	check_near(sim.wall_health, wall / 1.25, 0.0001, "the Wall loses what the Number would")
+	check_near(sim.defences.wall_health, wall / 1.25, 0.0001, "the Wall loses what the Number would")
 	check(sim.health >= number and sim.dividers_landed == 1, "and the Number nothing")
 
 
@@ -1665,9 +1665,11 @@ func test_peak_regen_and_kill_growth_only_when_switched_on() -> void:
 	check_near(grower.health, before, 0.0, "one that has hit you adds nothing")
 	check(float(grower.gained_from.kills) > 0.0, "and kills' growth is booked")
 	var arena := ArenaView.new()
-	arena.absorb([{"type": "grown", "enemy": clean, "gain": 0.25}, {"type": "grown", "enemy": another, "gain": 0.5}], 0.0)
+	arena.absorb([{"type": "grown", "enemy": clean, "gain": 0.75}, {"type": "grown", "enemy": another, "gain": 1.5}], 0.0)
 	var pluses := arena.effects.floats.filter(func(item): return item.get("anchor") == "growing")
-	check(pluses.size() == 1 and pluses[0].text == "+0.75", "a frame's kills show as one \"+\" by the Number: %s" % [pluses])
+	check(pluses.size() == 1 and pluses[0].text == "+2", "a frame's kills show as one whole \"+\" by the Number: %s" % [pluses])
+	arena.absorb([{"type": "grown", "enemy": clean, "gain": 0.2}], 0.0)
+	check(arena.effects.floats.filter(func(item): return item.get("anchor") == "growing").size() == 1, "and less than half of one shows nothing")
 	arena.free()
 
 	var switched := {"multipliers": false, "peak_regen": true, "kill_growth": true}
@@ -1768,28 +1770,30 @@ func test_numbers_read_as_the_towers() -> void:
 ## dealt so far under it once it has lived through a shot, and a Divider in
 ## range is previewed at the Number.
 func test_an_enemy_shows_what_it_does() -> void:
-	check(Palette.short(1.64) == "1.6", "one decimal under 10: %s" % Palette.short(1.64))
-	check(Palette.short(4.0) == "4", "no trailing .0: %s" % Palette.short(4.0))
-	check(Palette.short(13.65) == "14", "whole from 10: %s" % Palette.short(13.65))
-	check(Palette.short(1084.0) == "1.08K", "K past a thousand: %s" % Palette.short(1084.0))
+	# Without a decimal point (D105): money rounds down, prices up, and damage
+	# to the nearest, never reading 0 for a real hit.
+	check(Palette.money(12.9) == "12" and Palette.money(1208.4) == "1,208", "money, rounded down, in full")
+	check(Palette.money(30622.93, true) == "30,623" and Palette.money(50.0, true) == "50", "a price rounds up")
+	check(Palette.amount(2.4) == "2" and Palette.amount(2.6) == "3" and Palette.amount(1084.0) == "1,084", "damage to the nearest, in full")
+	check(Palette.amount(0.3) == "1" and Palette.amount(0.0) == "0", "a real hit never reads 0")
 
 	var sim := _quiet_sim({"defense_absolute": 10})
 	var basic := _place(sim, "basic", 20.0)
 	basic.attack = 20.0
 	var first := sim.landed_damage(20.0)
-	check(ArenaView.shown_text(sim, basic) == "−" + Palette.short(first), "walking in, it shows what its hit will take, after defences (D102): %s" % ArenaView.shown_text(sim, basic))
+	check(ArenaView.shown_text(sim, basic) == "−" + Palette.amount(first), "walking in, it shows what its hit will take, after defences (D102): %s" % ArenaView.shown_text(sim, basic))
 	check(ArenaView.dealt_text(basic) == "", "unhurt, nothing under it")
 	basic.health = basic.max_health * 0.4
-	check(ArenaView.shown_text(sim, basic) == "−" + Palette.short(first), "shot, its number doesn't count down")
-	check(ArenaView.dealt_text(basic) == Palette.short(basic.max_health * 0.6), "the damage dealt so far shows under it: %s" % ArenaView.dealt_text(basic))
+	check(ArenaView.shown_text(sim, basic) == "−" + Palette.amount(first), "shot, its number doesn't count down")
+	check(ArenaView.dealt_text(basic) == Palette.amount(basic.max_health * 0.6), "the damage dealt so far shows under it: %s" % ArenaView.dealt_text(basic))
 	basic.health = 0.0
 	check(ArenaView.dealt_text(basic) == "", "and a dead one shows none, so a one-shot kill never does")
 	basic.health = basic.max_health
 	basic.distance = basic.stop_at
-	check(ArenaView.shown_text(sim, basic) == "−" + Palette.short(first), "arrived, the same: its next hit")
+	check(ArenaView.shown_text(sim, basic) == "−" + Palette.amount(first), "arrived, the same: its next hit")
 	basic.hits = 10
 	var tenth := sim.landed_damage(20.0 * pow(Guesses.HEAT_UP_PER_HIT, 10))
-	check(tenth > first and ArenaView.shown_text(sim, basic) == "−" + Palette.short(tenth), "and it grows with each hit it lands: %s" % ArenaView.shown_text(sim, basic))
+	check(tenth > first and ArenaView.shown_text(sim, basic) == "−" + Palette.amount(tenth), "and it grows with each hit it lands: %s" % ArenaView.shown_text(sim, basic))
 
 	var far := _place(sim, "divider", sim.stat("range") + 5.0)
 	far.divisor = 1.25
