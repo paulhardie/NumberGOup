@@ -187,22 +187,22 @@ func _draw() -> void:
 		draw_arc(centre, lerpf(from, reach_px * 0.95, eased), 0.0, TAU, 128, Color(Palette.NUMBER, 0.5 * (1.0 - spread)), 1.5, true)
 	draw_arc(centre, reach_px, 0.0, TAU, 128, RANGE_LINE, 1.0, true)
 	effects.draw_shockwave(reach_px)
-	for mine in sim.mines:
+	for mine in sim.defences.mines:
 		draw_circle(to_view(mine), 3.0, Palette.WARNING)
 	effects.draw_blasts(sim.stat("land_mine_radius") * px_per_metre())
 	var number := _number_layout()
-	if sim.wall_up():
+	if sim.defences.wall_up():
 		# Brighter the more of its health it has left. Drawn clear of a large
 		# Number rather than through its digits, as the enemies stopped at it are.
-		var standing := sim.wall_health / maxf(sim.wall_max_health(), 0.001)
+		var standing := sim.defences.wall_health / maxf(sim.defences.wall_max_health(), 0.001)
 		var wall_px := maxf(Guesses.WALL_DISTANCE_M * px_per_metre(), _number_half.length() + 6.0)
 		draw_arc(centre, wall_px, 0.0, TAU, 64, Color(Palette.TEXT, 0.25 + 0.5 * standing), 3.0, true)
 	effects.draw_ranged_shots(_number_half)
 	for enemy in sim.enemies:
 		_draw_enemy(enemy)
 	effects.draw_pops()
-	var orb_radius_px := sim.orb_radius() * px_per_metre()
-	for angle in sim.orb_angles():
+	var orb_radius_px := sim.defences.orb_radius() * px_per_metre()
+	for angle in sim.defences.orb_angles():
 		draw_circle(centre + Vector2.from_angle(angle) * orb_radius_px, 5.0, Palette.ACCENT)
 	for shot in sim.shots:
 		_draw_shot(shot)
@@ -396,7 +396,7 @@ static func divider_preview(battle: BattleSim) -> Dictionary:
 	if nearest == null:
 		return {}
 	var after := "Wall"
-	if not battle.wall_up():
+	if not battle.defences.wall_up():
 		var left := battle.health - battle.divide_loss(nearest.divisor)
 		after = Palette.full(Palette.number_shown(left, battle.max_health(), true))
 	return {"sign": operation_text(battle, nearest), "after": after}
