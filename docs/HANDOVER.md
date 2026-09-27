@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports and cleaned up the docs; no game code changed.
+**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports, cleaned up the docs, and moved the Divider into The Tower's Protector slot (D094).
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #81 (D092, the music) merged. It carries docs only: this page, D093 (no reduced motion), the report's findings in the spec and THE_NUMBER.md, and stale lines fixed. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #83 (the owner's wave-31 run) merged. It carries D094: the Divider now replaces a basic, at most once a wave. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -20,7 +20,7 @@
 **Version 0.9, with all of 1.0's Number built.**
 
 - **The battle.** Tier 1, with every one of The Tower's Workshop groups working (D076). The Number sits in the centre as the tower, white, with no ceiling (D083), in a soft light that swirls with smoke (D087). It is on pure black.
-- **Enemies.** The Tower's enemies subtract. From wave 5 a Divider divides the Number: ÷1.25, then ÷1.5 from wave 18. The nearest one in range is previewed above the Number (D086).
+- **Enemies.** The Tower's enemies subtract. A Divider divides the Number: ÷1.25, then ÷1.5 from wave 18. It takes the Protector's slot, replacing a basic, so waves are The Tower's size: one every third wave from wave 5 (the first on wave 7), every other wave by wave 30 (D094). The nearest one in range is previewed above the Number (D086).
 - **Enemies as numbers** (D085, D086). Each type has its own typeface and colour. An enemy shows its health while it walks in, then its hit once it arrives.
 - **Shots** have trails, hits chip the enemies' numbers, and knockback slides (D090).
 - **Sound.** No combat sounds (D091). Generative ambient music plays across every screen (D092).
@@ -41,7 +41,7 @@
 
 ## Open decisions for the owner
 
-1. **Sign off 1.0, or name what's missing.** The Tower's benchmarks hold and the Number climbs. Open with it: **should the Divider take the Protector's slot** in The Tower's standard pool (one per wave, on the Protector's cooldown and cap, replacing a basic so the pool stays at 100%), instead of coming on top? The owner's research on The Tower's spawn model (27 September, in chat) prompted it. **Recommend yes**, measured first: it brings ÷ moments toward one a minute and restores The Tower's enemy count. But Dividers already take 40% of the Number lost in long runs, so it must be checked on long careers and tuned by the Divider's health or cooldown.
+1. **Sign off 1.0, or name what's missing,** after playing D094. The Tower's benchmarks hold and the Number climbs. In simulation, D094 left fresh runs as they were but a core career beat the wave-10 boss on run 9 (it was 11; The Tower's is 10–13), and ÷ landings sit about 0.3 a minute. **If that feels too easy or ÷ too rare, recommend** raising the Divider's health from 4× to 5× before its rate, since the owner set the rate's ceiling.
 2. **Game speed.** The spec calls the 1×/2×/5× switch a testing tool, yet it's half of how the owner plays. **Recommend** keeping it as a player feature, since The Tower's first hours are long.
 3. **Updates mid-run.** Two runs were lost when a merge landed while a run was saved. **Recommend** the Mac's sync job wait to update while the save holds a run in progress, and say so in its notification. It's small, and changes nothing in the game.
 4. **The lighter rebuild process** (REBUILD_SPEC.md, "Process while the rebuild is in progress"), open since 25 September. **Recommend yes.**
@@ -52,7 +52,7 @@
 ## Next steps, in order
 
 1. **Owner:** answer decision 1. Done when 1.0 is signed off, or what's missing is named.
-2. **Agent, on the owner's word:** tune the Divider's share with `sim_runs.gd --curve` so The Tower's targets (THE_NUMBER.md 5.1) still hold and ÷ moments come about once a minute or two. Then raise `application/config/version` to 1.0 when the owner signs it off.
+2. **Agent, on the owner's word:** tune the Divider's health with `sim_runs.gd --careers 40 --buy core --divider-health N` if play says so. Then raise `application/config/version` to 1.0 when the owner signs it off. `--careers` always plays the same seeds (run N is seed N), so a second career needs a seed option first.
 3. **Owner:** try the web build on a phone. The smoke shader, the music and the portrait layout have never run there.
 4. **Then Cards (1.1).** Before them, split `src/ui/arena_view.gd` (509 lines: the battle, effects, the light, fonts) so effects have their own file, and consider moving the later Workshop mechanics (Wall, Mines, Orbs, Shockwave) out of `battle_sim.gd` (821 lines), per AGENTS.md's law 7.
 
@@ -61,7 +61,7 @@
 - **This session (27 September):**
   - `read_report.gd` on the owner's latest report: runs 20 and 21, recorded on `af32bb6`, **match** on replay. The others were recorded on older commits.
   - The report figures above come from the four exported reports, with runs deduplicated by time and seed.
-  - No game code changed, so the tests weren't rerun here. The last run, for D092, was `PASS: tower tests (2473 checks)`.
+  - D094: `bash run_tests.sh` passes (2604 checks). `sim_runs.gd` 20 seeds before and after, and a 40-run core career; figures in D094. Not played; the owner hasn't seen it.
 - **The tools:** `bash run_tests.sh` (the baseline); `sim_runs.gd` for balance; `capture_battle.gd` for screenshots; `record_music.gd` for the music; `read_report.gd` for the owner's runs. AGENTS.md's Commands has their options.
 - **On Linux:** download Godot 4.7.2 and check its SHA-512 as `.github/workflows/verify.yml` does, then set `GODOT`. Wrap window tools in `xvfb-run -a -s "-screen 0 1024x1100x24"`. Run `--import` once after new assets.
 - **Not yet run anywhere:** a phone; the web build's performance; a real close and reopen on the Mac.
@@ -70,6 +70,7 @@
 
 - **Readings still needed from The Tower:** one boss kill's Cash (20× is ours), and a basic enemy's Health at wave 30 or 50. The health correction is only fitted to wave 22.
 - **Heat-up is unsettled:** we use 4% per hit landed; the owner's research says per wave survived. Watching a boss stand at the tower in The Tower settles it.
+- **A run saved mid-way before D094 won't resume identically**, so it ends at its saved wave (D078). Finish or end a run before merging.
 - **The Tier 1 turtle hasn't been measured since the Divider arrived.** A ÷ goes through the defences almost untouched by Defense Absolute, so the turtle's "I've stopped dying" moment should be checked with `sim_runs.gd`.
 - **The D076 mechanics use our guesses where The Tower is silent** (the spec's Guesses): the Wall's distance, mines, shockwaves. None is reachable in the first hours.
 - **Resuming replays the whole run,** about 4.6 s per hour of game time. Several-hour runs, and idle play, will need a battle-state snapshot instead.
@@ -80,7 +81,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D093), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D094), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.

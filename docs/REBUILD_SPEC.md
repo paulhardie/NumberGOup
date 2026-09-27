@@ -89,7 +89,7 @@ tests/       tower_tests.gd
 - **The Number is the tower (D080–D082): built, not yet played by the owner.**
   - The Number sits in the centre, whole, white and on its own, in a light that swirls with smoke (D084, D087). It has no ceiling (D083): regen keeps raising it.
   - The Tower's enemies subtract, shown as "−x".
-  - A new Divider divides the Number on contact and is used up: ÷1.25 to wave 17, then ÷1.5, gentle because Tier 1 is the tutorial (D083). It comes from wave 5, on top of The Tower's enemies, with 4× a basic's health.
+  - A new Divider divides the Number on contact and is used up: ÷1.25 to wave 17, then ÷1.5, gentle because Tier 1 is the tutorial (D083). It takes the Protector's slot in The Tower's enemies, replacing a basic, at most once a wave: one every third wave from wave 5 (the first on wave 7), every other wave by wave 30 (D094). It has 4× a basic's health.
   - Measured, fresh runs match The Tower (waves 3 and 8). Careers climb past the old wave-20 wall, reaching wave 30 by run 24, and most Dividers land.
   - The run-over screen and Home show the peak and best Number, and Ranged pays 2 Coins.
 - **The owner's first reports (27 September): 21 runs, 37 in the Workshop, best wave 21.** See [Benchmarks](#benchmarks) for how they compare with The Tower.
@@ -159,7 +159,7 @@ These are carried from the current game until the owner reads the real value:
 - Recovery Packages land at a wave's end, not as objects that fly in.
 - The Divider's numbers (D082, `Guesses.DIVIDER`) are all ours:
   - ÷1.25 to wave 17, then ÷1.5 (D083), in steps of 0.25;
-  - 3% of a wave rising to 6% by wave 30;
+  - in the Protector's slot, replacing a basic: a third of one a wave from wave 5, rising to half of one by wave 30, never more than one a wave (D094);
   - 4× a basic's health;
   - a basic's speed and mass;
   - 2× a basic's Cash and 2 Coins.

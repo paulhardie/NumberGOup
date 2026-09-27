@@ -95,6 +95,7 @@ The vision's test still applies: **honest.** Every number that kills you should 
 - **(a) Convert some of The Tower's types,** e.g. tanks divide and the boss divides on arrival. Few new parts, but it breaks the Tier 1 benchmarks (the tank mix alone changes how runs end).
 - **(b) Keep all of The Tower's types flat, and add new operator enemies on top,** at a small, tunable share that grows with the wave. The Tower's benchmarks hold, and the operators come in one at a time, each measured.
 - **Recommend (b).** For example, ÷2 enemies from wave 3 at about 3% of a wave, and percent enemies not in Tier 1.
+- *Since D094 the Divider replaces a basic, in The Tower's Protector slot, rather than coming on top, so The Tower's wave sizes hold exactly.*
 - **Decision 3.**
 
 **2.7 Bosses.** A Tier 1 boss stays and hits flat, like The Tower's. A boss that divided every second would be unwinnable. **Recommend:** the boss stays flat in Tier 1. Operator bosses belong to later tiers, if anywhere.
@@ -257,7 +258,7 @@ Three things stand out:
 | **Shape** | A diamond (a square turned 45°) with "÷2" on it, in its own colour | Reads as related to the launch squares but different, and the symbol is always visible (honesty) |
 | **Health** | 2× a basic enemy of its wave | Survives the first shot, so it isn't trivially one-shot; not a tank |
 | **Speed** | A basic enemy's | Arrives mixed in with the basics, as a threat you can see coming for the whole walk (about 10 s from spawn) |
-| **When** | Not before wave 5; about 3% of a wave there, rising to about 6% by wave 30 | Roughly one every 3 waves at first, about one a minute by the middle waves (THE_NUMBER.md 5.2). Wave 5 is after a fresh player has learnt the basics |
+| **When** | Not before wave 5; about 3% of a wave there, rising to about 6% by wave 30. *Since D094: in the Protector's slot, replacing a basic, one every third wave rising to every other wave by wave 30* | Roughly one every 3 waves at first, about one a minute by the middle waves (THE_NUMBER.md 5.2). Wave 5 is after a fresh player has learnt the basics |
 | **Pay** | Cash as a fast enemy (2×) and 2 Coins | Worth killing first. It pays only if killed, since a used-up one pays nothing |
 | **Heat-up, Thorns** | None (used up on contact) | Rules 2.4 and 2.5 |
 | **Knockback, Shockwave, Orbs, Mines** | Work on it like any non-boss | These become the ways to stop it |
@@ -267,7 +268,7 @@ The numbers to tune are its share by wave, its health and the divisor. **Tune sh
 
 **How we'll know it's balanced** (5.2's targets, applied to the Divider):
 - The Tier 1 benchmarks still hold: buy nothing and die on waves 2–5, spread your Cash and die around wave 8.
-- A Divider reaches the Number about once a minute in middle waves, not more.
+- A Divider reaches the Number about once a minute in middle waves, not more. *Since D094 an upper bound: the owner judged one a wave too much for Tier 1.*
 - Most Dividers are killed before contact in a sensible build, and fewer still reach the Number as Range, Orbs and Knockback are bought.
 - A Divider never ends a run on its own (it can't), and what does end runs is still mostly flat hits and bosses.
 - Buying Health still lengthens runs, and Defense % becomes the answer to Dividers, as planned.
