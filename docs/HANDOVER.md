@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 26 September 2026 (D089 recorded: idle play as direction, waiting for servers; no code changed), by Claude, handing on to the next agent.
+**Last updated:** 27 September 2026 (D090 built: shots with trails, chips and a sliding knockback; the light's smoke held close to the Number and swirling (D087); before them, D089 recorded idle play as direction), by Claude, handing on to the next agent.
 
-**Branch:** `claude/app-minimized-background-play-pjlklq`, from `main` after #76 (D087 and D088) merged. It carries only D089 and its roadmap line, docs only. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #78 merged. It carries D090 and the swirling smoke (D087). The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -55,7 +55,7 @@
 1. **Owner:** play `main`, and export a report. Say too how the light behind the Number feels (strength, size, grain, the breathing), and the range's haze with Show range on, whether the enemy types read at a glance, whether the flip from health to hit reads, whether the ÷ preview is noticed in time, and how the crowd bunched at the Number looks. Say whether the Number in the centre and the ÷ moments feel right, and how often they come. Done when the owner has played it.
 2. **Agent:** read the report. It records each run's peak Number, what Dividers took, and how many came and landed. Tune `Guesses.DIVIDER` from it with `sim_runs.gd` against the benchmarks (THE_NUMBER.md 5).
 3. **Owner, then:** sign off 1.0, or name what's missing. After that comes Cards (1.1).
-4. **Shot feel, which the owner asked to look at next (27 September).** Shots today are 2–3 pt dots flying at 80 m/s (`Guesses.SHOT_SPEED_M`, ours), homing so they never miss, lost if their target dies first; a knockback moves an enemy back in one tick; nothing is drawn at impact, and the game has no sound. Recommended order: drawing first (trails, a small burst on impact, a knockback that eases back), which changes no rule; then sound; and only then, measured with `sim_runs.gd`, the shot speed itself, which is balance (slower shots waste more on overkill).
+4. **Sound, next after shot feel (D090, built: trails, chips, a sliding knockback).** No sound exists yet; it needs a mute switch beside Show range (D088), and its assets chosen: Kenney's CC0 packs (Impact, Sci-Fi and Interface Sounds) or generated blips. The shot speed itself (80 m/s, ours) stays until play gives a reason and `sim_runs.gd` measures the change.
 
 ## How to measure
 
@@ -116,5 +116,5 @@
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
 2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (D074 onwards), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
-4. **Commit on a branch, never `main`, and push it.** Don't open or merge a PR unless the owner asks.
+4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.

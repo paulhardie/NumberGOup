@@ -1,6 +1,6 @@
 shader_type canvas_item;
 // The light behind the Number (D087): a soft glow fading into the black,
-// with smoke drifting up through it and faint motes caught in it, like a lamp
+// with smoke swirling close about the Number and faint motes caught in it, like a lamp
 // in a hazy room, and the range's haze when it's shown (D088). One quad over
 // the arena, so it costs one pass; the arena drives its colour and strength,
 // breathing and flaring.
@@ -15,11 +15,13 @@ uniform float strength = 0.0;
 // edge from inside and stops soon after, rather than a line.
 uniform float range_px = 125.0;
 uniform float range_strength = 0.0;
-// Smoke: the size of its billows, how far it thins and thickens the light,
-// and how fast it rises, in billows a second.
-uniform float smoke_scale_px = 70.0;
-uniform float smoke_depth = 0.5;
-uniform float smoke_rise = 0.08;
+// Smoke: wisps held close about the Number, within about this radius, this
+// size, and this bright against the light; and a lighter haze through the
+// wider light, thinning and thickening it by this much.
+uniform float smoke_radius_px = 58.0;
+uniform float smoke_scale_px = 34.0;
+uniform float smoke_gain = 1.3;
+uniform float haze_depth = 0.25;
 // Motes: one may sit in each cell this many points across, this share of
 // cells hold one, and this is how bright a lit one is.
 uniform float mote_cell_px = 22.0;
@@ -58,14 +60,25 @@ void fragment() {
 	float spread = edge < 0.0 ? 16.0 : 3.0;
 	light += range_strength * exp(-(edge * edge) / (spread * spread));
 
-	// Two layers of smoke rising at different speeds and swaying a little, so
-	// it churns slowly instead of sliding past as one sheet.
-	vec2 sp = (px - centre_px) / smoke_scale_px;
 	float t = TIME;
-	float near = billows(sp + vec2(0.3 * sin(t * 0.05), t * smoke_rise));
-	float far = billows(sp * 1.7 + vec2(3.1, t * smoke_rise * 1.6));
-	float smoke = smoothstep(0.15, 0.75, mix(near, far, 0.4));
-	light *= mix(1.0 - smoke_depth, 1.0 + smoke_depth, smoke);
+	vec2 rel = px - centre_px;
+	float r = length(rel);
+	// The smoke swirls about the Number. Its turn is a slow drift plus three
+	// sways whose periods (about half a minute, one and two minutes) never line
+	// up, so it speeds, slows and eases back without ever repeating a cycle; it
+	// never stops or turns back. The inside is wound further than the outside,
+	// by an amount that breathes within bounds, so the curl never tightens into
+	// rings however long the run.
+	float turn = 0.22 * t + 0.9 * sin(t * 0.113) + 0.6 * sin(t * 0.047 + 1.3) + 0.35 * sin(t * 0.231 + 2.1);
+	float wind = 1.1 + 0.4 * sin(t * 0.089) + 0.25 * sin(t * 0.037 + 0.7);
+	float twist = turn + wind * (1.0 - smoothstep(0.0, smoke_radius_px * 1.8, r));
+	vec2 q = mat2(vec2(cos(twist), sin(twist)), vec2(-sin(twist), cos(twist))) * rel / smoke_scale_px;
+	float wisps = billows(q + vec2(0.0, t * 0.03) + 0.4 * vec2(sin(t * 0.07), cos(t * 0.053)));
+	float held_close = exp(-(r * r) / (smoke_radius_px * smoke_radius_px));
+	light += strength * smoke_gain * held_close * smoothstep(0.35, 0.85, wisps);
+	// A lighter haze through the wider light, drifting up slowly.
+	float haze = billows(rel / (smoke_scale_px * 2.2) + vec2(3.1, t * 0.05));
+	light *= mix(1.0 - haze_depth, 1.0 + haze_depth, smoothstep(0.2, 0.8, haze));
 
 	// Motes drifting up, each cell's row swaying its own way, twinkling slowly,
 	// and seen only where the light reaches them.
