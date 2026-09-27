@@ -1447,3 +1447,34 @@ Rules:
      - They're worked out from the best Number the save already keeps, so the save format is unchanged. A save whose best is already past a milestone gets nothing for it.
      - Home's Milestones button, a placeholder since D096, now opens the list: reached ones ticked, and progress towards the next.
 - **Measured:** 40-run careers, core and spread, reach the boss and waves 21 and 30 on the same runs as without milestones. The three reached by then add 310 Coins against about 4,900 earned.
+
+## D108 — Orbs as The Tower balances them: turns a minute, 60 m out
+
+- **Status:** Accepted (2026-09-27) on owner direction: "Orbs are still too fast. Look at how the tower balances them". It replaces D104's speed and D075's "on the Range edge", both owner readings that the community wikis contradict.
+- **What The Tower does** (Tower Hub's Orbs page, https://www.tower-hub.com/wiki/workshop/orbs; the Fandom wiki's Orbs page; game-vault's Workshop page): Orb Speed is **rotations a minute**, 0.4 at the first level to 6.10 at the last. Orbs circle **at least 60 m out**, outside the base 30 m Range, so they sweep enemies on their way in rather than the range's edge; with more Range they sit further out, but "not one to one". Bosses (and, later, elites and anything a Protector shields) are immune.
+- **Decision:**
+  - Orb Speed's value is turns a minute: the first level turns once every 2½ minutes, the last once every 10 seconds.
+  - Orbs circle at `Guesses.ORB_MIN_RADIUS_M` (60 m), plus `Guesses.ORB_RANGE_SLOPE` (0.5, ours) of every metre of Range past 60 m. At The Tower's largest Range (69.5 m) that is about 65 m.
+  - They still kill instantly within `Guesses.ORB_HIT_M` (3 m, ours), and `Guesses.ORB_IMMUNE` stays the boss.
+  - The view zooms out to keep the orbs' circle on screen as well as the Range (D101), so opening orbs zooms the battle out.
+  - Orb Speed's Workshop description says turns a minute, regenerated through `tools/import_tower_workshop.py` (which reproduced the committed data exactly first).
+- **Measured** (the Workshop a 40-run core career ends with, 20 seeds, median wave), trying how close an orb must come:
+
+| An orb reaches | None | 1, slowest | 2, Orb Speed 10 | 4, Orb Speed 20 | 4, fastest |
+|---|---|---|---|---|---|
+| 3 m (kept) | 31 | 31 | 31 | 39 | 41 |
+| 6 m | 31 | 31 | 36 | 41 | 41 |
+| 10 m | 31 | 31 | 41 | 41 | 61 |
+
+  - Against D104's 31 / 31 / 41 / 61, orbs are now a slow build rather than a switch: one cheap orb does nothing measurable, and four fully upgraded ones add ten waves, not thirty. Ranged enemies, standing at 30 m, are out of their reach entirely.
+  - Fresh runs are untouched, since orbs open at 15,000 Coins.
+- **Revisit when:** the owner times one lap of a first-level orb in The Tower, or Labs (1.2) bring orb upgrades.
+
+## D109 — Kills burst, Coins float beside Cash, and shots leave the Number's edge
+
+- **Status:** Accepted (2026-09-27) on owner direction: "I want enemies to have more particles when they die / If enemies drop coins on kill, I want that to appear next to them as well as the cash. / Projectiles from the number should be white, and can we find a way for them to be fired from the centre that don't look janky or out of place". Drawing only: no rule, number or save changes.
+- **Decision:**
+  - **A kill bursts into sparks** in the enemy's colour, every fourth one white, flying mostly away from the tower and slowing to a stop over about 0.6 s, with a thin ring swelling where it died. Heavier enemies throw more: 10 for a basic or fast, 12 ranged, 16 for a ÷ or ×, 20 tank, 40 boss (`ArenaEffects.SPARKS`), capped at 600 on screen.
+  - **A kill that pays Coins floats them beside its Cash**, "$3 ● 1", the Coins in their gold. A kill that pays none shows Cash alone, as before.
+  - **The Number's shots are white**, a crit larger with a faint halo. A shot is hidden until it's clear of the Number's digits and its trail never reaches back inside them, so shots appear to leave the Number's edge, where each flashes briefly. Bounces, which start at an enemy, don't flash.
+- **Not done:** a physics engine for the combat's feel. The battle must stay deterministic so runs resume and reports replay (D078), which Godot's physics doesn't promise, and The Tower's feel comes from presentation, not simulation. The levers left, all drawing only: a hit-stop of a frame or two on big hits, a brief white flash on an enemy that's hit, and squash on impact.

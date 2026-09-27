@@ -18,10 +18,11 @@ signal digit_reached(power: int)
 ## The range circle's radius as a share of half the view's width, as on The
 ## Tower's screen (292 px of 460 in the owner's screenshots).
 const RANGE_SHARE := 0.64
-## As Range is bought the circle grows, until its edge would pass this share
-## of the room around the Number (half the width, or the space above or below
-## it); from there the view zooms out instead (D101), so the range, and the
-## ranged enemies standing on it, never leave the screen. The zoom eases over
+## As Range is bought the circle grows, until its edge, or the orbs' circle
+## when they're further out (D108), would pass this share of the room around
+## the Number (half the width, or the space above or below it); from there the
+## view zooms out instead (D101), so the range, the ranged enemies standing on
+## it and the orbs never leave the screen. The zoom eases over
 ## about 1 / ZOOM_EASE seconds rather than jumping when Range is bought.
 const MAX_RANGE_SHARE := 0.92
 const ZOOM_EASE := 4.0
@@ -153,7 +154,11 @@ func target_px_per_metre() -> float:
 	if sim == null:
 		return towers
 	var room := minf(size.x * 0.5, minf(centre.y, size.y - centre.y)) * MAX_RANGE_SHARE
-	return minf(towers, room / maxf(sim.stat("range"), 0.001))
+	# Orbs circle outside a small Range (D108), so they're kept in view too.
+	var reach := sim.stat("range")
+	if sim.stat("orbs") > 0.0:
+		reach = maxf(reach, sim.defences.orb_radius())
+	return minf(towers, room / maxf(reach, 0.001))
 
 
 func to_view(world: Vector2) -> Vector2:
@@ -223,11 +228,13 @@ func _draw() -> void:
 	for enemy in sim.enemies:
 		_draw_enemy(enemy)
 	effects.draw_pops()
+	effects.draw_sparks()
 	_draw_orbs()
 	for shot in sim.shots:
 		_draw_shot(shot)
 	effects.draw_chips()
 	_draw_tower(number)
+	effects.draw_glints()
 	_draw_divider_preview()
 	effects.draw_floats()
 
@@ -404,12 +411,35 @@ func _draw_divider_preview() -> void:
 ## white on a critical, so a crit reads as a harder shot.
 func _draw_shot(shot: BattleSim.Shot) -> void:
 	var at := to_view(shot.last_position.lerp(shot.position, blend))
-	var colour := Palette.TEXT if shot.critical else Palette.ACCENT
+	# The Number's shots are white (D109); a critical is larger, with a halo.
+	var colour := Palette.NUMBER
+	var offset := at - centre
+	var direction := offset.normalized() if offset.length() > 0.001 else Vector2.RIGHT
+	var edge := edge_px(direction)
+	# Leaving the Number, a shot shows only once it's clear of the digits, and
+	# its trail never reaches back inside them.
+	if offset.length() < edge:
+		return
 	var heading := shot.position - shot.last_position
 	if heading.length() > 0.001:
 		var tail := at - heading.normalized() * (CRIT_TRAIL_PX if shot.critical else TRAIL_PX)
-		draw_polyline_colors(PackedVector2Array([tail, at]), PackedColorArray([Color(colour, 0.0), Color(colour, 0.7)]), 2.0 if shot.critical else 1.5, true)
-	draw_circle(at, 2.5 if shot.critical else 1.8, colour)
+		if (tail - centre).dot(direction) < edge and offset.length() < edge + CRIT_TRAIL_PX:
+			tail = centre + direction * edge
+		draw_polyline_colors(PackedVector2Array([tail, at]), PackedColorArray([Color(colour, 0.0), Color(colour, 0.75)]), 2.0 if shot.critical else 1.4, true)
+	if shot.critical:
+		draw_circle(at, 4.5, Color(colour, 0.18))
+	draw_circle(at, 2.4 if shot.critical else 1.6, colour)
+
+
+## How far from the centre the Number's digits reach along `direction`: the
+## edge of its box, where shots leave it and enemies stand clear of it.
+func edge_px(direction: Vector2) -> float:
+	var reach := INF
+	if absf(direction.x) > 0.001:
+		reach = _number_half.x / absf(direction.x)
+	if absf(direction.y) > 0.001:
+		reach = minf(reach, _number_half.y / absf(direction.y))
+	return reach if reach != INF else 0.0
 
 
 ## How far out to draw an enemy: where it is, or where a knockback's slide has got to.

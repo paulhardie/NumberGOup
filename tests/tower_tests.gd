@@ -793,33 +793,42 @@ func test_orbs_kill_walking_enemies_but_not_bosses() -> void:
 	check(sim.defences.orb_angles().size() == 4, "four orbs, spaced evenly")
 
 
-func test_orbs_circle_on_the_range_edge_at_orb_speed_in_radians() -> void:
+## Orbs as The Tower has them (D108): Orb Speed in rotations a minute, and at
+## least 60 m out, further inside a Range that grows past that.
+func test_orbs_circle_at_the_towers_distance_and_speed() -> void:
 	var sim := _quiet_sim()
 	sim.levels = {"orbs": 1}
-	check_near(sim.defences.orb_radius(), sim.stat("range"), 0.0, "on the edge of Range")
-	check_near(sim.defences.orb_turns_per_second() * TAU, TowerData.value("orb_speed", 0), 0.0001, "Orb Speed's value is radians a second (D104)")
-	check(1.0 / sim.defences.orb_turns_per_second() > 15.0, "a turn about every 16 seconds at its first level: %.1f s" % (1.0 / sim.defences.orb_turns_per_second()))
-	sim.levels["range"] = 20
-	check_near(sim.defences.orb_radius(), sim.stat("range"), 0.0, "and out with more Range")
+	check_near(sim.defences.orb_radius(), Guesses.ORB_MIN_RADIUS_M, 0.0, "60 m out, beyond a 30 m Range")
+	check_near(sim.defences.orb_turns_per_second() * 60.0, TowerData.value("orb_speed", 0), 0.0001, "Orb Speed's value is rotations a minute")
+	check(is_equal_approx(1.0 / sim.defences.orb_turns_per_second(), 150.0), "a turn every 2½ minutes at its first level: %.1f s" % (1.0 / sim.defences.orb_turns_per_second()))
 	sim.levels["orb_speed"] = TowerData.max_level("orb_speed")
-	check(sim.defences.orb_turns_per_second() > 0.9 and sim.defences.orb_turns_per_second() < 1.1, "about a turn a second at its last: %.2f" % sim.defences.orb_turns_per_second())
+	var lap := 1.0 / sim.defences.orb_turns_per_second()
+	check(lap > 9.0 and lap < 11.0, "about one every 10 seconds at its last: %.1f s" % lap)
+	sim.levels["range"] = TowerData.max_level("range")
+	var range_m := sim.stat("range")
+	check(range_m > Guesses.ORB_MIN_RADIUS_M and sim.defences.orb_radius() > Guesses.ORB_MIN_RADIUS_M and sim.defences.orb_radius() < range_m,
+		"a Range past 60 m takes them further out, but inside it: %.1f m of %.1f" % [sim.defences.orb_radius(), range_m])
 
 
-func test_one_orb_sweeps_a_ranged_enemy_off_the_range_edge_within_a_turn() -> void:
+func test_orbs_sweep_the_approach_not_a_small_ranges_edge() -> void:
 	var sim := _quiet_sim()
-	sim.levels = {"orbs": 1}
+	sim.levels = {"orbs": 1, "orb_speed": TowerData.max_level("orb_speed")}
 	var turn := 1.0 / sim.defences.orb_turns_per_second()
 	var ranged := _place(sim, "ranged", sim.stat("range"))
 	ranged.angle = 2.0
 	ranged.max_health = 1e9
 	ranged.health = 1e9
-	# Harmless, so the tower outlasts a slow orb's turn.
+	# Harmless, so the tower outlasts a whole turn.
 	ranged.attack = 0.0
-	var steps := 0
-	while sim.enemies.has(ranged) and steps < roundi(turn / BattleSim.TICK) + 1:
+	var walker := _place(sim, "basic", sim.defences.orb_radius())
+	walker.angle = 4.0
+	walker.max_health = 1e9
+	walker.health = 1e9
+	walker.attack = 0.0
+	for _i in range(roundi(turn / BattleSim.TICK) + 1):
 		sim.step()
-		steps += 1
-	check(not sim.enemies.has(ranged), "one turn reaches it, however tough it is")
+	check(sim.enemies.has(ranged), "a ranged enemy on a 30 m Range's edge is out of their reach")
+	check(not sim.enemies.has(walker), "one on their circle dies within a turn, however tough")
 
 
 func test_ranged_enemies_stop_on_the_range_edge() -> void:
@@ -2078,6 +2087,52 @@ func test_hits_and_knockback_are_drawn_with_weight() -> void:
 	sim.enemies.clear()
 	arena.absorb([], 1.0 / 60.0)
 	check(arena.effects.eased.is_empty(), "an enemy gone is forgotten")
+	arena.free()
+
+
+## A kill (D109) bursts into sparks, more for a heavier enemy, and floats
+## what it paid beside it: Cash, and Coins when it paid any. The Number's
+## shots leave from the edge of its digits, flashing there once each.
+func test_kills_burst_and_shots_leave_the_numbers_edge() -> void:
+	var arena := ArenaView.new()
+	arena.size = Vector2(390, 500)
+	arena.centre = Vector2(195, 275)
+	var sim := _quiet_sim()
+	arena.sim = sim
+	var basic := _place(sim, "basic", 12.0)
+	var tank := _place(sim, "tank", 14.0)
+	arena.absorb([], 1.0 / 60.0)
+	var cash_only: Array[Dictionary] = [{"type": "kill", "enemy": basic, "cash": 3.0, "coins": 0.0, "by": ""}]
+	arena.absorb(cash_only, 0.0)
+	check(arena.effects.sparks.size() == ArenaEffects.SPARKS.basic and arena.effects.death_rings.size() == 1, "a kill bursts into sparks with a ring: %d" % arena.effects.sparks.size())
+	var paid: Array = arena.effects.floats.filter(func(item): return item.has("parts"))
+	check(paid.size() == 1 and paid[0].parts.size() == 1 and paid[0].parts[0][0] == "$3", "a kill that pays no Coins floats its Cash alone: %s" % [paid])
+	var both: Array[Dictionary] = [{"type": "kill", "enemy": tank, "cash": 12.0, "coins": 2.0, "by": ""}]
+	arena.absorb(both, 0.0)
+	check(arena.effects.sparks.size() == ArenaEffects.SPARKS.basic + ArenaEffects.SPARKS.tank, "a tank bursts into more")
+	paid = arena.effects.floats.filter(func(item): return item.has("parts"))
+	check(paid.size() == 2 and paid[1].parts.size() == 2 and paid[1].parts[1][0].ends_with("2") and paid[1].parts[1][3] == Palette.COIN,
+		"one that pays Coins floats them beside its Cash, in the Coins' colour: %s" % [paid[1].parts])
+	arena.absorb([], ArenaEffects.SPARK_SECONDS * 1.2 + 0.01)
+	check(arena.effects.sparks.is_empty() and arena.effects.death_rings.is_empty(), "and they fade")
+
+	arena._number_half = Vector2(30.0, 12.0)
+	check_near(arena.edge_px(Vector2.RIGHT), 30.0, 0.0001, "the Number's edge is its box's side across")
+	check_near(arena.edge_px(Vector2.UP), 12.0, 0.0001, "and its top and bottom up and down")
+	var shot := BattleSim.Shot.new()
+	shot.target = basic
+	sim.shots.append(shot)
+	arena.absorb([], 1.0 / 60.0)
+	check(arena.effects.glints.size() == 1, "a shot leaving the Number flashes on its edge")
+	check_near((arena.effects.glints[0].at - arena.centre).length(), arena.edge_px((arena.to_view(basic.position()) - arena.centre).normalized()), 0.01, "where it crosses it, towards its target")
+	arena.absorb([], 1.0 / 60.0)
+	check(arena.effects.glints.size() == 1, "once, not every frame")
+	var bounce := BattleSim.Shot.new()
+	bounce.target = tank
+	bounce.position = basic.position()
+	sim.shots.append(bounce)
+	arena.absorb([], ArenaEffects.GLINT_SECONDS + 0.01)
+	check(arena.effects.glints.is_empty(), "a shot starting out at an enemy, a bounce, doesn't flash, and a flash fades")
 	arena.free()
 
 

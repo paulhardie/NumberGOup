@@ -42,6 +42,16 @@ const SHOVE_EASE := 14.0
 ## root of its mass, so a tank barely rocks and a boss hardly at all; landing
 ## a hit, it lunges in by LUNGE_PX the same way. Both settle in about 1 /
 ## RECOIL_EASE seconds (D103).
+## A kill bursts into sparks in the enemy's colour, more the heavier it is,
+## flying out and slowing to a stop over about SPARK_SECONDS, with a thin ring
+## where it died (D109). MAX_SPARKS caps them in a crowd.
+const SPARKS := {"basic": 10, "fast": 10, "ranged": 12, "tank": 20, "boss": 40, "divider": 16, "multiplier": 16}
+const SPARK_SPEED_PX := Vector2(50.0, 170.0)
+const SPARK_SECONDS := 0.6
+const MAX_SPARKS := 600
+const DEATH_RING_SECONDS := 0.25
+## A shot leaving the Number flashes where it crosses the edge of its digits.
+const GLINT_SECONDS := 0.09
 const RECOIL_PX := 3.5
 const LUNGE_PX := 4.0
 const RECOIL_EASE := 14.0
@@ -66,6 +76,13 @@ var eased := {}
 var recoil := {}
 ## Ranged enemies' shots at the Number: {enemy, age}.
 var ranged_shots: Array[Dictionary] = []
+## A kill's sparks {at, velocity, colour, age, life, size} and rings {at, colour, age}.
+var sparks: Array[Dictionary] = []
+var death_rings: Array[Dictionary] = []
+## Flashes on the Number's edge where shots left it: {at, age}; and the shots
+## already seen, by instance id, so each flashes once.
+var glints: Array[Dictionary] = []
+var _seen_shots := {}
 ## Seconds since the Wall last fell or was rebuilt, and whether it fell, so
 ## its brackets can fall away or slide back in (D106).
 var wall_changed_age := INF
@@ -103,6 +120,18 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 		chip.at += chip.velocity * delta
 		chip.velocity *= exp(-delta * 6.0)
 	chips = chips.filter(func(chip): return chip.age < CHIP_SECONDS)
+	for spark in sparks:
+		spark.age += delta
+		spark.at += spark.velocity * delta
+		spark.velocity *= exp(-delta * 5.0)
+	sparks = sparks.filter(func(spark): return spark.age < spark.life)
+	for ring in death_rings:
+		ring.age += delta
+	death_rings = death_rings.filter(func(ring): return ring.age < DEATH_RING_SECONDS)
+	for glint in glints:
+		glint.age += delta
+	glints = glints.filter(func(glint): return glint.age < GLINT_SECONDS)
+	_watch_shots()
 	if delta > 0.0:
 		for id in recoil.keys():
 			recoil[id] = lerpf(float(recoil[id]), 0.0, 1.0 - exp(-delta * RECOIL_EASE))
@@ -158,6 +187,25 @@ func draw_pops() -> void:
 		view.draw_set_transform(Vector2.ZERO)
 
 
+## A kill's sparks, small squares shrinking as they fade, and its ring.
+func draw_sparks() -> void:
+	for ring in death_rings:
+		var done: float = ring.age / DEATH_RING_SECONDS
+		view.draw_arc(ring.at, lerpf(6.0, 26.0, done), 0.0, TAU, 32, Color(ring.colour, 0.5 * (1.0 - done)), 1.2, true)
+	for spark in sparks:
+		var left: float = 1.0 - spark.age / spark.life
+		var side: float = spark.size * (0.4 + 0.6 * left)
+		view.draw_rect(Rect2(spark.at - Vector2(side, side) * 0.5, Vector2(side, side)), Color(spark.colour, 0.9 * left))
+
+
+## Where a shot left the Number: a small white flash on its edge, quickly gone.
+func draw_glints() -> void:
+	for glint in glints:
+		var left: float = 1.0 - glint.age / GLINT_SECONDS
+		view.draw_circle(glint.at, 1.5 + 3.0 * left, Color(Palette.NUMBER, 0.35 * left))
+		view.draw_circle(glint.at, 1.2, Color(Palette.NUMBER, 0.9 * left))
+
+
 func draw_chips() -> void:
 	for chip in chips:
 		var fade: float = 1.0 - chip.age / CHIP_SECONDS
@@ -177,7 +225,9 @@ func draw_floats() -> void:
 		var x := at.x - width * 0.5
 		for part in parts:
 			var font: Font = part[1]
-			view.draw_string(font, Vector2(x, at.y), part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, part[2], Color(item.colour, 1.0 - rise))
+			# A part may carry its own colour, as a kill's Coins do.
+			var colour: Color = part[3] if part.size() > 3 else item.colour
+			view.draw_string(font, Vector2(x, at.y), part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, part[2], Color(colour, 1.0 - rise))
 			x += font.get_string_size(part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, part[2]).x
 
 
@@ -190,8 +240,12 @@ func _take(events: Array[Dictionary]) -> void:
 	for event in events:
 		match event.type:
 			"kill":
-				floats.append({"text": "$" + Palette.money(event.cash), "at": event.enemy.position(), "age": 0.0, "colour": Palette.ACCENT,
-					"font": view.mono_cut})
+				# What it paid, beside where it died: Cash, and Coins when it paid any.
+				var paid: Array = [["$" + Palette.money(event.cash), view.mono_cut, 12, Palette.ACCENT]]
+				if float(event.get("coins", 0.0)) > 0.0:
+					paid.append(["  ● " + Palette.money(float(event.coins)), view.mono_cut, 12, Palette.COIN])
+				floats.append({"parts": paid, "at": event.enemy.position(), "age": 0.0, "colour": Palette.ACCENT})
+				_burst(event.enemy)
 				# The killed enemy's own number swells and fades where it died; an
 				# orb's kill reads 0, since an orb sets it to zero (D106).
 				var last: String = "0" if event.get("by", "") == "orb" else (view.shown_text(view.sim, event.enemy) if view.sim != null else "")
@@ -258,6 +312,47 @@ func _take(events: Array[Dictionary]) -> void:
 		# Beside the Number's shoulder, as the design has it, never over its digits.
 		floats.append({"text": "−" + Palette.amount(hit_total), "anchor": "beside", "age": 0.0, "colour": Palette.HIT, "size": 12,
 			"font": view.hit_cut})
+
+
+## A kill bursts into sparks where the enemy was drawn, in its colour with a
+## few white, flying out from its number, and a ring swells there (D109).
+func _burst(enemy) -> void:
+	if not view.LOOKS.has(enemy.kind) or view.sim == null:
+		return
+	var look: Dictionary = view.LOOKS[enemy.kind]
+	var at: Vector2 = view.enemy_at(enemy.angle, shown_metres(enemy), view.enemy_half(enemy.kind, "0"))
+	death_rings.append({"at": at, "colour": look.colour, "age": 0.0})
+	var count: int = mini(int(SPARKS.get(enemy.kind, 10)), MAX_SPARKS - sparks.size())
+	for n in range(count):
+		# Mostly away from the tower, the way the shot was going.
+		var heading := Vector2.from_angle(enemy.angle + _look_rng.randf_range(-1.6, 1.6))
+		sparks.append({"at": at, "velocity": heading * _look_rng.randf_range(SPARK_SPEED_PX.x, SPARK_SPEED_PX.y),
+			"colour": Palette.NUMBER if n % 4 == 0 else look.colour, "age": 0.0,
+			"life": SPARK_SECONDS * _look_rng.randf_range(0.6, 1.2), "size": _look_rng.randf_range(1.5, 3.5)})
+
+
+## Each shot new this frame that starts near the Number flashes on its edge
+## where it leaves; a bounce, starting at an enemy, doesn't.
+func _watch_shots() -> void:
+	if view.sim == null:
+		return
+	var now := {}
+	for shot in view.sim.shots:
+		var id: int = shot.get_instance_id()
+		now[id] = true
+		if _seen_shots.has(id):
+			continue
+		var offset: Vector2 = view.to_view(shot.position) - view.centre
+		# A shot still at the centre heads for its target.
+		var toward: Vector2 = offset
+		if toward.length() < 0.001 and shot.target != null:
+			toward = view.to_view(shot.target.position()) - view.centre
+		if toward.length() < 0.001:
+			toward = Vector2.RIGHT
+		var edge: float = view.edge_px(toward.normalized())
+		if offset.length() <= edge + 12.0:
+			glints.append({"at": view.centre + toward.normalized() * edge, "age": 0.0})
+	_seen_shots = now
 
 
 ## A word that rises from the tower.
