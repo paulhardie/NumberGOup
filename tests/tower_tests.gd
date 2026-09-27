@@ -287,7 +287,7 @@ func test_pressing_an_upgrade_card_buys_it() -> void:
 	check(screen._health_text.text.begins_with("1 / "), "a tower still standing never reads 0: %s" % screen._health_text.text)
 	screen.sim.health = screen.sim.max_health() * 1.5
 	screen._refresh()
-	check(screen._health_text.text.begins_with(Palette.number(roundf(screen.sim.health))), "overhealed health reads above the most: %s" % screen._health_text.text)
+	check(screen._health_text.text.begins_with(Palette.full(roundf(screen.sim.health))), "overhealed health reads above the most: %s" % screen._health_text.text)
 	check(screen._health_bar.value == screen._health_bar.max_value, "and the bar is full")
 	screen._upgrades.show_tab("utility")
 	check(screen._upgrades._cards.is_empty() and screen._upgrades._empty.visible, "Utility says its rows open in the Workshop")
@@ -1726,6 +1726,11 @@ func test_numbers_read_as_the_towers() -> void:
 	check(Palette.number(402.9) == "402", "whole past 100")
 	check(Palette.number(1460.0) == "1.46K", "K past a thousand")
 	check(Palette.number(7.42e8) == "742.00M", "M past a million")
+	# The Number itself is written out in full below a million (D100).
+	check(Palette.full(2.35) == "2.35" and Palette.full(402.9) == "402", "the Number reads as number() while small")
+	check(Palette.full(1460.0) == "1,460" and Palette.full(999999.4) == "999,999", "and in full, with commas, up to 999,999")
+	check(Palette.full(12345.9) == "12,345" and Palette.full(-5000.0) == "-5,000", "whole, never rounded up past what it is")
+	check(Palette.full(1e6) == "1.00M" and Palette.full(7.42e8) == "742.00M", "shortening only from a million")
 
 
 ## An enemy is one number (D085): its health while it walks in, what each hit
@@ -1761,10 +1766,10 @@ func test_an_enemy_shows_one_number() -> void:
 	var preview := ArenaView.divider_preview(sim)
 	var expected := sim.health - sim.divide_loss(1.5)
 	check(preview.get("sign") == "÷1.5", "the nearest in range is previewed: %s" % preview)
-	check(preview.get("after") == Palette.number(Palette.number_shown(expected, sim.max_health(), true)), "with what it will leave: %s" % preview)
+	check(preview.get("after") == Palette.full(Palette.number_shown(expected, sim.max_health(), true)), "with what it will leave: %s" % preview)
 	sim.enemies.erase(far)
 	sim._divide(near)
-	check(Palette.number(Palette.number_shown(sim.health, sim.max_health(), true)) == preview.after, "and the landing leaves exactly that: %s" % sim.health)
+	check(Palette.full(Palette.number_shown(sim.health, sim.max_health(), true)) == preview.after, "and the landing leaves exactly that: %s" % sim.health)
 
 
 ## The light behind the Number (D087) flares for a ÷ and fades back to white.

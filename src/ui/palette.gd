@@ -256,6 +256,25 @@ static func number(value: float) -> String:
 	return "%.2f%s" % [value / pow(1000.0, tier), SUFFIXES[tier]]
 
 
+## The Number, and what's added to it or taken from it, written out in full
+## (D100): "1,234", "999,999", never shortened to "1.23K" until FULL_BELOW,
+## so watching it grow feels like the number going up. Small amounts keep
+## `number`'s decimals ("2.35"); past FULL_BELOW it shortens as `number` does.
+const FULL_BELOW := 1000000.0
+
+
+static func full(value: float) -> String:
+	var size := absf(value)
+	if size < 1000.0 or size >= FULL_BELOW:
+		return number(value)
+	var digits := "%d" % int(floorf(size))
+	var grouped := ""
+	while digits.length() > 3:
+		grouped = "," + digits.right(3) + grouped
+		digits = digits.left(digits.length() - 3)
+	return ("-" if value < 0.0 else "") + digits + grouped
+
+
 ## An enemy's numbers, kept short for a crowd (D085): one decimal under 10
 ## ("1.6", "4"), whole from there ("14"), then as `number` writes them ("1.08K").
 static func short(value: float) -> String:

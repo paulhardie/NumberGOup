@@ -1329,3 +1329,15 @@ Rules:
   - Drawing and sound only (`arena_view.gd`, `ambient_music.gd`, wired through `battle_screen.gd` and `main.gd`). The battle is unchanged, and nothing is saved.
 - **Consequences:** `capture_battle.gd` shoots the moment (`battle_new_digit`).
 - **Revisit when:** the owner has seen and heard it, or digits come so often in later tiers that they need thinning.
+
+## D100 — The Number is written out in full below a million
+
+- **Status:** Accepted (2026-09-27) on owner direction: "I want numbers to not start shortening at 1K. Sort of kills the feeling of 'number going up'. I was thinking 999,999, maybe even more for the number in the centre."
+- **Decision:**
+  - The Number, and what's added to it or taken from it, is written in full with commas up to 999,999 (`Palette.full`). It shortens as The Tower does ("1.00M") only from a million (`Palette.FULL_BELOW`, one constant to raise if a million proves too soon).
+  - Under 1,000 it reads as before ("2.35", "402").
+  - That covers the centre Number, the ÷ preview, the floats of hits, kills, ÷ and ×, the Tower readout, the run-over panel's peak and losses, and Home's best Number.
+  - Cash, Coins, prices, Workshop values and enemies' own numbers keep The Tower's short style.
+  - The centre Number may spread to 230 px before it shrinks to fit (it was 150), never below 36 px, so five and six digits stay large inside the range's ring.
+- **Consequences:** drawing only; the battle and saves are unchanged.
+- **Open, not decided:** the owner's idea that the Number be its own hitbox, so more digits means enemies reach it sooner and a small Number is a glass-cannon strategy. It's in the handover's open decisions.

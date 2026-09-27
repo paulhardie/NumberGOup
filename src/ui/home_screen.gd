@@ -198,7 +198,7 @@ func _process(delta: float) -> void:
 
 func refresh() -> void:
 	_coins.text = Palette.number(workshop.coins)
-	_best_number.text = Palette.number(ceilf(workshop.best_number))
+	_best_number.text = Palette.full(ceilf(workshop.best_number))
 	_coin_bonus.text = "×%.2f" % TowerData.value("coins_per_kill", workshop.level("coins_per_kill"))
 	_best_wave.text = "Best wave %d · %d run%s" % [workshop.best_wave, workshop.runs, "" if workshop.runs == 1 else "s"]
 

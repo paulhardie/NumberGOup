@@ -214,7 +214,7 @@ func _refresh() -> void:
 	_health_bar.max_value = maxf(sim.peak_number, 0.001)
 	_health_bar.value = sim.health
 	var now := Palette.number_shown(sim.health, sim.max_health(), sim.alive)
-	_health_text.text = "%s / %s" % [Palette.number(now), Palette.number(maxf(now, roundf(sim.peak_number)))]
+	_health_text.text = "%s / %s" % [Palette.full(now), Palette.full(maxf(now, roundf(sim.peak_number)))]
 	_wave_title.text = "Wave %d" % sim.wave
 	var through := clampf(sim.wave_clock / TowerData.wave_seconds(), 0.0, 1.0)
 	# The basic enemy's Attack and Health this wave, as values, not multipliers.
@@ -234,15 +234,15 @@ func _show_run_over() -> void:
 		lost += float(sim.lost_to[kind])
 	var divided := float(sim.lost_to.get("divider", 0.0))
 	var dividers := "%d Divider%s reached you, taking %s of the %s you lost" % [sim.dividers_landed, "" if sim.dividers_landed == 1 else "s",
-		Palette.number(divided), Palette.number(lost)] if sim.dividers_landed > 0 else "No Divider reached you"
+		Palette.full(divided), Palette.full(lost)] if sim.dividers_landed > 0 else "No Divider reached you"
 	_over_text.text = "%s\n%s of game time · %d kills\nPeak Number %s · %s\nCash earned $%s · Coins earned %s\nBest wave %d · best Number %s" % [
-		how, Palette.clock(sim.time), sim.kills, Palette.number(ceilf(sim.peak_number)), dividers, Palette.number(sim.cash_earned),
-		Palette.number(sim.coins), workshop.best_wave, Palette.number(ceilf(workshop.best_number))]
+		how, Palette.clock(sim.time), sim.kills, Palette.full(ceilf(sim.peak_number)), dividers, Palette.number(sim.cash_earned),
+		Palette.number(sim.coins), workshop.best_wave, Palette.full(ceilf(workshop.best_number))]
 	if sim.multipliers:
 		_over_text.text += "\nMultipliers killed %d of %d, adding %s" % [sim.multipliers_killed, sim.multipliers_spawned,
-			Palette.number(float(sim.gained_from.get("multiplier", 0.0)))]
+			Palette.full(float(sim.gained_from.get("multiplier", 0.0)))]
 	if sim.kill_growth:
-		_over_text.text += "\nKills grew the Number by %s" % Palette.number(float(sim.gained_from.get("kills", 0.0)))
+		_over_text.text += "\nKills grew the Number by %s" % Palette.full(float(sim.gained_from.get("kills", 0.0)))
 	_over.visible = true
 
 

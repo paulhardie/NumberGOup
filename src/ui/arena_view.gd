@@ -20,8 +20,8 @@ const RANGE_SHARE := 0.64
 ## owner's main-screen design has it: this size, shrinking to fit
 ## NUMBER_FIT_PX as its digits grow, never below NUMBER_MIN_PX.
 const NUMBER_FONT_PX := 96
-const NUMBER_FIT_PX := 150.0
-const NUMBER_MIN_PX := 40
+const NUMBER_FIT_PX := 230.0
+const NUMBER_MIN_PX := 36
 ## The range as the design draws its ring: a hairline, barely there.
 const RANGE_LINE := Color(1, 1, 1, 0.06)
 ## Enemies at the tower are drawn this clear of the Number's digits, which is
@@ -229,14 +229,14 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 				else:
 					_divide_left = SHAKE_SECONDS
 					flare(Palette.DIVIDER, DIVIDE_FLARE, DIVIDE_FLARE_SECONDS)
-					_floats.append({"parts": [[sign, _divide_cut, 22], ["  −" + Palette.number(float(event.damage)), _mono_cut, 15]], "anchor": "above",
+					_floats.append({"parts": [[sign, _divide_cut, 22], ["  −" + Palette.full(float(event.damage)), _mono_cut, 15]], "anchor": "above",
 						"age": 0.0, "colour": Palette.DIVIDER, "life": DIVIDE_FLOAT_SECONDS, "rise": DIVIDE_FLOAT_RISE_PX, "divide": true})
 			"grown":
 				grown_total += float(event.gain)
 			"multiplied":
 				# The × in the operators' typeface, what it added in the Number's.
 				flare(Palette.MULTIPLIER, DIVIDE_FLARE, DIVIDE_FLARE_SECONDS)
-				_floats.append({"parts": [["×" + _divisor_text(event.factor), _divide_cut, 22], ["  +" + Palette.number(float(event.gain)), _mono_cut, 15]],
+				_floats.append({"parts": [["×" + _divisor_text(event.factor), _divide_cut, 22], ["  +" + Palette.full(float(event.gain)), _mono_cut, 15]],
 					"anchor": "above", "age": 0.0, "colour": Palette.MULTIPLIER, "life": DIVIDE_FLOAT_SECONDS, "rise": DIVIDE_FLOAT_RISE_PX, "divide": true})
 			"free_upgrade":
 				var name := String(TowerData.upgrade(event.id).title).capitalize()
@@ -256,11 +256,11 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 			"mine":
 				_blasts.append({"at": event.at, "age": 0.0})
 	if grown_total > 0.0:
-		_floats.append({"text": "+" + Palette.number(grown_total), "anchor": "growing", "age": 0.0, "colour": Palette.ACCENT, "size": 12,
+		_floats.append({"text": "+" + Palette.full(grown_total), "anchor": "growing", "age": 0.0, "colour": Palette.ACCENT, "size": 12,
 			"font": _hit_cut})
 	if hit_total > 0.0:
 		# Beside the Number's shoulder, as the design has it, never over its digits.
-		_floats.append({"text": "−" + Palette.number(hit_total), "anchor": "beside", "age": 0.0, "colour": Palette.HIT, "size": 12,
+		_floats.append({"text": "−" + Palette.full(hit_total), "anchor": "beside", "age": 0.0, "colour": Palette.HIT, "size": 12,
 			"font": _hit_cut})
 
 
@@ -391,7 +391,7 @@ func _draw() -> void:
 ## it (a standing tower never reads 0), a size larger while Rapid Fire runs,
 ## shrinking to fit as its digits grow. Sets the box enemies stand clear of.
 func _number_layout() -> Dictionary:
-	var text := Palette.number(Palette.number_shown(sim.health, sim.max_health(), sim.alive))
+	var text := Palette.full(Palette.number_shown(sim.health, sim.max_health(), sim.alive))
 	var font_size := NUMBER_FONT_PX + (6 if sim.rapid_fire_left > 0.0 else 0)
 	while font_size > NUMBER_MIN_PX and _number_cut.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > NUMBER_FIT_PX:
 		font_size -= 2
@@ -592,5 +592,5 @@ static func divider_preview(battle: BattleSim) -> Dictionary:
 	var after := "Wall"
 	if not battle.wall_up():
 		var left := battle.health - battle.divide_loss(nearest.divisor)
-		after = Palette.number(Palette.number_shown(left, battle.max_health(), true))
+		after = Palette.full(Palette.number_shown(left, battle.max_health(), true))
 	return {"sign": operation_text(battle, nearest), "after": after}
