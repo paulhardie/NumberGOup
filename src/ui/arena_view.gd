@@ -373,7 +373,7 @@ static func dealt_text(enemy: BattleSim.Enemy) -> String:
 	var dealt := enemy.max_health - enemy.health
 	if dealt <= 0.0 or enemy.health <= 0.0:
 		return ""
-	return Palette.short(dealt)
+	return Palette.amount(dealt)
 
 
 ## What an enemy does: its next hit off the Number, after the tower's
@@ -382,7 +382,7 @@ static func dealt_text(enemy: BattleSim.Enemy) -> String:
 static func operation_text(battle: BattleSim, enemy: BattleSim.Enemy) -> String:
 	if enemy.kind == "divider":
 		return "÷" + divisor_text(enemy.divisor)
-	return "−" + Palette.short(battle.landed_damage(enemy.attack * pow(Guesses.HEAT_UP_PER_HIT, enemy.hits)))
+	return "−" + Palette.amount(battle.landed_damage(enemy.attack * pow(Guesses.HEAT_UP_PER_HIT, enemy.hits)))
 
 
 ## The nearest Divider inside the range and what it will leave: {sign, after},

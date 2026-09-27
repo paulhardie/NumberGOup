@@ -1665,9 +1665,11 @@ func test_peak_regen_and_kill_growth_only_when_switched_on() -> void:
 	check_near(grower.health, before, 0.0, "one that has hit you adds nothing")
 	check(float(grower.gained_from.kills) > 0.0, "and kills' growth is booked")
 	var arena := ArenaView.new()
-	arena.absorb([{"type": "grown", "enemy": clean, "gain": 0.25}, {"type": "grown", "enemy": another, "gain": 0.5}], 0.0)
+	arena.absorb([{"type": "grown", "enemy": clean, "gain": 0.75}, {"type": "grown", "enemy": another, "gain": 1.5}], 0.0)
 	var pluses := arena.effects.floats.filter(func(item): return item.get("anchor") == "growing")
-	check(pluses.size() == 1 and pluses[0].text == "+0.75", "a frame's kills show as one \"+\" by the Number: %s" % [pluses])
+	check(pluses.size() == 1 and pluses[0].text == "+2", "a frame's kills show as one whole \"+\" by the Number: %s" % [pluses])
+	arena.absorb([{"type": "grown", "enemy": clean, "gain": 0.2}], 0.0)
+	check(arena.effects.floats.filter(func(item): return item.get("anchor") == "growing").size() == 1, "and less than half of one shows nothing")
 	arena.free()
 
 	var switched := {"multipliers": false, "peak_regen": true, "kill_growth": true}
@@ -1768,28 +1770,30 @@ func test_numbers_read_as_the_towers() -> void:
 ## dealt so far under it once it has lived through a shot, and a Divider in
 ## range is previewed at the Number.
 func test_an_enemy_shows_what_it_does() -> void:
-	check(Palette.short(1.64) == "1.6", "one decimal under 10: %s" % Palette.short(1.64))
-	check(Palette.short(4.0) == "4", "no trailing .0: %s" % Palette.short(4.0))
-	check(Palette.short(13.65) == "14", "whole from 10: %s" % Palette.short(13.65))
-	check(Palette.short(1084.0) == "1.08K", "K past a thousand: %s" % Palette.short(1084.0))
+	# Without a decimal point (D105): money rounds down, prices up, and damage
+	# to the nearest, never reading 0 for a real hit.
+	check(Palette.money(12.9) == "12" and Palette.money(1208.4) == "1,208", "money, rounded down, in full")
+	check(Palette.money(30622.93, true) == "30,623" and Palette.money(50.0, true) == "50", "a price rounds up")
+	check(Palette.amount(2.4) == "2" and Palette.amount(2.6) == "3" and Palette.amount(1084.0) == "1,084", "damage to the nearest, in full")
+	check(Palette.amount(0.3) == "1" and Palette.amount(0.0) == "0", "a real hit never reads 0")
 
 	var sim := _quiet_sim({"defense_absolute": 10})
 	var basic := _place(sim, "basic", 20.0)
 	basic.attack = 20.0
 	var first := sim.landed_damage(20.0)
-	check(ArenaView.shown_text(sim, basic) == "−" + Palette.short(first), "walking in, it shows what its hit will take, after defences (D102): %s" % ArenaView.shown_text(sim, basic))
+	check(ArenaView.shown_text(sim, basic) == "−" + Palette.amount(first), "walking in, it shows what its hit will take, after defences (D102): %s" % ArenaView.shown_text(sim, basic))
 	check(ArenaView.dealt_text(basic) == "", "unhurt, nothing under it")
 	basic.health = basic.max_health * 0.4
-	check(ArenaView.shown_text(sim, basic) == "−" + Palette.short(first), "shot, its number doesn't count down")
-	check(ArenaView.dealt_text(basic) == Palette.short(basic.max_health * 0.6), "the damage dealt so far shows under it: %s" % ArenaView.dealt_text(basic))
+	check(ArenaView.shown_text(sim, basic) == "−" + Palette.amount(first), "shot, its number doesn't count down")
+	check(ArenaView.dealt_text(basic) == Palette.amount(basic.max_health * 0.6), "the damage dealt so far shows under it: %s" % ArenaView.dealt_text(basic))
 	basic.health = 0.0
 	check(ArenaView.dealt_text(basic) == "", "and a dead one shows none, so a one-shot kill never does")
 	basic.health = basic.max_health
 	basic.distance = basic.stop_at
-	check(ArenaView.shown_text(sim, basic) == "−" + Palette.short(first), "arrived, the same: its next hit")
+	check(ArenaView.shown_text(sim, basic) == "−" + Palette.amount(first), "arrived, the same: its next hit")
 	basic.hits = 10
 	var tenth := sim.landed_damage(20.0 * pow(Guesses.HEAT_UP_PER_HIT, 10))
-	check(tenth > first and ArenaView.shown_text(sim, basic) == "−" + Palette.short(tenth), "and it grows with each hit it lands: %s" % ArenaView.shown_text(sim, basic))
+	check(tenth > first and ArenaView.shown_text(sim, basic) == "−" + Palette.amount(tenth), "and it grows with each hit it lands: %s" % ArenaView.shown_text(sim, basic))
 
 	var far := _place(sim, "divider", sim.stat("range") + 5.0)
 	far.divisor = 1.25

@@ -1407,3 +1407,16 @@ Rules:
 
   - Fresh runs are untouched (buying nothing 3, spreading Cash 8, core 8), since orbs open at 15,000 Coins, around run 100.
 - **What it leaves:** orbs now grow with what's spent on them, from barely there to the full wall of fully upgraded orbs, instead of being a switch that ends the regular enemies. Fully upgraded, runs still end at the boss orbs can't touch (wave 61 here).
+
+## D105 — No decimal points on money and damage
+
+- **Status:** Accepted (2026-09-27) on owner direction: "Can we also remove the decimal point for in run cash or any enemy damage etc to keep it cleaner looking".
+- **Decision:**
+  - Written whole, in full with commas up to 999,999 (like the Number, D100), shortening only from a million:
+    - **Money:** Cash, Coins, kill payouts, the free-Coins pills, and Cash and Coins earned. Rounded down, so it never shows more than there is (`Palette.money`).
+    - **Prices:** Cash and Coin prices and Unlock cards. Rounded up, so a price never looks affordable when it isn't.
+    - **Damage and amounts:** enemies' hits ("−2", "−14"), the damage dealt under an enemy, the floats of hits, ÷ losses and × gains, the readout's enemy Attack and Health, and the run-over panel's losses and gains. Rounded to the nearest, but anything that happened never reads 0 (`Palette.amount`).
+    - A frame's growth from kills (D098) shows only once it's worth at least half of one; smaller, the Number's roll shows it.
+  - **Kept as they were:** rates and percentages, where a whole number would lose the meaning: Attack Speed "1.50", Critical Chance "1.00%", "×1.20", Regen "+0.15/s", the Workshop's row values, and the ÷ and × operators ("÷1.25", "×1.1").
+  - `Palette.short`, which only served the enemies' one-decimal numbers, is gone.
+- **Trade-off:** a hit smaller than half a point now reads "−1", the nearest honest whole number, rather than "−0.3". That shows most in the first waves.
