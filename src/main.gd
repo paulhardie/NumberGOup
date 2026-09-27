@@ -131,7 +131,8 @@ func _resume_failed(saved: Dictionary, reason: String) -> void:
 	# A damaged record can hold anything here.
 	var reached := int(wave) if (wave is float or wave is int) and is_finite(float(wave)) and float(wave) >= 0.0 else 0
 	var peak = result.get("peak_number", 0.0) if result is Dictionary else 0.0
-	workshop.finish_run(reached, float(peak) if (peak is float or peak is int) and is_finite(float(peak)) and float(peak) >= 0.0 else 0.0)
+	for milestone in workshop.finish_run(reached, float(peak) if (peak is float or peak is int) and is_finite(float(peak)) and float(peak) >= 0.0 else 0.0):
+		ActivityLog.append({"kind": "milestone", "number": milestone.number, "coins": milestone.coins}, log_path)
 	var entry := saved.duplicate(true)
 	entry["kind"] = "run"
 	entry["resume_failed"] = reason
@@ -145,6 +146,9 @@ func _resume_failed(saved: Dictionary, reason: String) -> void:
 ## instead, so each run is logged once (D078).
 func _log_run(battle: BattleScreen) -> void:
 	ActivityLog.append(battle.report(), log_path)
+	# Logged apart, so a report never counts a milestone's Coins as earned (D107).
+	for milestone in battle.milestones:
+		ActivityLog.append({"kind": "milestone", "number": milestone.number, "coins": milestone.coins}, log_path)
 
 
 func _swap(next: Control) -> void:

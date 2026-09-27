@@ -263,9 +263,9 @@ static func number(value: float) -> String:
 const FULL_BELOW := 1000000.0
 
 
-static func full(value: float) -> String:
+static func full(value: float, below := FULL_BELOW) -> String:
 	var size := absf(value)
-	if size < 1000.0 or size >= FULL_BELOW:
+	if size < 1000.0 or size >= below:
 		return number(value)
 	var digits := "%d" % int(floorf(size))
 	var grouped := ""
