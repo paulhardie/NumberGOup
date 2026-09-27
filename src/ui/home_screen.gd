@@ -197,7 +197,7 @@ func _process(delta: float) -> void:
 
 
 func refresh() -> void:
-	_coins.text = Palette.number(workshop.coins)
+	_coins.text = Palette.money(workshop.coins)
 	_best_number.text = Palette.full(ceilf(workshop.best_number))
 	_coin_bonus.text = "×%.2f" % TowerData.value("coins_per_kill", workshop.level("coins_per_kill"))
 	_best_wave.text = "Best wave %d · %d run%s" % [workshop.best_wave, workshop.runs, "" if workshop.runs == 1 else "s"]
@@ -303,7 +303,7 @@ func _build_testing(column: VBoxContainer) -> void:
 	gifts.add_theme_constant_override("separation", 8)
 	column.add_child(gifts)
 	for amount in TEST_COINS:
-		var gift := Palette.pill("+● " + Palette.number(amount), Palette.COIN, _mono, 32)
+		var gift := Palette.pill("+● " + Palette.money(amount), Palette.COIN, _mono, 32)
 		gift.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		gift.pressed.connect(func():
 			test_coins_pressed.emit(amount)

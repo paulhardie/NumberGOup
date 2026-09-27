@@ -275,14 +275,21 @@ static func full(value: float) -> String:
 	return ("-" if value < 0.0 else "") + digits + grouped
 
 
-## An enemy's numbers, kept short for a crowd (D085): one decimal under 10
-## ("1.6", "4"), whole from there ("14"), then as `number` writes them ("1.08K").
-static func short(value: float) -> String:
-	if absf(value) >= 1000.0:
-		return number(value)
-	if absf(value) >= 9.95:
-		return "%d" % int(roundf(value))
-	return String.num(snappedf(value, 0.1), 1).trim_suffix(".0")
+## Money without a decimal point (D105): Cash and Coins in full with commas,
+## rounded down, so it never shows more than there is. A price rounds up
+## instead (`up`), so it never looks affordable when it isn't.
+static func money(value: float, up := false) -> String:
+	return full(ceilf(value - 1e-6) if up else floorf(value + 1e-6))
+
+
+## An amount of damage, loss or gain without a decimal point (D105): whole,
+## in full with commas, rounded to the nearest, but something that happened
+## never reads 0.
+static func amount(value: float) -> String:
+	var whole := roundf(value)
+	if whole == 0.0 and value != 0.0:
+		whole = signf(value)
+	return full(whole)
 
 
 ## A row's value the way The Tower writes it.
@@ -315,8 +322,8 @@ static func row_value(id: String, value: float) -> String:
 static func quote(buying: Dictionary, next_price: float, symbol: String) -> String:
 	var bought := int(buying.levels)
 	if bought == 0:
-		return symbol + number(next_price)
-	var cost := symbol + number(float(buying.cost))
+		return symbol + money(next_price, true)
+	var cost := symbol + money(float(buying.cost), true)
 	return cost if bought == 1 else "+%d %s" % [bought, cost]
 
 

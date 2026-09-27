@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session made a design canvas for the owner, "Number Go Up — Design System" (https://claude.ai/artifact/SxFKJQVDmbjVsAqGmnDRDW): the game's type voices, colour roles, the Number's states, the crowd, proposed elites, assets as maths notation and sketches of the Ultimate Weapons. On the owner's word it built two of its proposals: orbs drawn as 0 and the Wall as brackets round the Number (D105). The session before read the first activity reports and built D094–D104.
+**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session made a design canvas for the owner, "Number Go Up — Design System" (https://claude.ai/artifact/SxFKJQVDmbjVsAqGmnDRDW): the game's type voices, colour roles, the Number's states, the crowd, proposed elites, assets as maths notation and sketches of the Ultimate Weapons. On the owner's word it built two of its proposals: orbs drawn as 0 and the Wall as brackets round the Number (D106). Alongside it, another session split the Wall, orbs, shockwaves and mines out of `BattleSim` into `battle_defences.gd` and took the decimal points off money and damage (D105), both merged. The sessions before read the first activity reports and built D094–D104.
 
-**Branch:** `claude/notation-orb-wall`, from `main` after #90 merged (D102–D104). It carries D105 only. The old game is commit `f4f1e95`.
+**Branch:** `claude/notation-orb-wall`, from `main` after #90, with `main` merged in after #92 (the defences split and D105). It carries D106 only; open as #93. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -22,7 +22,7 @@
 - **The battle.** Tier 1, with every one of The Tower's Workshop groups working (D076). The Number sits in the centre as the tower, white, with no ceiling (D083), large and thin, in the design's soft warm light that breathes (D096), inside a faint ring at the range. The screen follows the owner's main-screen design (D095): pill buttons, hairline readouts, underlined tabs and quiet cards, on near-black.
 - **Enemies.** The Tower's enemies subtract. A Divider divides the Number: ÷1.25, then ÷1.5 from wave 18. It takes the Protector's slot, replacing a basic, so waves are The Tower's size: one every third wave from wave 5 (the first on wave 7), every other wave by wave 30 (D094). The nearest one in range is previewed above the Number (D086).
 - **Enemies as numbers** (D085, D086). Each type has its own typeface and colour. An enemy shows what it does to the Number (−2.4, ÷1.5, ×1.1) from start to death, with the damage dealt so far in small white under it once it survives a shot (D102).
-- **Shots** have trails, hits chip the enemies' numbers, and knockback slides (D090). Orbs are mint 0s on the range's edge, and the Wall is a pair of brackets round the Number that fall away when it breaks (D105).
+- **Shots** have trails, hits chip the enemies' numbers, and knockback slides (D090). Orbs are mint 0s on the range's edge, and the Wall is a pair of brackets round the Number that fall away when it breaks (D106).
 - **Sound.** No combat sounds (D091). Generative ambient music plays across every screen (D092).
 - **Home and the Workshop** wear the same look, with a bar along the bottom (D096). Home follows The Tower's: Coins, the best Number in its light, the Coin bonus, the tier, Battle. Cards, Labs, Weapons, Missions, Milestones and the tier arrows stand locked as placeholders. Settings (Music, Export report) opens over Home and is kept in `user://number_go_up_settings.json` (D088).
 - **Saving, resuming and the report.** The save is `user://number_go_up_tower.json`, version 1. A run closed mid-way resumes by replay (D078). Every run and Workshop buy is logged, and Home exports a report (D077).
@@ -49,7 +49,7 @@
 6. **AGENTS.md's law 3** names a modifier pipeline that no longer exists. **Recommend** dropping it until a system needs stacked rules. Only the owner changes that file's rules.
 7. **Publishing The Tower's data** (its Workshop and enemy numbers, under the SDK's MIT licence) needs a decision before anything is public. Not urgent.
 8. **Idle play (D089)** waits for servers. Nothing is built.
-9. **The design canvas's other proposals** (D105 names them): a Number that grows heavier with each new digit, elites in one shared blue with a typeface each, and the rest of the notation assets. **Recommend** trying the heavier Number next, with the Tweaks slider on its board, since it answers the Number shrinking as digits arrive.
+9. **The design canvas's other proposals** (D106 names them): a Number that grows heavier with each new digit, elites in one shared blue with a typeface each, and the rest of the notation assets. **Recommend** trying the heavier Number next, with the Tweaks slider on its board, since it answers the Number shrinking as digits arrive.
 10. **Milestones and Missions** stand on Home as placeholders at the owner's request, but aren't on the roadmap. **Recommend** deciding whether they join it before 1.1, or dropping them, so a placeholder never promises something unplanned.
 
 ## Next steps, in order
@@ -57,15 +57,18 @@
 1. **Owner:** play runs with Settings → Testing's switches in a few combinations (none; regen at best and kills; all three), using free Coins or a reset to try different stages. Done when the owner says which to keep.
 1a. **Owner:** sign off 1.0 or name what's missing (decision 2).
 2. **Agent, on the owner's word:** tune the Divider's health with `sim_runs.gd --careers 40 --buy core --divider-health N` if play says so. Then raise `application/config/version` to 1.0 when the owner signs it off. `--careers` always plays the same seeds (run N is seed N), so a second career needs a seed option first.
+2a. **Owner:** send [`design/GAME_STAGE_BRIEF.md`](design/GAME_STAGE_BRIEF.md) to Claude Design with its screenshots (`capture_battle.gd` makes them), and choose from what comes back. **Agent, then:** record the choices as the next D-number and build them in `arena_view.gd`, `arena_effects.gd` and `number_motion.gd`; drawing only. Done when the owner has played the new stage.
 3. **Owner:** try the web build on a phone. The light's shader, the music and the portrait layout have never run there.
-4. **Then Cards (1.1).** `src/ui/arena_view.gd` is split (27 September): the battle's drawing stays there (401 lines), what fades around it is `arena_effects.gd` and the Number's motion and light `number_motion.gd`. Before Cards, consider moving the later Workshop mechanics (Wall, Mines, Orbs, Shockwave) out of `battle_sim.gd` (974 lines), per AGENTS.md's law 7.
+4. **Then Cards (1.1).** The two splits before them are done: the arena's drawing is three files (`arena_view.gd`, `arena_effects.gd`, `number_motion.gd`), and the Wall, orbs, shockwaves and land mines live in `src/tower/battle_defences.gd`, out of `battle_sim.gd` (now 850 lines).
 
 ## How to measure
 
-- **This session (27 September, D105):** `bash run_tests.sh`: 2816 checks, the 6 new ones passing; 7 save-file checks fail on this Mac on untouched `main` too (see Known issues), and CI passed on `main`. `bash run_godot.sh --headless --path . --quit` boots. `capture_battle.gd`'s `battle_strong` (orbs and the Wall up, a four-digit Number) and `battle_wall_down` checked by eye. Not seen: a six-digit Number with the Wall up, or the fall and rise in motion.
+- **This session (27 September, D106):** `bash run_tests.sh` on the branch with `main` merged in (after #92): 2817 checks, the 6 new ones passing; 7 save-file checks fail on this Mac on untouched `main` too (see Known issues), and CI passed on `main`. `bash run_godot.sh --headless --path . --quit` boots. `capture_battle.gd`'s `battle_strong` (orbs and the Wall up, a four-digit Number) and `battle_wall_down` checked by eye. Not seen: a six-digit Number with the Wall up, or the fall and rise in motion.
 - **The session before (27 September):**
   - `read_report.gd` on the owner's latest report: runs 20 and 21, recorded on `af32bb6`, **match** on replay. The others were recorded on older commits.
   - The report figures above come from the four exported reports, with runs deduplicated by time and seed.
+  - D105: `bash run_tests.sh` passes (2811 checks); captures of a crowd, a battle and the Workshop checked by eye.
+  - The defences split: `bash run_tests.sh` passes (2810 checks). Ordinary runs, a 40-run career and eight runs with every defence open print identically to `main`, RNG states included.
   - D104: `bash run_tests.sh` passes (2810 checks). Orbs measured at four speeds on a 40-run core career's Workshop (20 seeds each; table in D104). Fresh runs unchanged.
   - The arena split: `bash run_tests.sh` passes (2808 checks, as before). Every `capture_battle.gd` screen captured before and after and compared pixel by pixel: the differences match those between two runs of the same code (chips scatter at random), so nothing visible changed.
   - D103: `bash run_tests.sh` passes (2808 checks). Five seconds of live battle were recorded frame by frame from a scratch script (not committed) and looked at: the Number stays anchored as it climbs.
@@ -94,7 +97,7 @@
 - **The D076 mechanics use our guesses where The Tower is silent** (the spec's Guesses): the Wall's distance, mines, shockwaves. None is reachable in the first hours.
 - **Resuming replays the whole run,** about 4.6 s per hour of game time. Several-hour runs, and idle play, will need a battle-state snapshot instead.
 - **Seven save-file checks fail locally on the owner's Mac** (Godot 4.7.2): `DirAccess.get_files_at("user://")` there lists the project folder, not the save folder, so the tests can't find their own save files to clear them. It happens on untouched `main`; CI on Linux passes. The game's own saving doesn't list folders, so it's a test-only problem, but a local red run hides real failures. Worth fixing in the tests.
-- **With the Wall up and a six-digit Number, its brackets reach close to the range ring** (D105).
+- **With the Wall up and a six-digit Number, its brackets reach close to the range ring** (D106).
 - **Enemies bunch at the Number:** those on the same side overlap. It's worth watching in play.
 - **The light's shader and the music are unmeasured on a phone.**
 - Past wave 6,500 the enemy data holds its last value.
@@ -102,7 +105,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D105), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D106), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.

@@ -39,7 +39,7 @@ const CONTACT_GAP_PX := 3.0
 ## A shot's trail in points, longer on a critical (D090).
 const TRAIL_PX := 9.0
 const CRIT_TRAIL_PX := 15.0
-## The game's own things are drawn as notation (D105). An orb is a 0, since it
+## The game's own things are drawn as notation (D106). An orb is a 0, since it
 ## sets what it touches to zero: ORB_PX tall in the shots' mint, with an arc of
 ## trail ORB_TRAIL_PX long behind it round the range.
 const ORB_PX := 16
@@ -214,7 +214,7 @@ func _draw() -> void:
 		draw_arc(centre, lerpf(from, reach_px * 0.95, eased), 0.0, TAU, 128, Color(Palette.NUMBER, 0.5 * (1.0 - spread)), 1.5, true)
 	draw_arc(centre, reach_px, 0.0, TAU, 128, RANGE_LINE, 1.0, true)
 	effects.draw_shockwave(reach_px)
-	for mine in sim.mines:
+	for mine in sim.defences.mines:
 		draw_circle(to_view(mine), 3.0, Palette.WARNING)
 	effects.draw_blasts(sim.stat("land_mine_radius") * px_per_metre())
 	var number := _number_layout()
@@ -248,7 +248,7 @@ func _number_layout() -> Dictionary:
 	_number_half = Vector2(width * 0.5, font_size * 0.35) * scale
 	_bracket_px = maxi(1, roundi(float(font_size) * scale * BRACKET_SCALE))
 	_clear_half = _number_half
-	if sim.wall_up():
+	if sim.defences.wall_up():
 		# Enemies held at the Wall stand clear of its brackets, not in them.
 		var bracket := _bracket_cut.get_string_size("(", HORIZONTAL_ALIGNMENT_LEFT, -1, _bracket_px).x
 		_clear_half = Vector2(_number_half.x + WALL_GAP_PX + bracket, maxf(_number_half.y, _bracket_px * 0.5))
@@ -282,16 +282,16 @@ func _draw_tower(number: Dictionary) -> void:
 	draw_set_transform(Vector2.ZERO)
 
 
-## The Wall as brackets round the Number (D105), brighter the more of its
+## The Wall as brackets round the Number (D106), brighter the more of its
 ## health it has left. They hold still while the Number is nudged and shaken,
 ## as a wall would. Falling, they tip outward and drop in the warning colour;
 ## rebuilt, they slide back in.
 func _draw_wall() -> void:
 	var since: float = effects.wall_changed_age
-	var falling := not sim.wall_up() and effects.wall_fell and since < WALL_FALL_SECONDS
-	if not sim.wall_up() and not falling:
+	var falling: bool = not sim.defences.wall_up() and effects.wall_fell and since < WALL_FALL_SECONDS
+	if not sim.defences.wall_up() and not falling:
 		return
-	var standing := sim.wall_health / maxf(sim.wall_max_health(), 0.001)
+	var standing: float = sim.defences.wall_health / maxf(sim.defences.wall_max_health(), 0.001)
 	var colour := Color(Palette.TEXT, 0.25 + 0.5 * standing)
 	var out := 0.0
 	var tip := 0.0
@@ -316,17 +316,17 @@ func _draw_wall() -> void:
 	draw_set_transform(Vector2.ZERO)
 
 
-## Orbs as a mint 0 each on the range's edge (D105), with a short arc of trail
+## Orbs as a mint 0 each on the range's edge (D106), with a short arc of trail
 ## fading behind as they turn.
 func _draw_orbs() -> void:
-	var radius_px := sim.orb_radius() * px_per_metre()
+	var radius_px: float = sim.defences.orb_radius() * px_per_metre()
 	if radius_px <= 0.0:
 		return
 	var zero := mono_cut.get_string_size("0", HORIZONTAL_ALIGNMENT_LEFT, -1, ORB_PX)
 	# The trail stops short of the 0 rather than running through it.
-	var gap := zero.x * 0.7 / radius_px
-	var span := ORB_TRAIL_PX / radius_px
-	for angle in sim.orb_angles():
+	var gap: float = zero.x * 0.7 / radius_px
+	var span: float = ORB_TRAIL_PX / radius_px
+	for angle in sim.defences.orb_angles():
 		var points := PackedVector2Array()
 		var colours := PackedColorArray()
 		for step in range(9):
@@ -334,7 +334,7 @@ func _draw_orbs() -> void:
 			points.append(centre + Vector2.from_angle(angle - gap - span * (1.0 - along)) * radius_px)
 			colours.append(Color(Palette.ACCENT, ORB_TRAIL_ALPHA * along))
 		draw_polyline_colors(points, colours, 1.2, true)
-		var at := centre + Vector2.from_angle(angle) * radius_px
+		var at: Vector2 = centre + Vector2.from_angle(angle) * radius_px
 		draw_string(mono_cut, at + Vector2(-zero.x * 0.5, ORB_PX * 0.35), "0", HORIZONTAL_ALIGNMENT_LEFT, -1, ORB_PX, Palette.ACCENT)
 
 
@@ -456,7 +456,7 @@ static func dealt_text(enemy: BattleSim.Enemy) -> String:
 	var dealt := enemy.max_health - enemy.health
 	if dealt <= 0.0 or enemy.health <= 0.0:
 		return ""
-	return Palette.short(dealt)
+	return Palette.amount(dealt)
 
 
 ## What an enemy does: its next hit off the Number, after the tower's
@@ -465,7 +465,7 @@ static func dealt_text(enemy: BattleSim.Enemy) -> String:
 static func operation_text(battle: BattleSim, enemy: BattleSim.Enemy) -> String:
 	if enemy.kind == "divider":
 		return "÷" + divisor_text(enemy.divisor)
-	return "−" + Palette.short(battle.landed_damage(enemy.attack * pow(Guesses.HEAT_UP_PER_HIT, enemy.hits)))
+	return "−" + Palette.amount(battle.landed_damage(enemy.attack * pow(Guesses.HEAT_UP_PER_HIT, enemy.hits)))
 
 
 ## The nearest Divider inside the range and what it will leave: {sign, after},
@@ -479,7 +479,7 @@ static func divider_preview(battle: BattleSim) -> Dictionary:
 	if nearest == null:
 		return {}
 	var after := "Wall"
-	if not battle.wall_up():
+	if not battle.defences.wall_up():
 		var left := battle.health - battle.divide_loss(nearest.divisor)
 		after = Palette.full(Palette.number_shown(left, battle.max_health(), true))
 	return {"sign": operation_text(battle, nearest), "after": after}
