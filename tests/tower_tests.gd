@@ -1610,6 +1610,43 @@ func test_the_range_shows_only_when_the_player_asks() -> void:
 	await process_frame
 
 
+## Shot feel (D090) is drawing only: a knockback slides back rather than
+## jumping, walking is drawn exactly, and a hit throws chips that fade.
+func test_hits_and_knockback_are_drawn_with_weight() -> void:
+	var arena := ArenaView.new()
+	arena.size = Vector2(390, 500)
+	var sim := _quiet_sim()
+	arena.sim = sim
+	var walker := _place(sim, "basic", 12.0)
+	arena.absorb([], 1.0 / 60.0)
+	check_near(arena._shown_metres(walker), 12.0, 0.0001, "a walking enemy is drawn where it is")
+	walker.distance = 8.0
+	walker.last_distance = 8.0
+	arena.absorb([], 1.0 / 60.0)
+	check_near(arena._shown_metres(walker), 8.0, 0.0001, "and follows it in exactly")
+	walker.distance = 20.0
+	walker.last_distance = 20.0
+	arena.absorb([], 1.0 / 60.0)
+	var sliding := arena._shown_metres(walker)
+	check(sliding > 8.0 and sliding < 20.0, "a knockback slides back rather than jumping: %s" % sliding)
+	for frame in range(60):
+		arena.absorb([], 1.0 / 60.0)
+	check_near(arena._shown_metres(walker), 20.0, 0.05, "and arrives within a second")
+
+	var hit: Array[Dictionary] = [{"type": "enemy_hit", "enemy": walker, "damage": 1.0, "critical": false}]
+	arena.absorb(hit, 0.0)
+	check(arena._chips.size() == ArenaView.CHIPS, "a hit knocks chips off the number: %d" % arena._chips.size())
+	var crit: Array[Dictionary] = [{"type": "enemy_hit", "enemy": walker, "damage": 1.0, "critical": true}]
+	arena.absorb(crit, 0.0)
+	check(arena._chips.size() == ArenaView.CHIPS + ArenaView.CRIT_CHIPS, "a critical knocks off more")
+	arena.absorb([], ArenaView.CHIP_SECONDS + 0.01)
+	check(arena._chips.is_empty(), "and they fade")
+	sim.enemies.clear()
+	arena.absorb([], 1.0 / 60.0)
+	check(arena._eased.is_empty(), "an enemy gone is forgotten")
+	arena.free()
+
+
 ## A sim with nothing spawning, for placing enemies by hand.
 func _quiet_sim(row_levels: Dictionary = {}, groups: Array = BattleSim.START_GROUPS) -> BattleSim:
 	var sim := BattleSim.new(1, row_levels, groups)

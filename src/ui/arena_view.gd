@@ -41,6 +41,18 @@ const GLOW_RADIUS_PX := 110.0
 ## A ÷ flares the light violet, this much stronger, fading over this long.
 const DIVIDE_FLARE := 0.5
 const DIVIDE_FLARE_SECONDS := 0.8
+## Shot feel (D090), drawing only: a shot's trail in points, longer on a
+## critical; the chips a hit knocks off an enemy's number, how many, how fast
+## in points a second and for how long; and how quickly a knocked-back enemy
+## slides to where it was pushed, rather than jumping there in one tick.
+const TRAIL_PX := 9.0
+const CRIT_TRAIL_PX := 15.0
+const CHIPS := 3
+const CRIT_CHIPS := 6
+const CHIP_SPEED_PX := 70.0
+const CHIP_SECONDS := 0.25
+const MAX_CHIPS := 240
+const SHOVE_EASE := 14.0
 ## The range, when shown: a haze this strong at its edge (D088).
 const RANGE_HAZE := 0.1
 ## A ÷ float lasts longer and rises further than the others.
@@ -82,6 +94,12 @@ var _blasts: Array[Dictionary] = []
 var _flashes := {}
 ## Killed enemies' last "0", swelling as it fades: {kind, angle, distance, age}.
 var _pops: Array[Dictionary] = []
+## Chips knocked off enemies by hits, in view points: {at, velocity, colour, age}.
+var _chips: Array[Dictionary] = []
+## Where each enemy is drawn, in metres out, while a knockback eases it back.
+var _eased := {}
+## Chips scatter at random; only the look, never the battle, draws on this.
+var _look_rng := RandomNumberGenerator.new()
 ## Ranged enemies' shots at the Number: {enemy, age}.
 var _ranged_shots: Array[Dictionary] = []
 ## The fonts each enemy type is drawn in, built once from LOOKS.
@@ -161,6 +179,12 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 	_pops = _pops.filter(func(pop): return pop.age < POP_SECONDS)
 	for shot in _ranged_shots:
 		shot.age += delta
+	for chip in _chips:
+		chip.age += delta
+		chip.at += chip.velocity * delta
+		chip.velocity *= exp(-delta * 6.0)
+	_chips = _chips.filter(func(chip): return chip.age < CHIP_SECONDS)
+	_ease_shoves(delta)
 	_ranged_shots = _ranged_shots.filter(func(shot): return shot.age < RANGED_SHOT_SECONDS)
 	# Flat hits in one frame show as one "−" at the Number, not a pile.
 	var hit_total := 0.0
@@ -173,6 +197,7 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 				_flashes.erase(event.enemy.id)
 			"enemy_hit":
 				_flashes[event.enemy.id] = HIT_FLASH_SECONDS
+				_chip(event.enemy, event.critical)
 			"tower_hit":
 				hit_total += float(event.damage)
 				if event.enemy.kind == "ranged":
@@ -262,7 +287,11 @@ func _draw() -> void:
 	for angle in sim.orb_angles():
 		draw_circle(centre + Vector2.from_angle(angle) * orb_radius_px, 5.0, Palette.ACCENT)
 	for shot in sim.shots:
-		draw_circle(to_view(shot.last_position.lerp(shot.position, blend)), 3.0 if shot.critical else 2.0, Palette.TEXT if shot.critical else Palette.ACCENT)
+		_draw_shot(shot)
+	for chip in _chips:
+		var fade: float = 1.0 - chip.age / CHIP_SECONDS
+		var at: Vector2 = chip.at
+		draw_line(at, at - (chip.velocity as Vector2) * 0.03, Color(chip.colour, 0.8 * fade), 1.2, true)
 	_draw_tower(number)
 	_draw_divider_preview()
 	for item in _floats:
@@ -335,7 +364,7 @@ func _draw_enemy(enemy: BattleSim.Enemy) -> void:
 	var look: Dictionary = LOOKS[enemy.kind]
 	var text := shown_text(sim, enemy)
 	var half := _enemy_half(enemy.kind, text)
-	var at := _enemy_at(enemy.angle, enemy.drawn_at(blend).length(), half)
+	var at := _enemy_at(enemy.angle, _shown_metres(enemy), half)
 	var font: Font = _cuts[enemy.kind]
 	var font_size: int = look.size
 	var baseline := at + Vector2(-half.x, font_size * 0.35)
@@ -367,6 +396,49 @@ func _draw_divider_preview() -> void:
 		var font: Font = part[1]
 		draw_string(font, at, part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, part[2], Color(Palette.DIVIDER, 0.85))
 		at.x += font.get_string_size(part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, part[2]).x
+
+
+## A shot with a short trail fading behind it along its path: longer and
+## white on a critical, so a crit reads as a harder shot.
+func _draw_shot(shot: BattleSim.Shot) -> void:
+	var at := to_view(shot.last_position.lerp(shot.position, blend))
+	var colour := Palette.TEXT if shot.critical else Palette.ACCENT
+	var heading := shot.position - shot.last_position
+	if heading.length() > 0.001:
+		var tail := at - heading.normalized() * (CRIT_TRAIL_PX if shot.critical else TRAIL_PX)
+		draw_polyline_colors(PackedVector2Array([tail, at]), PackedColorArray([Color(colour, 0.0), Color(colour, 0.7)]), 2.0 if shot.critical else 1.5, true)
+	draw_circle(at, 2.5 if shot.critical else 1.8, colour)
+
+
+## A hit knocks a few chips off the enemy's number, in its colour (white on a
+## critical, and more of them), flying outward, away from the tower.
+func _chip(enemy: BattleSim.Enemy, critical: bool) -> void:
+	if _chips.size() >= MAX_CHIPS or not LOOKS.has(enemy.kind):
+		return
+	var look: Dictionary = LOOKS[enemy.kind]
+	var at := _enemy_at(enemy.angle, _shown_metres(enemy), _enemy_half(enemy.kind, shown_text(sim, enemy)))
+	for n in range(CRIT_CHIPS if critical else CHIPS):
+		var heading := Vector2.from_angle(enemy.angle + _look_rng.randf_range(-0.9, 0.9))
+		_chips.append({"at": at, "velocity": heading * CHIP_SPEED_PX * _look_rng.randf_range(0.5, 1.3),
+			"colour": Palette.TEXT if critical else look.colour, "age": 0.0})
+
+
+## A knockback moves an enemy back in one tick. Drawn, it slides back over a
+## few frames instead; walking in, it is drawn exactly where it is.
+func _ease_shoves(delta: float) -> void:
+	if sim == null:
+		return
+	var now := {}
+	for enemy in sim.enemies:
+		var metres := enemy.drawn_at(blend).length()
+		var eased: float = _eased.get(enemy.id, metres)
+		now[enemy.id] = lerpf(eased, metres, 1.0 - exp(-delta * SHOVE_EASE)) if metres > eased else metres
+	_eased = now
+
+
+## How far out to draw an enemy: where it is, or where a knockback's slide has got to.
+func _shown_metres(enemy: BattleSim.Enemy) -> float:
+	return _eased.get(enemy.id, enemy.drawn_at(blend).length())
 
 
 ## A killed enemy's "0" swells to 1.3× and fades.

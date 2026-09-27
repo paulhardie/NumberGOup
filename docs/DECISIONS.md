@@ -1127,7 +1127,7 @@ Rules:
 - **Decision:**
   1. **The Number is white, always** (`Palette.NUMBER`). It no longer turns gold at a new peak, orange below a quarter of it, or orange on a hit. It still shakes when a ÷ lands.
   2. **The ground is pure black on every screen** (`Palette.GROUND`). The panels keep their raised greys. The arena's grey floor disc is gone; the faint range ring stays.
-  3. **A soft white light sits behind the Number**, fading into the black, with smoke drifting up through it and faint motes caught in it, none of which touches the black. It went there in two steps: the owner found the first grain, ±30% per pixel reseeded 24 times a second, "too aggressive"; a gentler ±12% drifting grain was "closer", and they asked for "a smoke under a light feeling, with faint particles". Now two layers of soft noise, about 70 pt billows, rise at different speeds and thin and thicken the light by up to half; about one in five 22 pt cells holds a mote, a point of light that drifts up, sways and twinkles and shows only where the light reaches; and a trace of per-pixel grain (±4%) stops the gradient banding. It breathes ±15% over 4 seconds. It is one shader quad behind the arena (`src/ui/number_glow.gdshader`).
+  3. **A soft white light sits behind the Number**, fading into the black, with smoke drifting up through it and faint motes caught in it, none of which touches the black. It went there in two steps: the owner found the first grain, ±30% per pixel reseeded 24 times a second, "too aggressive"; a gentler ±12% drifting grain was "closer", and they asked for "a smoke under a light feeling, with faint particles". Then, "closer to the number, and maybe swirl on a non fixed cycle": wisps of smoke about 34 pt across are held within about 60 pt of the Number and add to the light there, swirling round it at a speed that eases between near-still and about a turn every 15 seconds on three sways that never line up (so no cycle repeats), wound tighter at the centre by an amount that breathes within bounds (checked at 5 s, 5 min, 15 min and an hour: it never winds into rings); a lighter haze thins and thickens the wider light by a quarter; about one in five 22 pt cells holds a mote, a point of light that drifts up, sways and twinkles and shows only where the light reaches; and a trace of per-pixel grain (±4%) stops the gradient banding. It breathes ±15% over 4 seconds. It is one shader quad behind the arena (`src/ui/number_glow.gdshader`).
   4. **The light stays white.** Only a ÷ changes it: a violet flare that fades back over 0.8 s, in place of the old violet flash on the digits. That flare is `ArenaView.flare(colour, strength, seconds)`, which the owner's later ideas (Ultimate Weapons, hit states) can use as they come.
 - **Consequences:**
   - "At a new peak" and "below a quarter of peak" no longer show at the Number; the panel's bar still shows the Number against its peak.
@@ -1167,3 +1167,17 @@ Rules:
   - It touches saving, so the work goes through the high-risk gate: old-save fixtures and an independent review.
   - Labs (1.2) also need time to pass while the game is closed, so they should use the same clock.
 - **Revisit when:** servers come in, or earlier if Labs need time passing while closed.
+
+## D090 — Shots with weight, drawn only
+
+- **Status:** Accepted (2026-09-27): the owner, on the shot-feel proposal, "Projectile work I'll leave to you". Implemented the same day on `claude/dazzling-gates-54ahbr`.
+- **Decision:** make shots and hits feel physical through drawing alone, leaving every rule unchanged.
+  1. **Trails:** a shot draws a short streak fading behind it along its path, 9 pt, or 15 pt and white on a critical.
+  2. **Chips:** a hit knocks three chips off the enemy's number in its colour, or six white ones on a critical. They fly outward, away from the tower, slow and fade in a quarter of a second, capped at 240 on screen.
+  3. **Knockback slides:** the sim still moves a pushed enemy in one tick. It is drawn sliding back over a few frames (most of the way in about a sixth of a second), while walking is drawn exactly.
+- **Not changed:**
+  - The shot speed stays 80 m/s (`Guesses.SHOT_SPEED_M`, ours). Shots still home in and are lost when their target dies first.
+  - Changing the speed would be balance (slower shots waste more on overkill), so it waits for a measurement with `sim_runs.gd` and a reason from play.
+  - No sound yet. It is the largest remaining gap in feel, and needs a mute setting beside Show range (D088).
+- **Consequences:** chips draw on their own random numbers, never the battle's, so runs replay exactly as before.
+- **Revisit when:** the owner has played it, and before sound, which needs its assets chosen (Kenney's CC0 packs, or generated blips).
