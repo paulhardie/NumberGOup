@@ -1549,6 +1549,96 @@ func test_gains_are_booked_by_source_and_new_highs() -> void:
 	check(sim.health > start, "and none of this touched the battle's rules")
 
 
+## The Multiplier (D097) is a test the player switches on. Off, the game is
+## exactly as before; on, it takes a basic's slot at most once a wave, a
+## kill multiplies the Number, and one that reaches the Number does nothing.
+func test_multipliers_only_when_switched_on() -> void:
+	var off := BattleSim.new(8)
+	var on := BattleSim.new(8, {}, BattleSim.START_GROUPS, true)
+	check(off.rng_state().size() == 3 and on.rng_state().size() == 4, "only a run with Multipliers has their stream")
+	check(off.multiplier_rate(10) == 0.0 and is_equal_approx(on.multiplier_rate(3), 1.0 / 3.0) and is_equal_approx(on.multiplier_rate(40), 0.5),
+		"none when off; a third of one a wave from wave 3, half by wave 30")
+	check(is_equal_approx(on.multiplier_factor(3), 1.1) and is_equal_approx(on.multiplier_factor(30), 1.2), "×1.1 rising to ×1.2")
+	var came := 0
+	for at_wave in range(2, 41):
+		for each in [off, on]:
+			each.wave = at_wave
+			each._schedule_wave()
+		check(on._schedule.size() == off._schedule.size(), "wave %d: no extra enemies" % at_wave)
+		var swapped := 0
+		for index in range(on._schedule.size()):
+			var ours: Dictionary = on._schedule[index]
+			var theirs: Dictionary = off._schedule[index]
+			if ours.kind == "multiplier":
+				swapped += 1
+				check(theirs.kind == "basic", "wave %d: a Multiplier stands where a basic would have" % at_wave)
+			elif ours.kind != theirs.kind:
+				check(false, "wave %d: every other enemy, the Divider too, is as without Multipliers" % at_wave)
+		check(swapped <= 1, "wave %d: at most one a wave" % at_wave)
+		came += swapped
+		check(not off._schedule.any(func(entry): return entry.kind == "multiplier"), "wave %d: none when off" % at_wave)
+	check(came >= 14 and came <= 17, "about as many as the rate adds up to: %d" % came)
+
+	var sim := _quiet_sim()
+	sim.multipliers = true
+	var enemy := BattleSim.Enemy.new()
+	enemy.kind = "multiplier"
+	enemy.factor = 1.1
+	enemy.wave = 5
+	sim.enemies.append(enemy)
+	sim.health = 100.0
+	sim._kill(enemy)
+	check_near(sim.health, 110.0, 0.0001, "a Multiplier killed multiplies the Number, past Health too")
+	check(sim.multipliers_killed == 1 and is_equal_approx(float(sim.gained_from.multiplier), 10.0), "and its gain is booked")
+	var walker := BattleSim.Enemy.new()
+	walker.kind = "multiplier"
+	walker.factor = 1.1
+	walker.distance = Guesses.CONTACT_DISTANCE_M
+	walker.stop_at = Guesses.CONTACT_DISTANCE_M
+	sim.enemies.append(walker)
+	sim._enemies_hit()
+	check_near(sim.health, 110.0, 0.0001, "one that reaches the Number does nothing")
+	check(not sim.enemies.has(walker), "and is used up")
+
+	var played := BattleSim.new(12, {}, BattleSim.START_GROUPS, true)
+	played.record_events = true
+	played.run_until_dead(300.0)
+	var record := _through_json(RunReport.build(played))
+	check(record.start.multipliers == true, "the run's record keeps the switch")
+	var again := RunReport.Replay.new(record)
+	while not again.advance(100000):
+		pass
+	check(again.sim.multipliers and RunReport.matches(record, again.sim), "and a replay sends them too, ending the same")
+
+
+## Testing tools on Home (D097): free Coins, logged as such, and a reset that
+## asks twice and leaves a fresh Workshop, the wiped one kept in the log.
+func test_free_coins_and_reset_for_testing() -> void:
+	_clear_test_saves()
+	_clear_test_logs()
+	var game = _game()
+	await process_frame
+	var home = game._screen
+	check(home is HomeScreen, "the game opens Home")
+	home.test_coins_pressed.emit(1000.0)
+	check(is_equal_approx(game.workshop.coins, 1000.0), "free Coins go into the Workshop")
+	check(is_equal_approx(Save.load_workshop(TEST_SAVE).coins, 1000.0), "and are saved")
+	var entries := ActivityLog.read(TEST_LOG)
+	check(entries.size() == 1 and entries[0].kind == "test_coins", "and logged as test Coins, never earned")
+	game.workshop.buy("damage")
+	home._press_reset()
+	check(game.workshop.level("damage") == 1, "one press of Reset only asks")
+	home._press_reset()
+	await process_frame
+	check(game.workshop.coins == 0.0 and game.workshop.levels.is_empty() and game.workshop.runs == 0, "the second gives a fresh Workshop")
+	check(Save.load_workshop(TEST_SAVE).levels.is_empty(), "saved fresh")
+	entries = ActivityLog.read(TEST_LOG)
+	check(entries[-1].kind == "progress_reset" and int(entries[-1].workshop.levels.damage) == 1, "and the wiped Workshop is kept in the log")
+	game.free()
+	_clear_test_saves()
+	_clear_test_logs()
+
+
 func test_numbers_read_as_the_towers() -> void:
 	check(Palette.number(2.35) == "2.35", "two decimals while small")
 	check(Palette.number(3.0) == "3", "whole numbers stay whole")

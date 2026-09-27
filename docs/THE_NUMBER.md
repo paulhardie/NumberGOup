@@ -186,6 +186,7 @@ If operator enemies move these, their share or divisor is tuned, not The Tower's
 - **Most of regen is growth, not repair.** In the core career's last runs about two thirds of all gains set a new high (run 40: 1,621 of 2,526).
 - **The Tower's own damage-to-Number row can't dethrone it in Tier 1.** Lifesteal at its last level, 1.5 million Coins away, still leaves regen two thirds of new highs. It didn't move the wave these runs end on either (31 every time).
 - **The Number's arc stands:** in the core career it peaks around waves 20–25 (run 40: 204, 379, 709, 1,153, 1,195 at waves 5–25) and falls to 900 by wave 30 as the waves outgrow regen.
+- **The Multiplier, on test (D097):** with the switch on, a 40-run core career makes 30–50% of its new highs from Multipliers from run 15, regen about half, while the career's milestones and The Tower's fresh-run benchmarks stay where they were. Its peaks roughly double.
 - **What this leaves open** (the owner's call, not yet decided): a rule of ours that ties the Number's growth to play, such as enemies carrying a positive operator that the Number gains on a kill, and whether regen's growth past Health (`Guesses.NUMBER_OVERFILL`) should shrink so regen keeps the tower alive while kills make the Number climb. Either needs measuring against 5.1 before it ships.
 
 **5.3 Tools.** Nothing ships on feel alone.

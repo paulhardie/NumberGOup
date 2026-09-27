@@ -84,7 +84,7 @@ func _ready() -> void:
 
 
 func start_run(seed_value: int) -> void:
-	_adopt(BattleSim.new(seed_value, workshop.levels, workshop.open_groups))
+	_adopt(BattleSim.new(seed_value, workshop.levels, workshop.open_groups, settings != null and settings.multipliers))
 
 
 func _begin_resume() -> void:
@@ -223,7 +223,7 @@ func _refresh() -> void:
 
 
 func _show_run_over() -> void:
-	var cause := {"basic": "a basic enemy", "fast": "a fast enemy", "tank": "a tank", "ranged": "a ranged enemy", "boss": "a boss", "divider": "a Divider"}
+	var cause := {"basic": "a basic enemy", "fast": "a fast enemy", "tank": "a tank", "ranged": "a ranged enemy", "boss": "a boss", "divider": "a Divider", "multiplier": "a Multiplier"}
 	var ended := sim.killed_by == "ended"
 	_over_title.text = "Run ended" if ended else "Tower destroyed"
 	var how := "Ended on wave %d" % sim.wave if ended else "Destroyed on wave %d by %s" % [sim.wave, cause.get(sim.killed_by, sim.killed_by)]
@@ -236,6 +236,9 @@ func _show_run_over() -> void:
 	_over_text.text = "%s\n%s of game time · %d kills\nPeak Number %s · %s\nCash earned $%s · Coins earned %s\nBest wave %d · best Number %s" % [
 		how, Palette.clock(sim.time), sim.kills, Palette.number(ceilf(sim.peak_number)), dividers, Palette.number(sim.cash_earned),
 		Palette.number(sim.coins), workshop.best_wave, Palette.number(ceilf(workshop.best_number))]
+	if sim.multipliers:
+		_over_text.text += "\nMultipliers killed %d of %d, adding %s" % [sim.multipliers_killed, sim.multipliers_spawned,
+			Palette.number(float(sim.gained_from.get("multiplier", 0.0)))]
 	_over.visible = true
 
 

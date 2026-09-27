@@ -10,6 +10,7 @@ const Workshop = preload("res://src/tower/workshop.gd")
 const HomeScreen = preload("res://src/ui/home_screen.gd")
 const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
+const Settings = preload("res://src/settings.gd")
 
 const MOMENTS := [4.0, 30.0, 120.0, 240.0, 600.0]
 const FOLDER := "user://capture"
@@ -108,6 +109,37 @@ func _capture() -> void:
 	await _frames()
 	_save_png("battle_divided")
 	divided.queue_free()
+	await process_frame
+
+	# A Multiplier (D097) walking in, then the moment one is killed.
+	var multiplied := BattleScreen.new()
+	multiplied.workshop = middling
+	multiplied.settings = Settings.new()
+	multiplied.settings.multipliers = true
+	root.add_child(multiplied)
+	await process_frame
+	multiplied.start_run(11)
+	multiplied.set_process(false)
+	var killed := false
+	var seen := false
+	while multiplied.sim.alive and not killed and multiplied.sim.time < 3600.0:
+		if not seen and multiplied.sim.enemies.any(func(enemy): return enemy.kind == "multiplier" and enemy.distance < multiplied.sim.stat("range") * 1.1):
+			seen = true
+			multiplied._refresh()
+			multiplied._arena.queue_redraw()
+			await _frames()
+			_save_png("battle_multiplier_walking")
+		multiplied.sim.step()
+		killed = multiplied.sim.events.any(func(event): return event.type == "multiplied")
+		if killed:
+			multiplied._arena.absorb(multiplied.sim.events, 0.0)
+		multiplied.sim.events.clear()
+	multiplied._arena.absorb([], 0.08)
+	multiplied._refresh()
+	multiplied._arena.queue_redraw()
+	await _frames()
+	_save_png("battle_multiplied")
+	multiplied.queue_free()
 	await process_frame
 
 	# A crowd with the wave-10 boss in it, to see every enemy type's number

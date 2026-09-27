@@ -67,13 +67,13 @@ const SHOT_SPEED_M := 80.0
 
 ## Cash a kill pays, times $1 plus $1 every ten waves (D071, from community
 ## research). The boss's 20 is ours until the owner reads one boss kill.
-const CASH_BY_TYPE := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "boss": 20.0, "divider": 2.0}
+const CASH_BY_TYPE := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "boss": 20.0, "divider": 2.0, "multiplier": 1.0}
 
 ## Coins a kill pays, flat, whatever its wave (the owner's reference table;
 ## D074). Paid times the wave, as the SDK's model has it, a wave-22 run earned
 ## about 14 times the owner's Tower report; flat is within 2 times. Ranged pays
 ## 2, as The Tower's own enemy list says (D082).
-const COINS_BY_TYPE := {"basic": 0.0, "fast": 2.0, "ranged": 2.0, "tank": 4.0, "boss": 5.0, "divider": 2.0}
+const COINS_BY_TYPE := {"basic": 0.0, "fast": 2.0, "ranged": 2.0, "tank": 4.0, "boss": 5.0, "divider": 2.0, "multiplier": 0.0}
 
 ## How much of Regen and Lifesteal still works once the Number is past Health:
 ## 0 would be a ceiling (D081); all of it, so the Number keeps rising for as
@@ -109,6 +109,28 @@ const DIVIDER := {
 	"health_full": 4.0,
 	"speed": 1.0,
 	"from_wave": 5,
+	"full_wave": 30,
+	"rate_first": 1.0 / 3.0,
+	"rate_full": 0.5,
+}
+
+
+## The Multiplier (D097): the Divider's mirror, ours, and a test for now,
+## off unless the player turns it on in Settings. Kill it and the Number is
+## multiplied by its factor, past Health like any gain; let it reach the
+## Number and it is used up for nothing. It takes a basic's slot as the
+## Divider does, a separate one, at most once a wave: none before FROM_WAVE,
+## then RATE_FIRST a wave rising to RATE_FULL by FULL_WAVE. Its factor rises
+## from FACTOR_FIRST to FACTOR_FULL in steps of FACTOR_STEP, and it has
+## HEALTH times a basic's health, so killing it takes a little doing. It pays a
+## basic's Cash and Coins, so the Tower's economy stands.
+const MULTIPLIER := {
+	"factor_first": 1.1,
+	"factor_full": 1.2,
+	"factor_step": 0.05,
+	"health": 3.0,
+	"speed": 1.0,
+	"from_wave": 3,
 	"full_wave": 30,
 	"rate_first": 1.0 / 3.0,
 	"rate_full": 0.5,

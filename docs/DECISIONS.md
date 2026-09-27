@@ -1270,3 +1270,20 @@ Rules:
   - The shared pieces (pills, tabs, cards, the money line, hairlines) live in `palette.gd`, and the theme's plain button is now a quiet card, so the run-over panel matches too.
 - **Consequences:** D087's smoke and D088's range switch are withdrawn. Tests: the range test became one that an old settings file loads and loses `show_range`, and one covers the bar and the placeholders.
 - **Revisit when:** a placeholder's system is built (it replaces the placeholder), or the owner designs a screen of their own.
+
+## D097 — The Multiplier, as a switch to test; free Coins and a reset for testing
+
+- **Status:** Accepted (2026-09-27) on owner direction. After the gains measurement (THE_NUMBER.md 5.2b), the owner wasn't sure whether kills feeding the Number would be more fun, agreed to a switch they can flip, and added: "If you need to add a switch that unlocks free coins for testing purposes that's fine. Would be handy for me as well in testing, as well as a reset progress button so we can start from a fresh account if needed."
+- **Decision:**
+  - **The Multiplier**, the Divider's mirror (`Guesses.MULTIPLIER`), comes only when the player turns on "Multiplier enemies" in Settings → Testing (`Settings.multipliers`, off by default).
+  - **Where it comes:** it takes one of a wave's basics, a different one from the Divider's, at most once a wave. From wave 3 it comes a third of one a wave, rising to half by wave 30.
+  - **What it does:** it shows its factor, ×1.1 rising to ×1.2 in steps of 0.05, in the operators' typeface in a bright mint. Kill it and the Number is multiplied, past Health too, with a mint flare and "×1.1 +42" over the Number. If it reaches the Number it's used up for nothing.
+  - **What it costs:** it has 3× a basic's health and pays a basic's Cash and Coins.
+  - **Off, the game is exactly as before.** The Multiplier draws from its own random stream only when on; 20 core runs print identically. The run's record keeps the switch (`start.multipliers`), so a saved run resumes with it.
+  - **Testing, in Settings:** +1K and +100K Coins, logged as `test_coins` so a report never counts them as earned. Reset progress asks twice, then gives a fresh Workshop and keeps the wiped one in the log (`progress_reset`). Settings survive a reset. `read_report.gd` prints both.
+- **Measured** (`sim_runs.gd --multipliers --gains`):
+  - **Benchmarks hold.** Fresh runs: buying nothing median wave 3 (2–5); spreading Cash 8 (5–10). Core over 40 seeds is within noise (4 runs worse, 3 better, one wave in all).
+  - **Careers progress the same.** A 40-run core career beats the wave-10 boss on run 9 and first reaches wave 30 on run 21, as without it, with 2% more Coins.
+  - **The Number's growth changes.** From run 15, Multipliers make 30–50% of new highs and regen drops to about half. Peaks rise (run 39: 2,115 against 1,121), and the Number holds higher at wave 30 (1,532 against 872). The career kills 70–100% of its Multipliers.
+- **Consequences:** the Testing section isn't meant to ship. Remove or hide it before anything goes public. Whether the Multiplier stays, changes or goes is the owner's call after playing with it.
+- **Revisit when:** the owner has played runs both ways.

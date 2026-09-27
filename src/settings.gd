@@ -10,6 +10,8 @@ const VERSION := 1
 
 ## The generative music (D092); on by default. Missing from older files, so on.
 var music := true
+## A test (D097): battles send Multipliers, the Divider's mirror. Off by default.
+var multipliers := false
 
 
 func read(path: String = PATH) -> void:
@@ -20,6 +22,8 @@ func read(path: String = PATH) -> void:
 		return
 	var playing = json.data.get("music", true)
 	music = playing if playing is bool else true
+	var multiplying = json.data.get("multipliers", false)
+	multipliers = multiplying is bool and multiplying
 
 
 ## Writes to a temporary file first and then swaps it in, as the save does.
@@ -29,6 +33,6 @@ func write(path: String = PATH) -> bool:
 	if file == null:
 		push_warning("Couldn't write the settings to %s." % temporary)
 		return false
-	file.store_string(JSON.stringify({"version": VERSION, "music": music}, "\t"))
+	file.store_string(JSON.stringify({"version": VERSION, "music": music, "multipliers": multipliers}, "\t"))
 	file.close()
 	return DirAccess.rename_absolute(temporary, path) == OK

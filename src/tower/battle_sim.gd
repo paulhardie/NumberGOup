@@ -34,6 +34,8 @@ class Enemy:
 	var rend := 0.0
 	## A Divider's divisor, fixed when it spawns; 0 for every other enemy.
 	var divisor := 0.0
+	## A Multiplier's factor, which it keeps from the wave it came in (D097).
+	var factor := 0.0
 
 	func position() -> Vector2:
 		return Vector2.from_angle(angle) * distance
@@ -120,6 +122,16 @@ var _combat_rng := RandomNumberGenerator.new()
 var _divider_rng := RandomNumberGenerator.new()
 ## The Divider owed but not yet due: a wave's share carries to the next.
 var _divider_due := 0.0
+## Whether this run sends Multipliers (D097), a test the player switches on;
+## the run's record keeps it, so a replay sends them too.
+var multipliers := false
+## Which basic a Multiplier replaces is drawn from its own stream, touched
+## only when Multipliers are on, so a run without them is exactly as before.
+var _multiplier_rng := RandomNumberGenerator.new()
+var _multiplier_due := 0.0
+var multiplier: Dictionary = Guesses.MULTIPLIER.duplicate()
+var multipliers_spawned := 0
+var multipliers_killed := 0
 ## The Divider's numbers for this run (Guesses.DIVIDER), which the measuring
 ## tools may change before the first step to try others.
 var divider: Dictionary = Guesses.DIVIDER.duplicate()
@@ -165,8 +177,9 @@ var _attack_skip := 0.0
 
 ## `row_levels` and `groups` are the Workshop's: the levels a run starts from
 ## and the groups it may buy from.
-func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_GROUPS) -> void:
+func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_GROUPS, with_multipliers := false) -> void:
 	run_seed = seed_value
+	multipliers = with_multipliers
 	levels = row_levels.duplicate()
 	open_groups = groups.duplicate()
 	# Two streams, so a change in how often the tower fires or crits never
@@ -174,6 +187,7 @@ func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_G
 	_spawn_rng.seed = hash([seed_value, "spawn"])
 	_combat_rng.seed = hash([seed_value, "combat"])
 	_divider_rng.seed = hash([seed_value, "divider"])
+	_multiplier_rng.seed = hash([seed_value, "multiplier"])
 	health = max_health()
 	peak_number = health
 	_high = health
@@ -188,7 +202,11 @@ func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_G
 ## than JSON's numbers hold exactly. A replay that drew exactly the same
 ## numbers ends with the same states.
 func rng_state() -> Array[String]:
-	return [str(_spawn_rng.state), str(_combat_rng.state), str(_divider_rng.state)]
+	var states: Array[String] = [str(_spawn_rng.state), str(_combat_rng.state), str(_divider_rng.state)]
+	# Only a run with Multipliers has a fourth stream to match.
+	if multipliers:
+		states.append(str(_multiplier_rng.state))
+	return states
 
 
 func level(id: String) -> int:
@@ -288,12 +306,14 @@ func wall_up() -> bool:
 func enemy_health_now(kind: String) -> float:
 	if kind == "divider":
 		return TowerData.enemy_health(health_level, "basic") * lerpf(float(divider.health_first), float(divider.health_full), _divider_ramp(wave))
+	if kind == "multiplier":
+		return TowerData.enemy_health(health_level, "basic") * float(multiplier.health)
 	return TowerData.enemy_health(health_level, kind)
 
 
 func enemy_attack_now(kind: String) -> float:
 	# A Divider doesn't subtract: it takes a share (_divide).
-	if kind == "divider":
+	if kind == "divider" or kind == "multiplier":
 		return 0.0
 	return TowerData.enemy_attack(attack_level, kind)
 
@@ -301,11 +321,13 @@ func enemy_attack_now(kind: String) -> float:
 func _speed_m(kind: String) -> float:
 	if kind == "divider":
 		return TowerData.enemy_speed_m(wave, "basic") * float(divider.speed)
+	if kind == "multiplier":
+		return TowerData.enemy_speed_m(wave, "basic") * float(multiplier.speed)
 	return TowerData.enemy_speed_m(wave, kind)
 
 
 func _mass_ratio(kind: String) -> float:
-	return 1.0 if kind == "divider" else TowerData.mass_ratio(kind)
+	return 1.0 if kind == "divider" or kind == "multiplier" else TowerData.mass_ratio(kind)
 
 
 ## How many Dividers a wave brings, on average: a fraction of one.
@@ -313,6 +335,24 @@ func divider_rate(at_wave: int) -> float:
 	if at_wave < int(divider.from_wave):
 		return 0.0
 	return lerpf(float(divider.rate_first), float(divider.rate_full), _divider_ramp(at_wave))
+
+
+## How many Multipliers a wave brings when they're on, on average: a fraction of one.
+func multiplier_rate(at_wave: int) -> float:
+	if not multipliers or at_wave < int(multiplier.from_wave):
+		return 0.0
+	return lerpf(float(multiplier.rate_first), float(multiplier.rate_full), _ramp(at_wave, multiplier))
+
+
+## The factor a Multiplier spawning on `at_wave` carries, in clean steps.
+func multiplier_factor(at_wave: int) -> float:
+	var smooth := lerpf(float(multiplier.factor_first), float(multiplier.factor_full), _ramp(at_wave, multiplier))
+	return snappedf(smooth, float(multiplier.factor_step))
+
+
+func _ramp(at_wave: int, numbers: Dictionary) -> float:
+	var first := int(numbers.from_wave)
+	return clampf(float(at_wave - first) / float(maxi(1, int(numbers.full_wave) - first)), 0.0, 1.0)
 
 
 ## The divisor a Divider spawning on `at_wave` carries.
@@ -375,6 +415,11 @@ func run_until_dead(max_seconds: float) -> void:
 
 
 func _schedule_wave() -> void:
+	_schedule_enemies()
+	_schedule_multiplier()
+
+
+func _schedule_enemies() -> void:
 	_schedule.clear()
 	_next_spawn = 0
 	var count := Guesses.enemies_in_wave(wave)
@@ -400,6 +445,25 @@ func _schedule_wave() -> void:
 		return
 	_divider_due -= 1.0
 	_schedule[basics[_divider_rng.randi_range(0, basics.size() - 1)]].kind = "divider"
+
+
+## When they're on, a Multiplier takes another basic's slot the same way.
+## Drawn only then, so a run without them is untouched.
+func _schedule_multiplier() -> void:
+	if not multipliers:
+		return
+	_multiplier_due += multiplier_rate(wave)
+	if _multiplier_due < 1.0 - SKIP_SLACK:
+		return
+	var basics: Array[int] = []
+	for index in range(_schedule.size()):
+		if _schedule[index].kind == "basic":
+			basics.append(index)
+	if basics.is_empty():
+		_multiplier_due = 1.0
+		return
+	_multiplier_due -= 1.0
+	_schedule[basics[_multiplier_rng.randi_range(0, basics.size() - 1)]].kind = "multiplier"
 
 
 func _draw_kind(mix: Dictionary) -> String:
@@ -430,6 +494,9 @@ func _spawn_due() -> void:
 		if kind == "divider":
 			enemy.divisor = divider_divisor(wave)
 			dividers_spawned += 1
+		elif kind == "multiplier":
+			enemy.factor = multiplier_factor(wave)
+			multipliers_spawned += 1
 		enemy.distance = Guesses.SPAWN_DISTANCE_M
 		enemy.last_distance = enemy.distance
 		enemy.stop_at = stat("range") if kind == "ranged" else Guesses.CONTACT_DISTANCE_M
@@ -460,7 +527,7 @@ func _enemies_hit() -> void:
 	for enemy in enemies:
 		if not enemy.arrived():
 			continue
-		if enemy.kind == "divider":
+		if enemy.kind == "divider" or enemy.kind == "multiplier":
 			spent.append(enemy)
 			continue
 		enemy.hit_in -= TICK
@@ -500,9 +567,31 @@ func _enemies_hit() -> void:
 				thorned.append(enemy)
 	# Removed after the loop, which mustn't lose enemies from under it.
 	for enemy in spent:
-		_divide(enemy)
+		if enemy.kind == "multiplier":
+			_escape(enemy)
+		else:
+			_divide(enemy)
 	for enemy in thorned:
 		_kill(enemy)
+
+
+## A Multiplier killed multiplies the Number by its factor: all of it, past
+## Health too, since making the Number climb by playing is its point (D097).
+func _multiply(enemy: Enemy) -> void:
+	var before := health
+	health *= maxf(1.0, enemy.factor)
+	_count_gain("multiplier", before)
+	multipliers_killed += 1
+	if record_events:
+		events.append({"type": "multiplied", "enemy": enemy, "gain": health - before, "factor": enemy.factor})
+
+
+## A Multiplier that reaches the Number, or the Wall, is used up for nothing.
+func _escape(enemy: Enemy) -> void:
+	enemy.health = 0.0
+	enemies.erase(enemy)
+	if record_events:
+		events.append({"type": "escaped", "enemy": enemy})
 
 
 ## A Divider reaches the Number, or the Wall in front of it, and takes
@@ -685,6 +774,8 @@ func _strike(enemy: Enemy, shot_damage: float, critical: bool) -> void:
 func _kill(enemy: Enemy) -> void:
 	enemies.erase(enemy)
 	kills += 1
+	if enemy.kind == "multiplier":
+		_multiply(enemy)
 	var paid_cash := (1.0 + floorf(enemy.wave / 10.0)) * float(Guesses.CASH_BY_TYPE[enemy.kind]) * stat("cash_bonus")
 	var paid_coins := float(Guesses.COINS_BY_TYPE[enemy.kind]) * stat("coins_per_kill")
 	cash += paid_cash

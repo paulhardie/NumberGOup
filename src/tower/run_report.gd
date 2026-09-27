@@ -15,7 +15,7 @@ static func build(sim: BattleSim, play: Dictionary = {}) -> Dictionary:
 	return {
 		"kind": "run",
 		"seed": sim.run_seed,
-		"start": {"levels": sim.levels.duplicate(), "groups": sim.open_groups.duplicate()},
+		"start": {"levels": sim.levels.duplicate(), "groups": sim.open_groups.duplicate(), "multipliers": sim.multipliers},
 		"inputs": sim.inputs.duplicate(true),
 		"waves": sim.wave_log.duplicate(true),
 		"result": {
@@ -25,6 +25,8 @@ static func build(sim: BattleSim, play: Dictionary = {}) -> Dictionary:
 			"bought": sim.run_levels.duplicate(), "enemies": sim.enemies.size(), "rng": sim.rng_state(),
 			"peak_number": sim.peak_number, "lost_to": sim.lost_to.duplicate(),
 			"dividers": {"spawned": sim.dividers_spawned, "landed": sim.dividers_landed},
+			"multipliers": {"spawned": sim.multipliers_spawned, "killed": sim.multipliers_killed},
+			"gained_from": sim.gained_from.duplicate(), "raised_by": sim.raised_by.duplicate(),
 		},
 		"play": play.duplicate(true),
 	}
@@ -56,7 +58,8 @@ class Replay:
 		for group in start.get("groups", []):
 			groups.append(String(group))
 		# The seed must go back to an int: the RNGs are seeded from its hash.
-		sim = BattleSim.new(int(run.get("seed", 0)), levels, groups)
+		# Runs recorded before Multipliers (D097) had none.
+		sim = BattleSim.new(int(run.get("seed", 0)), levels, groups, start.get("multipliers", false) == true)
 
 	## Steps at most `budget` ticks, applying each input at its tick; true once
 	## the run is back at the tick it was left at (or has ended).
