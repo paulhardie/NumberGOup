@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 27 September 2026 (D090 built: shots with trails, chips and a sliding knockback; the light's smoke held close to the Number and swirling (D087); before them, D089 recorded idle play as direction), by Claude, handing on to the next agent.
+**Last updated:** 27 September 2026 (D091 recorded: no combat sounds, soft ambient music instead; D090 and the swirling smoke merged as #79), by Claude, handing on to the next agent.
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #78 merged. It carries D090 and the swirling smoke (D087). The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #79 merged. It carries only D091, docs only. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`**, the only project Godot's Project Manager knows. `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute; the old `ngu-autopull` job is disabled. There is no `~/Desktop/NumberGOup`.
 
@@ -55,7 +55,7 @@
 1. **Owner:** play `main`, and export a report. Say too how the light behind the Number feels (strength, size, grain, the breathing), and the range's haze with Show range on, whether the enemy types read at a glance, whether the flip from health to hit reads, whether the ÷ preview is noticed in time, and how the crowd bunched at the Number looks. Say whether the Number in the centre and the ÷ moments feel right, and how often they come. Done when the owner has played it.
 2. **Agent:** read the report. It records each run's peak Number, what Dividers took, and how many came and landed. Tune `Guesses.DIVIDER` from it with `sim_runs.gd` against the benchmarks (THE_NUMBER.md 5).
 3. **Owner, then:** sign off 1.0, or name what's missing. After that comes Cards (1.1).
-4. **Sound, next after shot feel (D090, built: trails, chips, a sliding knockback).** No sound exists yet; it needs a mute switch beside Show range (D088), and its assets chosen: Kenney's CC0 packs (Impact, Sci-Fi and Interface Sounds) or generated blips. The shot speed itself (80 m/s, ours) stays until play gives a reason and `sim_runs.gd` measures the change.
+4. **Music (D091): no combat sounds; delicate, soft ambient music, towards soft slushwave.** The owner is looking at sources (OpenGameArt's CC0 calm collection, Pixabay Music, itch.io packs such as Tomality's New Age Vaporwave, or a commissioned composer). Once tracks are chosen: bundle them with their licence files, loop them seamlessly, and add a music switch beside Show range (D088). The shot speed itself (80 m/s, ours) stays until play gives a reason and `sim_runs.gd` measures the change.
 
 ## How to measure
 

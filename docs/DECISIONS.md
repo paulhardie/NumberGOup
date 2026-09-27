@@ -1178,6 +1178,18 @@ Rules:
 - **Not changed:**
   - The shot speed stays 80 m/s (`Guesses.SHOT_SPEED_M`, ours). Shots still home in and are lost when their target dies first.
   - Changing the speed would be balance (slower shots waste more on overkill), so it waits for a measurement with `sim_runs.gd` and a reason from play.
-  - No sound yet. It is the largest remaining gap in feel, and needs a mute setting beside Show range (D088).
+  - No sound yet. Combat sounds are ruled out (D091); music will come instead.
 - **Consequences:** chips draw on their own random numbers, never the battle's, so runs replay exactly as before.
-- **Revisit when:** the owner has played it, and before sound, which needs its assets chosen (Kenney's CC0 packs, or generated blips).
+- **Revisit when:** the owner has played it.
+
+## D091 — No combat sounds; music instead, soft and ambient
+
+- **Status:** Accepted (2026-09-27) on owner direction: "Combat sounds are a no go, but music will be required. I am thinking very delicate, soft ambient music, soft slushwave etc." Not built; the owner is looking at sources.
+- **Decision:**
+  1. **The game makes no combat sounds:** no hits, shots, kills or ÷.
+  2. **It will have music:** very delicate, soft ambient, in the direction of soft slushwave (slowed, reverb-washed vaporwave).
+- **Consequences:**
+  - The music needs a licence that allows bundling it in a commercial game, and ideally no Content ID registration, so players' streams aren't claimed.
+  - AI-generated tracks are avoided: who owns them is unsettled.
+  - Building it will need a music-volume or mute setting beside Show range (D088), and music that loops without a seam.
+- **Revisit when:** the owner has chosen a source or tracks.
