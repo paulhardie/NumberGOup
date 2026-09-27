@@ -1085,7 +1085,7 @@ Rules:
   4. **The player keeps mint, gold and orange;** no enemy uses them.
   5. **A hit** lights an enemy's outline for one frame: `#f4f3ef`, or `#ff4a3d` on the boss, where white would not show.
   6. **The Number** is Geist Mono 600 at 34 pt, fitted to a 100 pt box and never under 18, over a soft dark disc that dims enemies overlapping it. Its colour states are D084's.
-  7. **Floats:** a second's hits summed under the Number in Geist Mono orange; a ÷ as "÷1.5" in Fraunces with "−150" in Geist Mono, violet; a kill as "$1" in mint. Every shake, rise or pop has a still alternative under reduced motion.
+  7. **Floats:** a second's hits summed under the Number in Geist Mono orange; a ÷ as "÷1.5" in Fraunces with "−150" in Geist Mono, violet; a kill as "$1" in mint. (No reduced-motion alternatives: D093.)
 - **Evidence:** colour differences (CAM02-UCS ΔE, `colorspacious`, full-severity simulations). The old all-red set's closest enemy pair was 9 in normal vision and 7 with protanopia. This set's closest pairs are 21 in normal vision (basic and tank), and 11–12 with deuteranopia (fast and tank), protanopia (tank and Divider) and tritanopia (basic and tank). Each of those pairs differs most in shape. Every colour contrasts at least 5.1:1 with the arena floor.
 - **Consequences:**
   - The boss is the lightest thing on the field, brighter than the Number, against the brief's "the Number is always the most important thing". The owner kept it: there is one boss every tenth wave, and a wall should look like one.
@@ -1100,7 +1100,7 @@ Rules:
   - Godot 4.7 ignores variable-font axes given by name; they must be OpenType tags, which `_cut` converts.
   - A kill leaves the enemy's "0" swelling to 1.3× and fading over 0.12 s, under the "$1". A ranged enemy's hit draws its dotted lime line for 0.2 s.
   - `tools/capture_battle.gd` now also shoots `battle_crowd`, the first boss once it is inside the view.
-- **Not built:** reduced motion. The game has no such setting yet, so the ÷ shake and the pops have no still alternative. A setting would be the first consumer of a preferences store, which is a foundation gap to decide on, not part of this change.
+- **Not built:** reduced motion, and it won't be (D093).
 - **Revisit when:** the owner has played it: whether the types read at a glance in a crowd, whether the white boss steals the eye from the Number, and how bunched enemies at the tower read, since those on the same side overlap each other as the squares did.
 
 ## D086 — One number per enemy, and a Divider's ÷ previewed
@@ -1132,7 +1132,7 @@ Rules:
 - **Consequences:**
   - "At a new peak" and "below a quarter of peak" no longer show at the Number; the panel's bar still shows the Number against its peak.
   - A hit no longer flashes the Number; the orange "−x" float under it is the hit's only sign until the owner's hit states come.
-  - Reduced motion is still not built: the breathing and the grain move.
+  - The breathing and the grain move, with no still alternative (D093).
 - **Revisit when:** the owner has played it: the light's strength, size and grain, and what the hit states and Ultimate Weapons should do with the light.
 
 ## D088 — No range ring, unless the player asks, and settings of their own
@@ -1143,7 +1143,7 @@ Rules:
   2. **A "Show range" switch on Home turns it on.** It shows as a haze of the same grainy light, thickening toward the range's edge from inside and stopping just past it, drawn by the light's shader (`range_px`, `range_strength`), not as a line.
   3. **Settings live in their own file**, `user://number_go_up_settings.json` (`src/settings.gd`: `{"version": 1, "show_range": false}`), written only when the player changes one. A preference can then never put the save's progress at risk (law 5). A missing or damaged file, or a value of the wrong kind, means the default.
 - **Consequences:**
-  - This is the game's first player setting. The switch sits on Home under Export report, with no settings screen yet; one is worth building when a second setting comes. Reduced motion (D085, D087) is the likely next.
+  - This is the game's first player setting. The switch sits on Home under Export report, with no settings screen yet; one is worth building when a second setting comes.
   - The Wall's ring, the shockwave and mine blasts still draw as before.
 - **Revisit when:** a second setting arrives, or the owner has played it with the range on.
 
@@ -1215,3 +1215,10 @@ Rules:
   - With two settings on Home, a settings screen is closer to earning its place (D088).
   - Browsers only start audio after the first tap or click, so the web build's music begins on the first touch.
 - **Revisit when:** the owner has listened.
+
+## D093 — No reduced-motion setting
+
+- **Status:** Accepted (2026-09-27) on owner direction: "Also get rid of reduced motion. We won't need it."
+- **Decision:** the game has no reduced-motion setting, and nothing waits on one. The ÷ shake, pops, rising floats, the light's breathing and the smoke all move as built. D085's promise of still alternatives, and the notes in D085, D087 and D088 that listed it as not built, are withdrawn.
+- **Consequences:** the settings screen D088 anticipated waits for a third setting from elsewhere; Home keeps its two switches.
+- **Revisit when:** the owner asks.

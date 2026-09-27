@@ -1,6 +1,6 @@
 # Rebuild spec: The Tower first, the Number second
 
-**Status:** accepted 25 September 2026 as [D073](DECISIONS.md#d073--rebuild-the-tower-first-the-number-second). Milestone 1 is built on `claude/great-tesla-9kfp95`; see [Progress](#progress).
+**Status:** accepted 25 September 2026 as [D073](DECISIONS.md#d073--rebuild-the-tower-first-the-number-second). The game is 0.9 with 1.0's Number built; see [Progress](#progress) and the [Roadmap](#roadmap).
 
 ## Why rebuild
 
@@ -35,11 +35,11 @@ This was the first plan. The game (0.9) has gone past it: every Workshop group, 
 | **Enemies** | Basic, Fast, Tank and Ranged, with a Boss every 10 waves. SDK health, damage and multipliers (tank 5× health, ½ damage; boss 20× health, 1× damage) and SDK speeds (fast 2×, tank ½×, boss 0.3×). Enemies that reach the tower stay and hit, each hit 4% harder than the last. |
 | **Tower stats** | The starting rows: Damage, Attack Speed, Crit Chance, Crit Factor, Health and Health Regen. Then the groups that cost 500 Coins or less to open: Range with Damage / Meter (50), Multishot (400), Defense % with Defense Absolute (75), Thorns (500), Cash Bonus with Cash / Wave (40), and Coins / Kill with Coins / Wave (100). This covers roughly the first hour of The Tower. |
 | **Run upgrades** | Every opened row, bought one level at a time with Cash at The Tower's Cash prices. |
-| **Pay** | Cash per kill as D071 has it ($1, plus $1 every 10 waves, times the type). Coins per kill by type, flat (basic 0, fast 2, ranged 3, tank 4, boss 5; D074). Coins / Wave at each wave's end. |
+| **Pay** | Cash per kill as D071 has it ($1, plus $1 every 10 waves, times the type). Coins per kill by type, flat (basic 0, fast 2, ranged 2, tank 4, boss 5; D074, D082). Coins / Wave at each wave's end. |
 | **Workshop** | Attack, Defense and Utility tabs, rows with multi-buy, and a locked-group card showing its unlock price. Coins are spent between runs. |
 | **Home** | Battle button, best wave, Coins. |
-| **Look** | D049's look: Geist and Geist Mono, near-black ground, one accent and one warning colour. Portrait-first. |
-| **Dev only** | A game-speed switch (1×, 2×, 5×) so the owner can test a run quickly. |
+| **Look** | D049's look, since changed: a pure black ground, a white Number in its own light (D087), enemies as numbers (D085, D086). Portrait-first. |
+| **Game speed** | A switch (1×, 2×, 5×), meant for testing. The owner plays half their time at ×5 (report, 27 September), so whether it stays for players is open. |
 
 ## Not in 1.0
 
@@ -56,7 +56,7 @@ This replaces the earlier options: A (a score beside the battle, D079) and C (ba
 - `data/workshop/upgrades.json` and `tools/import_tower_workshop.py`.
 - `src/scientific_number.gd`, for display only. The simulation uses plain floats: the largest Workshop value is 2.9e13 and a wave-1,000 Tier 1 enemy has 7.4e8 health, far inside what a float can hold.
 - The research docs: [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md) and [`TOWER_WORKSHOP_REFERENCE.md`](TOWER_WORKSHOP_REFERENCE.md).
-- The fonts, colours, `icon_glyph.gd` and the arena's effects and sounds (`arena_fx.gd`, `audio_feedback.gd`). These are copied in where they fit, without dragging their callers along.
+- The fonts and colours. The old `icon_glyph.gd`, `arena_fx.gd` and `audio_feedback.gd` were never needed: the arena draws its own effects (D090), there are no combat sounds (D091), and the music is generated (D092).
 - `run_godot.sh`, `run_tests.sh`, the CI workflow, and the capture and probe tools' approach (rewritten against the new screens).
 
 ## What goes
@@ -87,12 +87,13 @@ tests/       tower_tests.gd
 - **Milestone 4, The Tower's next groups: built, not yet played by the owner.** Free Upgrades (800), Rapid Fire (1,500), Lifesteal (2,000), Knockback and Interest (5,000), Bounce Shot (10,000) and Orbs (15,000) open and work in battle; Super Crit and Death Defy still show as coming soon. Rapid Fire: each volley may start it, four times the fire rate for its duration. Bounce Shot: a shot's first strike rolls its chance, then goes on to the nearest other enemy within Bounce Shot Range, up to its targets, never twice to one. Lifesteal heals a share of what each strike takes off. Knockback pushes by force over the enemy's mass (now in the generated enemy data), never past the spawn. Interest pays on Cash held at a wave's end, up to $50. Free Upgrades raise a random open row of their tab each wave by their chance. Orbs kill any walking enemy but a boss that touches them. The run's upgrade panel now scrolls at three rows. A run starts with $0 (the owner, 26 September; the Starting Cash lab isn't built). Then D075 replaced four guesses with the owner's figures (11 enemies in wave 1, a hit a second, ranged and orbs on the Range edge); single runs still fit the owner's first Tower run, and careers fit the owner's account once its ×9 Coins are counted. A 40-run career reaches Free Upgrades on run 35 and Rapid Fire on run 39 (about 6 hours), with runs plateauing at waves 19–28 from about 2 hours in, mostly ended by ranged enemies (see Risks).
 - **Every Workshop group, multi-buy and The Tower's Unlock card: built, not yet played by the owner (D076).** The eight groups left open and work: Super Crit (a crit may be multiplied again), Rend Armor (a strike may rend, so every later strike on that enemy hits harder, to 800% more), Shockwave (every Shockwave Frequency seconds, enemies in range but bosses are pushed back by Shockwave Size), Land Mines (a volley may lay a mine in range; a walking enemy that reaches one sets it off for Land Mine Damage's share of Damage within its radius), Death Defy (a hit that would end the run may be ignored), the Wall (a ring at 10 m that melee enemies stop at and hit; when it falls it rebuilds after Wall Rebuild seconds), Recovery Packages (a wave's end may heal a share of Health, past it up to Max Recovery) and Enemy Level Skip (a steady share of waves whose enemies don't get tougher or harder-hitting, non-random as The Tower's patch notes say). A Workshop tab now shows only its next group, as one big Unlock card, as The Tower does. The Workshop and the run have a Buy ×1 · ×5 · ×10 · Max button (D018's steps): a press buys that many levels priced one at a time, and Max as many as the Coins or Cash cover. The battle screen draws the wall, mines, shockwaves and an overhealed tower, and the wave panel shows the enemy levels Level Skip held back. `--seeds 10 --buy even` still dies on wave 8.
 - **The Number is the tower (D080–D082): built, not yet played by the owner.**
-  - The Number sits in the centre, whole, with a ring against this run's peak. It has no ceiling (D083): regen keeps raising it.
+  - The Number sits in the centre, whole, white and on its own, in a light that swirls with smoke (D084, D087). It has no ceiling (D083): regen keeps raising it.
   - The Tower's enemies subtract, shown as "−x".
   - A new Divider divides the Number on contact and is used up: ÷1.25 to wave 17, then ÷1.5, gentle because Tier 1 is the tutorial (D083). It comes from wave 5, on top of The Tower's enemies, with 4× a basic's health.
   - Measured, fresh runs match The Tower (waves 3 and 8). Careers climb past the old wave-20 wall, reaching wave 30 by run 24, and most Dividers land.
   - The run-over screen and Home show the peak and best Number, and Ranged pays 2 Coins.
-- **An activity report (D077): built, not yet used by the owner.** Every run (seed, starting Workshop, each buy with its tick, a snapshot per wave) and every Workshop purchase is logged beside the save. Home's Export report writes one file for the owner to drop into the chat, and `tools/read_report.gd` reads it and replays each run exactly on the commit that recorded it. From here, benchmarks can come from the owner's own runs rather than screenshots.
+- **The owner's first reports (27 September): 21 runs, 37 in the Workshop, best wave 21.** See [Benchmarks](#benchmarks) for how they compare with The Tower.
+- **An activity report (D077): built, and used by the owner.** Every run (seed, starting Workshop, each buy with its tick, a snapshot per wave) and every Workshop purchase is logged beside the save. Home's Export report writes one file for the owner to drop into the chat, and `tools/read_report.gd` reads it and replays each run exactly on the commit that recorded it. From here, benchmarks can come from the owner's own runs rather than screenshots.
 - **A run closed mid-way resumes (D078): built, not yet played by the owner.** The save carries the run in progress beside the Workshop, and the game opens back into it, replayed from its seed. A run that no longer replays the same after an update ends at its saved wave with its Coins kept.
 - **Where it went differently from this spec:**
   - The SDK's enemies per wave (about 4 early) contradict the owner's screens, so D065's count (20 at wave 1, rising) is kept as a guess.
@@ -134,6 +135,7 @@ Each version still ends with the owner playing it.
 | Wave 100 basic Attack | 403 in the SDK (a wave-100 step up from 374 at wave 99); owner's research says 391 from Skye's calculator. Unsettled: read it in game if a run gets there | SDK; owner's research, 25 Sep |
 | **Tier 1 turtles** | Defense Absolute past enemy Attack makes hits land for nothing, and Thorns kills what stands at the tower. It must work in the rebuild: Defense Absolute passing Attack is the owner's "I've stopped dying" moment (wave 21: 19.76 against 14.75). Defense Absolute 403 is level 69, about 47,700 Cash bought in a run; Thorns stops at 99% | owner's research and screens; `upgrades.json` |
 | A wave-22 run | 12 min 33 s game time, 1.46K Coins | owner's battle report, build not recorded |
+| **The owner's runs on 0.9** | Wave 20–21 runs end at 11½ min of game time and earn 117–165 Coins, against The Tower's 12½ min and about 162 (1.46K over its ×9) for wave 22: **within the 20%**. 13 of 19 runs end on waves 10–11, the boss wall | owner's reports, 26–27 Sep |
 | New player to wave 100 | about an hour at 1× | community research, **unverified** |
 | **Needed from the owner** | 1. One boss kill's Cash. 2. A basic enemy's Health from Wave Info past wave 22 (30 or 50), to settle the health drift. |
 | **The owner's account is not a new player's** | Its packs and bonuses give starting Cash ($93 by wave 1) and ×9.00 Coins. Divide its Coins by 9, and read its waves as an upper bound for a new player. Leave both bonuses out of the rebuild | owner, 25 Sep | **the two most useful numbers we don't have** |
@@ -161,7 +163,7 @@ These are carried from the current game until the owner reads the real value:
   - 4× a basic's health;
   - a basic's speed and mass;
   - 2× a basic's Cash and 2 Coins.
-- The Number's body is drawn 30 px wide around the tower's 3 m contact edge, with enemies drawn touching it (drawing only).
+- Enemies at the tower are drawn just clear of the Number's digits on their own side, some metres before they truly arrive (drawing only, D085).
 - Heat-up is 4% for each hit an enemy lands, compounding (the earlier research, said to match the SDK). The owner's 25 September research says 4% for each wave it survives, and to its mass too. Settle it by watching a boss stand at the tower.
 
 ## Process while the rebuild is in progress
