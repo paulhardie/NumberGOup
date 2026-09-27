@@ -1361,3 +1361,14 @@ Rules:
   - Making small Numbers pay would need a rule that rewards a small hitbox, not only one that punishes a big one.
 - **The zoom (built).** The Range circle grows as Range is bought, at The Tower's scale, until its edge would pass 92% of the room around the Number. From there the view zooms out instead, easing over about a quarter of a second, so the ring and the ranged enemies on it stay on screen at any Range. Only positions scale; the Number's and enemies' type sizes don't.
 - **Consequences:** `capture_battle.gd` shoots `battle_full_range`. The hitbox stays a prototype until the owner decides.
+
+## D102 — An enemy shows what it does to you; the hitbox is dropped
+
+- **Status:** Accepted (2026-09-27) on owner direction: "go with what it does to you, also drop the hitbox idea if it's going to be complicated". The owner had asked for enemies' numbers not to count down as they're shot, to show their actual values, and for enemies that take more than one shot to carry "a smaller white text of the damage that's been dealt to them so far, Tower style".
+- **Decision:**
+  - **An enemy's number is what it does to the Number**, from the moment it appears until it dies: "−2.4" for its hit after the tower's defences (growing 4% with each hit it lands), "÷1.5" for a Divider, "×1.1" for a Multiplier. It no longer shows health counting down while walking and its hit once arrived (D085, D086's split).
+  - **The damage dealt so far** shows under an enemy that has lived through a shot, small and white (9 pt, the Number's white at 80%). An enemy killed in one shot never shows one.
+  - A killed enemy's own number swells and fades where it died, instead of a "0".
+  - `Palette.enemy_health`, which only served the countdown, is gone.
+  - **The hitbox prototype (D101) is dropped.** It braked big Numbers without rewarding small ones, and making glass-cannon builds pay would need more rules. The sim, `Guesses` and `sim_runs.gd` are back as they were; D101's zoom stays.
+- **Trade-off accepted:** with its health gone, an enemy doesn't say how close it is to dying. The running total says how much it has taken. If play shows that's too blind, fading the number as it weakens is the next step.

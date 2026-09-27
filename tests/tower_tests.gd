@@ -1720,32 +1720,6 @@ func test_free_coins_and_reset_for_testing() -> void:
 	_clear_test_logs()
 
 
-## The Number as its own hitbox (D101), a prototype the measuring tools
-## switch on: the tower's edge grows with the Number's digits. Off, it's the
-## tower's edge as ever.
-func test_the_hitbox_grows_with_the_numbers_digits_when_switched_on() -> void:
-	check(BattleSim.digits(9.4) == 1 and BattleSim.digits(9.6) == 2 and BattleSim.digits(12345.0) == 5, "digits as the Number is shown, whole")
-	var sim := _quiet_sim({"range": 10})
-	sim.health = 12345.0
-	check(sim.contact_m() == Guesses.CONTACT_DISTANCE_M, "off, enemies reach the tower's edge whatever the Number")
-	sim.hitbox = true
-	check_near(sim.contact_m(), Guesses.CONTACT_DISTANCE_M + 4.0 * float(Guesses.HITBOX.per_digit_m), 0.0001, "on, each digit past the first pushes it out")
-	sim.health = 5.0
-	check(sim.contact_m() == Guesses.CONTACT_DISTANCE_M, "a one-digit Number is the tower's edge")
-	sim.health = 1e40
-	check_near(sim.contact_m(), sim.stat("range") - 1.0, 0.0001, "never nearer the Range's edge than a metre")
-	sim.health = 12345.0
-	var walker := _place(sim, "basic", 20.0)
-	walker.speed = 5.0
-	walker.max_health = 1e12
-	walker.health = 1e12
-	for _i in range(600):
-		sim.step()
-		if walker.arrived():
-			break
-	check(walker.arrived() and walker.distance > Guesses.CONTACT_DISTANCE_M + 1.0, "a melee enemy stops at the grown edge: %.1f m" % walker.distance)
-
-
 ## As Range grows the view zooms out rather than letting the range run off
 ## the screen (D101), easing rather than jumping.
 func test_the_view_zooms_out_to_keep_the_range_on_screen() -> void:
@@ -1783,25 +1757,29 @@ func test_numbers_read_as_the_towers() -> void:
 	check(Palette.full(1e6) == "1.00M" and Palette.full(7.42e8) == "742.00M", "shortening only from a million")
 
 
-## An enemy is one number (D085): its health while it walks in, what each hit
-## takes once it's hitting, and a Divider in range is previewed at the Number.
-func test_an_enemy_shows_one_number() -> void:
+## An enemy shows what it does to the Number (D085, D102), with the damage
+## dealt so far under it once it has lived through a shot, and a Divider in
+## range is previewed at the Number.
+func test_an_enemy_shows_what_it_does() -> void:
 	check(Palette.short(1.64) == "1.6", "one decimal under 10: %s" % Palette.short(1.64))
 	check(Palette.short(4.0) == "4", "no trailing .0: %s" % Palette.short(4.0))
 	check(Palette.short(13.65) == "14", "whole from 10: %s" % Palette.short(13.65))
 	check(Palette.short(1084.0) == "1.08K", "K past a thousand: %s" % Palette.short(1084.0))
-	check(Palette.enemy_health(4.4) == "4.4", "health as it is: %s" % Palette.enemy_health(4.4))
-	check(Palette.enemy_health(0.03) == "0.1", "a living enemy never reads 0: %s" % Palette.enemy_health(0.03))
-	check(Palette.enemy_health(9.97) == "10", "rounding up past 10 reads whole: %s" % Palette.enemy_health(9.97))
-	check(Palette.enemy_health(0.0) == "0", "a dead one does")
 
 	var sim := _quiet_sim({"defense_absolute": 10})
 	var basic := _place(sim, "basic", 20.0)
 	basic.attack = 20.0
-	check(ArenaView.shown_text(sim, basic) == Palette.enemy_health(basic.health), "walking in, it shows its health: %s" % ArenaView.shown_text(sim, basic))
-	basic.distance = basic.stop_at
 	var first := sim.landed_damage(20.0)
-	check(ArenaView.shown_text(sim, basic) == "−" + Palette.short(first), "arrived, it shows its next hit after defences: %s" % ArenaView.shown_text(sim, basic))
+	check(ArenaView.shown_text(sim, basic) == "−" + Palette.short(first), "walking in, it shows what its hit will take, after defences (D102): %s" % ArenaView.shown_text(sim, basic))
+	check(ArenaView.dealt_text(basic) == "", "unhurt, nothing under it")
+	basic.health = basic.max_health * 0.4
+	check(ArenaView.shown_text(sim, basic) == "−" + Palette.short(first), "shot, its number doesn't count down")
+	check(ArenaView.dealt_text(basic) == Palette.short(basic.max_health * 0.6), "the damage dealt so far shows under it: %s" % ArenaView.dealt_text(basic))
+	basic.health = 0.0
+	check(ArenaView.dealt_text(basic) == "", "and a dead one shows none, so a one-shot kill never does")
+	basic.health = basic.max_health
+	basic.distance = basic.stop_at
+	check(ArenaView.shown_text(sim, basic) == "−" + Palette.short(first), "arrived, the same: its next hit")
 	basic.hits = 10
 	var tenth := sim.landed_damage(20.0 * pow(Guesses.HEAT_UP_PER_HIT, 10))
 	check(tenth > first and ArenaView.shown_text(sim, basic) == "−" + Palette.short(tenth), "and it grows with each hit it lands: %s" % ArenaView.shown_text(sim, basic))
@@ -1812,7 +1790,7 @@ func test_an_enemy_shows_one_number() -> void:
 	var near := _place(sim, "divider", sim.stat("range") - 1.0)
 	near.divisor = 1.5
 	near.distance = near.stop_at
-	check(ArenaView.shown_text(sim, near) == Palette.enemy_health(near.health), "a Divider shows its health even at the Number")
+	check(ArenaView.shown_text(sim, near) == "÷1.5", "a Divider shows its ÷ from the start: %s" % ArenaView.shown_text(sim, near))
 	var preview := ArenaView.divider_preview(sim)
 	var expected := sim.health - sim.divide_loss(1.5)
 	check(preview.get("sign") == "÷1.5", "the nearest in range is previewed: %s" % preview)
@@ -1822,7 +1800,6 @@ func test_an_enemy_shows_one_number() -> void:
 	check(Palette.full(Palette.number_shown(sim.health, sim.max_health(), true)) == preview.after, "and the landing leaves exactly that: %s" % sim.health)
 
 
-## The light behind the Number (D087) flares for a ÷ and fades back to white.
 ## A new digit (D099) is a moment the first time a run reaches it: 10, 100,
 ## 1K. Falling back and climbing past it again isn't; a new or resumed run
 ## starts from where its Number stands.
@@ -1883,6 +1860,7 @@ func test_a_new_digit_is_a_moment_once_a_run() -> void:
 	_clear_test_logs()
 
 
+## The light behind the Number (D087) flares for a ÷ and fades back to white.
 func test_the_light_behind_the_number_flares_and_fades() -> void:
 	var arena := ArenaView.new()
 	var divider := BattleSim.Enemy.new()

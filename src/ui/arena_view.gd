@@ -89,6 +89,8 @@ const LOOKS := {
 	"multiplier": {"axes": {"opsz": 48, "wght": 640, "WONK": 0, "SOFT": 0}, "divider": true, "size": 18, "colour": Palette.MULTIPLIER,
 		"glow": Palette.MULTIPLIER},
 }
+## The damage dealt so far, under an enemy that has lived through a shot (D102).
+const DEALT_PX := 9
 ## A hit lights the outline this colour, unless the type says otherwise.
 const FLASH := Color("f4f3ef")
 
@@ -233,7 +235,9 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 			"kill":
 				_floats.append({"text": "$" + Palette.number(event.cash), "at": event.enemy.position(), "age": 0.0, "colour": Palette.ACCENT,
 					"font": _mono_cut})
-				_pops.append({"kind": event.enemy.kind, "angle": event.enemy.angle, "distance": event.enemy.distance, "age": 0.0})
+				# The killed enemy's own number swells and fades where it died.
+				_pops.append({"kind": event.enemy.kind, "angle": event.enemy.angle, "distance": event.enemy.distance, "age": 0.0,
+					"text": shown_text(sim, event.enemy) if sim != null else ""})
 				_flashes.erase(event.enemy.id)
 			"enemy_hit":
 				_flashes[event.enemy.id] = HIT_FLASH_SECONDS
@@ -482,6 +486,11 @@ func _draw_enemy(enemy: BattleSim.Enemy) -> void:
 	if _flashes.has(enemy.id):
 		draw_string_outline(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 3, look.get("flash", FLASH))
 	draw_string(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, look.colour)
+	var dealt := dealt_text(enemy)
+	if dealt != "":
+		# The Tower's way: the damage so far, small and white, under the enemy.
+		var dealt_width := _hit_cut.get_string_size(dealt, HORIZONTAL_ALIGNMENT_LEFT, -1, DEALT_PX).x
+		draw_string(_hit_cut, at + Vector2(-dealt_width * 0.5, half.y + DEALT_PX + 1.0), dealt, HORIZONTAL_ALIGNMENT_LEFT, -1, DEALT_PX, Color(Palette.NUMBER, 0.8))
 
 
 ## The nearest Divider inside the range shows what it will do above the
@@ -551,12 +560,12 @@ func _shown_metres(enemy: BattleSim.Enemy) -> float:
 ## A killed enemy's "0" swells to 1.3× and fades.
 func _draw_pop(pop: Dictionary) -> void:
 	var look: Dictionary = LOOKS[pop.kind]
-	var half := _enemy_half(pop.kind, "0")
+	var half := _enemy_half(pop.kind, pop.text)
 	var at := _enemy_at(pop.angle, pop.distance, half)
 	var done: float = pop.age / POP_SECONDS
 	var grow := 1.0 + 0.3 * done
 	draw_set_transform(at, 0.0, Vector2(grow, grow))
-	draw_string(_cuts[pop.kind], Vector2(-half.x, look.size * 0.35), "0", HORIZONTAL_ALIGNMENT_LEFT, -1, look.size, Color(look.colour, 0.35 * (1.0 - done)))
+	draw_string(_cuts[pop.kind], Vector2(-half.x, look.size * 0.35), pop.text, HORIZONTAL_ALIGNMENT_LEFT, -1, look.size, Color(look.colour, 0.35 * (1.0 - done)))
 	draw_set_transform(Vector2.ZERO)
 
 
@@ -581,16 +590,24 @@ func _enemy_at(angle: float, distance_m: float, half: Vector2) -> Vector2:
 	return centre + toward * maxf(distance_m * px_per_metre(), nearest)
 
 
-## The one number an enemy shows (D085): its health while it walks in, and
-## what each hit takes once it has arrived and is hitting. A Divider never
-## stands and hits, so it always shows its health; the preview carries its ÷.
+## The number an enemy shows is what it does to the Number (D102), from the
+## moment it appears until it dies: "−2.4" for a hit after the tower's
+## defences, "÷1.5" for a Divider, "×1.1" for a Multiplier. It doesn't count
+## down as it's shot; the damage dealt so far shows under it instead.
 static func shown_text(battle: BattleSim, enemy: BattleSim.Enemy) -> String:
-	# A Multiplier shows what killing it is worth, the reason to.
 	if enemy.kind == "multiplier":
 		return "×" + _divisor_text(enemy.factor)
-	if enemy.kind != "divider" and enemy.arrived():
-		return operation_text(battle, enemy)
-	return Palette.enemy_health(enemy.health)
+	return operation_text(battle, enemy)
+
+
+## The damage dealt to an enemy so far, for the small white line under it
+## (D102): empty until a shot has landed and it has lived through it, so an
+## enemy killed in one shot never shows one.
+static func dealt_text(enemy: BattleSim.Enemy) -> String:
+	var dealt := enemy.max_health - enemy.health
+	if dealt <= 0.0 or enemy.health <= 0.0:
+		return ""
+	return Palette.short(dealt)
 
 
 ## What an enemy does: its next hit off the Number, after the tower's
