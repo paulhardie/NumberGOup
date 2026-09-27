@@ -1385,4 +1385,4 @@ Rules:
     - A spring holds the Number in place. A hit knocks it a few points away from the enemy that landed it, more the bigger the hit is against the Number; a gain from a kill or a Multiplier lifts it slightly. It springs back with one soft overshoot.
     - A shot rocks an enemy back along its path by 3.5 pt over the square root of its mass, so a tank (about 5 times a basic) rocks less than half as much and a boss (12 times) about a third. Landing a hit, it lunges in the same way. Both settle in well under a second.
   - **New enemies fade in** over their first 2 m, which shows when the view has zoomed out.
-- **Consequences:** `arena_view.gd` grows again; D099's handover step to split effects out of it before Cards stands.
+- **Consequences:** `arena_view.gd` grows again, so the handover's step to split its effects into their own file before Cards matters more.
