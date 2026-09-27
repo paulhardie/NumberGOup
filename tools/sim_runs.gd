@@ -21,7 +21,9 @@ extends SceneTree
 ## adds the Number at the end of every fifth wave to each run's line.
 ## --multipliers, --peak-regen and --kill-growth play by the tests the player
 ## can switch on (D097, D098); --peak-drift N and --kill-share N try other
-## numbers for the last two.
+## numbers for the last two. --hitbox makes the Number its own hitbox (D101,
+## a prototype), and --hitbox-per-digit N sets how far each digit pushes the
+## tower's edge out, in metres.
 ## --gains adds where the Number's gains came from: each source's share of
 ## all it gained, and after the slash its share of the new highs, the gains
 ## that lifted the Number past its best so far rather than refilling it.
@@ -192,12 +194,15 @@ func _gains(sim: BattleSim, options: Dictionary) -> String:
 
 
 func _switches(options: Dictionary) -> Dictionary:
-	return {"multipliers": options.has("multipliers"), "peak_regen": options.has("peak-regen"), "kill_growth": options.has("kill-growth")}
+	return {"multipliers": options.has("multipliers"), "peak_regen": options.has("peak-regen"), "kill_growth": options.has("kill-growth"),
+		"hitbox": options.has("hitbox")}
 
 
 func _tune(sim: BattleSim, options: Dictionary) -> void:
 	if options.has("peak-drift"):
 		sim.peak_drift = float(options["peak-drift"])
+	if options.has("hitbox-per-digit"):
+		sim.hitbox_per_digit = float(options["hitbox-per-digit"])
 	if options.has("kill-share"):
 		sim.kill_share = float(options["kill-share"])
 	if options.has("divider-share"):

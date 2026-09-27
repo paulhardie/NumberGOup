@@ -1341,3 +1341,23 @@ Rules:
   - The centre Number may spread to 230 px before it shrinks to fit (it was 150), never below 36 px, so five and six digits stay large inside the range's ring.
 - **Consequences:** drawing only; the battle and saves are unchanged.
 - **Open, not decided:** the owner's idea that the Number be its own hitbox, so more digits means enemies reach it sooner and a small Number is a glass-cannon strategy. It's in the handover's open decisions.
+
+## D101 — The hitbox prototype, measured; the view zooms out as Range grows
+
+- **Status:** Accepted (2026-09-27) on owner direction: "prototype the hitbox in the sim and fix the ring". The owner's idea: the Number is its own hitbox, so more digits make it a bigger target and a Number kept small is a glass-cannon build. The ring fix answers a problem found discussing it: the arena's scale was fixed to the starting Range, so past about 43 m the ring, and the ranged enemies on it, would leave a phone's screen (Tier 1's Range reaches 69.5 m).
+- **The hitbox, a prototype in the sim only.** `BattleSim.hitbox` (off; `sim_runs.gd --hitbox`) moves the tower's edge, where melee enemies stop, out by `Guesses.HITBOX.per_digit_m` for each digit past the first, never nearer the Range's edge than a metre. No screen switches it on, and drawing is unchanged. Off, 20 core runs print identically. Measured, 40 fresh seeds each, 40-run core careers:
+
+| Metres per digit | Spread / damage-only / core fresh median | Boss beaten / wave 30 first | Run 40's Number at waves 20 and 30 |
+|---|---|---|---|
+| Off | 8 / 9 / 7 | run 9 / run 21 | 1,153, 900 |
+| 0.5 | 8 / 9 / 6 | run 9 / run 21 | 1,152, 818 |
+| 1 | 8 / 9 / 6 | run 9 / run 22 | 804, 616 |
+| 2 | 8 / 9 / 6 | run 10 / run 25 | 676, 495 |
+
+- **What it shows:**
+  - The hitbox acts as a brake on big Numbers. Early runs, whose Numbers have one or two digits, barely change. Late in a career it takes 30–45% off the Number at waves 20–30 and slows the career a little.
+  - **It doesn't create the glass-cannon strategy.** A damage-only build keeps a one-digit Number and plays exactly as without the hitbox (median 9 either way). It gains nothing; only bigger Numbers lose.
+  - Damage-only already beats the core build on fresh runs (9 against 7). That's worth knowing whatever happens to the hitbox.
+  - Making small Numbers pay would need a rule that rewards a small hitbox, not only one that punishes a big one.
+- **The zoom (built).** The Range circle grows as Range is bought, at The Tower's scale, until its edge would pass 92% of the room around the Number. From there the view zooms out instead, easing over about a quarter of a second, so the ring and the ranged enemies on it stay on screen at any Range. Only positions scale; the Number's and enemies' type sizes don't.
+- **Consequences:** `capture_battle.gd` shoots `battle_full_range`. The hitbox stays a prototype until the owner decides.

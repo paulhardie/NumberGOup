@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports, moved the Divider into The Tower's Protector slot (D094), restyled the battle screen to the owner's main-screen design (D095), carried it to Home and the Workshop (D096), measured where the Number's growth comes from (THE_NUMBER.md 5.2b), built the Multiplier as a switch to test, with free Coins and a reset for testing (D097), added two more switches, regen stopping at the Number's best and kills growing it (D098), made each new digit a moment (D099), and wrote the Number out in full below a million (D100).
+**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports, moved the Divider into The Tower's Protector slot (D094), restyled the battle screen to the owner's main-screen design (D095), carried it to Home and the Workshop (D096), measured where the Number's growth comes from (THE_NUMBER.md 5.2b), built the Multiplier as a switch to test, with free Coins and a reset for testing (D097), added two more switches, regen stopping at the Number's best and kills growing it (D098), made each new digit a moment (D099), wrote the Number out in full below a million (D100), prototyped the Number as its own hitbox in the sim, and made the view zoom out as Range grows (D101).
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #87 (D097, D098) merged. It carries D099 (new-digit moments) and D100 (the Number in full). Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #88 (D099, D100) merged. It carries D101: the hitbox prototype (sim only) and the zoom. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -51,7 +51,7 @@
 8. **Idle play (D089)** waits for servers. Nothing is built.
 9. **Milestones and Missions** stand on Home as placeholders at the owner's request, but aren't on the roadmap. **Recommend** deciding whether they join it before 1.1, or dropping them, so a placeholder never promises something unplanned.
 
-10. **The Number as its own hitbox** (the owner's idea, 27 September): more digits, a bigger target, so enemies reach it sooner, and a Number kept at 1 is a glass-cannon build. **Recommend** prototyping it as a testing switch before deciding: it makes a bigger Number cost something, which works against "number go up" unless the cost stays mild. It also changes how the Number is drawn, since its size would have to match its hitbox rather than shrink to fit. Rough scale: a seven-digit Number might grow the hitbox from about 1 m to about 7 m, a fifth less time in the 30 m range.
+10. **The Number as its own hitbox** (prototyped in the sim, D101). It brakes big Numbers (30–45% off late in a career at 1–2 m a digit) but gives a small-Number build nothing, so the glass-cannon strategy doesn't appear. **Recommend** not adopting it as it stands. If the glass-cannon idea matters, it needs a reward for a small Number, not only a cost for a big one.
 
 ## Next steps, in order
 
@@ -66,6 +66,7 @@
 - **This session (27 September):**
   - `read_report.gd` on the owner's latest report: runs 20 and 21, recorded on `af32bb6`, **match** on replay. The others were recorded on older commits.
   - The report figures above come from the four exported reports, with runs deduplicated by time and seed.
+  - D101: `bash run_tests.sh` passes (2805 checks). The hitbox at 0.5, 1 and 2 m per digit on 40 fresh seeds (spread, damage-only, core) and 40-run core careers; with it off, 20 core runs print identically. `battle_full_range` checked by eye.
   - D100: `bash run_tests.sh` passes (2796 checks); captures of 5, 1,000 (its moment), 12,863 and 27,976 checked by eye.
   - D099: `bash run_tests.sh` passes (2792 checks), and `capture_battle.gd`'s `battle_new_digit` was checked by eye. The chime was tested for its notes and silence, not listened to.
   - D098: `bash run_tests.sh` passes (2781 checks). The grid in D098: each switch alone, both, and all three, on 20-seed fresh runs (40 for core) and 40-run core careers, plus kill shares of 3%, 5%, 7% and 10%. With every switch off, 20 core runs print identically.
@@ -95,7 +96,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D100), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D101), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.

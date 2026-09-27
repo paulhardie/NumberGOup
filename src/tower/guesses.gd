@@ -128,6 +128,12 @@ const PEAK_REGEN_DRIFT := 0.0
 ## growth does too, and a boss is a big moment.
 const KILL_GROWTH := 0.05
 
+## A prototype, measured in the sim only (D101): the Number as its own
+## hitbox. The tower's edge, where melee enemies stop, grows by PER_DIGIT_M
+## for each digit the Number has past the first, never nearer the Range's
+## edge than a metre. Off unless a measuring tool switches it on.
+const HITBOX := {"per_digit_m": 1.0}
+
 ## The Multiplier (D097): the Divider's mirror, ours, and a test for now,
 ## off unless the player turns it on in Settings. Kill it and the Number is
 ## multiplied by its factor, past Health like any gain; let it reach the

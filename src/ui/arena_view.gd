@@ -16,6 +16,13 @@ signal digit_reached(power: int)
 ## The range circle's radius as a share of half the view's width, as on The
 ## Tower's screen (292 px of 460 in the owner's screenshots).
 const RANGE_SHARE := 0.64
+## As Range is bought the circle grows, until its edge would pass this share
+## of the room around the Number (half the width, or the space above or below
+## it); from there the view zooms out instead (D101), so the range, and the
+## ranged enemies standing on it, never leave the screen. The zoom eases over
+## about 1 / ZOOM_EASE seconds rather than jumping when Range is bought.
+const MAX_RANGE_SHARE := 0.92
+const ZOOM_EASE := 4.0
 ## The Number is the biggest thing on screen (D085), large and thin as the
 ## owner's main-screen design has it: this size, shrinking to fit
 ## NUMBER_FIT_PX as its digits grow, never below NUMBER_MIN_PX.
@@ -120,6 +127,9 @@ var _divide_cut := _cut(Palette.DIVIDER_FONT, LOOKS.divider.axes)
 ## seconds, left}, or empty.
 var _glow := ColorRect.new()
 var _flare := {}
+## The scale drawn now, in points per metre, easing towards the target; 0
+## until the first frame, and set outright when a new run starts.
+var _zoom := 0.0
 ## The run whose digits are being watched, the most it has reached, and the
 ## seconds left of a new digit's moment.
 var _watched: BattleSim
@@ -162,7 +172,17 @@ static func _cut(base: Font, axes: Dictionary, slant := 0.0, spacing := 0) -> Fo
 
 
 func px_per_metre() -> float:
-	return size.x * 0.5 * RANGE_SHARE / TowerData.value("range", 0)
+	return _zoom if _zoom > 0.0 else target_px_per_metre()
+
+
+## The scale the view is easing towards: The Tower's, until the range's edge
+## would reach MAX_RANGE_SHARE of the room around the Number, then smaller.
+func target_px_per_metre() -> float:
+	var towers := size.x * 0.5 * RANGE_SHARE / TowerData.value("range", 0)
+	if sim == null:
+		return towers
+	var room := minf(size.x * 0.5, minf(centre.y, size.y - centre.y)) * MAX_RANGE_SHARE
+	return minf(towers, room / maxf(sim.stat("range"), 0.001))
 
 
 func to_view(world: Vector2) -> Vector2:
@@ -179,6 +199,8 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 	_divide_left = maxf(0.0, _divide_left - delta)
 	_digit_left = maxf(0.0, _digit_left - delta)
 	_watch_digits()
+	var target := target_px_per_metre()
+	_zoom = target if _zoom <= 0.0 else lerpf(_zoom, target, 1.0 - exp(-delta * ZOOM_EASE))
 	_shockwave_age += delta
 	for blast in _blasts:
 		blast.age += delta
@@ -274,6 +296,7 @@ func _watch_digits() -> void:
 		_watched = sim
 		_best_power = power_of(sim.peak_number)
 		_digit_left = 0.0
+		_zoom = 0.0
 		return
 	var power := power_of(sim.peak_number)
 	if power > _best_power:

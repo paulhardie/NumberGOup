@@ -111,6 +111,28 @@ func _capture() -> void:
 	divided.queue_free()
 	await process_frame
 
+	# Full Range (D101): the view zooms out so the range stays on screen.
+	var far := BattleScreen.new()
+	var reaching := Workshop.new()
+	reaching.open_groups.append("range")
+	reaching.levels = {"damage": 25, "attack_speed": 10, "health": 20, "health_regen": 10, "range": 79}
+	far.workshop = reaching
+	root.add_child(far)
+	await process_frame
+	far.start_run(7)
+	far.set_process(false)
+	while far.sim.time < 150.0:
+		far.sim.step()
+		far.sim.events.clear()
+	for _i in range(40):
+		far._arena.absorb([], 0.05)
+	far._refresh()
+	far._arena.queue_redraw()
+	await _frames()
+	_save_png("battle_full_range")
+	far.queue_free()
+	await process_frame
+
 	# The moment the Number reaches a new digit (D099), a moment after it lands.
 	var digits := BattleScreen.new()
 	var climbing := Workshop.new()
