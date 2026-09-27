@@ -89,6 +89,29 @@ const LOOKS := {
 	"multiplier": {"axes": {"opsz": 48, "wght": 640, "WONK": 0, "SOFT": 0}, "divider": true, "size": 18, "colour": Palette.MULTIPLIER,
 		"glow": Palette.MULTIPLIER},
 }
+## Motion with weight (D103), drawing only.
+## The Number rolls to its new value rather than jumping, quickly: rising at
+## ROLL_RISE a second, falling faster, at ROLL_FALL, so a hit lands at once.
+const ROLL_RISE := 10.0
+const ROLL_FALL := 22.0
+## Its size eases to fit as its digits grow rather than stepping.
+const SIZE_EASE := 8.0
+## A spring holds the Number in place: a hit knocks it away from the enemy
+## by up to NUDGE_PX, more the bigger the hit is against the Number, and a
+## gain lifts it by up to LIFT; it springs back with one soft overshoot.
+const SPRING := 170.0
+const SPRING_DAMPING := 13.0
+const NUDGE_PX := 7.0
+const LIFT := 0.06
+## A shot pushes an enemy back along its path by RECOIL_PX over the square
+## root of its mass, so a tank barely rocks and a boss hardly at all; landing
+## a hit, it lunges in by LUNGE_PX the same way. Both settle in about 1 /
+## RECOIL_EASE seconds.
+const RECOIL_PX := 3.5
+const LUNGE_PX := 4.0
+const RECOIL_EASE := 14.0
+## A new enemy fades in over its first metres.
+const FADE_IN_M := 2.0
 ## The damage dealt so far, under an enemy that has lived through a shot (D102).
 const DEALT_PX := 9
 ## A hit lights the outline this colour, unless the type says otherwise.
@@ -129,6 +152,17 @@ var _divide_cut := _cut(Palette.DIVIDER_FONT, LOOKS.divider.axes)
 ## seconds, left}, or empty.
 var _glow := ColorRect.new()
 var _flare := {}
+## The Number as drawn, rolling towards the true one; the size it's drawn at,
+## easing; the spring's offset and velocity in points, and its swell and
+## the swell's velocity.
+var _shown_number := -1.0
+var _shown_size := 0.0
+var _nudge := Vector2.ZERO
+var _nudge_speed := Vector2.ZERO
+var _lift := 0.0
+var _lift_speed := 0.0
+## Each enemy's recoil in points along its path, outward positive, by id.
+var _recoil := {}
 ## The scale drawn now, in points per metre, easing towards the target; 0
 ## until the first frame, and set outright when a new run starts.
 var _zoom := 0.0
@@ -167,6 +201,9 @@ static func _cut(base: Font, axes: Dictionary, slant := 0.0, spacing := 0) -> Fo
 	for axis in axes:
 		tagged[TextServerManager.get_primary_interface().name_to_tag(axis)] = axes[axis]
 	cut.variation_opentype = tagged
+	# Every digit the same width (D103), where the font has them, so a number
+	# changing its digits stays put rather than shuffling from side to side.
+	cut.opentype_features = {TextServerManager.get_primary_interface().name_to_tag("tnum"): 1}
 	if slant != 0.0:
 		cut.variation_transform = Transform2D(Vector2(1.0, 0.0), Vector2(slant, 1.0), Vector2.ZERO)
 	cut.spacing_glyph = spacing
@@ -201,6 +238,7 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 	_divide_left = maxf(0.0, _divide_left - delta)
 	_digit_left = maxf(0.0, _digit_left - delta)
 	_watch_digits()
+	_settle(delta)
 	var target := target_px_per_metre()
 	_zoom = target if _zoom <= 0.0 else lerpf(_zoom, target, 1.0 - exp(-delta * ZOOM_EASE))
 	_shockwave_age += delta
@@ -242,8 +280,11 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 			"enemy_hit":
 				_flashes[event.enemy.id] = HIT_FLASH_SECONDS
 				_chip(event.enemy, event.critical)
+				_recoil[event.enemy.id] = RECOIL_PX / sqrt(_mass_of(event.enemy.kind))
 			"tower_hit":
 				hit_total += float(event.damage)
+				_recoil[event.enemy.id] = -LUNGE_PX / sqrt(_mass_of(event.enemy.kind))
+				_knock(event.enemy.angle, float(event.damage))
 				if event.enemy.kind == "ranged":
 					_ranged_shots.append({"enemy": event.enemy, "age": 0.0})
 			"divided":
@@ -259,7 +300,9 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 						"age": 0.0, "colour": Palette.DIVIDER, "life": DIVIDE_FLOAT_SECONDS, "rise": DIVIDE_FLOAT_RISE_PX, "divide": true})
 			"grown":
 				grown_total += float(event.gain)
+				_raise(float(event.gain))
 			"multiplied":
+				_raise(float(event.gain))
 				# The × in the operators' typeface, what it added in the Number's.
 				flare(Palette.MULTIPLIER, DIVIDE_FLARE, DIVIDE_FLARE_SECONDS)
 				_floats.append({"parts": [["×" + _divisor_text(event.factor), _divide_cut, 22], ["  +" + Palette.full(float(event.gain)), _mono_cut, 15]],
@@ -301,6 +344,8 @@ func _watch_digits() -> void:
 		_best_power = power_of(sim.peak_number)
 		_digit_left = 0.0
 		_zoom = 0.0
+		_shown_number = -1.0
+		_shown_size = 0.0
 		return
 	var power := power_of(sim.peak_number)
 	if power > _best_power:
@@ -308,6 +353,54 @@ func _watch_digits() -> void:
 		_digit_left = DIGIT_SECONDS
 		flare(Palette.NUMBER, DIGIT_FLARE, DIGIT_SECONDS)
 		digit_reached.emit(power)
+
+
+## The Number's weight (D103): its spring, its roll and its size ease, and the
+## enemies' recoils settling, a frame at a time.
+func _settle(delta: float) -> void:
+	if delta <= 0.0:
+		return
+	# Small steps, so a slow frame can't make the spring overshoot wildly.
+	var left := delta
+	while left > 0.0:
+		var step := minf(left, 1.0 / 120.0)
+		left -= step
+		_nudge_speed += (-SPRING * _nudge - SPRING_DAMPING * _nudge_speed) * step
+		_nudge += _nudge_speed * step
+		_lift_speed += (-SPRING * _lift - SPRING_DAMPING * _lift_speed) * step
+		_lift += _lift_speed * step
+	for id in _recoil.keys():
+		_recoil[id] = lerpf(float(_recoil[id]), 0.0, 1.0 - exp(-delta * RECOIL_EASE))
+		if absf(float(_recoil[id])) < 0.05:
+			_recoil.erase(id)
+	if sim == null:
+		return
+	var truth := Palette.number_shown(sim.health, sim.max_health(), sim.alive)
+	if _shown_number < 0.0:
+		_shown_number = truth
+	else:
+		var rate := ROLL_RISE if truth > _shown_number else ROLL_FALL
+		_shown_number = lerpf(_shown_number, truth, 1.0 - exp(-delta * rate))
+		if absf(truth - _shown_number) < 0.5:
+			_shown_number = truth
+	var target := float(_fit_size(Palette.full(maxf(roundf(_shown_number), 1.0))))
+	_shown_size = target if _shown_size <= 0.0 else lerpf(_shown_size, target, 1.0 - exp(-delta * SIZE_EASE))
+
+
+## A hit knocks the Number away from the enemy that landed it, harder the
+## bigger the hit is against the Number.
+func _knock(angle: float, damage: float) -> void:
+	var share := clampf(damage / maxf(_shown_number, 1.0), 0.0, 1.0)
+	_nudge_speed -= Vector2.from_angle(angle) * NUDGE_PX * SPRING_DAMPING * sqrt(share)
+
+
+## A gain lifts the Number a little, more the bigger it is against the Number.
+func _raise(gain: float) -> void:
+	_lift_speed += LIFT * SPRING_DAMPING * sqrt(clampf(gain / maxf(_shown_number, 1.0), 0.0, 1.0))
+
+
+func _mass_of(kind: String) -> float:
+	return 1.0 if kind == "divider" or kind == "multiplier" else TowerData.mass_ratio(kind)
 
 
 ## How many noughts a Number has as it's shown whole: 1 for 10 to 99.
@@ -418,14 +511,26 @@ func _draw() -> void:
 ## it (a standing tower never reads 0), a size larger while Rapid Fire runs,
 ## shrinking to fit as its digits grow. Sets the box enemies stand clear of.
 func _number_layout() -> Dictionary:
-	var text := Palette.full(Palette.number_shown(sim.health, sim.max_health(), sim.alive))
+	var shown := _shown_number if _shown_number >= 0.0 else Palette.number_shown(sim.health, sim.max_health(), sim.alive)
+	# Rolling, it's whole, and a standing tower still never reads 0.
+	var text := Palette.full(maxf(roundf(shown), 1.0) if sim.alive else roundf(shown))
+	var font_size := _fit_size(text)
+	# Drawn at the fitting size and scaled to the eased one, so the Number
+	# shrinks smoothly as digits arrive rather than stepping (D103).
+	var scale := _shown_size / float(font_size) if _shown_size > 0.0 else 1.0
+	var width := _number_cut.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	# Digits stand about 0.7 of the font size tall.
+	_number_half = Vector2(width * 0.5, font_size * 0.35) * scale
+	return {"text": text, "size": font_size, "width": width, "scale": scale}
+
+
+## The size the Number's text fits at: NUMBER_FONT_PX, a size larger while
+## Rapid Fire runs, shrinking as its digits grow.
+func _fit_size(text: String) -> int:
 	var font_size := NUMBER_FONT_PX + (6 if sim.rapid_fire_left > 0.0 else 0)
 	while font_size > NUMBER_MIN_PX and _number_cut.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > NUMBER_FIT_PX:
 		font_size -= 2
-	var width := _number_cut.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-	# Digits stand about 0.7 of the font size tall.
-	_number_half = Vector2(width * 0.5, font_size * 0.35)
-	return {"text": text, "size": font_size, "width": width}
+	return font_size
 
 
 ## The tower is the Number (D084), drawn over everything but the floats: the
@@ -436,10 +541,11 @@ func _draw_tower(number: Dictionary) -> void:
 	if _divide_left > 0.0:
 		var strength := _divide_left / SHAKE_SECONDS
 		shake = Vector2(sin(_divide_left * 90.0), cos(_divide_left * 70.0)) * SHAKE_PX * strength
-	var at := centre + shake
+	var at := centre + shake + _nudge
 	var font_size: int = number.size
-	# A new digit swells the Number at once, and it eases back as the moment passes.
-	var swell := 1.0 + DIGIT_SWELL * pow(_digit_left / DIGIT_SECONDS, 2.0)
+	# A new digit swells the Number at once, and it eases back as the moment
+	# passes; a gain's lift and the eased size scale it too.
+	var swell := (1.0 + DIGIT_SWELL * pow(_digit_left / DIGIT_SECONDS, 2.0)) * (1.0 + _lift) * float(number.scale)
 	draw_set_transform(at, 0.0, Vector2(swell, swell))
 	at = Vector2.ZERO
 	var baseline := at + Vector2(-number.width * 0.5, font_size * 0.35)
@@ -476,16 +582,20 @@ func _draw_enemy(enemy: BattleSim.Enemy) -> void:
 	var text := shown_text(sim, enemy)
 	var half := _enemy_half(enemy.kind, text)
 	var at := _enemy_at(enemy.angle, _shown_metres(enemy), half)
+	# A shot rocks it back, landing a hit it lunges in (D103).
+	at += Vector2.from_angle(enemy.angle) * float(_recoil.get(enemy.id, 0.0))
+	# A new enemy fades in over its first metres.
+	var shade := clampf((Guesses.SPAWN_DISTANCE_M - enemy.distance) / FADE_IN_M, 0.0, 1.0)
 	var font: Font = _cuts[enemy.kind]
 	var font_size: int = look.size
 	var baseline := at + Vector2(-half.x, font_size * 0.35)
 	if look.has("glow"):
 		# A soft glow, faked with two wide faint outlines rather than a blur.
-		draw_string_outline(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 10, Color(look.glow, 0.08))
-		draw_string_outline(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 5, Color(look.glow, 0.12))
+		draw_string_outline(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 10, Color(look.glow, 0.08 * shade))
+		draw_string_outline(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 5, Color(look.glow, 0.12 * shade))
 	if _flashes.has(enemy.id):
 		draw_string_outline(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 3, look.get("flash", FLASH))
-	draw_string(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, look.colour)
+	draw_string(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(look.colour, shade))
 	var dealt := dealt_text(enemy)
 	if dealt != "":
 		# The Tower's way: the damage so far, small and white, under the enemy.

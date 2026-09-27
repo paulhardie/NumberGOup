@@ -1860,6 +1860,47 @@ func test_a_new_digit_is_a_moment_once_a_run() -> void:
 	_clear_test_logs()
 
 
+## Motion with weight (D103), drawing only: the Number stays anchored as its
+## digits change, rolls to new values, springs back from hits and gains, and
+## enemies rock back from shots, heavier ones less.
+func test_the_number_and_enemies_move_with_weight() -> void:
+	var arena := ArenaView.new()
+	var ones := arena._number_cut.get_string_size("11,111", HORIZONTAL_ALIGNMENT_LEFT, -1, 96).x
+	var eights := arena._number_cut.get_string_size("88,888", HORIZONTAL_ALIGNMENT_LEFT, -1, 96).x
+	check(is_equal_approx(ones, eights), "every digit is the same width, so the Number stays put: %.1f and %.1f" % [ones, eights])
+	var sim := _quiet_sim()
+	sim.health = 100.0
+	arena.sim = sim
+	arena.size = Vector2(390, 440)
+	arena.centre = Vector2(195, 242)
+	arena.absorb([], 0.0)
+	arena.absorb([], 0.016)
+	check(arena._shown_number == 100.0, "it starts at the Number")
+	sim.health = 200.0
+	arena.absorb([], 0.016)
+	check(arena._shown_number > 100.0 and arena._shown_number < 200.0, "a jump rolls up rather than landing at once: %.1f" % arena._shown_number)
+	for _i in range(60):
+		arena.absorb([], 0.016)
+	check(arena._shown_number == 200.0, "and arrives within a second")
+	var enemy := _place(sim, "basic", 5.0)
+	arena.absorb([{"type": "tower_hit", "enemy": enemy, "damage": 50.0}], 0.016)
+	arena.absorb([], 0.05)
+	check(arena._nudge.length() > 0.5, "a hit knocks the Number: %s" % arena._nudge)
+	check(arena._nudge.dot(Vector2.from_angle(enemy.angle)) < 0.0, "away from the enemy that landed it")
+	for _i in range(120):
+		arena.absorb([], 0.016)
+	check(arena._nudge.length() < 0.05 and absf(arena._lift) < 0.001, "and springs back to rest")
+	var light := _place(sim, "basic", 20.0)
+	var heavy := _place(sim, "tank", 20.0)
+	arena.absorb([{"type": "enemy_hit", "enemy": light, "damage": 1.0, "critical": false},
+		{"type": "enemy_hit", "enemy": heavy, "damage": 1.0, "critical": false}], 0.0)
+	check(float(arena._recoil[light.id]) > float(arena._recoil[heavy.id]) * 2.0, "a shot rocks a basic back more than a tank: %s" % arena._recoil)
+	for _i in range(60):
+		arena.absorb([], 0.016)
+	check(arena._recoil.is_empty(), "and they settle")
+	arena.free()
+
+
 ## The light behind the Number (D087) flares for a ÷ and fades back to white.
 func test_the_light_behind_the_number_flares_and_fades() -> void:
 	var arena := ArenaView.new()

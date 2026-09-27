@@ -1372,3 +1372,17 @@ Rules:
   - `Palette.enemy_health`, which only served the countdown, is gone.
   - **The hitbox prototype (D101) is dropped.** It braked big Numbers without rewarding small ones, and making glass-cannon builds pay would need more rules. The sim, `Guesses` and `sim_runs.gd` are back as they were; D101's zoom stays.
 - **Trade-off accepted:** with its health gone, an enemy doesn't say how close it is to dying. The running total says how much it has taken. If play shows that's too blind, fading the number as it weakens is the next step.
+
+## D103 — Motion with weight: an anchored Number, rolling, springing; enemies that rock
+
+- **Status:** Accepted (2026-09-27) on owner direction: "is there any animations we can use to make it appear smoother, and give the enemies their appropriate sense of weight?", and for the Number: "anchored in the middle", growing without looking "janky when it's accelerating", with "a little weight and inertia".
+- **Why it bobbed:** the Number's typeface has proportional digits, so each change of digit changed its width and it re-centred, shuffling side to side. The fitting size also stepped 2 pt at a time as digits arrived.
+- **Decision** (drawing only; the battle is unchanged):
+  - **Anchored:** the Number and the enemies are drawn with tabular figures (every digit one width; Geist and Anybody have them), so the Number only moves when it gains a digit.
+  - **It rolls:** it counts to a new value rather than jumping, rising quickly (a ×1.1 rolls up in about a third of a second) and falling faster, so a hit lands at once.
+  - **Its size eases** to fit as digits arrive, instead of stepping.
+  - **Weight:**
+    - A spring holds the Number in place. A hit knocks it a few points away from the enemy that landed it, more the bigger the hit is against the Number; a gain from a kill or a Multiplier lifts it slightly. It springs back with one soft overshoot.
+    - A shot rocks an enemy back along its path by 3.5 pt over the square root of its mass, so a tank (about 5 times a basic) rocks less than half as much and a boss (12 times) about a third. Landing a hit, it lunges in the same way. Both settle in well under a second.
+  - **New enemies fade in** over their first 2 m, which shows when the view has zoomed out.
+- **Consequences:** `arena_view.gd` grows again; D099's handover step to split effects out of it before Cards stands.
