@@ -1386,3 +1386,24 @@ Rules:
     - A shot rocks an enemy back along its path by 3.5 pt over the square root of its mass, so a tank (about 5 times a basic) rocks less than half as much and a boss (12 times) about a third. Landing a hit, it lunges in the same way. Both settle in well under a second.
   - **New enemies fade in** over their first 2 m, which shows when the view has zoomed out.
 - **Consequences:** `arena_view.gd` grows again, so the handover's step to split its effects into their own file before Cards matters more.
+
+## D104 — Orbs keep their instant kill, turn far slower, and immunity is a list
+
+- **Status:** Accepted (2026-09-27) on owner direction: "Orbs are absolutely busted in this game", then "Let's keep the orbs, but lets tune them and make sure we fix their speed. Happy for them to instant kill. We can also take them further with labs later on … Some enemies will be immune to orbs though".
+- **Why they were busted** (measured on the Workshop a 40-run core career ends with, 20 seeds each): with no orbs, runs end at wave 31. At D075's speed, a full turn a second from the first level, one cheap orb reached 41 and two part-upgraded orbs 61. Every non-boss enemy died on the range edge, so runs ended only at bosses. Ranged enemies, standing on that edge, never survived.
+- **Decision:**
+  - **Orbs still kill instantly**, on the range edge, 3 m either side.
+  - **Orb Speed's value is radians a second.** The first level (0.4) turns about once every 16 seconds, the last (6.1) about once a second. This squares the owner's earlier "roughly one full revolution per second" with the community Workshop table's 0.4 → 6.10, if the revolution a second described upgraded orbs. It stays a guess until someone times The Tower's orbs.
+  - **Which enemies orbs can't kill is a list** (`Guesses.ORB_IMMUNE`), starting with the boss, so The Tower's elites and protected enemies, or ours, can join it. Labs that strengthen orbs come with Labs (1.2).
+  - The rows' descriptions are regenerated through `tools/import_tower_workshop.py`. It reproduced the committed data exactly before the change.
+- **Measured** (same Workshop and seeds, median wave):
+
+| Orbs | A turn a second (before) | Radians a second (now) |
+|---|---|---|
+| None | 31 | 31 |
+| 1, slowest | 41 (41–51) | 31 (31–41) |
+| 2, Orb Speed level 10 | 61 | 41 (31–41) |
+| 4, fastest | 61 | 61 |
+
+  - Fresh runs are untouched (buying nothing 3, spreading Cash 8, core 8), since orbs open at 15,000 Coins, around run 100.
+- **What it leaves:** orbs now grow with what's spent on them, from barely there to the full wall of fully upgraded orbs, instead of being a switch that ends the regular enemies. Fully upgraded, runs still end at the boss orbs can't touch (wave 61 here).

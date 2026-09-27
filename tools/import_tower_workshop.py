@@ -9,7 +9,8 @@ every level as The Tower's own workshop.json does. Fetch it with:
     python3 tools/import_tower_workshop.py package/dist/data/workshop/table.json
 
 Values are converted once, here, into the units the game reads: percentages
-become shares, Range becomes metres, and Orb Speed turns a minute. Prices stay
+become shares, Range becomes metres, and Orb Speed stays as stated, which the
+game reads as radians a second (D104). Prices stay
 as The Tower states them. The unlock groups and their Coin prices come from
 the community wiki's Workshop pages (read 24 September 2026), since the
 SDK's table has no unlock order.
@@ -44,8 +45,8 @@ ROWS = [
     ("lifesteal", "Lifesteal", "LIFESTEAL", "defense", "lifesteal", "percent", "Share of the damage shots deal added to the Number again.", 0.01),
     ("knockback_chance", "Knockback Chance", "KNOCKBACK CHANCE", "defense", "knockback", "percent", "Chance a shot pushes its enemy back.", 0.01),
     ("knockback_force", "Knockback Force", "KNOCKBACK FORCE", "defense", "knockback", "flat", "How hard a knockback pushes. Heavier enemies move less.", 1.0),
-    ("orb_speed", "Orb Speed", "ORB SPEED", "defense", "orbs", "flat", "How fast the orbs circle: a turn a second at its first level (0.4), faster in proportion.", 10.0),
-    ("orbs", "Orbs", "ORBS", "defense", "orbs", "count", "Orbs circling the Number. Any enemy but a boss they touch dies.", 1.0),
+    ("orb_speed", "Orb Speed", "ORB SPEED", "defense", "orbs", "flat", "How fast the orbs circle, in radians a second: a turn about every 16 seconds at its first level (0.4), about one a second at its last (6.1).", 10.0),
+    ("orbs", "Orbs", "ORBS", "defense", "orbs", "count", "Orbs circling the Number. Any enemy they touch dies, except bosses and the few enemies orbs can't kill.", 1.0),
     ("death_defy", "Death Defy", "DEATH DEFY", "defense", "death_defy", "percent", "Chance a hit that would end the run is ignored.", 0.01),
     ("shockwave_size", "Shockwave Size", "SHOCKWAVE SIZE", "defense", "shockwave", "metres", "How far a shockwave pushes enemies in range back.", 10.0),
     ("shockwave_frequency", "Shockwave Frequency", "SHOCKWAVE FREQUENCY", "defense", "shockwave", "seconds", "Seconds between shockwaves.", 1.0),

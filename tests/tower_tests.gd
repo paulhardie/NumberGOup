@@ -781,32 +781,37 @@ func test_orbs_kill_walking_enemies_but_not_bosses() -> void:
 	sim.step()
 	check(not sim.enemies.has(walker) and sim.kills == kills + 1, "an orb kills the enemy it sweeps past, and it pays")
 	check(sim.enemies.has(boss) and boss.health == boss.max_health, "but never a boss")
+	check(Guesses.ORB_IMMUNE.has("boss"), "bosses are the first enemy orbs can't kill; later ones join them there")
 	check(sim.orb_angles().size() == 4, "four orbs, spaced evenly")
 
 
-func test_orbs_circle_on_the_range_edge_a_turn_a_second() -> void:
+func test_orbs_circle_on_the_range_edge_at_orb_speed_in_radians() -> void:
 	var sim := _quiet_sim()
 	sim.levels = {"orbs": 1}
 	check_near(sim.orb_radius(), sim.stat("range"), 0.0, "on the edge of Range")
-	check_near(sim.orb_turns_per_second(), 1.0, 0.0001, "a full turn a second at Orb Speed's first level")
+	check_near(sim.orb_turns_per_second() * TAU, TowerData.value("orb_speed", 0), 0.0001, "Orb Speed's value is radians a second (D104)")
+	check(1.0 / sim.orb_turns_per_second() > 15.0, "a turn about every 16 seconds at its first level: %.1f s" % (1.0 / sim.orb_turns_per_second()))
 	sim.levels["range"] = 20
 	check_near(sim.orb_radius(), sim.stat("range"), 0.0, "and out with more Range")
-	sim.levels["orb_speed"] = 10
-	check(sim.orb_turns_per_second() > 1.0, "faster with Orb Speed")
+	sim.levels["orb_speed"] = TowerData.max_level("orb_speed")
+	check(sim.orb_turns_per_second() > 0.9 and sim.orb_turns_per_second() < 1.1, "about a turn a second at its last: %.2f" % sim.orb_turns_per_second())
 
 
-func test_one_orb_sweeps_a_ranged_enemy_off_the_range_edge_within_a_second() -> void:
+func test_one_orb_sweeps_a_ranged_enemy_off_the_range_edge_within_a_turn() -> void:
 	var sim := _quiet_sim()
 	sim.levels = {"orbs": 1}
+	var turn := 1.0 / sim.orb_turns_per_second()
 	var ranged := _place(sim, "ranged", sim.stat("range"))
 	ranged.angle = 2.0
 	ranged.max_health = 1e9
 	ranged.health = 1e9
+	# Harmless, so the tower outlasts a slow orb's turn.
+	ranged.attack = 0.0
 	var steps := 0
-	while sim.enemies.has(ranged) and steps < roundi(1.0 / BattleSim.TICK) + 1:
+	while sim.enemies.has(ranged) and steps < roundi(turn / BattleSim.TICK) + 1:
 		sim.step()
 		steps += 1
-	check(not sim.enemies.has(ranged), "a turn a second reaches it, however tough it is")
+	check(not sim.enemies.has(ranged), "one turn reaches it, however tough it is")
 
 
 func test_ranged_enemies_stop_on_the_range_edge() -> void:

@@ -143,6 +143,9 @@ var multipliers_killed := 0
 ## The Divider's numbers for this run (Guesses.DIVIDER), which the measuring
 ## tools may change before the first step to try others.
 var divider: Dictionary = Guesses.DIVIDER.duplicate()
+## How fast orbs turn at Orb Speed's first level (Guesses), which the
+## measuring tools may change before the first step to try others.
+var orb_turns_first := Guesses.ORB_TURNS_PER_SECOND_AT_FIRST_LEVEL
 ## Guesses.NUMBER_OVERFILL for this run, which the measuring tools may change.
 var overfill := Guesses.NUMBER_OVERFILL
 
@@ -863,7 +866,7 @@ func orb_radius() -> float:
 
 
 func orb_turns_per_second() -> float:
-	return Guesses.ORB_TURNS_PER_SECOND_AT_FIRST_LEVEL * stat("orb_speed") / TowerData.value("orb_speed", 0)
+	return orb_turns_first * stat("orb_speed") / TowerData.value("orb_speed", 0)
 
 
 func orb_angles(at_time: float = time) -> Array[float]:
@@ -883,7 +886,7 @@ func _sweep_orbs() -> void:
 	var slack := Guesses.ORB_HIT_M / radius
 	var touched: Array[Enemy] = []
 	for enemy in enemies:
-		if enemy.kind == "boss" or absf(enemy.distance - radius) > Guesses.ORB_HIT_M:
+		if enemy.kind in Guesses.ORB_IMMUNE or absf(enemy.distance - radius) > Guesses.ORB_HIT_M:
 			continue
 		for start in starts:
 			# How far ahead of the orb's starting angle the enemy sits.
