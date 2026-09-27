@@ -30,7 +30,8 @@
 
 **What the owner's reports show** (21 runs, deduplicated; details in the spec's Benchmarks and THE_NUMBER.md 5.2a):
 - **The Tower's benchmarks hold.** Wave 20–21 runs take 11½ minutes of game time and earn 117–165 Coins, against The Tower's 12½ minutes and about 162 Coins for wave 22.
-- **The wave-10 boss is the wall:** 13 of 19 runs ended on waves 10–11, as The Tower intends. The owner's Workshop is still light on Damage (level 3) and Attack Speed (2), with 605 Coins unspent at the last export.
+- **The wave-10 boss is the wall:** 13 of 19 runs ended on waves 10–11, as The Tower intends. Then the owner put 540 Coins into Workshop Damage (3 to 6), and the next run reached **wave 31** (Number peak 989), where a boss ended it.
+- **In that long run, Dividers took 40% of the Number lost with 4 landings**, since a ÷ takes a share of a large Number. Any change to their rate must be measured on long careers.
 - **The Number climbs through a run**, as the Number's targets want. Its median at the end of waves 1, 10 and 19 was 16, 40 and 332.
 - **÷ moments are about a third of the target rate:** 0.31 a minute landed, against one a minute. 58% of Dividers never landed.
 - **No run ended on a ÷.** Ranged enemies took 24% of the Number lost and ended 2 runs.
@@ -40,7 +41,7 @@
 
 ## Open decisions for the owner
 
-1. **Sign off 1.0, or name what's missing.** The Tower's benchmarks hold and the Number climbs. **Recommend** one tune before signing: raise the Divider's share (`Guesses.DIVIDER`) towards one landed ÷ every minute or two, measured with `sim_runs.gd`, since ÷ moments are the game's identity and currently come about every three minutes.
+1. **Sign off 1.0, or name what's missing.** The Tower's benchmarks hold and the Number climbs. Open with it: **should the Divider take the Protector's slot** in The Tower's standard pool (one per wave, on the Protector's cooldown and cap, replacing a basic so the pool stays at 100%), instead of coming on top? The owner's research on The Tower's spawn model (27 September, in chat) prompted it. **Recommend yes**, measured first: it brings ÷ moments toward one a minute and restores The Tower's enemy count. But Dividers already take 40% of the Number lost in long runs, so it must be checked on long careers and tuned by the Divider's health or cooldown.
 2. **Game speed.** The spec calls the 1×/2×/5× switch a testing tool, yet it's half of how the owner plays. **Recommend** keeping it as a player feature, since The Tower's first hours are long.
 3. **Updates mid-run.** Two runs were lost when a merge landed while a run was saved. **Recommend** the Mac's sync job wait to update while the save holds a run in progress, and say so in its notification. It's small, and changes nothing in the game.
 4. **The lighter rebuild process** (REBUILD_SPEC.md, "Process while the rebuild is in progress"), open since 25 September. **Recommend yes.**
