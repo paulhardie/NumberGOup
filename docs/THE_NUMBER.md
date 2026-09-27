@@ -167,6 +167,8 @@ If operator enemies move these, their share or divisor is tuned, not The Tower's
 - **Divide moments are rarer than the target.** From wave 5, 0.73 Dividers came a minute and 0.31 landed: about one ÷ every three minutes, against "roughly one a minute". The owner's builds kill more of them (16 of 38 landed, 42%) than `sim_runs.gd`'s did (59%). The levers are `Guesses.DIVIDER`'s share and health.
 - **Operators kill honestly: met.** No run ended on a ÷. Basic enemies ended 5, bosses 3, ranged 2, tank and fast 1 each. Of the Number lost, basic took 36%, ranged 24%, bosses 18%, Dividers 16%.
 - **The wave-10 boss wall holds** in 9 of the 12, as The Tower's design intends. Coins per run fit The Tower (the spec's [Benchmarks](REBUILD_SPEC.md#benchmarks)).
+- **Then the wall broke the way The Tower intends (27 September, a fifth report).** After the owner put 540 Coins into Workshop Damage (3 to 6) and raised Regen, the next run reached **wave 31**. It lasted 17 min 21 s and earned 302 Coins, and the Number peaked at 989. The boss ended it.
+- **In a long, strong run the ÷ becomes the main force on the Number.** In that run Dividers took 636 of about 1,600 lost (40%) with only 4 landings, because a ÷ takes a share and the Number was large. The Number went from 938 at wave 25 to 277 at wave 27, most likely two landings close together. This is the Number's intended drama, but it means **more Dividers hit strong runs hardest**. Any change to their rate must be measured on long careers, not just early waves.
 
 **5.3 Tools.** Nothing ships on feel alone.
 - `tools/sim_runs.gd` gains columns for the peak Number, the Number by wave, losses by operator and deaths by cause.
