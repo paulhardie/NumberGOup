@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session, from `main` after #94 (D107), put orbs back to The Tower's balance (D108), gave kills sparks and a Coins float and made the Number's shots white, leaving its edge (D109), and measured the road to wave 100 with long simulated careers (below). Earlier sessions built D094–D107; another made the design canvas "Number Go Up — Design System" (https://claude.ai/artifact/SxFKJQVDmbjVsAqGmnDRDW) and built orbs as 0 and the Wall as brackets from it (D106).
+**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session put orbs back to The Tower's balance (D108), gave kills sparks and a Coins float and white shots (D109), measured the road to wave 100 and Tier 1's ceiling, kept the turtle with a shape target for the Number (D110), and, from `main` after #97, removed the Multiplier and made regen-restores and kills-grow the game's rules (D111).
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #94. It carries D108 and D109 and the `sim_runs.gd` options `--buy grow` and `--until-wave N`. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #97. It carries D111. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -21,7 +21,8 @@
 
 - **The battle.** Tier 1, with every one of The Tower's Workshop groups working (D076). The Number sits in the centre as the tower, white, with no ceiling (D083), large and thin, in the design's soft warm light that breathes (D096), inside a faint ring at the range. The screen follows the owner's main-screen design (D095): pill buttons, hairline readouts, underlined tabs and quiet cards, on near-black.
 - **Enemies.** The Tower's enemies subtract. A Divider divides the Number: ÷1.25, then ÷1.5 from wave 18. It takes the Protector's slot, replacing a basic, so waves are The Tower's size: one every third wave from wave 5 (the first on wave 7), every other wave by wave 30 (D094). The nearest one in range is previewed above the Number (D086).
-- **Enemies as numbers** (D085, D086). Each type has its own typeface and colour. An enemy shows what it does to the Number (−2.4, ÷1.5, ×1.1) from start to death, with the damage dealt so far in small white under it once it survives a shot (D102).
+- **How the Number grows** (D111): regen only restores it up to the run's best; an enemy killed before it lands a hit adds 5% of its Attack; bought Health and Lifesteal lift it too. Weak early on purpose, for Labs and Cards to raise later. It's judged by a run's shape (D110). The Multiplier and the testing switches are gone.
+- **Enemies as numbers** (D085, D086). Each type has its own typeface and colour. An enemy shows what it does to the Number (−2.4, ÷1.5) from start to death, with the damage dealt so far in small white under it once it survives a shot (D102).
 - **Shots** are white and leave from the edge of the Number's digits with a small flash; hits chip the enemies' numbers, knockback slides (D090), and a kill bursts into sparks with its Cash, and Coins if it paid any, floating beside it (D109). Orbs are mint 0s circling at least 60 m out, turning as slowly as The Tower's (D108), and the Wall is a pair of brackets round the Number that fall away when it breaks (D106).
 - **Sound.** No combat sounds (D091). Generative ambient music plays across every screen (D092).
 - **Home and the Workshop** wear the same look, with a bar along the bottom (D096). Home follows The Tower's: Coins, the best Number in its light, the Coin bonus, the tier, Battle. Milestones opens a list of the best-Number milestones, each paying Coins once (D107). Cards, Labs, Weapons, Missions and the tier arrows stand locked as placeholders; the Difficulty card says Tier 2 opens after wave 100. Settings (Music, Export report) opens over Home and is kept in `user://number_go_up_settings.json` (D088).
@@ -68,21 +69,20 @@
 
 ## Open decisions for the owner
 
-1. **Which of the three testing switches to keep** (D097, D098), judged by D110's shape. Measured: without switches the Number peaks mid-run and falls; regen at best plus kills climbs through the run and keeps the pace (about a digit per 100 waves in a turtle); **Multipliers compound, reaching 88 trillion in one Tier 1 run**, which breaks D110's pace. **Recommend** keeping regen at best plus kills, and dropping the Multiplier as built or rebuilding it to add a share of Health instead of multiplying the Number.
-2. **Sign off 1.0, or name what's missing,** after playing D094. The Tower's benchmarks hold and the Number climbs. In simulation, D094 left fresh runs as they were but a core career beat the wave-10 boss on run 9 (it was 11; The Tower's is 10–13), and ÷ landings sit about 0.3 a minute. **If that feels too easy or ÷ too rare, recommend** raising the Divider's health from 4× to 5× before its rate, since the owner set the rate's ceiling.
-3. **Game speed.** The spec calls the 1×/2×/5× switch a testing tool, yet it's half of how the owner plays. **Recommend** keeping it as a player feature, since The Tower's first hours are long.
-4. **Updates mid-run.** Two runs were lost when a merge landed while a run was saved. **Recommend** the Mac's sync job wait to update while the save holds a run in progress, and say so in its notification. It's small, and changes nothing in the game.
-5. **The lighter rebuild process** (REBUILD_SPEC.md, "Process while the rebuild is in progress"), open since 25 September. **Recommend yes.**
-6. **AGENTS.md's law 3** names a modifier pipeline that no longer exists. **Recommend** dropping it until a system needs stacked rules. Only the owner changes that file's rules.
-7. **Publishing The Tower's data** (its Workshop and enemy numbers, under the SDK's MIT licence) needs a decision before anything is public. Not urgent.
-8. **Idle play (D089)** waits for servers. Nothing is built.
-9. **The design canvas's other proposals** (D106 names them): a Number that grows heavier with each new digit, elites in one shared blue with a typeface each, and the rest of the notation assets. **Recommend** trying the heavier Number next, with the Tweaks slider on its board, since it answers the Number shrinking as digits arrive.
-10. **Missions** stands on Home as a placeholder at the owner's request, but isn't on the roadmap (Milestones is now built, D107). **Recommend** deciding whether Missions joins it before 1.1, or dropping it, so a placeholder never promises something unplanned.
+1. **Sign off 1.0, or name what's missing,** after playing D094. The Tower's benchmarks hold and the Number climbs. In simulation, D094 left fresh runs as they were but a core career beat the wave-10 boss on run 9 (it was 11; The Tower's is 10–13), and ÷ landings sit about 0.3 a minute. **If that feels too easy or ÷ too rare, recommend** raising the Divider's health from 4× to 5× before its rate, since the owner set the rate's ceiling.
+2. **Game speed.** The spec calls the 1×/2×/5× switch a testing tool, yet it's half of how the owner plays. **Recommend** keeping it as a player feature, since The Tower's first hours are long.
+3. **Updates mid-run.** Two runs were lost when a merge landed while a run was saved. **Recommend** the Mac's sync job wait to update while the save holds a run in progress, and say so in its notification. It's small, and changes nothing in the game.
+4. **The lighter rebuild process** (REBUILD_SPEC.md, "Process while the rebuild is in progress"), open since 25 September. **Recommend yes.**
+5. **AGENTS.md's law 3** names a modifier pipeline that no longer exists. **Recommend** dropping it until a system needs stacked rules. Only the owner changes that file's rules.
+6. **Publishing The Tower's data** (its Workshop and enemy numbers, under the SDK's MIT licence) needs a decision before anything is public. Not urgent.
+7. **Idle play (D089)** waits for servers. Nothing is built.
+8. **The design canvas's other proposals** (D106 names them): a Number that grows heavier with each new digit, elites in one shared blue with a typeface each, and the rest of the notation assets. **Recommend** trying the heavier Number next, with the Tweaks slider on its board, since it answers the Number shrinking as digits arrive.
+9. **Missions** stands on Home as a placeholder at the owner's request, but isn't on the roadmap (Milestones is now built, D107). **Recommend** deciding whether Missions joins it before 1.1, or dropping it, so a placeholder never promises something unplanned.
 
 ## Next steps, in order
 
-1. **Owner:** play runs with Settings → Testing's switches in a few combinations (none; regen at best and kills; all three), using free Coins or a reset to try different stages. Done when the owner says which to keep.
-1a. **Owner:** sign off 1.0 or name what's missing (decision 2).
+1. **Owner:** play a few runs on D111's growth (free Coins or a reset help try later stages) and say whether the Number's climb feels earned. Done when the owner says so, or names what to change (`--kill-share` and `--peak-drift` measure alternatives).
+1a. **Owner:** sign off 1.0 or name what's missing (decision 1).
 2. **Agent, on the owner's word:** tune the Divider's health with `sim_runs.gd --careers 40 --buy core --divider-health N` if play says so. Then raise `application/config/version` to 1.0 when the owner signs it off. `--careers` always plays the same seeds (run N is seed N), so a second career needs a seed option first.
 2a. **Owner:** send [`design/GAME_STAGE_BRIEF.md`](design/GAME_STAGE_BRIEF.md) to Claude Design with its screenshots (`capture_battle.gd` makes them), and choose from what comes back. **Agent, then:** record the choices as the next D-number and build them in `arena_view.gd`, `arena_effects.gd` and `number_motion.gd`; drawing only. Done when the owner has played the new stage.
 3. **Owner:** try the web build on a phone. The light's shader, the music and the portrait layout have never run there.
@@ -90,6 +90,7 @@
 
 ## How to measure
 
+- **D111 (27 September):** `bash run_tests.sh` passes (2734 checks: the Multiplier's and switches' tests replaced by ones for the growth rules, old settings files and old run records). The boot is clean. With a 5% kill share a 40-run core career prints identically to `main` with both switches on. Fresh runs and careers at 5% and 2.5% are in D111's table. `capture_battle.gd`'s new `battle_kill_grows` checked by eye. Not played.
 - **D108 and D109 (27 September):** `bash run_tests.sh` passes (2837 checks), with orb tests rewritten for turns a minute and the 60 m circle, and a new test for sparks, the Coins float and the shots' flash. `bash run_godot.sh --headless --path . --quit` boots (13 leaked objects at exit, as on `main`). Orbs measured at three reaches on a 40-run core career's Workshop (D108's table). `capture_battle.gd`'s crowd and Multiplier-kill screens checked by eye: sparks and the ring show; the Coins float and the shots' flash were tested but not seen in a capture. Not seen in motion.
 - **D107 (27 September):** `bash run_tests.sh` passes (2825 checks); 40-run careers, core and spread, with and without milestones (same runs to the boss and to waves 21 and 30); Home and the Milestones panel screenshotted and checked by eye.
 - **This session (27 September, D106):** `bash run_tests.sh` on the branch with `main` merged in (after #92): 2817 checks, the 6 new ones passing; 7 save-file checks fail on this Mac on untouched `main` too (see Known issues), and CI passed on `main`. `bash run_godot.sh --headless --path . --quit` boots. `capture_battle.gd`'s `battle_strong` (orbs and the Wall up, a four-digit Number) and `battle_wall_down` checked by eye. Not seen: a six-digit Number with the Wall up, or the fall and rise in motion.
@@ -118,7 +119,7 @@
 ## Known issues and risks
 
 - **Settings → Testing isn't meant to ship** (D097): free Coins and Reset progress act on the real save. Remove or hide them before anything goes public.
-- **Turning Multipliers on or off mid-run changes nothing until the next run**: a run keeps the switch it started with, and so does its replay (D078). Runs saved before this update still resume, since with the switch off the battle is unchanged.
+- **A run saved mid-way before D111 won't resume identically** unless it was played with both D098 switches on and Multipliers off, so it ends at its saved wave (D078). Finish or end a run before merging.
 - **Readings still needed from The Tower:** one boss kill's Cash (20× is ours), and a basic enemy's Health at wave 30 or 50. The health correction is only fitted to wave 22.
 - **Heat-up is unsettled:** we use 4% per hit landed; the owner's research says per wave survived. Watching a boss stand at the tower in The Tower settles it.
 - **A run saved mid-way before D094 won't resume identically**, so it ends at its saved wave (D078). Finish or end a run before merging.
@@ -134,7 +135,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D110), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D111), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.

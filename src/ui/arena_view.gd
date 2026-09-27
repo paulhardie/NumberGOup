@@ -67,8 +67,6 @@ const LOOKS := {
 	"boss": {"axes": {"wdth": 150, "wght": 900}, "size": 24, "colour": Palette.BOSS, "glow": Palette.BOSS_GLOW, "flash": Palette.BOSS_GLOW},
 	"divider": {"axes": {"opsz": 48, "wght": 640, "WONK": 0, "SOFT": 0}, "divider": true, "size": 18, "colour": Palette.DIVIDER,
 		"glow": Palette.DIVIDER},
-	"multiplier": {"axes": {"opsz": 48, "wght": 640, "WONK": 0, "SOFT": 0}, "divider": true, "size": 18, "colour": Palette.MULTIPLIER,
-		"glow": Palette.MULTIPLIER},
 }
 ## A new enemy fades in over its first metres.
 const FADE_IN_M := 2.0
@@ -471,11 +469,9 @@ func enemy_at(angle: float, distance_m: float, half: Vector2) -> Vector2:
 
 ## The number an enemy shows is what it does to the Number (D102), from the
 ## moment it appears until it dies: "−2.4" for a hit after the tower's
-## defences, "÷1.5" for a Divider, "×1.1" for a Multiplier. It doesn't count
-## down as it's shot; the damage dealt so far shows under it instead.
+## defences, "÷1.5" for a Divider. It doesn't count down as it's shot; the
+## damage dealt so far shows under it instead.
 static func shown_text(battle: BattleSim, enemy: BattleSim.Enemy) -> String:
-	if enemy.kind == "multiplier":
-		return "×" + divisor_text(enemy.factor)
 	return operation_text(battle, enemy)
 
 

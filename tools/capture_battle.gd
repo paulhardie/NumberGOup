@@ -10,7 +10,6 @@ const Workshop = preload("res://src/tower/workshop.gd")
 const HomeScreen = preload("res://src/ui/home_screen.gd")
 const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
-const Settings = preload("res://src/settings.gd")
 
 const MOMENTS := [4.0, 30.0, 120.0, 240.0, 600.0]
 const FOLDER := "user://capture"
@@ -165,38 +164,27 @@ func _capture() -> void:
 	digits.queue_free()
 	await process_frame
 
-	# A Multiplier (D097) walking in, then the moment one is killed, with the
-	# other two tests (D098) on too, so kills' "+" shows.
-	var multiplied := BattleScreen.new()
-	multiplied.workshop = middling
-	multiplied.settings = Settings.new()
-	multiplied.settings.multipliers = true
-	multiplied.settings.peak_regen = true
-	multiplied.settings.kill_growth = true
-	root.add_child(multiplied)
+	# A kill growing the Number (D111): its sparks, its Cash, and the "+" by
+	# the Number, a moment after a kill that grew it by at least 1.
+	var grown := BattleScreen.new()
+	grown.workshop = middling
+	root.add_child(grown)
 	await process_frame
-	multiplied.start_run(11)
-	multiplied.set_process(false)
-	var killed := false
-	var seen := false
-	while multiplied.sim.alive and not killed and multiplied.sim.time < 3600.0:
-		if not seen and multiplied.sim.enemies.any(func(enemy): return enemy.kind == "multiplier" and enemy.distance < multiplied.sim.stat("range") * 1.1):
-			seen = true
-			multiplied._refresh()
-			multiplied._arena.queue_redraw()
-			await _frames()
-			_save_png("battle_multiplier_walking")
-		multiplied.sim.step()
-		killed = multiplied.sim.events.any(func(event): return event.type == "multiplied")
-		if killed:
-			multiplied._arena.absorb(multiplied.sim.events, 0.0)
-		multiplied.sim.events.clear()
-	multiplied._arena.absorb([], 0.08)
-	multiplied._refresh()
-	multiplied._arena.queue_redraw()
+	grown.start_run(11)
+	grown.set_process(false)
+	var grew := false
+	while grown.sim.alive and not grew and grown.sim.time < 3600.0:
+		grown.sim.step()
+		grew = grown.sim.events.any(func(event): return event.type == "grown" and float(event.gain) >= 1.0)
+		if grew:
+			grown._arena.absorb(grown.sim.events, 0.0)
+		grown.sim.events.clear()
+	grown._arena.absorb([], 0.1)
+	grown._refresh()
+	grown._arena.queue_redraw()
 	await _frames()
-	_save_png("battle_multiplied")
-	multiplied.queue_free()
+	_save_png("battle_kill_grows")
+	grown.queue_free()
 	await process_frame
 
 	# A crowd with the wave-10 boss in it, to see every enemy type's number

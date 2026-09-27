@@ -45,7 +45,7 @@ const SHOVE_EASE := 14.0
 ## A kill bursts into sparks in the enemy's colour, more the heavier it is,
 ## flying out and slowing to a stop over about SPARK_SECONDS, with a thin ring
 ## where it died (D109). MAX_SPARKS caps them in a crowd.
-const SPARKS := {"basic": 10, "fast": 10, "ranged": 12, "tank": 20, "boss": 40, "divider": 16, "multiplier": 16}
+const SPARKS := {"basic": 10, "fast": 10, "ranged": 12, "tank": 20, "boss": 40, "divider": 16}
 const SPARK_SPEED_PX := Vector2(50.0, 170.0)
 const SPARK_SECONDS := 0.6
 const MAX_SPARKS := 600
@@ -276,12 +276,6 @@ func _take(events: Array[Dictionary]) -> void:
 			"grown":
 				grown_total += float(event.gain)
 				motion.raise(float(event.gain))
-			"multiplied":
-				motion.raise(float(event.gain))
-				# The × in the operators' typeface, what it added in the Number's.
-				motion.flare(Palette.MULTIPLIER, DIVIDE_FLARE, DIVIDE_FLARE_SECONDS)
-				floats.append({"parts": [["×" + view.divisor_text(event.factor), view.divide_cut, 22], ["  +" + Palette.amount(float(event.gain)), view.mono_cut, 15]],
-					"anchor": "above", "age": 0.0, "colour": Palette.MULTIPLIER, "life": DIVIDE_FLOAT_SECONDS, "rise": DIVIDE_FLOAT_RISE_PX, "divide": true})
 			"free_upgrade":
 				var name := String(TowerData.upgrade(event.id).title).capitalize()
 				floats.append({"text": "Free: " + name, "anchor": "above", "age": 0.0, "colour": Palette.COIN})
@@ -387,4 +381,4 @@ func _ease_shoves(delta: float) -> void:
 
 
 func _mass_of(kind: String) -> float:
-	return 1.0 if kind == "divider" or kind == "multiplier" else TowerData.mass_ratio(kind)
+	return 1.0 if kind == "divider" else TowerData.mass_ratio(kind)

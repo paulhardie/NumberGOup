@@ -1504,3 +1504,22 @@ Rules:
 
   - **Multipliers break the pace.** Each × multiplies the Number as it stands, so in a long run they compound: 88 trillion in one Tier 1 run on a modest Workshop. Without them the Number adds up, from thousands to a few million over 2½ hours.
 - **Consequences:** the testing switches (D097, D098) are to be judged on this shape. As built, the Multiplier fails "never races"; kept, it would need to add rather than multiply (a share of Health, say), which is its own decision. The measuring tool for it is `sim_runs.gd --curve`.
+
+## D111 — The Multiplier goes; regen restores and kills grow, for every run
+
+- **Status:** Accepted (2026-09-27) on owner direction: "can probably get rid of the multiplier and go with kills and regen. I'd want them purposefully weak at increasing number early, but we give the player labs/cards etc to be able to make it better over time". It settles D097 and D098's tests against D110's shape.
+- **Decision:**
+  - **The Multiplier is removed**: the enemy, its colour, its stream of random numbers, its report counts and its capture. Its × compounded, breaking D110's pace (88 trillion in one Tier 1 run).
+  - **D098's two rules are the game's, always on:** regen restores the Number only up to the run's best (`Guesses.PEAK_REGEN_DRIFT`, 0), and an enemy killed before it lands a hit adds `Guesses.KILL_GROWTH` (5%) of its Attack. The Number now climbs from fighting and buying (Health, Lifesteal, kills), not from waiting.
+  - **Weak early on purpose.** Both stay at D098's values, which keep the Number at about a quarter of what regen alone gave (run 40 of a core career: 244 at wave 30, against 900). Labs and Cards are what should raise them later (a kill share, regen's drift past the best); nothing does yet, and no framework is built for it (AGENTS.md law 8).
+  - **The testing switches are gone**, from Settings → Testing, the settings file (older files' keys are ignored and dropped) and the run record (`start.switches` is no longer written; older records carrying it replay by today's rules, which only matters on the commit that recorded them). Free Coins and Reset progress stay.
+  - `Guesses.NUMBER_OVERFILL` now governs Lifesteal alone.
+- **Measured** (`sim_runs.gd`, 20 seeds fresh, a 40-run core career):
+
+| Kill share | Fresh runs: buy nothing / spread / core | Career: wave 19+ first, wave 30 first | Run 40's Number at waves 10, 20, 30 | New highs from |
+|---|---|---|---|---|
+| 5% (kept) | 3 / 8 / 6 | run 11, run 25 | 94, 193, 244 | Health 53%, kills 47% |
+| 2.5% | 3 / 8 / 6 | run 11, run 25 | 77, 146, 152 | Health 67%, kills 33% |
+
+  - With the kill share at 5%, the career prints identically to `main` with both switches on, run for run.
+  - Halving the share barely changes the shape but makes first runs more fragile: spread's worst run falls from wave 7 to 5, and one career run ended on wave 3. So 5% stays.

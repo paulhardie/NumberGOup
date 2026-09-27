@@ -102,7 +102,6 @@ func _reset_progress() -> void:
 func _show_battle(saved: Dictionary = {}) -> void:
 	var battle := BattleScreen.new()
 	battle.workshop = workshop
-	battle.settings = settings
 	battle.resume = saved
 	battle.resume_failed.connect(_resume_failed)
 	battle.run_finished.connect(func():
