@@ -239,6 +239,7 @@ bash run_godot.sh --path . -s res://tools/capture_battle.gd
 - `tools/import_tower_workshop.py` regenerates `data/workshop/upgrades.json` from TheTowerSDK's Workshop table (its header says how to fetch it); never edit that JSON by hand (D068). `tools/import_tower_enemies.mjs` does the same for `data/tower/enemies.json` and checks the result against the owner's screens.
 - The headless project run catches parse and scene-build errors in `main.gd` and the screens.
 - CI runs the same baseline on every pull request and push to `main` (`.github/workflows/verify.yml`), with its Godot version pinned to match the development build — update the pin when upgrading Godot. `main` requires a pull request with a passing "Economy tests and headless boot" check.
+- `tools/record_music.gd` records the generative music (D092) from the master bus to `user://music_preview.wav`; `-- --seconds N` sets the length, and it plays in real time.
 - `tools/capture_battle.gd` writes screenshots of the home screen, the Workshop and a seeded run fast-forwarded to a few moments to `user://capture`, printing where, with throwaway Workshops so nothing is saved; inspect them, never assert pixel equality. On headless Linux wrap it in `xvfb-run -a -s "-screen 0 1024x1100x24"`.
 - `opencode.json` disables the GDScript language server for agents that read it. Godot's LSP is TCP and only runs while the editor is open, which hangs clients that expect stdio; the [`opencode-godot-lsp`](https://github.com/MasuRii/opencode-godot-lsp) bridge is the way to turn it back on.
 
