@@ -11,6 +11,8 @@ extends SceneTree
 ##   attack    only Damage and Attack Speed, cheapest first
 ##   core      Damage, Attack Speed, Health, Health Regen and Defense
 ##             Absolute, cheapest first; in a career its Workshop does the same
+##   grow      core in the run; in a career its Workshop also opens the Cash and
+##             Coins groups and buys Coins / Kill Bonus and Coins / Wave with the rest
 ## --cap-minutes stops a run that is still alive (default 90).
 ## --divider-share N scales how many Dividers come (1 is Guesses.DIVIDER's,
 ## 0 none) and --divider-speed N sets their speed as a share of a basic
@@ -26,6 +28,8 @@ extends SceneTree
 ## all it gained, and after the slash its share of the new highs, the gains
 ## that lifted the Number past its best so far rather than refilling it.
 ##
+## --until-wave N ends a career once a run reaches wave N, saying which run
+## and after how many hours of game time.
 ## --careers N plays N runs in a row from a fresh Workshop instead, spending
 ## the Coins between runs: it opens the cheapest group it can, otherwise buys
 ## the open Workshop row with the fewest levels, until nothing is affordable.
@@ -35,10 +39,14 @@ const BattleSim = preload("res://src/tower/battle_sim.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 
-const STRATEGIES := ["none", "cheapest", "even", "attack", "core"]
+const STRATEGIES := ["none", "cheapest", "even", "attack", "core", "grow"]
 ## The rows a focused player buys, with --buy core: in the run, and in a
 ## career's Workshop (where it opens only the Defense group for them).
 const CORE_ROWS := ["damage", "attack_speed", "health", "health_regen", "defense_absolute"]
+## With --buy grow, a career's Workshop also opens the Cash and Coins groups and buys
+## these with the core rows, cheapest first: a focused player who invests in
+## income, as The Tower's players do. In the run it buys as core does.
+const GROW_ROWS := ["coins_per_kill", "coins_per_wave"]
 
 
 func _init() -> void:
@@ -76,7 +84,8 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 	var workshop := Workshop.new()
 	var hours := 0.0
 	print("career, buying %s in each run, %d-minute cap" % [strategy, int(cap_seconds / 60.0)])
-	print("run  wave  game time  hours  coins earned  coins left  ÷ came/landed  killed by  Workshop")
+	print("run  wave  game time  hours  coins earned  coins left  peak Number  ÷ came/landed  killed by  Workshop")
+	var until := int(options.get("until-wave", "0"))
 	for run in range(runs):
 		var sim := BattleSim.new(run + 1, workshop.levels, workshop.open_groups, _switches(options))
 		_tune(sim, options)
@@ -87,19 +96,26 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 		workshop.finish_run(sim.wave, sim.peak_number)
 		hours += sim.time / 3600.0
 		_spend_workshop(workshop, strategy)
-		print("%3d  %4d  %9s  %5.1f  %12.0f  %10.0f  %13s  %-9s  %s" % [run + 1, sim.wave, _clock(sim.time), hours, sim.coins, workshop.coins,
-			"%d/%d" % [sim.dividers_spawned, sim.dividers_landed], sim.killed_by if not sim.alive else "(alive)", _workshop_summary(workshop)] + _curve(sim, options) + _gains(sim, options))
+		print("%3d  %4d  %9s  %5.1f  %12.0f  %10.0f  %11.0f  %13s  %-9s  %s" % [run + 1, sim.wave, _clock(sim.time), hours, sim.coins, workshop.coins,
+			sim.peak_number, "%d/%d" % [sim.dividers_spawned, sim.dividers_landed], sim.killed_by if not sim.alive else "(alive)", _workshop_summary(workshop)] + _curve(sim, options) + _gains(sim, options))
+		if until > 0 and sim.wave >= until:
+			print("reached wave %d on run %d, after %.1f hours of game time" % [until, run + 1, hours])
+			return
 
 
 func _spend_workshop(workshop: Workshop, strategy: String) -> void:
-	if strategy == "core":
+	if strategy == "core" or strategy == "grow":
+		# The Coins group opens only after Cash, in The Tower's order.
+		var groups := ["defense", "cash", "coins"] if strategy == "grow" else ["defense"]
+		var rows: Array = CORE_ROWS + GROW_ROWS if strategy == "grow" else CORE_ROWS
 		while true:
-			if not workshop.is_group_open("defense"):
-				if not workshop.open_group("defense"):
+			var closed := groups.filter(func(group): return not workshop.is_group_open(group))
+			if not closed.is_empty():
+				if not workshop.open_group(closed[0]):
 					return
 				continue
 			var cheapest := ""
-			for id in CORE_ROWS:
+			for id in rows:
 				if workshop.level(id) < TowerData.max_level(id) and (cheapest == "" or workshop.price(id) < workshop.price(cheapest)):
 					cheapest = id
 			if cheapest == "" or not workshop.buy(cheapest):
@@ -147,7 +163,7 @@ func _spend(sim: BattleSim, strategy: String) -> void:
 func _choose(sim: BattleSim, strategy: String) -> String:
 	var rows: Array[String] = []
 	for id in TowerData.rows():
-		var allowed: bool = (strategy != "attack" or id in ["damage", "attack_speed"]) and (strategy != "core" or id in CORE_ROWS)
+		var allowed: bool = (strategy != "attack" or id in ["damage", "attack_speed"]) and (strategy not in ["core", "grow"] or id in CORE_ROWS)
 		if sim.is_open(id) and not sim.at_max(id) and allowed:
 			rows.append(id)
 	if rows.is_empty():

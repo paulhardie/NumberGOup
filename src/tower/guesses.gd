@@ -45,17 +45,20 @@ const STARTING_CASH := 0.0
 ## as much less far as their mass is greater (D068). The Tower gives no units.
 const KNOCKBACK_METRES_PER_FORCE := 5.0
 
-## Orbs circle on the edge of the tower's Range and kill an enemy that comes
-## within ORB_HIT_M of one, ranged enemies standing on that edge included (the
-## owner, 26 September), unless it's one orbs can't kill (ORB_IMMUNE). Orb
-## Speed's value is read as radians a second (D104): a turn about every 16
-## seconds at its first level (0.4) and about one a second at its last (6.1).
-## A turn a second from the first level (D075) let one cheap orb add ten
-## waves and two double a run. The 3 m is ours.
-const ORB_TURNS_PER_SECOND_AT_FIRST_LEVEL := 0.4 / TAU
+## Orbs (D108, The Tower's as the community wikis state them): Orb Speed is
+## rotations a minute, 0.4 at the first level (a turn every 2½ minutes) to 6.10
+## at the last (one every 10 seconds). They circle at least ORB_MIN_RADIUS_M out,
+## outside a 30 m Range, so they sweep the approach rather than the range's
+## edge; past that, they sit further inside a growing Range, by ORB_RANGE_SLOPE
+## of every metre over the minimum (the slope is ours: The Tower says only "not
+## one to one"). They kill an enemy that comes within ORB_HIT_M of one (ours),
+## unless it's one orbs can't kill (ORB_IMMUNE).
+const ORB_TURNS_PER_SECOND_AT_FIRST_LEVEL := 0.4 / 60.0
+const ORB_MIN_RADIUS_M := 60.0
+const ORB_RANGE_SLOPE := 0.5
 const ORB_HIT_M := 3.0
 ## Enemies orbs can't kill (D104): bosses, as in The Tower, and any later
-## enemy added here, such as The Tower's elites and protected enemies.
+## enemy added here: The Tower's elites, and anything a Protector shields.
 const ORB_IMMUNE := ["boss"]
 
 ## The Wall stands this far out; melee enemies stop at it and hit it while

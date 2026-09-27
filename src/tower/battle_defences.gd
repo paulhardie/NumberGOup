@@ -25,6 +25,7 @@ var mines: Array[Vector2] = []
 ## How fast orbs turn at Orb Speed's first level (Guesses), which the
 ## measuring tools may change before the first step to try others.
 var orb_turns_first := Guesses.ORB_TURNS_PER_SECOND_AT_FIRST_LEVEL
+var orb_hit_m := Guesses.ORB_HIT_M
 
 
 func _init(battle) -> void:
@@ -87,12 +88,13 @@ func tick_shockwave() -> void:
 		sim.events.append({"type": "shockwave"})
 
 
-## Orbs circle on the edge of the tower's Range and kill any enemy that comes
-## within Guesses.ORB_HIT_M of one, walking or standing, unless it's one orbs
-## can't kill (Guesses.ORB_IMMUNE). They turn on the run's clock, and each
-## tick checks the whole arc an orb swept, not just where it ends up.
+## Orbs circle at least Guesses.ORB_MIN_RADIUS_M out, further inside a Range
+## that grows past it (D108), and kill any enemy that comes within
+## Guesses.ORB_HIT_M of one, walking or standing, unless it's one orbs can't
+## kill (Guesses.ORB_IMMUNE). They turn on the run's clock, and each tick
+## checks the whole arc an orb swept, not just where it ends up.
 func orb_radius() -> float:
-	return sim.stat("range")
+	return Guesses.ORB_MIN_RADIUS_M + Guesses.ORB_RANGE_SLOPE * maxf(0.0, sim.stat("range") - Guesses.ORB_MIN_RADIUS_M)
 
 
 func orb_turns_per_second() -> float:
@@ -113,10 +115,10 @@ func sweep_orbs() -> void:
 		return
 	var radius: float = orb_radius()
 	var sweep: float = TAU * orb_turns_per_second() * sim.TICK
-	var slack: float = Guesses.ORB_HIT_M / radius
+	var slack: float = orb_hit_m / radius
 	var touched := []
 	for enemy in sim.enemies:
-		if enemy.kind in Guesses.ORB_IMMUNE or absf(enemy.distance - radius) > Guesses.ORB_HIT_M:
+		if enemy.kind in Guesses.ORB_IMMUNE or absf(enemy.distance - radius) > orb_hit_m:
 			continue
 		for start in starts:
 			# How far ahead of the orb's starting angle the enemy sits.

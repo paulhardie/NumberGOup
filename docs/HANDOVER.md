@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session made a design canvas for the owner, "Number Go Up — Design System" (https://claude.ai/artifact/SxFKJQVDmbjVsAqGmnDRDW): the game's type voices, colour roles, the Number's states, the crowd, proposed elites, assets as maths notation and sketches of the Ultimate Weapons. On the owner's word it built two of its proposals: orbs drawn as 0 and the Wall as brackets round the Number (D106). Alongside it, another session split the Wall, orbs, shockwaves and mines out of `BattleSim` into `battle_defences.gd` and took the decimal points off money and damage (D105), both merged. Then, from `main` after #93, that session recorded Tier 2's gate and a five-digit pacing target, and built milestones that pay Coins (D107). The sessions before read the first activity reports and built D094–D104.
+**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session, from `main` after #94 (D107), put orbs back to The Tower's balance (D108), gave kills sparks and a Coins float and made the Number's shots white, leaving its edge (D109), and measured the road to wave 100 with long simulated careers (below). Earlier sessions built D094–D107; another made the design canvas "Number Go Up — Design System" (https://claude.ai/artifact/SxFKJQVDmbjVsAqGmnDRDW) and built orbs as 0 and the Wall as brackets from it (D106).
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #93 (D106). It carries D107: milestones, Tier 2's gate and the Number's pacing target. Not yet merged. (`claude/notation-orb-wall`, D106, is merged.) The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #94. It carries D108 and D109 and the `sim_runs.gd` options `--buy grow` and `--until-wave N`. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -22,7 +22,7 @@
 - **The battle.** Tier 1, with every one of The Tower's Workshop groups working (D076). The Number sits in the centre as the tower, white, with no ceiling (D083), large and thin, in the design's soft warm light that breathes (D096), inside a faint ring at the range. The screen follows the owner's main-screen design (D095): pill buttons, hairline readouts, underlined tabs and quiet cards, on near-black.
 - **Enemies.** The Tower's enemies subtract. A Divider divides the Number: ÷1.25, then ÷1.5 from wave 18. It takes the Protector's slot, replacing a basic, so waves are The Tower's size: one every third wave from wave 5 (the first on wave 7), every other wave by wave 30 (D094). The nearest one in range is previewed above the Number (D086).
 - **Enemies as numbers** (D085, D086). Each type has its own typeface and colour. An enemy shows what it does to the Number (−2.4, ÷1.5, ×1.1) from start to death, with the damage dealt so far in small white under it once it survives a shot (D102).
-- **Shots** have trails, hits chip the enemies' numbers, and knockback slides (D090). Orbs are mint 0s on the range's edge, and the Wall is a pair of brackets round the Number that fall away when it breaks (D106).
+- **Shots** are white and leave from the edge of the Number's digits with a small flash; hits chip the enemies' numbers, knockback slides (D090), and a kill bursts into sparks with its Cash, and Coins if it paid any, floating beside it (D109). Orbs are mint 0s circling at least 60 m out, turning as slowly as The Tower's (D108), and the Wall is a pair of brackets round the Number that fall away when it breaks (D106).
 - **Sound.** No combat sounds (D091). Generative ambient music plays across every screen (D092).
 - **Home and the Workshop** wear the same look, with a bar along the bottom (D096). Home follows The Tower's: Coins, the best Number in its light, the Coin bonus, the tier, Battle. Milestones opens a list of the best-Number milestones, each paying Coins once (D107). Cards, Labs, Weapons, Missions and the tier arrows stand locked as placeholders; the Difficulty card says Tier 2 opens after wave 100. Settings (Music, Export report) opens over Home and is kept in `user://number_go_up_settings.json` (D088).
 - **Saving, resuming and the report.** The save is `user://number_go_up_tower.json`, version 1. A run closed mid-way resumes by replay (D078). Every run and Workshop buy is logged, and Home exports a report (D077).
@@ -38,6 +38,19 @@
 - **Two runs were lost to updates:** a merge landed while a run was saved, so resuming ended it at its saved wave, by design (D078).
 - **The owner plays half their real time at ×5.**
 - **The replays match:** the two runs recorded on today's `main` replay exactly with `read_report.gd`.
+
+**The road to wave 100** (27 September, `sim_runs.gd --careers 600 --until-wave 101 --curve`, on D107's code; orbs aren't bought, so D108 doesn't change it). No career has reached wave 100. They climb in steps of ten, ended by the boss every tenth wave, and each step takes longer:
+
+| Career | Wave 41 | Wave 51 | Wave 61 | Wave 71 | Peak Number near wave 70 |
+|---|---|---|---|---|---|
+| core (Workshop: the five core rows) | 11 h | 32 h | 79 h | not by 183 h (68 best) | 29,000–32,000 |
+| grow (core, plus Coins income) | 9 h | 23 h | 43 h | 85 h | 45,000–54,000 |
+| grow, regen at best and kills (D098) | 11 h | 27 h | 44 h | 98 h | about 4,000 |
+| grow, all three switches | 10 h | 25 h | 45 h | 83 h | 34,000–73,000 |
+
+- Hours are game hours of a career played one run after another; a wave-70 run lasts about 40 minutes. The sim buys only seven Workshop rows and no Cards or Labs, which don't exist yet, so a person will be faster, but the shape matters: **at Tier 1 with only the Workshop, wave 100 is well over 100 game hours away.** The Tower gets there with Cards and Labs.
+- **D107's five-digit target is met by wave 70 without the D098 switches, and missed by a digit with them** (unless Multipliers are on too). That bears on which switches to keep.
+- The careers keep running in the session's scratch space; nothing of them is committed.
 
 ## Open decisions for the owner
 
@@ -63,6 +76,7 @@
 
 ## How to measure
 
+- **D108 and D109 (27 September):** `bash run_tests.sh` passes (2837 checks), with orb tests rewritten for turns a minute and the 60 m circle, and a new test for sparks, the Coins float and the shots' flash. `bash run_godot.sh --headless --path . --quit` boots (13 leaked objects at exit, as on `main`). Orbs measured at three reaches on a 40-run core career's Workshop (D108's table). `capture_battle.gd`'s crowd and Multiplier-kill screens checked by eye: sparks and the ring show; the Coins float and the shots' flash were tested but not seen in a capture. Not seen in motion.
 - **D107 (27 September):** `bash run_tests.sh` passes (2825 checks); 40-run careers, core and spread, with and without milestones (same runs to the boss and to waves 21 and 30); Home and the Milestones panel screenshotted and checked by eye.
 - **This session (27 September, D106):** `bash run_tests.sh` on the branch with `main` merged in (after #92): 2817 checks, the 6 new ones passing; 7 save-file checks fail on this Mac on untouched `main` too (see Known issues), and CI passed on `main`. `bash run_godot.sh --headless --path . --quit` boots. `capture_battle.gd`'s `battle_strong` (orbs and the Wall up, a four-digit Number) and `battle_wall_down` checked by eye. Not seen: a six-digit Number with the Wall up, or the fall and rise in motion.
 - **The session before (27 September):**
@@ -106,7 +120,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D107), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D109), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.

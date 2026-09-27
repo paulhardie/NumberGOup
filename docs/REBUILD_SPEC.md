@@ -147,7 +147,7 @@ These are carried from the current game until the owner reads the real value:
 - ~~An enemy at the tower hits every 5 seconds~~: once a second (D075).
 - A boss pays 20 basics' Cash (D071).
 - Enemies set off 100 m out, basic speed is 10 m a second and the base range is 30 m (D067, D068). The Tower gives no units.
-- ~~Orbs at 60 m, 0.4 turns a minute~~, ~~a turn a second (D075)~~: on the Range edge, Orb Speed read as radians a second, a turn every 16 seconds at first (D104). The 3 m an orb reaches is ours, and bosses are the only enemy they can't kill so far.
+- Orbs: ~~a turn a second on the Range edge (D075)~~, ~~radians a second (D104)~~: back to The Tower's, at least 60 m out and 0.4 turns a minute at first (D108). How much further out a larger Range puts them (half of each metre past 60) and the 3 m an orb reaches are ours, and bosses are the only enemy they can't kill so far.
 - ~~Ranged enemies stop at 30 m~~: on the Range edge as it is (D075).
 - ~~20 enemies in wave 1~~: 11 (D075). The 0.123 more a wave is still ours.
 - A free upgrade counts as a run purchase, so it raises the row's next Cash price.
