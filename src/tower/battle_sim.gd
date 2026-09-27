@@ -795,7 +795,9 @@ func _strike(enemy: Enemy, shot_damage: float, critical: bool) -> void:
 		_kill(enemy)
 
 
-func _kill(enemy: Enemy) -> void:
+## `by` names what killed it when the screen draws that differently: "orb" for
+## an orb, which sets it to 0 (D105).
+func _kill(enemy: Enemy, by := "") -> void:
 	enemies.erase(enemy)
 	kills += 1
 	if enemy.kind == "multiplier":
@@ -814,7 +816,7 @@ func _kill(enemy: Enemy) -> void:
 	cash_earned += paid_cash
 	coins += paid_coins
 	if record_events:
-		events.append({"type": "kill", "enemy": enemy, "cash": paid_cash, "coins": paid_coins})
+		events.append({"type": "kill", "enemy": enemy, "cash": paid_cash, "coins": paid_coins, "by": by})
 
 
 ## As each wave ends: Cash / Wave times Cash Bonus, and Coins / Wave once the
@@ -895,7 +897,7 @@ func _sweep_orbs() -> void:
 				break
 	for enemy in touched:
 		enemy.health = 0.0
-		_kill(enemy)
+		_kill(enemy, "orb")
 
 
 ## Enemy Level Skip: each new wave's enemies are a level tougher and a level
