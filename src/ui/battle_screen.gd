@@ -1,6 +1,7 @@
 extends Control
-## The battle: the arena on top, the tower's and the wave's readouts below it,
-## then the run's upgrades. It runs the sim at the chosen game speed and draws
+## The battle, laid out as the owner's main-screen design: Cash, Coins and the
+## speed and End run pills over the arena, the Number large in its light, the
+## tower's and the wave's readouts under a hairline, then the run's upgrades. It runs the sim at the chosen game speed and draws
 ## it; every rule lives in BattleSim. A run starts from the Workshop, and the
 ## Coins it earns go into the Workshop as they come. A run saved mid-way is
 ## resumed by replaying it from its seed and inputs, a slice a frame (D078).
@@ -59,9 +60,12 @@ var _tower_regen: Label
 var _health_bar: ProgressBar
 var _health_text: Label
 var _wave_title: Label
+var _wave_done: Label
 var _enemy_attack: Label
 var _enemy_health: Label
 var _wave_bar: ProgressBar
+var _mono := Palette.weight(Palette.NUMBER_FONT, 400)
+var _mono_bold := Palette.weight(Palette.NUMBER_FONT, 500)
 var _upgrades: UpgradePanel
 var _over: PanelContainer
 var _over_title: Label
@@ -201,19 +205,22 @@ func _bank_coins() -> void:
 
 
 func _refresh() -> void:
-	_cash.text = "$ " + Palette.number(sim.cash)
-	_coins.text = "● " + Palette.number(workshop.coins)
-	_tower_damage.text = "Damage " + Palette.row_value("damage", sim.stat("damage"))
-	_tower_regen.text = "Regen %.2f/s" % sim.stat("health_regen")
+	_cash.text = Palette.number(sim.cash)
+	_coins.text = Palette.number(workshop.coins)
+	_tower_damage.text = "dmg " + Palette.row_value("damage", sim.stat("damage"))
+	_tower_regen.text = "+%.2f/s" % sim.stat("health_regen")
 	# The Number against this run's peak (D083: it has no ceiling).
 	_health_bar.max_value = maxf(sim.peak_number, 0.001)
 	_health_bar.value = sim.health
 	var now := Palette.number_shown(sim.health, sim.max_health(), sim.alive)
-	_health_text.text = "%s · peak %s" % [Palette.number(now), Palette.number(roundf(sim.peak_number))]
+	_health_text.text = "%s / %s" % [Palette.number(now), Palette.number(maxf(now, roundf(sim.peak_number)))]
 	_wave_title.text = "Wave %d" % sim.wave
-	_enemy_attack.text = "Attack " + Palette.number(sim.enemy_attack_now("basic"))
-	_enemy_health.text = "Health " + Palette.number(sim.enemy_health_now("basic"))
-	_wave_bar.value = sim.wave_clock / TowerData.wave_seconds()
+	var through := clampf(sim.wave_clock / TowerData.wave_seconds(), 0.0, 1.0)
+	_wave_done.text = "%d%%" % int(through * 100.0)
+	# The basic enemy's Attack and Health this wave, as values, not multipliers.
+	_enemy_attack.text = "atk " + Palette.number(sim.enemy_attack_now("basic"))
+	_enemy_health.text = "hp " + Palette.number(sim.enemy_health_now("basic"))
+	_wave_bar.value = through
 	_upgrades.refresh()
 
 
@@ -247,7 +254,7 @@ func _build() -> void:
 
 	var column := VBoxContainer.new()
 	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	column.add_theme_constant_override("separation", 8)
+	column.add_theme_constant_override("separation", 0)
 	add_child(column)
 
 	_arena = ArenaView.new()
@@ -258,44 +265,59 @@ func _build() -> void:
 	_arena.resized.connect(func(): _arena.centre = Vector2(_arena.size.x * 0.5, _arena.size.y * 0.55))
 	column.add_child(_arena)
 
+	# Cash and Coins top left, the speed and End run pills top right, over the arena.
 	var money := VBoxContainer.new()
-	money.position = Vector2(16, 14)
+	money.position = Vector2(20, 20)
+	money.add_theme_constant_override("separation", 6)
 	_arena.add_child(money)
-	_cash = _number_label(20, Palette.TEXT)
-	_coins = _number_label(16, Palette.COIN)
-	money.add_child(_cash)
-	money.add_child(_coins)
+	var cash_line := HBoxContainer.new()
+	cash_line.add_theme_constant_override("separation", 10)
+	money.add_child(cash_line)
+	cash_line.add_child(_number_label(22, Palette.MUTED, _mono_bold, "$"))
+	_cash = _number_label(22, Palette.TEXT, _mono_bold)
+	cash_line.add_child(_cash)
+	var coin_line := HBoxContainer.new()
+	coin_line.add_theme_constant_override("separation", 8)
+	money.add_child(coin_line)
+	var dot := Panel.new()
+	dot.custom_minimum_size = Vector2(6, 6)
+	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	dot.add_theme_stylebox_override("panel", Palette.pill_box(Palette.COIN, Color(0, 0, 0, 0), 0))
+	coin_line.add_child(dot)
+	_coins = _number_label(13, Palette.COIN)
+	coin_line.add_child(_coins)
 
-	# The speed and End run buttons, right-aligned in the arena's corner.
-	var corner := VBoxContainer.new()
+	var corner := HBoxContainer.new()
 	corner.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	corner.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	corner.offset_right = -16
-	corner.offset_top = 14
-	corner.alignment = BoxContainer.ALIGNMENT_END
+	corner.offset_right = -20
+	corner.offset_top = 20
+	corner.add_theme_constant_override("separation", 8)
 	_arena.add_child(corner)
-	_speed_button = Button.new()
-	_speed_button.text = "×1"
-	_speed_button.add_theme_font_override("font", Palette.NUMBER_FONT)
-	_speed_button.size_flags_horizontal = Control.SIZE_SHRINK_END
+	_speed_button = _pill("×1", Palette.TEXT, _mono)
 	_speed_button.pressed.connect(_cycle_speed)
 	corner.add_child(_speed_button)
-	var end := Button.new()
-	end.text = "End run"
-	end.size_flags_horizontal = Control.SIZE_SHRINK_END
+	var end := _pill("End run", Palette.SOFT, null)
 	end.pressed.connect(func():
 		if sim != null:
 			sim.end_run())
 	corner.add_child(end)
 
 	var readouts := HBoxContainer.new()
-	readouts.add_theme_constant_override("separation", 8)
-	column.add_child(_margined(readouts))
+	readouts.add_theme_constant_override("separation", 28)
+	var readout_margin := _margined(readouts)
+	readout_margin.add_theme_constant_override("margin_top", 16)
+	readout_margin.add_theme_constant_override("margin_bottom", 16)
+	column.add_child(_hairline())
+	column.add_child(readout_margin)
 	readouts.add_child(_tower_panel())
 	readouts.add_child(_wave_panel())
+	column.add_child(_hairline())
 
 	_upgrades = UpgradePanel.new()
-	column.add_child(_margined(_upgrades, 16))
+	var upgrades_margin := _margined(_upgrades, 24)
+	upgrades_margin.add_theme_constant_override("margin_top", 4)
+	column.add_child(upgrades_margin)
 
 	_over = PanelContainer.new()
 	_over.add_theme_stylebox_override("panel", Palette.panel_box())
@@ -326,83 +348,97 @@ func _build() -> void:
 	over_column.add_child(home)
 
 
-func _tower_panel() -> PanelContainer:
-	var panel := _panel()
-	var column := VBoxContainer.new()
-	panel.add_child(column)
-	var line := HBoxContainer.new()
-	column.add_child(line)
-	_tower_damage = _number_label(13, Palette.MUTED)
-	_tower_regen = _number_label(13, Palette.MUTED)
-	_tower_damage.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	line.add_child(_tower_damage)
-	line.add_child(_tower_regen)
-	var bar_holder := Control.new()
-	bar_holder.custom_minimum_size = Vector2(0, 22)
-	column.add_child(bar_holder)
-	_health_bar = _bar(Palette.ACCENT)
-	_health_bar.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	bar_holder.add_child(_health_bar)
-	_health_text = _number_label(13, Palette.TEXT)
-	_health_text.add_theme_color_override("font_outline_color", Palette.GROUND)
-	_health_text.add_theme_constant_override("outline_size", 4)
-	_health_text.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_health_text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	_health_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	bar_holder.add_child(_health_text)
-	return panel
+func _tower_panel() -> VBoxContainer:
+	var parts := _readout("Tower", Palette.ACCENT)
+	_health_text = parts.value
+	_health_bar = parts.bar
+	_tower_damage = parts.left
+	_tower_regen = parts.right
+	return parts.column
 
 
-func _wave_panel() -> PanelContainer:
-	var panel := _panel()
-	var column := VBoxContainer.new()
-	panel.add_child(column)
-	var line := HBoxContainer.new()
-	column.add_child(line)
-	_wave_title = Label.new()
-	_wave_title.add_theme_font_size_override("font_size", 18)
-	_wave_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	line.add_child(_wave_title)
-	var enemy := VBoxContainer.new()
-	enemy.add_theme_constant_override("separation", 0)
-	line.add_child(enemy)
-	_enemy_attack = _number_label(11, Palette.MUTED)
-	_enemy_health = _number_label(11, Palette.MUTED)
-	_enemy_attack.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_enemy_health.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	enemy.add_child(_enemy_attack)
-	enemy.add_child(_enemy_health)
-	_wave_bar = _bar(Palette.ACCENT)
+func _wave_panel() -> VBoxContainer:
+	var parts := _readout("Wave 1", Color(1, 1, 1, 0.55))
+	_wave_title = parts.title
+	_wave_done = parts.value
+	_wave_bar = parts.bar
 	_wave_bar.max_value = 1.0
-	_wave_bar.custom_minimum_size = Vector2(0, 6)
-	column.add_child(_wave_bar)
-	return panel
+	_enemy_attack = parts.left
+	_enemy_health = parts.right
+	return parts.column
 
 
-func _panel() -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", Palette.panel_box())
-	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	return panel
+## One readout: a title and a figure, a thin bar in `colour`, and two small
+## figures under it. Returns its pieces by name.
+func _readout(title_text: String, colour: Color) -> Dictionary:
+	var column := VBoxContainer.new()
+	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	column.add_theme_constant_override("separation", 8)
+	var head := HBoxContainer.new()
+	column.add_child(head)
+	var title := Label.new()
+	title.text = title_text
+	title.add_theme_font_size_override("font_size", 13)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	head.add_child(title)
+	var value := _number_label(12, Palette.MUTED)
+	head.add_child(value)
+	var bar := _bar(colour)
+	bar.custom_minimum_size = Vector2(0, 3)
+	column.add_child(bar)
+	var foot := HBoxContainer.new()
+	column.add_child(foot)
+	var left := _number_label(11, Palette.MUTED)
+	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var right := _number_label(11, Palette.MUTED)
+	right.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	foot.add_child(left)
+	foot.add_child(right)
+	return {"column": column, "title": title, "value": value, "bar": bar, "left": left, "right": right}
+
+
+## A thin line across the screen between the arena, the readouts and the upgrades.
+func _hairline() -> MarginContainer:
+	var line := ColorRect.new()
+	line.color = Palette.HAIRLINE
+	line.custom_minimum_size = Vector2(0, 1)
+	return _margined(line)
+
+
+## A pill button: a hairline edge on the ground, as the design's top corner has.
+func _pill(text: String, colour: Color, font: Font) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(0, 36)
+	button.add_theme_font_size_override("font_size", 13)
+	if font != null:
+		button.add_theme_font_override("font", font)
+	for state in ["normal", "hover", "pressed", "focus"]:
+		var edge := Color(1, 1, 1, 0.24 if state == "hover" else 0.12)
+		button.add_theme_stylebox_override(state, Palette.pill_box(Color(1, 1, 1, 0.05) if state == "pressed" else Color(0, 0, 0, 0), edge, 14))
+	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
+		button.add_theme_color_override(state, colour)
+	return button
 
 
 func _bar(colour: Color) -> ProgressBar:
 	var bar := ProgressBar.new()
 	bar.show_percentage = false
 	var back := StyleBoxFlat.new()
-	back.bg_color = Palette.SURFACE_RAISED
-	back.set_corner_radius_all(4)
+	back.bg_color = Palette.HAIRLINE
+	back.set_corner_radius_all(3)
 	var fill := StyleBoxFlat.new()
 	fill.bg_color = colour
-	fill.set_corner_radius_all(4)
+	fill.set_corner_radius_all(3)
 	bar.add_theme_stylebox_override("background", back)
 	bar.add_theme_stylebox_override("fill", fill)
 	return bar
 
 
-func _number_label(font_size: int, colour: Color) -> Label:
+func _number_label(font_size: int, colour: Color, font: Font = null, text: String = "") -> Label:
 	var label := Label.new()
-	label.add_theme_font_override("font", Palette.NUMBER_FONT)
+	label.text = text
+	label.add_theme_font_override("font", font if font != null else _mono)
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", colour)
 	return label
@@ -410,8 +446,8 @@ func _number_label(font_size: int, colour: Color) -> Label:
 
 func _margined(child: Control, bottom: int = 0) -> MarginContainer:
 	var margin := MarginContainer.new()
-	margin.add_theme_constant_override("margin_left", 12)
-	margin.add_theme_constant_override("margin_right", 12)
+	margin.add_theme_constant_override("margin_left", 20)
+	margin.add_theme_constant_override("margin_right", 20)
 	margin.add_theme_constant_override("margin_bottom", bottom)
 	margin.add_child(child)
 	return margin

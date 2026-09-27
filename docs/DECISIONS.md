@@ -1239,3 +1239,17 @@ Rules:
   - Wave-30 runs now meet 10–11 Dividers and 3–7 land, against 14 and 8–10 before: about 0.3 landed a minute, which is what the owner's own runs saw.
 - **Consequences:** THE_NUMBER.md 5.2's "roughly one ÷ contact a minute" now reads as an upper bound, not a target, since the owner judged one a wave too much. `Guesses.DIVIDER`'s `share_first`/`share_full` became `rate_first`/`rate_full`, in Dividers a wave. A run saved mid-way before this won't resume identically and ends at its saved wave (D078).
 - **Revisit when:** the owner finds ÷ moments too rare or too common in play, or The Tower's Protector arrives in a later tier and needs its slot back.
+
+## D095 — The battle screen follows the owner's main-screen design
+
+- **Status:** Accepted (2026-09-27) on owner direction: a design mock, "Main screen, minimal", with "Make the home screen look like that please". The mock is the battle screen (Cash, End run, the Number, the run's upgrades), so that is the screen changed; Home and the Workshop keep their layout and take only the new colours.
+- **Decision:**
+  - **Colours** from the design: ground `#0A0A0B`, a breath off D087's pure black; text `#EDEDED`, muted `#8C8C8C`, accent `#9CC5AE`, Coins `#D4B25C`, cards `#141416` with a faint white edge, hairlines at 8% white, and the hit float `#E08A7A`.
+  - **Top:** Cash in Geist Mono with a muted `$`, Coins under it after a gold dot; ×1 and End run as outlined pills, side by side.
+  - **The Number** is large and thin: Geist at weight 200, 96 px, shrinking to fit 150 px as its digits grow (never below 40), with a soft light of its own and "HEALTH" in small spaced capitals beneath. The smoke light behind it (D087) stays.
+  - **The range** is always drawn as the design's ring: a 1 px line at 6% white. It sits at the real range, so it grows with Range bought. Show range (D088) still adds the haze at its edge.
+  - **What a hit takes** floats beside the Number's upper right, in the hit colour. Notes and the ÷ float and preview sit above its digits. The Wall's ring stays clear of a large Number, as the enemies stopped at it are.
+  - **Readouts** under a hairline: Tower (the Number / its peak, a thin accent bar, damage and regen) and Wave (how far through, a thin white bar, the basic enemy's Attack and Health). The design wrote those last two as "×1.18"; they are values, not multipliers, so they read "atk 1.18".
+  - **Upgrades:** Attack, Defense and Utility as underlined words, "buy ×1" as a quiet pill, and cards 76 px tall with the row's name small at the top, its value large at the bottom left and its price at the bottom right. Row names are in sentence case ("Damage / meter").
+- **Consequences:** the Number's bigger box keeps arriving enemies further out on screen; drawing only, the sim is unchanged. The run-over panel, Home and the Workshop keep the older button style for now.
+- **Revisit when:** the owner designs Home, the Workshop or the run-over panel, or sees it on a phone.

@@ -280,10 +280,10 @@ func test_pressing_an_upgrade_card_buys_it() -> void:
 	screen.sim.run_levels = {"health": 2}
 	screen.sim.health = screen.sim.max_health()
 	screen._refresh()
-	check(screen._health_text.text.begins_with("15 · peak"), "full health 15.08 reads 15: %s" % screen._health_text.text)
+	check(screen._health_text.text.begins_with("15 / "), "full health 15.08 reads 15: %s" % screen._health_text.text)
 	screen.sim.health = 0.3
 	screen._refresh()
-	check(screen._health_text.text.begins_with("1 · "), "a tower still standing never reads 0: %s" % screen._health_text.text)
+	check(screen._health_text.text.begins_with("1 / "), "a tower still standing never reads 0: %s" % screen._health_text.text)
 	screen.sim.health = screen.sim.max_health() * 1.5
 	screen._refresh()
 	check(screen._health_text.text.begins_with(Palette.number(roundf(screen.sim.health))), "overhealed health reads above the most: %s" % screen._health_text.text)
@@ -299,19 +299,19 @@ func test_the_multiplier_buys_several_levels_a_press() -> void:
 	screen.sim.cash = 1e6
 	var panel = screen._upgrades
 	panel._amount_button.pressed.emit()
-	check(panel._amount_button.text == "Buy ×5", "one press of the multiplier makes it ×5")
+	check(panel._amount_button.text == "buy ×5", "one press of the multiplier makes it ×5")
 	panel.refresh()
 	check(panel._cards["damage"].price.text.begins_with("+5 $"), "and a card quotes five levels: %s" % panel._cards["damage"].price.text)
 	panel._cards["damage"].button.pressed.emit()
 	check(screen.sim.level("damage") == 5, "pressing it buys five")
 	panel._amount_button.pressed.emit()
 	panel._amount_button.pressed.emit()
-	check(panel._amount_button.text == "Buy Max", "×10, then Max")
+	check(panel._amount_button.text == "buy max", "×10, then Max")
 	screen.sim.cash = 0.0
 	panel.refresh()
 	check(panel._cards["damage"].price.text == "$" + Palette.number(screen.sim.price("damage")), "Max it can't afford quotes the next level: %s" % panel._cards["damage"].price.text)
 	panel._amount_button.pressed.emit()
-	check(panel._amount_button.text == "Buy ×1", "and back round to ×1")
+	check(panel._amount_button.text == "buy ×1", "and back round to ×1")
 	screen.free()
 
 

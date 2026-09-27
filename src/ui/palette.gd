@@ -1,21 +1,30 @@
 extends RefCounted
-## The look (D049): a black ground (D087), Geist for words and Geist Mono for
-## numbers, one accent for good and one warning for bad.
+## The look (D049, the main-screen design of D095): a near-black ground (D087), Geist for
+## words and Geist Mono for numbers, one accent for good and one warning for
+## bad, hairlines and quiet cards.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 
-## Pure black (D087), so the light behind the Number reads as light.
-const GROUND := Color("000000")
-const SURFACE := Color("17181a")
+## Black, a breath off pure (the owner's main-screen design), so the light
+## behind the Number reads as light and the cards read against it.
+const GROUND := Color("0a0a0b")
+const SURFACE := Color("141416")
 const SURFACE_RAISED := Color("1c1d20")
 const LINE := Color("2a2b2f")
-const TEXT := Color("ececea")
+## Dividing lines and card edges: white, faint.
+const HAIRLINE := Color(1, 1, 1, 0.08)
+const CARD_EDGE := Color(1, 1, 1, 0.05)
+const TEXT := Color("ededed")
+## Secondary words on buttons (End run, the buy multiplier).
+const SOFT := Color("a8a8a8")
 ## The Number in the centre is white, always (D087).
-const NUMBER := Color("f7f6f2")
-const MUTED := Color("8b8c88")
-const ACCENT := Color("8fbfa8")
+const NUMBER := Color("ffffff")
+const MUTED := Color("8c8c8c")
+const ACCENT := Color("9cc5ae")
 const WARNING := Color("d68e5c")
-const COIN := Color("d4b04e")
+## What a hit takes from the Number, floating beside it.
+const HIT := Color("e08a7a")
+const COIN := Color("d4b25c")
 ## Each enemy type's colour (D085): one hue apiece, spread in lightness too so
 ## they stay apart for colour-blind players. None is the player's mint, gold
 ## or orange. ENEMY is the basic enemy's red.
@@ -74,6 +83,49 @@ static func panel_box() -> StyleBoxFlat:
 	box.content_margin_top = 10
 	box.content_margin_bottom = 10
 	return box
+
+
+## A pill button's box: rounded right off, a hairline edge or a faint fill.
+static func pill_box(fill: Color, edge: Color, pad: int) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = fill
+	box.border_color = edge
+	box.set_border_width_all(1 if edge.a > 0.0 else 0)
+	box.set_corner_radius_all(999)
+	box.content_margin_left = pad
+	box.content_margin_right = pad
+	box.corner_detail = 12
+	box.anti_aliasing = true
+	return box
+
+
+## An upgrade card's box: a quiet surface with a faint edge.
+static func card_box(fill: Color = SURFACE, edge: Color = CARD_EDGE) -> StyleBoxFlat:
+	var box := StyleBoxFlat.new()
+	box.bg_color = fill
+	box.border_color = edge
+	box.set_border_width_all(1)
+	box.set_corner_radius_all(14)
+	box.corner_detail = 8
+	box.content_margin_left = 14
+	box.content_margin_right = 14
+	box.content_margin_top = 12
+	box.content_margin_bottom = 12
+	return box
+
+
+## A font at one weight of its variable axis.
+static func weight(base: Font, value: int) -> FontVariation:
+	var cut := FontVariation.new()
+	cut.base_font = base
+	cut.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): value}
+	return cut
+
+
+## A row's title in sentence case, "Damage / meter", as the main screen writes it.
+static func row_title(id: String) -> String:
+	var title := String(TowerData.upgrade(id).title).to_lower()
+	return title.left(1).to_upper() + title.substr(1)
 
 
 ## The Tower's way of writing numbers: two decimals while small, whole past
