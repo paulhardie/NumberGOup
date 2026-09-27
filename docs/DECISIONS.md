@@ -1192,4 +1192,26 @@ Rules:
   - The music needs a licence that allows bundling it in a commercial game, and ideally no Content ID registration, so players' streams aren't claimed.
   - AI-generated tracks are avoided: who owns them is unsettled.
   - Building it will need a music-volume or mute setting beside Show range (D088), and music that loops without a seam.
-- **Revisit when:** the owner has chosen a source or tracks.
+- **Revisit when:** the owner has chosen a source or tracks. Answered by [D092](#d092--generative-ambient-music-a-prototype): generative music first, since most Pixabay tracks carry Content ID.
+
+## D092 — Generative ambient music, a prototype
+
+- **Status:** Accepted (2026-09-27) as a prototype, on owner direction: most Pixabay tracks "are content id protected. I'd need an alternative", then "try generative first, build the prototype". Built on `claude/dazzling-gates-54ahbr`. If it doesn't reach the mood, a commissioned composer is next, with a no-Content-ID clause.
+- **Decision:**
+  1. **The music is made as the game plays** (`src/ui/ambient_music.gd`), so nobody else owns it, no Content ID can touch it, and it never repeats.
+     - Two tiny waveforms, a soft pad and a glassy bell, are made once, as one looping cycle each. Godot's mixer plays and pitches them.
+     - Chords in D-flat major (major nines, minor nines and elevenths, a sharp eleven) swell in over about 7 s, hold for 14–24 s and fade over 9 s. Each note is two voices 6 cents apart.
+     - A glassy note from the chord sounds every 5–14 s and rings away over about 7 s.
+     - A faint tape hiss runs beneath.
+     - It all runs through a low-pass (2.2 kHz), a chorus and a long reverb, a little flat (1.5%) with a slow tape wobble: the washed-out slushwave sound.
+  2. **Its level is quiet.** Measured at the output, it averages about −24 to −28 dBFS with peaks near −12, and has almost nothing above 3 kHz.
+  3. **A "Music" switch on Home, on by default**, is the second setting (`music`, D088's file). It is additive: a file without it means on.
+  4. **It plays across every screen** as a child of `Main`, and never touches the battle.
+  5. **`tools/record_music.gd` records it** from the master bus to `user://music_preview.wav`, so it can be heard and shared outside the game.
+- **Evidence:**
+  - About 0.6 s of CPU for 8 s of music, start-up included, on this machine.
+  - Folded to mono, as on a phone speaker, it loses about 3 dB: its channels are simply unrelated, not cancelling.
+- **Consequences:**
+  - With two settings on Home, a settings screen is closer to earning its place (D088).
+  - Browsers only start audio after the first tap or click, so the web build's music begins on the first touch.
+- **Revisit when:** the owner has listened.

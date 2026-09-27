@@ -91,6 +91,14 @@ func _ready() -> void:
 		settings.show_range = on
 		settings_changed.emit())
 	column.add_child(range_toggle)
+	var music_toggle := CheckButton.new()
+	music_toggle.text = "Music"
+	music_toggle.button_pressed = settings.music
+	music_toggle.add_theme_color_override("font_color", Palette.MUTED)
+	music_toggle.toggled.connect(func(on: bool):
+		settings.music = on
+		settings_changed.emit())
+	column.add_child(music_toggle)
 	_note = Label.new()
 	_note.add_theme_color_override("font_color", Palette.MUTED)
 	_note.add_theme_font_size_override("font_size", 12)

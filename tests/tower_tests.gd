@@ -18,6 +18,7 @@ const ActivityLog = preload("res://src/tower/activity_log.gd")
 const HomeScreen = preload("res://src/ui/home_screen.gd")
 const Main = preload("res://src/main.gd")
 const Settings = preload("res://src/settings.gd")
+const AmbientMusic = preload("res://src/ui/ambient_music.gd")
 
 const TEST_SAVE := "user://test_tower_save.json"
 const TEST_LOG := "user://test_activity.jsonl"
@@ -1594,7 +1595,7 @@ func test_the_range_shows_only_when_the_player_asks() -> void:
 	home.settings_changed.connect(func(): changed[0] += 1)
 	root.add_child(home)
 	await process_frame
-	var toggles := home.find_children("*", "CheckButton", true, false)
+	var toggles := home.find_children("*", "CheckButton", true, false).filter(func(toggle): return toggle.text == "Show range")
 	check(toggles.size() == 1 and not (toggles[0] as CheckButton).button_pressed, "Home has the range switch, off")
 	(toggles[0] as CheckButton).button_pressed = true
 	check(chosen.show_range and changed[0] == 1, "turning it on changes the setting, to be written")
@@ -1645,6 +1646,60 @@ func test_hits_and_knockback_are_drawn_with_weight() -> void:
 	arena.absorb([], 1.0 / 60.0)
 	check(arena._eased.is_empty(), "an enemy gone is forgotten")
 	arena.free()
+
+
+## The music (D092) is on unless the player turns it off, and older settings
+## files without it mean on.
+func test_the_music_plays_unless_the_player_turns_it_off() -> void:
+	DirAccess.remove_absolute(TEST_SETTINGS)
+	var settings := Settings.new()
+	settings.read(TEST_SETTINGS)
+	check(settings.music, "music is on by default")
+	var file := FileAccess.open(TEST_SETTINGS, FileAccess.WRITE)
+	file.store_string('{"version": 1, "show_range": true}')
+	file.close()
+	settings.read(TEST_SETTINGS)
+	check(settings.music and settings.show_range, "a settings file from before music still reads, with music on")
+	settings.music = false
+	settings.write(TEST_SETTINGS)
+	var again := Settings.new()
+	again.read(TEST_SETTINGS)
+	check(not again.music, "turned off, it stays off")
+	file = FileAccess.open(TEST_SETTINGS, FileAccess.WRITE)
+	file.store_string('{"version": 1, "music": "no"}')
+	file.close()
+	again.read(TEST_SETTINGS)
+	check(again.music, "a value of the wrong kind means on")
+	DirAccess.remove_absolute(TEST_SETTINGS)
+
+	var music := AmbientMusic.new()
+	root.add_child(music)
+	await process_frame
+	await process_frame
+	var bus := AudioServer.get_bus_index(AmbientMusic.BUS)
+	check(bus != -1 and not AudioServer.is_bus_mute(bus), "the music has its own bus, playing")
+	check(music._chord.size() == AmbientMusic.CHORDS[music._chord_index].size() * 2, "a chord swells in straight away, two voices a note: %d" % music._chord.size())
+	music.set_playing(false)
+	check(AudioServer.is_bus_mute(bus) and music._voices.is_empty() and not music._hiss.playing, "off, it falls silent and holds nothing")
+	music.set_playing(true)
+	await process_frame
+	await process_frame
+	check(not music._chord.is_empty() and not AudioServer.is_bus_mute(bus), "and on again, it starts again")
+	music.queue_free()
+	await process_frame
+
+	var home := HomeScreen.new()
+	home.workshop = Workshop.new()
+	var chosen := Settings.new()
+	home.settings = chosen
+	root.add_child(home)
+	await process_frame
+	var toggles := home.find_children("*", "CheckButton", true, false).filter(func(toggle): return toggle.text == "Music")
+	check(toggles.size() == 1 and (toggles[0] as CheckButton).button_pressed, "Home has the music switch, on")
+	(toggles[0] as CheckButton).button_pressed = false
+	check(not chosen.music, "turning it off changes the setting")
+	home.queue_free()
+	await process_frame
 
 
 ## A sim with nothing spawning, for placing enemies by hand.

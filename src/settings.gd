@@ -8,6 +8,8 @@ const VERSION := 1
 
 ## The range shown as a faint band of light at its edge; off by default.
 var show_range := false
+## The generative music (D092); on by default. Missing from older files, so on.
+var music := true
 
 
 func read(path: String = PATH) -> void:
@@ -18,6 +20,8 @@ func read(path: String = PATH) -> void:
 		return
 	var shown = json.data.get("show_range", false)
 	show_range = shown is bool and shown
+	var playing = json.data.get("music", true)
+	music = playing if playing is bool else true
 
 
 ## Writes to a temporary file first and then swaps it in, as the save does.
@@ -27,6 +31,6 @@ func write(path: String = PATH) -> bool:
 	if file == null:
 		push_warning("Couldn't write the settings to %s." % temporary)
 		return false
-	file.store_string(JSON.stringify({"version": VERSION, "show_range": show_range}, "\t"))
+	file.store_string(JSON.stringify({"version": VERSION, "show_range": show_range, "music": music}, "\t"))
 	file.close()
 	return DirAccess.rename_absolute(temporary, path) == OK
