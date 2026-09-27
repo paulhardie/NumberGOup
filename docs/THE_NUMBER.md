@@ -157,7 +157,7 @@ Every Workshop row needs a line on what it now does. Most are unchanged in meani
 If operator enemies move these, their share or divisor is tuned, not The Tower's numbers.
 
 **5.2 New targets for the Number.** These are proposals, to be agreed:
-- **About five digits by Tier 2 (D107).** A player clearing Tier 1's wave 100, where Tier 2 opens, has a best Number around 10,000–50,000: Tier 1 is the journey from one digit to five. It's the yardstick for the growth rules still on test (D097, D098), not a gate.
+- ~~**About five digits by Tier 2 (D107).**~~ Replaced by D110: a run's shape (starts at Health, climbs through the run, something can still hurt it while the tier is a fight, and it never races: growth adds rather than compounds, at most about a digit every 50 waves), not a size. The turtle stays. A player clearing Tier 1's wave 100, where Tier 2 opens, has a best Number around 10,000–50,000: Tier 1 is the journey from one digit to five. It's the yardstick for the growth rules still on test (D097, D098), not a gate.
   - *Measured 27 September (HANDOVER.md, Tier 1's ceiling):* a Workshop of about 2.1 million Coins ends at waves 86–91 with a five-digit Number; about 3.4 million turtles, and the Number reaches six digits by wave 100 and millions later, with nothing able to hurt it. The target holds only below that cliff.
 - **The Number goes up over a run.** In a run that buys sensibly, the median Number at each wave's end rises across the run: wave 20 higher than wave 10, higher than wave 5. This is measurable from the report's wave snapshots, which already record Health.
 - **Divide moments are events, not noise.** Roughly one ÷ contact a minute in Tier 1's middle waves (tunable), each visible and survivable in a sensible build.

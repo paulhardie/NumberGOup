@@ -1440,7 +1440,7 @@ Rules:
 - **Status:** Accepted (2026-09-27) on owner direction: "yes, go with all three. Tier 2 will follow a similar difficulty jump like the tower (20x harder than tier 1 if i remember correctly)". It answers the owner's questions of what Number a player should have before Tier 2, and whether unlocks should need a best Number.
 - **Decision:**
   1. **Tier 2 opens when Tier 1's wave 100 is cleared**, as The Tower's does. Tier 2's enemies have 20 times Tier 1's health and attack, for 1.8 times the Coins, and Tier 3 opens after Tier 2's wave 100 at 60 times and 2.6 times (TOWER_SCALING_FOUNDATION.md's research table, as a starting calibration). Built in 1.4 (D079), not before; Home's Difficulty card says "Tier 2 opens after wave 100" meanwhile.
-  2. **A pacing target, not a gate:** a player ready for Tier 2 has a best Number around five digits, 10,000–50,000. A basic enemy hits for about 400 at Tier 1's wave 100, and Tier 2's first waves for about 25–500. Tier 1 is the journey from one digit to five, and each later tier adds a digit or two. The target is how the growth rules still being tested (D097, D098) are judged. No simulated career has reached wave 100 yet: careers stall at the wave-31 boss by run 40.
+  2. *(Replaced by D110: the Number is judged by a run's shape, not a size.)* **A pacing target, not a gate:** a player ready for Tier 2 has a best Number around five digits, 10,000–50,000. A basic enemy hits for about 400 at Tier 1's wave 100, and Tier 2's first waves for about 25–500. Tier 1 is the journey from one digit to five, and each later tier adds a digit or two. The target is how the growth rules still being tested (D097, D098) are judged. No simulated career has reached wave 100 yet: careers stall at the wave-31 boss by run 40.
   3. **Milestones pay rewards; they never gate a system.** The Number is also health, so gating Cards, Labs or tiers on it would lock out damage builds and reward stacking Health and Regen. Systems keep The Tower's wave gates.
      - The first time the best Number reaches 10, 100, 1,000, 10,000, 100,000 and 1,000,000, the Workshop gets 10, 50, 250, 2,500, 10,000 and 50,000 Coins, once (`Guesses.MILESTONES`, ours; The Tower's milestones are by wave and pay other currencies).
      - They're paid as a run ends (`Workshop.finish_run`), shown on the run-over panel, and logged apart (`milestone`) so a report never counts them as earned.
@@ -1478,3 +1478,29 @@ Rules:
   - **A kill that pays Coins floats them beside its Cash**, "$3 ● 1", the Coins in their gold. A kill that pays none shows Cash alone, as before.
   - **The Number's shots are white**, a crit larger with a faint halo. A shot is hidden until it's clear of the Number's digits and its trail never reaches back inside them, so shots appear to leave the Number's edge, where each flashes briefly. Bounces, which start at an enemy, don't flash.
 - **Not done:** a physics engine for the combat's feel. The battle must stay deterministic so runs resume and reports replay (D078), which Godot's physics doesn't promise, and The Tower's feel comes from presentation, not simulation. The levers left, all drawing only: a hit-stop of a frame or two on big hits and squash on impact. A white flash on an enemy that's hit was offered and declined by the owner.
+
+## D110 — Keep the Tier 1 turtle; judge the Number by a run's shape, not a size
+
+- **Status:** Accepted (2026-09-27) on owner direction: "keep the turtle and go with the shape target", then "I just don't want the player getting to absurdly high numbers too quickly in game". It replaces D107's second point, the five-digit pacing target; D107's Tier 2 gate and milestones stand.
+- **Why:** Tier 1's ceiling test (HANDOVER.md) found a cliff. A Workshop of about 2.1 million Coins dies at waves 86–91 with a five-digit Number; about 3.4 million turtles: Defense Absolute passes enemies' Attack, Dividers die before landing, and the Number climbs into the millions with nothing able to hurt it. At wave 70 the Number ranged from 4,000 to 6.7 million by build and switch, so no single size can be the yardstick, and five digits sat on the cliff's edge.
+- **Decision:**
+  1. **The turtle stays**, as in The Tower. A solved Tier 1 is the push to Tier 2 (1.4), not a fault to fix in Tier 1. Dividers keep their current rules.
+  2. **The Number is judged by the shape of a run** while its tier is still a fight:
+     - **It starts at Health:** a run opens on what the Workshop gives.
+     - **It climbs through the run:** the median Number at the end of each wave rises across the run, the late waves included, not peaking mid-run and falling.
+     - **Something can still hurt it:** hits and operators take a real share of it, and ÷ lands, until the build out-grows the tier.
+     - **It never races:** nothing grows the Number by a share of itself, so growth adds rather than compounds (Health, Regen, a kill's share); and even in a turtled run it gains no more than about one new digit every 50 waves (roughly 25 minutes).
+     - Its size is a result, not a target: digits are the reward, and a bigger build shows more.
+  3. **Once nothing can hurt it, the tier is solved.** The Number may then climb on Health and Regen alone; that is the turtle, and Tier 2 is the answer.
+- **Measured against it so far** (D098's 40-run core careers, run 40's Number at the end of waves 10, 20 and 30): with no switches it peaks and falls (379, 1,153, 900), failing the climb; regen stopping at best alone stalls (71, 115, 12); both D098 switches (83, 176, 224) and all three (91, 273, 434) climb through the run.
+- **Pace, measured** (a Workshop with every row at level 25, which turtles; 3–6 seeds, 2½-hour runs, the Number at the end of waves 50, 100, 200 and 255):
+
+| Switches | Wave 50 | Wave 100 | Wave 200 | Wave 255 | Digits per 100 waves, late |
+|---|---|---|---|---|---|
+| None | 63,024 | 215,526 | 1.7 million | 5.0 million | about 1 |
+| Regen at best and kills (D098) | 7,591 | 54,716 | 1.2 million | 4.6 million | about 1.3 |
+| Multipliers alone (D097) | 590,056 | 58.6 million | 534 billion | 88 trillion | about 4 |
+| All three | 88,496 | 8.9 million | 81 billion | 13 trillion | about 4 |
+
+  - **Multipliers break the pace.** Each × multiplies the Number as it stands, so in a long run they compound: 88 trillion in one Tier 1 run on a modest Workshop. Without them the Number adds up, from thousands to a few million over 2½ hours.
+- **Consequences:** the testing switches (D097, D098) are to be judged on this shape. As built, the Multiplier fails "never races"; kept, it would need to add rather than multiply (a share of Health, say), which is its own decision. The measuring tool for it is `sim_runs.gd --curve`.

@@ -114,7 +114,7 @@ Versions, each one a playable thing the owner plays and signs off (D079). The nu
 | **1.1** | Cards, and Gems to buy card slots: what The Tower launched with | The owner plays to wave 20 and uses them |
 | **1.2** | Labs, opening at wave 30 (Starting Cash, Wall Regen and the rest) | The owner plays to them |
 | **1.3** | Ultimate Weapons | The owner plays to them |
-| **1.4** | Tier 2 and up, where the Tier 1 turtle breaks. Tier 2 opens after Tier 1's wave 100, at 20× enemy health and attack for 1.8× Coins; Tier 3 after Tier 2's wave 100 at 60× and 2.6× (D107) | A Tier 1 turtle fails in Tier 2 and a pivot wins, as The Tower intends; a player arrives with a best Number around five digits |
+| **1.4** | Tier 2 and up, where the Tier 1 turtle breaks. Tier 2 opens after Tier 1's wave 100, at 20× enemy health and attack for 1.8× Coins; Tier 3 after Tier 2's wave 100 at 60× and 2.6× (D107) | A Tier 1 turtle fails in Tier 2 and a pivot wins, as The Tower intends; the Number keeps D110's shape: it climbs through a run and can still be hurt |
 | Later, unscheduled | Perks, Modules | The owner asks |
 | Later, with servers | Idle play (D089): a closed game keeps its run going, slower, and the phone says when it ends; getting strong enough to be idle is an early goal | The owner can close the game on a phone and not lose out |
 | Out | Tournaments: they need other players and servers | — |

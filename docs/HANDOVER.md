@@ -49,7 +49,7 @@
 | grow, all three switches | 10 h | 25 h | 45 h | 83 h | 34,000–73,000 |
 
 - Hours are game hours of a career played one run after another; a wave-70 run lasts about 40 minutes. The sim buys only seven Workshop rows and no Cards or Labs, which don't exist yet, so a person will be faster, but the shape matters: **at Tier 1 with only the Workshop, wave 100 is well over 100 game hours away.** The Tower gets there with Cards and Labs.
-- **D107's five-digit target is met by wave 70 without the D098 switches, and missed by a digit with them** (unless Multipliers are on too). That bears on which switches to keep.
+- The Number's size varied tenfold by switch at the same wave, which is why D110 judges it by a run's shape instead of D107's five digits.
 - Stopped at about 200 game hours (core at 284): best waves 71 (core), 81 (grow and grow with D098's two), 88 (all three). None reached 100.
 
 **Tier 1's ceiling** (27 September, `sim_runs.gd --workshop N --buy core --seeds 6 --cap-minutes 150 --curve`, D108's code). Tier 1 has a cliff, as The Tower's turtle does:
@@ -63,12 +63,12 @@
 | Every row maxed | about 10²⁰ | never: wave 416 at 4 hours | 3.5 trillion at 10, 146 trillion at 4 hours |
 
 - Past the cliff, in-run Cash buys Defense Absolute beyond enemies' Attack, so hits do nothing, and the damage kills Dividers before they land (0–1 of 125). The Number then climbs on bought Health and Regen alone, a new digit every 50 waves or so, and nothing threatens it.
-- Below it, the Number stays five digits to wave 90 and Dividers are the main threat, which is D107's target, but the target sits on the cliff's edge.
+- Below it, the Number stays five digits to wave 90 and Dividers are the main threat. **The owner kept the turtle (D110)**: a solved Tier 1 is the push to Tier 2.
 - A wave-90 run pays about 1,700 Coins, so reaching the cliff on the Workshop alone takes on the order of a thousand runs: the pace problem is Coins, which The Tower eases with Cards, Labs and higher tiers.
 
 ## Open decisions for the owner
 
-1. **Which of the three testing switches to keep** (D097, D098). Measured: regen at best plus kills together make the Number's growth come from fighting and buying, not waiting, and keep The Tower's benchmarks at a 5% kill share, but the Number is smaller and the career about four runs slower to wave 30. **Recommend** playing "both on" and "all three on"; D098's table has the numbers. Earlier note on the Multiplier alone: Regen makes about nine tenths of the Number's new highs without it (THE_NUMBER.md 5.2b), and about half with it, with The Tower's benchmarks and the career's pace unchanged. The owner is playing runs both ways to judge the fun. **Recommend** keeping it if the ×-moments feel good, then deciding on regen's reach past Health (`NUMBER_OVERFILL`) as a separate test.
+1. **Which of the three testing switches to keep** (D097, D098), judged by D110's shape. Measured: without switches the Number peaks mid-run and falls; regen at best plus kills climbs through the run and keeps the pace (about a digit per 100 waves in a turtle); **Multipliers compound, reaching 88 trillion in one Tier 1 run**, which breaks D110's pace. **Recommend** keeping regen at best plus kills, and dropping the Multiplier as built or rebuilding it to add a share of Health instead of multiplying the Number.
 2. **Sign off 1.0, or name what's missing,** after playing D094. The Tower's benchmarks hold and the Number climbs. In simulation, D094 left fresh runs as they were but a core career beat the wave-10 boss on run 9 (it was 11; The Tower's is 10–13), and ÷ landings sit about 0.3 a minute. **If that feels too easy or ÷ too rare, recommend** raising the Divider's health from 4× to 5× before its rate, since the owner set the rate's ceiling.
 3. **Game speed.** The spec calls the 1×/2×/5× switch a testing tool, yet it's half of how the owner plays. **Recommend** keeping it as a player feature, since The Tower's first hours are long.
 4. **Updates mid-run.** Two runs were lost when a merge landed while a run was saved. **Recommend** the Mac's sync job wait to update while the save holds a run in progress, and say so in its notification. It's small, and changes nothing in the game.
@@ -134,7 +134,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D109), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D110), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.
