@@ -1354,13 +1354,13 @@ func test_every_run_on_a_battle_screen_is_logged() -> void:
 	_clear_test_saves()
 
 
-func test_dividers_come_on_top_of_the_towers_enemies_and_leave_them_untouched() -> void:
+func test_a_divider_takes_the_protectors_slot_replacing_a_basic() -> void:
 	var sim := BattleSim.new(8)
 	var plain := BattleSim.new(8)
-	plain.divider.share_first = 0.0
-	plain.divider.share_full = 0.0
-	check(sim.divider_share(4) == 0.0 and is_equal_approx(sim.divider_share(5), 0.03), "none before wave 5, then 3%")
-	check(is_equal_approx(sim.divider_share(30), 0.06) and is_equal_approx(sim.divider_share(200), 0.06), "rising to 6% by wave 30, and holding")
+	plain.divider.rate_first = 0.0
+	plain.divider.rate_full = 0.0
+	check(sim.divider_rate(4) == 0.0 and is_equal_approx(sim.divider_rate(5), 1.0 / 3.0), "none before wave 5, then one every third wave")
+	check(is_equal_approx(sim.divider_rate(30), 0.5) and is_equal_approx(sim.divider_rate(200), 0.5), "rising to every other wave by wave 30, and holding")
 	check(is_equal_approx(sim.divider_divisor(5), 1.25) and is_equal_approx(sim.divider_divisor(30), 1.5) and is_equal_approx(sim.divider_divisor(99), 1.5),
 		"their divisor rises from ÷1.25 to ÷1.5 by wave 30: gentle, since Tier 1 is the tutorial")
 	for at_wave in range(5, 40):
@@ -1375,20 +1375,48 @@ func test_dividers_come_on_top_of_the_towers_enemies_and_leave_them_untouched() 
 	walking.wave_clock = 0.0
 	walking._spawn_due()
 	check_near(walking.enemies[-1].divisor, walking.divider_divisor(17), 0.0, "a Divider carries the divisor of the wave it came in")
-	var counted := 0
+	var divider_waves: Array[int] = []
 	var expected := 0.0
-	for at_wave in range(2, 41):
+	for at_wave in range(2, 61):
 		for each in [sim, plain]:
 			each.wave = at_wave
 			each._schedule_wave()
-		var theirs: Array = sim._schedule.filter(func(entry): return entry.kind != "divider")
-		counted += sim._schedule.size() - theirs.size()
-		expected += sim.divider_share(at_wave) * float(theirs.size() - (1 if TowerData.is_boss_wave(at_wave) else 0))
-		check(theirs == plain._schedule, "wave %d: The Tower's enemies come exactly as without Dividers" % at_wave)
-		for index in range(sim._schedule.size() - 1):
-			if float(sim._schedule[index].at) > float(sim._schedule[index + 1].at):
-				check(false, "wave %d: the schedule stays in time order" % at_wave)
-	check(absi(counted - roundi(expected)) <= 1, "as many Dividers as their share adds up to: %d against %.1f" % [counted, expected])
+		check(sim._schedule.size() == plain._schedule.size(), "wave %d: as many enemies as The Tower sends" % at_wave)
+		var replaced := 0
+		for index in range(sim._schedule.size()):
+			var ours: Dictionary = sim._schedule[index]
+			var theirs: Dictionary = plain._schedule[index]
+			if ours.kind == "divider":
+				replaced += 1
+				check(theirs.kind == "basic" and float(ours.at) == float(theirs.at), "wave %d: a Divider stands where a basic would have" % at_wave)
+			elif ours != theirs:
+				check(false, "wave %d: every other enemy comes exactly as without Dividers" % at_wave)
+		check(replaced <= 1, "wave %d: at most one Divider a wave" % at_wave)
+		if replaced == 1:
+			divider_waves.append(at_wave)
+		expected += sim.divider_rate(at_wave)
+	check(not divider_waves.is_empty() and divider_waves[0] == 7, "the first comes on wave 7, once a third a wave adds up to one: %s" % [divider_waves])
+	for index in range(divider_waves.size() - 1):
+		check(divider_waves[index + 1] - divider_waves[index] >= 2, "never two waves running: %s" % [divider_waves])
+	# What's owed but not yet come is always less than one.
+	check(divider_waves.size() <= expected + 0.001 and divider_waves.size() > expected - 1.0,
+		"as many as their rate adds up to: %d against %.1f" % [divider_waves.size(), expected])
+	# The Divider comes from where its basic would have, so every other enemy
+	# comes from The Tower's direction too.
+	sim._divider_due = 1.0
+	for each in [sim, plain]:
+		each.enemies.clear()
+		each.wave = 7
+		each._schedule_wave()
+		each.wave_clock = 999.0
+		each._spawn_due()
+	check(sim.enemies.size() == plain.enemies.size(), "a Divider's wave sends as many enemies")
+	var same_directions := true
+	var dividers := 0
+	for index in range(sim.enemies.size()):
+		same_directions = same_directions and sim.enemies[index].angle == plain.enemies[index].angle
+		dividers += 1 if sim.enemies[index].kind == "divider" else 0
+	check(same_directions and dividers == 1, "and each comes from the same direction, one of them a Divider")
 
 
 func test_a_divider_halves_the_number_through_the_defences_and_is_used_up() -> void:

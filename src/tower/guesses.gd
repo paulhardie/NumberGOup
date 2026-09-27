@@ -90,9 +90,13 @@ const NUMBER_OVERFILL := 1.0
 ## in steps of DIVISOR_STEP so it always reads cleanly (÷1.25 to wave 17, then
 ## ÷1.5). ÷2 and beyond are for later tiers. Each Divider keeps the divisor it
 ## spawned with, which is what it shows.
-## None before FROM_WAVE; from there a share of each wave's count, on top of
-## The Tower's enemies, rising in a straight line from SHARE_FIRST to
-## SHARE_FULL at FULL_WAVE and holding there. Its health, in basic enemies',
+## It takes the Protector's slot in The Tower's standard pool (D094), replacing
+## one of a wave's basics, and like the Protector comes at most once a wave.
+## None before FROM_WAVE; from there RATE_FIRST a wave (one every third wave,
+## so the first comes on wave 7), rising in a straight line to RATE_FULL
+## (every other wave) at FULL_WAVE and holding there: rarer than the
+## Protector's one a wave, which the owner judged too much for Tier 1. One on
+## wave 5 itself cost a fresh tower two waves, below The Tower's wave 8. Its health, in basic enemies',
 ## can ramp the same way from HEALTH_FIRST to HEALTH_FULL. At ÷2 a fresh tower
 ## needed 2× at first to keep The Tower's wave-8 death; at Tier 1's gentler
 ## divisors 4× throughout keeps it, and most Dividers land: frequent, small ÷
@@ -106,8 +110,8 @@ const DIVIDER := {
 	"speed": 1.0,
 	"from_wave": 5,
 	"full_wave": 30,
-	"share_first": 0.03,
-	"share_full": 0.06,
+	"rate_first": 1.0 / 3.0,
+	"rate_full": 0.5,
 }
 
 

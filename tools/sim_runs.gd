@@ -168,8 +168,8 @@ func _curve(sim: BattleSim, options: Dictionary) -> String:
 func _tune(sim: BattleSim, options: Dictionary) -> void:
 	if options.has("divider-share"):
 		var scale := float(options["divider-share"])
-		sim.divider.share_first = float(sim.divider.share_first) * scale
-		sim.divider.share_full = float(sim.divider.share_full) * scale
+		sim.divider.rate_first = minf(1.0, float(sim.divider.rate_first) * scale)
+		sim.divider.rate_full = minf(1.0, float(sim.divider.rate_full) * scale)
 	if options.has("divider-speed"):
 		sim.divider.speed = float(options["divider-speed"])
 	if options.has("overfill"):

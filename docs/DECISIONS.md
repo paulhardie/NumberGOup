@@ -1222,3 +1222,20 @@ Rules:
 - **Decision:** the game has no reduced-motion setting, and nothing waits on one. The ÷ shake, pops, rising floats, the light's breathing and the smoke all move as built. D085's promise of still alternatives, and the notes in D085, D087 and D088 that listed it as not built, are withdrawn.
 - **Consequences:** the settings screen D088 anticipated waits for a third setting from elsewhere; Home keeps its two switches.
 - **Revisit when:** the owner asks.
+
+## D094 — The Divider takes the Protector's slot, at most once a wave
+
+- **Status:** Accepted (2026-09-27) on owner direction: "yes, go with the protector slot but not once per wave. That is quite excessive for tier 1."
+- **Context:** the Divider (D082) came on top of The Tower's enemies, a share of each wave's count (3% at wave 5 rising to 6% by wave 30), so waves were a little bigger than The Tower's and late waves brought close to one a wave. The owner's research on The Tower's spawn model puts five types in its standard pool (Basic, Fast, Ranged, Tank, Protector), the Protector capped at one a wave. Our Tier 1 data has no Protector, so its slot is free.
+- **Decision:**
+  - A Divider replaces one of a wave's basics, chosen at random, so the wave's size and every other enemy (kind, timing, direction) are exactly The Tower's. It comes from where that basic would have.
+  - At most one a wave, and rarer than the Protector's one a wave: from wave 5 a third of one a wave (so the first comes on wave 7), rising in a straight line to half of one a wave (every other wave) at wave 30 and holding. A wave's share carries to the next; at these rates never two waves run.
+  - One owed on a wave with no basic waits for the next, without piling up.
+  - Divisor, health, speed and pay are unchanged (D083).
+  - Tried and dropped: the first Divider on wave 5 itself. It cost fresh towers two waves (core buying's median fell from wave 8 to 6), below The Tower's wave-8 benchmark.
+- **Measured** (`sim_runs.gd`, 20 seeds; a 40-run core career from a fresh Workshop):
+  - buying nothing, median wave 3 (2–5); spreading Cash, 8 (5–10); core, 8 (2–10). All as before.
+  - The career beats the wave-10 boss on run 9 (it was run 11), reaches wave 21 by run 12, and 30–31 from run 21 (it was run 24). The Tower's boss falls by run 10–13, so this is at its early edge.
+  - Wave-30 runs now meet 10–11 Dividers and 3–7 land, against 14 and 8–10 before: about 0.3 landed a minute, which is what the owner's own runs saw.
+- **Consequences:** THE_NUMBER.md 5.2's "roughly one ÷ contact a minute" now reads as an upper bound, not a target, since the owner judged one a wave too much. `Guesses.DIVIDER`'s `share_first`/`share_full` became `rate_first`/`rate_full`, in Dividers a wave. A run saved mid-way before this won't resume identically and ends at its saved wave (D078).
+- **Revisit when:** the owner finds ÷ moments too rare or too common in play, or The Tower's Protector arrives in a later tier and needs its slot back.

@@ -114,10 +114,11 @@ var wave_log: Array[Dictionary] = []
 
 var _spawn_rng := RandomNumberGenerator.new()
 var _combat_rng := RandomNumberGenerator.new()
-## Dividers draw from their own stream, so The Tower's enemies, where and when
-## they come, are exactly what they were without them.
+## Which basic a Divider replaces is drawn from its own stream, so The Tower's
+## enemies, which kinds come and where from, are exactly what they were
+## without it.
 var _divider_rng := RandomNumberGenerator.new()
-## Dividers owed but not yet due: a wave's share of a Divider carries to the next.
+## The Divider owed but not yet due: a wave's share carries to the next.
 var _divider_due := 0.0
 ## The Divider's numbers for this run (Guesses.DIVIDER), which the measuring
 ## tools may change before the first step to try others.
@@ -282,11 +283,11 @@ func _mass_ratio(kind: String) -> float:
 	return 1.0 if kind == "divider" else TowerData.mass_ratio(kind)
 
 
-## The share of a wave's enemies that come as Dividers on top of it.
-func divider_share(at_wave: int) -> float:
+## How many Dividers a wave brings, on average: a fraction of one.
+func divider_rate(at_wave: int) -> float:
 	if at_wave < int(divider.from_wave):
 		return 0.0
-	return lerpf(float(divider.share_first), float(divider.share_full), _divider_ramp(at_wave))
+	return lerpf(float(divider.rate_first), float(divider.rate_full), _divider_ramp(at_wave))
 
 
 ## The divisor a Divider spawning on `at_wave` carries.
@@ -357,19 +358,23 @@ func _schedule_wave() -> void:
 		_schedule.append({"kind": "boss", "at": 0.0})
 	for index in range(count):
 		_schedule.append({"kind": _draw_kind(mix), "at": TowerData.spawn_seconds() * float(index) / float(count)})
-	# Dividers come on top of The Tower's enemies, at a random moment of the
-	# spawning, slotted in after anything due at the same moment so The
-	# Tower's order is untouched.
-	_divider_due += divider_share(wave) * float(count)
-	while _divider_due >= 1.0 - SKIP_SLACK:
-		_divider_due -= 1.0
-		var at := _divider_rng.randf() * TowerData.spawn_seconds()
-		var slot := _schedule.size()
-		for index in range(_schedule.size()):
-			if float(_schedule[index].at) > at:
-				slot = index
-				break
-		_schedule.insert(slot, {"kind": "divider", "at": at})
+	# A Divider takes the Protector's slot in The Tower's standard pool (D094):
+	# it replaces one of the wave's basics, so the wave's size and the rest of
+	# its enemies are The Tower's. At most one a wave, so at a rate of one
+	# every other wave or less never two waves running; one owed with no basic
+	# to replace waits for the next wave without piling up.
+	_divider_due += divider_rate(wave)
+	if _divider_due < 1.0 - SKIP_SLACK:
+		return
+	var basics: Array[int] = []
+	for index in range(_schedule.size()):
+		if _schedule[index].kind == "basic":
+			basics.append(index)
+	if basics.is_empty():
+		_divider_due = 1.0
+		return
+	_divider_due -= 1.0
+	_schedule[basics[_divider_rng.randi_range(0, basics.size() - 1)]].kind = "divider"
 
 
 func _draw_kind(mix: Dictionary) -> String:
@@ -394,12 +399,12 @@ func _spawn_due() -> void:
 		enemy.health = enemy.max_health
 		enemy.attack = enemy_attack_now(kind)
 		enemy.speed = _speed_m(kind)
+		# A Divider comes from where the basic it replaced would have, so every
+		# other enemy's direction is The Tower's too.
+		enemy.angle = _spawn_rng.randf() * TAU
 		if kind == "divider":
-			enemy.angle = _divider_rng.randf() * TAU
 			enemy.divisor = divider_divisor(wave)
 			dividers_spawned += 1
-		else:
-			enemy.angle = _spawn_rng.randf() * TAU
 		enemy.distance = Guesses.SPAWN_DISTANCE_M
 		enemy.last_distance = enemy.distance
 		enemy.stop_at = stat("range") if kind == "ranged" else Guesses.CONTACT_DISTANCE_M
