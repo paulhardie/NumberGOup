@@ -1361,3 +1361,49 @@ Rules:
   - Making small Numbers pay would need a rule that rewards a small hitbox, not only one that punishes a big one.
 - **The zoom (built).** The Range circle grows as Range is bought, at The Tower's scale, until its edge would pass 92% of the room around the Number. From there the view zooms out instead, easing over about a quarter of a second, so the ring and the ranged enemies on it stay on screen at any Range. Only positions scale; the Number's and enemies' type sizes don't.
 - **Consequences:** `capture_battle.gd` shoots `battle_full_range`. The hitbox stays a prototype until the owner decides.
+
+## D102 — An enemy shows what it does to you; the hitbox is dropped
+
+- **Status:** Accepted (2026-09-27) on owner direction: "go with what it does to you, also drop the hitbox idea if it's going to be complicated". The owner had asked for enemies' numbers not to count down as they're shot, to show their actual values, and for enemies that take more than one shot to carry "a smaller white text of the damage that's been dealt to them so far, Tower style".
+- **Decision:**
+  - **An enemy's number is what it does to the Number**, from the moment it appears until it dies: "−2.4" for its hit after the tower's defences (growing 4% with each hit it lands), "÷1.5" for a Divider, "×1.1" for a Multiplier. It no longer shows health counting down while walking and its hit once arrived (D085, D086's split).
+  - **The damage dealt so far** shows under an enemy that has lived through a shot, small and white (9 pt, the Number's white at 80%). An enemy killed in one shot never shows one.
+  - A killed enemy's own number swells and fades where it died, instead of a "0".
+  - `Palette.enemy_health`, which only served the countdown, is gone.
+  - **The hitbox prototype (D101) is dropped.** It braked big Numbers without rewarding small ones, and making glass-cannon builds pay would need more rules. The sim, `Guesses` and `sim_runs.gd` are back as they were; D101's zoom stays.
+- **Trade-off accepted:** with its health gone, an enemy doesn't say how close it is to dying. The running total says how much it has taken. If play shows that's too blind, fading the number as it weakens is the next step.
+
+## D103 — Motion with weight: an anchored Number, rolling, springing; enemies that rock
+
+- **Status:** Accepted (2026-09-27) on owner direction: "is there any animations we can use to make it appear smoother, and give the enemies their appropriate sense of weight?", and for the Number: "anchored in the middle", growing without looking "janky when it's accelerating", with "a little weight and inertia".
+- **Why it bobbed:** the Number's typeface has proportional digits, so each change of digit changed its width and it re-centred, shuffling side to side. The fitting size also stepped 2 pt at a time as digits arrived.
+- **Decision** (drawing only; the battle is unchanged):
+  - **Anchored:** the Number and the enemies are drawn with tabular figures (every digit one width; Geist and Anybody have them), so the Number only moves when it gains a digit.
+  - **It rolls:** it counts to a new value rather than jumping, rising quickly (a ×1.1 rolls up in about a third of a second) and falling faster, so a hit lands at once.
+  - **Its size eases** to fit as digits arrive, instead of stepping.
+  - **Weight:**
+    - A spring holds the Number in place. A hit knocks it a few points away from the enemy that landed it, more the bigger the hit is against the Number; a gain from a kill or a Multiplier lifts it slightly. It springs back with one soft overshoot.
+    - A shot rocks an enemy back along its path by 3.5 pt over the square root of its mass, so a tank (about 5 times a basic) rocks less than half as much and a boss (12 times) about a third. Landing a hit, it lunges in the same way. Both settle in well under a second.
+  - **New enemies fade in** over their first 2 m, which shows when the view has zoomed out.
+- **Consequences:** `arena_view.gd` grows again, so the handover's step to split its effects into their own file before Cards matters more.
+
+## D104 — Orbs keep their instant kill, turn far slower, and immunity is a list
+
+- **Status:** Accepted (2026-09-27) on owner direction: "Orbs are absolutely busted in this game", then "Let's keep the orbs, but lets tune them and make sure we fix their speed. Happy for them to instant kill. We can also take them further with labs later on … Some enemies will be immune to orbs though".
+- **Why they were busted** (measured on the Workshop a 40-run core career ends with, 20 seeds each): with no orbs, runs end at wave 31. At D075's speed, a full turn a second from the first level, one cheap orb reached 41 and two part-upgraded orbs 61. Every non-boss enemy died on the range edge, so runs ended only at bosses. Ranged enemies, standing on that edge, never survived.
+- **Decision:**
+  - **Orbs still kill instantly**, on the range edge, 3 m either side.
+  - **Orb Speed's value is radians a second.** The first level (0.4) turns about once every 16 seconds, the last (6.1) about once a second. This squares the owner's earlier "roughly one full revolution per second" with the community Workshop table's 0.4 → 6.10, if the revolution a second described upgraded orbs. It stays a guess until someone times The Tower's orbs.
+  - **Which enemies orbs can't kill is a list** (`Guesses.ORB_IMMUNE`), starting with the boss, so The Tower's elites and protected enemies, or ours, can join it. Labs that strengthen orbs come with Labs (1.2).
+  - The rows' descriptions are regenerated through `tools/import_tower_workshop.py`. It reproduced the committed data exactly before the change.
+- **Measured** (same Workshop and seeds, median wave):
+
+| Orbs | A turn a second (before) | Radians a second (now) |
+|---|---|---|
+| None | 31 | 31 |
+| 1, slowest | 41 (41–51) | 31 (31–41) |
+| 2, Orb Speed level 10 | 61 | 41 (31–41) |
+| 4, fastest | 61 | 61 |
+
+  - Fresh runs are untouched (buying nothing 3, spreading Cash 8, core 8), since orbs open at 15,000 Coins, around run 100.
+- **What it leaves:** orbs now grow with what's spent on them, from barely there to the full wall of fully upgraded orbs, instead of being a switch that ends the regular enemies. Fully upgraded, runs still end at the boss orbs can't touch (wave 61 here).

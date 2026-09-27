@@ -10,6 +10,8 @@ const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Palette = preload("res://src/ui/palette.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
 const ArenaView = preload("res://src/ui/arena_view.gd")
+const ArenaEffects = preload("res://src/ui/arena_effects.gd")
+const NumberMotion = preload("res://src/ui/number_motion.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 const Save = preload("res://src/tower/save.gd")
@@ -779,32 +781,37 @@ func test_orbs_kill_walking_enemies_but_not_bosses() -> void:
 	sim.step()
 	check(not sim.enemies.has(walker) and sim.kills == kills + 1, "an orb kills the enemy it sweeps past, and it pays")
 	check(sim.enemies.has(boss) and boss.health == boss.max_health, "but never a boss")
+	check(Guesses.ORB_IMMUNE.has("boss"), "bosses are the first enemy orbs can't kill; later ones join them there")
 	check(sim.orb_angles().size() == 4, "four orbs, spaced evenly")
 
 
-func test_orbs_circle_on_the_range_edge_a_turn_a_second() -> void:
+func test_orbs_circle_on_the_range_edge_at_orb_speed_in_radians() -> void:
 	var sim := _quiet_sim()
 	sim.levels = {"orbs": 1}
 	check_near(sim.orb_radius(), sim.stat("range"), 0.0, "on the edge of Range")
-	check_near(sim.orb_turns_per_second(), 1.0, 0.0001, "a full turn a second at Orb Speed's first level")
+	check_near(sim.orb_turns_per_second() * TAU, TowerData.value("orb_speed", 0), 0.0001, "Orb Speed's value is radians a second (D104)")
+	check(1.0 / sim.orb_turns_per_second() > 15.0, "a turn about every 16 seconds at its first level: %.1f s" % (1.0 / sim.orb_turns_per_second()))
 	sim.levels["range"] = 20
 	check_near(sim.orb_radius(), sim.stat("range"), 0.0, "and out with more Range")
-	sim.levels["orb_speed"] = 10
-	check(sim.orb_turns_per_second() > 1.0, "faster with Orb Speed")
+	sim.levels["orb_speed"] = TowerData.max_level("orb_speed")
+	check(sim.orb_turns_per_second() > 0.9 and sim.orb_turns_per_second() < 1.1, "about a turn a second at its last: %.2f" % sim.orb_turns_per_second())
 
 
-func test_one_orb_sweeps_a_ranged_enemy_off_the_range_edge_within_a_second() -> void:
+func test_one_orb_sweeps_a_ranged_enemy_off_the_range_edge_within_a_turn() -> void:
 	var sim := _quiet_sim()
 	sim.levels = {"orbs": 1}
+	var turn := 1.0 / sim.orb_turns_per_second()
 	var ranged := _place(sim, "ranged", sim.stat("range"))
 	ranged.angle = 2.0
 	ranged.max_health = 1e9
 	ranged.health = 1e9
+	# Harmless, so the tower outlasts a slow orb's turn.
+	ranged.attack = 0.0
 	var steps := 0
-	while sim.enemies.has(ranged) and steps < roundi(1.0 / BattleSim.TICK) + 1:
+	while sim.enemies.has(ranged) and steps < roundi(turn / BattleSim.TICK) + 1:
 		sim.step()
 		steps += 1
-	check(not sim.enemies.has(ranged), "a turn a second reaches it, however tough it is")
+	check(not sim.enemies.has(ranged), "one turn reaches it, however tough it is")
 
 
 func test_ranged_enemies_stop_on_the_range_edge() -> void:
@@ -1659,7 +1666,7 @@ func test_peak_regen_and_kill_growth_only_when_switched_on() -> void:
 	check(float(grower.gained_from.kills) > 0.0, "and kills' growth is booked")
 	var arena := ArenaView.new()
 	arena.absorb([{"type": "grown", "enemy": clean, "gain": 0.25}, {"type": "grown", "enemy": another, "gain": 0.5}], 0.0)
-	var pluses := arena._floats.filter(func(item): return item.get("anchor") == "growing")
+	var pluses := arena.effects.floats.filter(func(item): return item.get("anchor") == "growing")
 	check(pluses.size() == 1 and pluses[0].text == "+0.75", "a frame's kills show as one \"+\" by the Number: %s" % [pluses])
 	arena.free()
 
@@ -1720,32 +1727,6 @@ func test_free_coins_and_reset_for_testing() -> void:
 	_clear_test_logs()
 
 
-## The Number as its own hitbox (D101), a prototype the measuring tools
-## switch on: the tower's edge grows with the Number's digits. Off, it's the
-## tower's edge as ever.
-func test_the_hitbox_grows_with_the_numbers_digits_when_switched_on() -> void:
-	check(BattleSim.digits(9.4) == 1 and BattleSim.digits(9.6) == 2 and BattleSim.digits(12345.0) == 5, "digits as the Number is shown, whole")
-	var sim := _quiet_sim({"range": 10})
-	sim.health = 12345.0
-	check(sim.contact_m() == Guesses.CONTACT_DISTANCE_M, "off, enemies reach the tower's edge whatever the Number")
-	sim.hitbox = true
-	check_near(sim.contact_m(), Guesses.CONTACT_DISTANCE_M + 4.0 * float(Guesses.HITBOX.per_digit_m), 0.0001, "on, each digit past the first pushes it out")
-	sim.health = 5.0
-	check(sim.contact_m() == Guesses.CONTACT_DISTANCE_M, "a one-digit Number is the tower's edge")
-	sim.health = 1e40
-	check_near(sim.contact_m(), sim.stat("range") - 1.0, 0.0001, "never nearer the Range's edge than a metre")
-	sim.health = 12345.0
-	var walker := _place(sim, "basic", 20.0)
-	walker.speed = 5.0
-	walker.max_health = 1e12
-	walker.health = 1e12
-	for _i in range(600):
-		sim.step()
-		if walker.arrived():
-			break
-	check(walker.arrived() and walker.distance > Guesses.CONTACT_DISTANCE_M + 1.0, "a melee enemy stops at the grown edge: %.1f m" % walker.distance)
-
-
 ## As Range grows the view zooms out rather than letting the range run off
 ## the screen (D101), easing rather than jumping.
 func test_the_view_zooms_out_to_keep_the_range_on_screen() -> void:
@@ -1783,25 +1764,29 @@ func test_numbers_read_as_the_towers() -> void:
 	check(Palette.full(1e6) == "1.00M" and Palette.full(7.42e8) == "742.00M", "shortening only from a million")
 
 
-## An enemy is one number (D085): its health while it walks in, what each hit
-## takes once it's hitting, and a Divider in range is previewed at the Number.
-func test_an_enemy_shows_one_number() -> void:
+## An enemy shows what it does to the Number (D085, D102), with the damage
+## dealt so far under it once it has lived through a shot, and a Divider in
+## range is previewed at the Number.
+func test_an_enemy_shows_what_it_does() -> void:
 	check(Palette.short(1.64) == "1.6", "one decimal under 10: %s" % Palette.short(1.64))
 	check(Palette.short(4.0) == "4", "no trailing .0: %s" % Palette.short(4.0))
 	check(Palette.short(13.65) == "14", "whole from 10: %s" % Palette.short(13.65))
 	check(Palette.short(1084.0) == "1.08K", "K past a thousand: %s" % Palette.short(1084.0))
-	check(Palette.enemy_health(4.4) == "4.4", "health as it is: %s" % Palette.enemy_health(4.4))
-	check(Palette.enemy_health(0.03) == "0.1", "a living enemy never reads 0: %s" % Palette.enemy_health(0.03))
-	check(Palette.enemy_health(9.97) == "10", "rounding up past 10 reads whole: %s" % Palette.enemy_health(9.97))
-	check(Palette.enemy_health(0.0) == "0", "a dead one does")
 
 	var sim := _quiet_sim({"defense_absolute": 10})
 	var basic := _place(sim, "basic", 20.0)
 	basic.attack = 20.0
-	check(ArenaView.shown_text(sim, basic) == Palette.enemy_health(basic.health), "walking in, it shows its health: %s" % ArenaView.shown_text(sim, basic))
-	basic.distance = basic.stop_at
 	var first := sim.landed_damage(20.0)
-	check(ArenaView.shown_text(sim, basic) == "−" + Palette.short(first), "arrived, it shows its next hit after defences: %s" % ArenaView.shown_text(sim, basic))
+	check(ArenaView.shown_text(sim, basic) == "−" + Palette.short(first), "walking in, it shows what its hit will take, after defences (D102): %s" % ArenaView.shown_text(sim, basic))
+	check(ArenaView.dealt_text(basic) == "", "unhurt, nothing under it")
+	basic.health = basic.max_health * 0.4
+	check(ArenaView.shown_text(sim, basic) == "−" + Palette.short(first), "shot, its number doesn't count down")
+	check(ArenaView.dealt_text(basic) == Palette.short(basic.max_health * 0.6), "the damage dealt so far shows under it: %s" % ArenaView.dealt_text(basic))
+	basic.health = 0.0
+	check(ArenaView.dealt_text(basic) == "", "and a dead one shows none, so a one-shot kill never does")
+	basic.health = basic.max_health
+	basic.distance = basic.stop_at
+	check(ArenaView.shown_text(sim, basic) == "−" + Palette.short(first), "arrived, the same: its next hit")
 	basic.hits = 10
 	var tenth := sim.landed_damage(20.0 * pow(Guesses.HEAT_UP_PER_HIT, 10))
 	check(tenth > first and ArenaView.shown_text(sim, basic) == "−" + Palette.short(tenth), "and it grows with each hit it lands: %s" % ArenaView.shown_text(sim, basic))
@@ -1812,7 +1797,7 @@ func test_an_enemy_shows_one_number() -> void:
 	var near := _place(sim, "divider", sim.stat("range") - 1.0)
 	near.divisor = 1.5
 	near.distance = near.stop_at
-	check(ArenaView.shown_text(sim, near) == Palette.enemy_health(near.health), "a Divider shows its health even at the Number")
+	check(ArenaView.shown_text(sim, near) == "÷1.5", "a Divider shows its ÷ from the start: %s" % ArenaView.shown_text(sim, near))
 	var preview := ArenaView.divider_preview(sim)
 	var expected := sim.health - sim.divide_loss(1.5)
 	check(preview.get("sign") == "÷1.5", "the nearest in range is previewed: %s" % preview)
@@ -1822,13 +1807,12 @@ func test_an_enemy_shows_one_number() -> void:
 	check(Palette.full(Palette.number_shown(sim.health, sim.max_health(), true)) == preview.after, "and the landing leaves exactly that: %s" % sim.health)
 
 
-## The light behind the Number (D087) flares for a ÷ and fades back to white.
 ## A new digit (D099) is a moment the first time a run reaches it: 10, 100,
 ## 1K. Falling back and climbing past it again isn't; a new or resumed run
 ## starts from where its Number stands.
 func test_a_new_digit_is_a_moment_once_a_run() -> void:
-	check(ArenaView.power_of(9.4) == 0 and ArenaView.power_of(9.6) == 1 and ArenaView.power_of(100.0) == 2, "9 has no noughts; 10 (shown whole) has one; 100 two")
-	check(ArenaView.power_of(999.0) == 2 and ArenaView.power_of(1000.0) == 3 and ArenaView.power_of(1e15) == 15, "and on, however big")
+	check(NumberMotion.power_of(9.4) == 0 and NumberMotion.power_of(9.6) == 1 and NumberMotion.power_of(100.0) == 2, "9 has no noughts; 10 (shown whole) has one; 100 two")
+	check(NumberMotion.power_of(999.0) == 2 and NumberMotion.power_of(1000.0) == 3 and NumberMotion.power_of(1e15) == 15, "and on, however big")
 	var arena := ArenaView.new()
 	var reached: Array[int] = []
 	arena.digit_reached.connect(func(power: int): reached.append(power))
@@ -1839,9 +1823,9 @@ func test_a_new_digit_is_a_moment_once_a_run() -> void:
 	check(reached.is_empty(), "a run starts from where its Number stands")
 	sim.peak_number = 12.0
 	arena.absorb([], 0.1)
-	check(reached == [1] and arena._digit_left > 0.0 and arena._flare.get("colour") == Palette.NUMBER, "reaching 10 is a moment: the light flares white: %s" % [reached])
-	arena.absorb([], ArenaView.DIGIT_SECONDS)
-	check(arena._digit_left == 0.0, "which passes")
+	check(reached == [1] and arena.motion.digit_left > 0.0 and arena.motion.flare_state.get("colour") == Palette.NUMBER, "reaching 10 is a moment: the light flares white: %s" % [reached])
+	arena.absorb([], NumberMotion.DIGIT_SECONDS)
+	check(arena.motion.digit_left == 0.0, "which passes")
 	sim.peak_number = 1200.0
 	arena.absorb([], 0.1)
 	check(reached == [1, 3], "a jump past two digits at once is one moment, for the new one: %s" % [reached])
@@ -1883,17 +1867,59 @@ func test_a_new_digit_is_a_moment_once_a_run() -> void:
 	_clear_test_logs()
 
 
+## Motion with weight (D103), drawing only: the Number stays anchored as its
+## digits change, rolls to new values, springs back from hits and gains, and
+## enemies rock back from shots, heavier ones less.
+func test_the_number_and_enemies_move_with_weight() -> void:
+	var arena := ArenaView.new()
+	var ones := arena._number_cut.get_string_size("11,111", HORIZONTAL_ALIGNMENT_LEFT, -1, 96).x
+	var eights := arena._number_cut.get_string_size("88,888", HORIZONTAL_ALIGNMENT_LEFT, -1, 96).x
+	check(is_equal_approx(ones, eights), "every digit is the same width, so the Number stays put: %.1f and %.1f" % [ones, eights])
+	var sim := _quiet_sim()
+	sim.health = 100.0
+	arena.sim = sim
+	arena.size = Vector2(390, 440)
+	arena.centre = Vector2(195, 242)
+	arena.absorb([], 0.0)
+	arena.absorb([], 0.016)
+	check(arena.motion.shown_number == 100.0, "it starts at the Number")
+	sim.health = 200.0
+	arena.absorb([], 0.016)
+	check(arena.motion.shown_number > 100.0 and arena.motion.shown_number < 200.0, "a jump rolls up rather than landing at once: %.1f" % arena.motion.shown_number)
+	for _i in range(60):
+		arena.absorb([], 0.016)
+	check(arena.motion.shown_number == 200.0, "and arrives within a second")
+	var enemy := _place(sim, "basic", 5.0)
+	arena.absorb([{"type": "tower_hit", "enemy": enemy, "damage": 50.0}], 0.016)
+	arena.absorb([], 0.05)
+	check(arena.motion.nudge.length() > 0.5, "a hit knocks the Number: %s" % arena.motion.nudge)
+	check(arena.motion.nudge.dot(Vector2.from_angle(enemy.angle)) < 0.0, "away from the enemy that landed it")
+	for _i in range(120):
+		arena.absorb([], 0.016)
+	check(arena.motion.nudge.length() < 0.05 and absf(arena.motion.lift) < 0.001, "and springs back to rest")
+	var light := _place(sim, "basic", 20.0)
+	var heavy := _place(sim, "tank", 20.0)
+	arena.absorb([{"type": "enemy_hit", "enemy": light, "damage": 1.0, "critical": false},
+		{"type": "enemy_hit", "enemy": heavy, "damage": 1.0, "critical": false}], 0.0)
+	check(float(arena.effects.recoil[light.id]) > float(arena.effects.recoil[heavy.id]) * 2.0, "a shot rocks a basic back more than a tank: %s" % arena.effects.recoil)
+	for _i in range(60):
+		arena.absorb([], 0.016)
+	check(arena.effects.recoil.is_empty(), "and they settle")
+	arena.free()
+
+
+## The light behind the Number (D087) flares for a ÷ and fades back to white.
 func test_the_light_behind_the_number_flares_and_fades() -> void:
 	var arena := ArenaView.new()
 	var divider := BattleSim.Enemy.new()
 	divider.kind = "divider"
 	var landed: Array[Dictionary] = [{"type": "divided", "enemy": divider, "damage": 10.0, "at_wall": false, "divisor": 1.5}]
 	arena.absorb(landed, 0.0)
-	check(arena._flare.get("colour") == Palette.DIVIDER, "a ÷ landing flares the light violet")
-	arena.absorb([], ArenaView.DIVIDE_FLARE_SECONDS * 0.5)
-	check(not arena._flare.is_empty(), "still fading part way")
-	arena.absorb([], ArenaView.DIVIDE_FLARE_SECONDS * 0.6)
-	check(arena._flare.is_empty(), "and back to white once its time is up")
+	check(arena.motion.flare_state.get("colour") == Palette.DIVIDER, "a ÷ landing flares the light violet")
+	arena.absorb([], ArenaEffects.DIVIDE_FLARE_SECONDS * 0.5)
+	check(not arena.motion.flare_state.is_empty(), "still fading part way")
+	arena.absorb([], ArenaEffects.DIVIDE_FLARE_SECONDS * 0.6)
+	check(arena.motion.flare_state.is_empty(), "and back to white once its time is up")
 	arena.free()
 
 
@@ -1982,15 +2008,15 @@ func test_hits_and_knockback_are_drawn_with_weight() -> void:
 
 	var hit: Array[Dictionary] = [{"type": "enemy_hit", "enemy": walker, "damage": 1.0, "critical": false}]
 	arena.absorb(hit, 0.0)
-	check(arena._chips.size() == ArenaView.CHIPS, "a hit knocks chips off the number: %d" % arena._chips.size())
+	check(arena.effects.chips.size() == ArenaEffects.CHIPS, "a hit knocks chips off the number: %d" % arena.effects.chips.size())
 	var crit: Array[Dictionary] = [{"type": "enemy_hit", "enemy": walker, "damage": 1.0, "critical": true}]
 	arena.absorb(crit, 0.0)
-	check(arena._chips.size() == ArenaView.CHIPS + ArenaView.CRIT_CHIPS, "a critical knocks off more")
-	arena.absorb([], ArenaView.CHIP_SECONDS + 0.01)
-	check(arena._chips.is_empty(), "and they fade")
+	check(arena.effects.chips.size() == ArenaEffects.CHIPS + ArenaEffects.CRIT_CHIPS, "a critical knocks off more")
+	arena.absorb([], ArenaEffects.CHIP_SECONDS + 0.01)
+	check(arena.effects.chips.is_empty(), "and they fade")
 	sim.enemies.clear()
 	arena.absorb([], 1.0 / 60.0)
-	check(arena._eased.is_empty(), "an enemy gone is forgotten")
+	check(arena.effects.eased.is_empty(), "an enemy gone is forgotten")
 	arena.free()
 
 

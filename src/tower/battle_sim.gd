@@ -125,12 +125,8 @@ var _divider_due := 0.0
 ## The tests the player can switch on, which the run's record keeps so a
 ## replay plays by them too: Multipliers (D097), and regen stopping at the
 ## Number's best and kills growing it (D098).
-const SWITCHES := ["multipliers", "peak_regen", "kill_growth", "hitbox"]
+const SWITCHES := ["multipliers", "peak_regen", "kill_growth"]
 var multipliers := false
-## The Number as its own hitbox (D101), a prototype the measuring tools
-## switch on; no screen does yet.
-var hitbox := false
-var hitbox_per_digit := float(Guesses.HITBOX.per_digit_m)
 var peak_regen := false
 var kill_growth := false
 ## Their numbers (Guesses), which the measuring tools may change before the
@@ -147,6 +143,9 @@ var multipliers_killed := 0
 ## The Divider's numbers for this run (Guesses.DIVIDER), which the measuring
 ## tools may change before the first step to try others.
 var divider: Dictionary = Guesses.DIVIDER.duplicate()
+## How fast orbs turn at Orb Speed's first level (Guesses), which the
+## measuring tools may change before the first step to try others.
+var orb_turns_first := Guesses.ORB_TURNS_PER_SECOND_AT_FIRST_LEVEL
 ## Guesses.NUMBER_OVERFILL for this run, which the measuring tools may change.
 var overfill := Guesses.NUMBER_OVERFILL
 
@@ -194,7 +193,6 @@ func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_G
 	multipliers = switched.get("multipliers", false) == true
 	peak_regen = switched.get("peak_regen", false) == true
 	kill_growth = switched.get("kill_growth", false) == true
-	hitbox = switched.get("hitbox", false) == true
 	levels = row_levels.duplicate()
 	open_groups = groups.duplicate()
 	# Two streams, so a change in how often the tower fires or crits never
@@ -226,24 +224,7 @@ func rng_state() -> Array[String]:
 
 ## The tests this run plays by, as its record keeps them.
 func switches() -> Dictionary:
-	return {"multipliers": multipliers, "peak_regen": peak_regen, "kill_growth": kill_growth, "hitbox": hitbox}
-
-
-## Where melee enemies reach the tower: its edge, or with the hitbox on
-## (D101), further out the more digits the Number has.
-func contact_m() -> float:
-	if not hitbox:
-		return Guesses.CONTACT_DISTANCE_M
-	var grown := Guesses.CONTACT_DISTANCE_M + hitbox_per_digit * float(digits(health) - 1)
-	return minf(grown, maxf(Guesses.CONTACT_DISTANCE_M, stat("range") - 1.0))
-
-
-## How many digits a Number has, shown whole: 1 for 0 to 9.
-static func digits(value: float) -> int:
-	var whole := roundf(value)
-	if whole < 10.0:
-		return 1
-	return int(floorf(log(whole) / log(10.0) + 1e-9)) + 1
+	return {"multipliers": multipliers, "peak_regen": peak_regen, "kill_growth": kill_growth}
 
 
 func level(id: String) -> int:
@@ -542,7 +523,7 @@ func _spawn_due() -> void:
 			multipliers_spawned += 1
 		enemy.distance = Guesses.SPAWN_DISTANCE_M
 		enemy.last_distance = enemy.distance
-		enemy.stop_at = stat("range") if kind == "ranged" else contact_m()
+		enemy.stop_at = stat("range") if kind == "ranged" else Guesses.CONTACT_DISTANCE_M
 		enemies.append(enemy)
 
 
@@ -555,7 +536,7 @@ func _move_enemies() -> void:
 		# Melee enemies stop at a standing Wall, and walk on when it falls.
 		elif enemy.kind != "ranged":
 			var at_wall := wall_up() and enemy.distance >= Guesses.WALL_DISTANCE_M
-			enemy.stop_at = Guesses.WALL_DISTANCE_M if at_wall else contact_m()
+			enemy.stop_at = Guesses.WALL_DISTANCE_M if at_wall else Guesses.CONTACT_DISTANCE_M
 		if not enemy.arrived():
 			enemy.distance = maxf(enemy.stop_at, enemy.distance - enemy.speed * TICK)
 
@@ -581,7 +562,7 @@ func _enemies_hit() -> void:
 		enemy.hits += 1
 		# An enemy standing at the Wall hits the Wall. When it falls, it
 		# rebuilds after Wall Rebuild seconds.
-		if enemy.kind != "ranged" and wall_up() and enemy.distance > contact_m():
+		if enemy.kind != "ranged" and wall_up() and enemy.distance > Guesses.CONTACT_DISTANCE_M:
 			wall_health -= damage
 			if wall_health <= 0.0:
 				wall_health = 0.0
@@ -644,7 +625,7 @@ func _escape(enemy: Enemy) -> void:
 func _divide(enemy: Enemy) -> void:
 	var divisor := enemy.divisor if enemy.divisor > 0.0 else divider_divisor(wave)
 	var share := 1.0 - 1.0 / maxf(1.0, divisor)
-	var at_wall := wall_up() and enemy.distance > contact_m()
+	var at_wall := wall_up() and enemy.distance > Guesses.CONTACT_DISTANCE_M
 	var loss := 0.0
 	if at_wall:
 		loss = minf(wall_health, landed_damage(wall_health * share))
@@ -885,7 +866,7 @@ func orb_radius() -> float:
 
 
 func orb_turns_per_second() -> float:
-	return Guesses.ORB_TURNS_PER_SECOND_AT_FIRST_LEVEL * stat("orb_speed") / TowerData.value("orb_speed", 0)
+	return orb_turns_first * stat("orb_speed") / TowerData.value("orb_speed", 0)
 
 
 func orb_angles(at_time: float = time) -> Array[float]:
@@ -905,7 +886,7 @@ func _sweep_orbs() -> void:
 	var slack := Guesses.ORB_HIT_M / radius
 	var touched: Array[Enemy] = []
 	for enemy in enemies:
-		if enemy.kind == "boss" or absf(enemy.distance - radius) > Guesses.ORB_HIT_M:
+		if enemy.kind in Guesses.ORB_IMMUNE or absf(enemy.distance - radius) > Guesses.ORB_HIT_M:
 			continue
 		for start in starts:
 			# How far ahead of the orb's starting angle the enemy sits.

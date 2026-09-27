@@ -285,14 +285,6 @@ static func short(value: float) -> String:
 	return String.num(snappedf(value, 0.1), 1).trim_suffix(".0")
 
 
-## An enemy's health as it shows: `short`, but rounded up while small, so a
-## living enemy never reads 0.
-static func enemy_health(value: float) -> String:
-	if value <= 0.0:
-		return "0"
-	return short(ceilf(value * 10.0 - 1e-6) / 10.0) if value < 9.95 else short(value)
-
-
 ## A row's value the way The Tower writes it.
 static func row_value(id: String, value: float) -> String:
 	match id:
