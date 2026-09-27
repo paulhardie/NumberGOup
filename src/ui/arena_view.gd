@@ -12,11 +12,17 @@ const Palette = preload("res://src/ui/palette.gd")
 ## The range circle's radius as a share of half the view's width, as on The
 ## Tower's screen (292 px of 460 in the owner's screenshots).
 const RANGE_SHARE := 0.64
-## The Number is the biggest thing on screen (D085): this size, shrinking to
-## fit NUMBER_FIT_PX as its digits grow, never below NUMBER_MIN_PX.
-const NUMBER_FONT_PX := 34
-const NUMBER_FIT_PX := 100.0
-const NUMBER_MIN_PX := 18
+## The Number is the biggest thing on screen (D085), large and thin as the
+## owner's main-screen design has it: this size, shrinking to fit
+## NUMBER_FIT_PX as its digits grow, never below NUMBER_MIN_PX.
+const NUMBER_FONT_PX := 96
+const NUMBER_FIT_PX := 150.0
+const NUMBER_MIN_PX := 40
+## The word under the Number, in small spaced capitals.
+const NUMBER_LABEL := "HEALTH"
+const NUMBER_LABEL_PX := 11
+## The range as the design draws its ring: a hairline, barely there.
+const RANGE_LINE := Color(1, 1, 1, 0.06)
 ## Enemies at the tower are drawn this clear of the Number's digits, which is
 ## only drawing: the sim's contact distance is unchanged.
 const CONTACT_GAP_PX := 3.0
@@ -75,8 +81,8 @@ const LOOKS := {
 const FLASH := Color("f4f3ef")
 
 var sim: BattleSim
-## The range as a faint band of light at its edge, when the player asks for it
-## (D088); no line at all otherwise.
+## A faint band of light at the range's edge, when the player asks for it
+## (D088), over the hairline ring that is always drawn (D095).
 var show_range := false
 ## How far between the sim's last tick and its current one to draw things.
 var blend := 1.0
@@ -104,17 +110,21 @@ var _look_rng := RandomNumberGenerator.new()
 var _ranged_shots: Array[Dictionary] = []
 ## The fonts each enemy type is drawn in, built once from LOOKS.
 var _cuts := {}
-var _number_cut := _cut(Palette.NUMBER_FONT, {"wght": 600})
-var _hit_cut := _cut(Palette.NUMBER_FONT, {"wght": 500})
+var _number_cut := _cut(Palette.WORD_FONT, {"wght": 200})
+var _label_cut := _cut(Palette.WORD_FONT, {"wght": 400}, 0.0, 2)
+var _mono_cut := _cut(Palette.NUMBER_FONT, {"wght": 500})
+var _hit_cut := _cut(Palette.NUMBER_FONT, {"wght": 400})
 var _divide_cut := _cut(Palette.DIVIDER_FONT, LOOKS.divider.axes)
 ## The light behind the Number, and what's flaring it: {colour, strength,
 ## seconds, left}, or empty.
 var _glow := ColorRect.new()
 var _flare := {}
 var _glow_time := 0.0
-## Half the Number's drawn width and height this frame, which enemies at the
-## tower stand clear of.
+## Half the Number's drawn width, and how far its digits reach above the
+## centre and its label below, this frame: the box enemies at the tower stand
+## clear of, and floats start from.
 var _number_half := Vector2.ZERO
+var _number_below := 0.0
 
 
 func _init() -> void:
@@ -192,7 +202,7 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 		match event.type:
 			"kill":
 				_floats.append({"text": "$" + Palette.number(event.cash), "at": event.enemy.position(), "age": 0.0, "colour": Palette.ACCENT,
-					"font": _number_cut})
+					"font": _mono_cut})
 				_pops.append({"kind": event.enemy.kind, "angle": event.enemy.angle, "distance": event.enemy.distance, "age": 0.0})
 				_flashes.erase(event.enemy.id)
 			"enemy_hit":
@@ -211,11 +221,11 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 				else:
 					_divide_left = SHAKE_SECONDS
 					flare(Palette.DIVIDER, DIVIDE_FLARE, DIVIDE_FLARE_SECONDS)
-					_floats.append({"parts": [[sign, _divide_cut, 22], ["  −" + Palette.number(float(event.damage)), _number_cut, 15]], "at": Vector2(0, -6),
+					_floats.append({"parts": [[sign, _divide_cut, 22], ["  −" + Palette.number(float(event.damage)), _mono_cut, 15]], "anchor": "above",
 						"age": 0.0, "colour": Palette.DIVIDER, "life": DIVIDE_FLOAT_SECONDS, "rise": DIVIDE_FLOAT_RISE_PX, "divide": true})
 			"free_upgrade":
 				var name := String(TowerData.upgrade(event.id).title).capitalize()
-				_floats.append({"text": "Free: " + name, "at": Vector2(0, -8), "age": 0.0, "colour": Palette.COIN})
+				_floats.append({"text": "Free: " + name, "anchor": "above", "age": 0.0, "colour": Palette.COIN})
 			"rapid_fire":
 				_tower_note("Rapid Fire", Palette.TEXT)
 			"package":
@@ -231,8 +241,8 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 			"mine":
 				_blasts.append({"at": event.at, "age": 0.0})
 	if hit_total > 0.0:
-		# Starts below the Number and rises into its lower edge, never over its digits.
-		_floats.append({"text": "−" + Palette.number(hit_total), "at": Vector2(0, 10), "age": 0.0, "colour": Palette.WARNING, "size": 14,
+		# Beside the Number's shoulder, as the design has it, never over its digits.
+		_floats.append({"text": "−" + Palette.number(hit_total), "anchor": "beside", "age": 0.0, "colour": Palette.HIT, "size": 12,
 			"font": _hit_cut})
 
 
@@ -251,7 +261,18 @@ static func _divisor_text(divisor: float) -> String:
 
 ## A word that rises from the tower.
 func _tower_note(text: String, colour: Color) -> void:
-	_floats.append({"text": text, "at": Vector2(0, -8), "age": 0.0, "colour": colour})
+	_floats.append({"text": text, "anchor": "above", "age": 0.0, "colour": colour})
+
+
+## Where a float at the Number starts: just above its digits, or out beside
+## its upper right. Anything else starts where it happened, in metres.
+func _float_start(item: Dictionary) -> Vector2:
+	match item.get("anchor", ""):
+		"above":
+			return centre + Vector2(0, -_number_half.y - 8.0)
+		"beside":
+			return centre + Vector2(_number_half.x + 48.0, -_number_half.y * 0.55)
+	return to_view(item.at)
 
 
 func _draw() -> void:
@@ -259,6 +280,7 @@ func _draw() -> void:
 		return
 	var reach_px := sim.stat("range") * px_per_metre()
 	_light_glow(reach_px)
+	draw_arc(centre, reach_px, 0.0, TAU, 128, RANGE_LINE, 1.0, true)
 	if _shockwave_age < SHOCKWAVE_SECONDS:
 		# The ring runs out to the edge of range and fades as it goes.
 		var spread := _shockwave_age / SHOCKWAVE_SECONDS
@@ -269,11 +291,13 @@ func _draw() -> void:
 	for blast in _blasts:
 		var fade: float = 1.0 - blast.age / (FLASH_SECONDS * 2.0)
 		draw_circle(to_view(blast.at), blast_px, Color(Palette.WARNING, 0.35 * fade))
-	if sim.wall_up():
-		# Brighter the more of its health it has left.
-		var standing := sim.wall_health / maxf(sim.wall_max_health(), 0.001)
-		draw_arc(centre, Guesses.WALL_DISTANCE_M * px_per_metre(), 0.0, TAU, 64, Color(Palette.TEXT, 0.25 + 0.5 * standing), 3.0, true)
 	var number := _number_layout()
+	if sim.wall_up():
+		# Brighter the more of its health it has left. Drawn clear of a large
+		# Number rather than through its digits, as the enemies stopped at it are.
+		var standing := sim.wall_health / maxf(sim.wall_max_health(), 0.001)
+		var wall_px := maxf(Guesses.WALL_DISTANCE_M * px_per_metre(), Vector2(_number_half.x, _number_below).length() + 6.0)
+		draw_arc(centre, wall_px, 0.0, TAU, 64, Color(Palette.TEXT, 0.25 + 0.5 * standing), 3.0, true)
 	for shot in _ranged_shots:
 		# The ranged enemy's shot: a dotted line in its colour to the Number.
 		var from := _enemy_at(shot.enemy.angle, shot.enemy.distance, _enemy_half(shot.enemy.kind, "0"))
@@ -296,7 +320,7 @@ func _draw() -> void:
 	_draw_divider_preview()
 	for item in _floats:
 		var rise: float = item.age / item.get("life", FLOAT_SECONDS)
-		var at: Vector2 = to_view(item.at) + Vector2(0, -14.0 - item.get("rise", 18.0) * rise)
+		var at: Vector2 = _float_start(item) + Vector2(0, -14.0 - item.get("rise", 18.0) * rise)
 		# A float is one or more runs of text, each in its own font and size.
 		var parts: Array = item.get("parts", [[item.get("text", ""), item.get("font", Palette.NUMBER_FONT), item.get("size", 12)]])
 		var width := 0.0
@@ -311,21 +335,24 @@ func _draw() -> void:
 
 ## The Number's text and size this frame: whole, as Palette.number_shown has
 ## it (a standing tower never reads 0), a size larger while Rapid Fire runs,
-## shrinking to fit as its digits grow. Sets the half-size enemies stand clear of.
+## shrinking to fit as its digits grow. Sets the box enemies stand clear of.
 func _number_layout() -> Dictionary:
 	var text := Palette.number(Palette.number_shown(sim.health, sim.max_health(), sim.alive))
-	var font_size := NUMBER_FONT_PX + (3 if sim.rapid_fire_left > 0.0 else 0)
+	var font_size := NUMBER_FONT_PX + (6 if sim.rapid_fire_left > 0.0 else 0)
 	while font_size > NUMBER_MIN_PX and _number_cut.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > NUMBER_FIT_PX:
-		font_size -= 1
+		font_size -= 2
 	var width := _number_cut.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-	# Digits stand about 0.7 of the font size tall.
-	_number_half = Vector2(width, font_size * 0.7) * 0.5
-	return {"text": text, "size": font_size, "width": width}
+	# Digits stand about 0.7 of the font size tall, centred; the label hangs below.
+	var label_baseline := font_size * 0.35 + maxf(18.0, font_size * 0.3)
+	_number_half = Vector2(width * 0.5, font_size * 0.35)
+	_number_below = label_baseline + 2.0
+	return {"text": text, "size": font_size, "width": width, "label_baseline": label_baseline}
 
 
-## The tower is the Number, on its own with no ring (the owner, D084), drawn
-## over everything but the floats: the most important thing on screen (D085).
-## White, always (D087), in its own light; it shakes when a ÷ lands.
+## The tower is the Number (D084), drawn over everything but the floats: the
+## most important thing on screen (D085). White and thin, with a soft light of
+## its own inside the swirling one behind it (D087), and its label beneath;
+## it shakes when a ÷ lands.
 func _draw_tower(number: Dictionary) -> void:
 	var shake := Vector2.ZERO
 	if _divide_left > 0.0:
@@ -333,7 +360,13 @@ func _draw_tower(number: Dictionary) -> void:
 		shake = Vector2(sin(_divide_left * 90.0), cos(_divide_left * 70.0)) * SHAKE_PX * strength
 	var at := centre + shake
 	var font_size: int = number.size
-	draw_string(_number_cut, at + Vector2(-number.width * 0.5, font_size * 0.35), number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Palette.NUMBER)
+	var baseline := at + Vector2(-number.width * 0.5, font_size * 0.35)
+	# The design's text-shadow, faked with wide faint outlines rather than a blur.
+	for glow in [[22, 0.025], [12, 0.04], [5, 0.06]]:
+		draw_string_outline(_number_cut, baseline, number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, glow[0], Color(1.0, 0.98, 0.94, glow[1]))
+	draw_string(_number_cut, baseline, number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Palette.NUMBER)
+	var label_width := _label_cut.get_string_size(NUMBER_LABEL, HORIZONTAL_ALIGNMENT_LEFT, -1, NUMBER_LABEL_PX).x
+	draw_string(_label_cut, at + Vector2(-label_width * 0.5, number.label_baseline), NUMBER_LABEL, HORIZONTAL_ALIGNMENT_LEFT, -1, NUMBER_LABEL_PX, Palette.MUTED)
 
 
 ## Sets the light behind the Number for this frame: white, breathing slowly,
@@ -386,12 +419,12 @@ func _draw_divider_preview() -> void:
 	var preview := divider_preview(sim)
 	if preview.is_empty():
 		return
-	var parts := [[preview.sign, _divide_cut, 13], ["  → " + preview.after, _number_cut, 11]]
+	var parts := [[preview.sign, _divide_cut, 13], ["  → " + preview.after, _mono_cut, 11]]
 	var width := 0.0
 	for part in parts:
 		width += (part[1] as Font).get_string_size(part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, part[2]).x
 	# Where the ÷ float starts, so the landing turns one into the other.
-	var at := to_view(Vector2(0, -6)) + Vector2(-width * 0.5, -14.0)
+	var at := _float_start({"anchor": "above"}) + Vector2(-width * 0.5, -14.0)
 	for part in parts:
 		var font: Font = part[1]
 		draw_string(font, at, part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, part[2], Color(Palette.DIVIDER, 0.85))
@@ -464,7 +497,9 @@ func _enemy_half(kind: String, text: String) -> Vector2:
 ## the Number's digits on its own side.
 func _enemy_at(angle: float, distance_m: float, half: Vector2) -> Vector2:
 	var toward := Vector2.from_angle(angle)
-	var clear := _number_half + half + Vector2(CONTACT_GAP_PX, CONTACT_GAP_PX)
+	# The Number's box reaches further below it, where its label hangs.
+	var reach := Vector2(_number_half.x, _number_below if toward.y > 0.0 else _number_half.y)
+	var clear := reach + half + Vector2(CONTACT_GAP_PX, CONTACT_GAP_PX)
 	# The nearest it can come along its line without the two boxes touching.
 	var nearest := INF
 	if absf(toward.x) > 0.001:

@@ -38,7 +38,7 @@ This was the first plan. The game (0.9) has gone past it: every Workshop group, 
 | **Pay** | Cash per kill as D071 has it ($1, plus $1 every 10 waves, times the type). Coins per kill by type, flat (basic 0, fast 2, ranged 2, tank 4, boss 5; D074, D082). Coins / Wave at each wave's end. |
 | **Workshop** | Attack, Defense and Utility tabs, rows with multi-buy, and a locked-group card showing its unlock price. Coins are spent between runs. |
 | **Home** | Battle button, best wave, Coins. |
-| **Look** | D049's look, since changed: a pure black ground, a white Number in its own light (D087), enemies as numbers (D085, D086). Portrait-first. |
+| **Look** | D049's look, since changed: a near-black ground, a large thin white Number in its own light (D087, D095), enemies as numbers (D085, D086), and the battle screen laid out as the owner's main-screen design (D095). Portrait-first. |
 | **Game speed** | A switch (1×, 2×, 5×), meant for testing. The owner plays half their time at ×5 (report, 27 September), so whether it stays for players is open. |
 
 ## Not in 1.0
