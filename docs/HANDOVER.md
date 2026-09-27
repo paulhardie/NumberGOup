@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports, moved the Divider into The Tower's Protector slot (D094), restyled the battle screen to the owner's main-screen design (D095), carried it to Home and the Workshop (D096), measured where the Number's growth comes from (THE_NUMBER.md 5.2b), built the Multiplier as a switch to test, with free Coins and a reset for testing (D097), added two more switches, regen stopping at the Number's best and kills growing it (D098), made each new digit a moment (D099), wrote the Number out in full below a million (D100), made the view zoom out as Range grows (D101), made enemies show what they do to the Number, dropping the hitbox prototype (D102), and gave the Number and enemies motion with weight (D103).
+**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports, moved the Divider into The Tower's Protector slot (D094), restyled the battle screen to the owner's main-screen design (D095), carried it to Home and the Workshop (D096), measured where the Number's growth comes from (THE_NUMBER.md 5.2b), built the Multiplier as a switch to test, with free Coins and a reset for testing (D097), added two more switches, regen stopping at the Number's best and kills growing it (D098), made each new digit a moment (D099), wrote the Number out in full below a million (D100), made the view zoom out as Range grows (D101), made enemies show what they do to the Number, dropping the hitbox prototype (D102), gave the Number and enemies motion with weight (D103), and split the arena's drawing into three files.
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #88 (D099, D100) merged. It carries D101's zoom, D102 (enemies show what they do; the hitbox dropped) and D103 (motion with weight). Open as #89, not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #89 merged, which took D101 only. It carries D102 (enemies show what they do; the hitbox dropped), D103 (motion with weight) and the arena split, none yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -57,13 +57,14 @@
 1a. **Owner:** sign off 1.0 or name what's missing (decision 2).
 2. **Agent, on the owner's word:** tune the Divider's health with `sim_runs.gd --careers 40 --buy core --divider-health N` if play says so. Then raise `application/config/version` to 1.0 when the owner signs it off. `--careers` always plays the same seeds (run N is seed N), so a second career needs a seed option first.
 3. **Owner:** try the web build on a phone. The light's shader, the music and the portrait layout have never run there.
-4. **Then Cards (1.1).** Before them, split `src/ui/arena_view.gd` (509 lines: the battle, effects, the light, fonts) so effects have their own file, and consider moving the later Workshop mechanics (Wall, Mines, Orbs, Shockwave) out of `battle_sim.gd` (821 lines), per AGENTS.md's law 7.
+4. **Then Cards (1.1).** `src/ui/arena_view.gd` is split (27 September): the battle's drawing stays there (401 lines), what fades around it is `arena_effects.gd` and the Number's motion and light `number_motion.gd`. Before Cards, consider moving the later Workshop mechanics (Wall, Mines, Orbs, Shockwave) out of `battle_sim.gd` (974 lines), per AGENTS.md's law 7.
 
 ## How to measure
 
 - **This session (27 September):**
   - `read_report.gd` on the owner's latest report: runs 20 and 21, recorded on `af32bb6`, **match** on replay. The others were recorded on older commits.
   - The report figures above come from the four exported reports, with runs deduplicated by time and seed.
+  - The arena split: `bash run_tests.sh` passes (2808 checks, as before). Every `capture_battle.gd` screen captured before and after and compared pixel by pixel: the differences match those between two runs of the same code (chips scatter at random), so nothing visible changed.
   - D103: `bash run_tests.sh` passes (2808 checks). Five seconds of live battle were recorded frame by frame from a scratch script (not committed) and looked at: the Number stays anchored as it climbs.
   - D102: `bash run_tests.sh` passes (2799 checks); captures of a crowd, a tank and a Divider with damage dealt, checked by eye.
   - D101: `bash run_tests.sh` passes (2805 checks). The hitbox at 0.5, 1 and 2 m per digit on 40 fresh seeds (spread, damage-only, core) and 40-run core careers; with it off, 20 core runs print identically. `battle_full_range` checked by eye.

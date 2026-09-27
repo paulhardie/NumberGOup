@@ -10,6 +10,8 @@ const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Palette = preload("res://src/ui/palette.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
 const ArenaView = preload("res://src/ui/arena_view.gd")
+const ArenaEffects = preload("res://src/ui/arena_effects.gd")
+const NumberMotion = preload("res://src/ui/number_motion.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 const Save = preload("res://src/tower/save.gd")
@@ -1659,7 +1661,7 @@ func test_peak_regen_and_kill_growth_only_when_switched_on() -> void:
 	check(float(grower.gained_from.kills) > 0.0, "and kills' growth is booked")
 	var arena := ArenaView.new()
 	arena.absorb([{"type": "grown", "enemy": clean, "gain": 0.25}, {"type": "grown", "enemy": another, "gain": 0.5}], 0.0)
-	var pluses := arena._floats.filter(func(item): return item.get("anchor") == "growing")
+	var pluses := arena.effects.floats.filter(func(item): return item.get("anchor") == "growing")
 	check(pluses.size() == 1 and pluses[0].text == "+0.75", "a frame's kills show as one \"+\" by the Number: %s" % [pluses])
 	arena.free()
 
@@ -1804,8 +1806,8 @@ func test_an_enemy_shows_what_it_does() -> void:
 ## 1K. Falling back and climbing past it again isn't; a new or resumed run
 ## starts from where its Number stands.
 func test_a_new_digit_is_a_moment_once_a_run() -> void:
-	check(ArenaView.power_of(9.4) == 0 and ArenaView.power_of(9.6) == 1 and ArenaView.power_of(100.0) == 2, "9 has no noughts; 10 (shown whole) has one; 100 two")
-	check(ArenaView.power_of(999.0) == 2 and ArenaView.power_of(1000.0) == 3 and ArenaView.power_of(1e15) == 15, "and on, however big")
+	check(NumberMotion.power_of(9.4) == 0 and NumberMotion.power_of(9.6) == 1 and NumberMotion.power_of(100.0) == 2, "9 has no noughts; 10 (shown whole) has one; 100 two")
+	check(NumberMotion.power_of(999.0) == 2 and NumberMotion.power_of(1000.0) == 3 and NumberMotion.power_of(1e15) == 15, "and on, however big")
 	var arena := ArenaView.new()
 	var reached: Array[int] = []
 	arena.digit_reached.connect(func(power: int): reached.append(power))
@@ -1816,9 +1818,9 @@ func test_a_new_digit_is_a_moment_once_a_run() -> void:
 	check(reached.is_empty(), "a run starts from where its Number stands")
 	sim.peak_number = 12.0
 	arena.absorb([], 0.1)
-	check(reached == [1] and arena._digit_left > 0.0 and arena._flare.get("colour") == Palette.NUMBER, "reaching 10 is a moment: the light flares white: %s" % [reached])
-	arena.absorb([], ArenaView.DIGIT_SECONDS)
-	check(arena._digit_left == 0.0, "which passes")
+	check(reached == [1] and arena.motion.digit_left > 0.0 and arena.motion.flare_state.get("colour") == Palette.NUMBER, "reaching 10 is a moment: the light flares white: %s" % [reached])
+	arena.absorb([], NumberMotion.DIGIT_SECONDS)
+	check(arena.motion.digit_left == 0.0, "which passes")
 	sim.peak_number = 1200.0
 	arena.absorb([], 0.1)
 	check(reached == [1, 3], "a jump past two digits at once is one moment, for the new one: %s" % [reached])
@@ -1875,29 +1877,29 @@ func test_the_number_and_enemies_move_with_weight() -> void:
 	arena.centre = Vector2(195, 242)
 	arena.absorb([], 0.0)
 	arena.absorb([], 0.016)
-	check(arena._shown_number == 100.0, "it starts at the Number")
+	check(arena.motion.shown_number == 100.0, "it starts at the Number")
 	sim.health = 200.0
 	arena.absorb([], 0.016)
-	check(arena._shown_number > 100.0 and arena._shown_number < 200.0, "a jump rolls up rather than landing at once: %.1f" % arena._shown_number)
+	check(arena.motion.shown_number > 100.0 and arena.motion.shown_number < 200.0, "a jump rolls up rather than landing at once: %.1f" % arena.motion.shown_number)
 	for _i in range(60):
 		arena.absorb([], 0.016)
-	check(arena._shown_number == 200.0, "and arrives within a second")
+	check(arena.motion.shown_number == 200.0, "and arrives within a second")
 	var enemy := _place(sim, "basic", 5.0)
 	arena.absorb([{"type": "tower_hit", "enemy": enemy, "damage": 50.0}], 0.016)
 	arena.absorb([], 0.05)
-	check(arena._nudge.length() > 0.5, "a hit knocks the Number: %s" % arena._nudge)
-	check(arena._nudge.dot(Vector2.from_angle(enemy.angle)) < 0.0, "away from the enemy that landed it")
+	check(arena.motion.nudge.length() > 0.5, "a hit knocks the Number: %s" % arena.motion.nudge)
+	check(arena.motion.nudge.dot(Vector2.from_angle(enemy.angle)) < 0.0, "away from the enemy that landed it")
 	for _i in range(120):
 		arena.absorb([], 0.016)
-	check(arena._nudge.length() < 0.05 and absf(arena._lift) < 0.001, "and springs back to rest")
+	check(arena.motion.nudge.length() < 0.05 and absf(arena.motion.lift) < 0.001, "and springs back to rest")
 	var light := _place(sim, "basic", 20.0)
 	var heavy := _place(sim, "tank", 20.0)
 	arena.absorb([{"type": "enemy_hit", "enemy": light, "damage": 1.0, "critical": false},
 		{"type": "enemy_hit", "enemy": heavy, "damage": 1.0, "critical": false}], 0.0)
-	check(float(arena._recoil[light.id]) > float(arena._recoil[heavy.id]) * 2.0, "a shot rocks a basic back more than a tank: %s" % arena._recoil)
+	check(float(arena.effects.recoil[light.id]) > float(arena.effects.recoil[heavy.id]) * 2.0, "a shot rocks a basic back more than a tank: %s" % arena.effects.recoil)
 	for _i in range(60):
 		arena.absorb([], 0.016)
-	check(arena._recoil.is_empty(), "and they settle")
+	check(arena.effects.recoil.is_empty(), "and they settle")
 	arena.free()
 
 
@@ -1908,11 +1910,11 @@ func test_the_light_behind_the_number_flares_and_fades() -> void:
 	divider.kind = "divider"
 	var landed: Array[Dictionary] = [{"type": "divided", "enemy": divider, "damage": 10.0, "at_wall": false, "divisor": 1.5}]
 	arena.absorb(landed, 0.0)
-	check(arena._flare.get("colour") == Palette.DIVIDER, "a ÷ landing flares the light violet")
-	arena.absorb([], ArenaView.DIVIDE_FLARE_SECONDS * 0.5)
-	check(not arena._flare.is_empty(), "still fading part way")
-	arena.absorb([], ArenaView.DIVIDE_FLARE_SECONDS * 0.6)
-	check(arena._flare.is_empty(), "and back to white once its time is up")
+	check(arena.motion.flare_state.get("colour") == Palette.DIVIDER, "a ÷ landing flares the light violet")
+	arena.absorb([], ArenaEffects.DIVIDE_FLARE_SECONDS * 0.5)
+	check(not arena.motion.flare_state.is_empty(), "still fading part way")
+	arena.absorb([], ArenaEffects.DIVIDE_FLARE_SECONDS * 0.6)
+	check(arena.motion.flare_state.is_empty(), "and back to white once its time is up")
 	arena.free()
 
 
@@ -2001,15 +2003,15 @@ func test_hits_and_knockback_are_drawn_with_weight() -> void:
 
 	var hit: Array[Dictionary] = [{"type": "enemy_hit", "enemy": walker, "damage": 1.0, "critical": false}]
 	arena.absorb(hit, 0.0)
-	check(arena._chips.size() == ArenaView.CHIPS, "a hit knocks chips off the number: %d" % arena._chips.size())
+	check(arena.effects.chips.size() == ArenaEffects.CHIPS, "a hit knocks chips off the number: %d" % arena.effects.chips.size())
 	var crit: Array[Dictionary] = [{"type": "enemy_hit", "enemy": walker, "damage": 1.0, "critical": true}]
 	arena.absorb(crit, 0.0)
-	check(arena._chips.size() == ArenaView.CHIPS + ArenaView.CRIT_CHIPS, "a critical knocks off more")
-	arena.absorb([], ArenaView.CHIP_SECONDS + 0.01)
-	check(arena._chips.is_empty(), "and they fade")
+	check(arena.effects.chips.size() == ArenaEffects.CHIPS + ArenaEffects.CRIT_CHIPS, "a critical knocks off more")
+	arena.absorb([], ArenaEffects.CHIP_SECONDS + 0.01)
+	check(arena.effects.chips.is_empty(), "and they fade")
 	sim.enemies.clear()
 	arena.absorb([], 1.0 / 60.0)
-	check(arena._eased.is_empty(), "an enemy gone is forgotten")
+	check(arena.effects.eased.is_empty(), "an enemy gone is forgotten")
 	arena.free()
 
 
