@@ -130,6 +130,14 @@ var overfill := Guesses.NUMBER_OVERFILL
 var peak_number := 0.0
 ## What the Number has lost to each kind of enemy, after defences.
 var lost_to: Dictionary = {}
+## What the Number has gained from each source ("regen", "lifesteal",
+## "health" bought or free, "package"), and the part of each that lifted it to
+## a new high: what makes the Number go up rather than refilling it. Counted
+## only; nothing reads them to decide anything.
+var gained_from: Dictionary = {}
+var raised_by: Dictionary = {}
+## The highest the Number has stood, as the gains above see it.
+var _high := 0.0
 ## Dividers that came, and the ones that reached the Number or the Wall.
 var dividers_spawned := 0
 var dividers_landed := 0
@@ -168,6 +176,7 @@ func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_G
 	_divider_rng.seed = hash([seed_value, "divider"])
 	health = max_health()
 	peak_number = health
+	_high = health
 	if is_open("wall_health"):
 		wall_health = wall_max_health()
 	if is_open("shockwave_frequency"):
@@ -233,9 +242,11 @@ func buy(id: String, count: int = 1) -> bool:
 ## One more run level of `id`, bought or free.
 func _raise(id: String) -> void:
 	var health_before := max_health()
+	var before := health
 	run_levels[id] = int(run_levels.get(id, 0)) + 1
 	# More Health raises the health you have now by the same amount.
 	health += max_health() - health_before
+	_count_gain("health", before)
 
 
 func max_health() -> float:
@@ -245,9 +256,23 @@ func max_health() -> float:
 ## Regen and Lifesteal: in full up to Health, and past it at `overfill`'s
 ## share (Guesses.NUMBER_OVERFILL; 0 is a ceiling). They never take away a
 ## recovery package's overheal.
-func _heal(amount: float) -> void:
+func _heal(amount: float, source: String) -> void:
+	var before := health
 	var room := maxf(0.0, max_health() - health)
 	health += minf(amount, room) + maxf(0.0, amount - room) * overfill
+	_count_gain(source, before)
+
+
+## Books what the Number just gained from `source`, and the part of it that
+## took the Number past its highest yet.
+func _count_gain(source: String, before: float) -> void:
+	var gained := health - before
+	if gained <= 0.0:
+		return
+	gained_from[source] = float(gained_from.get(source, 0.0)) + gained
+	if health > _high:
+		raised_by[source] = float(raised_by.get(source, 0.0)) + health - maxf(_high, before)
+		_high = health
 
 
 func wall_max_health() -> float:
@@ -321,7 +346,7 @@ func step() -> void:
 		_advance_levels()
 		_schedule_wave()
 	_spawn_due()
-	_heal(stat("health_regen") * TICK)
+	_heal(stat("health_regen") * TICK, "regen")
 	peak_number = maxf(peak_number, health)
 	_tick_wall()
 	_tick_shockwave()
@@ -646,7 +671,7 @@ func _strike(enemy: Enemy, shot_damage: float, critical: bool) -> void:
 	# hit harder, stacking to REND_CAP.
 	if is_open("rend_armor_chance") and _combat_rng.randf() < stat("rend_armor_chance"):
 		enemy.rend = minf(REND_CAP, enemy.rend + stat("rend_armor_mult"))
-	_heal(stat("lifesteal") * minf(damage, maxf(enemy.health, 0.0)))
+	_heal(stat("lifesteal") * minf(damage, maxf(enemy.health, 0.0)), "lifesteal")
 	if enemy.health > damage and stat("knockback_chance") > 0.0 and _combat_rng.randf() < stat("knockback_chance"):
 		var push := stat("knockback_force") * Guesses.KNOCKBACK_METRES_PER_FORCE / _mass_ratio(enemy.kind)
 		enemy.distance = minf(Guesses.SPAWN_DISTANCE_M, enemy.distance + push)
@@ -683,7 +708,9 @@ func _pay_wave_end() -> void:
 	# Recovery Packages: by its chance a wave's end heals a share of Health,
 	# which may go past Health up to Max Recovery times it.
 	if is_open("package_chance") and _combat_rng.randf() < stat("package_chance"):
+		var before := health
 		health = maxf(health, minf(max_health() * stat("max_recovery"), health + max_health() * stat("recovery_amount")))
+		_count_gain("package", before)
 		if record_events:
 			events.append({"type": "package"})
 	# Free Upgrades: by each category's chance, a random open row of it that

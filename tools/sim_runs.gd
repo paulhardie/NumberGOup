@@ -19,6 +19,9 @@ extends SceneTree
 ## its divisor at every wave. --overfill N sets how much
 ## of Regen and Lifesteal works past Health (0 a ceiling, 1 none), and --curve
 ## adds the Number at the end of every fifth wave to each run's line.
+## --gains adds where the Number's gains came from: each source's share of
+## all it gained, and after the slash its share of the new highs, the gains
+## that lifted the Number past its best so far rather than refilling it.
 ##
 ## --careers N plays N runs in a row from a fresh Workshop instead, spending
 ## the Coins between runs: it opens the cheapest group it can, otherwise buys
@@ -60,7 +63,7 @@ func _init() -> void:
 		waves.append(sim.wave)
 		print("%4d  %4d  %9s  %5d  %11.0f  %5.0f  %11.1f  %13s  %5.0f%%  %-9s  %s" % [index + 1, sim.wave, _clock(sim.time), sim.kills, sim.cash_earned, sim.coins,
 			sim.peak_number, "%d/%d" % [sim.dividers_spawned, sim.dividers_landed], _divider_share_of_loss(sim),
-			sim.killed_by if not sim.alive else "(alive)", _bought(sim)] + _curve(sim, options))
+			sim.killed_by if not sim.alive else "(alive)", _bought(sim)] + _curve(sim, options) + _gains(sim, options))
 	waves.sort()
 	print("median wave %d, range %d to %d" % [waves[waves.size() / 2], waves[0], waves[-1]])
 	quit()
@@ -82,7 +85,7 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 		hours += sim.time / 3600.0
 		_spend_workshop(workshop, strategy)
 		print("%3d  %4d  %9s  %5.1f  %12.0f  %10.0f  %13s  %-9s  %s" % [run + 1, sim.wave, _clock(sim.time), hours, sim.coins, workshop.coins,
-			"%d/%d" % [sim.dividers_spawned, sim.dividers_landed], sim.killed_by if not sim.alive else "(alive)", _workshop_summary(workshop)] + _curve(sim, options))
+			"%d/%d" % [sim.dividers_spawned, sim.dividers_landed], sim.killed_by if not sim.alive else "(alive)", _workshop_summary(workshop)] + _curve(sim, options) + _gains(sim, options))
 
 
 func _spend_workshop(workshop: Workshop, strategy: String) -> void:
@@ -163,6 +166,25 @@ func _curve(sim: BattleSim, options: Dictionary) -> String:
 		if int(snapshot.wave) % 5 == 0:
 			points.append("%d:%.0f" % [int(snapshot.wave), float(snapshot.health)])
 	return "  | " + " ".join(points)
+
+
+## With --gains, " | gained 312: regen 71%/88% health 29%/12%": each source's
+## share of everything gained, then of the new highs.
+func _gains(sim: BattleSim, options: Dictionary) -> String:
+	if not options.has("gains"):
+		return ""
+	var total := 0.0
+	var highs := 0.0
+	for source in sim.gained_from:
+		total += float(sim.gained_from[source])
+	for source in sim.raised_by:
+		highs += float(sim.raised_by[source])
+	var parts: Array[String] = []
+	for source in ["regen", "health", "lifesteal", "package"]:
+		if sim.gained_from.has(source):
+			parts.append("%s %.0f%%/%.0f%%" % [source, 100.0 * float(sim.gained_from[source]) / total,
+				100.0 * float(sim.raised_by.get(source, 0.0)) / highs if highs > 0.0 else 0.0])
+	return "  | gained %.0f, highs %.0f: %s" % [total, highs, " ".join(parts)]
 
 
 func _tune(sim: BattleSim, options: Dictionary) -> void:

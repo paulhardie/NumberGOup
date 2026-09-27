@@ -999,7 +999,7 @@ func test_recovery_packages_heal_past_health_up_to_max_recovery() -> void:
 			check_near(sim.health, sim.max_health() * (1.0 + sim.stat("recovery_amount")), 0.0001, "a package heals Recovery Amount's share of Health, past it")
 	check(drops > 250 and drops < 350, "about 30%% of waves drop one: %d of 1000" % drops)
 	var over := sim.health
-	sim._heal(1.0)
+	sim._heal(1.0, "regen")
 	check(sim.health >= over, "regen and lifesteal never cut an overheal")
 	sim.health = sim.max_health() * sim.stat("max_recovery")
 	for _i in range(20):
@@ -1518,15 +1518,35 @@ func test_overfill_decides_how_far_past_its_ceiling_the_number_can_rise() -> voi
 	var most := sim.max_health()
 	sim.overfill = 0.0
 	sim.health = most - 1.0
-	sim._heal(3.0)
+	sim._heal(3.0, "regen")
 	check_near(sim.health, most, 0.0, "with a ceiling, healing stops at Health")
 	sim.overfill = 0.5
 	sim.health = most - 1.0
-	sim._heal(3.0)
+	sim._heal(3.0, "regen")
 	check_near(sim.health, most + 1.0, 0.0001, "at half, what's past Health counts half")
 	sim.overfill = 1.0
-	sim._heal(4.0)
+	sim._heal(4.0, "regen")
 	check_near(sim.health, most + 5.0, 0.0001, "with none, the Number keeps rising")
+
+
+## The sim books where the Number's gains come from, and which of them set a
+## new high rather than refilling it, for measuring (sim_runs.gd --gains).
+func test_gains_are_booked_by_source_and_new_highs() -> void:
+	var sim := _quiet_sim()
+	var start := sim.health
+	sim._heal(2.0, "regen")
+	check_near(float(sim.gained_from.regen), 2.0, 0.0001, "regen's gain is booked")
+	check_near(float(sim.raised_by.regen), 2.0, 0.0001, "and, past the start, it set a new high")
+	sim.health -= 3.0
+	sim._heal(1.0, "lifesteal")
+	check_near(float(sim.gained_from.lifesteal), 1.0, 0.0001, "lifesteal's gain is booked")
+	check(not sim.raised_by.has("lifesteal"), "but refilling below the high is not a new high")
+	sim._heal(4.0, "regen")
+	check_near(float(sim.raised_by.regen), 4.0, 0.0001, "only the part past the old high counts: %s" % sim.raised_by)
+	sim.cash = 1e9
+	sim.buy("health")
+	check(float(sim.gained_from.get("health", 0.0)) > 0.0, "buying Health books its raise")
+	check(sim.health > start, "and none of this touched the battle's rules")
 
 
 func test_numbers_read_as_the_towers() -> void:

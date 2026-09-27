@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports, moved the Divider into The Tower's Protector slot (D094), restyled the battle screen to the owner's main-screen design (D095), and carried it to Home and the Workshop with the design's light and placeholders for what's coming (D096).
+**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports, moved the Divider into The Tower's Protector slot (D094), restyled the battle screen to the owner's main-screen design (D095), carried it to Home and the Workshop (D096), and measured where the Number's growth comes from (THE_NUMBER.md 5.2b).
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #85 (D095) merged. It carries D096: Home and the Workshop restyled, the design's light, no range switch. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #86 (D096) merged. It carries the gains measurement: `BattleSim` books the Number's gains by source, and `sim_runs.gd --gains` prints them. No game rule changed. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -41,18 +41,20 @@
 
 ## Open decisions for the owner
 
-1. **Sign off 1.0, or name what's missing,** after playing D094. The Tower's benchmarks hold and the Number climbs. In simulation, D094 left fresh runs as they were but a core career beat the wave-10 boss on run 9 (it was 11; The Tower's is 10–13), and ÷ landings sit about 0.3 a minute. **If that feels too easy or ÷ too rare, recommend** raising the Divider's health from 4× to 5× before its rate, since the owner set the rate's ceiling.
-2. **Game speed.** The spec calls the 1×/2×/5× switch a testing tool, yet it's half of how the owner plays. **Recommend** keeping it as a player feature, since The Tower's first hours are long.
-3. **Updates mid-run.** Two runs were lost when a merge landed while a run was saved. **Recommend** the Mac's sync job wait to update while the save holds a run in progress, and say so in its notification. It's small, and changes nothing in the game.
-4. **The lighter rebuild process** (REBUILD_SPEC.md, "Process while the rebuild is in progress"), open since 25 September. **Recommend yes.**
-5. **AGENTS.md's law 3** names a modifier pipeline that no longer exists. **Recommend** dropping it until a system needs stacked rules. Only the owner changes that file's rules.
-6. **Publishing The Tower's data** (its Workshop and enemy numbers, under the SDK's MIT licence) needs a decision before anything is public. Not urgent.
-7. **Idle play (D089)** waits for servers. Nothing is built.
-8. **Milestones and Missions** stand on Home as placeholders at the owner's request, but aren't on the roadmap. **Recommend** deciding whether they join it before 1.1, or dropping them, so a placeholder never promises something unplanned.
+1. **Regen is the star of the Number's growth** (THE_NUMBER.md 5.2b): about nine tenths of every new high, even with Lifesteal at its last level still two thirds. **Recommend** a rule of ours that makes kills feed the Number, such as enemies carrying a positive operator, measured against The Tower's benchmarks, and weighing a smaller `NUMBER_OVERFILL` so regen keeps the tower alive rather than making the Number climb. The owner asked to see the findings first.
+2. **Sign off 1.0, or name what's missing,** after playing D094. The Tower's benchmarks hold and the Number climbs. In simulation, D094 left fresh runs as they were but a core career beat the wave-10 boss on run 9 (it was 11; The Tower's is 10–13), and ÷ landings sit about 0.3 a minute. **If that feels too easy or ÷ too rare, recommend** raising the Divider's health from 4× to 5× before its rate, since the owner set the rate's ceiling.
+3. **Game speed.** The spec calls the 1×/2×/5× switch a testing tool, yet it's half of how the owner plays. **Recommend** keeping it as a player feature, since The Tower's first hours are long.
+4. **Updates mid-run.** Two runs were lost when a merge landed while a run was saved. **Recommend** the Mac's sync job wait to update while the save holds a run in progress, and say so in its notification. It's small, and changes nothing in the game.
+5. **The lighter rebuild process** (REBUILD_SPEC.md, "Process while the rebuild is in progress"), open since 25 September. **Recommend yes.**
+6. **AGENTS.md's law 3** names a modifier pipeline that no longer exists. **Recommend** dropping it until a system needs stacked rules. Only the owner changes that file's rules.
+7. **Publishing The Tower's data** (its Workshop and enemy numbers, under the SDK's MIT licence) needs a decision before anything is public. Not urgent.
+8. **Idle play (D089)** waits for servers. Nothing is built.
+9. **Milestones and Missions** stand on Home as placeholders at the owner's request, but aren't on the roadmap. **Recommend** deciding whether they join it before 1.1, or dropping them, so a placeholder never promises something unplanned.
 
 ## Next steps, in order
 
-1. **Owner:** answer decision 1. Done when 1.0 is signed off, or what's missing is named.
+1. **Owner:** decide whether kills should feed the Number (decision 1). Done when the owner says yes, no, or what else to try. On a yes, the agent prototypes a positive-operator enemy behind a `Guesses` setting and measures it with `--gains` and The Tower's benchmarks before it ships.
+1a. **Owner:** sign off 1.0 or name what's missing (decision 2).
 2. **Agent, on the owner's word:** tune the Divider's health with `sim_runs.gd --careers 40 --buy core --divider-health N` if play says so. Then raise `application/config/version` to 1.0 when the owner signs it off. `--careers` always plays the same seeds (run N is seed N), so a second career needs a seed option first.
 3. **Owner:** try the web build on a phone. The light's shader, the music and the portrait layout have never run there.
 4. **Then Cards (1.1).** Before them, split `src/ui/arena_view.gd` (509 lines: the battle, effects, the light, fonts) so effects have their own file, and consider moving the later Workshop mechanics (Wall, Mines, Orbs, Shockwave) out of `battle_sim.gd` (821 lines), per AGENTS.md's law 7.
@@ -62,6 +64,7 @@
 - **This session (27 September):**
   - `read_report.gd` on the owner's latest report: runs 20 and 21, recorded on `af32bb6`, **match** on replay. The others were recorded on older commits.
   - The report figures above come from the four exported reports, with runs deduplicated by time and seed.
+  - Gains: `bash run_tests.sh` passes (2617 checks). `sim_runs.gd --gains` on 10 seeds each of even and core, a 40-run core career, a 60-run even career, and three scratch careers opening Lifesteal free at run 31 (levels 10, 40, 80). With and without the bookkeeping, 20 core runs print identically.
   - D096: `bash run_tests.sh` passes (2610 checks); `capture_battle.gd` screenshots of Home, the Workshop's tabs, a battle, a ÷ and the run-over panel checked by eye.
   - D095: `bash run_tests.sh` passes (2604 checks); `capture_battle.gd` screenshots checked by eye at wave 1, a crowd, a ÷ landing, a large Number with the Wall up, Home and the Workshop.
   - D094: `bash run_tests.sh` passes (2604 checks). `sim_runs.gd` 20 seeds before and after, and a 40-run core career; figures in D094. Not played; the owner hasn't seen it.

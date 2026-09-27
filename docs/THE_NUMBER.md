@@ -171,8 +171,25 @@ If operator enemies move these, their share or divisor is tuned, not The Tower's
 - **Then the wall broke the way The Tower intends (27 September, a fifth report).** After the owner put 540 Coins into Workshop Damage (3 to 6) and raised Regen, the next run reached **wave 31**. It lasted 17 min 21 s and earned 302 Coins, and the Number peaked at 989. The boss ended it.
 - **In a long, strong run the ÷ becomes the main force on the Number.** In that run Dividers took 636 of about 1,600 lost (40%) with only 4 landings, because a ÷ takes a share and the Number was large. The Number went from 938 at wave 25 to 277 at wave 27, most likely two landings close together. This is the Number's intended drama, but it means **more Dividers hit strong runs hardest**. Any change to their rate must be measured on long careers, not just early waves.
 
+**5.2b Where the Number's growth comes from** (measured 27 September, `sim_runs.gd --gains`, on D094's game). The owner asked whether the player can grow visibly stronger without Number Regen being the star of the Number's growth. `BattleSim` now books every gain by source (`gained_from`) and the part of each that lifted the Number to a new high rather than refilling it (`raised_by`). The bookkeeping changes nothing: 20 core runs print identically with and without it.
+
+| Where | Regen's share of gains / of new highs | Bought Health | Lifesteal |
+|---|---|---|---|
+| Fresh runs (20 seeds, spread Cash or core) | 35–55% / 13–60% | 45–65% / 40–87% | not open |
+| Core career, runs 8–40 (Workshop Regen building up) | 87–94% / 85–94% | 6–13% | not open |
+| Spread-Coins career, runs 16–60 (it never reaches Lifesteal's 2,000 Coins) | 71–96% / 64–94% | 4–29% | not open |
+| Core career, Lifesteal opened free at run 31, level 10 (0.93%) | 82–86% / 85–89% | 6–7% | 8–10% / 6–8% |
+| The same at level 40 (2.99%, about 158K Coins of levels) | 67–73% / 73–77% | 5–6% | 22–27% / 17–21% |
+| The same at level 80, its last (4.46%, about 1.5M Coins) | 59–65% / 66–71% | 4–5% | 30–36% / 23–28% |
+
+- **Regen is the star, as the owner suspected.** From the moment the Workshop holds some Regen, about nine tenths of everything that lifts the Number to a new high is regen. Damage, Attack Speed and Range add nothing to the Number directly; they only stop it falling.
+- **Most of regen is growth, not repair.** In the core career's last runs about two thirds of all gains set a new high (run 40: 1,621 of 2,526).
+- **The Tower's own damage-to-Number row can't dethrone it in Tier 1.** Lifesteal at its last level, 1.5 million Coins away, still leaves regen two thirds of new highs. It didn't move the wave these runs end on either (31 every time).
+- **The Number's arc stands:** in the core career it peaks around waves 20–25 (run 40: 204, 379, 709, 1,153, 1,195 at waves 5–25) and falls to 900 by wave 30 as the waves outgrow regen.
+- **What this leaves open** (the owner's call, not yet decided): a rule of ours that ties the Number's growth to play, such as enemies carrying a positive operator that the Number gains on a kill, and whether regen's growth past Health (`Guesses.NUMBER_OVERFILL`) should shrink so regen keeps the tower alive while kills make the Number climb. Either needs measuring against 5.1 before it ships.
+
 **5.3 Tools.** Nothing ships on feel alone.
-- `tools/sim_runs.gd` gains columns for the peak Number, the Number by wave, losses by operator and deaths by cause.
+- `tools/sim_runs.gd` gains columns for the peak Number, the Number by wave, losses by operator and deaths by cause, and (`--gains`) where the Number's gains came from.
 - The activity report records the same, so the owner's own runs measure it too.
 - Tests cover each operator's arithmetic:
   - ÷ never reaches zero;
