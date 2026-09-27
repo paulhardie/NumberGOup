@@ -109,6 +109,7 @@ func _show_battle(saved: Dictionary = {}) -> void:
 		_log_run(battle)
 		_save())
 	battle.home_pressed.connect(_show_home)
+	battle.digit_reached.connect(func(_power: int): music.chime())
 	_swap(battle)
 
 

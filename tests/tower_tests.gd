@@ -287,7 +287,7 @@ func test_pressing_an_upgrade_card_buys_it() -> void:
 	check(screen._health_text.text.begins_with("1 / "), "a tower still standing never reads 0: %s" % screen._health_text.text)
 	screen.sim.health = screen.sim.max_health() * 1.5
 	screen._refresh()
-	check(screen._health_text.text.begins_with(Palette.number(roundf(screen.sim.health))), "overhealed health reads above the most: %s" % screen._health_text.text)
+	check(screen._health_text.text.begins_with(Palette.full(roundf(screen.sim.health))), "overhealed health reads above the most: %s" % screen._health_text.text)
 	check(screen._health_bar.value == screen._health_bar.max_value, "and the bar is full")
 	screen._upgrades.show_tab("utility")
 	check(screen._upgrades._cards.is_empty() and screen._upgrades._empty.visible, "Utility says its rows open in the Workshop")
@@ -1726,6 +1726,11 @@ func test_numbers_read_as_the_towers() -> void:
 	check(Palette.number(402.9) == "402", "whole past 100")
 	check(Palette.number(1460.0) == "1.46K", "K past a thousand")
 	check(Palette.number(7.42e8) == "742.00M", "M past a million")
+	# The Number itself is written out in full below a million (D100).
+	check(Palette.full(2.35) == "2.35" and Palette.full(402.9) == "402", "the Number reads as number() while small")
+	check(Palette.full(1460.0) == "1,460" and Palette.full(999999.4) == "999,999", "and in full, with commas, up to 999,999")
+	check(Palette.full(12345.9) == "12,345" and Palette.full(-5000.0) == "-5,000", "whole, never rounded up past what it is")
+	check(Palette.full(1e6) == "1.00M" and Palette.full(7.42e8) == "742.00M", "shortening only from a million")
 
 
 ## An enemy is one number (D085): its health while it walks in, what each hit
@@ -1761,13 +1766,73 @@ func test_an_enemy_shows_one_number() -> void:
 	var preview := ArenaView.divider_preview(sim)
 	var expected := sim.health - sim.divide_loss(1.5)
 	check(preview.get("sign") == "÷1.5", "the nearest in range is previewed: %s" % preview)
-	check(preview.get("after") == Palette.number(Palette.number_shown(expected, sim.max_health(), true)), "with what it will leave: %s" % preview)
+	check(preview.get("after") == Palette.full(Palette.number_shown(expected, sim.max_health(), true)), "with what it will leave: %s" % preview)
 	sim.enemies.erase(far)
 	sim._divide(near)
-	check(Palette.number(Palette.number_shown(sim.health, sim.max_health(), true)) == preview.after, "and the landing leaves exactly that: %s" % sim.health)
+	check(Palette.full(Palette.number_shown(sim.health, sim.max_health(), true)) == preview.after, "and the landing leaves exactly that: %s" % sim.health)
 
 
 ## The light behind the Number (D087) flares for a ÷ and fades back to white.
+## A new digit (D099) is a moment the first time a run reaches it: 10, 100,
+## 1K. Falling back and climbing past it again isn't; a new or resumed run
+## starts from where its Number stands.
+func test_a_new_digit_is_a_moment_once_a_run() -> void:
+	check(ArenaView.power_of(9.4) == 0 and ArenaView.power_of(9.6) == 1 and ArenaView.power_of(100.0) == 2, "9 has no noughts; 10 (shown whole) has one; 100 two")
+	check(ArenaView.power_of(999.0) == 2 and ArenaView.power_of(1000.0) == 3 and ArenaView.power_of(1e15) == 15, "and on, however big")
+	var arena := ArenaView.new()
+	var reached: Array[int] = []
+	arena.digit_reached.connect(func(power: int): reached.append(power))
+	var sim := _quiet_sim()
+	sim.peak_number = 8.0
+	arena.sim = sim
+	arena.absorb([], 0.0)
+	check(reached.is_empty(), "a run starts from where its Number stands")
+	sim.peak_number = 12.0
+	arena.absorb([], 0.1)
+	check(reached == [1] and arena._digit_left > 0.0 and arena._flare.get("colour") == Palette.NUMBER, "reaching 10 is a moment: the light flares white: %s" % [reached])
+	arena.absorb([], ArenaView.DIGIT_SECONDS)
+	check(arena._digit_left == 0.0, "which passes")
+	sim.peak_number = 1200.0
+	arena.absorb([], 0.1)
+	check(reached == [1, 3], "a jump past two digits at once is one moment, for the new one: %s" % [reached])
+	arena.absorb([], 0.1)
+	check(reached == [1, 3], "and it doesn't repeat")
+	var resumed := _quiet_sim()
+	resumed.peak_number = 5000.0
+	arena.sim = resumed
+	arena.absorb([], 0.1)
+	check(reached == [1, 3], "a resumed or new run doesn't celebrate what it already had")
+	arena.free()
+
+	var music := AmbientMusic.new()
+	root.add_child(music)
+	await process_frame
+	await process_frame
+	var before := music._voices.size()
+	music.chime()
+	await create_timer(AmbientMusic.CHIME_GAP_SECONDS * AmbientMusic.CHIME_NOTES + 0.1).timeout
+	check(music._voices.size() >= before + AmbientMusic.CHIME_NOTES, "the music chimes a run of notes: %d → %d" % [before, music._voices.size()])
+	music.set_playing(false)
+	music.chime()
+	await create_timer(AmbientMusic.CHIME_GAP_SECONDS * AmbientMusic.CHIME_NOTES + 0.1).timeout
+	check(music._voices.is_empty(), "and stays silent while the music is off")
+	music.queue_free()
+	await process_frame
+
+	var game = _game()
+	await process_frame
+	game._show_battle()
+	await process_frame
+	game.music.set_playing(true)
+	var voices: int = game.music._voices.size()
+	game._screen.digit_reached.emit(2)
+	await create_timer(AmbientMusic.CHIME_GAP_SECONDS * AmbientMusic.CHIME_NOTES + 0.1).timeout
+	check(game.music._voices.size() > voices, "a battle's new digit reaches the music")
+	game.free()
+	_clear_test_saves()
+	_clear_test_logs()
+
+
 func test_the_light_behind_the_number_flares_and_fades() -> void:
 	var arena := ArenaView.new()
 	var divider := BattleSim.Enemy.new()

@@ -111,6 +111,30 @@ func _capture() -> void:
 	divided.queue_free()
 	await process_frame
 
+	# The moment the Number reaches a new digit (D099), a moment after it lands.
+	var digits := BattleScreen.new()
+	var climbing := Workshop.new()
+	climbing.levels = {"damage": 25, "attack_speed": 10, "health": 20, "health_regen": 30}
+	digits.workshop = climbing
+	root.add_child(digits)
+	await process_frame
+	digits.start_run(5)
+	digits.set_process(false)
+	var reached := [false]
+	digits._arena.digit_reached.connect(func(_power: int): reached[0] = true)
+	digits._arena.absorb([], 0.0)
+	while digits.sim.alive and not reached[0] and digits.sim.time < 3600.0:
+		digits.sim.step()
+		digits.sim.events.clear()
+		digits._arena.absorb([], 0.0)
+	digits._arena.absorb([], 0.15)
+	digits._refresh()
+	digits._arena.queue_redraw()
+	await _frames()
+	_save_png("battle_new_digit")
+	digits.queue_free()
+	await process_frame
+
 	# A Multiplier (D097) walking in, then the moment one is killed, with the
 	# other two tests (D098) on too, so kills' "+" shows.
 	var multiplied := BattleScreen.new()

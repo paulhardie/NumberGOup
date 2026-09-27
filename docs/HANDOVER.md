@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports, moved the Divider into The Tower's Protector slot (D094), restyled the battle screen to the owner's main-screen design (D095), carried it to Home and the Workshop (D096), measured where the Number's growth comes from (THE_NUMBER.md 5.2b), built the Multiplier as a switch to test, with free Coins and a reset for testing (D097), and added two more switches, regen stopping at the Number's best and kills growing it (D098).
+**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports, moved the Divider into The Tower's Protector slot (D094), restyled the battle screen to the owner's main-screen design (D095), carried it to Home and the Workshop (D096), measured where the Number's growth comes from (THE_NUMBER.md 5.2b), built the Multiplier as a switch to test, with free Coins and a reset for testing (D097), added two more switches, regen stopping at the Number's best and kills growing it (D098), made each new digit a moment (D099), and wrote the Number out in full below a million (D100).
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #86 (D096) merged. It carries the gains measurement (`sim_runs.gd --gains`) D097 (the Multiplier switch, free Coins, Reset progress) and D098 (the regen-at-best and kill-growth switches), all under Settings → Testing and off by default. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #87 (D097, D098) merged. It carries D099 (new-digit moments) and D100 (the Number in full). Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -51,6 +51,8 @@
 8. **Idle play (D089)** waits for servers. Nothing is built.
 9. **Milestones and Missions** stand on Home as placeholders at the owner's request, but aren't on the roadmap. **Recommend** deciding whether they join it before 1.1, or dropping them, so a placeholder never promises something unplanned.
 
+10. **The Number as its own hitbox** (the owner's idea, 27 September): more digits, a bigger target, so enemies reach it sooner, and a Number kept at 1 is a glass-cannon build. **Recommend** prototyping it as a testing switch before deciding: it makes a bigger Number cost something, which works against "number go up" unless the cost stays mild. It also changes how the Number is drawn, since its size would have to match its hitbox rather than shrink to fit. Rough scale: a seven-digit Number might grow the hitbox from about 1 m to about 7 m, a fifth less time in the 30 m range.
+
 ## Next steps, in order
 
 1. **Owner:** play runs with Settings → Testing's switches in a few combinations (none; regen at best and kills; all three), using free Coins or a reset to try different stages. Done when the owner says which to keep.
@@ -64,6 +66,8 @@
 - **This session (27 September):**
   - `read_report.gd` on the owner's latest report: runs 20 and 21, recorded on `af32bb6`, **match** on replay. The others were recorded on older commits.
   - The report figures above come from the four exported reports, with runs deduplicated by time and seed.
+  - D100: `bash run_tests.sh` passes (2796 checks); captures of 5, 1,000 (its moment), 12,863 and 27,976 checked by eye.
+  - D099: `bash run_tests.sh` passes (2792 checks), and `capture_battle.gd`'s `battle_new_digit` was checked by eye. The chime was tested for its notes and silence, not listened to.
   - D098: `bash run_tests.sh` passes (2781 checks). The grid in D098: each switch alone, both, and all three, on 20-seed fresh runs (40 for core) and 40-run core careers, plus kill shares of 3%, 5%, 7% and 10%. With every switch off, 20 core runs print identically.
   - D097: `bash run_tests.sh` passes (2768 checks). `sim_runs.gd --multipliers --gains` measurements are in D097. With the switch off, 20 core runs print identically to before. `capture_battle.gd` now also shoots a Multiplier walking in and one killed, both checked by eye.
   - Gains: `bash run_tests.sh` passes (2617 checks). `sim_runs.gd --gains` on 10 seeds each of even and core, a 40-run core career, a 60-run even career, and three scratch careers opening Lifesteal free at run 31 (levels 10, 40, 80). With and without the bookkeeping, 20 core runs print identically.
@@ -91,7 +95,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D098), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D100), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.

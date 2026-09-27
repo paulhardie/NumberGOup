@@ -24,6 +24,11 @@ const PAD_DB := -31.0
 const GLASS_SECONDS := Vector2(5.0, 14.0)
 const GLASS_DB := -29.0
 const GLASS_RING_SECONDS := 7.0
+## A new digit (D099) rings a rising run of glassy notes from the chord
+## sounding now, this far apart and this much louder than a lone one.
+const CHIME_NOTES := 3
+const CHIME_GAP_SECONDS := 0.16
+const CHIME_LIFT_DB := 4.0
 const HISS_DB := -40.0
 ## The whole thing sits a little flat and wobbles like a slowed tape.
 const TAPE_FLAT := 0.985
@@ -142,20 +147,46 @@ func _change_chord() -> void:
 
 ## A glassy note from the chord sounding now, high up, ringing and dying away.
 func _ring_glass() -> void:
-	if _chord_index < 0:
+	var choices := _glass_notes()
+	if choices.is_empty():
 		return
+	_glass_note(choices[_rng.randi_range(0, choices.size() - 1)], GLASS_DB + _rng.randf_range(-4.0, 0.0))
+
+
+## The Number reached a new digit (D099): the chord's glassy notes, rising,
+## a little louder than the lone ones. Silent while the music is off.
+func chime() -> void:
+	if not _playing or not is_inside_tree():
+		return
+	var notes := _glass_notes()
+	notes.sort()
+	for index in range(mini(CHIME_NOTES, notes.size())):
+		var note: int = notes[index]
+		get_tree().create_timer(CHIME_GAP_SECONDS * index).timeout.connect(func():
+			if _playing:
+				# Struck, not swelled: a chime starts at once.
+				_glass_note(note, GLASS_DB + CHIME_LIFT_DB, 0.03))
+
+
+## The chord's tones lifted into the glassy notes' range, as MIDI notes.
+func _glass_notes() -> Array[int]:
 	var choices: Array[int] = []
+	if _chord_index < 0:
+		return choices
 	for note in CHORDS[_chord_index]:
 		var high: int = note
 		while high < GLASS_RANGE.x:
 			high += 12
-		if high <= GLASS_RANGE.y:
+		if high <= GLASS_RANGE.y and not choices.has(high):
 			choices.append(high)
-	if choices.is_empty():
-		return
-	var voice := _voice(_glass, _pitch(choices[_rng.randi_range(0, choices.size() - 1)], 0.0))
+	return choices
+
+
+## One glassy note, rising to `level_db` over `attack` seconds and dying away.
+func _glass_note(midi: int, level_db: float, attack := 0.35) -> void:
+	var voice := _voice(_glass, _pitch(midi, 0.0))
 	var ring: Tween = voice.player.create_tween()
-	ring.tween_property(voice.player, "volume_db", GLASS_DB + _rng.randf_range(-4.0, 0.0), 0.35)
+	ring.tween_property(voice.player, "volume_db", level_db, attack)
 	ring.tween_property(voice.player, "volume_db", SILENT_DB, GLASS_RING_SECONDS * _rng.randf_range(0.7, 1.3)).set_ease(Tween.EASE_OUT)
 	ring.tween_callback(voice.player.queue_free)
 
