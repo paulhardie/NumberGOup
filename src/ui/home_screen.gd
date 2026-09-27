@@ -20,6 +20,12 @@ signal workshop_pressed
 signal export_pressed
 ## A setting was changed here, to be written.
 signal settings_changed
+## Testing (D097): free Coins for the Workshop, and a fresh start.
+signal test_coins_pressed(amount: float)
+signal reset_pressed
+
+## The free Coins the testing buttons give.
+const TEST_COINS := [1000.0, 100000.0]
 
 ## The best Number, large and thin in the light, as the battle draws the Number.
 const EMBLEM_HEIGHT := 230
@@ -33,6 +39,9 @@ var _best_number: Label
 var _coin_bonus: Label
 var _best_wave: Label
 var _settings_panel: PanelContainer
+var _reset: Button
+## Reset asks twice: the first press arms it, the second resets.
+var _reset_armed := false
 ## A line under the Battle button: where a report went, or what happened to a run.
 var _note: Label
 var _light: ColorRect
@@ -233,7 +242,10 @@ func _build_settings() -> void:
 	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	head.add_child(heading)
 	var close := Palette.pill("Close", Palette.SOFT, null, 30)
-	close.pressed.connect(func(): _settings_panel.visible = false)
+	close.pressed.connect(func():
+		_settings_panel.visible = false
+		_reset_armed = false
+		_reset.text = "Reset progress")
 	head.add_child(close)
 	column.add_child(Palette.hairline())
 	var music_toggle := CheckButton.new()
@@ -253,6 +265,7 @@ func _build_settings() -> void:
 		_settings_panel.visible = false
 		export_pressed.emit())
 	column.add_child(export)
+	_build_testing(column)
 	# The roadmap version and the commit (D079), so a screenshot or a report
 	# says which build it came from.
 	var build := Label.new()
@@ -262,6 +275,55 @@ func _build_settings() -> void:
 	build.add_theme_color_override("font_color", Palette.MUTED)
 	build.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(build)
+
+
+## Testing, for the owner and the agents while the game is built (D097): the
+## Multiplier switch, free Coins, and a reset to a fresh Workshop. None of it
+## is meant to ship as it is.
+func _build_testing(column: VBoxContainer) -> void:
+	column.add_child(Palette.hairline())
+	var heading := Label.new()
+	heading.text = "Testing"
+	heading.add_theme_font_size_override("font_size", 12)
+	heading.add_theme_color_override("font_color", Palette.MUTED)
+	column.add_child(heading)
+	# Each switch is one of Settings' tests; a new battle plays by them.
+	for test in [["multipliers", "Multiplier enemies"], ["peak_regen", "Regen stops at your best"], ["kill_growth", "Kills grow the Number"]]:
+		var toggle := CheckButton.new()
+		toggle.text = test[1]
+		toggle.button_pressed = settings.get(test[0])
+		toggle.add_theme_color_override("font_color", Palette.TEXT)
+		toggle.add_theme_color_override("font_hover_color", Palette.TEXT)
+		toggle.add_theme_color_override("font_pressed_color", Palette.TEXT)
+		toggle.toggled.connect(func(on: bool):
+			settings.set(test[0], on)
+			settings_changed.emit())
+		column.add_child(toggle)
+	var gifts := HBoxContainer.new()
+	gifts.add_theme_constant_override("separation", 8)
+	column.add_child(gifts)
+	for amount in TEST_COINS:
+		var gift := Palette.pill("+● " + Palette.number(amount), Palette.COIN, _mono, 32)
+		gift.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		gift.pressed.connect(func():
+			test_coins_pressed.emit(amount)
+			refresh())
+		gifts.add_child(gift)
+	_reset = Palette.pill("Reset progress", Palette.WARNING, null, 32)
+	_reset.pressed.connect(_press_reset)
+	column.add_child(_reset)
+
+
+## The first press asks; the second, while it's asking, resets.
+func _press_reset() -> void:
+	if not _reset_armed:
+		_reset_armed = true
+		_reset.text = "Press again to wipe the Workshop"
+		return
+	_reset_armed = false
+	_reset.text = "Reset progress"
+	_settings_panel.visible = false
+	reset_pressed.emit()
 
 
 ## A card of the home column: a quiet panel with its lines centred.

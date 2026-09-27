@@ -1270,3 +1270,48 @@ Rules:
   - The shared pieces (pills, tabs, cards, the money line, hairlines) live in `palette.gd`, and the theme's plain button is now a quiet card, so the run-over panel matches too.
 - **Consequences:** D087's smoke and D088's range switch are withdrawn. Tests: the range test became one that an old settings file loads and loses `show_range`, and one covers the bar and the placeholders.
 - **Revisit when:** a placeholder's system is built (it replaces the placeholder), or the owner designs a screen of their own.
+
+## D097 — The Multiplier, as a switch to test; free Coins and a reset for testing
+
+- **Status:** Accepted (2026-09-27) on owner direction. After the gains measurement (THE_NUMBER.md 5.2b), the owner wasn't sure whether kills feeding the Number would be more fun, agreed to a switch they can flip, and added: "If you need to add a switch that unlocks free coins for testing purposes that's fine. Would be handy for me as well in testing, as well as a reset progress button so we can start from a fresh account if needed."
+- **Decision:**
+  - **The Multiplier**, the Divider's mirror (`Guesses.MULTIPLIER`), comes only when the player turns on "Multiplier enemies" in Settings → Testing (`Settings.multipliers`, off by default).
+  - **Where it comes:** it takes one of a wave's basics, a different one from the Divider's, at most once a wave. From wave 3 it comes a third of one a wave, rising to half by wave 30.
+  - **What it does:** it shows its factor, ×1.1 rising to ×1.2 in steps of 0.05, in the operators' typeface in a bright mint. Kill it and the Number is multiplied, past Health too, with a mint flare and "×1.1 +42" over the Number. If it reaches the Number it's used up for nothing.
+  - **What it costs:** it has 3× a basic's health and pays a basic's Cash and Coins.
+  - **Off, the game is exactly as before.** The Multiplier draws from its own random stream only when on; 20 core runs print identically. The run's record keeps the switch (`start.multipliers`), so a saved run resumes with it.
+  - **Testing, in Settings:** +1K and +100K Coins, logged as `test_coins` so a report never counts them as earned. Reset progress asks twice, then gives a fresh Workshop and keeps the wiped one in the log (`progress_reset`). Settings survive a reset. `read_report.gd` prints both.
+- **Measured** (`sim_runs.gd --multipliers --gains`):
+  - **Benchmarks hold.** Fresh runs: buying nothing median wave 3 (2–5); spreading Cash 8 (5–10). Core over 40 seeds is within noise (4 runs worse, 3 better, one wave in all).
+  - **Careers progress the same.** A 40-run core career beats the wave-10 boss on run 9 and first reaches wave 30 on run 21, as without it, with 2% more Coins.
+  - **The Number's growth changes.** From run 15, Multipliers make 30–50% of new highs and regen drops to about half. Peaks rise (run 39: 2,115 against 1,121), and the Number holds higher at wave 30 (1,532 against 872). The career kills 70–100% of its Multipliers.
+- **Consequences:** the Testing section isn't meant to ship. Remove or hide it before anything goes public. Whether the Multiplier stays, changes or goes is the owner's call after playing with it.
+- **Revisit when:** the owner has played runs both ways.
+
+## D098 — Regen stops at your best, and kills grow the Number: two more switches to test
+
+- **Status:** Accepted (2026-09-27) on owner direction ("Yes go for it"). The owner proposed that regen only catch the Number back up to its best; a GPT brainstorm the owner shared proposed growth from defeating waves. We agreed to test both as switches next to the Multiplier (D097), with one change to the brainstorm: an enemy that reaches you forfeits its share, so damage and range, not just surviving, make the Number climb.
+- **Decision:** two more switches under Settings → Testing, both off by default, kept in the settings file and in each run's record (`start.switches`, replacing D097's `start.multipliers` before it merged).
+  - **Regen stops at your best** (`peak_regen`). Regen refills the Number in full up to the higher of Health and the run's peak, and past it only at `Guesses.PEAK_REGEN_DRIFT` (0 for now). Lifesteal, bought Health, kills and Multipliers can still set new highs.
+  - **Kills grow the Number** (`kill_growth`). An enemy killed before it lands a hit adds `Guesses.KILL_GROWTH` (5%) of its Attack to the Number, past Health too. One that has hit you adds nothing. The gains of one frame show as a single mint "+" at the Number's upper left, mirroring the hit float on the right.
+  - **Off, the battle is unchanged:** 20 core runs print identically.
+- **Measured** (`sim_runs.gd`, fresh runs of 20 seeds, 40 for core, and 40-run core careers; "new highs" is each source's share of the gains that set a new best):
+
+| Switches | Buy nothing / spread / core | Boss beaten / wave 30 first on run | Run 40's Number at waves 10, 20, 30 | New highs from |
+|---|---|---|---|---|
+| None | 3 / 8 / 7 | 9 / 21 | 379, 1,153, 900 | regen 93% |
+| Regen stops at best | 3 / 8 / 5 | 12 / 30 | 71, 115, 12 | Health 98% (stalls) |
+| Kills grow (10%) | 3 / 10 / 9 | 9 / 20 | 403, 1,296, 1,077 | regen 83%, kills 10% |
+| Both, kills at 10% | 3 / 10 / 7 | 9 / 25 | 105, 252, 353 | kills 67%, Health 33% |
+| Both, kills at 5% (the default) | — / 8 / 6 | 11 / 25 | 83, 176, 224 | kills 49%, Health 51% |
+| All three, kills at 5% | 3 / 9 / 6 | 11 / 25 | 91, 273, 434 | Multipliers 45%, Health 30%, kills 25% |
+
+- **What it shows:**
+  - Regen stopping at your best needs another source of growth, or the Number stalls and the career slows badly.
+  - Kills without it barely matter, because regen still makes most of the growth.
+  - Together they do what was asked. Regen makes no new highs, only restores, and kills and bought Health share the growth. The Number climbs through the whole run instead of peaking at wave 20–25 and falling.
+  - A 10% share broke The Tower's early benchmark (spreading Cash reached wave 10). At 5% it holds at 8, with all three on at 9.
+  - The Number is smaller: at wave 30 about 224–434 against 900.
+  - The boss falls on run 11 (The Tower's is 10–13), and wave 30 comes four runs later than without.
+- **Consequences:** Settings → Testing has three switches. None ships as it is. The owner plays combinations and says which to keep.
+- **Revisit when:** the owner has played them.

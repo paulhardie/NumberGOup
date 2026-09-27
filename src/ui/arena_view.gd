@@ -69,6 +69,8 @@ const LOOKS := {
 	"boss": {"axes": {"wdth": 150, "wght": 900}, "size": 24, "colour": Palette.BOSS, "glow": Palette.BOSS_GLOW, "flash": Palette.BOSS_GLOW},
 	"divider": {"axes": {"opsz": 48, "wght": 640, "WONK": 0, "SOFT": 0}, "divider": true, "size": 18, "colour": Palette.DIVIDER,
 		"glow": Palette.DIVIDER},
+	"multiplier": {"axes": {"opsz": 48, "wght": 640, "WONK": 0, "SOFT": 0}, "divider": true, "size": 18, "colour": Palette.MULTIPLIER,
+		"glow": Palette.MULTIPLIER},
 }
 ## A hit lights the outline this colour, unless the type says otherwise.
 const FLASH := Color("f4f3ef")
@@ -183,8 +185,10 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 	_chips = _chips.filter(func(chip): return chip.age < CHIP_SECONDS)
 	_ease_shoves(delta)
 	_ranged_shots = _ranged_shots.filter(func(shot): return shot.age < RANGED_SHOT_SECONDS)
-	# Flat hits in one frame show as one "−" at the Number, not a pile.
+	# Flat hits in one frame show as one "−" at the Number, not a pile, and
+	# growth from kills (D098) as one "+".
 	var hit_total := 0.0
+	var grown_total := 0.0
 	for event in events:
 		match event.type:
 			"kill":
@@ -210,6 +214,13 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 					flare(Palette.DIVIDER, DIVIDE_FLARE, DIVIDE_FLARE_SECONDS)
 					_floats.append({"parts": [[sign, _divide_cut, 22], ["  −" + Palette.number(float(event.damage)), _mono_cut, 15]], "anchor": "above",
 						"age": 0.0, "colour": Palette.DIVIDER, "life": DIVIDE_FLOAT_SECONDS, "rise": DIVIDE_FLOAT_RISE_PX, "divide": true})
+			"grown":
+				grown_total += float(event.gain)
+			"multiplied":
+				# The × in the operators' typeface, what it added in the Number's.
+				flare(Palette.MULTIPLIER, DIVIDE_FLARE, DIVIDE_FLARE_SECONDS)
+				_floats.append({"parts": [["×" + _divisor_text(event.factor), _divide_cut, 22], ["  +" + Palette.number(float(event.gain)), _mono_cut, 15]],
+					"anchor": "above", "age": 0.0, "colour": Palette.MULTIPLIER, "life": DIVIDE_FLOAT_SECONDS, "rise": DIVIDE_FLOAT_RISE_PX, "divide": true})
 			"free_upgrade":
 				var name := String(TowerData.upgrade(event.id).title).capitalize()
 				_floats.append({"text": "Free: " + name, "anchor": "above", "age": 0.0, "colour": Palette.COIN})
@@ -227,6 +238,9 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 				_shockwave_age = 0.0
 			"mine":
 				_blasts.append({"at": event.at, "age": 0.0})
+	if grown_total > 0.0:
+		_floats.append({"text": "+" + Palette.number(grown_total), "anchor": "growing", "age": 0.0, "colour": Palette.ACCENT, "size": 12,
+			"font": _hit_cut})
 	if hit_total > 0.0:
 		# Beside the Number's shoulder, as the design has it, never over its digits.
 		_floats.append({"text": "−" + Palette.number(hit_total), "anchor": "beside", "age": 0.0, "colour": Palette.HIT, "size": 12,
@@ -259,6 +273,8 @@ func _float_start(item: Dictionary) -> Vector2:
 			return centre + Vector2(0, -_number_half.y - 8.0)
 		"beside":
 			return centre + Vector2(_number_half.x + 48.0, -_number_half.y * 0.55)
+		"growing":
+			return centre + Vector2(-_number_half.x - 48.0, -_number_half.y * 0.55)
 	return to_view(item.at)
 
 
@@ -490,6 +506,9 @@ func _enemy_at(angle: float, distance_m: float, half: Vector2) -> Vector2:
 ## what each hit takes once it has arrived and is hitting. A Divider never
 ## stands and hits, so it always shows its health; the preview carries its ÷.
 static func shown_text(battle: BattleSim, enemy: BattleSim.Enemy) -> String:
+	# A Multiplier shows what killing it is worth, the reason to.
+	if enemy.kind == "multiplier":
+		return "×" + _divisor_text(enemy.factor)
 	if enemy.kind != "divider" and enemy.arrived():
 		return operation_text(battle, enemy)
 	return Palette.enemy_health(enemy.health)

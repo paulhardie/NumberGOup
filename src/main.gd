@@ -72,6 +72,12 @@ func _show_home() -> HomeScreen:
 	home.settings_changed.connect(func():
 		music.set_playing(settings.music)
 		settings.write(settings_path))
+	home.test_coins_pressed.connect(func(amount: float):
+		workshop.add_coins(amount)
+		# Logged, so a report never mistakes free Coins for earned ones.
+		ActivityLog.append({"kind": "test_coins", "amount": amount, "coins_left": workshop.coins}, log_path)
+		_save())
+	home.reset_pressed.connect(_reset_progress)
 	home.battle_pressed.connect(_show_battle)
 	home.workshop_pressed.connect(_show_workshop)
 	home.export_pressed.connect(func():
@@ -81,6 +87,15 @@ func _show_home() -> HomeScreen:
 			OS.shell_show_in_file_manager(ProjectSettings.globalize_path(String(result.path))))
 	_swap(home)
 	return home
+
+
+## Testing (D097): back to a fresh Workshop, as a new player has. The log
+## keeps what was wiped, so the reports still add up; settings stay.
+func _reset_progress() -> void:
+	ActivityLog.append({"kind": "progress_reset", "workshop": workshop.to_dict()}, log_path)
+	workshop = Workshop.new()
+	_save()
+	_show_home().show_note("Progress reset: a fresh Workshop.")
 
 
 ## A new run, or the saved one to resume.

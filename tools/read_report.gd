@@ -92,6 +92,10 @@ func _print_workshop(entries: Array) -> void:
 				spent[entry.id] = float(spent.get(entry.id, 0.0)) + float(entry.cost)
 			"workshop_open":
 				opened.append("%s (%s, %s)" % [entry.group, _n(entry.cost), entry.get("at", "?")])
+			"test_coins":
+				print("Test Coins given: %s (%s)" % [_n(entry.amount), entry.get("at", "?")])
+			"progress_reset":
+				print("Progress reset (%s): the Workshop had %s Coins and %d runs" % [entry.get("at", "?"), _n(entry.workshop.get("coins", 0)), int(entry.workshop.get("runs", 0))])
 	print("\nGroups opened: %s" % (", ".join(opened) if not opened.is_empty() else "none"))
 	var rows := spent.keys()
 	rows.sort_custom(func(a, b): return spent[a] > spent[b])
