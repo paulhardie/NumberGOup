@@ -1457,6 +1457,7 @@ Rules:
   - Orbs circle at `Guesses.ORB_MIN_RADIUS_M` (60 m), plus `Guesses.ORB_RANGE_SLOPE` (0.5, ours) of every metre of Range past 60 m. At The Tower's largest Range (69.5 m) that is about 65 m.
   - They still kill instantly within `Guesses.ORB_HIT_M` (3 m, ours), and `Guesses.ORB_IMMUNE` stays the boss.
   - The view zooms out to keep the orbs' circle on screen as well as the Range (D101), so opening orbs zooms the battle out.
+  - Orb Speed's Workshop description says turns a minute, regenerated through `tools/import_tower_workshop.py` (which reproduced the committed data exactly first).
 - **Measured** (the Workshop a 40-run core career ends with, 20 seeds, median wave), trying how close an orb must come:
 
 | An orb reaches | None | 1, slowest | 2, Orb Speed 10 | 4, Orb Speed 20 | 4, fastest |
