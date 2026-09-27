@@ -2,11 +2,14 @@ extends Control
 ## The Workshop between runs: Attack, Defense and Utility tabs of permanent
 ## levels bought with Coins. As in The Tower, a tab shows only the next group
 ## it opens, as one big Unlock card, never the ones after it. The rules are
-## the Workshop's; this only shows and asks.
+## the Workshop's; this only shows and asks. It wears the main screen's look
+## (D095, D096): Coins over a title, underlined tabs, quiet cards, and the bar
+## back to Home along the bottom.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 const Palette = preload("res://src/ui/palette.gd")
+const NavBar = preload("res://src/ui/nav_bar.gd")
 
 ## A purchase or an opened group, so the game can save.
 signal changed
@@ -27,6 +30,8 @@ var _coins: Label
 var _list: VBoxContainer
 ## Refreshed every frame: [{button, refresh: Callable}].
 var _cards: Array[Dictionary] = []
+var _mono := Palette.weight(Palette.NUMBER_FONT, 400)
+var _mono_bold := Palette.weight(Palette.NUMBER_FONT, 500)
 
 
 func _ready() -> void:
@@ -36,47 +41,46 @@ func _ready() -> void:
 	ground.color = Palette.GROUND
 	ground.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(ground)
+	var screen := VBoxContainer.new()
+	screen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	screen.add_theme_constant_override("separation", 0)
+	add_child(screen)
 	var margin := MarginContainer.new()
-	margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	for side in ["left", "right", "top", "bottom"]:
-		margin.add_theme_constant_override("margin_" + side, 12)
-	add_child(margin)
+	margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	for side in ["left", "right", "top"]:
+		margin.add_theme_constant_override("margin_" + side, 20)
+	margin.add_theme_constant_override("margin_bottom", 12)
+	screen.add_child(margin)
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 10)
+	column.add_theme_constant_override("separation", 14)
 	margin.add_child(column)
 
-	var header := HBoxContainer.new()
-	column.add_child(header)
-	var home := Button.new()
-	home.text = "Home"
-	home.pressed.connect(func(): home_pressed.emit())
-	header.add_child(home)
+	var top := HBoxContainer.new()
+	top.custom_minimum_size = Vector2(0, 36)
+	column.add_child(top)
+	var money := Palette.money_line(_mono_bold, false)
+	top.add_child(money.line)
+	_coins = money.coins
 	var title := Label.new()
 	title.text = "Workshop"
-	title.add_theme_font_size_override("font_size", 20)
-	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header.add_child(title)
-	_coins = Label.new()
-	_coins.add_theme_font_override("font", Palette.NUMBER_FONT)
-	_coins.add_theme_font_size_override("font_size", 18)
-	_coins.add_theme_color_override("font_color", Palette.COIN)
-	header.add_child(_coins)
+	title.add_theme_font_size_override("font_size", 22)
+	column.add_child(title)
+	column.add_child(Palette.hairline())
 
 	var tabs := HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 8)
+	tabs.add_theme_constant_override("separation", 22)
 	column.add_child(tabs)
 	for tab in TABS:
 		var button := Button.new()
 		button.text = tab[0]
-		button.toggle_mode = true
-		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		Palette.style_tab(button)
 		button.pressed.connect(show_tab.bind(tab[1]))
 		tabs.add_child(button)
 		_tab_buttons[tab[1]] = button
-	_amount_button = Button.new()
-	_amount_button.custom_minimum_size = Vector2(88, 0)
-	_amount_button.add_theme_font_override("font", Palette.NUMBER_FONT)
+	var gap := Control.new()
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tabs.add_child(gap)
+	_amount_button = Palette.amount_pill(_mono)
 	_amount_button.pressed.connect(_next_amount)
 	tabs.add_child(_amount_button)
 
@@ -88,6 +92,13 @@ func _ready() -> void:
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.add_theme_constant_override("separation", 8)
 	scroll.add_child(_list)
+
+	var nav := NavBar.new("workshop")
+	nav.chosen.connect(func(id: String):
+		if id == "battle":
+			home_pressed.emit())
+	screen.add_child(Palette.hairline())
+	screen.add_child(nav)
 	show_tab(_tab)
 
 
@@ -104,6 +115,7 @@ func show_tab(tab: String) -> void:
 	_cards.clear()
 	var grid := GridContainer.new()
 	grid.columns = 2
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	grid.add_theme_constant_override("h_separation", 8)
 	grid.add_theme_constant_override("v_separation", 8)
 	_list.add_child(grid)
@@ -124,8 +136,8 @@ func _next_amount() -> void:
 
 
 func refresh() -> void:
-	_coins.text = "● " + Palette.number(workshop.coins)
-	_amount_button.text = "Buy Max" if _amount == 0 else "Buy ×%d" % _amount
+	_coins.text = Palette.number(workshop.coins)
+	_amount_button.text = "buy max" if _amount == 0 else "buy ×%d" % _amount
 	for card in _cards:
 		card.refresh.call()
 
@@ -133,7 +145,7 @@ func refresh() -> void:
 ## One row: its value, its level and the Coins the multiplier's press costs.
 func _row_card(id: String) -> Button:
 	var button := _card_button()
-	var parts := _card_parts(button, String(TowerData.upgrade(id).title).capitalize())
+	var parts := _card_parts(button, Palette.row_title(id))
 	button.pressed.connect(func():
 		var coins_before := workshop.coins
 		var from := workshop.level(id)
@@ -146,7 +158,8 @@ func _row_card(id: String) -> Button:
 		var maxed := workshop.level(id) >= TowerData.max_level(id)
 		var affordable := workshop.can_buy(id, _amount)
 		parts.value.text = Palette.row_value(id, TowerData.value(id, workshop.level(id)))
-		parts.detail.text = "Lv %d · %s" % [workshop.level(id), "MAX" if maxed else Palette.quote(workshop.plan(id, _amount), workshop.price(id), "● ")]
+		parts.level.text = "Lv %d" % workshop.level(id)
+		parts.detail.text = "MAX" if maxed else Palette.quote(workshop.plan(id, _amount), workshop.price(id), "● ")
 		button.disabled = not affordable
 		parts.detail.add_theme_color_override("font_color", Palette.COIN if affordable else Palette.MUTED)})
 	return button
@@ -156,27 +169,31 @@ func _row_card(id: String) -> Button:
 ## Coins. The groups after it stay hidden until it is open.
 func _unlock_card(group: String) -> Button:
 	var button := Button.new()
-	button.custom_minimum_size = Vector2(0, 96)
+	button.custom_minimum_size = Vector2(0, 88)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	Palette.style_card(button)
 	var column := VBoxContainer.new()
 	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	column.offset_left = 14
+	column.offset_right = -14
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	column.add_theme_constant_override("separation", 2)
+	column.add_theme_constant_override("separation", 4)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(column)
 	var names: Array[String] = []
 	for row in TowerData.group_rows(group):
-		names.append(String(TowerData.upgrade(row).title).capitalize())
+		names.append(Palette.row_title(row))
 	var opens := Label.new()
 	opens.text = " · ".join(names)
+	opens.add_theme_font_size_override("font_size", 12)
 	opens.add_theme_color_override("font_color", Palette.MUTED)
 	opens.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	opens.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	opens.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(opens)
 	var unlock := Label.new()
-	unlock.add_theme_font_override("font", Palette.NUMBER_FONT)
-	unlock.add_theme_font_size_override("font_size", 22)
+	unlock.add_theme_font_override("font", _mono)
+	unlock.add_theme_font_size_override("font_size", 18)
 	unlock.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	unlock.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	unlock.text = "Unlock  ● " + Palette.number(TowerData.group_price(group))
@@ -195,44 +212,57 @@ func _unlock_card(group: String) -> Button:
 
 func _card_button() -> Button:
 	var button := Button.new()
-	button.custom_minimum_size = Vector2(0, 62)
+	button.custom_minimum_size = Vector2(0, 76)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	Palette.style_card(button)
 	return button
 
 
-## Lays out a card's name on the left and its two numbers on the right.
+## Lays out a card as the battle's are: the row's name small at the top, its
+## value large at the bottom left, and its level over the Coins its press
+## costs at the bottom right.
 func _card_parts(button: Button, title: String) -> Dictionary:
-	var line := HBoxContainer.new()
-	line.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	line.offset_left = 12
-	line.offset_right = -12
-	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	button.add_child(line)
+	var inside := VBoxContainer.new()
+	inside.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	inside.offset_left = 14
+	inside.offset_right = -14
+	inside.offset_top = 12
+	inside.offset_bottom = -12
+	inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(inside)
+	var head := HBoxContainer.new()
+	head.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	head.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inside.add_child(head)
 	var name_label := Label.new()
 	name_label.text = title
-	name_label.add_theme_font_size_override("font_size", 13)
+	name_label.add_theme_font_size_override("font_size", 12)
+	name_label.add_theme_color_override("font_color", Palette.MUTED)
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	line.add_child(name_label)
-	var numbers := VBoxContainer.new()
-	numbers.alignment = BoxContainer.ALIGNMENT_CENTER
-	numbers.add_theme_constant_override("separation", 0)
-	numbers.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	line.add_child(numbers)
-	var value := _number_label(15, Palette.TEXT)
-	var detail := _number_label(12, Palette.MUTED)
-	numbers.add_child(value)
-	numbers.add_child(detail)
-	return {"value": value, "detail": detail}
+	head.add_child(name_label)
+	var level := _number_label(11, Palette.MUTED)
+	level.vertical_alignment = VERTICAL_ALIGNMENT_TOP
+	head.add_child(level)
+	var line := HBoxContainer.new()
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inside.add_child(line)
+	var value := _number_label(18, Palette.TEXT)
+	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	var detail := _number_label(12, Palette.COIN)
+	line.add_child(value)
+	line.add_child(detail)
+	return {"value": value, "detail": detail, "level": level}
 
 
 func _number_label(font_size: int, colour: Color) -> Label:
 	var label := Label.new()
-	label.add_theme_font_override("font", Palette.NUMBER_FONT)
+	label.add_theme_font_override("font", _mono)
 	label.add_theme_font_size_override("font_size", font_size)
 	label.add_theme_color_override("font_color", colour)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label

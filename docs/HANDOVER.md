@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports, moved the Divider into The Tower's Protector slot (D094), and restyled the battle screen to the owner's main-screen design (D095).
+**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session read the owner's first activity reports, moved the Divider into The Tower's Protector slot (D094), restyled the battle screen to the owner's main-screen design (D095), and carried it to Home and the Workshop with the design's light and placeholders for what's coming (D096).
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #84 (D094) merged. It carries D095, the battle screen's new look. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #85 (D095) merged. It carries D096: Home and the Workshop restyled, the design's light, no range switch. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -19,12 +19,12 @@
 
 **Version 0.9, with all of 1.0's Number built.**
 
-- **The battle.** Tier 1, with every one of The Tower's Workshop groups working (D076). The Number sits in the centre as the tower, white, with no ceiling (D083), large and thin, labelled Health, in a soft light that swirls with smoke (D087), inside a faint ring at the range. The screen follows the owner's main-screen design (D095): pill buttons, hairline readouts, underlined tabs and quiet cards, on near-black.
+- **The battle.** Tier 1, with every one of The Tower's Workshop groups working (D076). The Number sits in the centre as the tower, white, with no ceiling (D083), large and thin, in the design's soft warm light that breathes (D096), inside a faint ring at the range. The screen follows the owner's main-screen design (D095): pill buttons, hairline readouts, underlined tabs and quiet cards, on near-black.
 - **Enemies.** The Tower's enemies subtract. A Divider divides the Number: ÷1.25, then ÷1.5 from wave 18. It takes the Protector's slot, replacing a basic, so waves are The Tower's size: one every third wave from wave 5 (the first on wave 7), every other wave by wave 30 (D094). The nearest one in range is previewed above the Number (D086).
 - **Enemies as numbers** (D085, D086). Each type has its own typeface and colour. An enemy shows its health while it walks in, then its hit once it arrives.
 - **Shots** have trails, hits chip the enemies' numbers, and knockback slides (D090).
 - **Sound.** No combat sounds (D091). Generative ambient music plays across every screen (D092).
-- **Home.** Two switches, Show range (off) and Music (on), kept in the settings file `user://number_go_up_settings.json` (D088).
+- **Home and the Workshop** wear the same look, with a bar along the bottom (D096). Home follows The Tower's: Coins, the best Number in its light, the Coin bonus, the tier, Battle. Cards, Labs, Weapons, Missions, Milestones and the tier arrows stand locked as placeholders. Settings (Music, Export report) opens over Home and is kept in `user://number_go_up_settings.json` (D088).
 - **Saving, resuming and the report.** The save is `user://number_go_up_tower.json`, version 1. A run closed mid-way resumes by replay (D078). Every run and Workshop buy is logged, and Home exports a report (D077).
 - **The owner has played it:** 37 runs in the Workshop, and reports exported on 26 and 27 September. Not yet on a phone or the web build.
 
@@ -48,13 +48,13 @@
 5. **AGENTS.md's law 3** names a modifier pipeline that no longer exists. **Recommend** dropping it until a system needs stacked rules. Only the owner changes that file's rules.
 6. **Publishing The Tower's data** (its Workshop and enemy numbers, under the SDK's MIT licence) needs a decision before anything is public. Not urgent.
 7. **Idle play (D089)** waits for servers. Nothing is built.
-8. **Home, the Workshop and the run-over panel** still wear the older button style beside the new battle screen. **Recommend** carrying D095's pills, cards and tabs over to them, since they're one small pass with no design choices left open.
+8. **Milestones and Missions** stand on Home as placeholders at the owner's request, but aren't on the roadmap. **Recommend** deciding whether they join it before 1.1, or dropping them, so a placeholder never promises something unplanned.
 
 ## Next steps, in order
 
 1. **Owner:** answer decision 1. Done when 1.0 is signed off, or what's missing is named.
 2. **Agent, on the owner's word:** tune the Divider's health with `sim_runs.gd --careers 40 --buy core --divider-health N` if play says so. Then raise `application/config/version` to 1.0 when the owner signs it off. `--careers` always plays the same seeds (run N is seed N), so a second career needs a seed option first.
-3. **Owner:** try the web build on a phone. The smoke shader, the music and the portrait layout have never run there.
+3. **Owner:** try the web build on a phone. The light's shader, the music and the portrait layout have never run there.
 4. **Then Cards (1.1).** Before them, split `src/ui/arena_view.gd` (509 lines: the battle, effects, the light, fonts) so effects have their own file, and consider moving the later Workshop mechanics (Wall, Mines, Orbs, Shockwave) out of `battle_sim.gd` (821 lines), per AGENTS.md's law 7.
 
 ## How to measure
@@ -62,6 +62,7 @@
 - **This session (27 September):**
   - `read_report.gd` on the owner's latest report: runs 20 and 21, recorded on `af32bb6`, **match** on replay. The others were recorded on older commits.
   - The report figures above come from the four exported reports, with runs deduplicated by time and seed.
+  - D096: `bash run_tests.sh` passes (2610 checks); `capture_battle.gd` screenshots of Home, the Workshop's tabs, a battle, a ÷ and the run-over panel checked by eye.
   - D095: `bash run_tests.sh` passes (2604 checks); `capture_battle.gd` screenshots checked by eye at wave 1, a crowd, a ÷ landing, a large Number with the Wall up, Home and the Workshop.
   - D094: `bash run_tests.sh` passes (2604 checks). `sim_runs.gd` 20 seeds before and after, and a 40-run core career; figures in D094. Not played; the owner hasn't seen it.
 - **The tools:** `bash run_tests.sh` (the baseline); `sim_runs.gd` for balance; `capture_battle.gd` for screenshots; `record_music.gd` for the music; `read_report.gd` for the owner's runs. AGENTS.md's Commands has their options.
@@ -77,13 +78,13 @@
 - **The D076 mechanics use our guesses where The Tower is silent** (the spec's Guesses): the Wall's distance, mines, shockwaves. None is reachable in the first hours.
 - **Resuming replays the whole run,** about 4.6 s per hour of game time. Several-hour runs, and idle play, will need a battle-state snapshot instead.
 - **Enemies bunch at the Number:** those on the same side overlap. It's worth watching in play.
-- **The smoke shader and the music are unmeasured on a phone.**
+- **The light's shader and the music are unmeasured on a phone.**
 - Past wave 6,500 the enemy data holds its last value.
 
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D095), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D096), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.
