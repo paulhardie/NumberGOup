@@ -55,6 +55,7 @@
 1. **Owner:** play `main`, and export a report. Say too how the light behind the Number feels (strength, size, grain, the breathing), and the range's haze with Show range on, whether the enemy types read at a glance, whether the flip from health to hit reads, whether the ÷ preview is noticed in time, and how the crowd bunched at the Number looks. Say whether the Number in the centre and the ÷ moments feel right, and how often they come. Done when the owner has played it.
 2. **Agent:** read the report. It records each run's peak Number, what Dividers took, and how many came and landed. Tune `Guesses.DIVIDER` from it with `sim_runs.gd` against the benchmarks (THE_NUMBER.md 5).
 3. **Owner, then:** sign off 1.0, or name what's missing. After that comes Cards (1.1).
+4. **Shot feel, which the owner asked to look at next (27 September).** Shots today are 2–3 pt dots flying at 80 m/s (`Guesses.SHOT_SPEED_M`, ours), homing so they never miss, lost if their target dies first; a knockback moves an enemy back in one tick; nothing is drawn at impact, and the game has no sound. Recommended order: drawing first (trails, a small burst on impact, a knockback that eases back), which changes no rule; then sound; and only then, measured with `sim_runs.gd`, the shot speed itself, which is balance (slower shots waste more on overkill).
 
 ## How to measure
 
