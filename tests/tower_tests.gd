@@ -16,6 +16,7 @@ const Save = preload("res://src/tower/save.gd")
 const RunReport = preload("res://src/tower/run_report.gd")
 const ActivityLog = preload("res://src/tower/activity_log.gd")
 const HomeScreen = preload("res://src/ui/home_screen.gd")
+const NavBar = preload("res://src/ui/nav_bar.gd")
 const Main = preload("res://src/main.gd")
 const Settings = preload("res://src/settings.gd")
 const AmbientMusic = preload("res://src/ui/ambient_music.gd")
@@ -1590,52 +1591,63 @@ func test_the_light_behind_the_number_flares_and_fades() -> void:
 	arena.free()
 
 
-## The player's settings (D088): the range is off unless they turn it on, and
-## the choice outlives the game closing, apart from the save.
-func test_the_range_shows_only_when_the_player_asks() -> void:
+## The player's settings (D088) outlive the game closing, apart from the save.
+## The range has no switch any more (D096): an older file's "show_range" is
+## ignored and dropped when the file is next written.
+func test_settings_drop_the_old_range_switch() -> void:
 	DirAccess.remove_absolute(TEST_SETTINGS)
+	var file := FileAccess.open(TEST_SETTINGS, FileAccess.WRITE)
+	file.store_string('{"version": 1, "show_range": true, "music": false}')
+	file.close()
 	var settings := Settings.new()
 	settings.read(TEST_SETTINGS)
-	check(not settings.show_range, "the range is off by default")
-	settings.show_range = true
-	check(settings.write(TEST_SETTINGS), "the settings are written")
-	var again := Settings.new()
-	again.read(TEST_SETTINGS)
-	check(again.show_range, "and read back on")
-	var file := FileAccess.open(TEST_SETTINGS, FileAccess.WRITE)
-	file.store_string("{not json")
-	file.close()
-	var broken := Settings.new()
-	broken.read(TEST_SETTINGS)
-	check(not broken.show_range, "a damaged file falls back to off")
-	file = FileAccess.open(TEST_SETTINGS, FileAccess.WRITE)
-	file.store_string('{"version": 1, "show_range": "yes"}')
-	file.close()
-	broken.read(TEST_SETTINGS)
-	check(not broken.show_range, "so does a value of the wrong kind")
+	check(not settings.music, "an older file with the range switch still reads")
+	check(settings.write(TEST_SETTINGS), "and is written")
+	var written := FileAccess.get_file_as_string(TEST_SETTINGS)
+	check(not written.contains("show_range"), "without the range switch: %s" % written)
 	DirAccess.remove_absolute(TEST_SETTINGS)
-
 	var home := HomeScreen.new()
 	home.workshop = Workshop.new()
-	var chosen := Settings.new()
-	home.settings = chosen
-	var changed := [0]
-	home.settings_changed.connect(func(): changed[0] += 1)
 	root.add_child(home)
 	await process_frame
 	var toggles := home.find_children("*", "CheckButton", true, false).filter(func(toggle): return toggle.text == "Show range")
-	check(toggles.size() == 1 and not (toggles[0] as CheckButton).button_pressed, "Home has the range switch, off")
-	(toggles[0] as CheckButton).button_pressed = true
-	check(chosen.show_range and changed[0] == 1, "turning it on changes the setting, to be written")
+	check(toggles.is_empty(), "Home has no range switch")
 	home.queue_free()
 	await process_frame
 
-	var screen := BattleScreen.new()
-	screen.settings = chosen
-	root.add_child(screen)
+
+## Home and the Workshop share a bar along the bottom (D096): Battle and the
+## Workshop take the player there, and the roadmap's later screens stand
+## locked with the version that brings them. Home's other placeholders are
+## locked too.
+func test_the_bottom_bar_and_placeholders() -> void:
+	var home := HomeScreen.new()
+	home.workshop = Workshop.new()
+	root.add_child(home)
 	await process_frame
-	check(screen._arena.show_range, "and the battle shows the range")
-	screen.queue_free()
+	var bars := home.find_children("*", "HBoxContainer", true, false).filter(func(node): return node is NavBar)
+	check(bars.size() == 1, "Home has the bar")
+	var bar: NavBar = bars[0]
+	for id in ["cards", "labs", "weapons"]:
+		check(bar.buttons[id].disabled, "%s is locked for now" % id)
+	var went := [""]
+	home.workshop_pressed.connect(func(): went[0] = "workshop")
+	bar.buttons["workshop"].pressed.emit()
+	check(went[0] == "workshop", "the bar takes Home to the Workshop")
+	for name in ["Missions", "Milestones", "‹", "›"]:
+		var found := home.find_children("*", "Button", true, false).filter(func(button): return button.text == name)
+		check(found.size() == 1 and found[0].disabled, "%s stands locked" % name)
+	home.queue_free()
+	var shop = WorkshopScreen.new()
+	shop.workshop = Workshop.new()
+	root.add_child(shop)
+	await process_frame
+	var back := [false]
+	shop.home_pressed.connect(func(): back[0] = true)
+	var shop_bar: NavBar = shop.find_children("*", "HBoxContainer", true, false).filter(func(node): return node is NavBar)[0]
+	shop_bar.buttons["battle"].pressed.emit()
+	check(back[0], "and the Workshop's takes it back Home")
+	shop.queue_free()
 	await process_frame
 
 
@@ -1684,10 +1696,10 @@ func test_the_music_plays_unless_the_player_turns_it_off() -> void:
 	settings.read(TEST_SETTINGS)
 	check(settings.music, "music is on by default")
 	var file := FileAccess.open(TEST_SETTINGS, FileAccess.WRITE)
-	file.store_string('{"version": 1, "show_range": true}')
+	file.store_string('{"version": 1}')
 	file.close()
 	settings.read(TEST_SETTINGS)
-	check(settings.music and settings.show_range, "a settings file from before music still reads, with music on")
+	check(settings.music, "a settings file from before music still reads, with music on")
 	settings.music = false
 	settings.write(TEST_SETTINGS)
 	var again := Settings.new()

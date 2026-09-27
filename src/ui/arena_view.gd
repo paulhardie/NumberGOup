@@ -18,9 +18,6 @@ const RANGE_SHARE := 0.64
 const NUMBER_FONT_PX := 96
 const NUMBER_FIT_PX := 150.0
 const NUMBER_MIN_PX := 40
-## The word under the Number, in small spaced capitals.
-const NUMBER_LABEL := "HEALTH"
-const NUMBER_LABEL_PX := 11
 ## The range as the design draws its ring: a hairline, barely there.
 const RANGE_LINE := Color(1, 1, 1, 0.06)
 ## Enemies at the tower are drawn this clear of the Number's digits, which is
@@ -38,14 +35,12 @@ const HIT_FLASH_SECONDS := 0.05
 const POP_SECONDS := 0.12
 ## A ranged enemy's shot shows as a line to the Number for this long.
 const RANGED_SHOT_SECONDS := 0.2
-## The light behind the Number (D087): white, breathing gently over this
-## many seconds between these strengths, over this radius.
-const GLOW_BREATH_SECONDS := 4.0
-const GLOW_STRENGTH := 0.22
-const GLOW_BREATH := 0.15
-const GLOW_RADIUS_PX := 110.0
+## The light behind the Number, as the design draws it (D096): a halo that
+## breathes over this many seconds, and a ÷ flaring it violet, this much
+## stronger, fading over DIVIDE_FLARE_SECONDS.
+const GLOW_BREATH_SECONDS := 5.5
 ## A ÷ flares the light violet, this much stronger, fading over this long.
-const DIVIDE_FLARE := 0.5
+const DIVIDE_FLARE := 1.5
 const DIVIDE_FLARE_SECONDS := 0.8
 ## Shot feel (D090), drawing only: a shot's trail in points, longer on a
 ## critical; the chips a hit knocks off an enemy's number, how many, how fast
@@ -59,8 +54,6 @@ const CHIP_SPEED_PX := 70.0
 const CHIP_SECONDS := 0.25
 const MAX_CHIPS := 240
 const SHOVE_EASE := 14.0
-## The range, when shown: a haze this strong at its edge (D088).
-const RANGE_HAZE := 0.1
 ## A ÷ float lasts longer and rises further than the others.
 const DIVIDE_FLOAT_SECONDS := 1.2
 const DIVIDE_FLOAT_RISE_PX := 30.0
@@ -81,9 +74,6 @@ const LOOKS := {
 const FLASH := Color("f4f3ef")
 
 var sim: BattleSim
-## A faint band of light at the range's edge, when the player asks for it
-## (D088), over the hairline ring that is always drawn (D095).
-var show_range := false
 ## How far between the sim's last tick and its current one to draw things.
 var blend := 1.0
 ## Where the tower stands, in the view.
@@ -111,7 +101,6 @@ var _ranged_shots: Array[Dictionary] = []
 ## The fonts each enemy type is drawn in, built once from LOOKS.
 var _cuts := {}
 var _number_cut := _cut(Palette.WORD_FONT, {"wght": 200})
-var _label_cut := _cut(Palette.WORD_FONT, {"wght": 400}, 0.0, 2)
 var _mono_cut := _cut(Palette.NUMBER_FONT, {"wght": 500})
 var _hit_cut := _cut(Palette.NUMBER_FONT, {"wght": 400})
 var _divide_cut := _cut(Palette.DIVIDER_FONT, LOOKS.divider.axes)
@@ -120,11 +109,9 @@ var _divide_cut := _cut(Palette.DIVIDER_FONT, LOOKS.divider.axes)
 var _glow := ColorRect.new()
 var _flare := {}
 var _glow_time := 0.0
-## Half the Number's drawn width, and how far its digits reach above the
-## centre and its label below, this frame: the box enemies at the tower stand
-## clear of, and floats start from.
+## Half the Number's drawn width and height this frame: the box enemies at
+## the tower stand clear of, and floats start from.
 var _number_half := Vector2.ZERO
-var _number_below := 0.0
 
 
 func _init() -> void:
@@ -279,7 +266,7 @@ func _draw() -> void:
 	if sim == null:
 		return
 	var reach_px := sim.stat("range") * px_per_metre()
-	_light_glow(reach_px)
+	_light_glow()
 	draw_arc(centre, reach_px, 0.0, TAU, 128, RANGE_LINE, 1.0, true)
 	if _shockwave_age < SHOCKWAVE_SECONDS:
 		# The ring runs out to the edge of range and fades as it goes.
@@ -296,7 +283,7 @@ func _draw() -> void:
 		# Brighter the more of its health it has left. Drawn clear of a large
 		# Number rather than through its digits, as the enemies stopped at it are.
 		var standing := sim.wall_health / maxf(sim.wall_max_health(), 0.001)
-		var wall_px := maxf(Guesses.WALL_DISTANCE_M * px_per_metre(), Vector2(_number_half.x, _number_below).length() + 6.0)
+		var wall_px := maxf(Guesses.WALL_DISTANCE_M * px_per_metre(), _number_half.length() + 6.0)
 		draw_arc(centre, wall_px, 0.0, TAU, 64, Color(Palette.TEXT, 0.25 + 0.5 * standing), 3.0, true)
 	for shot in _ranged_shots:
 		# The ranged enemy's shot: a dotted line in its colour to the Number.
@@ -342,17 +329,14 @@ func _number_layout() -> Dictionary:
 	while font_size > NUMBER_MIN_PX and _number_cut.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > NUMBER_FIT_PX:
 		font_size -= 2
 	var width := _number_cut.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
-	# Digits stand about 0.7 of the font size tall, centred; the label hangs below.
-	var label_baseline := font_size * 0.35 + maxf(18.0, font_size * 0.3)
+	# Digits stand about 0.7 of the font size tall.
 	_number_half = Vector2(width * 0.5, font_size * 0.35)
-	_number_below = label_baseline + 2.0
-	return {"text": text, "size": font_size, "width": width, "label_baseline": label_baseline}
+	return {"text": text, "size": font_size, "width": width}
 
 
 ## The tower is the Number (D084), drawn over everything but the floats: the
 ## most important thing on screen (D085). White and thin, with a soft light of
-## its own inside the swirling one behind it (D087), and its label beneath;
-## it shakes when a ÷ lands.
+## its own inside the one behind it (D096); it shakes when a ÷ lands.
 func _draw_tower(number: Dictionary) -> void:
 	var shake := Vector2.ZERO
 	if _divide_left > 0.0:
@@ -365,29 +349,24 @@ func _draw_tower(number: Dictionary) -> void:
 	for glow in [[22, 0.025], [12, 0.04], [5, 0.06]]:
 		draw_string_outline(_number_cut, baseline, number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, glow[0], Color(1.0, 0.98, 0.94, glow[1]))
 	draw_string(_number_cut, baseline, number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Palette.NUMBER)
-	var label_width := _label_cut.get_string_size(NUMBER_LABEL, HORIZONTAL_ALIGNMENT_LEFT, -1, NUMBER_LABEL_PX).x
-	draw_string(_label_cut, at + Vector2(-label_width * 0.5, number.label_baseline), NUMBER_LABEL, HORIZONTAL_ALIGNMENT_LEFT, -1, NUMBER_LABEL_PX, Palette.MUTED)
 
 
-## Sets the light behind the Number for this frame: white, breathing slowly,
-## tinted and brightened by a flare while one fades, and the range's haze at
-## `reach_px` when it's shown.
-func _light_glow(reach_px: float) -> void:
-	var breath := sin(_glow_time * TAU / GLOW_BREATH_SECONDS)
-	var strength := GLOW_STRENGTH * (1.0 + GLOW_BREATH * breath)
-	var tint := Color.WHITE
+## Sets the light behind the Number for this frame: breathing slowly, tinted
+## and brightened by a flare while one fades.
+func _light_glow() -> void:
+	var tint := Palette.LIGHT
+	var strength := 1.0
 	if not _flare.is_empty():
 		var left: float = _flare.left / _flare.seconds
 		strength += _flare.strength * left
-		tint = Color.WHITE.lerp(_flare.colour, left)
+		tint = Palette.LIGHT.lerp(_flare.colour, left)
 	var light := _glow.material as ShaderMaterial
 	light.set_shader_parameter("centre_px", centre)
 	light.set_shader_parameter("rect_px", size)
-	light.set_shader_parameter("radius_px", GLOW_RADIUS_PX)
 	light.set_shader_parameter("tint", tint)
 	light.set_shader_parameter("strength", strength)
-	light.set_shader_parameter("range_px", reach_px)
-	light.set_shader_parameter("range_strength", RANGE_HAZE if show_range else 0.0)
+	# Eased in and out, as the design's breathing is.
+	light.set_shader_parameter("breath", 0.5 - 0.5 * cos(_glow_time * TAU / GLOW_BREATH_SECONDS))
 
 
 ## An enemy is one number (D085): its health, counting down as it's shot,
@@ -497,9 +476,7 @@ func _enemy_half(kind: String, text: String) -> Vector2:
 ## the Number's digits on its own side.
 func _enemy_at(angle: float, distance_m: float, half: Vector2) -> Vector2:
 	var toward := Vector2.from_angle(angle)
-	# The Number's box reaches further below it, where its label hangs.
-	var reach := Vector2(_number_half.x, _number_below if toward.y > 0.0 else _number_half.y)
-	var clear := reach + half + Vector2(CONTACT_GAP_PX, CONTACT_GAP_PX)
+	var clear := _number_half + half + Vector2(CONTACT_GAP_PX, CONTACT_GAP_PX)
 	# The nearest it can come along its line without the two boxes touching.
 	var nearest := INF
 	if absf(toward.x) > 0.001:

@@ -1121,6 +1121,7 @@ Rules:
 
 ## D087 — A white Number in its own light, on black
 
+- **Superseded in part by D096:** the smoke, motes and grain gave way to the owner's design's light, and D095 lifted the ground off pure black.
 - **Status:** Accepted (2026-09-26) on owner direction, and implemented the same day on `claude/dazzling-gates-54ahbr`. Supersedes D084's colour states for the Number and D049's near-black ground.
   - The owner: "I want the middle number to be white, and I want a pure black background, with that almost grainy white light behind it. Think about the orange light that pulses behind the suno logo, but white, and gentle pulsing behind the main number, to give a slightly cinematic feel."
   - Then, to moving the Number's states into the light: "yes, go. The glow should be white, but I have ideas on how we can use the light behind the number for some future ultimate weapons, and also hit states etc".
@@ -1137,6 +1138,7 @@ Rules:
 
 ## D088 — No range ring, unless the player asks, and settings of their own
 
+- **Superseded in part by D096:** the Show range switch and its haze are gone; the range is always the hairline ring of D095. The settings file stays.
 - **Status:** Accepted (2026-09-26) on owner direction, and implemented the same day on `claude/dazzling-gates-54ahbr`. The owner: "I say we get rid of the range ring. It spoils the aesthetic in my opinion. I think it's off by default, but if the user opts into it, I'd want a more subtle atmospheric range line".
 - **Decision:**
   1. **The range ring is gone by default.** The arena is the Number in its light on black (D087), with nothing drawn at the range's edge.
@@ -1253,3 +1255,18 @@ Rules:
   - **Upgrades:** Attack, Defense and Utility as underlined words, "buy ×1" as a quiet pill, and cards 76 px tall with the row's name small at the top, its value large at the bottom left and its price at the bottom right. Row names are in sentence case ("Damage / meter").
 - **Consequences:** the Number's bigger box keeps arriving enemies further out on screen; drawing only, the sim is unchanged. The run-over panel, Home and the Workshop keep the older button style for now.
 - **Revisit when:** the owner designs Home, the Workshop or the run-over panel, or sees it on a phone.
+
+## D096 — Home and the Workshop in the main screen's look; the design's light; no range switch
+
+- **Status:** Accepted (2026-09-27) on owner direction, after D095 merged: "carry the style over to home and workshop", "I don't want the swirl that you have behind the number. Have it look like the one in the files I gave you", "remove the word health from below the number", "Remove the % counter of each wave ticking up", "Align the cash and coins better … Make them the same font size", Home after The Tower's own home screen with "placeholder stuff that we will likely need in future", and "Remove the show range feature, as I am happy with the current range bar".
+- **Decision:**
+  - **The light** is the design's, replacing D087's smoke, motes and grain. A warm-white (`#FFF4E6`) halo breathes over 5.5 s, growing 5% and brightening from 82%, with a soft bloom at its heart (`number_glow.gdshader`). A ÷ still flares it violet. Home uses the same light behind the best Number.
+  - **The battle:** no word under the Number, and no percentage on the wave (its bar alone shows the wave's progress). Cash and Coins sit on one line at one size (18 px, Geist Mono 500), centred on the pills.
+  - **No Show range switch.** D088's switch and haze are gone; the hairline ring (D095) is the range, always. The settings file drops `show_range` the next time it's written and ignores it until then.
+  - **Home**, after The Tower's home: Coins and the Missions and Settings pills on top, the game's name over the best Number in its light, Milestones, a Coin bonus card (the Workshop's real Coins / kill bonus), a Difficulty card (Tier 1 with its arrows, best wave and runs), the Battle button, and the bottom bar. Settings opens over the screen with Music, Export report and the build line.
+  - **The Workshop:** Coins over a "Workshop" title, underlined tabs and the buy pill, cards like the battle's (name and level at the top, value and Coin price at the bottom), the Unlock card as a quiet card, and the bottom bar in place of the Home button.
+  - **A bottom bar** on Home and the Workshop (`src/ui/nav_bar.gd`): Battle, Workshop, and the roadmap's Cards (1.1), Labs (1.2) and Weapons (1.3) shown locked with their version. The battle has no bar.
+  - **Placeholders stand locked and do nothing:** Missions, Milestones and the tier arrows, besides the bar's three. Milestones and Missions are The Tower's, not on our roadmap (D079). They're here because the owner asked for what we'll likely need, not because a system is planned.
+  - The shared pieces (pills, tabs, cards, the money line, hairlines) live in `palette.gd`, and the theme's plain button is now a quiet card, so the run-over panel matches too.
+- **Consequences:** D087's smoke and D088's range switch are withdrawn. Tests: the range test became one that an old settings file loads and loses `show_range`, and one covers the bar and the placeholders.
+- **Revisit when:** a placeholder's system is built (it replaces the placeholder), or the owner designs a screen of their own.

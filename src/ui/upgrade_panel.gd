@@ -37,33 +37,14 @@ func _init() -> void:
 	for tab in TABS:
 		var button := Button.new()
 		button.text = tab[0]
-		button.toggle_mode = true
-		button.custom_minimum_size = Vector2(0, 44)
-		button.add_theme_font_size_override("font_size", 14)
-		for state in ["normal", "hover", "focus", "disabled"]:
-			button.add_theme_stylebox_override(state, _underline(Color(0, 0, 0, 0)))
-		button.add_theme_stylebox_override("pressed", _underline(Palette.ACCENT))
-		button.add_theme_stylebox_override("hover_pressed", _underline(Palette.ACCENT))
-		button.add_theme_color_override("font_color", Palette.MUTED)
-		button.add_theme_color_override("font_hover_color", Palette.SOFT)
-		button.add_theme_color_override("font_pressed_color", Palette.TEXT)
-		button.add_theme_color_override("font_hover_pressed_color", Palette.TEXT)
-		button.add_theme_color_override("font_focus_color", Palette.MUTED)
+		Palette.style_tab(button)
 		button.pressed.connect(show_tab.bind(tab[1]))
 		tabs.add_child(button)
 		_tab_buttons[tab[1]] = button
 	var gap := Control.new()
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tabs.add_child(gap)
-	_amount_button = Button.new()
-	_amount_button.custom_minimum_size = Vector2(0, 30)
-	_amount_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	_amount_button.add_theme_font_override("font", _mono)
-	_amount_button.add_theme_font_size_override("font_size", 12)
-	for state in ["normal", "hover", "pressed", "focus"]:
-		_amount_button.add_theme_stylebox_override(state, Palette.pill_box(Color(1, 1, 1, 0.09 if state == "hover" else 0.05), Color(0, 0, 0, 0), 12))
-	for colour in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-		_amount_button.add_theme_color_override(colour, Palette.SOFT)
+	_amount_button = Palette.amount_pill(_mono)
 	_amount_button.text = "buy ×1"
 	_amount_button.pressed.connect(func():
 		_amount = AMOUNTS[(AMOUNTS.find(_amount) + 1) % AMOUNTS.size()]
@@ -127,11 +108,7 @@ func _card(id: String) -> Button:
 	var button := Button.new()
 	button.custom_minimum_size = Vector2(0, CARD_HEIGHT)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.add_theme_stylebox_override("normal", Palette.card_box())
-	button.add_theme_stylebox_override("disabled", Palette.card_box())
-	button.add_theme_stylebox_override("focus", Palette.card_box(Color(0, 0, 0, 0), Color(0, 0, 0, 0)))
-	button.add_theme_stylebox_override("hover", Palette.card_box(Palette.SURFACE, Color(1, 1, 1, 0.12)))
-	button.add_theme_stylebox_override("pressed", Palette.card_box(Color("101012"), Color(1, 1, 1, 0.12)))
+	Palette.style_card(button)
 	button.pressed.connect(func():
 		sim.buy(id, _amount)
 		refresh())
@@ -162,17 +139,6 @@ func _card(id: String) -> Button:
 	line.add_child(price)
 	_cards[id] = {"button": button, "value": value, "price": price}
 	return button
-
-
-## A tab's box: nothing but a line under it, in `colour`.
-static func _underline(colour: Color) -> StyleBoxFlat:
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0, 0, 0, 0)
-	box.border_color = colour
-	box.border_width_bottom = 2
-	box.content_margin_left = 0
-	box.content_margin_right = 0
-	return box
 
 
 func _number_label(font_size: int, colour: Color) -> Label:

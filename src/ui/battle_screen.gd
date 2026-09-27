@@ -60,7 +60,6 @@ var _tower_regen: Label
 var _health_bar: ProgressBar
 var _health_text: Label
 var _wave_title: Label
-var _wave_done: Label
 var _enemy_attack: Label
 var _enemy_health: Label
 var _wave_bar: ProgressBar
@@ -216,7 +215,6 @@ func _refresh() -> void:
 	_health_text.text = "%s / %s" % [Palette.number(now), Palette.number(maxf(now, roundf(sim.peak_number)))]
 	_wave_title.text = "Wave %d" % sim.wave
 	var through := clampf(sim.wave_clock / TowerData.wave_seconds(), 0.0, 1.0)
-	_wave_done.text = "%d%%" % int(through * 100.0)
 	# The basic enemy's Attack and Health this wave, as values, not multipliers.
 	_enemy_attack.text = "atk " + Palette.number(sim.enemy_attack_now("basic"))
 	_enemy_health.text = "hp " + Palette.number(sim.enemy_health_now("basic"))
@@ -258,50 +256,37 @@ func _build() -> void:
 	add_child(column)
 
 	_arena = ArenaView.new()
-	_arena.show_range = settings != null and settings.show_range
 	_arena.clip_contents = true
 	_arena.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_arena.custom_minimum_size = Vector2(0, 320)
 	_arena.resized.connect(func(): _arena.centre = Vector2(_arena.size.x * 0.5, _arena.size.y * 0.55))
 	column.add_child(_arena)
 
-	# Cash and Coins top left, the speed and End run pills top right, over the arena.
-	var money := VBoxContainer.new()
-	money.position = Vector2(20, 20)
-	money.add_theme_constant_override("separation", 6)
-	_arena.add_child(money)
-	var cash_line := HBoxContainer.new()
-	cash_line.add_theme_constant_override("separation", 10)
-	money.add_child(cash_line)
-	cash_line.add_child(_number_label(22, Palette.MUTED, _mono_bold, "$"))
-	_cash = _number_label(22, Palette.TEXT, _mono_bold)
-	cash_line.add_child(_cash)
-	var coin_line := HBoxContainer.new()
-	coin_line.add_theme_constant_override("separation", 8)
-	money.add_child(coin_line)
-	var dot := Panel.new()
-	dot.custom_minimum_size = Vector2(6, 6)
-	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	dot.add_theme_stylebox_override("panel", Palette.pill_box(Palette.COIN, Color(0, 0, 0, 0), 0))
-	coin_line.add_child(dot)
-	_coins = _number_label(13, Palette.COIN)
-	coin_line.add_child(_coins)
-
-	var corner := HBoxContainer.new()
-	corner.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	corner.grow_horizontal = Control.GROW_DIRECTION_BEGIN
-	corner.offset_right = -20
-	corner.offset_top = 20
-	corner.add_theme_constant_override("separation", 8)
-	_arena.add_child(corner)
-	_speed_button = _pill("×1", Palette.TEXT, _mono)
+	# One line over the arena: Cash and Coins at the same size on the left,
+	# the speed and End run pills on the right, all centred on the pills.
+	var top := HBoxContainer.new()
+	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
+	top.offset_left = 20
+	top.offset_right = -20
+	top.offset_top = 20
+	top.custom_minimum_size = Vector2(0, 36)
+	top.add_theme_constant_override("separation", 8)
+	_arena.add_child(top)
+	var money := Palette.money_line(_mono_bold)
+	top.add_child(money.line)
+	_cash = money.cash
+	_coins = money.coins
+	var gap := Control.new()
+	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(gap)
+	_speed_button = Palette.pill("×1", Palette.TEXT, _mono)
 	_speed_button.pressed.connect(_cycle_speed)
-	corner.add_child(_speed_button)
-	var end := _pill("End run", Palette.SOFT, null)
+	top.add_child(_speed_button)
+	var end := Palette.pill("End run", Palette.SOFT)
 	end.pressed.connect(func():
 		if sim != null:
 			sim.end_run())
-	corner.add_child(end)
+	top.add_child(end)
 
 	var readouts := HBoxContainer.new()
 	readouts.add_theme_constant_override("separation", 28)
@@ -360,7 +345,8 @@ func _tower_panel() -> VBoxContainer:
 func _wave_panel() -> VBoxContainer:
 	var parts := _readout("Wave 1", Color(1, 1, 1, 0.55))
 	_wave_title = parts.title
-	_wave_done = parts.value
+	# Only the bar says how far through the wave is; a ticking count was noise.
+	parts.value.visible = false
 	_wave_bar = parts.bar
 	_wave_bar.max_value = 1.0
 	_enemy_attack = parts.left
@@ -399,26 +385,7 @@ func _readout(title_text: String, colour: Color) -> Dictionary:
 
 ## A thin line across the screen between the arena, the readouts and the upgrades.
 func _hairline() -> MarginContainer:
-	var line := ColorRect.new()
-	line.color = Palette.HAIRLINE
-	line.custom_minimum_size = Vector2(0, 1)
-	return _margined(line)
-
-
-## A pill button: a hairline edge on the ground, as the design's top corner has.
-func _pill(text: String, colour: Color, font: Font) -> Button:
-	var button := Button.new()
-	button.text = text
-	button.custom_minimum_size = Vector2(0, 36)
-	button.add_theme_font_size_override("font_size", 13)
-	if font != null:
-		button.add_theme_font_override("font", font)
-	for state in ["normal", "hover", "pressed", "focus"]:
-		var edge := Color(1, 1, 1, 0.24 if state == "hover" else 0.12)
-		button.add_theme_stylebox_override(state, Palette.pill_box(Color(1, 1, 1, 0.05) if state == "pressed" else Color(0, 0, 0, 0), edge, 14))
-	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
-		button.add_theme_color_override(state, colour)
-	return button
+	return _margined(Palette.hairline())
 
 
 func _bar(colour: Color) -> ProgressBar:
