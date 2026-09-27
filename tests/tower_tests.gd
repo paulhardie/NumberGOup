@@ -2105,6 +2105,7 @@ func test_kills_burst_and_shots_leave_the_numbers_edge() -> void:
 	var cash_only: Array[Dictionary] = [{"type": "kill", "enemy": basic, "cash": 3.0, "coins": 0.0, "by": ""}]
 	arena.absorb(cash_only, 0.0)
 	check(arena.effects.sparks.size() == ArenaEffects.SPARKS.basic and arena.effects.death_rings.size() == 1, "a kill bursts into sparks with a ring: %d" % arena.effects.sparks.size())
+	check(arena.effects.sparks.all(func(spark): return spark.colour == ArenaView.LOOKS.basic.colour), "all in the enemy's own colour")
 	var paid: Array = arena.effects.floats.filter(func(item): return item.has("parts"))
 	check(paid.size() == 1 and paid[0].parts.size() == 1 and paid[0].parts[0][0] == "$3", "a kill that pays no Coins floats its Cash alone: %s" % [paid])
 	var both: Array[Dictionary] = [{"type": "kill", "enemy": tank, "cash": 12.0, "coins": 2.0, "by": ""}]

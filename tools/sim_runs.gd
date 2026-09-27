@@ -28,6 +28,11 @@ extends SceneTree
 ## all it gained, and after the slash its share of the new highs, the gains
 ## that lifted the Number past its best so far rather than refilling it.
 ##
+## --workshop open plays each run with every Workshop group open at its
+## first levels, --workshop max with every row at its last level too, and
+## --workshop N with every row at level N (or its last, if lower): how far
+## Tier 1 goes for a player who has bought that much.
+##
 ## --until-wave N ends a career once a run reaches wave N, saying which run
 ## and after how many hours of game time.
 ## --careers N plays N runs in a row from a fresh Workshop instead, spending
@@ -62,11 +67,23 @@ func _init() -> void:
 		_career(int(options.careers), strategy, cap_seconds, options)
 		quit()
 		return
+	var workshop: String = options.get("workshop", "")
+	if workshop not in ["", "open", "max"] and not workshop.is_valid_int():
+		printerr("--workshop must be open, max or a level")
+		quit(1)
+		return
+	var levels := {}
+	var groups: Array = BattleSim.START_GROUPS
+	if workshop != "":
+		groups = TowerData.groups().map(func(entry): return String(entry.id))
+		if workshop != "open":
+			for id in TowerData.rows():
+				levels[id] = TowerData.max_level(id) if workshop == "max" else mini(int(workshop), TowerData.max_level(id))
 	var waves: Array[int] = []
-	print("buying: %s" % strategy)
+	print("buying: %s%s" % [strategy, ", Workshop " + workshop if workshop != "" else ""])
 	print("seed  wave  game time  kills  cash earned  coins  peak Number  ÷ came/landed  ÷ took  killed by  levels bought")
 	for index in range(seeds):
-		var sim := BattleSim.new(index + 1, {}, BattleSim.START_GROUPS, _switches(options))
+		var sim := BattleSim.new(index + 1, levels, groups, _switches(options))
 		_tune(sim, options)
 		while sim.alive and sim.time < cap_seconds:
 			_spend(sim, strategy)

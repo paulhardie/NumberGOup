@@ -314,8 +314,8 @@ func _take(events: Array[Dictionary]) -> void:
 			"font": view.hit_cut})
 
 
-## A kill bursts into sparks where the enemy was drawn, in its colour with a
-## few white, flying out from its number, and a ring swells there (D109).
+## A kill bursts into sparks where the enemy was drawn, all in its colour,
+## flying out from its number, and a ring swells there (D109).
 func _burst(enemy) -> void:
 	if not view.LOOKS.has(enemy.kind) or view.sim == null:
 		return
@@ -323,11 +323,11 @@ func _burst(enemy) -> void:
 	var at: Vector2 = view.enemy_at(enemy.angle, shown_metres(enemy), view.enemy_half(enemy.kind, "0"))
 	death_rings.append({"at": at, "colour": look.colour, "age": 0.0})
 	var count: int = mini(int(SPARKS.get(enemy.kind, 10)), MAX_SPARKS - sparks.size())
-	for n in range(count):
+	for _spark in range(count):
 		# Mostly away from the tower, the way the shot was going.
 		var heading := Vector2.from_angle(enemy.angle + _look_rng.randf_range(-1.6, 1.6))
 		sparks.append({"at": at, "velocity": heading * _look_rng.randf_range(SPARK_SPEED_PX.x, SPARK_SPEED_PX.y),
-			"colour": Palette.NUMBER if n % 4 == 0 else look.colour, "age": 0.0,
+			"colour": look.colour, "age": 0.0,
 			"life": SPARK_SECONDS * _look_rng.randf_range(0.6, 1.2), "size": _look_rng.randf_range(1.5, 3.5)})
 
 

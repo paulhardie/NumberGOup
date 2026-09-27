@@ -50,7 +50,21 @@
 
 - Hours are game hours of a career played one run after another; a wave-70 run lasts about 40 minutes. The sim buys only seven Workshop rows and no Cards or Labs, which don't exist yet, so a person will be faster, but the shape matters: **at Tier 1 with only the Workshop, wave 100 is well over 100 game hours away.** The Tower gets there with Cards and Labs.
 - **D107's five-digit target is met by wave 70 without the D098 switches, and missed by a digit with them** (unless Multipliers are on too). That bears on which switches to keep.
-- The careers keep running in the session's scratch space; nothing of them is committed.
+- Stopped at about 200 game hours (core at 284): best waves 71 (core), 81 (grow and grow with D098's two), 88 (all three). None reached 100.
+
+**Tier 1's ceiling** (27 September, `sim_runs.gd --workshop N --buy core --seeds 6 --cap-minutes 150 --curve`, D108's code). Tier 1 has a cliff, as The Tower's turtle does:
+
+| Workshop | Coins it costs | Runs end | Number at waves 10, 50, 100, 255 |
+|---|---|---|---|
+| Every group open, no levels | 502 billion to open | waves 5–11, like a fresh save | — |
+| Groups up to Orbs, every row at level 10 | about 2.1 million | waves 86–91, peak 24,000–35,000; ÷ took 40–61% of the Number lost | 1,261, 15,855, — |
+| Groups up to Orbs, every row at level 25 | about 3.4 million | never: alive at wave 260 when capped | 7,541, 62,592, 216,211, 5.8 million |
+| Every row at 50 / 100 / 200 | 363 billion and up | never | at 255: 10, 18 and 38 million |
+| Every row maxed | about 10²⁰ | never: wave 416 at 4 hours | 3.5 trillion at 10, 146 trillion at 4 hours |
+
+- Past the cliff, in-run Cash buys Defense Absolute beyond enemies' Attack, so hits do nothing, and the damage kills Dividers before they land (0–1 of 125). The Number then climbs on bought Health and Regen alone, a new digit every 50 waves or so, and nothing threatens it.
+- Below it, the Number stays five digits to wave 90 and Dividers are the main threat, which is D107's target, but the target sits on the cliff's edge.
+- A wave-90 run pays about 1,700 Coins, so reaching the cliff on the Workshop alone takes on the order of a thousand runs: the pace problem is Coins, which The Tower eases with Cards, Labs and higher tiers.
 
 ## Open decisions for the owner
 
