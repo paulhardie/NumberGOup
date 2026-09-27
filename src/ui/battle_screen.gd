@@ -10,7 +10,6 @@ const TowerData = preload("res://src/tower/tower_data.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Palette = preload("res://src/ui/palette.gd")
 const ArenaView = preload("res://src/ui/arena_view.gd")
-const Settings = preload("res://src/settings.gd")
 const UpgradePanel = preload("res://src/ui/upgrade_panel.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 const RunReport = preload("res://src/tower/run_report.gd")
@@ -39,8 +38,6 @@ var sim: BattleSim
 var milestones: Array[Dictionary] = []
 ## Set before the screen is added; a fresh one if not.
 var workshop: Workshop
-## The player's settings (D088), set before the screen is added; defaults if not.
-var settings: Settings
 ## The saved run to resume (Save.load_run), set before the screen is added;
 ## empty for a new run.
 var resume: Dictionary = {}
@@ -88,7 +85,7 @@ func _ready() -> void:
 
 
 func start_run(seed_value: int) -> void:
-	_adopt(BattleSim.new(seed_value, workshop.levels, workshop.open_groups, settings.switches() if settings != null else {}))
+	_adopt(BattleSim.new(seed_value, workshop.levels, workshop.open_groups))
 
 
 func _begin_resume() -> void:
@@ -227,7 +224,7 @@ func _refresh() -> void:
 
 
 func _show_run_over() -> void:
-	var cause := {"basic": "a basic enemy", "fast": "a fast enemy", "tank": "a tank", "ranged": "a ranged enemy", "boss": "a boss", "divider": "a Divider", "multiplier": "a Multiplier"}
+	var cause := {"basic": "a basic enemy", "fast": "a fast enemy", "tank": "a tank", "ranged": "a ranged enemy", "boss": "a boss", "divider": "a Divider"}
 	var ended := sim.killed_by == "ended"
 	_over_title.text = "Run ended" if ended else "Tower destroyed"
 	var how := "Ended on wave %d" % sim.wave if ended else "Destroyed on wave %d by %s" % [sim.wave, cause.get(sim.killed_by, sim.killed_by)]
@@ -240,11 +237,7 @@ func _show_run_over() -> void:
 	_over_text.text = "%s\n%s of game time · %d kills\nPeak Number %s · %s\nCash earned $%s · Coins earned %s\nBest wave %d · best Number %s" % [
 		how, Palette.clock(sim.time), sim.kills, Palette.full(ceilf(sim.peak_number)), dividers, Palette.money(sim.cash_earned),
 		Palette.money(sim.coins), workshop.best_wave, Palette.full(ceilf(workshop.best_number))]
-	if sim.multipliers:
-		_over_text.text += "\nMultipliers killed %d of %d, adding %s" % [sim.multipliers_killed, sim.multipliers_spawned,
-			Palette.amount(float(sim.gained_from.get("multiplier", 0.0)))]
-	if sim.kill_growth:
-		_over_text.text += "\nKills grew the Number by %s" % Palette.amount(float(sim.gained_from.get("kills", 0.0)))
+	_over_text.text += "\nKills grew the Number by %s" % Palette.amount(float(sim.gained_from.get("kills", 0.0)))
 	for milestone in milestones:
 		_over_text.text += "\nMilestone: %s reached · +● %s" % [Palette.full(float(milestone.number), INF), Palette.money(float(milestone.coins))]
 	_over.visible = true

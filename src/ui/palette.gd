@@ -42,9 +42,6 @@ const BOSS_GLOW := Color("ff4a3d")
 ## The Divider (D082): its own colour, so a ÷ reads apart from the enemies
 ## that subtract.
 const DIVIDER := Color("b48cf2")
-## The Multiplier (D097), the Divider's mirror: a bright mint, the player's
-## colour for good, lifted clear of the shots' softer mint.
-const MULTIPLIER := Color("a8f0c6")
 
 const WORD_FONT := preload("res://assets/fonts/Geist.ttf")
 const NUMBER_FONT := preload("res://assets/fonts/GeistMono.ttf")
