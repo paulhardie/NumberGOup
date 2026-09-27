@@ -1720,6 +1720,56 @@ func test_free_coins_and_reset_for_testing() -> void:
 	_clear_test_logs()
 
 
+## The Number as its own hitbox (D101), a prototype the measuring tools
+## switch on: the tower's edge grows with the Number's digits. Off, it's the
+## tower's edge as ever.
+func test_the_hitbox_grows_with_the_numbers_digits_when_switched_on() -> void:
+	check(BattleSim.digits(9.4) == 1 and BattleSim.digits(9.6) == 2 and BattleSim.digits(12345.0) == 5, "digits as the Number is shown, whole")
+	var sim := _quiet_sim({"range": 10})
+	sim.health = 12345.0
+	check(sim.contact_m() == Guesses.CONTACT_DISTANCE_M, "off, enemies reach the tower's edge whatever the Number")
+	sim.hitbox = true
+	check_near(sim.contact_m(), Guesses.CONTACT_DISTANCE_M + 4.0 * float(Guesses.HITBOX.per_digit_m), 0.0001, "on, each digit past the first pushes it out")
+	sim.health = 5.0
+	check(sim.contact_m() == Guesses.CONTACT_DISTANCE_M, "a one-digit Number is the tower's edge")
+	sim.health = 1e40
+	check_near(sim.contact_m(), sim.stat("range") - 1.0, 0.0001, "never nearer the Range's edge than a metre")
+	sim.health = 12345.0
+	var walker := _place(sim, "basic", 20.0)
+	walker.speed = 5.0
+	walker.max_health = 1e12
+	walker.health = 1e12
+	for _i in range(600):
+		sim.step()
+		if walker.arrived():
+			break
+	check(walker.arrived() and walker.distance > Guesses.CONTACT_DISTANCE_M + 1.0, "a melee enemy stops at the grown edge: %.1f m" % walker.distance)
+
+
+## As Range grows the view zooms out rather than letting the range run off
+## the screen (D101), easing rather than jumping.
+func test_the_view_zooms_out_to_keep_the_range_on_screen() -> void:
+	var arena := ArenaView.new()
+	arena.size = Vector2(390, 440)
+	arena.centre = Vector2(195, 242)
+	var sim := _quiet_sim()
+	arena.sim = sim
+	arena.absorb([], 0.0)
+	var towers := arena.size.x * 0.5 * ArenaView.RANGE_SHARE / TowerData.value("range", 0)
+	check_near(arena.px_per_metre(), towers, 0.0001, "at the starting Range, The Tower's scale")
+	var far := _quiet_sim({"range": TowerData.max_level("range")})
+	arena.sim = far
+	arena.absorb([], 0.0)
+	var room := minf(195.0, minf(242.0, 440.0 - 242.0)) * ArenaView.MAX_RANGE_SHARE
+	check(far.stat("range") * arena.px_per_metre() <= room + 0.001, "at full Range the ring stays on screen: %.0f of %.0f" % [far.stat("range") * arena.px_per_metre(), room])
+	far.run_levels["range"] = 0
+	var before := arena.px_per_metre()
+	far.levels["range"] = 0
+	arena.absorb([], 0.05)
+	check(arena.px_per_metre() > before and arena.px_per_metre() < arena.target_px_per_metre(), "a change of Range eases the zoom rather than jumping")
+	arena.free()
+
+
 func test_numbers_read_as_the_towers() -> void:
 	check(Palette.number(2.35) == "2.35", "two decimals while small")
 	check(Palette.number(3.0) == "3", "whole numbers stay whole")
