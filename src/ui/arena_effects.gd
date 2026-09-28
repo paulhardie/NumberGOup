@@ -45,7 +45,8 @@ const SHOVE_EASE := 14.0
 ## A kill bursts into sparks in the enemy's colour, more the heavier it is,
 ## flying out and slowing to a stop over about SPARK_SECONDS, with a thin ring
 ## where it died (D109). MAX_SPARKS caps them in a crowd.
-const SPARKS := {"basic": 10, "fast": 10, "ranged": 12, "tank": 20, "boss": 40, "divider": 16}
+const SPARKS := {"basic": 10, "fast": 10, "ranged": 12, "tank": 20, "boss": 40, "divider": 16, "protector": 14, "vampire": 20, "ray": 20,
+	"scatter": 12}
 const SPARK_SPEED_PX := Vector2(50.0, 170.0)
 const SPARK_SECONDS := 0.6
 const MAX_SPARKS := 600
@@ -166,12 +167,17 @@ func draw_blasts(blast_px: float) -> void:
 		view.draw_circle(view.to_view(blast.at), blast_px, Color(Palette.WARNING, 0.35 * fade))
 
 
-## The ranged enemy's shot: a dotted line in its colour to the Number.
+## The ranged enemy's shot: a dotted line in its colour to the Number. A
+## Ray's is solid and heavier, its charge let go.
 func draw_ranged_shots(number_half: Vector2) -> void:
 	for shot in ranged_shots:
 		var from: Vector2 = view.enemy_at(shot.enemy.angle, shot.enemy.distance, view.enemy_half(shot.enemy.kind, "0"))
 		var toward := Vector2.from_angle(shot.enemy.angle)
-		view.draw_dashed_line(from - toward * 12.0, view.centre + toward * number_half.x, Color(Palette.RANGED, 0.45 * (1.0 - shot.age / RANGED_SHOT_SECONDS)), 1.0, 2.0)
+		var fade: float = 1.0 - shot.age / RANGED_SHOT_SECONDS
+		if shot.enemy.kind == "ray":
+			view.draw_line(from - toward * 12.0, view.centre + toward * number_half.x, Color(Palette.RAY, 0.8 * fade), 3.0, true)
+		else:
+			view.draw_dashed_line(from - toward * 12.0, view.centre + toward * number_half.x, Color(Palette.RANGED, 0.45 * fade), 1.0, 2.0)
 
 
 ## A killed enemy's number swells to 1.3× and fades where it died.
@@ -260,7 +266,7 @@ func _take(events: Array[Dictionary]) -> void:
 				hit_total += float(event.damage)
 				recoil[event.enemy.id] = -LUNGE_PX / sqrt(_mass_of(event.enemy.kind))
 				motion.knock(event.enemy.angle, float(event.damage))
-				if event.enemy.kind == "ranged":
+				if event.enemy.kind == "ranged" or event.enemy.kind == "ray":
 					ranged_shots.append({"enemy": event.enemy, "age": 0.0})
 			"divided":
 				# The ÷ in the Divider's own typeface, what it took in the Number's (D085).

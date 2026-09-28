@@ -14,6 +14,7 @@ const UpgradePanel = preload("res://src/ui/upgrade_panel.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 const RunReport = preload("res://src/tower/run_report.gd")
 const ActivityLog = preload("res://src/tower/activity_log.gd")
+const WaveInfo = preload("res://src/ui/wave_info.gd")
 
 ## The run is over and its record is in the Workshop, so the game can save.
 signal run_finished
@@ -68,6 +69,7 @@ var _mono := Palette.weight(Palette.NUMBER_FONT, 400)
 var _mono_bold := Palette.weight(Palette.NUMBER_FONT, 500)
 var _upgrades: UpgradePanel
 var _over: PanelContainer
+var _wave_info: WaveInfo
 var _over_title: Label
 var _over_text: Label
 
@@ -214,17 +216,21 @@ func _refresh() -> void:
 	_health_bar.value = sim.health
 	var now := Palette.number_shown(sim.health, sim.max_health(), sim.alive)
 	_health_text.text = "%s / %s" % [Palette.full(now), Palette.full(maxf(now, roundf(sim.peak_number)))]
-	_wave_title.text = "Wave %d" % sim.wave
+	# The › says the readout opens Wave Info.
+	_wave_title.text = "Wave %d  ›" % sim.wave
 	var through := clampf(sim.wave_clock / TowerData.wave_seconds(), 0.0, 1.0)
 	# The basic enemy's Attack and Health this wave, as values, not multipliers.
 	_enemy_attack.text = "atk " + Palette.amount(sim.enemy_attack_now("basic"))
 	_enemy_health.text = "hp " + Palette.amount(sim.enemy_health_now("basic"))
 	_wave_bar.value = through
+	if _wave_info.visible:
+		_wave_info.show_for(sim)
 	_upgrades.refresh()
 
 
 func _show_run_over() -> void:
-	var cause := {"basic": "a basic enemy", "fast": "a fast enemy", "tank": "a tank", "ranged": "a ranged enemy", "boss": "a boss", "divider": "a Divider"}
+	var cause := {"basic": "a basic enemy", "fast": "a fast enemy", "tank": "a tank", "ranged": "a ranged enemy", "boss": "a boss", "divider": "a Divider",
+		"protector": "a Protector", "vampire": "a Vampire", "ray": "a Ray", "scatter": "a Scatter"}
 	var ended := sim.killed_by == "ended"
 	_over_title.text = "Run ended" if ended else "Tower destroyed"
 	var how := "Ended on wave %d" % sim.wave if ended else "Destroyed on wave %d by %s" % [sim.wave, cause.get(sim.killed_by, sim.killed_by)]
@@ -309,6 +315,9 @@ func _build() -> void:
 	upgrades_margin.add_theme_constant_override("margin_top", 4)
 	column.add_child(upgrades_margin)
 
+	_wave_info = WaveInfo.new()
+	add_child(_wave_info)
+
 	_over = PanelContainer.new()
 	_over.add_theme_stylebox_override("panel", Palette.panel_box())
 	_over.set_anchors_preset(Control.PRESET_CENTER)
@@ -356,6 +365,15 @@ func _wave_panel() -> VBoxContainer:
 	_wave_bar.max_value = 1.0
 	_enemy_attack = parts.left
 	_enemy_health = parts.right
+	# A tap anywhere on it opens Wave Info, as The Tower's wave readout does.
+	parts.column.mouse_filter = Control.MOUSE_FILTER_STOP
+	for child in parts.column.find_children("*", "Control", true, false):
+		(child as Control).mouse_filter = Control.MOUSE_FILTER_PASS
+	parts.column.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and sim != null:
+			_wave_info.visible = not _wave_info.visible
+			if _wave_info.visible:
+				_wave_info.show_for(sim))
 	return parts.column
 
 

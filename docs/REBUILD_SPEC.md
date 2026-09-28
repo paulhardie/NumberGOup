@@ -115,7 +115,7 @@ Versions, each one a playable thing the owner plays and signs off (D079). The nu
 | **1.1** | Cards, and Gems to buy card slots: what The Tower launched with | The owner plays to wave 20 and uses them |
 | **1.2** | Labs, opening at wave 30 (Starting Cash, Wall Regen and the rest) | The owner plays to them |
 | **1.3** | Ultimate Weapons | The owner plays to them |
-| **1.4** | Tier 2 and up, where the Tier 1 turtle breaks, each tier with its own enemies (D112: the Protector in Tier 2, elites from Tier 3). Tier 2 opens after Tier 1's wave 100, at 20× enemy health and attack for 1.8× Coins; Tier 3 after Tier 2's wave 100 at 60× and 2.6× (D107) | A Tier 1 turtle fails in Tier 2 and a pivot wins, as The Tower intends; the Number keeps D110's shape: it climbs through a run and can still be hurt |
+| **1.4** | Tier 2 and up, where the Tier 1 turtle breaks, each tier with its own enemies (D112). The Tower's are built in the battle (D115): the Protector from Tier 2 wave 80, and elites (Vampire, Ray, Scatter) from wave 500 in Tier 1, 450 in Tier 2 and 405 in Tier 3. Tier 2 opens after Tier 1's wave 100, at 20× enemy health and attack for 1.8× Coins; Tier 3 after Tier 2's wave 100 at 60× and 2.6× (D107) | A Tier 1 turtle fails in Tier 2 and a pivot wins, as The Tower intends; the Number keeps D110's shape: it climbs through a run and can still be hurt |
 | Later, unscheduled | Perks, Modules | The owner asks |
 | Later, with servers | Idle play (D089): a closed game keeps its run going, slower, and the phone says when it ends; getting strong enough to be idle is an early goal | The owner can close the game on a phone and not lose out |
 | Out | Tournaments: they need other players and servers | — |
@@ -148,14 +148,20 @@ These are carried from the current game until the owner reads the real value:
 - ~~An enemy at the tower hits every 5 seconds~~: once a second (D075).
 - A boss pays 20 basics' Cash (D071).
 - Enemies set off 100 m out, basic speed is 10 m a second and the base range is 30 m (D067, D068). The Tower gives no units.
-- Orbs: ~~a turn a second on the Range edge (D075)~~, ~~radians a second (D104)~~: back to The Tower's, at least 60 m out and 0.4 turns a minute at first (D108). How much further out a larger Range puts them (half of each metre past 60) and the 3 m an orb reaches are ours, and bosses are the only enemy they can't kill so far.
+- Orbs: ~~a turn a second on the Range edge (D075)~~, ~~radians a second (D104)~~: back to The Tower's, at least 60 m out and 0.4 turns a minute at first (D108). How much further out a larger Range puts them (half of each metre past 60) and the 3 m an orb reaches are ours. They can't kill bosses, elites, or anything a Protector shields (D115).
 - ~~Ranged enemies stop at 30 m~~: on the Range edge as it is (D075).
 - ~~20 enemies in wave 1~~, ~~11 plus 0.123 a wave (D075)~~: The Tower's spawn rolls (D114), a roll every 1/8 s by the wave's spawn rate. The rate at wave 1 (5) and the straight lines between the owner's 15 at wave 22 and the SDK's 37 at wave 1,000 are ours.
 - A free upgrade counts as a run purchase, so it raises the row's next Cash price.
 - The Defense % global cap is 98% (community research).
 - The Wall stands 10 m out and only melee enemies stop at it; ranged shots pass it. Its health is Wall Health's share of Health when the run starts and doesn't grow with Health bought. No wall regen (a Lab in The Tower).
 - Land mines: at most 30 lie at once, anywhere from the tower's edge to its Range, and a walking enemy within 2 m sets one off. Mines hurt bosses.
-- Shockwaves push only enemies within Range, never bosses, and do no damage.
+- Shockwaves push only enemies within Range, never bosses or elites, and do no damage.
+- The Tower's later enemies (D115) are the SDK's where it has numbers; ours are:
+  - the Protector's gate shuts again for five waves once one comes (the SDK counts it down but doesn't say what resets it);
+  - each elite type rolls its own chance each wave, at a random moment of the spawning window; the boss still comes as the wave starts;
+  - a Vampire stops on the Range edge and drains from there; a Ray fires its attack through the defences, and Thorns answers it;
+  - a Scatter's pieces land 0.06 radians either side, keep its attack and speed, pay as basics and come whatever the caps;
+  - the Protector's and elites' Cash (3 and 4, their Coin values), and Thorns under a Protector at 70% (the SDK's prose, not its numbers).
 - Rend Armor rolls on tower shots' strikes only, and its extra damage applies to them only (not mines or Thorns).
 - Recovery Packages land at a wave's end, not as objects that fly in.
 - The Divider's numbers (D082, `Guesses.DIVIDER`) are all ours:
@@ -165,7 +171,7 @@ These are carried from the current game until the owner reads the real value:
   - a basic's speed and mass;
   - 2× a basic's Cash and 2 Coins.
 - Enemies at the tower are drawn just clear of the Number's digits on their own side, some metres before they truly arrive (drawing only, D085).
-- ~~Heat-up per hit or per wave~~: settled, 4% for each hit an enemy lands, compounding, from the game's own attack code (D115, [`TOWER_RULES.md`](TOWER_RULES.md)). Separately, an enemy's mass grows 4% for each wave it lives, which isn't built.
+- Heat-up is 4% for each hit an enemy lands, compounding (the earlier research, said to match the SDK). The owner's 25 September research says 4% for each wave it survives, and to its mass too. Settle it by watching a boss stand at the tower. The mass part is The Tower's and is built (D115).
 
 ## Process while the rebuild is in progress
 

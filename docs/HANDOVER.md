@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 28 September 2026, by Claude, handing on to the next agent. This session checked the game against The Tower's own rules at the owner's request and wrote the findings up as [`TOWER_RULES.md`](TOWER_RULES.md): what we get right, what we get wrong, what's still guessed, and the build list before 1.1. The owner ruled that 1.1 waits for that list (D115). Before that, the same day: tiers in the battle (D113) and The Tower's spawn rolls (D114), merged in #102 and #103.
+**Last updated:** 28 September 2026, by Claude, handing on to the next agent. This session, over two days, put orbs back to The Tower's balance (D108), gave kills sparks (D109), kept the turtle with a shape target for the Number (D110), removed the Multiplier (D111), measured tiers (D112), put tiers and The Tower's spawn rolls in the battle (D113, D114; merged up to #103), and then, from `main` after #103, completed The Tower's enemy rules for Tiers 1–3 and added Wave Info (D115).
 
-**Branch:** `claude/tower-rules-research`, from `main` after #103. It carries D115, [`TOWER_RULES.md`](TOWER_RULES.md) and the roadmap's new 1.0.x step (documents, and one comment in `guesses.gd`). Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, restarted from `main` after #103. It carries D115. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -21,6 +21,7 @@
 
 - **The battle.** Tier 1, with every one of The Tower's Workshop groups working (D076). The Number sits in the centre as the tower, white, with no ceiling (D083), large and thin, in the design's soft warm light that breathes (D096), inside a faint ring at the range. The screen follows the owner's main-screen design (D095): pill buttons, hairline readouts, underlined tabs and quiet cards, on near-black.
 - **Enemies.** The Tower's enemies subtract. A Divider divides the Number: ÷1.25, then ÷1.5 from wave 18. It takes the Protector's slot, replacing a basic, so waves are The Tower's size: one every third wave from wave 5 (the first on wave 7), every other wave by wave 30 (D094). The nearest one in range is previewed above the Number (D086).
+- **Spawning and the later enemies are The Tower's** (D113–D115): a roll every 1/8 s by the wave's spawn rate, the caps (120 normal, 20 elites with 8 a type, 10 bosses), coin decay, enemies growing heavier while they live, the Protector from Tier 2 wave 80, and the elites (Vampire, Ray, Scatter) from wave 500 in Tier 1. **Wave Info** opens from the wave readout and shows the spawn rate, the wave's count and each kind's numbers. Tiers exist in `BattleSim`; the game still plays Tier 1.
 - **How the Number grows** (D111): regen only restores it up to the run's best; an enemy killed before it lands a hit adds 5% of its Attack; bought Health and Lifesteal lift it too. Weak early on purpose, for Labs and Cards to raise later. It's judged by a run's shape (D110). The Multiplier and the testing switches are gone.
 - **Enemies as numbers** (D085, D086). Each type has its own typeface and colour. An enemy shows what it does to the Number (−2.4, ÷1.5) from start to death, with the damage dealt so far in small white under it once it survives a shot (D102).
 - **Shots** are white and leave from the edge of the Number's digits with a small flash; hits chip the enemies' numbers, knockback slides (D090), and a kill bursts into sparks with its Cash, and Coins if it paid any, floating beside it (D109). Orbs are mint 0s circling at least 60 m out, turning as slowly as The Tower's (D108), and the Wall is a pair of brackets round the Number that fall away when it breaks (D106).
@@ -71,6 +72,8 @@
 
 **Tiers in the battle (D113):** `BattleSim` has a tier (1–3 generated from the SDK: ×20 and ×60 enemies, ×1.8 and ×2.6 Coins, The Tower's tier spawn mix and double spawns, and the 120-enemy cap in every tier). The game still plays Tier 1; `sim_runs.gd --tier N` measures the others.
 
+**The Tower's enemy rules, completed (D115):** the audit of the SDK against `BattleSim` found the Protector, the elites, coin decay, mass growth, the tier speed-up, the boss cap and Wave Info missing; all are built. Fleets (wave 15,000 on) and more bosses (Tier 14 on) are out of reach and not built. A fresh run and a 40-run core career print identically to before. Realistic Workshops wall a few waves sooner in Tier 2 (Protectors, faster enemies); D115 has the table.
+
 **Tiers, measured (D112):** a maxed Workshop never dies in any tier, because orbs, knockback and Thorns don't feel a stat multiplier. A realistic Workshop does: the one that just clears Tier 1's wave 100 (every affordable row at level 12, 2.2 million Coins) reaches about wave 30 of Tier 2, and Tier 2's wave 100 takes level 25 (3.35 million). D112's table has each tier's problem and the enemy that makes it.
 
 ## Open decisions for the owner
@@ -83,12 +86,13 @@
 6. **Publishing The Tower's data** (its Workshop and enemy numbers, under the SDK's MIT licence) needs a decision before anything is public. Not urgent.
 7. **Idle play (D089)** waits for servers. Nothing is built.
 8. **The design canvas's other proposals** (D106 names them): a Number that grows heavier with each new digit, elites in one shared blue with a typeface each, and the rest of the notation assets. **Recommend** trying the heavier Number next, with the Tweaks slider on its board, since it answers the Number shrinking as digits arrive.
-9. **Missions** stands on Home as a placeholder at the owner's request, but isn't on the roadmap (Milestones is now built, D107). **Recommend** deciding whether Missions joins it before 1.1, or dropping it, so a placeholder never promises something unplanned.
-10. **Elites in Tier 1 before 1.1** (TOWER_RULES.md build item 5). The Tower sends the Vampire, Ray and Scatter from Tier 1 wave 500, and orbs can't kill them, so they end the orb turtle. **Recommend yes**, after the rule corrections and the enemy split, with each designed for the Number first (THE_NUMBER.md already sketches the Vampire as a percent enemy and the Scatter as a divide pun).
-11. **The Tower's wave milestones** (build item 7). They're how The Tower opens Labs (Tier 1 wave 30) and the next tier (wave 100), and pay its Coins and Gems. **Recommend** adding them beside our Number milestones (D107), which stay as the Number's own rewards.
+9. **The new enemies' looks (D115)** are ours: the Protector in steel with a faint ring at its shield's radius, the Vampire crimson with a line to the Number while it drains, the Ray lemon with a heavy line when it fires, the Scatter blue, the three elites glowing. `capture_battle.gd`'s `battle_invaders` and `battle_wave_info` show them. **Recommend** looking at those two screens and saying what to change, since the design canvas proposed elites in one shared blue (decision 8).
+10. **Elites come to Tier 1 from wave 500**, as The Tower's do, where D112's table had them from Tier 3. Only a deep Tier 1 run meets them (1% of waves at 500). **Recommend** keeping The Tower's placement.
+11. **Missions** stands on Home as a placeholder at the owner's request, but isn't on the roadmap (Milestones is now built, D107). **Recommend** deciding whether Missions joins it before 1.1, or dropping it, so a placeholder never promises something unplanned.
 
 ## Next steps, in order
 
+0. **Owner:** open Wave Info in a run (tap the wave readout) and read The Tower's Wave Info at waves 1, 50 and 100, so our straight lines for the spawn rate can go (D114). Done when the three readings are in the spec.
 1. **Owner:** play a few runs on D111's growth (free Coins or a reset help try later stages) and say whether the Number's climb feels earned. Done when the owner says so, or names what to change (`--kill-share` and `--peak-drift` measure alternatives).
 1a. **Owner:** sign off 1.0 or name what's missing (decision 1).
 2. **Agent, on the owner's word:** tune the Divider's health with `sim_runs.gd --careers 40 --buy core --divider-health N` if play says so. Then raise `application/config/version` to 1.0 when the owner signs it off. `--careers` always plays the same seeds (run N is seed N), so a second career needs a seed option first.
@@ -100,6 +104,7 @@
 
 ## How to measure
 
+- **D115 (28 September):** `bash run_tests.sh` passes (4073 checks, with tests for the Protector, elites, the Vampire, Ray and Scatter, ageing and Wave Info). `import_tower_enemies.mjs` regenerated the data. Fresh runs (10 seeds) and a 40-run core career print identically to before; Tier 1–2 Workshops before and after are in D115; the `battle_invaders` and `battle_wave_info` captures were checked by eye. Tier 3 at level 25 and a maxed Tier 1 run through waves 480–1,300 are in D115. Maxed Tier 2 and 3 runs through the Protector and elite waves are in D115 too. Still running at this commit: the spawn check past wave 4,000. Not played.
 - **D114 (28 September):** `bash run_tests.sh` passes (2764 checks). Fresh runs (20 seeds), a 40-run core career and Tier 1–2 Workshops (4 seeds) measured before and after; table in D114.
 - **D113 (28 September):** `bash run_tests.sh` passes (2753 checks). `tools/import_tower_enemies.mjs` reproduced the committed data byte for byte before the change, then generated the tier rows. A 40-run core career and the level-25 turtle to wave 400 print identically to before. Tier 2 and 3 runs in D113.
 - **Four experiments (28 September):** `sim_runs.gd` gained the `health` and `survival` strategies, `--career-seed`, `--workshop-unlock`, `--until-wave` for single runs, and measuring flags (`--packages`, `--packages-to-best`, `--sure-divider`) that are off by default. A 40-run core career prints identically to before, run for run. `bash run_tests.sh` passes (2742 checks). Results are in THE_NUMBER.md 5.2 ("Measured 28 September").

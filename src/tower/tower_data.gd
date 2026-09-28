@@ -6,6 +6,8 @@ extends RefCounted
 const Guesses = preload("res://src/tower/guesses.gd")
 
 const ENEMIES_PATH := "res://data/tower/enemies.json"
+## The Tower's elites (D115): Vampire, Ray and Scatter.
+const ELITES := ["vampire", "ray", "scatter"]
 const WORKSHOP_PATH := "res://data/workshop/upgrades.json"
 
 static var _enemies: Dictionary
@@ -50,6 +52,12 @@ static func enemy_speed_m(wave: int, kind: String) -> float:
 ## Knockback pushes it.
 static func mass_ratio(kind: String) -> float:
 	return float(enemies().types[kind].mass) / float(enemies().types.basic.mass)
+
+
+## How much heavier every enemy spawning on `wave` is than on wave 1: 1 until
+## wave 4,000, then The Tower's growth (D115).
+static func mass_growth(wave: int) -> float:
+	return _per_wave("mass_growth", wave)
 
 
 static func wave_seconds() -> float:
@@ -104,10 +112,49 @@ static func spawn_roll_seconds() -> float:
 	return float(enemies().spawn.roll_seconds)
 
 
-## The most normal enemies (all but bosses) on the field at once; a spawn
-## due while it's full doesn't happen, as in The Tower.
+## The most normal enemies (all but elites and bosses) on the field at once;
+## a spawn due while it's full doesn't happen, as in The Tower.
 static func enemy_cap() -> int:
 	return int(enemies().enemy_cap)
+
+
+## The most elites on the field at once, and of any one elite type; and of bosses.
+static func elite_cap() -> int:
+	return int(enemies().elite_cap)
+
+
+static func elite_type_cap() -> int:
+	return int(enemies().elite_type_cap)
+
+
+static func boss_cap() -> int:
+	return int(enemies().boss_cap)
+
+
+## The Protector's share of a wave's spawns in `tier`, 0 to 100: none in Tier 1,
+## then by the band of waves `wave` falls in (D115).
+static func protector_chance(wave: int, tier_number: int) -> float:
+	var chance := 0.0
+	for band in tier(tier_number).protector:
+		if wave >= int(band.wave):
+			chance = float(band.chance)
+	return chance
+
+
+## How far round a Protector its shield reaches, in metres.
+static func protector_radius_m(wave: int, tier_number: int) -> float:
+	return _per_wave("protector_radius", wave) * float(tier(tier_number).protector_radius)
+
+
+## The chance, 0 to 100, that each elite type sends one on `wave`, and once
+## that is 100, the chance of a second: the Elite Spawn Chance chart's row
+## for the tier (D115).
+static func elite_chance(wave: int, tier_number: int) -> Dictionary:
+	var chance := {"single": 0.0, "double": 0.0}
+	for row in tier(tier_number).elites:
+		if wave >= int(row.wave):
+			chance = {"single": float(row.single), "double": float(row.double)}
+	return chance
 
 
 ## The row's value at `level`; levels past the row's last hold its last value.
