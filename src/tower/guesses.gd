@@ -149,6 +149,9 @@ const MILESTONES := [
 	{"number": 1000000.0, "coins": 50000.0},
 ]
 
+## The count follows the wave in every tier: The Tower's spawn rate is one
+## chart for all tiers. A tier adds only its double-spawn chance
+## (TowerData.tier), which BattleSim applies.
 static func enemies_in_wave(wave: int) -> int:
 	var w := maxi(1, wave)
 	var count := FIRST_WAVE_ENEMIES + floori(ENEMIES_PER_WAVE * float(mini(w, DEEP_ENEMIES_FROM) - 1))

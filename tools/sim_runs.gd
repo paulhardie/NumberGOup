@@ -43,6 +43,8 @@ extends SceneTree
 ##
 ## --until-wave N ends a career once a run reaches wave N, saying which run
 ## and after how many hours of game time; in single runs it ends each run there.
+## --tier N plays each run in Tier N (1 to 3, D107): its enemies' health and
+## attack, its Coins bonus and its spawns, from TowerData.tier.
 ## --career-seed N plays another career: run R is seed N × 1000 + R (0, the
 ## default, is run R on seed R, as before).
 ## Experiments that are not the game's rules (BattleSim's measuring options):
@@ -105,7 +107,7 @@ func _init() -> void:
 	print("buying: %s%s" % [strategy, ", Workshop " + workshop if workshop != "" else ""])
 	print("seed  wave  game time  kills  cash earned  coins  peak Number  ÷ came/landed  ÷ took  killed by  levels bought")
 	for index in range(seeds):
-		var sim := BattleSim.new(index + 1, levels, groups)
+		var sim := BattleSim.new(index + 1, levels, groups, int(options.get("tier", "1")))
 		_tune(sim, options)
 		var last_wave := int(options.get("until-wave", "0"))
 		while sim.alive and sim.time < cap_seconds and (last_wave <= 0 or sim.wave < last_wave):
@@ -128,7 +130,7 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 	var until := int(options.get("until-wave", "0"))
 	var seed_base := int(options.get("career-seed", "0")) * 1000
 	for run in range(runs):
-		var sim := BattleSim.new(seed_base + run + 1, workshop.levels, workshop.open_groups)
+		var sim := BattleSim.new(seed_base + run + 1, workshop.levels, workshop.open_groups, int(options.get("tier", "1")))
 		_tune(sim, options)
 		var start_number := sim.health
 		while sim.alive and sim.time < cap_seconds:

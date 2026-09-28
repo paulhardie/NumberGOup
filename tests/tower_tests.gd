@@ -1596,6 +1596,47 @@ func test_gains_are_booked_by_source_and_new_highs() -> void:
 	check(sim.health > start, "and none of this touched the battle's rules")
 
 
+## Tiers (D107, D112) come from the generated data: Tier 2's enemies have 20
+## times Tier 1's health and attack and pay 1.8 times the Coins, Tier 3's 60
+## and 2.6; a tier shifts the mix towards fast, tank and ranged and adds its
+## double-spawn chance; and in every tier a full field stops more spawning.
+func test_tiers_scale_enemies_and_spawns() -> void:
+	check(TowerData.tier_count() == 3, "Tiers 1 to 3 are generated")
+	var first := BattleSim.new(1)
+	var second := BattleSim.new(1, {}, BattleSim.START_GROUPS, 2)
+	var third := BattleSim.new(1, {}, BattleSim.START_GROUPS, 3)
+	check(first.tier == 1 and second.tier == 2 and BattleSim.new(1, {}, BattleSim.START_GROUPS, 9).tier == 3, "a run knows its tier, held to the ones there are")
+	for sim in [first, second, third]:
+		sim.wave = 50
+		sim.health_level = 50
+		sim.attack_level = 50
+	check_near(second.enemy_health_now("basic") / first.enemy_health_now("basic"), 20.0, 0.0001, "Tier 2's health is 20 times")
+	check_near(third.enemy_attack_now("tank") / first.enemy_attack_now("tank"), 60.0, 0.0001, "Tier 3's attack is 60 times")
+	check_near(second.enemy_health_now("divider") / first.enemy_health_now("divider"), 20.0, 0.0001, "Dividers too")
+	check(first._tier_mix() == TowerData.enemies().mix, "Tier 1 keeps the data's mix")
+	check_near(float(third._tier_mix().fast), float(TowerData.enemies().mix.fast) * 1.08, 0.0001, "Tier 3 has 8% more fast enemies")
+	var shares := 0.0
+	for kind in third._tier_mix():
+		shares += float(third._tier_mix()[kind])
+	check_near(shares, 1.0, 0.0001, "and basics fill the rest")
+	check(second._wave_count() == first._wave_count() and third._wave_count() >= first._wave_count(), "Tier 2 spawns as Tier 1 does, Tier 3 a touch more")
+
+	var paying := _quiet_sim()
+	paying.tier = 2
+	var tank := _place(paying, "tank", 20.0)
+	paying._kill(tank)
+	check_near(paying.coins, float(Guesses.COINS_BY_TYPE.tank) * 1.8, 0.0001, "Tier 2 pays 1.8 times the Coins")
+
+	var full := _quiet_sim()
+	for n in range(TowerData.enemy_cap()):
+		_place(full, "basic", 90.0)
+	full._schedule = [{"kind": "basic", "at": 0.0}, {"kind": "boss", "at": 0.0}]
+	full._next_spawn = 0
+	full.wave_clock = 0.0
+	full._spawn_due()
+	check(full.enemies.size() == TowerData.enemy_cap() + 1 and full.enemies[-1].kind == "boss", "a full field of %d takes no more normal enemies, but a boss still comes" % TowerData.enemy_cap())
+
+
 ## The measuring options (sim_runs.gd) are off unless set: a Divider nothing
 ## can stop lands ÷1.1 once each chosen wave, and packages can be held to the
 ## run's best.

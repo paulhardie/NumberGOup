@@ -60,8 +60,26 @@ static func spawn_seconds() -> float:
 	return float(enemies().spawn_seconds)
 
 
-static func is_boss_wave(wave: int) -> bool:
-	return wave > 0 and wave % int(enemies().boss_every) == 0
+static func is_boss_wave(wave: int, tier_number: int = 1) -> bool:
+	return wave > 0 and wave % int(tier(tier_number).boss_every) == 0
+
+
+## A tier's row (D107, D112): its enemy health and attack multipliers, Coins
+## bonus, boss cadence, double-spawn chance and the weight on fast, tank and
+## ranged spawns. Tiers past the generated ones hold the last.
+static func tier(number: int) -> Dictionary:
+	var rows: Array = enemies().tiers
+	return rows[clampi(number, 1, rows.size()) - 1]
+
+
+static func tier_count() -> int:
+	return enemies().tiers.size()
+
+
+## The most normal enemies (all but bosses) on the field at once; a spawn
+## due while it's full doesn't happen, as in The Tower.
+static func enemy_cap() -> int:
+	return int(enemies().enemy_cap)
 
 
 ## The row's value at `level`; levels past the row's last hold its last value.
