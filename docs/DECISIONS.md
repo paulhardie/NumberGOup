@@ -1523,3 +1523,30 @@ Rules:
 
   - With the kill share at 5%, the career prints identically to `main` with both switches on, run for run.
   - Halving the share barely changes the shape but makes first runs more fragile: spread's worst run falls from wave 7 to 5, and one career run ended on wave 3. So 5% stays.
+
+## D112 — Each tier has its own enemies: the ones that break the last tier's answer
+
+- **Status:** Accepted (2026-09-28) on owner direction: "yes, own enemies per tier". Built in 1.4 (D079) with tiers; nothing is built yet.
+- **Why:** a maxed Workshop never dies in Tier 1, or with enemies at 20× and 60× health and attack. Full runs were alive past waves 2,600–3,200, a day of game time in; ten-wave checks to wave 5,500 never lost any of the Number. The reason is The Tower's "blender": knockback holds ordinary enemies at the orbs, orbs kill instantly whatever the health, and Thorns takes a share of the enemy's own health. None of these feel a stat multiplier. A realistic Workshop does feel it (below), so the multiplier stays, but it is not what makes a tier a new problem. The Tower makes each tier new with enemies the old answer can't handle (the owner's guide, 28 September: bosses ignore everything but Thorns, the Plasma Cannon and the Energy Net; elites ignore orbs, shockwaves and the Black Hole).
+- **Decision:** a tier is defined by the problem it poses, and the enemy that poses it:
+
+| Tier | The problem | The answer that works | What breaks it next |
+|---|---|---|---|
+| 1 | The swarm hurts you | Defense Absolute and Thorns (the turtle), then the blender | Tier 2's 20× Attack outruns Defense Absolute |
+| 2 | Hits land again, and bosses ignore orbs | Health and Regen to take hits, Thorns for bosses, damage to kill before contact | **The Protector** (The Tower's, from Tier 2): shields others and cancels instant kills |
+| 3+ | Elites at higher waves | Real damage, Defense %, and later systems | Elites: the Ray (hits from range), the Vampire (stops Regen and Lifesteal), the Scatter (splits) |
+
+  - Tier 2 and 3 keep D107's 20× and 60× health and attack for 1.8× and 2.6× Coins.
+  - Each new enemy is designed as its own decision when its tier is built; Dividers stay in every tier.
+- **Measured** (a scratch script over `BattleSim` with enemy health and attack multiplied; not committed). The Workshop: the groups up to Orbs (15,000 Coins) open, every row at one level, core rows bought with Cash in the run, 4 seeds, 3-hour cap:
+
+| Every row at level | Workshop's Coins | Tier 1 | Tier 2 (20×) |
+|---|---|---|---|
+| 12 | 2.2 million | waves 101–103, peak Number about 19,000 | — |
+| 15 | 2.3 million | waves 140–141 | waves 30–32 |
+| 20 | 2.7 million | waves 242–285 | waves 60–68 |
+| 25 | 3.35 million | never ends (D110's turtle) | waves 132–165, peak Number 0.8–2 million |
+| 40 | 7.6 million | never ends | alive at the cap (wave 312) |
+
+  - **Tier 2's problem shows as predicted:** at its wall Defense Absolute is a twentieth to a fiftieth of a basic enemy's Attack (451 against 22,000 at level 25), so every hit lands; basic, fast and ranged enemies end the runs, with Dividers a fifth to a quarter of the Number lost.
+  - A player who just cleared Tier 1 (level 12) reaches about wave 30 of Tier 2; clearing Tier 2 takes about 1.5 times that Workshop's Coins.
