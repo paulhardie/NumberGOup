@@ -1596,6 +1596,38 @@ func test_gains_are_booked_by_source_and_new_highs() -> void:
 	check(sim.health > start, "and none of this touched the battle's rules")
 
 
+## The measuring options (sim_runs.gd) are off unless set: a Divider nothing
+## can stop lands ÷1.1 once each chosen wave, and packages can be held to the
+## run's best.
+func test_measuring_options_only_act_when_set() -> void:
+	var sim := _quiet_sim()
+	check(sim.sure_from == 0 and not sim.packages_to_best, "both are off in the game")
+	sim.health = 1000.0
+	sim.wave = 100
+	sim.wave_clock = BattleSim.SURE_LANDS_AT
+	sim.step()
+	check_near(sim.health, 1000.0, 0.01, "off, nothing lands")
+	sim.sure_from = 100
+	sim.step()
+	check_near(sim.health, 1000.0 / 1.1, 0.01, "on, a ÷1.1 lands on its wave: %s" % sim.health)
+	var once := sim.health
+	sim.step()
+	check_near(sim.health, once, 0.01, "once a wave")
+	sim.wave = 101
+	sim.step()
+	check_near(sim.health, once, 0.01, "and only every fifth wave")
+	sim.wave = 105
+	sim.step()
+	check(sim.health < once and sim.dividers_landed == 2, "the next lands five waves on")
+
+	var packed := _quiet_sim()
+	packed.levels["max_recovery"] = 25
+	packed.peak_number = packed.max_health() * 1.5
+	check_near(packed.package_ceiling(), packed.max_health() * packed.stat("max_recovery"), 0.0001, "a package overheals to Max Recovery times Health")
+	packed.packages_to_best = true
+	check_near(packed.package_ceiling(), packed.max_health() * 1.5, 0.0001, "held to the best, it refills only that far")
+
+
 ## How the Number grows (D111): regen only restores it up to the run's best,
 ## and a kill before the enemy lands a hit grows it by a share of its Attack.
 ## The Multiplier and the testing switches are gone.
