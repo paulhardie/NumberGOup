@@ -22,6 +22,7 @@ const NavBar = preload("res://src/ui/nav_bar.gd")
 const Main = preload("res://src/main.gd")
 const Settings = preload("res://src/settings.gd")
 const AmbientMusic = preload("res://src/ui/ambient_music.gd")
+const WaveInfo = preload("res://src/ui/wave_info.gd")
 
 const TEST_SAVE := "user://test_tower_save.json"
 const TEST_LOG := "user://test_activity.jsonl"
@@ -1660,6 +1661,206 @@ func test_tiers_scale_enemies_and_spawns() -> void:
 	check(full.enemies.size() == TowerData.enemy_cap() + 1 and full.enemies[-1].kind == "boss", "a full field of %d takes no more normal enemies, but a boss still comes" % TowerData.enemy_cap())
 
 
+## The Tower's Protector (D115): none in Tier 1; from Tier 2 wave 80 a share
+## of the draws, at most one a wave behind a gate. It and the enemies near it
+## take 60% of a strike and 70% of Thorns, and orbs can't kill them.
+func test_protectors_shield_from_tier_2() -> void:
+	check(TowerData.protector_chance(500, 1) == 0.0, "no Protector in Tier 1")
+	check(TowerData.protector_chance(79, 2) == 0.0 and TowerData.protector_chance(80, 2) == 1.0 and TowerData.protector_chance(160, 3) == 2.0
+		and TowerData.protector_chance(800, 2) == 4.0, "Tier 2 and 3: 1% from wave 80, 2% from 160, 3% from 320, 4% from 751")
+	var counts := {}
+	for seed in range(1, 21):
+		var sim := BattleSim.new(seed, {}, BattleSim.START_GROUPS, 2)
+		var sent := 0
+		var last := -100
+		var closest := 100
+		for at_wave in range(400, 460):
+			sim.wave = at_wave
+			sim._schedule_wave()
+			var here := sim._schedule.filter(func(entry): return entry.kind == "protector").size()
+			check(here <= 1, "at most one Protector a wave")
+			if here == 1:
+				closest = mini(closest, at_wave - last)
+				last = at_wave
+				sent += 1
+		counts[seed] = sent
+		check(closest >= 5, "the gate keeps them five waves apart at least: %d" % closest)
+	var total := 0
+	for seed in counts:
+		total += int(counts[seed])
+	check(total > 60 and total < 240, "Protectors come every several waves at 3%%: %d in 20 runs of 60 waves" % total)
+
+	var sim := _quiet_sim()
+	sim.tier = 2
+	sim.wave = 100
+	var guard := _place(sim, "protector", 30.0)
+	var near := _place(sim, "basic", 30.0 + TowerData.protector_radius_m(100, 2) * 0.5)
+	var far := _place(sim, "basic", 30.0 + TowerData.protector_radius_m(100, 2) * 2.0)
+	check(sim.shielded(guard) and sim.shielded(near) and not sim.shielded(far), "a Protector shields itself and what's within its radius")
+	near.health = 1000.0
+	far.health = 1000.0
+	sim._strike(near, 10.0, false)
+	sim._strike(far, 10.0, false)
+	check_near(1000.0 - near.health, 6.0, 0.001, "a shielded enemy takes 60% of a strike")
+	check_near(1000.0 - far.health, 10.0, 0.001, "one outside takes all of it")
+	sim._kill(guard)
+	check(not sim.shielded(near), "a dead Protector shields nothing")
+
+
+## Elites (D115): the chart's chance for each of Vampire, Ray and Scatter, from
+## wave 500 in Tier 1 and 10% sooner a tier; at most 20 on the field and 8 of
+## a type; orbs and shockwaves don't touch them.
+func test_elites_come_by_the_chart() -> void:
+	check(TowerData.elite_chance(499, 1).single == 0.0 and TowerData.elite_chance(500, 1).single == 1.0, "Tier 1's first elites at wave 500, 1%")
+	check(TowerData.elite_chance(449, 2).single == 0.0 and TowerData.elite_chance(450, 2).single == 1.0 and TowerData.elite_chance(405, 3).single == 1.0,
+		"Tier 2's at wave 450, Tier 3's at 405")
+	check(TowerData.elite_chance(8000, 1).single == 100.0 and TowerData.elite_chance(9000, 1).double == 4.0, "certain by wave 8,000, then a second")
+	var before := BattleSim.new(3)
+	before.wave = 499
+	before._schedule_wave()
+	var early := BattleSim.new(3)
+	early.wave = 499
+	early._schedule_wave()
+	check(before._schedule == early._schedule, "before the chart opens, spawning draws nothing new")
+	var elites := 0
+	for seed in range(1, 41):
+		var sim := BattleSim.new(seed)
+		sim.wave = 6000
+		sim._schedule_wave()
+		var times: Array = sim._schedule.map(func(entry): return float(entry.at))
+		var sorted := times.duplicate()
+		sorted.sort()
+		check(times == sorted, "the schedule stays in time order")
+		elites += sim._schedule.filter(func(entry): return BattleSim.is_elite(entry.kind)).size()
+	check_near(float(elites) / 40.0, 3.0 * 0.64, 0.6, "at wave 6,000 each type comes 64%% of waves: %.2f a wave" % (float(elites) / 40.0))
+
+	var full := _quiet_sim()
+	for n in range(TowerData.elite_type_cap()):
+		_place(full, "vampire", 90.0)
+	check(not full._has_room("vampire") and full._has_room("ray"), "8 Vampires fill their type, not the others")
+	for n in range(TowerData.elite_cap() - TowerData.elite_type_cap()):
+		_place(full, "ray" if n < TowerData.elite_type_cap() else "scatter", 90.0)
+	check(not full._has_room("scatter") and full._has_room("basic"), "20 elites fill the elite cap, and normal enemies still come")
+	for n in range(TowerData.boss_cap()):
+		_place(full, "boss", 90.0)
+	check(not full._has_room("boss"), "and 10 bosses the boss cap")
+
+	var sim := _quiet_sim({}, BattleSim.START_GROUPS + ["shockwave"])
+	var ray := _place(sim, "ray", sim.stat("range") * 0.5)
+	var basic := _place(sim, "basic", sim.stat("range") * 0.5)
+	check(ray.kind in Guesses.ORB_IMMUNE, "orbs can't kill elites")
+	sim.defences.shockwave_in = 0.0
+	sim.defences.tick_shockwave()
+	check(basic.distance > ray.distance and is_equal_approx(ray.distance, sim.stat("range") * 0.5), "and shockwaves don't push them")
+
+
+## A Vampire in range drains 2% of Health a second, through the Wall and the
+## defences, and stops Regen and Lifesteal while it does.
+func test_vampire_drains_and_stops_regen() -> void:
+	var sim := _quiet_sim({"health_regen": 20})
+	var vampire := _place(sim, "vampire", 20.0)
+	vampire.stop_at = 20.0
+	sim.health = sim.max_health() * 0.5
+	var start := sim.health
+	for tick in range(30):
+		sim._enemies_hit()
+		sim._heal(sim.stat("health_regen") * BattleSim.TICK, "regen")
+	check(sim.draining, "a Vampire in range drains")
+	check_near(start - sim.health, sim.max_health() * 0.02, sim.max_health() * 0.0005, "2%% of Health over a second, with no Regen: lost %s" % (start - sim.health))
+	check(float(sim.lost_to.get("vampire", 0.0)) > 0.0, "and it's booked as the Vampire's")
+	check(ArenaView.shown_text(sim, vampire) == "−2%/s", "it shows its drain, not a hit: %s" % ArenaView.shown_text(sim, vampire))
+	sim._kill(vampire)
+	sim._enemies_hit()
+	var healed := sim.health
+	sim._heal(1.0, "regen")
+	check(not sim.draining and sim.health > healed, "Regen comes back once it's gone")
+
+
+## A Ray charges 30 seconds, then fires its attack, twice a basic's, and
+## charges again.
+func test_ray_charges_between_shots() -> void:
+	var sim := _quiet_sim()
+	sim.health = 1e9
+	var ray := _place(sim, "ray", 20.0)
+	ray.stop_at = 20.0
+	check_near(ray.attack / sim.enemy_attack_now("basic"), 2.0, 0.0001, "a Ray hits for twice a basic enemy")
+	var charge := float(TowerData.enemies().elites.ray_charge_seconds)
+	for tick in range(roundi(charge / BattleSim.TICK) - 2):
+		sim._enemies_hit()
+	check(ray.hits == 0, "no shot while it charges")
+	for tick in range(4):
+		sim._enemies_hit()
+	check(ray.hits == 1, "then one")
+	for tick in range(roundi(charge / BattleSim.TICK) - 4):
+		sim._enemies_hit()
+	check(ray.hits == 1, "and none for another charge")
+
+
+## A Scatter splits in two with half its health, four times over: 31 kills.
+func test_scatter_splits_four_times() -> void:
+	var sim := _quiet_sim()
+	var scatter := _place(sim, "scatter", 50.0)
+	var full := scatter.max_health
+	sim._kill(scatter)
+	check(sim.enemies.size() == 2 and sim.enemies.all(func(piece): return piece.generation == 1 and is_equal_approx(piece.max_health, full * 0.5)),
+		"two pieces with half its health")
+	var kills := 1
+	while not sim.enemies.is_empty():
+		sim._kill(sim.enemies[0])
+		kills += 1
+	check(kills == 31, "four splits deep: %d kills" % kills)
+	check_near(sim.coins, float(Guesses.COINS_BY_TYPE.scatter), 0.0001, "only the whole Scatter pays an elite's Coins")
+
+
+## An enemy alive three waves pays half its Coins, and gets 4% heavier each
+## wave it lives, so Knockback pushes it less; past wave 4,000 every enemy
+## spawns heavier; and a tier speeds enemies by its weight.
+func test_enemies_age_and_tiers_speed_them() -> void:
+	var sim := _quiet_sim()
+	sim.wave = 10
+	var fresh := _place(sim, "tank", 50.0)
+	var old := _place(sim, "tank", 50.0)
+	old.wave = 7
+	check_near(sim.knock_mass(old) / sim.knock_mass(fresh), pow(1.04, 3), 0.0001, "4% heavier for each wave alive")
+	sim._kill(fresh)
+	var paid := sim.coins
+	sim._kill(old)
+	check_near(sim.coins - paid, paid * 0.5, 0.0001, "and after three waves it pays half the Coins")
+	check(TowerData.mass_growth(3999) == 1.0 and TowerData.mass_growth(5000) > 1.5, "heavier from wave 4,000")
+	var first := BattleSim.new(1)
+	var third := BattleSim.new(1, {}, BattleSim.START_GROUPS, 3)
+	check_near(third._speed_m("fast") / first._speed_m("fast"), 1.08, 0.0001, "Tier 3's enemies are 8% faster")
+
+
+## Wave Info (D115) reads the sim: the spawn rate, what the wave sent and
+## turned away, and a row for each kind.
+func test_wave_info_reports_the_wave() -> void:
+	var sim := BattleSim.new(5, {}, BattleSim.START_GROUPS, 2)
+	sim.wave = 200
+	sim._schedule_wave()
+	sim.wave_clock = 0.0
+	while sim.wave_clock < TowerData.spawn_seconds() - BattleSim.TICK:
+		sim.wave_clock += BattleSim.TICK
+		sim._spawn_due()
+	var info := sim.wave_info()
+	check(info.spawned + info.missed == info.due and info.due == sim._schedule.size(), "every enemy due either came or was turned away")
+	check_near(float(info.spawn_rate), TowerData.spawn_rate(200), 0.0001, "the wave's spawn rate")
+	var kinds: Array = info.rows.map(func(row): return row.kind)
+	for kind in ["basic", "fast", "tank", "ranged", "protector", "boss", "divider", "vampire", "ray", "scatter"]:
+		check(kind in kinds, "a row for %s" % kind)
+	var shares := 0.0
+	for row in info.rows:
+		if row.kind in ["basic", "fast", "tank", "ranged", "protector"]:
+			shares += float(row.chance)
+	check_near(shares, 100.0, 0.001, "the normal kinds' chances make 100%")
+	check(info.rows.filter(func(row): return row.kind == "boss")[0].chance == 100.0, "wave 200 is a boss wave")
+	var panel := WaveInfo.new()
+	panel.show_for(sim)
+	check(panel._grid.get_child_count() == (info.rows.size() + 1) * WaveInfo.COLUMNS.size(), "the panel lays out a line for each kind under its headings")
+	check("Wave 200 · Tier 2" in panel._title.text and ("%d of %d spawned" % [info.spawned, info.due]) in panel._spawns.text, "and names the wave and its count: %s" % panel._spawns.text)
+	panel.free()
+
+
 ## The measuring options (sim_runs.gd) are off unless set: a Divider nothing
 ## can stop lands ÷1.1 once each chosen wave, and packages can be held to the
 ## run's best.
@@ -2246,6 +2447,11 @@ func _place(sim: BattleSim, kind: String, distance: float) -> BattleSim.Enemy:
 	enemy.distance = distance
 	enemy.last_distance = distance
 	enemy.stop_at = minf(distance, Guesses.CONTACT_DISTANCE_M)
+	enemy.mass = sim._mass_ratio(kind) * TowerData.mass_growth(sim.wave)
+	if kind == "ray":
+		enemy.hit_in = float(TowerData.enemies().elites.ray_charge_seconds)
+	elif kind == "protector":
+		sim._protectors.append(enemy)
 	sim.enemies.append(enemy)
 	return enemy
 

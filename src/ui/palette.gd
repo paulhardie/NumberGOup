@@ -42,6 +42,13 @@ const BOSS_GLOW := Color("ff4a3d")
 ## The Divider (D082): its own colour, so a ÷ reads apart from the enemies
 ## that subtract.
 const DIVIDER := Color("b48cf2")
+## The Protector is steel, the colour of what it does (D115); the elites are
+## The Tower's invaders, each glowing in its own: the Vampire crimson, the
+## Ray lemon, the Scatter blue.
+const PROTECTOR := Color("8a9bb8")
+const VAMPIRE := Color("d0204f")
+const RAY := Color("f2ec6b")
+const SCATTER := Color("5b7cff")
 
 const WORD_FONT := preload("res://assets/fonts/Geist.ttf")
 const NUMBER_FONT := preload("res://assets/fonts/GeistMono.ttf")

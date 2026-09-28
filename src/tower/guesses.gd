@@ -54,9 +54,13 @@ const ORB_TURNS_PER_SECOND_AT_FIRST_LEVEL := 0.4 / 60.0
 const ORB_MIN_RADIUS_M := 60.0
 const ORB_RANGE_SLOPE := 0.5
 const ORB_HIT_M := 3.0
-## Enemies orbs can't kill (D104): bosses, as in The Tower, and any later
-## enemy added here: The Tower's elites, and anything a Protector shields.
-const ORB_IMMUNE := ["boss"]
+## Enemies orbs can't kill (D104): bosses and The Tower's elites (D115). An
+## enemy a Protector shields can't be killed by them either (BattleSim).
+const ORB_IMMUNE := ["boss", "vampire", "ray", "scatter"]
+
+## A Scatter's two pieces land this many radians either side of where it
+## fell. Ours; The Tower's split in two is all that's known.
+const SCATTER_SPREAD := 0.06
 
 ## The Wall stands this far out; melee enemies stop at it and hit it while
 ## it stands. Ours; The Tower gives no units.
@@ -71,14 +75,19 @@ const LAND_MINE_TRIGGER_M := 2.0
 const SHOT_SPEED_M := 80.0
 
 ## Cash a kill pays, times $1 plus $1 every ten waves (D071, from community
-## research). The boss's 20 is ours until the owner reads one boss kill.
-const CASH_BY_TYPE := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "boss": 20.0, "divider": 2.0}
+## research). The boss's 20 is ours until the owner reads one boss kill, and
+## so are the Protector's and the elites', set at their Coin values (D115).
+## A Scatter's split-off pieces pay as basics.
+const CASH_BY_TYPE := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "boss": 20.0, "divider": 2.0,
+	"protector": 3.0, "vampire": 4.0, "ray": 4.0, "scatter": 4.0}
 
 ## Coins a kill pays, flat, whatever its wave (the owner's reference table;
 ## D074). Paid times the wave, as the SDK's model has it, a wave-22 run earned
 ## about 14 times the owner's Tower report; flat is within 2 times. Ranged pays
-## 2, as The Tower's own enemy list says (D082).
-const COINS_BY_TYPE := {"basic": 0.0, "fast": 2.0, "ranged": 2.0, "tank": 4.0, "boss": 5.0, "divider": 2.0}
+## 2, as The Tower's own enemy list says (D082); the Protector 3 and the
+## elites 4 (the SDK's base coin values, D115). A Scatter's pieces pay as basics.
+const COINS_BY_TYPE := {"basic": 0.0, "fast": 2.0, "ranged": 2.0, "tank": 4.0, "boss": 5.0, "divider": 2.0,
+	"protector": 3.0, "vampire": 4.0, "ray": 4.0, "scatter": 4.0}
 
 ## How much of Lifesteal still works once the Number is past Health: 0 would
 ## be a ceiling (D081); all of it is the owner's choice (D083), measured in
