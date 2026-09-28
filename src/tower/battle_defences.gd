@@ -8,6 +8,7 @@ extends RefCounted
 
 const Guesses = preload("res://src/tower/guesses.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
+const EnemyKinds = preload("res://src/tower/enemy_kinds.gd")
 
 ## The battle, held weakly: the battle holds these defences, so a strong
 ## reference back would keep both alive for ever.
@@ -87,7 +88,7 @@ func tick_shockwave() -> void:
 		return
 	shockwave_in += sim.stat("shockwave_frequency")
 	for enemy in sim.enemies:
-		if enemy.kind != "boss" and not sim.is_elite(enemy.kind) and enemy.distance <= sim.stat("range"):
+		if EnemyKinds.shockwave_moves(enemy.kind) and enemy.distance <= sim.stat("range"):
 			enemy.distance = minf(Guesses.SPAWN_DISTANCE_M, enemy.distance + sim.stat("shockwave_size"))
 	if sim.record_events:
 		sim.events.append({"type": "shockwave"})
@@ -96,7 +97,7 @@ func tick_shockwave() -> void:
 ## Orbs circle at least Guesses.ORB_MIN_RADIUS_M out, further inside a Range
 ## that grows past it (D108), and kill any enemy that comes within
 ## Guesses.ORB_HIT_M of one, walking or standing, unless it's one orbs can't
-## kill (Guesses.ORB_IMMUNE) or a Protector shields it (D115). They turn on the run's clock, and each tick
+## kill (EnemyKinds.orbs_kill) or a Protector shields it (D115). They turn on the run's clock, and each tick
 ## checks the whole arc an orb swept, not just where it ends up.
 func orb_radius() -> float:
 	return Guesses.ORB_MIN_RADIUS_M + Guesses.ORB_RANGE_SLOPE * maxf(0.0, sim.stat("range") - Guesses.ORB_MIN_RADIUS_M)
@@ -123,7 +124,7 @@ func sweep_orbs() -> void:
 	var slack: float = orb_hit_m / radius
 	var touched := []
 	for enemy in sim.enemies:
-		if enemy.kind in Guesses.ORB_IMMUNE or absf(enemy.distance - radius) > orb_hit_m:
+		if not EnemyKinds.orbs_kill(enemy.kind) or absf(enemy.distance - radius) > orb_hit_m:
 			continue
 		for start in starts:
 			# How far ahead of the orb's starting angle the enemy sits.

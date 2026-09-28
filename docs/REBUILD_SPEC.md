@@ -66,7 +66,7 @@ This replaces the earlier options: A (a score beside the battle, D079) and C (ba
 ## Layout
 
 ```text
-src/tower/   tower_data.gd (loads the JSON), guesses.gd, battle_sim.gd (its Enemy and Shot inside) with battle_defences.gd (Wall, orbs, shockwaves, mines); later workshop.gd, save.gd
+src/tower/   tower_data.gd (loads the JSON), guesses.gd, enemy_kinds.gd (what each enemy kind is: traits and the maths of its numbers, D117), battle_sim.gd (the fight; its Enemy and Shot inside) with battle_defences.gd (Wall, orbs, shockwaves, mines) and battle_spawns.gd (which enemies each wave sends, and when, D117); workshop.gd, save.gd
 src/ui/      palette.gd, arena_view.gd (with arena_effects.gd and number_motion.gd), battle_screen.gd; later workshop_screen.gd, home_screen.gd, nav_bar.gd
 data/tower/  enemies.json (generated)
 data/workshop/upgrades.json (generated, kept)

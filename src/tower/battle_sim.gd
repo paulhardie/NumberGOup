@@ -10,6 +10,8 @@ extends RefCounted
 const Guesses = preload("res://src/tower/guesses.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
 const BattleDefences = preload("res://src/tower/battle_defences.gd")
+const BattleSpawns = preload("res://src/tower/battle_spawns.gd")
+const EnemyKinds = preload("res://src/tower/enemy_kinds.gd")
 
 const TICK := 1.0 / 30.0
 
@@ -36,7 +38,7 @@ class Enemy:
 	## A Divider's divisor, fixed when it spawns; 0 for every other enemy.
 	var divisor := 0.0
 	## Its mass over a basic enemy's on wave 1, as it spawned (D115); it grows
-	## for each wave it stays alive (BattleSim.knock_mass).
+	## for each wave it stays alive (EnemyKinds.mass_now).
 	var mass := 1.0
 	## A Scatter's splits behind it: 0 as it spawns, one more each split.
 	var generation := 0
@@ -69,8 +71,6 @@ class Shot:
 const START_GROUPS := ["attack_start", "defense_start"]
 ## The most Defense % can take off a hit (community research, unverified).
 const DEFENSE_PERCENT_CAP := 0.98
-## A boss takes this share of Thorns (TheTowerSDK's breakpoints agree).
-const BOSS_THORNS_SHARE := 0.5
 ## Rapid Fire fires four times as fast while it lasts (the community wiki).
 const RAPID_FIRE_SPEED := 4.0
 ## The most Interest pays a wave before Labs raise it (D071).
@@ -118,14 +118,7 @@ var inputs: Array[Dictionary] = []
 ## How the run stood as each wave ended, for the activity log.
 var wave_log: Array[Dictionary] = []
 
-var _spawn_rng := RandomNumberGenerator.new()
 var _combat_rng := RandomNumberGenerator.new()
-## Which basic a Divider replaces is drawn from its own stream, so The Tower's
-## enemies, which kinds come and where from, are exactly what they were
-## without it.
-var _divider_rng := RandomNumberGenerator.new()
-## The Divider owed but not yet due: a wave's share carries to the next.
-var _divider_due := 0.0
 ## How the Number grows (D111, from D098's tests): regen restores it only
 ## up to its best, past which it drifts at `peak_drift`'s share, and an enemy
 ## killed before it lands a hit grows it by `kill_share` of its Attack. Both
@@ -170,15 +163,7 @@ var _high := 0.0
 ## Dividers that came, and the ones that reached the Number or the Wall.
 var dividers_spawned := 0
 var dividers_landed := 0
-var _schedule: Array[Dictionary] = []
-var _next_spawn := 0
-## This wave's spawns so far, and those the caps turned away (Wave Info).
-var wave_spawned := 0
-var wave_missed := 0
-## The Protector's gate (D115): waves counted down, 2 a wave, until one may
-## come; whether one may this wave, and the Protectors on the field.
-var _protector_gate := 0
-var _protector_due := false
+## The Protectors on the field (D115), whose shields BattleSim.shielded reads.
 var _protectors: Array[Enemy] = []
 ## Whether a Vampire was draining the tower last tick, which stops Regen and
 ## Lifesteal (D115).
@@ -190,6 +175,8 @@ var rapid_fire_left := 0.0
 
 ## The Wall, orbs, shockwaves and land mines, with their own state.
 var defences := BattleDefences.new(self)
+## Which enemies each wave sends and when (D117).
+var spawns := BattleSpawns.new(self)
 ## Enemy Level Skip: the wave whose health and attack enemies have, which
 ## lags the wave by every level skipped.
 var health_level := 1
@@ -205,24 +192,22 @@ func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_G
 	tier = clampi(run_tier, 1, TowerData.tier_count())
 	levels = row_levels.duplicate()
 	open_groups = groups.duplicate()
-	# Two streams, so a change in how often the tower fires or crits never
-	# changes which enemies a wave sends.
-	_spawn_rng.seed = hash([seed_value, "spawn"])
+	# Separate streams, so a change in how often the tower fires or crits
+	# never changes which enemies a wave sends.
+	spawns.start(seed_value)
 	_combat_rng.seed = hash([seed_value, "combat"])
-	_divider_rng.seed = hash([seed_value, "divider"])
-	_protector_gate = int(TowerData.tier(tier).protector_gate)
 	health = max_health()
 	peak_number = health
 	_high = health
 	defences.start()
-	_schedule_wave()
+	spawns.schedule_wave()
 
 
 ## Where the two random streams stand, as text: their 64-bit states are more
 ## than JSON's numbers hold exactly. A replay that drew exactly the same
 ## numbers ends with the same states.
 func rng_state() -> Array[String]:
-	return [str(_spawn_rng.state), str(_combat_rng.state), str(_divider_rng.state)]
+	return [spawns.spawn_state(), str(_combat_rng.state), spawns.divider_state()]
 
 
 func level(id: String) -> int:
@@ -318,47 +303,14 @@ func _count_gain(source: String, before: float) -> void:
 		_high = health
 
 
-## The health and attack a `kind` has right now, Enemy Level Skip included.
-## The Divider isn't The Tower's, so its numbers are a basic enemy's times ours.
+## The health and attack a `kind` has right now, Enemy Level Skip included
+## (EnemyKinds holds the maths).
 func enemy_health_now(kind: String) -> float:
-	var scale := float(TowerData.tier(tier).enemy_health)
-	if kind == "divider":
-		return TowerData.enemy_health(health_level, "basic") * lerpf(float(divider.health_first), float(divider.health_full), _divider_ramp(wave)) * scale
-	return TowerData.enemy_health(health_level, kind) * scale
+	return EnemyKinds.health(kind, health_level, wave, tier, divider)
 
 
 func enemy_attack_now(kind: String) -> float:
-	# A Divider doesn't subtract: it takes a share (_divide).
-	if kind == "divider":
-		return 0.0
-	return TowerData.enemy_attack(attack_level, kind) * float(TowerData.tier(tier).enemy_attack)
-
-
-## A tier's weight speeds every enemy as it raises the shares (D115).
-func _speed_m(kind: String) -> float:
-	var weight := float(TowerData.tier(tier).mix_weight)
-	if kind == "divider":
-		return TowerData.enemy_speed_m(wave, "basic") * float(divider.speed) * weight
-	return TowerData.enemy_speed_m(wave, kind) * weight
-
-
-func _mass_ratio(kind: String) -> float:
-	return 1.0 if kind == "divider" else TowerData.mass_ratio(kind)
-
-
-## How heavy `enemy` is now, over a basic enemy on wave 1: its mass as it
-## spawned, 4% more for each wave since (D115). Knockback pushes it that much less.
-func knock_mass(enemy: Enemy) -> float:
-	return enemy.mass * pow(float(TowerData.enemies().mass_per_wave_alive), wave - enemy.wave)
-
-
-static func is_elite(kind: String) -> bool:
-	return kind in TowerData.ELITES
-
-
-## Enemies that stop on the edge of the tower's Range and attack from there.
-static func stops_at_range(kind: String) -> bool:
-	return kind == "ranged" or kind == "vampire" or kind == "ray"
+	return EnemyKinds.attack(kind, attack_level, tier)
 
 
 ## Whether a Protector shields `enemy`: it is one, or stands within the
@@ -383,27 +335,6 @@ func damage_taken(enemy: Enemy) -> float:
 	return float(TowerData.enemies().protector.damage_taken) if shielded(enemy) else 1.0
 
 
-## How many Dividers a wave brings, on average: a fraction of one.
-func divider_rate(at_wave: int) -> float:
-	if at_wave < int(divider.from_wave):
-		return 0.0
-	return lerpf(float(divider.rate_first), float(divider.rate_full), _divider_ramp(at_wave))
-
-
-## The divisor a Divider spawning on `at_wave` carries.
-func divider_divisor(at_wave: int) -> float:
-	var smooth := lerpf(float(divider.divisor_first), float(divider.divisor_full), _divider_ramp(at_wave))
-	# In clean steps, so the ÷ on its body always reads simply.
-	return snappedf(smooth, float(divider.get("divisor_step", 0.0))) if float(divider.get("divisor_step", 0.0)) > 0.0 else smooth
-
-
-## How far along its ramp the Divider is at `at_wave`: 0 at its first wave,
-## 1 from FULL_WAVE on.
-func _divider_ramp(at_wave: int) -> float:
-	var first := int(divider.from_wave)
-	return clampf(float(at_wave - first) / float(maxi(1, int(divider.full_wave) - first)), 0.0, 1.0)
-
-
 func step() -> void:
 	if not alive:
 		return
@@ -419,8 +350,8 @@ func step() -> void:
 		_pay_wave_end()
 		wave += 1
 		_advance_levels()
-		_schedule_wave()
-	_spawn_due()
+		spawns.schedule_wave()
+	spawns.spawn_due()
 	if sure_from > 0 and wave >= sure_from and (wave - sure_from) % sure_every == 0 and _sure_landed != wave and wave_clock >= SURE_LANDS_AT:
 		_land_sure_divider()
 	_heal(stat("health_regen") * TICK, "regen")
@@ -451,176 +382,42 @@ func run_until_dead(max_seconds: float) -> void:
 		step()
 
 
-func _schedule_wave() -> void:
-	_schedule.clear()
-	_next_spawn = 0
-	wave_spawned = 0
-	wave_missed = 0
-	# The Protector (D115): a share of the draws once its gate, counted down 2
-	# a wave, is open; at most one a wave, and one coming shuts the gate again.
-	_protector_gate = maxi(0, _protector_gate - int(TowerData.enemies().protector.gate_step))
-	var protector := TowerData.protector_chance(wave, tier) if _protector_gate <= 0 else 0.0
-	_protector_due = protector > 0.0
-	var mix := _tier_mix(protector / 100.0)
-	if TowerData.is_boss_wave(wave, tier):
-		_schedule.append({"kind": "boss", "at": 0.0})
-	# The Tower's spawning (D114): a roll every spawn_roll_seconds of the
-	# spawning window, an enemy by the wave's spawn rate, and by the tier's
-	# double-spawn chance a second with it. Rolled as the wave starts, from the
-	# spawn stream, so a replay sends the same.
-	var every := TowerData.spawn_roll_seconds()
-	var chance := TowerData.spawn_rate(wave) / 100.0
-	var double := float(TowerData.tier(tier).double_spawn)
-	for roll in range(roundi(TowerData.spawn_seconds() / every)):
-		if _spawn_rng.randf() >= chance:
-			continue
-		var at := float(roll) * every
-		_schedule.append({"kind": _draw_spawn(mix), "at": at})
-		if _spawn_rng.randf() < double:
-			_schedule.append({"kind": _draw_spawn(mix), "at": at})
-	# Elites (D115): each type rolls the chart's chance for one this wave, and
-	# once that's certain, for a second, each coming at a random moment of
-	# the spawning window. Nothing is drawn while the chart has none.
-	var elite := TowerData.elite_chance(wave, tier)
-	if elite.single > 0.0:
-		for kind in TowerData.ELITES:
-			var count := 1 if _spawn_rng.randf() < elite.single / 100.0 else 0
-			if elite.single >= 100.0 and elite.double > 0.0 and _spawn_rng.randf() < elite.double / 100.0:
-				count += 1
-			for copy in range(count):
-				_insert_spawn(kind, _spawn_rng.randf() * TowerData.spawn_seconds())
-	# A Divider takes the Protector's slot in The Tower's standard pool (D094):
-	# it replaces one of the wave's basics, so the wave's size and the rest of
-	# its enemies are The Tower's. At most one a wave, so at a rate of one
-	# every other wave or less never two waves running; one owed with no basic
-	# to replace waits for the next wave without piling up.
-	_divider_due += divider_rate(wave)
-	if _divider_due < 1.0 - SKIP_SLACK:
-		return
-	var basics: Array[int] = []
-	for index in range(_schedule.size()):
-		if _schedule[index].kind == "basic":
-			basics.append(index)
-	if basics.is_empty():
-		_divider_due = 1.0
-		return
-	_divider_due -= 1.0
-	_schedule[basics[_divider_rng.randi_range(0, basics.size() - 1)]].kind = "divider"
-
-
-## The mix of kinds: a tier raises the fast, tank and ranged shares by its
-## weight, the Protector takes its `protector` share, and basics fill the
-## rest. Tier 1's is the data's as it stands.
-func _tier_mix(protector := 0.0) -> Dictionary:
-	var mix: Dictionary = TowerData.enemies().mix
-	var weight := float(TowerData.tier(tier).mix_weight)
-	if weight == 1.0 and protector <= 0.0:
-		return mix
-	var weighted := {"basic": 1.0}
-	for kind in mix:
-		if kind != "basic":
-			weighted[kind] = float(mix[kind]) * weight
-			weighted.basic -= weighted[kind]
-	if protector > 0.0:
-		weighted.protector = protector
-		weighted.basic -= protector
-	return weighted
-
-
-## What is on the field of `kind`'s sort: bosses, one elite type, or normal enemies.
-func count_on_field(kind: String) -> int:
-	var count := 0
-	for enemy in enemies:
-		if enemy.kind == kind or (kind == "normal" and enemy.kind != "boss" and not is_elite(enemy.kind)) \
-				or (kind == "elite" and is_elite(enemy.kind)):
-			count += 1
-	return count
-
-
-## Whether the caps leave room for one more `kind`: 120 normal enemies, 20
-## elites with 8 of a type, and 10 bosses (D113, D115).
-func _has_room(kind: String) -> bool:
-	if kind == "boss":
-		return count_on_field("boss") < TowerData.boss_cap()
-	if is_elite(kind):
-		return count_on_field("elite") < TowerData.elite_cap() and count_on_field(kind) < TowerData.elite_type_cap()
-	return count_on_field("normal") < TowerData.enemy_cap()
-
-
-## A normal enemy's kind, from the mix; a Protector drawn after this wave's
-## one comes as a basic.
-func _draw_spawn(mix: Dictionary) -> String:
-	var kind := _draw_kind(mix)
-	if kind != "protector":
-		return kind
-	if not _protector_due:
-		return "basic"
-	_protector_due = false
-	_protector_gate = int(TowerData.tier(tier).protector_gate)
-	return kind
-
-
-## Puts a spawn into the wave's schedule, after everything due at or before it.
-func _insert_spawn(kind: String, at: float) -> void:
-	var index := _schedule.size()
-	while index > 0 and float(_schedule[index - 1].at) > at:
-		index -= 1
-	_schedule.insert(index, {"kind": kind, "at": at})
-
-
-func _draw_kind(mix: Dictionary) -> String:
-	var roll := _spawn_rng.randf()
-	for kind in mix:
-		roll -= float(mix[kind])
-		if roll < 0.0:
-			return kind
-	return "basic"
-
-
-func _spawn_due() -> void:
-	while _next_spawn < _schedule.size() and float(_schedule[_next_spawn].at) <= wave_clock:
-		var kind: String = _schedule[_next_spawn].kind
-		_next_spawn += 1
-		# The field is full of its sort: this one never comes (The Tower's caps).
-		if not _has_room(kind):
-			wave_missed += 1
-			continue
-		wave_spawned += 1
-		var enemy := Enemy.new()
-		enemy.id = _next_id
-		_next_id += 1
-		enemy.kind = kind
-		enemy.wave = wave
-		enemy.max_health = enemy_health_now(kind)
-		enemy.health = enemy.max_health
-		enemy.attack = enemy_attack_now(kind)
-		enemy.speed = _speed_m(kind)
-		# A Divider comes from where the basic it replaced would have, so every
-		# other enemy's direction is The Tower's too.
-		enemy.angle = _spawn_rng.randf() * TAU
-		if kind == "divider":
-			enemy.divisor = divider_divisor(wave)
-			dividers_spawned += 1
-		enemy.distance = Guesses.SPAWN_DISTANCE_M
-		enemy.last_distance = enemy.distance
-		enemy.stop_at = stat("range") if stops_at_range(kind) else Guesses.CONTACT_DISTANCE_M
-		enemy.mass = _mass_ratio(kind) * TowerData.mass_growth(wave)
-		# A Ray charges before its first shot, and between shots.
-		if kind == "ray":
-			enemy.hit_in = float(TowerData.enemies().elites.ray_charge_seconds)
-		elif kind == "protector":
-			_protectors.append(enemy)
-		enemies.append(enemy)
+## Puts a new `kind` on the field at `angle`, where enemies set off
+## (BattleSpawns decides which and when).
+func _place(kind: String, angle: float) -> void:
+	var enemy := Enemy.new()
+	enemy.id = _next_id
+	_next_id += 1
+	enemy.kind = kind
+	enemy.wave = wave
+	enemy.max_health = enemy_health_now(kind)
+	enemy.health = enemy.max_health
+	enemy.attack = enemy_attack_now(kind)
+	enemy.speed = EnemyKinds.speed_m(kind, wave, tier, divider)
+	enemy.angle = angle
+	if kind == "divider":
+		enemy.divisor = EnemyKinds.divider_divisor(divider, wave)
+		dividers_spawned += 1
+	enemy.distance = Guesses.SPAWN_DISTANCE_M
+	enemy.last_distance = enemy.distance
+	enemy.stop_at = stat("range") if EnemyKinds.stops_at_range(kind) else Guesses.CONTACT_DISTANCE_M
+	enemy.mass = EnemyKinds.spawn_mass(kind, wave)
+	# A Ray charges before its first shot, and between shots.
+	if EnemyKinds.attack_style(kind) == "charge":
+		enemy.hit_in = EnemyKinds.hit_seconds(kind)
+	elif kind == "protector":
+		_protectors.append(enemy)
+	enemies.append(enemy)
 
 
 func _move_enemies() -> void:
 	for enemy in enemies:
 		# Ranged enemies stop on the edge of the tower's Range, wherever it is
 		# now: more Range and the ones still walking stop further out.
-		if stops_at_range(enemy.kind) and not enemy.arrived():
+		if EnemyKinds.stops_at_range(enemy.kind) and not enemy.arrived():
 			enemy.stop_at = stat("range")
 		# Melee enemies stop at a standing Wall, and walk on when it falls.
-		elif not stops_at_range(enemy.kind):
+		elif not EnemyKinds.stops_at_range(enemy.kind):
 			var at_wall := defences.wall_up() and enemy.distance >= Guesses.WALL_DISTANCE_M
 			enemy.stop_at = Guesses.WALL_DISTANCE_M if at_wall else Guesses.CONTACT_DISTANCE_M
 		if not enemy.arrived():
@@ -638,13 +435,14 @@ func _enemies_hit() -> void:
 	for enemy in enemies:
 		if not enemy.arrived():
 			continue
-		if enemy.kind == "divider":
+		var style := EnemyKinds.attack_style(enemy.kind)
+		if style == "divide":
 			spent.append(enemy)
 			continue
 		# A Vampire in range drains a share of Health a second, past the
 		# defences and the Wall, and stops Regen and Lifesteal while it does;
 		# no Thorns, since nothing touches the tower (D115).
-		if enemy.kind == "vampire":
+		if style == "drain":
 			draining = true
 			enemy.hits = maxi(enemy.hits, 1)
 			var drained := minf(health, max_health() * float(TowerData.enemies().elites.vampire_drain) * TICK)
@@ -659,7 +457,7 @@ func _enemies_hit() -> void:
 		enemy.hit_in -= TICK
 		if enemy.hit_in > 0.0:
 			continue
-		enemy.hit_in += float(TowerData.enemies().elites.ray_charge_seconds) if enemy.kind == "ray" else Guesses.ENEMY_HIT_SECONDS
+		enemy.hit_in += EnemyKinds.hit_seconds(enemy.kind)
 		var damage := landed_damage(enemy.attack * pow(TowerData.heat_up_per_hit(), enemy.hits))
 		enemy.hits += 1
 		# While the Wall stands it takes every hit, ranged ones too: The Tower's
@@ -684,7 +482,7 @@ func _enemies_hit() -> void:
 			alive = false
 			killed_by = enemy.kind
 			return
-		var thorns := minf(stat("thorns"), 1.0) * (BOSS_THORNS_SHARE if enemy.kind == "boss" else 1.0)
+		var thorns := minf(stat("thorns"), 1.0) * EnemyKinds.thorns_share(enemy.kind)
 		if shielded(enemy):
 			thorns *= float(TowerData.enemies().protector.thorns_taken)
 		if thorns > 0.0:
@@ -703,7 +501,7 @@ func _enemies_hit() -> void:
 ## used up: gone, unpaid, and no longer a target for shots already flying.
 ## Half of anything is never all of it, so it can't end a run on its own.
 func _divide(enemy: Enemy) -> void:
-	var divisor := enemy.divisor if enemy.divisor > 0.0 else divider_divisor(wave)
+	var divisor := enemy.divisor if enemy.divisor > 0.0 else EnemyKinds.divider_divisor(divider, wave)
 	var share := 1.0 - 1.0 / maxf(1.0, divisor)
 	var at_wall := defences.wall_up() and enemy.distance > Guesses.CONTACT_DISTANCE_M
 	var loss := 0.0
@@ -745,45 +543,6 @@ func _land_sure_divider() -> void:
 func divide_loss(divisor: float) -> float:
 	var share := 1.0 - 1.0 / maxf(1.0, divisor)
 	return minf(health, landed_damage(health * share))
-
-
-## What the Wave Info panel shows (D115), as The Tower's does: the wave's
-## spawn rate and double-spawn chance, how many it has sent and turned away,
-## what's on the field against the caps, and each kind's health, attack,
-## speed and chance.
-func wave_info() -> Dictionary:
-	var rolls := roundi(TowerData.spawn_seconds() / TowerData.spawn_roll_seconds())
-	var rate := TowerData.spawn_rate(wave)
-	var double := float(TowerData.tier(tier).double_spawn)
-	var protector := TowerData.protector_chance(wave, tier)
-	var mix := _tier_mix(protector / 100.0)
-	# Each row's chance, and for some, waves until it may come or a second's chance.
-	var rows: Array[Dictionary] = []
-	for kind in mix:
-		var gate := ceili(float(_protector_gate) / float(TowerData.enemies().protector.gate_step)) if kind == "protector" else 0
-		rows.append(_info_row(kind, 100.0 * float(mix[kind]), gate))
-	var boss_every := int(TowerData.tier(tier).boss_every)
-	var boss_in := (boss_every - wave % boss_every) % boss_every
-	rows.append(_info_row("boss", 100.0 if boss_in == 0 else 0.0, boss_in))
-	if divider_rate(wave) > 0.0:
-		rows.append(_info_row("divider", 100.0 * minf(1.0, divider_rate(wave))))
-	var elite := TowerData.elite_chance(wave, tier)
-	for kind in TowerData.ELITES:
-		rows.append(_info_row(kind, elite.single, 0, elite.double))
-	return {
-		"wave": wave, "tier": tier, "spawn_rate": rate, "double_spawn": 100.0 * double, "rolls": rolls,
-		"roll_seconds": TowerData.spawn_roll_seconds(), "expected": rolls * rate / 100.0 * (1.0 + double),
-		"due": _schedule.size(), "spawned": wave_spawned, "missed": wave_missed,
-		"normal": count_on_field("normal"), "normal_cap": TowerData.enemy_cap(),
-		"elites": count_on_field("elite"), "elite_cap": TowerData.elite_cap(),
-		"bosses": count_on_field("boss"), "boss_cap": TowerData.boss_cap(),
-		"protector_radius": TowerData.protector_radius_m(wave, tier), "rows": rows,
-	}
-
-
-func _info_row(kind: String, chance: float, waits := 0, second := 0.0) -> Dictionary:
-	return {"kind": kind, "health": enemy_health_now(kind), "attack": enemy_attack_now(kind), "speed": _speed_m(kind), "chance": chance,
-		"waits": waits, "second": second}
 
 
 ## What a hit of `raw` leaves after the tower's defences.
@@ -916,7 +675,7 @@ func _strike(enemy: Enemy, shot_damage: float, critical: bool) -> void:
 		enemy.rend = minf(REND_CAP, enemy.rend + stat("rend_armor_mult"))
 	_heal(stat("lifesteal") * minf(damage, maxf(enemy.health, 0.0)), "lifesteal")
 	if enemy.health > damage and stat("knockback_chance") > 0.0 and _combat_rng.randf() < stat("knockback_chance"):
-		var push := stat("knockback_force") * Guesses.KNOCKBACK_METRES_PER_FORCE / knock_mass(enemy)
+		var push := stat("knockback_force") * Guesses.KNOCKBACK_METRES_PER_FORCE / EnemyKinds.mass_now(enemy, wave)
 		enemy.distance = minf(Guesses.SPAWN_DISTANCE_M, enemy.distance + push)
 	enemy.health -= damage
 	if record_events:
@@ -939,14 +698,8 @@ func _kill(enemy: Enemy, by := "") -> void:
 		_count_gain("kills", before)
 		if record_events:
 			events.append({"type": "grown", "enemy": enemy, "gain": health - before})
-	# A Scatter's split-off pieces pay as basics.
-	var pays_as := "basic" if enemy.generation > 0 else enemy.kind
-	var paid_cash := TowerData.kill_cash(enemy.wave) * float(Guesses.CASH_BY_TYPE[pays_as]) * stat("cash_bonus")
-	var paid_coins := float(Guesses.COINS_BY_TYPE[pays_as]) * stat("coins_per_kill") * float(TowerData.tier(tier).coins)
-	# Coin decay (D115): an enemy alive three waves pays half its Coins.
-	var decay: Dictionary = TowerData.enemies().coin_decay
-	if wave - enemy.wave >= int(decay.after_waves):
-		paid_coins *= float(decay.share)
+	var paid_cash := EnemyKinds.cash(enemy, stat("cash_bonus"))
+	var paid_coins := EnemyKinds.coins(enemy, wave, stat("coins_per_kill"), tier)
 	cash += paid_cash
 	cash_earned += paid_cash
 	coins += paid_coins

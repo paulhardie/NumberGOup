@@ -7,6 +7,7 @@ extends SceneTree
 const Guesses = preload("res://src/tower/guesses.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
+const EnemyKinds = preload("res://src/tower/enemy_kinds.gd")
 const Palette = preload("res://src/ui/palette.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
 const ArenaView = preload("res://src/ui/arena_view.gd")
@@ -592,7 +593,7 @@ func test_damage_per_meter_lifts_far_strikes() -> void:
 
 func test_cash_and_coin_rows_pay() -> void:
 	var sim := BattleSim.new(1, {"cash_bonus": 50, "cash_per_wave": 3, "coins_per_kill": 50, "coins_per_wave": 4}, ["attack_start", "defense_start", "cash", "coins"])
-	sim._schedule.clear()
+	sim.spawns.schedule.clear()
 	sim.cash = 0.0
 	var tank := _place(sim, "tank", 10.0)
 	tank.health = 0.01
@@ -739,7 +740,7 @@ func test_knockback_never_pushes_past_the_spawn() -> void:
 
 func test_interest_pays_on_cash_held_up_to_its_cap() -> void:
 	var sim := BattleSim.new(1, {"interest": 10}, ["attack_start", "defense_start", "cash", "interest"])
-	sim._schedule.clear()
+	sim.spawns.schedule.clear()
 	sim.cash = 100.0
 	sim.wave_clock = TowerData.wave_seconds() - BattleSim.TICK * 0.5
 	sim.step()
@@ -753,7 +754,7 @@ func test_interest_pays_on_cash_held_up_to_its_cap() -> void:
 func test_free_upgrades_raise_open_rows_of_their_category() -> void:
 	var sim := BattleSim.new(1, {"free_attack_upgrade": TowerData.max_level("free_attack_upgrade"), "free_utility_upgrade": TowerData.max_level("free_utility_upgrade")},
 		["attack_start", "defense_start", "cash"])
-	sim._schedule.clear()
+	sim.spawns.schedule.clear()
 	sim.record_events = true
 	for _i in range(40):
 		sim.wave_clock = TowerData.wave_seconds() - BattleSim.TICK * 0.5
@@ -790,7 +791,7 @@ func test_orbs_kill_walking_enemies_but_not_bosses() -> void:
 	arena.absorb(sim.events, 0.0)
 	check(arena.effects.pops.size() == 1 and arena.effects.pops[0].text == "0", "so it pops as a 0, set to zero (D106): %s" % [arena.effects.pops])
 	arena.free()
-	check(Guesses.ORB_IMMUNE.has("boss"), "bosses are the first enemy orbs can't kill; later ones join them there")
+	check(not EnemyKinds.orbs_kill("boss") and EnemyKinds.orbs_kill("basic"), "orbs can't kill bosses, and can kill the rest of The Tower's launch enemies")
 	check(sim.defences.orb_angles().size() == 4, "four orbs, spaced evenly")
 
 
@@ -884,7 +885,7 @@ func test_death_defy_ignores_a_hit_that_would_end_the_run_by_its_chance() -> voi
 	var runs := 300
 	for seed_value in range(runs):
 		var sim := BattleSim.new(seed_value, {"death_defy": TowerData.max_level("death_defy")}, BattleSim.START_GROUPS + ["death_defy"])
-		sim._schedule.clear()
+		sim.spawns.schedule.clear()
 		sim.wave_clock = -1e9
 		var enemy := _place(sim, "basic", Guesses.CONTACT_DISTANCE_M)
 		enemy.attack = 1e9
@@ -1115,10 +1116,10 @@ func test_enemy_level_skip_holds_back_a_share_of_waves() -> void:
 		sim._advance_levels()
 	check(sim.health_level == 1 + 100 - 35, "35%% of 100 waves skip Health: level %d" % sim.health_level)
 	check(sim.attack_level == 1 + 100 - 10, "10%% skip Attack: level %d" % sim.attack_level)
-	sim._schedule = [{"kind": "tank", "at": 0.0}]
-	sim._next_spawn = 0
+	sim.spawns.schedule = [{"kind": "tank", "at": 0.0}]
+	sim.spawns.next_spawn = 0
 	sim.wave_clock = 0.0
-	sim._spawn_due()
+	sim.spawns.spawn_due()
 	var tank: BattleSim.Enemy = sim.enemies[-1]
 	check_near(tank.max_health, TowerData.enemy_health(sim.health_level, "tank"), 0.0001, "new enemies have the held-back health")
 	check_near(tank.attack, TowerData.enemy_attack(sim.attack_level, "tank"), 0.0001, "and attack")
@@ -1458,33 +1459,33 @@ func test_a_divider_takes_the_protectors_slot_replacing_a_basic() -> void:
 	var plain := BattleSim.new(8)
 	plain.divider.rate_first = 0.0
 	plain.divider.rate_full = 0.0
-	check(sim.divider_rate(4) == 0.0 and is_equal_approx(sim.divider_rate(5), 1.0 / 3.0), "none before wave 5, then one every third wave")
-	check(is_equal_approx(sim.divider_rate(30), 0.5) and is_equal_approx(sim.divider_rate(200), 0.5), "rising to every other wave by wave 30, and holding")
-	check(is_equal_approx(sim.divider_divisor(5), 1.25) and is_equal_approx(sim.divider_divisor(30), 1.5) and is_equal_approx(sim.divider_divisor(99), 1.5),
+	check(EnemyKinds.divider_rate(sim.divider, 4) == 0.0 and is_equal_approx(EnemyKinds.divider_rate(sim.divider, 5), 1.0 / 3.0), "none before wave 5, then one every third wave")
+	check(is_equal_approx(EnemyKinds.divider_rate(sim.divider, 30), 0.5) and is_equal_approx(EnemyKinds.divider_rate(sim.divider, 200), 0.5), "rising to every other wave by wave 30, and holding")
+	check(is_equal_approx(EnemyKinds.divider_divisor(sim.divider, 5), 1.25) and is_equal_approx(EnemyKinds.divider_divisor(sim.divider, 30), 1.5) and is_equal_approx(EnemyKinds.divider_divisor(sim.divider, 99), 1.5),
 		"their divisor rises from ÷1.25 to ÷1.5 by wave 30: gentle, since Tier 1 is the tutorial")
 	for at_wave in range(5, 40):
-		var divisor := sim.divider_divisor(at_wave)
+		var divisor := EnemyKinds.divider_divisor(sim.divider, at_wave)
 		check(is_equal_approx(divisor, 1.25) or is_equal_approx(divisor, 1.5), "wave %d's divisor reads cleanly: %s" % [at_wave, divisor])
-	check(is_equal_approx(sim.divider_divisor(17), 1.25) and is_equal_approx(sim.divider_divisor(18), 1.5), "÷1.25 to wave 17, then ÷1.5")
+	check(is_equal_approx(EnemyKinds.divider_divisor(sim.divider, 17), 1.25) and is_equal_approx(EnemyKinds.divider_divisor(sim.divider, 18), 1.5), "÷1.25 to wave 17, then ÷1.5")
 	var walking := BattleSim.new(8)
-	walking._schedule.clear()
+	walking.spawns.schedule.clear()
 	walking.wave = 17
-	walking._schedule = [{"kind": "divider", "at": 0.0}]
-	walking._next_spawn = 0
+	walking.spawns.schedule = [{"kind": "divider", "at": 0.0}]
+	walking.spawns.next_spawn = 0
 	walking.wave_clock = 0.0
-	walking._spawn_due()
-	check_near(walking.enemies[-1].divisor, walking.divider_divisor(17), 0.0, "a Divider carries the divisor of the wave it came in")
+	walking.spawns.spawn_due()
+	check_near(walking.enemies[-1].divisor, EnemyKinds.divider_divisor(walking.divider, 17), 0.0, "a Divider carries the divisor of the wave it came in")
 	var divider_waves: Array[int] = []
 	var expected := 0.0
 	for at_wave in range(2, 61):
 		for each in [sim, plain]:
 			each.wave = at_wave
-			each._schedule_wave()
-		check(sim._schedule.size() == plain._schedule.size(), "wave %d: as many enemies as The Tower sends" % at_wave)
+			each.spawns.schedule_wave()
+		check(sim.spawns.schedule.size() == plain.spawns.schedule.size(), "wave %d: as many enemies as The Tower sends" % at_wave)
 		var replaced := 0
-		for index in range(sim._schedule.size()):
-			var ours: Dictionary = sim._schedule[index]
-			var theirs: Dictionary = plain._schedule[index]
+		for index in range(sim.spawns.schedule.size()):
+			var ours: Dictionary = sim.spawns.schedule[index]
+			var theirs: Dictionary = plain.spawns.schedule[index]
 			if ours.kind == "divider":
 				replaced += 1
 				check(theirs.kind == "basic" and float(ours.at) == float(theirs.at), "wave %d: a Divider stands where a basic would have" % at_wave)
@@ -1493,7 +1494,7 @@ func test_a_divider_takes_the_protectors_slot_replacing_a_basic() -> void:
 		check(replaced <= 1, "wave %d: at most one Divider a wave" % at_wave)
 		if replaced == 1:
 			divider_waves.append(at_wave)
-		expected += sim.divider_rate(at_wave)
+		expected += EnemyKinds.divider_rate(sim.divider, at_wave)
 	check(not divider_waves.is_empty() and divider_waves[0] == 7, "the first comes on wave 7, once a third a wave adds up to one: %s" % [divider_waves])
 	for index in range(divider_waves.size() - 1):
 		check(divider_waves[index + 1] - divider_waves[index] >= 2, "never two waves running: %s" % [divider_waves])
@@ -1502,13 +1503,13 @@ func test_a_divider_takes_the_protectors_slot_replacing_a_basic() -> void:
 		"as many as their rate adds up to: %d against %.1f" % [divider_waves.size(), expected])
 	# The Divider comes from where its basic would have, so every other enemy
 	# comes from The Tower's direction too.
-	sim._divider_due = 1.0
+	sim.spawns.divider_due = 1.0
 	for each in [sim, plain]:
 		each.enemies.clear()
 		each.wave = 7
-		each._schedule_wave()
+		each.spawns.schedule_wave()
 		each.wave_clock = 999.0
-		each._spawn_due()
+		each.spawns.spawn_due()
 	check(sim.enemies.size() == plain.enemies.size(), "a Divider's wave sends as many enemies")
 	var same_directions := true
 	var dividers := 0
@@ -1527,7 +1528,7 @@ func test_a_divider_halves_the_number_through_the_defences_and_is_used_up() -> v
 	var divider := _place(sim, "divider", Guesses.CONTACT_DISTANCE_M)
 	sim.step()
 	# Tier 1 starts at ÷1.25: a fifth of the Number, since a bigger divisor takes more.
-	check_near(sim.divider_divisor(1), 1.25, 0.0, "Tier 1's first Dividers are ÷1.25")
+	check_near(EnemyKinds.divider_divisor(sim.divider, 1), 1.25, 0.0, "Tier 1's first Dividers are ÷1.25")
 	check_near(sim.health, 80.0 + sim.stat("health_regen") * BattleSim.TICK, 0.0001, "÷1.25 takes a fifth of the Number")
 	check(not sim.enemies.has(divider) and divider.health == 0.0, "and the Divider is used up")
 	check(sim.kills == kills and sim.cash == cash and sim.dividers_landed == 1, "without paying or counting as a kill")
@@ -1664,8 +1665,8 @@ func test_spawns_roll_by_the_waves_spawn_rate() -> void:
 		for seed in range(1, 41):
 			var sim := BattleSim.new(seed)
 			sim.wave = at_wave
-			sim._schedule_wave()
-			total += sim._schedule.filter(func(entry): return entry.kind != "boss").size()
+			sim.spawns.schedule_wave()
+			total += sim.spawns.schedule.filter(func(entry): return entry.kind != "boss").size()
 		var expected := 208.0 * TowerData.spawn_rate(at_wave) / 100.0 * (1.0 + float(TowerData.tier(1).double_spawn))
 		check_near(float(total) / 40.0, expected, expected * 0.08, "wave %d sends about %.0f enemies: %.1f" % [at_wave, expected, float(total) / 40.0])
 
@@ -1687,11 +1688,11 @@ func test_tiers_scale_enemies_and_spawns() -> void:
 	check_near(second.enemy_health_now("basic") / first.enemy_health_now("basic"), 20.0, 0.0001, "Tier 2's health is 20 times")
 	check_near(third.enemy_attack_now("tank") / first.enemy_attack_now("tank"), 60.0, 0.0001, "Tier 3's attack is 60 times")
 	check_near(second.enemy_health_now("divider") / first.enemy_health_now("divider"), 20.0, 0.0001, "Dividers too")
-	check(first._tier_mix() == TowerData.enemies().mix, "Tier 1 keeps the data's mix")
-	check_near(float(third._tier_mix().fast), float(TowerData.enemies().mix.fast) * 1.08, 0.0001, "Tier 3 has 8% more fast enemies")
+	check(first.spawns.tier_mix() == TowerData.enemies().mix, "Tier 1 keeps the data's mix")
+	check_near(float(third.spawns.tier_mix().fast), float(TowerData.enemies().mix.fast) * 1.08, 0.0001, "Tier 3 has 8% more fast enemies")
 	var shares := 0.0
-	for kind in third._tier_mix():
-		shares += float(third._tier_mix()[kind])
+	for kind in third.spawns.tier_mix():
+		shares += float(third.spawns.tier_mix()[kind])
 	check_near(shares, 1.0, 0.0001, "and basics fill the rest")
 	check(TowerData.tier(2).double_spawn == TowerData.tier(1).double_spawn and TowerData.tier(3).double_spawn > TowerData.tier(1).double_spawn, "Tier 2 double-spawns as Tier 1 does, Tier 3 a touch more")
 
@@ -1704,10 +1705,10 @@ func test_tiers_scale_enemies_and_spawns() -> void:
 	var full := _quiet_sim()
 	for n in range(TowerData.enemy_cap()):
 		_place(full, "basic", 90.0)
-	full._schedule = [{"kind": "basic", "at": 0.0}, {"kind": "boss", "at": 0.0}]
-	full._next_spawn = 0
+	full.spawns.schedule = [{"kind": "basic", "at": 0.0}, {"kind": "boss", "at": 0.0}]
+	full.spawns.next_spawn = 0
 	full.wave_clock = 0.0
-	full._spawn_due()
+	full.spawns.spawn_due()
 	check(full.enemies.size() == TowerData.enemy_cap() + 1 and full.enemies[-1].kind == "boss", "a full field of %d takes no more normal enemies, but a boss still comes" % TowerData.enemy_cap())
 
 
@@ -1726,8 +1727,8 @@ func test_protectors_shield_from_tier_2() -> void:
 		var closest := 100
 		for at_wave in range(400, 460):
 			sim.wave = at_wave
-			sim._schedule_wave()
-			var here := sim._schedule.filter(func(entry): return entry.kind == "protector").size()
+			sim.spawns.schedule_wave()
+			var here := sim.spawns.schedule.filter(func(entry): return entry.kind == "protector").size()
 			check(here <= 1, "at most one Protector a wave")
 			if here == 1:
 				closest = mini(closest, at_wave - last)
@@ -1767,38 +1768,38 @@ func test_elites_come_by_the_chart() -> void:
 	check(TowerData.elite_chance(8000, 1).single == 100.0 and TowerData.elite_chance(9000, 1).double == 4.0, "certain by wave 8,000, then a second")
 	var before := BattleSim.new(3)
 	before.wave = 499
-	before._schedule_wave()
+	before.spawns.schedule_wave()
 	var early := BattleSim.new(3)
 	early.wave = 499
-	early._schedule_wave()
-	check(before._schedule == early._schedule, "before the chart opens, spawning draws nothing new")
+	early.spawns.schedule_wave()
+	check(before.spawns.schedule == early.spawns.schedule, "before the chart opens, spawning draws nothing new")
 	var elites := 0
 	for seed in range(1, 41):
 		var sim := BattleSim.new(seed)
 		sim.wave = 6000
-		sim._schedule_wave()
-		var times: Array = sim._schedule.map(func(entry): return float(entry.at))
+		sim.spawns.schedule_wave()
+		var times: Array = sim.spawns.schedule.map(func(entry): return float(entry.at))
 		var sorted := times.duplicate()
 		sorted.sort()
 		check(times == sorted, "the schedule stays in time order")
-		elites += sim._schedule.filter(func(entry): return BattleSim.is_elite(entry.kind)).size()
+		elites += sim.spawns.schedule.filter(func(entry): return EnemyKinds.is_elite(entry.kind)).size()
 	check_near(float(elites) / 40.0, 3.0 * 0.64, 0.6, "at wave 6,000 each type comes 64%% of waves: %.2f a wave" % (float(elites) / 40.0))
 
 	var full := _quiet_sim()
 	for n in range(TowerData.elite_type_cap()):
 		_place(full, "vampire", 90.0)
-	check(not full._has_room("vampire") and full._has_room("ray"), "8 Vampires fill their type, not the others")
+	check(not full.spawns.has_room("vampire") and full.spawns.has_room("ray"), "8 Vampires fill their type, not the others")
 	for n in range(TowerData.elite_cap() - TowerData.elite_type_cap()):
 		_place(full, "ray" if n < TowerData.elite_type_cap() else "scatter", 90.0)
-	check(not full._has_room("scatter") and full._has_room("basic"), "20 elites fill the elite cap, and normal enemies still come")
+	check(not full.spawns.has_room("scatter") and full.spawns.has_room("basic"), "20 elites fill the elite cap, and normal enemies still come")
 	for n in range(TowerData.boss_cap()):
 		_place(full, "boss", 90.0)
-	check(not full._has_room("boss"), "and 10 bosses the boss cap")
+	check(not full.spawns.has_room("boss"), "and 10 bosses the boss cap")
 
 	var sim := _quiet_sim({}, BattleSim.START_GROUPS + ["shockwave"])
 	var ray := _place(sim, "ray", sim.stat("range") * 0.5)
 	var basic := _place(sim, "basic", sim.stat("range") * 0.5)
-	check(ray.kind in Guesses.ORB_IMMUNE, "orbs can't kill elites")
+	check(not EnemyKinds.orbs_kill(ray.kind), "orbs can't kill elites")
 	sim.defences.shockwave_in = 0.0
 	sim.defences.tick_shockwave()
 	check(basic.distance > ray.distance and is_equal_approx(ray.distance, sim.stat("range") * 0.5), "and shockwaves don't push them")
@@ -1871,7 +1872,7 @@ func test_enemies_age_and_tiers_speed_them() -> void:
 	var fresh := _place(sim, "tank", 50.0)
 	var old := _place(sim, "tank", 50.0)
 	old.wave = 7
-	check_near(sim.knock_mass(old) / sim.knock_mass(fresh), pow(1.04, 3), 0.0001, "4% heavier for each wave alive")
+	check_near(EnemyKinds.mass_now(old, sim.wave) / EnemyKinds.mass_now(fresh, sim.wave), pow(1.04, 3), 0.0001, "4% heavier for each wave alive")
 	sim._kill(fresh)
 	var paid := sim.coins
 	sim._kill(old)
@@ -1879,7 +1880,7 @@ func test_enemies_age_and_tiers_speed_them() -> void:
 	check(TowerData.mass_growth(3999) == 1.0 and TowerData.mass_growth(5000) > 1.5, "heavier from wave 4,000")
 	var first := BattleSim.new(1)
 	var third := BattleSim.new(1, {}, BattleSim.START_GROUPS, 3)
-	check_near(third._speed_m("fast") / first._speed_m("fast"), 1.08, 0.0001, "Tier 3's enemies are 8% faster")
+	check_near(EnemyKinds.speed_m("fast", third.wave, third.tier, third.divider) / EnemyKinds.speed_m("fast", first.wave, first.tier, first.divider), 1.08, 0.0001, "Tier 3's enemies are 8% faster")
 
 
 ## Wave Info (D115) reads the sim: the spawn rate, what the wave sent and
@@ -1887,13 +1888,13 @@ func test_enemies_age_and_tiers_speed_them() -> void:
 func test_wave_info_reports_the_wave() -> void:
 	var sim := BattleSim.new(5, {}, BattleSim.START_GROUPS, 2)
 	sim.wave = 200
-	sim._schedule_wave()
+	sim.spawns.schedule_wave()
 	sim.wave_clock = 0.0
 	while sim.wave_clock < TowerData.spawn_seconds() - BattleSim.TICK:
 		sim.wave_clock += BattleSim.TICK
-		sim._spawn_due()
-	var info := sim.wave_info()
-	check(info.spawned + info.missed == info.due and info.due == sim._schedule.size(), "every enemy due either came or was turned away")
+		sim.spawns.spawn_due()
+	var info := sim.spawns.wave_info()
+	check(info.spawned + info.missed == info.due and info.due == sim.spawns.schedule.size(), "every enemy due either came or was turned away")
 	check_near(float(info.spawn_rate), TowerData.spawn_rate(200), 0.0001, "the wave's spawn rate")
 	var kinds: Array = info.rows.map(func(row): return row.kind)
 	for kind in ["basic", "fast", "tank", "ranged", "protector", "boss", "divider", "vampire", "ray", "scatter"]:
@@ -1990,8 +1991,8 @@ func test_the_number_grows_by_fighting_not_waiting() -> void:
 	check(fresh.rng_state().size() == 3, "a run has three random streams")
 	for at_wave in range(2, 41):
 		fresh.wave = at_wave
-		fresh._schedule_wave()
-		check(fresh._schedule.all(func(entry): return entry.kind in ["basic", "fast", "tank", "ranged", "boss", "divider"]), "wave %d: no Multipliers" % at_wave)
+		fresh.spawns.schedule_wave()
+		check(fresh.spawns.schedule.all(func(entry): return entry.kind in ["basic", "fast", "tank", "ranged", "boss", "divider"]), "wave %d: no Multipliers" % at_wave)
 
 	var played := BattleSim.new(13)
 	played.run_until_dead(300.0)
@@ -2477,7 +2478,7 @@ func test_the_music_plays_unless_the_player_turns_it_off() -> void:
 ## A sim with nothing spawning, for placing enemies by hand.
 func _quiet_sim(row_levels: Dictionary = {}, groups: Array = BattleSim.START_GROUPS) -> BattleSim:
 	var sim := BattleSim.new(1, row_levels, groups)
-	sim._schedule.clear()
+	sim.spawns.schedule.clear()
 	sim.wave_clock = -1e9
 	sim.cash = 0.0
 	return sim
@@ -2497,7 +2498,7 @@ func _place(sim: BattleSim, kind: String, distance: float) -> BattleSim.Enemy:
 	enemy.distance = distance
 	enemy.last_distance = distance
 	enemy.stop_at = minf(distance, Guesses.CONTACT_DISTANCE_M)
-	enemy.mass = sim._mass_ratio(kind) * TowerData.mass_growth(sim.wave)
+	enemy.mass = EnemyKinds.mass_ratio(kind) * TowerData.mass_growth(sim.wave)
 	if kind == "ray":
 		enemy.hit_in = float(TowerData.enemies().elites.ray_charge_seconds)
 	elif kind == "protector":

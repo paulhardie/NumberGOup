@@ -230,8 +230,8 @@ func _capture() -> void:
 	# two of its pieces walking in.
 	var staged := [["protector", -0.6, 48.0], ["basic", -0.52, 44.0], ["basic", -0.68, 51.0], ["basic", -0.6, 55.0],
 		["vampire", 2.3, 0.0], ["ray", 0.9, 0.0], ["scatter", 3.9, 45.0], ["scatter", 3.6, 38.0], ["scatter", 3.75, 36.0], ["fast", 1.7, 60.0]]
-	deep._schedule.assign(staged.map(func(entry): return {"kind": entry[0], "at": 0.0}))
-	deep._next_spawn = 0
+	deep.spawns.schedule.assign(staged.map(func(entry): return {"kind": entry[0], "at": 0.0}))
+	deep.spawns.next_spawn = 0
 	deep.wave_clock = 0.0
 	deep.step()
 	for index in range(staged.size()):
