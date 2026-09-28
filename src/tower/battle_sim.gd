@@ -127,6 +127,10 @@ var _divider_due := 0.0
 ## start weak on purpose (Guesses); the measuring tools may change them before
 ## the first step to try others.
 var peak_drift := Guesses.PEAK_REGEN_DRIFT
+## The tier this run plays (D107, D112): its row in TowerData scales enemy
+## health, attack and Coins and shapes each wave's spawns. The game plays
+## Tier 1 until tiers open (1.4); the measuring tools may choose another.
+var tier := 1
 var kill_share := Guesses.KILL_GROWTH
 ## The Divider's numbers for this run (Guesses.DIVIDER), which the measuring
 ## tools may change before the first step to try others.
@@ -180,8 +184,9 @@ var _attack_skip := 0.0
 
 ## `row_levels` and `groups` are the Workshop's: the levels a run starts from
 ## and the groups it may buy from.
-func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_GROUPS) -> void:
+func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_GROUPS, run_tier: int = 1) -> void:
 	run_seed = seed_value
+	tier = clampi(run_tier, 1, TowerData.tier_count())
 	levels = row_levels.duplicate()
 	open_groups = groups.duplicate()
 	# Two streams, so a change in how often the tower fires or crits never
@@ -296,16 +301,17 @@ func _count_gain(source: String, before: float) -> void:
 ## The health and attack a `kind` has right now, Enemy Level Skip included.
 ## The Divider isn't The Tower's, so its numbers are a basic enemy's times ours.
 func enemy_health_now(kind: String) -> float:
+	var scale := float(TowerData.tier(tier).enemy_health)
 	if kind == "divider":
-		return TowerData.enemy_health(health_level, "basic") * lerpf(float(divider.health_first), float(divider.health_full), _divider_ramp(wave))
-	return TowerData.enemy_health(health_level, kind)
+		return TowerData.enemy_health(health_level, "basic") * lerpf(float(divider.health_first), float(divider.health_full), _divider_ramp(wave)) * scale
+	return TowerData.enemy_health(health_level, kind) * scale
 
 
 func enemy_attack_now(kind: String) -> float:
 	# A Divider doesn't subtract: it takes a share (_divide).
 	if kind == "divider":
 		return 0.0
-	return TowerData.enemy_attack(attack_level, kind)
+	return TowerData.enemy_attack(attack_level, kind) * float(TowerData.tier(tier).enemy_attack)
 
 
 func _speed_m(kind: String) -> float:
@@ -389,9 +395,9 @@ func run_until_dead(max_seconds: float) -> void:
 func _schedule_wave() -> void:
 	_schedule.clear()
 	_next_spawn = 0
-	var count := Guesses.enemies_in_wave(wave)
-	var mix: Dictionary = TowerData.enemies().mix
-	if TowerData.is_boss_wave(wave):
+	var count := _wave_count()
+	var mix := _tier_mix()
+	if TowerData.is_boss_wave(wave, tier):
 		_schedule.append({"kind": "boss", "at": 0.0})
 	for index in range(count):
 		_schedule.append({"kind": _draw_kind(mix), "at": TowerData.spawn_seconds() * float(index) / float(count)})
@@ -414,6 +420,38 @@ func _schedule_wave() -> void:
 	_schedule[basics[_divider_rng.randi_range(0, basics.size() - 1)]].kind = "divider"
 
 
+## A wave's enemies: the count every tier shares, plus the extra a tier's
+## double-spawn chance brings over Tier 1's.
+func _wave_count() -> int:
+	var count := Guesses.enemies_in_wave(wave)
+	if tier == 1:
+		return count
+	return floori(float(count) * (1.0 + float(TowerData.tier(tier).double_spawn)) / (1.0 + float(TowerData.tier(1).double_spawn)))
+
+
+## The mix of kinds: a tier raises the fast, tank and ranged shares by its
+## weight, and basics fill the rest. Tier 1's is the data's as it stands.
+func _tier_mix() -> Dictionary:
+	var mix: Dictionary = TowerData.enemies().mix
+	var weight := float(TowerData.tier(tier).mix_weight)
+	if weight == 1.0:
+		return mix
+	var weighted := {"basic": 1.0}
+	for kind in mix:
+		if kind != "basic":
+			weighted[kind] = float(mix[kind]) * weight
+			weighted.basic -= weighted[kind]
+	return weighted
+
+
+func _normal_enemies() -> int:
+	var count := 0
+	for enemy in enemies:
+		if enemy.kind != "boss":
+			count += 1
+	return count
+
+
 func _draw_kind(mix: Dictionary) -> String:
 	var roll := _spawn_rng.randf()
 	for kind in mix:
@@ -427,6 +465,9 @@ func _spawn_due() -> void:
 	while _next_spawn < _schedule.size() and float(_schedule[_next_spawn].at) <= wave_clock:
 		var kind: String = _schedule[_next_spawn].kind
 		_next_spawn += 1
+		# The field is full of normal enemies: this one never comes (The Tower's cap).
+		if kind != "boss" and _normal_enemies() >= TowerData.enemy_cap():
+			continue
 		var enemy := Enemy.new()
 		enemy.id = _next_id
 		_next_id += 1
@@ -714,7 +755,7 @@ func _kill(enemy: Enemy, by := "") -> void:
 		if record_events:
 			events.append({"type": "grown", "enemy": enemy, "gain": health - before})
 	var paid_cash := (1.0 + floorf(enemy.wave / 10.0)) * float(Guesses.CASH_BY_TYPE[enemy.kind]) * stat("cash_bonus")
-	var paid_coins := float(Guesses.COINS_BY_TYPE[enemy.kind]) * stat("coins_per_kill")
+	var paid_coins := float(Guesses.COINS_BY_TYPE[enemy.kind]) * stat("coins_per_kill") * float(TowerData.tier(tier).coins)
 	cash += paid_cash
 	cash_earned += paid_cash
 	coins += paid_coins
@@ -732,7 +773,7 @@ func _pay_wave_end() -> void:
 	cash += paid_cash
 	cash_earned += paid_cash
 	if is_open("coins_per_wave"):
-		coins += stat("coins_per_wave")
+		coins += stat("coins_per_wave") * float(TowerData.tier(tier).coins)
 	# Recovery Packages: by its chance a wave's end heals a share of Health,
 	# which may go past Health up to Max Recovery times it.
 	if is_open("package_chance") and _combat_rng.randf() < stat("package_chance"):

@@ -67,6 +67,8 @@
 - Below it, the Number stays five digits to wave 90 and Dividers are the main threat. **The owner kept the turtle (D110)**: a solved Tier 1 is the push to Tier 2.
 - A wave-90 run pays about 1,700 Coins, so reaching the cliff on the Workshop alone takes on the order of a thousand runs: the pace problem is Coins, which The Tower eases with Cards, Labs and higher tiers.
 
+**Tiers in the battle (D113):** `BattleSim` has a tier (1–3 generated from the SDK: ×20 and ×60 enemies, ×1.8 and ×2.6 Coins, The Tower's tier spawn mix and double spawns, and the 120-enemy cap in every tier). The game still plays Tier 1; `sim_runs.gd --tier N` measures the others.
+
 **Tiers, measured (D112):** a maxed Workshop never dies in any tier, because orbs, knockback and Thorns don't feel a stat multiplier. A realistic Workshop does: the one that just clears Tier 1's wave 100 (every affordable row at level 12, 2.2 million Coins) reaches about wave 30 of Tier 2, and Tier 2's wave 100 takes level 25 (3.35 million). D112's table has each tier's problem and the enemy that makes it.
 
 ## Open decisions for the owner
@@ -92,6 +94,7 @@
 
 ## How to measure
 
+- **D113 (28 September):** `bash run_tests.sh` passes (2753 checks). `tools/import_tower_enemies.mjs` reproduced the committed data byte for byte before the change, then generated the tier rows. A 40-run core career and the level-25 turtle to wave 400 print identically to before. Tier 2 and 3 runs in D113.
 - **Four experiments (28 September):** `sim_runs.gd` gained the `health` and `survival` strategies, `--career-seed`, `--workshop-unlock`, `--until-wave` for single runs, and measuring flags (`--packages`, `--packages-to-best`, `--sure-divider`) that are off by default. A 40-run core career prints identically to before, run for run. `bash run_tests.sh` passes (2742 checks). Results are in THE_NUMBER.md 5.2 ("Measured 28 September").
 - **D112 (28 September):** documents only. Tiers were measured with a scratch script (not committed) that multiplies enemy health and attack in a subclass of `BattleSim`, jumps runs to a wave, and plays full runs from wave 1; tier support in the real sim comes with 1.4.
 - **D111 (27 September):** `bash run_tests.sh` passes (2734 checks: the Multiplier's and switches' tests replaced by ones for the growth rules, old settings files and old run records). The boot is clean. With a 5% kill share a 40-run core career prints identically to `main` with both switches on. Fresh runs and careers at 5% and 2.5% are in D111's table. `capture_battle.gd`'s new `battle_kill_grows` checked by eye. Not played.
@@ -139,7 +142,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D112), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D113), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.
