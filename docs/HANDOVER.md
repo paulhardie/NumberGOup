@@ -2,7 +2,7 @@
 
 **Last updated:** 28 September 2026, by Claude, handing on to the next agent. Two sessions worked in parallel today. One completed The Tower's enemy rules for Tiers 1–3 and added Wave Info (D115, merged in #104), after tiers and The Tower's spawn rolls (D113, D114). This one checked the whole run against The Tower's own rules and wrote [`TOWER_RULES.md`](TOWER_RULES.md): what matches, what's wrong, what's guessed, eight readings for the owner, and the build list before 1.1, which the owner ruled must be done first (D116).
 
-**Branch:** `claude/tower-rule-fixes`, from `claude/tower-rules-research` (PR #105, D116's research). It adds the build list's first item, the rule corrections (D116): Cash per kill slowing past wave 200, the Wall taking every hit and pushing enemies out when it rebuilds, average crit on land mines, and heat-up from the generated data. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/tower-rule-fixes`, from `claude/tower-rules-research` (PR #105, D116's research). It adds the build list's first item, the rule corrections (D116): Cash per kill slowing past wave 200, the Wall taking every hit and pushing enemies out when it rebuilds, average crit on land mines, and heat-up from the generated data. It also restores D116, the roadmap's 1.0.x row and the D115-aware research page: #105's conflicts were resolved on GitHub in favour of `main`'s older text, so `main` has TOWER_RULES.md but not D116. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
