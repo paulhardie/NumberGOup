@@ -13,6 +13,11 @@ extends SceneTree
 ##             Absolute, cheapest first; in a career its Workshop does the same
 ##   grow      core in the run; in a career its Workshop also opens the Cash and
 ##             Coins groups and buys Coins / Kill Bonus and Coins / Wave with the rest
+##   health    60% of the Cash earned goes to Health, the rest to the cheapest
+##             other core row; in a career its Workshop buys as core does
+##   survival  Health only while the Number is under half the run's best, the
+##             rest to the cheapest of Damage, Attack Speed and Defense
+##             Absolute; in a career its Workshop buys as core does
 ## --cap-minutes stops a run that is still alive (default 90).
 ## --divider-share N scales how many Dividers come (1 is Guesses.DIVIDER's,
 ## 0 none) and --divider-speed N sets their speed as a share of a basic
@@ -33,8 +38,18 @@ extends SceneTree
 ## --workshop N with every row at level N (or its last, if lower): how far
 ## Tier 1 goes for a player who has bought that much.
 ##
+## --workshop-unlock N, with --workshop, opens only the groups that cost N
+## Coins or less to unlock (15000: every group up to Orbs).
+##
 ## --until-wave N ends a career once a run reaches wave N, saying which run
-## and after how many hours of game time.
+## and after how many hours of game time; in single runs it ends each run there.
+## --career-seed N plays another career: run R is seed N × 1000 + R (0, the
+## default, is run R on seed R, as before).
+## Experiments that are not the game's rules (BattleSim's measuring options):
+## --packages N opens Recovery Packages with its rows at level N in every run;
+## --packages-to-best makes a package refill only to the run's best; and
+## --sure-divider FROM:EVERY:DIVISOR lands a Divider nothing can stop, every
+## EVERY waves from wave FROM.
 ## --careers N plays N runs in a row from a fresh Workshop instead, spending
 ## the Coins between runs: it opens the cheapest group it can, otherwise buys
 ## the open Workshop row with the fewest levels, until nothing is affordable.
@@ -44,7 +59,11 @@ const BattleSim = preload("res://src/tower/battle_sim.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 
-const STRATEGIES := ["none", "cheapest", "even", "attack", "core", "grow"]
+const STRATEGIES := ["none", "cheapest", "even", "attack", "core", "grow", "health", "survival"]
+## With --buy health, this share of the Cash earned goes to Health.
+const HEALTH_SHARE := 0.6
+## With --buy survival, the rows bought when the Number isn't low.
+const SURVIVAL_ROWS := ["damage", "attack_speed", "defense_absolute"]
 ## The rows a focused player buys, with --buy core: in the run, and in a
 ## career's Workshop (where it opens only the Defense group for them).
 const CORE_ROWS := ["damage", "attack_speed", "health", "health_regen", "defense_absolute"]
@@ -76,16 +95,20 @@ func _init() -> void:
 	var groups: Array = BattleSim.START_GROUPS
 	if workshop != "":
 		groups = TowerData.groups().map(func(entry): return String(entry.id))
+		if options.has("workshop-unlock"):
+			groups = TowerData.groups().filter(func(entry): return float(entry.unlock_coins) <= float(options["workshop-unlock"])).map(func(entry): return String(entry.id))
 		if workshop != "open":
 			for id in TowerData.rows():
-				levels[id] = TowerData.max_level(id) if workshop == "max" else mini(int(workshop), TowerData.max_level(id))
+				if TowerData.group(id) in groups:
+					levels[id] = TowerData.max_level(id) if workshop == "max" else mini(int(workshop), TowerData.max_level(id))
 	var waves: Array[int] = []
 	print("buying: %s%s" % [strategy, ", Workshop " + workshop if workshop != "" else ""])
 	print("seed  wave  game time  kills  cash earned  coins  peak Number  ÷ came/landed  ÷ took  killed by  levels bought")
 	for index in range(seeds):
 		var sim := BattleSim.new(index + 1, levels, groups)
 		_tune(sim, options)
-		while sim.alive and sim.time < cap_seconds:
+		var last_wave := int(options.get("until-wave", "0"))
+		while sim.alive and sim.time < cap_seconds and (last_wave <= 0 or sim.wave < last_wave):
 			_spend(sim, strategy)
 			sim.step()
 		waves.append(sim.wave)
@@ -101,11 +124,13 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 	var workshop := Workshop.new()
 	var hours := 0.0
 	print("career, buying %s in each run, %d-minute cap" % [strategy, int(cap_seconds / 60.0)])
-	print("run  wave  game time  hours  coins earned  coins left  peak Number  ÷ came/landed  killed by  Workshop")
+	print("run  wave  game time  hours  coins earned  coins left  peak Number  start Number  last wave's Number  ÷ came/landed  killed by  Workshop")
 	var until := int(options.get("until-wave", "0"))
+	var seed_base := int(options.get("career-seed", "0")) * 1000
 	for run in range(runs):
-		var sim := BattleSim.new(run + 1, workshop.levels, workshop.open_groups)
+		var sim := BattleSim.new(seed_base + run + 1, workshop.levels, workshop.open_groups)
 		_tune(sim, options)
+		var start_number := sim.health
 		while sim.alive and sim.time < cap_seconds:
 			_spend(sim, strategy)
 			sim.step()
@@ -113,15 +138,17 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 		workshop.finish_run(sim.wave, sim.peak_number)
 		hours += sim.time / 3600.0
 		_spend_workshop(workshop, strategy)
-		print("%3d  %4d  %9s  %5.1f  %12.0f  %10.0f  %11.0f  %13s  %-9s  %s" % [run + 1, sim.wave, _clock(sim.time), hours, sim.coins, workshop.coins,
-			sim.peak_number, "%d/%d" % [sim.dividers_spawned, sim.dividers_landed], sim.killed_by if not sim.alive else "(alive)", _workshop_summary(workshop)] + _curve(sim, options) + _gains(sim, options))
+		# The Number as the wave it ended on began (at death it reads 0).
+		var entering: float = float(sim.wave_log[-1].health) if not sim.wave_log.is_empty() else start_number
+		print("%3d  %4d  %9s  %5.1f  %12.0f  %10.0f  %11.0f  %12.0f  %18.0f  %13s  %-9s  %s" % [run + 1, sim.wave, _clock(sim.time), hours, sim.coins, workshop.coins,
+			sim.peak_number, start_number, entering, "%d/%d" % [sim.dividers_spawned, sim.dividers_landed], sim.killed_by if not sim.alive else "(alive)", _workshop_summary(workshop)] + _curve(sim, options) + _gains(sim, options))
 		if until > 0 and sim.wave >= until:
 			print("reached wave %d on run %d, after %.1f hours of game time" % [until, run + 1, hours])
 			return
 
 
 func _spend_workshop(workshop: Workshop, strategy: String) -> void:
-	if strategy == "core" or strategy == "grow":
+	if strategy in ["core", "grow", "health", "survival"]:
 		# The Coins group opens only after Cash, in The Tower's order.
 		var groups := ["defense", "cash", "coins"] if strategy == "grow" else ["defense"]
 		var rows: Array = CORE_ROWS + GROW_ROWS if strategy == "grow" else CORE_ROWS
@@ -169,10 +196,56 @@ func _workshop_summary(workshop: Workshop) -> String:
 func _spend(sim: BattleSim, strategy: String) -> void:
 	if strategy == "none":
 		return
+	if strategy == "health":
+		_spend_health_heavy(sim)
+		return
+	if strategy == "survival":
+		_spend_survival(sim)
+		return
 	while true:
 		var choice := _choose(sim, strategy)
 		if choice == "" or not sim.buy(choice):
 			return
+
+
+## --buy health: every Cash earned is split into a Health budget and a budget
+## for the other core rows, and each is spent only on its own rows, waiting
+## for the cheapest as core does.
+func _spend_health_heavy(sim: BattleSim) -> void:
+	var fresh: float = sim.cash_earned - float(sim.get_meta("split", 0.0))
+	sim.set_meta("split", sim.cash_earned)
+	var for_health: float = float(sim.get_meta("for_health", 0.0)) + fresh * HEALTH_SHARE
+	var for_rest: float = float(sim.get_meta("for_rest", 0.0)) + fresh * (1.0 - HEALTH_SHARE)
+	while sim.is_open("health") and not sim.at_max("health") and sim.price("health") <= for_health and sim.can_buy("health"):
+		for_health -= sim.price("health")
+		sim.buy("health")
+	while true:
+		var cheapest := _cheapest(sim, CORE_ROWS.filter(func(id): return id != "health"))
+		if cheapest == "" or sim.price(cheapest) > for_rest or not sim.can_buy(cheapest):
+			break
+		for_rest -= sim.price(cheapest)
+		sim.buy(cheapest)
+	sim.set_meta("for_health", for_health)
+	sim.set_meta("for_rest", for_rest)
+
+
+## --buy survival: Health only while the Number is under half the run's best,
+## otherwise the cheapest of Damage, Attack Speed and Defense Absolute.
+func _spend_survival(sim: BattleSim) -> void:
+	while sim.health < 0.5 * sim.peak_number and sim.can_buy("health"):
+		sim.buy("health")
+	while true:
+		var cheapest := _cheapest(sim, SURVIVAL_ROWS)
+		if cheapest == "" or not sim.buy(cheapest):
+			return
+
+
+func _cheapest(sim: BattleSim, ids: Array) -> String:
+	var best := ""
+	for id in ids:
+		if sim.is_open(id) and not sim.at_max(id) and (best == "" or sim.price(id) < sim.price(best)):
+			best = id
+	return best
 
 
 ## The row the strategy buys next, or "" to wait. It waits for its choice
@@ -226,6 +299,17 @@ func _gains(sim: BattleSim, options: Dictionary) -> String:
 func _tune(sim: BattleSim, options: Dictionary) -> void:
 	if options.has("peak-drift"):
 		sim.peak_drift = float(options["peak-drift"])
+	if options.has("packages"):
+		if not "recovery_packages" in sim.open_groups:
+			sim.open_groups.append("recovery_packages")
+		for id in TowerData.group_rows("recovery_packages"):
+			sim.levels[id] = mini(int(options["packages"]), TowerData.max_level(id))
+	sim.packages_to_best = options.has("packages-to-best")
+	if options.has("sure-divider"):
+		var parts: PackedStringArray = String(options["sure-divider"]).split(":")
+		sim.sure_from = int(parts[0])
+		sim.sure_every = int(parts[1])
+		sim.sure_divisor = float(parts[2])
 	if options.has("kill-share"):
 		sim.kill_share = float(options["kill-share"])
 	if options.has("divider-share"):

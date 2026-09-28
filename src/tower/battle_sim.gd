@@ -133,6 +133,18 @@ var kill_share := Guesses.KILL_GROWTH
 var divider: Dictionary = Guesses.DIVIDER.duplicate()
 ## Guesses.NUMBER_OVERFILL for this run, which the measuring tools may change.
 var overfill := Guesses.NUMBER_OVERFILL
+## Measuring options for sim_runs.gd, off in the game so every run and replay
+## is as before. `packages_to_best`: a Recovery Package refills the Number
+## only up to this run's best, never past it. `sure_from`: from that wave
+## (0: never), every `sure_every` waves, a Divider that nothing can stop
+## lands ÷`sure_divisor` SURE_LANDS_AT seconds into the wave, through the
+## same defences as any Divider.
+var packages_to_best := false
+var sure_from := 0
+var sure_every := 5
+var sure_divisor := 1.1
+const SURE_LANDS_AT := 10.0
+var _sure_landed := 0
 
 ## The highest the Number has stood this run: the run's record (D081).
 var peak_number := 0.0
@@ -344,6 +356,8 @@ func step() -> void:
 		_advance_levels()
 		_schedule_wave()
 	_spawn_due()
+	if sure_from > 0 and wave >= sure_from and (wave - sure_from) % sure_every == 0 and _sure_landed != wave and wave_clock >= SURE_LANDS_AT:
+		_land_sure_divider()
 	_heal(stat("health_regen") * TICK, "regen")
 	peak_number = maxf(peak_number, health)
 	defences.tick_wall()
@@ -519,6 +533,24 @@ func _divide(enemy: Enemy) -> void:
 	enemies.erase(enemy)
 	if record_events:
 		events.append({"type": "divided", "enemy": enemy, "damage": loss, "at_wall": at_wall, "divisor": divisor})
+
+
+## The most a Recovery Package may heal the Number to: Max Recovery times
+## Health, or with `packages_to_best` only back to this run's best.
+func package_ceiling() -> float:
+	return maxf(max_health(), peak_number) if packages_to_best else max_health() * stat("max_recovery")
+
+
+## The measuring Divider (`sure_from`): it lands on the Number without
+## walking, so no shot, orb, knockback or wall can stop it.
+func _land_sure_divider() -> void:
+	_sure_landed = wave
+	var sure := Enemy.new()
+	sure.kind = "divider"
+	sure.divisor = sure_divisor
+	sure.distance = Guesses.CONTACT_DISTANCE_M
+	dividers_spawned += 1
+	_divide(sure)
 
 
 ## What a Divider of `divisor` landing now would take off the Number: 1 -
@@ -705,7 +737,7 @@ func _pay_wave_end() -> void:
 	# which may go past Health up to Max Recovery times it.
 	if is_open("package_chance") and _combat_rng.randf() < stat("package_chance"):
 		var before := health
-		health = maxf(health, minf(max_health() * stat("max_recovery"), health + max_health() * stat("recovery_amount")))
+		health = maxf(health, minf(package_ceiling(), health + max_health() * stat("recovery_amount")))
 		_count_gain("package", before)
 		if record_events:
 			events.append({"type": "package"})
