@@ -1634,10 +1634,12 @@ Rules:
 | Fresh runs (none / even / core) | identical, run for run | |
 | 40-run core career | identical, run for run | |
 | Tier 1, every affordable row at level 12 | waves 100–106 | 96–101 |
-| Tier 1 at level 25 | alive at the 3-hour cap (wave 312) | alive (2 of 4 seeds so far) |
+| Tier 1 at level 25 | alive at the 3-hour cap (wave 312) | alive at the cap, all 4 seeds |
 | Tier 2 at level 15 / 20 / 25 | 22–24 / 53–61 / 143–157 | 20–27 / 51–57 / 133–142 |
-| Tier 2 at level 40 | alive at wave 312 | alive (3 of 4 so far) |
+| Tier 2 at level 40 | alive at wave 312 | alive at the cap, all 4 seeds |
+| Tier 3 at level 25 | waves 61–85 (D113, before D114's spawns) | 62–73 |
 
-  - Tier 2 walls come a few waves sooner: its enemies are 4% faster, and from wave 80 Protectors shield the crowd. Tier 1's level-12 wall comes a few waves sooner as ageing enemies shrug off Knockback. Tier 3 and maxed runs through the elite waves are still being measured.
+  - Tier 2 walls come a few waves sooner: its enemies are 4% faster, and from wave 80 Protectors shield the crowd. Tier 1's level-12 wall comes a few waves sooner as ageing enemies shrug off Knockback.
+  - **A maxed Workshop still never dies** (D112's blender): played from Tier 1 wave 480 to 1,300 it met 46 elites (17 Vampires, 14 Rays, 15 Scatters) and stayed alive; Vampires took 125 million of a Number near 150 billion. Elites matter to a realistic Workshop, not a maxed one.
 - **Consequences:** Tier 1's first hours are untouched. The rules act where The Tower's do: deep Tier 1 runs, and Tier 2 from wave 80. A run saved mid-way before this, if it bought Knockback, may not resume identically and ends at its saved wave (D078).
 - **Revisit when:** the owner reads Wave Info in The Tower at a Protector or elite wave (the gate's reset, an elite's moment in the wave), or wants the new enemies to look different.
