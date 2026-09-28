@@ -660,12 +660,15 @@ func _enemies_hit() -> void:
 		if enemy.hit_in > 0.0:
 			continue
 		enemy.hit_in += float(TowerData.enemies().elites.ray_charge_seconds) if enemy.kind == "ray" else Guesses.ENEMY_HIT_SECONDS
-		var damage := landed_damage(enemy.attack * pow(Guesses.HEAT_UP_PER_HIT, enemy.hits))
+		var damage := landed_damage(enemy.attack * pow(TowerData.heat_up_per_hit(), enemy.hits))
 		enemy.hits += 1
-		# An enemy standing at the Wall hits the Wall. When it falls, it
-		# rebuilds after Wall Rebuild seconds.
-		if not stops_at_range(enemy.kind) and defences.wall_up() and enemy.distance > Guesses.CONTACT_DISTANCE_M:
+		# While the Wall stands it takes every hit, ranged ones too: The Tower's
+		# tower takes nothing but a Vampire's drain behind it (D116). When it
+		# falls, it rebuilds after Wall Rebuild seconds.
+		if defences.wall_up():
 			defences.hit_wall(damage)
+			if record_events:
+				events.append({"type": "wall_hit", "enemy": enemy, "damage": damage})
 			continue
 		# Death Defy: by its chance a hit that would end the run is ignored.
 		if health - damage <= 0.0 and stat("death_defy") > 0.0 and _combat_rng.randf() < stat("death_defy"):
@@ -938,7 +941,7 @@ func _kill(enemy: Enemy, by := "") -> void:
 			events.append({"type": "grown", "enemy": enemy, "gain": health - before})
 	# A Scatter's split-off pieces pay as basics.
 	var pays_as := "basic" if enemy.generation > 0 else enemy.kind
-	var paid_cash := (1.0 + floorf(enemy.wave / 10.0)) * float(Guesses.CASH_BY_TYPE[pays_as]) * stat("cash_bonus")
+	var paid_cash := TowerData.kill_cash(enemy.wave) * float(Guesses.CASH_BY_TYPE[pays_as]) * stat("cash_bonus")
 	var paid_coins := float(Guesses.COINS_BY_TYPE[pays_as]) * stat("coins_per_kill") * float(TowerData.tier(tier).coins)
 	# Coin decay (D115): an enemy alive three waves pays half its Coins.
 	var decay: Dictionary = TowerData.enemies().coin_decay

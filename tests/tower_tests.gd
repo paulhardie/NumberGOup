@@ -150,7 +150,7 @@ func test_an_enemy_hits_on_arrival_then_harder_each_time() -> void:
 	for _i in range(roundi(Guesses.ENEMY_HIT_SECONDS / BattleSim.TICK)):
 		sim.step()
 	var regained := sim.stat("health_regen") * Guesses.ENEMY_HIT_SECONDS
-	check_near(after_first - sim.health + regained, enemy.attack * Guesses.HEAT_UP_PER_HIT, 0.0001, "the second is 4% harder")
+	check_near(after_first - sim.health + regained, enemy.attack * 1.04, 0.0001, "the second is 4% harder")
 
 
 func test_the_tower_falls_at_no_health() -> void:
@@ -973,7 +973,8 @@ func test_land_mines_are_laid_in_range_and_blast_what_walks_onto_them() -> void:
 	var kills := sim.kills
 	sim.step()
 	check(sim.defences.mines.is_empty(), "a walking enemy within 2 m sets the mine off")
-	check_near(walker.health, 1000.0 - sim.stat("damage") * sim.stat("land_mine_damage"), 0.0001, "the blast deals Land Mine Damage's share of Damage")
+	var average_crit := (1.0 + sim.stat("critical_factor") * sim.stat("critical_chance")) * (1.0 + sim.stat("super_crit_mult") * sim.stat("super_crit_chance") * sim.stat("critical_chance"))
+	check_near(walker.health, 1000.0 - sim.stat("damage") * sim.stat("land_mine_damage") * average_crit, 0.0001, "the blast deals Land Mine Damage's share of Damage, with the average crit (D116)")
 	check(not sim.enemies.has(beside) and sim.kills == kills + 1, "an enemy within Land Mine Radius it kills is paid for")
 	check_near(away.health, 1000.0, 0.0, "one out of the radius is untouched")
 
@@ -999,11 +1000,60 @@ func test_the_wall_stops_melee_enemies_until_it_falls_then_rebuilds() -> void:
 	for _i in range(15):
 		sim.step()
 	check(walker.distance < Guesses.WALL_DISTANCE_M, "the enemy walks on once the wall is down")
+	sim.defences.wall_rebuild_in = 0.5
+	for _i in range(16):
+		sim.step()
+	check(sim.defences.wall_up() and walker.distance >= Guesses.WALL_DISTANCE_M, "a rebuilt wall pushes out the enemy inside it (D116): %s" % walker.distance)
+	sim.step()
+	check_near(walker.distance, Guesses.WALL_DISTANCE_M, 0.0, "which then stands at the wall")
 	sim.enemies.clear()
+	sim.defences.wall_health = 0.0
+	sim.defences.wall_rebuild_in = 10.0
 	sim.defences.wall_rebuild_in = 0.5
 	for _i in range(16):
 		sim.step()
 	check(sim.defences.wall_up() and is_equal_approx(sim.defences.wall_health, sim.defences.wall_max_health()), "a rebuilt wall is whole")
+
+
+func test_a_standing_wall_takes_ranged_hits_but_not_a_vampires_drain() -> void:
+	var sim := _quiet_sim({"health": 100}, BattleSim.START_GROUPS + ["wall"])
+	sim.record_events = true
+	var shooter := _place(sim, "ranged", 25.0)
+	shooter.stop_at = 25.0
+	shooter.max_health = 1e12
+	shooter.health = 1e12
+	var wall_before := sim.defences.wall_health
+	sim.step()
+	check(sim.defences.wall_health < wall_before, "a ranged hit lands on the standing wall (D116)")
+	check(is_equal_approx(sim.health, sim.max_health()), "and not on the Number")
+	check(sim.events.any(func(event): return event.type == "wall_hit" and event.enemy == shooter), "and the screen hears of it, to draw the shot ending at the wall")
+	sim.defences.wall_health = 0.0
+	sim.defences.wall_rebuild_in = 1e9
+	shooter.hit_in = 0.0
+	sim.step()
+	check(sim.health < sim.max_health(), "with the wall down it reaches the Number again")
+	sim = _quiet_sim({"health": 100}, BattleSim.START_GROUPS + ["wall"])
+	var vampire := _place(sim, "vampire", 25.0)
+	vampire.stop_at = 25.0
+	var wall_full := sim.defences.wall_health
+	sim.step()
+	check(sim.health < sim.max_health() and is_equal_approx(sim.defences.wall_health, wall_full), "a Vampire drains the Number past the wall, as in The Tower")
+
+
+func test_kill_cash_slows_past_wave_200() -> void:
+	for pair in [[1, 1.0], [9, 1.0], [10, 2.0], [199, 20.0], [200, 21.0], [219, 21.0], [220, 22.0], [260, 24.0], [1000, 61.0], [6500, 336.0]]:
+		check_near(TowerData.kill_cash(int(pair[0])), float(pair[1]), 0.0, "a wave-%d kill pays $%d before its type (D116)" % [pair[0], pair[1]])
+	var sim := _quiet_sim()
+	sim.wave = 260
+	var tank := _place(sim, "tank", 10.0)
+	tank.health = 0.5
+	for _i in range(60):
+		sim.step()
+	check_near(sim.cash, 24.0 * 5.0, 0.0, "a wave-260 tank pays $24 times 5")
+
+
+func test_heat_up_comes_from_the_generated_data() -> void:
+	check_near(TowerData.heat_up_per_hit(), 1.04, 0.0, "each hit an enemy lands makes its next 4% harder (TheTowerSDK, D116)")
 
 
 ## The Wall is drawn as brackets round the Number (D106): enemies held at it
@@ -2091,7 +2141,7 @@ func test_an_enemy_shows_what_it_does() -> void:
 	basic.distance = basic.stop_at
 	check(ArenaView.shown_text(sim, basic) == "−" + Palette.amount(first), "arrived, the same: its next hit")
 	basic.hits = 10
-	var tenth := sim.landed_damage(20.0 * pow(Guesses.HEAT_UP_PER_HIT, 10))
+	var tenth := sim.landed_damage(20.0 * pow(TowerData.heat_up_per_hit(), 10))
 	check(tenth > first and ArenaView.shown_text(sim, basic) == "−" + Palette.amount(tenth), "and it grows with each hit it lands: %s" % ArenaView.shown_text(sim, basic))
 
 	var far := _place(sim, "divider", sim.stat("range") + 5.0)

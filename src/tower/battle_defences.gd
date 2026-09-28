@@ -68,6 +68,10 @@ func tick_wall() -> void:
 	wall_rebuild_in -= sim.TICK
 	if wall_rebuild_in <= 0.0:
 		wall_health = wall_max_health()
+		# Rising again, it pushes out every enemy that came inside while it
+		# was down, so none is trapped against the Number (D116).
+		for enemy in sim.enemies:
+			enemy.distance = maxf(enemy.distance, Guesses.WALL_DISTANCE_M)
 		if sim.record_events:
 			sim.events.append({"type": "wall_up"})
 
@@ -140,6 +144,15 @@ func maybe_lay_mine() -> void:
 		mines.append(Vector2.from_angle(sim._combat_rng.randf() * TAU) * reach)
 
 
+## A blast: Land Mine Damage's share of Damage, with the average crit built
+## in as The Tower's is: × (1 + Critical Factor × Critical Chance) × (1 +
+## Super Crit Mult × Super Crit Chance × Critical Chance) (D116).
+func mine_damage() -> float:
+	var crit: float = 1.0 + sim.stat("critical_factor") * sim.stat("critical_chance")
+	var super_crit: float = 1.0 + sim.stat("super_crit_mult") * sim.stat("super_crit_chance") * sim.stat("critical_chance")
+	return sim.stat("damage") * sim.stat("land_mine_damage") * crit * super_crit
+
+
 ## A walking enemy that comes within LAND_MINE_TRIGGER_M of a mine sets it off:
 ## every enemy within Land Mine Radius takes Land Mine Damage's share of Damage.
 func trigger_mines() -> void:
@@ -156,7 +169,7 @@ func trigger_mines() -> void:
 		var fallen := []
 		for enemy in sim.enemies:
 			if enemy.position().distance_to(mine) <= sim.stat("land_mine_radius"):
-				enemy.health -= sim.stat("damage") * sim.stat("land_mine_damage") * sim.damage_taken(enemy)
+				enemy.health -= mine_damage() * sim.damage_taken(enemy)
 				if enemy.health <= 0.0:
 					fallen.append(enemy)
 		for enemy in fallen:

@@ -153,13 +153,13 @@ These are carried from the current game until the owner reads the real value:
 - ~~20 enemies in wave 1~~, ~~11 plus 0.123 a wave (D075)~~: The Tower's spawn rolls (D114), a roll every 1/8 s by the wave's spawn rate. The rate at wave 1 (5) and the straight lines between the owner's 15 at wave 22 and the SDK's 37 at wave 1,000 are ours.
 - A free upgrade counts as a run purchase, so it raises the row's next Cash price.
 - The Defense % global cap is 98% (community research).
-- The Wall stands 10 m out and only melee enemies stop at it; ranged shots pass it. Its health is Wall Health's share of Health when the run starts and doesn't grow with Health bought. No wall regen (a Lab in The Tower).
+- The Wall stands 10 m out and only melee enemies stop at it. While it stands it takes every hit, ranged ones too, and only a Vampire's drain reaches the Number; rising again, it pushes enemies inside it back out (both The Tower's, D116). Its health is Wall Health's share of Health when the run starts and doesn't grow with Health bought. No wall regen (a Lab in The Tower).
 - Land mines: at most 30 lie at once, anywhere from the tower's edge to its Range, and a walking enemy within 2 m sets one off. Mines hurt bosses.
 - Shockwaves push only enemies within Range, never bosses or elites, and do no damage.
 - The Tower's later enemies (D115) are the SDK's where it has numbers; ours are:
   - the Protector's gate shuts again for five waves once one comes (the SDK counts it down but doesn't say what resets it);
   - each elite type rolls its own chance each wave, at a random moment of the spawning window; the boss still comes as the wave starts;
-  - a Vampire stops on the Range edge and drains from there; a Ray fires its attack through the defences, and Thorns answers it;
+  - a Vampire stops on the Range edge and drains from there; a Ray fires its attack through the defences (at a standing Wall, into the Wall, D116), and Thorns answers it;
   - a Scatter's pieces land 0.06 radians either side, keep its attack and speed, pay as basics and come whatever the caps;
   - the Protector's and elites' Cash (3 and 4, their Coin values), and Thorns under a Protector at 70% (the SDK's prose, not its numbers).
 - Rend Armor rolls on tower shots' strikes only, and its extra damage applies to them only (not mines or Thorns).

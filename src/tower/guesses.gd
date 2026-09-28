@@ -20,12 +20,6 @@ const CONTACT_DISTANCE_M := 3.0
 ## rule lives in BattleSim, since it follows the Range row.
 const ENEMY_HIT_SECONDS := 1.0
 
-## Each hit an enemy lands makes its next 4% harder, compounding. No longer a
-## guess: the game's own attack code does exactly this (TheTowerSDK; D116), so
-## it belongs in the generated enemy data and moves there with the first
-## corrections in docs/TOWER_RULES.md.
-const HEAT_UP_PER_HIT := 1.04
-
 ## The spawn rate at wave 1 (D114), which no screen has shown: 5, so that a
 ## wave-1 spawning window of 208 rolls sends about 11 enemies, as the owner
 ## counted ("about 10 to 12"). From there the rate runs in a straight line to
@@ -75,9 +69,10 @@ const LAND_MINE_TRIGGER_M := 2.0
 ## A shot's flight speed, metres a second.
 const SHOT_SPEED_M := 80.0
 
-## Cash a kill pays, times $1 plus $1 every ten waves (D071, from community
-## research). The boss's 20 is ours until the owner reads one boss kill, and
-## so are the Protector's and the elites', set at their Coin values (D115).
+## Cash a kill pays, times what its wave pays (TowerData.kill_cash, D116).
+## These weights are community research (D071); the boss's 20 is ours until
+## the owner reads one boss kill, and so are the Protector's and the elites',
+## set at their Coin values (D115).
 ## A Scatter's split-off pieces pay as basics.
 const CASH_BY_TYPE := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "boss": 20.0, "divider": 2.0,
 	"protector": 3.0, "vampire": 4.0, "ray": 4.0, "scatter": 4.0}
