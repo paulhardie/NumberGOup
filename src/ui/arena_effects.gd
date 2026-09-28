@@ -167,17 +167,19 @@ func draw_blasts(blast_px: float) -> void:
 		view.draw_circle(view.to_view(blast.at), blast_px, Color(Palette.WARNING, 0.35 * fade))
 
 
-## The ranged enemy's shot: a dotted line in its colour to the Number. A
-## Ray's is solid and heavier, its charge let go.
-func draw_ranged_shots(number_half: Vector2) -> void:
+## The ranged enemy's shot: a dotted line in its colour to the Number, or to
+## the Wall's brackets (`wall_half`) when the Wall took it. A Ray's is solid
+## and heavier, its charge let go.
+func draw_ranged_shots(number_half: Vector2, wall_half: Vector2) -> void:
 	for shot in ranged_shots:
 		var from: Vector2 = view.enemy_at(shot.enemy.angle, shot.enemy.distance, view.enemy_half(shot.enemy.kind, "0"))
 		var toward := Vector2.from_angle(shot.enemy.angle)
 		var fade: float = 1.0 - shot.age / RANGED_SHOT_SECONDS
+		var to: Vector2 = view.centre + toward * (wall_half.x if shot.get("at_wall", false) else number_half.x)
 		if shot.enemy.kind == "ray":
-			view.draw_line(from - toward * 12.0, view.centre + toward * number_half.x, Color(Palette.RAY, 0.8 * fade), 3.0, true)
+			view.draw_line(from - toward * 12.0, to, Color(Palette.RAY, 0.8 * fade), 3.0, true)
 		else:
-			view.draw_dashed_line(from - toward * 12.0, view.centre + toward * number_half.x, Color(Palette.RANGED, 0.45 * fade), 1.0, 2.0)
+			view.draw_dashed_line(from - toward * 12.0, to, Color(Palette.RANGED, 0.45 * fade), 1.0, 2.0)
 
 
 ## A killed enemy's number swells to 1.3× and fades where it died.
@@ -268,6 +270,10 @@ func _take(events: Array[Dictionary]) -> void:
 				motion.knock(event.enemy.angle, float(event.damage))
 				if event.enemy.kind == "ranged" or event.enemy.kind == "ray":
 					ranged_shots.append({"enemy": event.enemy, "age": 0.0})
+			"wall_hit":
+				# A standing Wall takes ranged shots too (D116): theirs end at it.
+				if event.enemy.kind == "ranged" or event.enemy.kind == "ray":
+					ranged_shots.append({"enemy": event.enemy, "age": 0.0, "at_wall": true})
 			"divided":
 				# The ÷ in the Divider's own typeface, what it took in the Number's (D085).
 				var sign: String = "÷" + view.divisor_text(event.divisor)

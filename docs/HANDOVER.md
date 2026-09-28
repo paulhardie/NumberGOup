@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 28 September 2026, by Claude, handing on to the next agent. This session, over two days, put orbs back to The Tower's balance (D108), gave kills sparks (D109), kept the turtle with a shape target for the Number (D110), removed the Multiplier (D111), measured tiers (D112), put tiers and The Tower's spawn rolls in the battle (D113, D114; merged up to #103), and then, from `main` after #103, completed The Tower's enemy rules for Tiers 1–3 and added Wave Info (D115).
+**Last updated:** 28 September 2026, by Claude, handing on to the next agent. Two sessions worked in parallel today. One completed The Tower's enemy rules for Tiers 1–3 and added Wave Info (D115, merged in #104), after tiers and The Tower's spawn rolls (D113, D114). This one checked the whole run against The Tower's own rules and wrote [`TOWER_RULES.md`](TOWER_RULES.md): what matches, what's wrong, what's guessed, eight readings for the owner, and the build list before 1.1, which the owner ruled must be done first (D116).
 
-**Branch:** `claude/dazzling-gates-54ahbr`, restarted from `main` after #103. It carries D115. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/tower-rule-fixes`, from `claude/tower-rules-research` (PR #105, D116's research). It adds the build list's first item, the rule corrections (D116): Cash per kill slowing past wave 200, the Wall taking every hit and pushing enemies out when it rebuilds, average crit on land mines, and heat-up from the generated data. It also restores D116, the roadmap's 1.0.x row and the D115-aware research page: #105's conflicts were resolved on GitHub in favour of `main`'s older text, so `main` has TOWER_RULES.md but not D116. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -90,6 +90,7 @@
 10. **Elites come to Tier 1 from wave 500**, as The Tower's do, where D112's table had them from Tier 3. Only a deep Tier 1 run meets them (1% of waves at 500). **Recommend** keeping The Tower's placement.
 11. **Missions** stands on Home as a placeholder at the owner's request, but isn't on the roadmap (Milestones is now built, D107). **Recommend** deciding whether Missions joins it before 1.1, or dropping it, so a placeholder never promises something unplanned.
 
+12. **The Tower's wave milestones** (TOWER_RULES.md build item 6). They're how The Tower opens Labs (Tier 1 wave 30) and the next tier (wave 100), and pay its Coins and Gems. **Recommend** adding them beside our Number milestones (D107), which stay as the Number's own rewards.
 ## Next steps, in order
 
 0. **Owner:** open Wave Info in a run (tap the wave readout) and read The Tower's Wave Info at waves 1, 50 and 100, so our straight lines for the spawn rate can go (D114). Done when the three readings are in the spec.
@@ -98,12 +99,13 @@
 2. **Agent, on the owner's word:** tune the Divider's health with `sim_runs.gd --careers 40 --buy core --divider-health N` if play says so. Then raise `application/config/version` to 1.0 when the owner signs it off. `--careers` always plays the same seeds (run N is seed N), so a second career needs a seed option first.
 2a. **Owner:** send [`design/GAME_STAGE_BRIEF.md`](design/GAME_STAGE_BRIEF.md) to Claude Design with its screenshots (`capture_battle.gd` makes them), and choose from what comes back. **Agent, then:** record the choices as the next D-number and build them in `arena_view.gd`, `arena_effects.gd` and `number_motion.gd`; drawing only. Done when the owner has played the new stage.
 3. **Owner:** try the web build on a phone. The light's shader, the music and the portrait layout have never run there.
-4. **Owner:** take the readings in [`TOWER_RULES.md`](TOWER_RULES.md#6-readings-the-owner-can-take-in-the-tower) (Wave Info's spawn rate and spawn chances at waves 1, 50 and 100 matter most). Done when they're in the chat.
-5. **Agent: 1.0.x, the build list in [`TOWER_RULES.md`](TOWER_RULES.md#7-before-11-the-build-list), in its order** (D115). First, the rule corrections: boss health past wave 100, Cash per kill past wave 200, coin decay, mass growing while an enemy lives, the Wall shielding the Number and pushing enemies out on rebuild, and average crit in mine damage; move heat-up out of `guesses.gd` into the generated data with them. High-risk gate: fixtures, before-and-after careers, a review. Done when each item is built or the owner drops it, and the benchmarks are re-measured.
-6. **Then Cards (1.1).** The two splits before them are done: the arena's drawing is three files (`arena_view.gd`, `arena_effects.gd`, `number_motion.gd`), and the Wall, orbs, shockwaves and land mines live in `src/tower/battle_defences.gd`, out of `battle_sim.gd` (now 830 lines).
+4. **Owner:** take the rest of the readings in [`TOWER_RULES.md`](TOWER_RULES.md#6-readings-the-owner-can-take-in-the-tower) (with step 0's spawn rate, the spawn chances at waves 1, 50 and 100 matter most). Done when they're in the chat.
+5. **Agent: 1.0.x, the build list in [`TOWER_RULES.md`](TOWER_RULES.md#7-before-11-the-build-list), in its order** (D116). Item 1, the rule corrections, is built on `claude/tower-rule-fixes`. Next: item 3 once the owner's readings arrive (item 2), and item 4, the enemy split, which doesn't wait on anything. High-risk gate for each: tests, before-and-after measurements, a review. Done when each item is built or the owner drops it, and the benchmarks are re-measured.
+6. **Then Cards (1.1).** The two splits before them are done: the arena's drawing is three files (`arena_view.gd`, `arena_effects.gd`, `number_motion.gd`), and the Wall, orbs, shockwaves and land mines live in `src/tower/battle_defences.gd`, out of `battle_sim.gd` (over 1,000 lines since D115, which is why the enemy split is on the build list).
 
 ## How to measure
 
+- **D116's rule corrections (28 September):** `bash run_tests.sh` passes (4092 checks: new ones for Cash by wave to 6,500, a standing Wall taking ranged hits but not a Vampire's drain, the rebuild pushing enemies out, mine crit and heat-up from the data). `import_tower_enemies.mjs` reproduced the committed data byte for byte first, then added only `heat_up_per_hit` and `kill_cash`. The boot is clean. Fresh runs and a 40-run core career print identically; the Workshop runs are in D116. `capture_battle.gd` ran; no capture shows a ranged shot at the Wall, so that drawing is tested but not seen. The review was the author's own, not independent.
 - **D115 (28 September):** `bash run_tests.sh` passes (4073 checks, with tests for the Protector, elites, the Vampire, Ray and Scatter, ageing and Wave Info). `import_tower_enemies.mjs` regenerated the data. Fresh runs (10 seeds) and a 40-run core career print identically to before; Tier 1–2 Workshops before and after are in D115; the `battle_invaders` and `battle_wave_info` captures were checked by eye. Tier 3 at level 25 and a maxed Tier 1 run through waves 480–1,300 are in D115. Maxed Tier 2 and 3 runs through the Protector and elite waves are in D115 too. Still running at this commit: the spawn check past wave 4,000. Not played.
 - **D114 (28 September):** `bash run_tests.sh` passes (2764 checks). Fresh runs (20 seeds), a 40-run core career and Tier 1–2 Workshops (4 seeds) measured before and after; table in D114.
 - **D113 (28 September):** `bash run_tests.sh` passes (2753 checks). `tools/import_tower_enemies.mjs` reproduced the committed data byte for byte before the change, then generated the tier rows. A 40-run core career and the level-25 turtle to wave 400 print identically to before. Tier 2 and 3 runs in D113.
@@ -154,7 +156,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D115), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D116), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.

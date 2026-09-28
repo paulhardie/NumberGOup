@@ -1643,3 +1643,30 @@ Rules:
   - **A maxed Workshop still never dies** (D112's blender): played from Tier 1 wave 480 to 1,300 it met 46 elites (17 Vampires, 14 Rays, 15 Scatters) and stayed alive; Vampires took 125 million of a Number near 150 billion. Maxed in Tier 2 from wave 70 to 700: 108 Protectors (one every 6 waves or so, as the gate allows) and 8 elites, alive. Tier 3 from wave 380 to 1,000: 119 Protectors and 40 elites, alive. Elites and Protectors matter to a realistic Workshop, not a maxed one.
 - **Consequences:** Tier 1's first hours are untouched. The rules act where The Tower's do: deep Tier 1 runs, and Tier 2 from wave 80. A run saved mid-way before this, if it bought Knockback, may not resume identically and ends at its saved wave (D078).
 - **Revisit when:** the owner reads Wave Info in The Tower at a Protector or elite wave (the gate's reset, an elite's moment in the wave), or wants the new enemies to look different.
+
+## D116 — The Tower's run rules are finished before 1.1 starts
+
+- **Status:** Accepted (2026-09-28) on owner direction: "find all the relevant information we need for the game, before we even consider 1.1. We don't start 1.1 until everything else that needs built is built."
+- **Context:** a sweep of the game against The Tower found rules we get wrong or don't have, several numbers still guessed, and foundations Cards and Labs will need. The research is [`TOWER_RULES.md`](TOWER_RULES.md): TheTowerSDK's mapping of the game's code, the community wiki and the developer's patch notes, 28 September 2026.
+- **Decision:**
+  - **1.1 (Cards) waits** until the build list in [`TOWER_RULES.md`](TOWER_RULES.md#7-before-11-the-build-list) is done, or the owner drops an item from it.
+  - The work sits in a new roadmap step, **1.0.x**, after 1.0's sign-off, in REBUILD_SPEC's Roadmap.
+  - Heat-up is settled as 4% for each hit an enemy lands, compounding, as built: the game's own attack code does it (TheTowerSDK), and the wiki agrees. The owner's "per wave survived" research is superseded.
+- **Written alongside D115**, which built the Protector, the elites, coin decay, ageing enemies, the tier speed-up and Wave Info the same day; the research page and its build list take that into account.
+- **Consequences:** the high-risk gate still applies to each economy and enemy change on the list. Item 6 (wave milestones) needs the owner's choice before it's built.
+- **Built: the list's first item, the rule corrections** (the owner's "yes", 28 September):
+  - **Cash per kill slows past wave 200**: $1, and $1 more every 10 waves to wave 200, then every 20 ($21 at 200, $24 at 260, $61 at 1,000; it was $101 there). The rule is in the generated enemy data (`kill_cash`), from the community wiki's Cash page.
+  - **A standing Wall takes every hit**, ranged ones and a Ray's too, and only a Vampire's drain reaches the Number behind it (The Tower's patch notes, December 2025). Ranged shots are drawn ending at the Wall's brackets. Hits on the Wall still draw no Thorns, as before (Wall Thorns is a Lab).
+  - **A rebuilt Wall pushes out** every enemy inside it, to where the Wall stands.
+  - **Land mines carry the average crit**, as The Tower's formula does: Damage × Land Mine Damage × (1 + Critical Factor × Critical Chance) × (1 + Super Crit Mult × Super Crit Chance × Critical Chance).
+  - **Heat-up comes from the generated data** (`heat_up_per_hit`, TheTowerSDK's constant from the game's attack code), no longer from `guesses.gd`.
+  - Measured (`sim_runs.gd`, before → after; 4 seeds each for the Workshops):
+
+| Runs | Before | After |
+|---|---|---|
+| Fresh runs (10 seeds, even) and a 40-run core career | — | identical, run for run |
+| Every group open, every row at level 12 | waves 101–102 (median 102) | 101–105 (median 103): mines crit and the Wall now shields the Number |
+| Groups up to Orbs, every row at level 25, 3 hours | alive at wave 312; Cash earned 423–447 thousand | alive at wave 312; Cash earned 395–423 thousand (6% less) |
+| Every group open, level 25, 3 hours | alive at wave 312; Cash earned 421–444 thousand | alive at wave 312; Cash earned 392–415 thousand (7% less) |
+
+  - A run saved mid-way before this won't resume identically if it went past wave 200 or had the Wall or Land Mines open; it ends at its saved wave (D078).

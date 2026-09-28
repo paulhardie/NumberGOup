@@ -60,6 +60,22 @@ static func mass_growth(wave: int) -> float:
 	return _per_wave("mass_growth", wave)
 
 
+## Each hit an enemy lands makes its next this much harder, compounding.
+static func heat_up_per_hit() -> float:
+	return float(enemies().heat_up_per_hit)
+
+
+## The Cash a kill from `wave` pays before its type and Cash Bonus: $1, and $1
+## more every ten waves to wave 200, then every twenty ($21 at 200, $24 at 260).
+static func kill_cash(wave: int) -> float:
+	var rule: Dictionary = enemies().kill_cash
+	var until := int(rule.until_wave)
+	var steps := floori(float(mini(wave, until)) / float(rule.every_waves))
+	if wave > until:
+		steps += floori(float(wave - until) / float(rule.then_every_waves))
+	return 1.0 + float(steps)
+
+
 static func wave_seconds() -> float:
 	return float(enemies().spawn_seconds) + float(enemies().cooldown_seconds)
 
