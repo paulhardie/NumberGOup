@@ -725,6 +725,19 @@ func test_knockback_pushes_by_force_over_mass() -> void:
 		check_near(pushed, want, 0.0001, "a %s goes %.2f m back" % [kind, want])
 
 
+func test_knockback_never_moves_a_ray() -> void:
+	var sim := _quiet_sim()
+	sim.levels = {"knockback_chance": TowerData.max_level("knockback_chance"), "knockback_force": TowerData.max_level("knockback_force")}
+	var ray := _place(sim, "ray", 20.0)
+	ray.max_health = 1e9
+	ray.health = 1e9
+	for _i in range(roundi(10.0 / BattleSim.TICK)):
+		sim.step()
+	check(ray.health < ray.max_health, "the tower shoots the Ray")
+	check_near(ray.distance, 20.0, 0.0, "and Knockback never moves it: The Tower's Ray is immune (D117)")
+	check(not EnemyKinds.knockback_moves("ray") and EnemyKinds.knockback_moves("boss"), "only the Ray is immune; a boss is just heavy")
+
+
 func test_knockback_never_pushes_past_the_spawn() -> void:
 	var sim := _quiet_sim()
 	sim.levels = {"knockback_chance": TowerData.max_level("knockback_chance"), "knockback_force": TowerData.max_level("knockback_force"), "range": TowerData.max_level("range")}

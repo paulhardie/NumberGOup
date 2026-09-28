@@ -13,6 +13,8 @@ const TowerData = preload("res://src/tower/tower_data.gd")
 ##   from there, rather than walking to the Number.
 ## - orbs_kill, shockwave_moves: whether orbs can kill it and shockwaves push
 ##   it. The Tower's bosses and elites are immune to both (D104, D115).
+## - knockback_moves: whether Knockback pushes it at all. The Tower's Ray is
+##   immune (D117); every other kind is pushed less the heavier it is.
 ## - thorns: the share of Thorns it takes; a boss takes half (TheTowerSDK's
 ##   breakpoints agree).
 ## - attack: "hit" every ENEMY_HIT_SECONDS; "charge", a Ray's charged shot;
@@ -21,11 +23,11 @@ const TRAITS := {
 	"ranged": {"stops_at_range": true},
 	"boss": {"orbs_kill": false, "shockwave_moves": false, "thorns": 0.5},
 	"vampire": {"stops_at_range": true, "orbs_kill": false, "shockwave_moves": false, "attack": "drain"},
-	"ray": {"stops_at_range": true, "orbs_kill": false, "shockwave_moves": false, "attack": "charge"},
+	"ray": {"stops_at_range": true, "orbs_kill": false, "shockwave_moves": false, "knockback_moves": false, "attack": "charge"},
 	"scatter": {"orbs_kill": false, "shockwave_moves": false},
 	"divider": {"attack": "divide"},
 }
-const DEFAULTS := {"stops_at_range": false, "orbs_kill": true, "shockwave_moves": true, "thorns": 1.0, "attack": "hit"}
+const DEFAULTS := {"stops_at_range": false, "orbs_kill": true, "shockwave_moves": true, "knockback_moves": true, "thorns": 1.0, "attack": "hit"}
 
 
 static func _trait(kind: String, name: String):
@@ -46,6 +48,10 @@ static func orbs_kill(kind: String) -> bool:
 
 static func shockwave_moves(kind: String) -> bool:
 	return _trait(kind, "shockwave_moves")
+
+
+static func knockback_moves(kind: String) -> bool:
+	return _trait(kind, "knockback_moves")
 
 
 static func thorns_share(kind: String) -> float:

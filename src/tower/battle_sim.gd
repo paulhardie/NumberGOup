@@ -674,7 +674,10 @@ func _strike(enemy: Enemy, shot_damage: float, critical: bool) -> void:
 	if is_open("rend_armor_chance") and _combat_rng.randf() < stat("rend_armor_chance"):
 		enemy.rend = minf(REND_CAP, enemy.rend + stat("rend_armor_mult"))
 	_heal(stat("lifesteal") * minf(damage, maxf(enemy.health, 0.0)), "lifesteal")
-	if enemy.health > damage and stat("knockback_chance") > 0.0 and _combat_rng.randf() < stat("knockback_chance"):
+	# The roll is made for every kind, so an immune one never shifts the
+	# stream the rest of the run draws from.
+	var knocked := enemy.health > damage and stat("knockback_chance") > 0.0 and _combat_rng.randf() < stat("knockback_chance")
+	if knocked and EnemyKinds.knockback_moves(enemy.kind):
 		var push := stat("knockback_force") * Guesses.KNOCKBACK_METRES_PER_FORCE / EnemyKinds.mass_now(enemy, wave)
 		enemy.distance = minf(Guesses.SPAWN_DISTANCE_M, enemy.distance + push)
 	enemy.health -= damage
