@@ -20,9 +20,10 @@ const CONTACT_DISTANCE_M := 3.0
 ## rule lives in BattleSim, since it follows the Range row.
 const ENEMY_HIT_SECONDS := 1.0
 
-## Each hit an enemy lands makes its next 4% harder, compounding. The earlier
-## research says the SDK agrees; the owner's 25 September research says it
-## grows per wave survived instead. Unsettled.
+## Each hit an enemy lands makes its next 4% harder, compounding. No longer a
+## guess: the game's own attack code does exactly this (TheTowerSDK; D115), so
+## it belongs in the generated enemy data and moves there with the first
+## corrections in docs/TOWER_RULES.md.
 const HEAT_UP_PER_HIT := 1.04
 
 ## The spawn rate at wave 1 (D114), which no screen has shown: 5, so that a

@@ -111,6 +111,7 @@ Versions, each one a playable thing the owner plays and signs off (D079). The nu
 |---|---|---|
 | **0.9** (now) | Tier 1, the whole Workshop with multi-buy, the activity report, resuming a run | Built: the first plan's milestones 1 to 4 and D076–D078 |
 | **1.0** | The Tower's first hours with **the Number as the tower** (D080): the Number in the centre, enemies that subtract, divide or take a share on contact | The Number's decisions are answered ([`THE_NUMBER.md`](THE_NUMBER.md)). Measured runs hold The Tower's benchmarks and meet the Number's targets. The owner says the core loop is satisfying and fun |
+| **1.0.x** | The Tower's run rules finished (D115): the corrections, readings, elites in Tier 1 from wave 500, and the foundations Cards and Labs need, as the build list in [`TOWER_RULES.md`](TOWER_RULES.md#7-before-11-the-build-list) orders them | Every item on the list is built or dropped by the owner, and the benchmarks are re-measured |
 | **1.1** | Cards, and Gems to buy card slots: what The Tower launched with | The owner plays to wave 20 and uses them |
 | **1.2** | Labs, opening at wave 30 (Starting Cash, Wall Regen and the rest) | The owner plays to them |
 | **1.3** | Ultimate Weapons | The owner plays to them |
