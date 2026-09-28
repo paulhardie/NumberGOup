@@ -73,7 +73,8 @@ func tick_wall() -> void:
 
 
 ## Shockwave: every Shockwave Frequency seconds, every enemy in range but a
-## boss is pushed back by Shockwave Size, never past where enemies set off.
+## boss or an elite is pushed back by Shockwave Size, never past where
+## enemies set off.
 func tick_shockwave() -> void:
 	if not sim.is_open("shockwave_frequency"):
 		return
@@ -82,7 +83,7 @@ func tick_shockwave() -> void:
 		return
 	shockwave_in += sim.stat("shockwave_frequency")
 	for enemy in sim.enemies:
-		if enemy.kind != "boss" and enemy.distance <= sim.stat("range"):
+		if enemy.kind != "boss" and not sim.is_elite(enemy.kind) and enemy.distance <= sim.stat("range"):
 			enemy.distance = minf(Guesses.SPAWN_DISTANCE_M, enemy.distance + sim.stat("shockwave_size"))
 	if sim.record_events:
 		sim.events.append({"type": "shockwave"})
@@ -91,7 +92,7 @@ func tick_shockwave() -> void:
 ## Orbs circle at least Guesses.ORB_MIN_RADIUS_M out, further inside a Range
 ## that grows past it (D108), and kill any enemy that comes within
 ## Guesses.ORB_HIT_M of one, walking or standing, unless it's one orbs can't
-## kill (Guesses.ORB_IMMUNE). They turn on the run's clock, and each tick
+## kill (Guesses.ORB_IMMUNE) or a Protector shields it (D115). They turn on the run's clock, and each tick
 ## checks the whole arc an orb swept, not just where it ends up.
 func orb_radius() -> float:
 	return Guesses.ORB_MIN_RADIUS_M + Guesses.ORB_RANGE_SLOPE * maxf(0.0, sim.stat("range") - Guesses.ORB_MIN_RADIUS_M)
@@ -125,7 +126,7 @@ func sweep_orbs() -> void:
 			if fposmod(enemy.angle - start + slack, TAU) <= sweep + 2.0 * slack:
 				touched.append(enemy)
 				break
-	for enemy in touched:
+	for enemy in touched.filter(func(enemy): return not sim.shielded(enemy)):
 		enemy.health = 0.0
 		sim._kill(enemy, "orb")
 
@@ -155,7 +156,7 @@ func trigger_mines() -> void:
 		var fallen := []
 		for enemy in sim.enemies:
 			if enemy.position().distance_to(mine) <= sim.stat("land_mine_radius"):
-				enemy.health -= sim.stat("damage") * sim.stat("land_mine_damage")
+				enemy.health -= sim.stat("damage") * sim.stat("land_mine_damage") * sim.damage_taken(enemy)
 				if enemy.health <= 0.0:
 					fallen.append(enemy)
 		for enemy in fallen:
