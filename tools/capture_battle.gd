@@ -2,7 +2,8 @@ extends SceneTree
 ## Opens the game's screens in a real window and saves screenshots to
 ## user://capture, for looking at, never for pixel comparison: the home screen
 ## and Workshop with some progress, then a seeded run fast-forwarded to a few
-## moments, buying upgrades as it goes. Every screen gets its own Workshop,
+## moments, buying upgrades as it goes, and Tier 2's later enemies with Wave
+## Info open. Every screen gets its own Workshop,
 ## so nothing is saved. On headless Linux wrap it in
 ## xvfb-run -a -s "-screen 0 1024x1100x24".
 
@@ -10,6 +11,7 @@ const Workshop = preload("res://src/tower/workshop.gd")
 const HomeScreen = preload("res://src/ui/home_screen.gd")
 const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
+const BattleSim = preload("res://src/tower/battle_sim.gd")
 
 const MOMENTS := [4.0, 30.0, 120.0, 240.0, 600.0]
 const FOLDER := "user://capture"
@@ -208,6 +210,54 @@ func _capture() -> void:
 	await _frames()
 	_save_png("battle_crowd")
 	crowd.queue_free()
+	await process_frame
+
+	# The Tower's later enemies (D115): Tier 2 deep in, a Protector's shield
+	# and elites on the field, then Wave Info open over them. The Number is
+	# held up, since only the look matters here.
+	var invaded := BattleScreen.new()
+	invaded.workshop = strong
+	root.add_child(invaded)
+	await process_frame
+	invaded._adopt(BattleSim.new(5, strong.levels, strong.open_groups, 2))
+	invaded.set_process(false)
+	var deep: BattleSim = invaded.sim
+	deep.wave = 600
+	deep.health_level = 600
+	deep.attack_level = 600
+	# Each where it can be seen: a Protector with basics in its shield, a
+	# Vampire draining and a Ray charging on the range's edge, a Scatter and
+	# two of its pieces walking in.
+	var staged := [["protector", -0.6, 48.0], ["basic", -0.52, 44.0], ["basic", -0.68, 51.0], ["basic", -0.6, 55.0],
+		["vampire", 2.3, 0.0], ["ray", 0.9, 0.0], ["scatter", 3.9, 45.0], ["scatter", 3.6, 38.0], ["scatter", 3.75, 36.0], ["fast", 1.7, 60.0]]
+	deep._schedule.assign(staged.map(func(entry): return {"kind": entry[0], "at": 0.0}))
+	deep._next_spawn = 0
+	deep.wave_clock = 0.0
+	deep.step()
+	for index in range(staged.size()):
+		var enemy: BattleSim.Enemy = deep.enemies[index]
+		enemy.angle = staged[index][1]
+		enemy.distance = staged[index][2] if staged[index][2] > 0.0 else deep.stat("range")
+		enemy.speed = 0.0 if staged[index][2] > 0.0 else enemy.speed
+		if index == 7 or index == 8:
+			enemy.generation = 1
+			enemy.max_health *= 0.5
+	var invaded_events: Array[Dictionary] = []
+	for tick in range(40):
+		deep.health = 1e30
+		deep.step()
+		invaded_events.append_array(deep.events)
+		deep.events.clear()
+	invaded._arena.absorb(invaded_events.slice(maxi(0, invaded_events.size() - 6)), 0.0)
+	invaded._refresh()
+	invaded._arena.queue_redraw()
+	await _frames()
+	_save_png("battle_invaders")
+	invaded._wave_info.visible = true
+	invaded._refresh()
+	await _frames()
+	_save_png("battle_wave_info")
+	invaded.queue_free()
 	await process_frame
 
 	var screen := BattleScreen.new()

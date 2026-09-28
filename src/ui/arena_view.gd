@@ -67,7 +67,13 @@ const LOOKS := {
 	"boss": {"axes": {"wdth": 150, "wght": 900}, "size": 24, "colour": Palette.BOSS, "glow": Palette.BOSS_GLOW, "flash": Palette.BOSS_GLOW},
 	"divider": {"axes": {"opsz": 48, "wght": 640, "WONK": 0, "SOFT": 0}, "divider": true, "size": 18, "colour": Palette.DIVIDER,
 		"glow": Palette.DIVIDER},
+	"protector": {"axes": {"wdth": 150, "wght": 560}, "spacing": 1, "size": 16, "colour": Palette.PROTECTOR},
+	"vampire": {"axes": {"wdth": 90, "wght": 900}, "size": 17, "colour": Palette.VAMPIRE, "glow": Palette.VAMPIRE},
+	"ray": {"axes": {"wdth": 50, "wght": 800}, "size": 17, "colour": Palette.RAY, "glow": Palette.RAY},
+	"scatter": {"axes": {"wdth": 120, "wght": 800}, "size": 16, "colour": Palette.SCATTER, "glow": Palette.SCATTER},
 }
+## A Protector's shield, drawn round it at its radius, this faint.
+const SHIELD_ALPHA := 0.4
 ## A new enemy fades in over its first metres.
 const FADE_IN_M := 2.0
 ## The damage dealt so far, under an enemy that has lived through a shot (D102).
@@ -223,6 +229,7 @@ func _draw() -> void:
 	var number := _number_layout()
 	_draw_wall()
 	effects.draw_ranged_shots(_number_half)
+	_draw_shields_and_drains()
 	for enemy in sim.enemies:
 		_draw_enemy(enemy)
 	effects.draw_pops()
@@ -384,6 +391,22 @@ func _draw_enemy(enemy: BattleSim.Enemy) -> void:
 		draw_string(hit_cut, at + Vector2(-dealt_width * 0.5, half.y + DEALT_PX + 1.0), dealt, HORIZONTAL_ALIGNMENT_LEFT, -1, DEALT_PX, Color(Palette.NUMBER, 0.8))
 
 
+## Each Protector's shield, a faint ring at its radius, and each draining
+## Vampire's line to the Number, flickering as it drains (D115).
+func _draw_shields_and_drains() -> void:
+	var radius_px := TowerData.protector_radius_m(sim.wave, sim.tier) * px_per_metre()
+	for enemy in sim.enemies:
+		if enemy.kind == "protector":
+			var at := enemy_at(enemy.angle, _shown_metres(enemy), enemy_half(enemy.kind, "0"))
+			draw_circle(at, radius_px, Color(Palette.PROTECTOR, SHIELD_ALPHA * 0.25))
+			draw_arc(at, radius_px, 0.0, TAU, 48, Color(Palette.PROTECTOR, SHIELD_ALPHA), 1.0, true)
+		elif enemy.kind == "vampire" and enemy.arrived():
+			var toward := Vector2.from_angle(enemy.angle)
+			var from := enemy_at(enemy.angle, _shown_metres(enemy), enemy_half(enemy.kind, "0")) - toward * 10.0
+			var flicker := 0.35 + 0.2 * sin(sim.time * 17.0 + float(enemy.id))
+			draw_line(from, centre + toward * edge_px(toward), Color(Palette.VAMPIRE, flicker), 1.5, true)
+
+
 ## The nearest Divider inside the range shows what it will do above the
 ## Number, "÷1.5 → 301", so a ÷ never lands unseen (D085). It makes way while
 ## a ÷ that has just landed floats up from the same spot.
@@ -486,11 +509,14 @@ static func dealt_text(enemy: BattleSim.Enemy) -> String:
 
 
 ## What an enemy does: its next hit off the Number, after the tower's
-## defences and growing 4% a hit (so it ticks up while it stands there), or a
-## Divider's ÷.
+## defences and growing 4% a hit (so it ticks up while it stands there), a
+## Divider's ÷, or a Vampire's drain, a share of Health a second (D115).
 static func operation_text(battle: BattleSim, enemy: BattleSim.Enemy) -> String:
 	if enemy.kind == "divider":
 		return "÷" + divisor_text(enemy.divisor)
+	if enemy.kind == "vampire":
+		var share := snappedf(100.0 * float(TowerData.enemies().elites.vampire_drain), 0.1)
+		return "−%s%%/s" % (str(roundi(share)) if is_equal_approx(share, roundf(share)) else String.num(share, 1))
 	return "−" + Palette.amount(battle.landed_damage(enemy.attack * pow(Guesses.HEAT_UP_PER_HIT, enemy.hits)))
 
 

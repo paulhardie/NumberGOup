@@ -26,7 +26,23 @@
 //   raises the fast, tank and ranged shares (1 + 0.04 a tier, the Wave Info
 //   panel's tier weight). The spawn rate itself follows the wave, not the tier:
 //   the SDK's Wave Info reads it from one chart for every tier.
-// - The on-screen cap on normal enemies is the SDK's (120).
+// - The on-screen caps are the SDK's: 120 normal enemies, 20 elites, 10
+//   bosses; the owner's (28 September) 8 of any one elite type.
+// - Enemy speed: a tier's weight speeds every enemy as it raises the shares
+//   (the panel's enemySpeedWaveMult uses the same weight). Mass grows past
+//   wave 4,000 as the panel's enemyMassWaveMult has it, and 4% more for each
+//   wave an enemy stays alive (the knowledge base, from The Tower's patch
+//   notes). An enemy alive three waves pays half its Coins (ENEMY_COIN_DECAY).
+// - The Protector (from Tier 2, D115): its share of spawns by wave band
+//   (80/160/320/751), its gate, health 0.6 of a basic's, speed, mass, radius
+//   by wave and tier, and damage taken under it (0.6, the binary's constant;
+//   the panel's display default of 55% is not what hits use; Thorns 0.7).
+// - Elites (Vampire, Ray, Scatter): each tier's rows of the Elite Spawn
+//   Chance chart (single and double chance, from the wave each opens), and
+//   their multipliers, speeds and masses. Vampire drains 2% of the tower's
+//   Health a second (WAVE_INFO_VAMPIRE_TOWER_DAMAGE_MULT), Ray charges 30
+//   seconds between shots and Scatter splits four times (the SDK's enemy
+//   summaries).
 // - Spawning, as the game does it (the owner, 28 September: "a 56% chance for
 //   an enemy to spawn every 1/8th of a second" at the top rate): every roll
 //   interval of the spawning window, one enemy spawns by the wave's spawn rate
@@ -56,6 +72,16 @@ const TIERS = [1, 2, 3];
 // The Wave Info panel's tier weight on fast, tank and ranged spawn chances,
 // below Tier 9 (info-panel-stats.js tierSpawnWeight, not exported; checked below).
 const MIX_WEIGHT_PER_TIER = 0.04;
+// The owner, 28 September: "20 elite with 8 per type".
+const ELITE_PER_TYPE_CAP = 8;
+// From the SDK's enemy summaries and knowledge base, which state them in prose.
+const RAY_CHARGE_SECONDS = 30;
+const SCATTER_SPLITS = 4;
+const MASS_PER_WAVE_ALIVE = 1.04;
+// Thorns on an enemy under a Protector: the knowledge base's reading of
+// Enemy.ThornDamage, which it gives only in prose.
+const PROTECTOR_THORNS_TAKEN = 0.7;
+const COIN_DECAY_AFTER_WAVES = 3;
 
 const sdkRoot = path.resolve(process.argv[2] ?? "package");
 const require = createRequire(path.join(sdkRoot, "package.json"));
@@ -89,10 +115,14 @@ const keep = (value) => Number(value.toPrecision(9));
 const health = [];
 const attack = [];
 const speed = [];
+const massGrowth = [];
+const protectorRadius = [];
 for (let wave = 1; wave <= LAST_WAVE; wave++) {
   health.push(keep(scaling.computeWaveBaseHealthRaw(input(wave)) * healthDrift(wave)));
   attack.push(keep(scaling.computeWaveBaseDamage(input(wave))));
   speed.push(keep(panel.computeWaveInfoPanelEnemyExtras({ ...input(wave), enemyType: "Basic" }).speed));
+  massGrowth.push(keep(panel.enemyMassWaveMult(wave)));
+  protectorRadius.push(keep(panel.computeWaveInfoPanelSummary(1, wave).protectorRadiusMeters));
 }
 
 // Two decimals is what the screen shows; allow the last one either way.
@@ -106,7 +136,8 @@ for (const reading of READINGS) {
 }
 
 const types = {};
-for (const [id, name] of [["basic", "Basic"], ["fast", "Fast"], ["tank", "Tank"], ["ranged", "Ranged"], ["boss", "Boss"]]) {
+for (const [id, name] of [["basic", "Basic"], ["fast", "Fast"], ["tank", "Tank"], ["ranged", "Ranged"], ["boss", "Boss"],
+  ["protector", "Protector"], ["vampire", "Vampire"], ["ray", "Ray"], ["scatter", "Scatter"]]) {
   const typeSpeed = panel.computeWaveInfoPanelEnemyExtras({ ...input(1), enemyType: name }).speed;
   const mass = panel.computeWaveInfoPanelEnemyExtras({ ...input(1), enemyType: name }).mass;
   types[id] = { health: typeMults[name].hp, attack: typeMults[name].damage, speed: keep(typeSpeed), mass: keep(mass) };
@@ -120,6 +151,10 @@ const spawnCap = require(path.join(dist, "knowledge/compartments/enemies.js")).E
 const spawnRoll = require(path.join(dist, "mechanics/waves/spawn-gate-constants.js")).WAVE_SPAWN_TIMER_QUANTUM_SECONDS_V29;
 const spawnChart = require(path.join(dist, "data/charts/data.js")).WAVE_ACCELERATOR_SPAWN_RATE_ROWS
   .map((row) => ({ wave: row.normal, rate: row.spawnCount }));
+const knowledge = require(path.join(dist, "knowledge/compartments/enemies.js"));
+const eliteRows = require(path.join(dist, "data/charts/data.js")).ELITE_SPAWN_CHANCE_ROWS;
+const spawnTypes = require(path.join(dist, "mechanics/waves/new-wave-spawn-type-chances.js"));
+const infoConstants = require(path.join(dist, "mechanics/waves/info-enemy-constants.js"));
 const tiers = [];
 for (const tier of TIERS) {
   let healthRatio = null;
@@ -140,6 +175,28 @@ for (const tier of TIERS) {
     throw new Error(`tier ${tier}: the Wave Info tier weight is no longer 1 + ${MIX_WEIGHT_PER_TIER} a tier`);
   }
   const coin = tierRows.find((row) => row.tier === tier);
+  // Each speed must be the tier's weight times Tier 1's, as the panel has it.
+  for (const name of ["Basic", "Fast", "Protector", "Vampire"]) {
+    const ratio = panel.computeWaveInfoPanelEnemyExtras({ wave: 300, tier, tournament: false, enemyType: name }).speed
+      / panel.computeWaveInfoPanelEnemyExtras({ wave: 300, tier: 1, tournament: false, enemyType: name }).speed;
+    if (Math.abs(ratio / weight - 1) > 1e-6) {
+      throw new Error(`tier ${tier}: ${name} speed is ${ratio} times Tier 1's, not the tier weight ${weight}`);
+    }
+  }
+  // The Protector's share by wave band, from the wave each band opens.
+  const protector = [];
+  for (const band of spawnTypes.NEW_WAVE_PROTECTOR_SLOT_WAVE_BANDS_V29) {
+    const chance = spawnTypes.newWaveProtectorChanceV29(tier, band);
+    if (chance > 0) protector.push({ wave: band, chance });
+  }
+  // The elite chart's rows for this tier: from the wave each opens, the chance
+  // one of each elite type spawns in a wave, and then of a second.
+  const elites = [];
+  for (const row of eliteRows) {
+    const wave = Number.parseInt(row[1 + tier], 10);
+    const single = Number.parseInt(row[1], 10);
+    if (wave > 0 && single > 0) elites.push({ wave, single, double: Number.parseInt(row[0], 10) });
+  }
   tiers.push({
     tier,
     enemy_health: keep(healthRatio),
@@ -148,11 +205,15 @@ for (const tier of TIERS) {
     boss_every: bossEvery(tier),
     double_spawn: gates.waveUpdateThresholdGtePassRate(gates.newWaveEnemyDoubleSpawnThresholdV29({ tier })),
     mix_weight: keep(weight),
+    protector_radius: keep(panel.computeWaveInfoPanelSummary(tier, 1000).protectorRadiusMeters / panel.computeWaveInfoPanelSummary(1, 1000).protectorRadiusMeters),
+    protector,
+    protector_gate: spawnTypes.newWaveProtectorWavesUntilNextCanSpawnV29(tier),
+    elites,
   });
 }
 
 const out = {
-  version: 2,
+  version: 3,
   source: "The Tower's Tier 1 enemies via TheTowerSDK 0.11.0 (MIT, TmRxJD), calibrated to the owner's screens. Generated by tools/import_tower_enemies.mjs.",
   readings: READINGS,
   health_drift: { per_wave: HEALTH_DRIFT_PER_WAVE, known_to_wave: HEALTH_DRIFT_KNOWN_TO },
@@ -162,11 +223,24 @@ const out = {
   mix: MIX,
   tiers,
   enemy_cap: spawnCap.normal,
+  elite_cap: spawnCap.elite,
+  elite_type_cap: ELITE_PER_TYPE_CAP,
+  boss_cap: spawnCap.boss,
+  coin_decay: { after_waves: COIN_DECAY_AFTER_WAVES, share: knowledge.ENEMY_COIN_DECAY },
+  mass_per_wave_alive: MASS_PER_WAVE_ALIVE,
+  protector: { damage_taken: knowledge.PROTECTOR_DAMAGE_MULTIPLIER, thorns_taken: PROTECTOR_THORNS_TAKEN, gate_step: 10 - spawnTypes.advanceNewWaveProtectorGateV29({ wavesUntilNext: 10 }).wavesUntilNext },
+  elites: {
+    vampire_drain: infoConstants.WAVE_INFO_VAMPIRE_TOWER_DAMAGE_MULT,
+    ray_charge_seconds: RAY_CHARGE_SECONDS,
+    scatter_splits: SCATTER_SPLITS,
+  },
   spawn: { roll_seconds: spawnRoll, readings: SPAWN_READINGS, chart: spawnChart },
   types,
   basic_health: health,
   basic_attack: attack,
   basic_speed: speed,
+  mass_growth: massGrowth,
+  protector_radius: protectorRadius,
 };
 const outPath = path.join(path.dirname(new URL(import.meta.url).pathname), "..", "data", "tower", "enemies.json");
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
@@ -174,7 +248,7 @@ fs.writeFileSync(outPath, JSON.stringify(out) + "\n");
 console.log(`wrote ${LAST_WAVE} waves to ${path.relative(process.cwd(), outPath)}`);
 console.log(`spawn: a roll every ${spawnRoll} s; rate ${SPAWN_READINGS.map((r) => `${r.rate} at wave ${r.wave}`).join(", ")}; chart ${spawnChart.map((r) => `${r.rate}@${r.wave}`).join(" ")}`);
 for (const t of tiers) {
-  console.log(`tier ${t.tier}: health ×${t.enemy_health}, attack ×${t.enemy_attack}, Coins ×${t.coins}, boss every ${t.boss_every}, double spawn ${t.double_spawn}, mix weight ${t.mix_weight}`);
+  console.log(`tier ${t.tier}: health ×${t.enemy_health}, attack ×${t.enemy_attack}, Coins ×${t.coins}, boss every ${t.boss_every}, double spawn ${t.double_spawn}, mix weight ${t.mix_weight}, Protector ${t.protector.map((p) => `${p.chance}%@${p.wave}`).join(" ") || "none"}, elites from wave ${t.elites[0].wave}`);
 }
 for (const r of READINGS) {
   console.log(`wave ${r.wave}: health ${health[r.wave - 1]} (screen ${r.health}), attack ${attack[r.wave - 1]} (screen ${r.attack})`);
