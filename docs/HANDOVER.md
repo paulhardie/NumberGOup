@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 28 September 2026, by Claude, handing on to the next agent. This session, over two days, put orbs back to The Tower's balance (D108), gave kills sparks, a Coins float and white shots (D109), measured the road to wave 100 and Tier 1's ceiling, kept the turtle with a shape target for the Number (D110), removed the Multiplier and made regen-restores and kills-grow the game's rules (D111, merged in #98), and, from `main` after #98, measured tiers and recorded that each tier gets its own enemies (D112).
+**Last updated:** 28 September 2026, by Claude, handing on to the next agent. This session checked the game against The Tower's own rules at the owner's request and wrote the findings up as [`TOWER_RULES.md`](TOWER_RULES.md): what we get right, what we get wrong, what's still guessed, and the build list before 1.1. The owner ruled that 1.1 waits for that list (D115). Before that, the same day: tiers in the battle (D113) and The Tower's spawn rolls (D114), merged in #102 and #103.
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #98. It carries D112 (documents only). Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/tower-rules-research`, from `main` after #103. It carries D115, [`TOWER_RULES.md`](TOWER_RULES.md) and the roadmap's new 1.0.x step (documents, and one comment in `guesses.gd`). Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -12,7 +12,7 @@
 
 1. Read [`AGENTS.md`](../AGENTS.md), then [`REBUILD_SPEC.md`](REBUILD_SPEC.md)'s Roadmap and Benchmarks. Fetch and check the branch against `origin` before new work.
 2. **The Tower is the spec** (D073): copy it, and put anything unknown in `src/tower/guesses.gd` rather than debating it. The owner plays each version before the next starts.
-3. **The plan is the roadmap** (D079). The game is 0.9. 1.0 is The Tower's first hours with the Number as the tower (D080), and it is close: see Next steps. Then Cards (1.1), Labs, Ultimate Weapons and Tier 2.
+3. **The plan is the roadmap** (D079). The game is 0.9. 1.0 is The Tower's first hours with the Number as the tower (D080), and it is close: see Next steps. Then **1.0.x, The Tower's rules finished** (D115: the build list in [`TOWER_RULES.md`](TOWER_RULES.md#7-before-11-the-build-list)), and only then Cards (1.1), Labs, Ultimate Weapons and Tier 2.
 4. **When a report arrives, read it first** with `tools/read_report.gd -- --file <report>`. Runs replay only on the commit that recorded them. For totals across several reports, dedupe runs by their time and seed: each export repeats everything before it.
 
 ## Where the game is
@@ -67,7 +67,7 @@
 - Below it, the Number stays five digits to wave 90 and Dividers are the main threat. **The owner kept the turtle (D110)**: a solved Tier 1 is the push to Tier 2.
 - A wave-90 run pays about 1,700 Coins, so reaching the cliff on the Workshop alone takes on the order of a thousand runs: the pace problem is Coins, which The Tower eases with Cards, Labs and higher tiers.
 
-**Spawns are The Tower's (D114):** a roll every 1/8 s of the spawning window by the wave's spawn rate (5 at wave 1 ours, 15 at wave 22 the owner's, the SDK's chart from wave 1,000), so about 11, 33 and 37 enemies at waves 1, 22 and 100. The early game got harder and pays about twice the Coins at wave 20; D114 has the benchmarks. **Needed from the owner:** Wave Info's spawn rate at waves 1, 50 and 100.
+**Spawns are The Tower's (D114):** a roll every 1/8 s of the spawning window by the wave's spawn rate (5 at wave 1 ours, 15 at wave 22 the owner's, the SDK's chart from wave 1,000), so about 11, 33 and 37 enemies at waves 1, 22 and 100. The early game got harder and pays about twice the Coins at wave 20; D114 has the benchmarks. **Needed from the owner:** the readings in [`TOWER_RULES.md`](TOWER_RULES.md#6-readings-the-owner-can-take-in-the-tower), the spawn rate at waves 1, 50 and 100 first.
 
 **Tiers in the battle (D113):** `BattleSim` has a tier (1–3 generated from the SDK: ×20 and ×60 enemies, ×1.8 and ×2.6 Coins, The Tower's tier spawn mix and double spawns, and the 120-enemy cap in every tier). The game still plays Tier 1; `sim_runs.gd --tier N` measures the others.
 
@@ -79,11 +79,13 @@
 2. **Game speed.** The spec calls the 1×/2×/5× switch a testing tool, yet it's half of how the owner plays. **Recommend** keeping it as a player feature, since The Tower's first hours are long.
 3. **Updates mid-run.** Two runs were lost when a merge landed while a run was saved. **Recommend** the Mac's sync job wait to update while the save holds a run in progress, and say so in its notification. It's small, and changes nothing in the game.
 4. **The lighter rebuild process** (REBUILD_SPEC.md, "Process while the rebuild is in progress"), open since 25 September. **Recommend yes.**
-5. **AGENTS.md's law 3** names a modifier pipeline that no longer exists. **Recommend** dropping it until a system needs stacked rules. Only the owner changes that file's rules.
+5. **AGENTS.md's law 3** names a modifier pipeline that no longer exists. Cards and Labs now demonstrably need stats that stack in layers (TOWER_RULES.md build item 6), so **recommend** rewording it to that primitive when it's built, rather than dropping it. Only the owner changes that file's rules.
 6. **Publishing The Tower's data** (its Workshop and enemy numbers, under the SDK's MIT licence) needs a decision before anything is public. Not urgent.
 7. **Idle play (D089)** waits for servers. Nothing is built.
 8. **The design canvas's other proposals** (D106 names them): a Number that grows heavier with each new digit, elites in one shared blue with a typeface each, and the rest of the notation assets. **Recommend** trying the heavier Number next, with the Tweaks slider on its board, since it answers the Number shrinking as digits arrive.
 9. **Missions** stands on Home as a placeholder at the owner's request, but isn't on the roadmap (Milestones is now built, D107). **Recommend** deciding whether Missions joins it before 1.1, or dropping it, so a placeholder never promises something unplanned.
+10. **Elites in Tier 1 before 1.1** (TOWER_RULES.md build item 5). The Tower sends the Vampire, Ray and Scatter from Tier 1 wave 500, and orbs can't kill them, so they end the orb turtle. **Recommend yes**, after the rule corrections and the enemy split, with each designed for the Number first (THE_NUMBER.md already sketches the Vampire as a percent enemy and the Scatter as a divide pun).
+11. **The Tower's wave milestones** (build item 7). They're how The Tower opens Labs (Tier 1 wave 30) and the next tier (wave 100), and pay its Coins and Gems. **Recommend** adding them beside our Number milestones (D107), which stay as the Number's own rewards.
 
 ## Next steps, in order
 
@@ -92,7 +94,9 @@
 2. **Agent, on the owner's word:** tune the Divider's health with `sim_runs.gd --careers 40 --buy core --divider-health N` if play says so. Then raise `application/config/version` to 1.0 when the owner signs it off. `--careers` always plays the same seeds (run N is seed N), so a second career needs a seed option first.
 2a. **Owner:** send [`design/GAME_STAGE_BRIEF.md`](design/GAME_STAGE_BRIEF.md) to Claude Design with its screenshots (`capture_battle.gd` makes them), and choose from what comes back. **Agent, then:** record the choices as the next D-number and build them in `arena_view.gd`, `arena_effects.gd` and `number_motion.gd`; drawing only. Done when the owner has played the new stage.
 3. **Owner:** try the web build on a phone. The light's shader, the music and the portrait layout have never run there.
-4. **Then Cards (1.1).** The two splits before them are done: the arena's drawing is three files (`arena_view.gd`, `arena_effects.gd`, `number_motion.gd`), and the Wall, orbs, shockwaves and land mines live in `src/tower/battle_defences.gd`, out of `battle_sim.gd` (now 850 lines).
+4. **Owner:** take the readings in [`TOWER_RULES.md`](TOWER_RULES.md#6-readings-the-owner-can-take-in-the-tower) (Wave Info's spawn rate and spawn chances at waves 1, 50 and 100 matter most). Done when they're in the chat.
+5. **Agent: 1.0.x, the build list in [`TOWER_RULES.md`](TOWER_RULES.md#7-before-11-the-build-list), in its order** (D115). First, the rule corrections: boss health past wave 100, Cash per kill past wave 200, coin decay, mass growing while an enemy lives, the Wall shielding the Number and pushing enemies out on rebuild, and average crit in mine damage; move heat-up out of `guesses.gd` into the generated data with them. High-risk gate: fixtures, before-and-after careers, a review. Done when each item is built or the owner drops it, and the benchmarks are re-measured.
+6. **Then Cards (1.1).** The two splits before them are done: the arena's drawing is three files (`arena_view.gd`, `arena_effects.gd`, `number_motion.gd`), and the Wall, orbs, shockwaves and land mines live in `src/tower/battle_defences.gd`, out of `battle_sim.gd` (now 830 lines).
 
 ## How to measure
 
@@ -130,8 +134,8 @@
 
 - **Settings → Testing isn't meant to ship** (D097): free Coins and Reset progress act on the real save. Remove or hide them before anything goes public.
 - **A run saved mid-way before D111 won't resume identically** unless it was played with both D098 switches on and Multipliers off, so it ends at its saved wave (D078). Finish or end a run before merging.
-- **Readings still needed from The Tower:** one boss kill's Cash (20× is ours), and a basic enemy's Health at wave 30 or 50. The health correction is only fitted to wave 22.
-- **Heat-up is unsettled:** we use 4% per hit landed; the owner's research says per wave survived. Watching a boss stand at the tower in The Tower settles it.
+- **Readings still needed from The Tower:** eight, listed in [`TOWER_RULES.md`](TOWER_RULES.md#6-readings-the-owner-can-take-in-the-tower). The health correction is only fitted to wave 22, and the SDK's claim to match the game exactly doesn't explain it.
+- **TheTowerSDK reads the game's code as sending about 1.86 enemies per successful spawn roll; we send about 1.06** (D114, on the owner's damage evidence). Counting one wave in The Tower settles it.
 - **A run saved mid-way before D094 won't resume identically**, so it ends at its saved wave (D078). Finish or end a run before merging.
 - **The Tier 1 turtle hasn't been measured since the Divider arrived.** A ÷ goes through the defences almost untouched by Defense Absolute, so the turtle's "I've stopped dying" moment should be checked with `sim_runs.gd`.
 - **The D076 mechanics use our guesses where The Tower is silent** (the spec's Guesses): the Wall's distance, mines, shockwaves. None is reachable in the first hours.
@@ -145,7 +149,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D114), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D115), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.

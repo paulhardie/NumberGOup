@@ -1590,3 +1590,13 @@ Rules:
 
   - The early game is harder and pays better, and both moved towards The Tower's figures. A career now crosses the wave-20 boss later and pays about twice the Coins at wave 20; with a Workshop behind it, the extra Cash keeps the walls where they were.
 - **Still unread:** the spawn rate at wave 1 and between waves 22 and 1,000. Wave Info shows it; a reading at waves 1, 50 and 100 would replace our straight lines.
+
+## D115 — The Tower's run rules are finished before 1.1 starts
+
+- **Status:** Accepted (2026-09-28) on owner direction: "find all the relevant information we need for the game, before we even consider 1.1. We don't start 1.1 until everything else that needs built is built."
+- **Context:** a sweep of the game against The Tower found rules we get wrong or don't have, several numbers still guessed, and foundations Cards and Labs will need. The research is [`TOWER_RULES.md`](TOWER_RULES.md): TheTowerSDK's mapping of the game's code, the community wiki and the developer's patch notes, 28 September 2026.
+- **Decision:**
+  - **1.1 (Cards) waits** until the build list in [`TOWER_RULES.md`](TOWER_RULES.md#7-before-11-the-build-list) is done, or the owner drops an item from it.
+  - The work sits in a new roadmap step, **1.0.x**, after 1.0's sign-off, in REBUILD_SPEC's Roadmap.
+  - Heat-up is settled as 4% for each hit an enemy lands, compounding, as built: the game's own attack code does it (TheTowerSDK), and the wiki agrees. The owner's "per wave survived" research is superseded.
+- **Consequences:** the high-risk gate still applies to each economy and enemy change on the list. Items 5 (elites) and 7 (wave milestones) need the owner's design choices before they're built.
