@@ -1596,6 +1596,29 @@ func test_gains_are_booked_by_source_and_new_highs() -> void:
 	check(sim.health > start, "and none of this touched the battle's rules")
 
 
+## Spawning is The Tower's (D114): every 1/8 second of the spawning window an
+## enemy comes by the wave's spawn rate, 5 at wave 1, the owner's 15 at wave
+## 22, then the SDK's chart from 37 at wave 1,000 to 56 at 6,500.
+func test_spawns_roll_by_the_waves_spawn_rate() -> void:
+	check_near(TowerData.spawn_roll_seconds(), 0.125, 0.0, "a roll every eighth of a second")
+	check_near(TowerData.spawn_rate(1), 5.0, 0.0001, "5 at wave 1")
+	check_near(TowerData.spawn_rate(22), 15.0, 0.0001, "15 at wave 22, as the owner read it")
+	check(TowerData.spawn_rate(10) > 5.0 and TowerData.spawn_rate(10) < 15.0 and TowerData.spawn_rate(500) > 15.0 and TowerData.spawn_rate(500) < 37.0, "rising between")
+	check_near(TowerData.spawn_rate(1000), 37.0, 0.0001, "37 from wave 1,000")
+	check_near(TowerData.spawn_rate(1499), 37.0, 0.0001, "in the chart's steps")
+	check_near(TowerData.spawn_rate(1500), 39.0, 0.0001, "39 from 1,500")
+	check_near(TowerData.spawn_rate(9000), 56.0, 0.0001, "and 56 at most")
+	for at_wave in [1, 22, 100]:
+		var total := 0
+		for seed in range(1, 41):
+			var sim := BattleSim.new(seed)
+			sim.wave = at_wave
+			sim._schedule_wave()
+			total += sim._schedule.filter(func(entry): return entry.kind != "boss").size()
+		var expected := 208.0 * TowerData.spawn_rate(at_wave) / 100.0 * (1.0 + float(TowerData.tier(1).double_spawn))
+		check_near(float(total) / 40.0, expected, expected * 0.08, "wave %d sends about %.0f enemies: %.1f" % [at_wave, expected, float(total) / 40.0])
+
+
 ## Tiers (D107, D112) come from the generated data: Tier 2's enemies have 20
 ## times Tier 1's health and attack and pay 1.8 times the Coins, Tier 3's 60
 ## and 2.6; a tier shifts the mix towards fast, tank and ranged and adds its
@@ -1619,7 +1642,7 @@ func test_tiers_scale_enemies_and_spawns() -> void:
 	for kind in third._tier_mix():
 		shares += float(third._tier_mix()[kind])
 	check_near(shares, 1.0, 0.0001, "and basics fill the rest")
-	check(second._wave_count() == first._wave_count() and third._wave_count() >= first._wave_count(), "Tier 2 spawns as Tier 1 does, Tier 3 a touch more")
+	check(TowerData.tier(2).double_spawn == TowerData.tier(1).double_spawn and TowerData.tier(3).double_spawn > TowerData.tier(1).double_spawn, "Tier 2 double-spawns as Tier 1 does, Tier 3 a touch more")
 
 	var paying := _quiet_sim()
 	paying.tier = 2

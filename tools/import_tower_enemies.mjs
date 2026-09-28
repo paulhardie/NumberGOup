@@ -27,6 +27,12 @@
 //   panel's tier weight). The spawn rate itself follows the wave, not the tier:
 //   the SDK's Wave Info reads it from one chart for every tier.
 // - The on-screen cap on normal enemies is the SDK's (120).
+// - Spawning, as the game does it (the owner, 28 September: "a 56% chance for
+//   an enemy to spawn every 1/8th of a second" at the top rate): every roll
+//   interval of the spawning window, one enemy spawns by the wave's spawn rate
+//   (0-100). The rate by wave is the SDK's Wave Accelerator chart (Normal
+//   column) from wave 1,000, and the owner's Wave Info below it; between and
+//   before those, BattleSim reads it as Guesses says.
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -44,6 +50,8 @@ const READINGS = [
   { wave: 22, health: 63.11, attack: 15.9 },
 ];
 const MIX = { basic: 0.85, fast: 0.07, tank: 0.06, ranged: 0.02 };
+// The owner's Wave Info, Tier 1.
+const SPAWN_READINGS = [{ wave: 22, rate: 15 }];
 const TIERS = [1, 2, 3];
 // The Wave Info panel's tier weight on fast, tank and ranged spawn chances,
 // below Tier 9 (info-panel-stats.js tierSpawnWeight, not exported; checked below).
@@ -109,6 +117,9 @@ const gates = require(path.join(dist, "mechanics/waves/update-spawn-gate-pass.js
 const tierRows = require(path.join(dist, "data/tiers/data.js")).TIER_COIN_BONUS_ROWS;
 const bossEvery = require(path.join(dist, "data/enemies/data.js")).bossWaveIntervalForTier;
 const spawnCap = require(path.join(dist, "knowledge/compartments/enemies.js")).ENEMY_SPAWN_CAP;
+const spawnRoll = require(path.join(dist, "mechanics/waves/spawn-gate-constants.js")).WAVE_SPAWN_TIMER_QUANTUM_SECONDS_V29;
+const spawnChart = require(path.join(dist, "data/charts/data.js")).WAVE_ACCELERATOR_SPAWN_RATE_ROWS
+  .map((row) => ({ wave: row.normal, rate: row.spawnCount }));
 const tiers = [];
 for (const tier of TIERS) {
   let healthRatio = null;
@@ -151,6 +162,7 @@ const out = {
   mix: MIX,
   tiers,
   enemy_cap: spawnCap.normal,
+  spawn: { roll_seconds: spawnRoll, readings: SPAWN_READINGS, chart: spawnChart },
   types,
   basic_health: health,
   basic_attack: attack,
@@ -160,6 +172,7 @@ const outPath = path.join(path.dirname(new URL(import.meta.url).pathname), "..",
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
 fs.writeFileSync(outPath, JSON.stringify(out) + "\n");
 console.log(`wrote ${LAST_WAVE} waves to ${path.relative(process.cwd(), outPath)}`);
+console.log(`spawn: a roll every ${spawnRoll} s; rate ${SPAWN_READINGS.map((r) => `${r.rate} at wave ${r.wave}`).join(", ")}; chart ${spawnChart.map((r) => `${r.rate}@${r.wave}`).join(" ")}`);
 for (const t of tiers) {
   console.log(`tier ${t.tier}: health ×${t.enemy_health}, attack ×${t.enemy_attack}, Coins ×${t.coins}, boss every ${t.boss_every}, double spawn ${t.double_spawn}, mix weight ${t.mix_weight}`);
 }
