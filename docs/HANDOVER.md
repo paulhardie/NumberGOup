@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 27 September 2026, by Claude, handing on to the next agent. This session put orbs back to The Tower's balance (D108), gave kills sparks and a Coins float and white shots (D109), measured the road to wave 100 and Tier 1's ceiling, kept the turtle with a shape target for the Number (D110), and, from `main` after #97, removed the Multiplier and made regen-restores and kills-grow the game's rules (D111).
+**Last updated:** 28 September 2026, by Claude, handing on to the next agent. This session, over two days, put orbs back to The Tower's balance (D108), gave kills sparks, a Coins float and white shots (D109), measured the road to wave 100 and Tier 1's ceiling, kept the turtle with a shape target for the Number (D110), removed the Multiplier and made regen-restores and kills-grow the game's rules (D111, merged in #98), and, from `main` after #98, measured tiers and recorded that each tier gets its own enemies (D112).
 
-**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #97. It carries D111. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/dazzling-gates-54ahbr`, from `main` after #98. It carries D112 (documents only). Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -67,6 +67,8 @@
 - Below it, the Number stays five digits to wave 90 and Dividers are the main threat. **The owner kept the turtle (D110)**: a solved Tier 1 is the push to Tier 2.
 - A wave-90 run pays about 1,700 Coins, so reaching the cliff on the Workshop alone takes on the order of a thousand runs: the pace problem is Coins, which The Tower eases with Cards, Labs and higher tiers.
 
+**Tiers, measured (D112):** a maxed Workshop never dies in any tier, because orbs, knockback and Thorns don't feel a stat multiplier. A realistic Workshop does: the one that just clears Tier 1's wave 100 (every affordable row at level 12, 2.2 million Coins) reaches about wave 30 of Tier 2, and Tier 2's wave 100 takes level 25 (3.35 million). D112's table has each tier's problem and the enemy that makes it.
+
 ## Open decisions for the owner
 
 1. **Sign off 1.0, or name what's missing,** after playing D094. The Tower's benchmarks hold and the Number climbs. In simulation, D094 left fresh runs as they were but a core career beat the wave-10 boss on run 9 (it was 11; The Tower's is 10–13), and ÷ landings sit about 0.3 a minute. **If that feels too easy or ÷ too rare, recommend** raising the Divider's health from 4× to 5× before its rate, since the owner set the rate's ceiling.
@@ -90,6 +92,7 @@
 
 ## How to measure
 
+- **D112 (28 September):** documents only. Tiers were measured with a scratch script (not committed) that multiplies enemy health and attack in a subclass of `BattleSim`, jumps runs to a wave, and plays full runs from wave 1; tier support in the real sim comes with 1.4.
 - **D111 (27 September):** `bash run_tests.sh` passes (2734 checks: the Multiplier's and switches' tests replaced by ones for the growth rules, old settings files and old run records). The boot is clean. With a 5% kill share a 40-run core career prints identically to `main` with both switches on. Fresh runs and careers at 5% and 2.5% are in D111's table. `capture_battle.gd`'s new `battle_kill_grows` checked by eye. Not played.
 - **D108 and D109 (27 September):** `bash run_tests.sh` passes (2837 checks), with orb tests rewritten for turns a minute and the 60 m circle, and a new test for sparks, the Coins float and the shots' flash. `bash run_godot.sh --headless --path . --quit` boots (13 leaked objects at exit, as on `main`). Orbs measured at three reaches on a 40-run core career's Workshop (D108's table). `capture_battle.gd`'s crowd and Multiplier-kill screens checked by eye: sparks and the ring show; the Coins float and the shots' flash were tested but not seen in a capture. Not seen in motion.
 - **D107 (27 September):** `bash run_tests.sh` passes (2825 checks); 40-run careers, core and spread, with and without milestones (same runs to the boss and to waves 21 and 30); Home and the Milestones panel screenshotted and checked by eye.
@@ -135,7 +138,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D111), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D112), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.
