@@ -25,15 +25,12 @@ const ENEMY_HIT_SECONDS := 1.0
 ## grows per wave survived instead. Unsettled.
 const HEAT_UP_PER_HIT := 1.04
 
-## Enemies a wave, bosses aside: 11 at wave 1 (the owner: "about 10 to 12",
-## two or three on screen at once early), plus 0.123 a wave to wave 1,000
-## (about 133 there, near TheTowerSDK's 120-143), then 0.0145 a wave, at most
-## 220. The SDK's early counts (about 4) contradict the owner's screens.
-const FIRST_WAVE_ENEMIES := 11
-const ENEMIES_PER_WAVE := 0.123
-const DEEP_ENEMIES_FROM := 1000
-const DEEP_ENEMIES_PER_WAVE := 0.0145
-const MAX_WAVE_ENEMIES := 220
+## The spawn rate at wave 1 (D114), which no screen has shown: 5, so that a
+## wave-1 spawning window of 208 rolls sends about 11 enemies, as the owner
+## counted ("about 10 to 12"). From there the rate runs in a straight line to
+## each known one (TowerData.spawn_rate): the owner's 15 at wave 22, then the
+## SDK's 37 at wave 1,000; the lines between are ours.
+const FIRST_WAVE_SPAWN_RATE := 5.0
 
 ## Cash every run starts with: none, until the Starting Cash lab (not built;
 ## The Tower opens it at Tier 1 wave 30, $5 a level). The owner, 26 September.
@@ -149,12 +146,3 @@ const MILESTONES := [
 	{"number": 1000000.0, "coins": 50000.0},
 ]
 
-## The count follows the wave in every tier: The Tower's spawn rate is one
-## chart for all tiers. A tier adds only its double-spawn chance
-## (TowerData.tier), which BattleSim applies.
-static func enemies_in_wave(wave: int) -> int:
-	var w := maxi(1, wave)
-	var count := FIRST_WAVE_ENEMIES + floori(ENEMIES_PER_WAVE * float(mini(w, DEEP_ENEMIES_FROM) - 1))
-	if w > DEEP_ENEMIES_FROM:
-		count += floori(DEEP_ENEMIES_PER_WAVE * float(w - DEEP_ENEMIES_FROM))
-	return mini(count, MAX_WAVE_ENEMIES)

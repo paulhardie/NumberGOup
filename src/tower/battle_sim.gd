@@ -395,12 +395,23 @@ func run_until_dead(max_seconds: float) -> void:
 func _schedule_wave() -> void:
 	_schedule.clear()
 	_next_spawn = 0
-	var count := _wave_count()
 	var mix := _tier_mix()
 	if TowerData.is_boss_wave(wave, tier):
 		_schedule.append({"kind": "boss", "at": 0.0})
-	for index in range(count):
-		_schedule.append({"kind": _draw_kind(mix), "at": TowerData.spawn_seconds() * float(index) / float(count)})
+	# The Tower's spawning (D114): a roll every spawn_roll_seconds of the
+	# spawning window, an enemy by the wave's spawn rate, and by the tier's
+	# double-spawn chance a second with it. Rolled as the wave starts, from the
+	# spawn stream, so a replay sends the same.
+	var every := TowerData.spawn_roll_seconds()
+	var chance := TowerData.spawn_rate(wave) / 100.0
+	var double := float(TowerData.tier(tier).double_spawn)
+	for roll in range(roundi(TowerData.spawn_seconds() / every)):
+		if _spawn_rng.randf() >= chance:
+			continue
+		var at := float(roll) * every
+		_schedule.append({"kind": _draw_kind(mix), "at": at})
+		if _spawn_rng.randf() < double:
+			_schedule.append({"kind": _draw_kind(mix), "at": at})
 	# A Divider takes the Protector's slot in The Tower's standard pool (D094):
 	# it replaces one of the wave's basics, so the wave's size and the rest of
 	# its enemies are The Tower's. At most one a wave, so at a rate of one
@@ -418,15 +429,6 @@ func _schedule_wave() -> void:
 		return
 	_divider_due -= 1.0
 	_schedule[basics[_divider_rng.randi_range(0, basics.size() - 1)]].kind = "divider"
-
-
-## A wave's enemies: the count every tier shares, plus the extra a tier's
-## double-spawn chance brings over Tier 1's.
-func _wave_count() -> int:
-	var count := Guesses.enemies_in_wave(wave)
-	if tier == 1:
-		return count
-	return floori(float(count) * (1.0 + float(TowerData.tier(tier).double_spawn)) / (1.0 + float(TowerData.tier(1).double_spawn)))
 
 
 ## The mix of kinds: a tier raises the fast, tank and ranged shares by its

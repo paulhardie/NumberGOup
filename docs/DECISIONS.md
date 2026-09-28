@@ -1558,11 +1558,35 @@ Rules:
   - **The spawn rate follows the wave, the same in every tier.** Each wave sets a spawn rate (the "spawn rate" on Wave Info; 15 at Tier 1 wave 22 on the owner's screen), read from one chart for all tiers ("tier unused" in the SDK's Wave Info). The game rolls a spawn every 0.125 s of the 26-second spawning window against it. Patch notes raised it above wave 50 and above wave 3,000 "for every tier".
   - **What a tier changes about spawns is small:** a double-spawn chance of 5 plus tier ÷ 2.85 on a 0–100 roll (6% in Tiers 1 and 2, 7% in Tier 3), fast, tank and ranged shares 4% higher a tier, Protectors from Tier 2 wave 80, elites from wave 500 in Tier 1 and 10% sooner each tier after, more bosses from Tier 14, fleets from Tier 14.
   - **At most 120 normal enemies on the field**, plus 20 elites and 10 bosses; a spawn due while it's full doesn't happen.
-  - **Not adopted: the SDK's 3.25 enemies per point of spawn rate.** It is calibrated on a real save, but it would put 49 enemies in Tier 1's wave 22, and the owner's wave-22 battle report (16,940 damage dealt in all) couldn't have killed the 27,600 health that many would bring. Our Tier 1 count (11 at wave 1, D075, about 13 at wave 22) needs about 9,900, the rest being overkill. So the per-wave count stays ours (`Guesses.enemies_in_wave`), anchored early to the owner and near the SDK's figure at wave 1,000.
+  - How many enemies a wave brings is D114's.
 - **Decision** (all generated from the SDK by `tools/import_tower_enemies.mjs` into `data/tower/enemies.json`, version 2):
   - **A run has a tier** (`BattleSim.tier`, default 1). Tiers 1–3 are generated, as D107 authors only those: enemy health and attack ×1, ×20, ×60 (checked constant at every wave), Coins ×1, ×1.8, ×2.6 on kills and on Coins / Wave, a boss every 10 waves, the double-spawn chance and the mix weight above.
-  - **Every tier shares the wave's count**, with the tier's double-spawn chance over Tier 1's added (Tier 3 about 1% more); fast, tank and ranged shares rise by the tier's weight, basics filling the rest.
+  - **Every tier shares the wave's spawn rate** (D114), with the tier's double-spawn chance (Tier 3 about 1% more than Tiers 1 and 2); fast, tank and ranged shares rise by the tier's weight, basics filling the rest.
   - **The 120 cap applies in every tier.**
   - The game still plays Tier 1: opening tiers, choosing one, and saving a run's tier come with 1.4. `sim_runs.gd --tier N` measures them.
   - Not built: Protectors and elites (D112's enemies), and later tiers' boss and fleet rules.
-- **Measured:** Tier 1 is unchanged: a 40-run core career prints identically, gains and curve included, and the level-25 turtle to wave 400 does too (the cap is never reached). Tier 2 with every affordable row at level 15, 20, 25 and 40: waves 30–31, 59–69, 142–156 and alive at wave 312, matching D112's scratch figures. Tier 3 at level 25: waves 61–85; at 40, alive at wave 312.
+- **Measured** (before D114's spawns, which change every figure; D114 has them since): Tier 1 printed identically to before, run for run, and the 120 cap was never reached by the level-25 turtle to wave 400. Tier 2 at every affordable row's level 15, 20, 25 and 40 matched D112's scratch figures.
+
+## D114 — Enemies spawn as The Tower's do: a roll every eighth of a second
+
+- **Status:** Accepted (2026-09-28) on owner direction: "Max spawn rate is 56. What that means is that there's a 56% chance for an enemy to spawn every 1/8th of a second", after "research the tower's stats and mimic". It replaces D075's count (11 at wave 1 plus 0.123 a wave).
+- **Decision:**
+  - Every 0.125 s of a wave's 26-second spawning window (208 rolls), one enemy comes with the wave's spawn rate as its chance in 100, and a second with it by the tier's double-spawn chance (D113). The rolls are made from the spawn stream as the wave starts, so a replay sends the same enemies. The 120 cap still holds.
+  - **The spawn rate by wave** (`TowerData.spawn_rate`): the SDK's chart from wave 1,000 (37, stepping to 56 by 6,500, the same for every tier); the owner's Wave Info reading of 15 at Tier 1 wave 22; and at wave 1 our 5 (`Guesses.FIRST_WAVE_SPAWN_RATE`), which sends about 11, as the owner counted. Between those points the rate runs in straight lines, which are ours.
+  - So a wave sends about 11 enemies at wave 1, 33 at wave 22, 37 at wave 100 and 82 at wave 1,000 (208 × rate ÷ 100 × 1.06).
+- **Why the owner's rule and not the SDK's 3.25 enemies a point:** the owner's wave-22 battle report dealt 16,940 damage in all. Under this rule the enemies of waves 1–21, plus a wave 22 the run died in, hold about 17,300 health, a close fit. The old count needed only about 9,900, and the SDK's figure would need about 27,600, more than was dealt.
+- **Measured** (`sim_runs.gd`, before → after):
+
+| Benchmark | Before | After | The Tower |
+|---|---|---|---|
+| Fresh run, buying nothing | wave 3 (2–5) | wave 2 (2–3) | dies at once |
+| Fresh run, spreading Cash | wave 8 (7–10) | wave 7 (2–8) | wave 8, with $93 of starting Cash |
+| Fresh run, core rows | wave 6 (2–10) | wave 3 (2–9) | — |
+| Coins at waves 20–21 (core career) | 75–129 | 167–207 | about 162 for wave 22 (1.46K at ×9) |
+| Core career: boss beaten / wave 21 / wave 30 first on run | 5 / 13 / 25 | 9 / 16 / not in 40 runs | — |
+| Core career, run 40 | wave 31, peak 348 | wave 27, peak 515 | — |
+| Tier 1, every affordable row at level 12 | waves 101–103 | 100–106, peak 24,000–31,000 | clears wave 100 |
+| Tier 2 at level 15 / 20 / 25 / 40 | 30–31 / 59–69 / 142–156 / alive | 22–24 / 53–61 / 143–157 / alive | — |
+
+  - The early game is harder and pays better, and both moved towards The Tower's figures. A career now crosses the wave-20 boss later and pays about twice the Coins at wave 20; with a Workshop behind it, the extra Cash keeps the walls where they were.
+- **Still unread:** the spawn rate at wave 1 and between waves 22 and 1,000. Wave Info shows it; a reading at waves 1, 50 and 100 would replace our straight lines.
