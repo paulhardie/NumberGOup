@@ -101,26 +101,15 @@ static func tier_count() -> int:
 
 
 ## The wave's spawn rate, 0 to 100 (D114): the chance of an enemy on each
-## spawn roll. The generated chart holds from its first wave, stepping up as
-## The Tower's does; before it, straight lines join Guesses' wave-1 rate, the
-## owner's readings and the chart's first point. The same in every tier.
+## spawn roll. The Tower's chart, stepping up from the wave each rate starts
+## (D118), the same in every tier.
 static func spawn_rate(wave: int) -> float:
-	var spawn: Dictionary = enemies().spawn
-	var chart: Array = spawn.chart
-	if wave >= int(chart[0].wave):
-		var rate := float(chart[0].rate)
-		for row in chart:
-			if wave >= int(row.wave):
-				rate = float(row.rate)
-		return rate
-	var points: Array = [{"wave": 1, "rate": Guesses.FIRST_WAVE_SPAWN_RATE}] + spawn.readings + [chart[0]]
-	for index in range(1, points.size()):
-		if wave <= int(points[index].wave):
-			var from: Dictionary = points[index - 1]
-			var to: Dictionary = points[index]
-			var along := float(wave - int(from.wave)) / float(int(to.wave) - int(from.wave))
-			return lerpf(float(from.rate), float(to.rate), clampf(along, 0.0, 1.0))
-	return float(chart[0].rate)
+	var chart: Array = enemies().spawn.chart
+	var rate := float(chart[0].rate)
+	for row in chart:
+		if wave >= int(row.wave):
+			rate = float(row.rate)
+	return rate
 
 
 ## Seconds between spawn rolls in the spawning window.

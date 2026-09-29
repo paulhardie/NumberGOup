@@ -51,9 +51,11 @@
 // - Spawning, as the game does it (the owner, 28 September: "a 56% chance for
 //   an enemy to spawn every 1/8th of a second" at the top rate): every roll
 //   interval of the spawning window, one enemy spawns by the wave's spawn rate
-//   (0-100). The rate by wave is the SDK's Wave Accelerator chart (Normal
-//   column) from wave 1,000, and the owner's Wave Info below it; between and
-//   before those, BattleSim reads it as Guesses says.
+//   (0-100). The rate by wave is the community's "Spawn Rate to Wave Count"
+//   chart, Standard column, from the wave each rate starts (the owner, 29
+//   September; D118): transcribed below as SPAWN_RATES and checked against the
+//   SDK's Wave Accelerator chart wherever both have a row. Its other columns
+//   are the Wave Accelerator card's, not built.
 import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
@@ -72,6 +74,13 @@ const READINGS = [
 ];
 const MIX = { basic: 0.85, fast: 0.07, tank: 0.06, ranged: 0.02 };
 // The owner's Wave Info, Tier 1.
+// The chart's Standard column, as it is printed (34 starts at both 600 and
+// 750 there). The owner's own Wave Info read 15 at wave 22, which it agrees with.
+const SPAWN_RATES = [
+  [1, 10], [3, 11], [6, 15], [40, 17], [60, 19], [80, 20], [100, 22], [150, 24], [200, 26], [250, 28],
+  [300, 30], [400, 32], [600, 34], [750, 34], [800, 36], [1000, 37], [1250, 38], [1500, 39], [2000, 40],
+  [2500, 42], [3000, 44], [3500, 46], [4000, 48], [4500, 49], [5000, 50], [5500, 52], [6000, 54], [6500, 56],
+].map(([wave, rate]) => ({ wave, rate }));
 const SPAWN_READINGS = [{ wave: 22, rate: 15 }];
 const TIERS = [1, 2, 3];
 // The Wave Info panel's tier weight on fast, tank and ranged spawn chances,
@@ -155,8 +164,17 @@ const tierRows = require(path.join(dist, "data/tiers/data.js")).TIER_COIN_BONUS_
 const bossEvery = require(path.join(dist, "data/enemies/data.js")).bossWaveIntervalForTier;
 const spawnCap = require(path.join(dist, "knowledge/compartments/enemies.js")).ENEMY_SPAWN_CAP;
 const spawnRoll = require(path.join(dist, "mechanics/waves/spawn-gate-constants.js")).WAVE_SPAWN_TIMER_QUANTUM_SECONDS_V29;
-const spawnChart = require(path.join(dist, "data/charts/data.js")).WAVE_ACCELERATOR_SPAWN_RATE_ROWS
-  .map((row) => ({ wave: row.normal, rate: row.spawnCount }));
+const rateAt = (wave) => SPAWN_RATES.filter((row) => row.wave <= wave).at(-1).rate;
+for (const row of require(path.join(dist, "data/charts/data.js")).WAVE_ACCELERATOR_SPAWN_RATE_ROWS) {
+  if (rateAt(row.normal) !== row.spawnCount) {
+    throw new Error(`spawn rate at wave ${row.normal}: the chart has ${rateAt(row.normal)}, the SDK ${row.spawnCount}`);
+  }
+}
+for (const reading of SPAWN_READINGS) {
+  if (rateAt(reading.wave) !== reading.rate) {
+    throw new Error(`spawn rate at wave ${reading.wave}: the chart has ${rateAt(reading.wave)}, the owner's screen ${reading.rate}`);
+  }
+}
 const knowledge = require(path.join(dist, "knowledge/compartments/enemies.js"));
 const eliteRows = require(path.join(dist, "data/charts/data.js")).ELITE_SPAWN_CHANCE_ROWS;
 const spawnTypes = require(path.join(dist, "mechanics/waves/new-wave-spawn-type-chances.js"));
@@ -243,7 +261,7 @@ const out = {
     ray_charge_seconds: RAY_CHARGE_SECONDS,
     scatter_splits: SCATTER_SPLITS,
   },
-  spawn: { roll_seconds: spawnRoll, readings: SPAWN_READINGS, chart: spawnChart },
+  spawn: { roll_seconds: spawnRoll, chart: SPAWN_RATES },
   types,
   basic_health: health,
   basic_attack: attack,
@@ -255,7 +273,7 @@ const outPath = path.join(path.dirname(new URL(import.meta.url).pathname), "..",
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
 fs.writeFileSync(outPath, JSON.stringify(out) + "\n");
 console.log(`wrote ${LAST_WAVE} waves to ${path.relative(process.cwd(), outPath)}`);
-console.log(`spawn: a roll every ${spawnRoll} s; rate ${SPAWN_READINGS.map((r) => `${r.rate} at wave ${r.wave}`).join(", ")}; chart ${spawnChart.map((r) => `${r.rate}@${r.wave}`).join(" ")}`);
+console.log(`spawn: a roll every ${spawnRoll} s; rates ${SPAWN_RATES.map((r) => `${r.rate}@${r.wave}`).join(" ")}`);
 for (const t of tiers) {
   console.log(`tier ${t.tier}: health ×${t.enemy_health}, attack ×${t.enemy_attack}, Coins ×${t.coins}, boss every ${t.boss_every}, double spawn ${t.double_spawn}, mix weight ${t.mix_weight}, Protector ${t.protector.map((p) => `${p.chance}%@${p.wave}`).join(" ") || "none"}, elites from wave ${t.elites[0].wave}`);
 }

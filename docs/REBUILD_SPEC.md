@@ -150,7 +150,7 @@ These are carried from the current game until the owner reads the real value:
 - Enemies set off 100 m out, basic speed is 10 m a second and the base range is 30 m (D067, D068). The Tower gives no units.
 - Orbs: ~~a turn a second on the Range edge (D075)~~, ~~radians a second (D104)~~: back to The Tower's, at least 60 m out and 0.4 turns a minute at first (D108). How much further out a larger Range puts them (half of each metre past 60) and the 3 m an orb reaches are ours. They can't kill bosses, elites, or anything a Protector shields (D115).
 - ~~Ranged enemies stop at 30 m~~: on the Range edge as it is (D075).
-- ~~20 enemies in wave 1~~, ~~11 plus 0.123 a wave (D075)~~: The Tower's spawn rolls (D114), a roll every 1/8 s by the wave's spawn rate. The rate at wave 1 (5) and the straight lines between the owner's 15 at wave 22 and the SDK's 37 at wave 1,000 are ours.
+- ~~20 enemies in wave 1~~, ~~11 plus 0.123 a wave (D075)~~: The Tower's spawn rolls (D114), a roll every 1/8 s by the wave's spawn rate, now The Tower's chart at every wave (D118). How many rolls a wave gets (208 in a 26-second window) is ours and open (D118).
 - A free upgrade counts as a run purchase, so it raises the row's next Cash price.
 - The Defense % global cap is 98% (community research).
 - The Wall stands 10 m out and only melee enemies stop at it. While it stands it takes every hit, ranged ones too, and only a Vampire's drain reaches the Number; rising again, it pushes enemies inside it back out (both The Tower's, D116). Its health is Wall Health's share of Health when the run starts and doesn't grow with Health bought. No wall regen (a Lab in The Tower).

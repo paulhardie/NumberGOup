@@ -68,7 +68,7 @@
 - Below it, the Number stays five digits to wave 90 and Dividers are the main threat. **The owner kept the turtle (D110)**: a solved Tier 1 is the push to Tier 2.
 - A wave-90 run pays about 1,700 Coins, so reaching the cliff on the Workshop alone takes on the order of a thousand runs: the pace problem is Coins, which The Tower eases with Cards, Labs and higher tiers.
 
-**Spawns are The Tower's (D114):** a roll every 1/8 s of the spawning window by the wave's spawn rate (5 at wave 1 ours, 15 at wave 22 the owner's, the SDK's chart from wave 1,000), so about 11, 33 and 37 enemies at waves 1, 22 and 100. The early game got harder and pays about twice the Coins at wave 20; D114 has the benchmarks. **Needed from the owner:** the readings in [`TOWER_RULES.md`](TOWER_RULES.md#6-readings-the-owner-can-take-in-the-tower), the spawn rate at waves 1, 50 and 100 first.
+**Spawns are The Tower's (D114, D118):** a roll every 1/8 s of the spawning window by the wave's spawn rate, which is now The Tower's chart at every wave (10 at wave 1, 15 from 6, 22 from 100, 37 at 1,000, 56 at 6,500). How many rolls a wave gets is open (decision 0). **Needed from the owner:** the rest of the readings in [`TOWER_RULES.md`](TOWER_RULES.md#6-readings-the-owner-can-take-in-the-tower).
 
 **Tiers in the battle (D113):** `BattleSim` has a tier (1–3 generated from the SDK: ×20 and ×60 enemies, ×1.8 and ×2.6 Coins, The Tower's tier spawn mix and double spawns, and the 120-enemy cap in every tier). The game still plays Tier 1; `sim_runs.gd --tier N` measures the others.
 
@@ -78,6 +78,7 @@
 
 ## Open decisions for the owner
 
+0. **How many spawn rolls a wave gets (D118).** With The Tower's spawn-rate chart now in, 208 rolls a wave (D114) sends twice the enemies the owner counted on wave 1 and breaks the early game; 104 fits both of the owner's readings and plays as before. **Recommend 104** until a reading settles it (how long new enemies keep appearing in a wave). The branch has 208 until the owner says.
 1. **Sign off 1.0, or name what's missing,** after playing D094. The Tower's benchmarks hold and the Number climbs. In simulation, D094 left fresh runs as they were but a core career beat the wave-10 boss on run 9 (it was 11; The Tower's is 10–13), and ÷ landings sit about 0.3 a minute. **If that feels too easy or ÷ too rare, recommend** raising the Divider's health from 4× to 5× before its rate, since the owner set the rate's ceiling.
 2. **Game speed.** The spec calls the 1×/2×/5× switch a testing tool, yet it's half of how the owner plays. **Recommend** keeping it as a player feature, since The Tower's first hours are long.
 3. **Updates mid-run.** Two runs were lost when a merge landed while a run was saved. **Recommend** the Mac's sync job wait to update while the save holds a run in progress, and say so in its notification. It's small, and changes nothing in the game.
@@ -93,7 +94,7 @@
 12. **The Tower's wave milestones** (TOWER_RULES.md build item 6). They're how The Tower opens Labs (Tier 1 wave 30) and the next tier (wave 100), and pay its Coins and Gems. **Recommend** adding them beside our Number milestones (D107), which stay as the Number's own rewards.
 ## Next steps, in order
 
-0. **Owner:** open Wave Info in a run (tap the wave readout) and read The Tower's Wave Info at waves 1, 50 and 100, so our straight lines for the spawn rate can go (D114). Done when the three readings are in the spec.
+0. **Owner:** decide how many spawn rolls a wave gets (decision 0), or time how long new enemies keep appearing in one Tower wave. **Agent, then:** set it, rerun D118's benchmarks, and update D118. Done when the branch's pull request carries the choice.
 1. **Owner:** play a few runs on D111's growth (free Coins or a reset help try later stages) and say whether the Number's climb feels earned. Done when the owner says so, or names what to change (`--kill-share` and `--peak-drift` measure alternatives).
 1a. **Owner:** sign off 1.0 or name what's missing (decision 1).
 2. **Agent, on the owner's word:** tune the Divider's health with `sim_runs.gd --careers 40 --buy core --divider-health N` if play says so. Then raise `application/config/version` to 1.0 when the owner signs it off. `--careers` always plays the same seeds (run N is seed N), so a second career needs a seed option first.
@@ -157,7 +158,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D117), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D118), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.
