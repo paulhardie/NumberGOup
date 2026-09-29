@@ -12,6 +12,7 @@ const TowerData = preload("res://src/tower/tower_data.gd")
 const BattleDefences = preload("res://src/tower/battle_defences.gd")
 const BattleSpawns = preload("res://src/tower/battle_spawns.gd")
 const EnemyKinds = preload("res://src/tower/enemy_kinds.gd")
+const StatStack = preload("res://src/tower/stat_stack.gd")
 
 const TICK := 1.0 / 30.0
 
@@ -69,8 +70,6 @@ class Shot:
 
 ## The groups of rows a run may buy from, before the Workshop opens more.
 const START_GROUPS := ["attack_start", "defense_start"]
-## The most Defense % can take off a hit (community research, unverified).
-const DEFENSE_PERCENT_CAP := 0.98
 ## Rapid Fire fires four times as fast while it lasts (the community wiki).
 const RAPID_FIRE_SPEED := 4.0
 ## The most Interest pays a wave before Labs raise it (D071).
@@ -87,6 +86,10 @@ var run_seed: int
 var levels: Dictionary
 ## Row id → levels bought with Cash in this run, on top of the Workshop's.
 var run_levels: Dictionary = {}
+## Effects on this run's stats (D119). Every stat is read through it, with its
+## hard cap. Effects a run starts with (Cards, Labs) come through `_init`, so
+## the starting Number, the Wall and the first Shockwave are built with them.
+var stats := StatStack.new()
 var open_groups: Array = START_GROUPS.duplicate()
 
 var time := 0.0
@@ -186,12 +189,18 @@ var _attack_skip := 0.0
 
 
 ## `row_levels` and `groups` are the Workshop's: the levels a run starts from
-## and the groups it may buy from.
-func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_GROUPS, run_tier: int = 1) -> void:
+## and the groups it may buy from. `effects` are the ones the run starts with,
+## each {stat, op, value, source} (StatStack.add); a refused one is an error.
+func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_GROUPS, run_tier: int = 1, effects: Array = []) -> void:
 	run_seed = seed_value
 	tier = clampi(run_tier, 1, TowerData.tier_count())
 	levels = row_levels.duplicate()
 	open_groups = groups.duplicate()
+	# Before anything below reads a stat: the starting Number, its best, the
+	# Wall and the first Shockwave all come from the built values.
+	for effect in effects:
+		if not stats.add(str(effect.get("stat", "")), str(effect.get("op", "")), float(effect.get("value", NAN)), str(effect.get("source", ""))):
+			push_error("BattleSim: refused a starting stat effect %s" % [effect])
 	# Separate streams, so a change in how often the tower fires or crits
 	# never changes which enemies a wave sends.
 	spawns.start(seed_value)
@@ -214,8 +223,10 @@ func level(id: String) -> int:
 	return int(levels.get(id, 0)) + int(run_levels.get(id, 0))
 
 
+## A stat's value now: its Workshop row at the run's level, built up by any
+## effects on it and held to its hard cap (StatStack).
 func stat(id: String) -> float:
-	return TowerData.value(id, level(id))
+	return stats.value(id, TowerData.value(id, level(id)))
 
 
 func is_open(id: String) -> bool:
@@ -482,7 +493,7 @@ func _enemies_hit() -> void:
 			alive = false
 			killed_by = enemy.kind
 			return
-		var thorns := minf(stat("thorns"), 1.0) * EnemyKinds.thorns_share(enemy.kind)
+		var thorns := stat("thorns") * EnemyKinds.thorns_share(enemy.kind)
 		if shielded(enemy):
 			thorns *= float(TowerData.enemies().protector.thorns_taken)
 		if thorns > 0.0:
@@ -547,8 +558,7 @@ func divide_loss(divisor: float) -> float:
 
 ## What a hit of `raw` leaves after the tower's defences.
 func landed_damage(raw: float) -> float:
-	var share := clampf(stat("defense_percent"), 0.0, DEFENSE_PERCENT_CAP)
-	return maxf(0.0, raw * (1.0 - share) - stat("defense_absolute"))
+	return maxf(0.0, raw * (1.0 - stat("defense_percent")) - stat("defense_absolute"))
 
 
 func _fire() -> void:

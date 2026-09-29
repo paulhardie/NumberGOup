@@ -8,6 +8,7 @@ const Guesses = preload("res://src/tower/guesses.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const EnemyKinds = preload("res://src/tower/enemy_kinds.gd")
+const StatStack = preload("res://src/tower/stat_stack.gd")
 const Palette = preload("res://src/ui/palette.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
 const ArenaView = preload("res://src/ui/arena_view.gd")
@@ -80,6 +81,76 @@ func test_enemy_types_scale_the_basic_enemy() -> void:
 	check_near(TowerData.enemy_health(wave, "tank"), basic_health * 5.0, 0.001, "a tank has 5 basics' health")
 	check_near(TowerData.enemy_attack(wave, "tank"), basic_attack * 0.5, 0.001, "a tank hits half as hard")
 	check(TowerData.enemy_speed_m(wave, "fast") > TowerData.enemy_speed_m(wave, "basic"), "fast enemies are faster")
+
+
+## D119: every stat is its Workshop value, built up by effects and held to
+## The Tower's hard caps.
+func test_with_no_effects_every_stat_is_its_workshop_value() -> void:
+	var sim := _quiet_sim()
+	var wrong: Array[String] = []
+	for id in TowerData.rows():
+		for at in [0, 1, TowerData.max_level(id) / 2, TowerData.max_level(id)]:
+			sim.levels[id] = at
+			if sim.stat(id) != TowerData.value(id, at):
+				wrong.append("%s at %d" % [id, at])
+	check(wrong.is_empty(), "every row at every level reads exactly its Workshop value: %s" % ", ".join(wrong))
+
+
+func test_effects_add_then_multiply() -> void:
+	var stack := StatStack.new()
+	check(stack.add("damage", "multiply", 1.5, "test:lab") and stack.add("damage", "add", 2.0, "test:card"), "effects go on")
+	check(stack.add("damage", "multiply", 2.0, "test:perk"), "and stack")
+	check_near(stack.value("damage", 3.0), (3.0 + 2.0) * 1.5 * 2.0, 0.0, "adds come first, then every multiplier, in any order given")
+	check_near(stack.value("health", 5.0), 5.0, 0.0, "a stat with no effects is untouched")
+	check(stack.effects.size() == 3 and stack.effects[1].source == "test:card", "each effect is kept with its source")
+
+
+func test_effects_are_held_to_the_towers_hard_caps() -> void:
+	var stack := StatStack.new()
+	stack.add("defense_percent", "add", 0.9, "test")
+	stack.add("thorns", "add", 0.5, "test")
+	stack.add("shockwave_frequency", "multiply", 0.1, "test")
+	stack.add("wall_rebuild", "multiply", 0.01, "test")
+	check_near(stack.value("defense_percent", 0.495), 0.98, 0.0, "Defense % stops at 98%")
+	check_near(stack.value("thorns", 0.99), 0.99, 0.0, "Thorns at 99%")
+	check_near(stack.value("shockwave_frequency", 14.0), 7.0, 0.0, "Shockwave Frequency at 7 s")
+	check_near(stack.value("wall_rebuild", 600.0), 150.0, 0.0, "Wall Rebuild at 150 s")
+	stack.add("defense_percent", "add", -5.0, "test")
+	check_near(stack.value("defense_percent", 0.495), 0.0, 0.0, "and Defense % never below nothing")
+
+
+func test_a_bad_effect_changes_nothing() -> void:
+	var stack := StatStack.new()
+	check(not stack.add("no_such_row", "add", 1.0, "test"), "an unknown row is refused")
+	check(not stack.add("damage", "divide", 2.0, "test"), "an unknown op is refused")
+	check(not stack.add("damage", "multiply", NAN, "test") and not stack.add("damage", "add", INF, "test"), "a value that isn't a finite number is refused")
+	check(stack.effects.is_empty() and stack.value("damage", 3.0) == 3.0, "and nothing changed")
+
+
+func test_the_battle_reads_its_stats_through_the_stack() -> void:
+	var sim := _quiet_sim()
+	var damage := sim.stat("damage")
+	sim.stats.add("damage", "multiply", 2.0, "test")
+	check_near(sim.stat("damage"), damage * 2.0, 0.0, "a multiplier on Damage doubles the tower's Damage")
+	sim.stats.add("defense_percent", "add", 1.0, "test")
+	check_near(sim.landed_damage(100.0), 100.0 * (1.0 - 0.98) - sim.stat("defense_absolute"), 0.0001, "a hit keeps 2% at the Defense % cap, however much is added")
+
+
+func test_a_run_starts_from_its_starting_effects() -> void:
+	var groups: Array = BattleSim.START_GROUPS + ["wall", "shockwave"]
+	var plain := BattleSim.new(1, {"health": 10}, groups)
+	var effects := [
+		{"stat": "health", "op": "multiply", "value": 2.0, "source": "test:card"},
+		{"stat": "wall_health", "op": "add", "value": 0.1, "source": "test:lab"},
+		{"stat": "shockwave_frequency", "op": "multiply", "value": 0.5, "source": "test:lab"},
+	]
+	var sim := BattleSim.new(1, {"health": 10}, groups, 1, effects)
+	check(sim.stats.effects.size() == 3, "every starting effect goes on")
+	check_near(sim.max_health(), plain.max_health() * 2.0, 0.0, "Health is built with them")
+	check_near(sim.health, sim.max_health(), 0.0, "and the Number starts full")
+	check_near(sim.peak_number, sim.max_health(), 0.0, "with its best where it starts")
+	check_near(sim.defences.wall_health, sim.max_health() * (plain.stat("wall_health") + 0.1), 0.0001, "the Wall starts whole at the built share of the built Health")
+	check_near(sim.defences.shockwave_in, maxf(plain.stat("shockwave_frequency") * 0.5, 7.0), 0.0, "and the first Shockwave waits the built time")
 
 
 func test_a_fresh_tower_is_the_towers() -> void:
