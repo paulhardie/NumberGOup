@@ -68,8 +68,33 @@ func check_near(got: float, want: float, tolerance: float, message: String) -> v
 func test_enemy_stats_match_the_owners_screens() -> void:
 	for reading in TowerData.enemies().readings:
 		var wave := int(reading.wave)
-		check_near(TowerData.enemy_attack(wave, "basic"), float(reading.attack), 0.011, "wave %d attack" % wave)
-		check_near(TowerData.enemy_health(wave, "basic"), float(reading.health), maxf(0.011, float(reading.health) * 0.003), "wave %d health" % wave)
+		check_near(TowerData.enemy_attack(int(reading.attack_level), "basic"), float(reading.attack), 0.011, "wave %d attack" % wave)
+		if reading.has("health"):
+			check_near(TowerData.enemy_health(int(reading.health_level), "basic"), float(reading.health), maxf(0.011, float(reading.health) * 0.003), "wave %d health" % wave)
+	# D120: the owner's waves 50 and 100, at the levels their Enemy Level Skip
+	# left, read as the SDK's health exactly.
+	check_near(TowerData.enemy_health(23, "basic"), 75.17, 0.01, "wave 50's basic, 27 health levels skipped")
+	check_near(TowerData.enemy_health(45, "basic"), 341.33, 0.01, "wave 100's basic, 55 skipped")
+
+
+func test_the_mix_follows_the_owners_wave_info() -> void:
+	var read := {1: [5, 0, 0], 22: [7, 6, 2], 50: [10, 10, 6], 100: [11, 13, 7]}
+	for wave in read:
+		var mix := TowerData.mix(wave)
+		check_near(mix.fast, read[wave][0] / 100.0, 1e-9, "wave %d fast" % wave)
+		check_near(mix.tank, read[wave][1] / 100.0, 1e-9, "wave %d tank" % wave)
+		check_near(mix.ranged, read[wave][2] / 100.0, 1e-9, "wave %d ranged" % wave)
+	var between := TowerData.mix(36)
+	check_near(between.tank, 8.0 / 100.0, 1e-9, "halfway from 22 to 50, tanks are halfway, in whole percents")
+	check(TowerData.mix(0) == TowerData.mix(1) and TowerData.mix(6500) == TowerData.mix(100), "held before the first reading and past the last")
+	for wave in [1, 7, 36, 99, 100, 5000]:
+		var mix := TowerData.mix(wave)
+		check_near(mix.basic + mix.fast + mix.tank + mix.ranged, 1.0, 1e-9, "wave %d adds to 100%%" % wave)
+		check(mix.keys() == ["basic", "fast", "tank", "ranged"], "in the order the draw reads them")
+	var fresh := _quiet_sim()
+	check(fresh.spawns.tier_mix() == TowerData.mix(1), "a run's first wave draws wave 1's mix")
+	fresh.wave = 100
+	check(fresh.spawns.tier_mix() == TowerData.mix(100), "and its hundredth, wave 100's")
 
 
 func test_enemy_types_scale_the_basic_enemy() -> void:
@@ -1486,7 +1511,8 @@ func test_the_game_opens_into_a_saved_run_and_gives_up_one_it_cant_replay() -> v
 	_clear_test_logs()
 	var workshop := Workshop.new()
 	workshop.coins = 60.0
-	var played := _played_run(31, 45.0)
+	# Short enough that the run is still alive to resume (it dies at 34 s since D120's wave-1 mix).
+	var played := _played_run(31, 30.0)
 	var run := RunReport.build(played)
 	run["banked"] = played.coins
 	Save.save_workshop(workshop, TEST_SAVE, run)
@@ -1780,8 +1806,8 @@ func test_tiers_scale_enemies_and_spawns() -> void:
 	check_near(second.enemy_health_now("basic") / first.enemy_health_now("basic"), 20.0, 0.0001, "Tier 2's health is 20 times")
 	check_near(third.enemy_attack_now("tank") / first.enemy_attack_now("tank"), 60.0, 0.0001, "Tier 3's attack is 60 times")
 	check_near(second.enemy_health_now("divider") / first.enemy_health_now("divider"), 20.0, 0.0001, "Dividers too")
-	check(first.spawns.tier_mix() == TowerData.enemies().mix, "Tier 1 keeps the data's mix")
-	check_near(float(third.spawns.tier_mix().fast), float(TowerData.enemies().mix.fast) * 1.08, 0.0001, "Tier 3 has 8% more fast enemies")
+	check(first.spawns.tier_mix() == TowerData.mix(50), "Tier 1 keeps the data's mix")
+	check_near(float(third.spawns.tier_mix().fast), float(TowerData.mix(50).fast) * 1.08, 0.0001, "Tier 3 has 8% more fast enemies")
 	var shares := 0.0
 	for kind in third.spawns.tier_mix():
 		shares += float(third.spawns.tier_mix()[kind])

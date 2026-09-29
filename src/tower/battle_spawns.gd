@@ -132,11 +132,11 @@ func spawn_due() -> void:
 		sim._place(kind, _spawn_rng.randf() * TAU)
 
 
-## The mix of kinds: a tier raises the fast, tank and ranged shares by its
-## weight, the Protector takes its `protector` share, and basics fill the
-## rest. Tier 1's is the data's as it stands.
+## The mix of kinds on the run's wave: a tier raises the fast, tank and ranged
+## shares by its weight, the Protector takes its `protector` share, and basics
+## fill the rest. Tier 1's is the data's as it stands.
 func tier_mix(protector := 0.0) -> Dictionary:
-	var mix: Dictionary = TowerData.enemies().mix
+	var mix := TowerData.mix(sim.wave)
 	var weight := float(TowerData.tier(sim.tier).mix_weight)
 	if weight == 1.0 and protector <= 0.0:
 		return mix
