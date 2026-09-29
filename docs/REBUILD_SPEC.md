@@ -39,7 +39,7 @@ This was the first plan. The game (0.9) has gone past it: every Workshop group, 
 | **Workshop** | Attack, Defense and Utility tabs, rows with multi-buy, and a locked-group card showing its unlock price. Coins are spent between runs. |
 | **Home** | Battle button, best wave, Coins. |
 | **Look** | D049's look, since changed: a near-black ground, a large thin white Number in its own light (D087, D095), enemies as numbers (D085, D086), and the battle screen laid out as the owner's main-screen design (D095). Portrait-first. |
-| **Game speed** | A switch (1×, 2×, 5×), meant for testing. The owner plays half their time at ×5 (report, 27 September), so whether it stays for players is open. |
+| **Game speed** | A switch (1×, 2×, 5×), meant for testing, each 1.135 times real time so ×1 is The Tower's pace (D122). The owner plays half their time at ×5 (report, 27 September), so whether it stays for players is open. |
 
 ## Not in 1.0
 

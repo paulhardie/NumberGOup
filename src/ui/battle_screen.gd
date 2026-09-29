@@ -28,6 +28,13 @@ signal resume_failed(saved: Dictionary, reason: String)
 
 ## Game speeds, for testing a run quickly (docs/REBUILD_SPEC.md, "Dev only").
 const SPEEDS := [1.0, 2.0, 5.0]
+## How fast The Tower's ×1 runs against real time: its 26 seconds of spawning
+## take 22.9 real seconds (the owner's recording, D121). Every speed runs this
+## much faster, so ours match The Tower's ×1 (D122); its ×2 and ×5 haven't
+## been measured.
+const TOWER_CLOCK := 1.135
+## The wave bar while enemies are spawning.
+const WAVE_BAR := Color(1, 1, 1, 0.55)
 ## At most this many ticks a frame, so a slow frame can't snowball.
 const MAX_TICKS_PER_FRAME := 400
 ## Ticks of a saved run replayed a frame while resuming: about an hour of game
@@ -65,6 +72,8 @@ var _wave_title: Label
 var _enemy_attack: Label
 var _enemy_health: Label
 var _wave_bar: ProgressBar
+## The wave bar's fill, recoloured for the cooldown.
+var _wave_fill: StyleBoxFlat
 var _mono := Palette.weight(Palette.NUMBER_FONT, 400)
 var _mono_bold := Palette.weight(Palette.NUMBER_FONT, 500)
 var _upgrades: UpgradePanel
@@ -160,7 +169,7 @@ func _process(delta: float) -> void:
 		_real_seconds += delta
 		var speed := "×%d" % int(SPEEDS[_speed_index])
 		_seconds_at_speed[speed] = float(_seconds_at_speed.get(speed, 0.0)) + delta
-	_carry += delta * float(SPEEDS[_speed_index])
+	_carry += delta * float(SPEEDS[_speed_index]) * TOWER_CLOCK
 	var ticks := 0
 	while sim.alive and _carry >= BattleSim.TICK and ticks < MAX_TICKS_PER_FRAME:
 		sim.step()
@@ -218,11 +227,16 @@ func _refresh() -> void:
 	_health_text.text = "%s / %s" % [Palette.full(now), Palette.full(maxf(now, roundf(sim.peak_number)))]
 	# The › says the readout opens Wave Info.
 	_wave_title.text = "Wave %d  ›" % sim.wave
-	var through := clampf(sim.wave_clock / TowerData.wave_seconds(), 0.0, 1.0)
+	# As The Tower's (D122): the bar fills over the spawning, then again, in
+	# the accent, over the cooldown.
+	var spawn := TowerData.spawn_seconds()
+	var cooling := sim.wave_clock >= spawn
+	var through := (sim.wave_clock - spawn) / (TowerData.wave_seconds() - spawn) if cooling else sim.wave_clock / spawn
+	_wave_fill.bg_color = Palette.ACCENT if cooling else WAVE_BAR
 	# The basic enemy's Attack and Health this wave, as values, not multipliers.
 	_enemy_attack.text = "atk " + Palette.amount(sim.enemy_attack_now("basic"))
 	_enemy_health.text = "hp " + Palette.amount(sim.enemy_health_now("basic"))
-	_wave_bar.value = through
+	_wave_bar.value = clampf(through, 0.0, 1.0)
 	if _wave_info.visible:
 		_wave_info.show_for(sim)
 	_upgrades.refresh()
@@ -357,12 +371,13 @@ func _tower_panel() -> VBoxContainer:
 
 
 func _wave_panel() -> VBoxContainer:
-	var parts := _readout("Wave 1", Color(1, 1, 1, 0.55))
+	var parts := _readout("Wave 1", WAVE_BAR)
 	_wave_title = parts.title
 	# Only the bar says how far through the wave is; a ticking count was noise.
 	parts.value.visible = false
 	_wave_bar = parts.bar
 	_wave_bar.max_value = 1.0
+	_wave_fill = _wave_bar.get_theme_stylebox("fill") as StyleBoxFlat
 	_enemy_attack = parts.left
 	_enemy_health = parts.right
 	# A tap anywhere on it opens Wave Info, as The Tower's wave readout does.
