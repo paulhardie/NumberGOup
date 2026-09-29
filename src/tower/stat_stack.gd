@@ -1,5 +1,5 @@
 extends RefCounted
-## How a stat's value is built in a run (D118): the Workshop row's value at
+## How a stat's value is built in a run (D119): the Workshop row's value at
 ## its level, then every effect on it in The Tower's order, then the stat's
 ## hard cap. The Tower builds its stats this way (the community wiki's
 ## formulas, for example Attack Speed = (Workshop × Lab × Card + module) ×

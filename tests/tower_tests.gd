@@ -83,7 +83,7 @@ func test_enemy_types_scale_the_basic_enemy() -> void:
 	check(TowerData.enemy_speed_m(wave, "fast") > TowerData.enemy_speed_m(wave, "basic"), "fast enemies are faster")
 
 
-## D118: every stat is its Workshop value, built up by effects and held to
+## D119: every stat is its Workshop value, built up by effects and held to
 ## The Tower's hard caps.
 func test_with_no_effects_every_stat_is_its_workshop_value() -> void:
 	var sim := _quiet_sim()

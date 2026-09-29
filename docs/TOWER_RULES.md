@@ -84,7 +84,7 @@
 | Free Upgrades | A chance each wave for each tab; never a maxed row. Over 100% gives a chance of a second | Same (it can't pass 49.5% yet) | Built |
 | Enemy Level Skip | Deterministic since V26: its share of waves, evenly spread | Same | Built |
 | Interest | (Cash + Cash / Wave × Cash Bonus) × Interest, up to $50 until the Max Interest lab | Same | Built |
-| Hard caps | Defense % 98%, Thorns 99%, Wall Rebuild 150 s, Shockwave 7 s; game speed ×6.25 at most | The first four, in one place (D118); game speed isn't a stat yet | Built |
+| Hard caps | Defense % 98%, Thorns 99%, Wall Rebuild 150 s, Shockwave 7 s; game speed ×6.25 at most | The first four, in one place (D119); game speed isn't a stat yet | Built |
 
 ## 4. Economy
 
@@ -146,7 +146,7 @@ In order. Economy and enemy changes go through QUALITY_GATES' high-risk gate (th
 | 2 | **Take the readings in section 6** (owner) | Replaces the biggest guesses (spawn rate, mix, health drift, enemies per roll) before tuning anything on top of them | The owner's time |
 | 3 | **Apply the readings:** spawn rate, a type mix that changes by wave, and the health drift. This is the importer and data, then re-measuring the benchmarks | The wave engine's two big unknowns | Medium |
 | 4 | ~~**Factor enemy behaviour out of `BattleSim`**~~: **done** (D117): `enemy_kinds.gd` says what each kind is, `battle_spawns.gd` which enemies each wave sends | The next enemy lands in its own place | Done |
-| 5 | ~~**A single place where stat effects stack**~~: **done** (D118): `stat_stack.gd` builds every stat as (Workshop + adds) × multipliers, held to The Tower's hard caps | Cards (1.1) and Labs (1.2) add their effects there instead of inventing their own | Done |
+| 5 | ~~**A single place where stat effects stack**~~: **done** (D119): `stat_stack.gd` builds every stat as (Workshop + adds) × multipliers, held to The Tower's hard caps | Cards (1.1) and Labs (1.2) add their effects there instead of inventing their own | Done |
 | 6 | **Wave milestones per tier:** claimed once, paying The Tower's Coins now and its Gems when they exist, and holding the unlock spine (Labs at Tier 1 wave 30, Tier 2 at wave 100) | 1.1 and 1.2 open from it; our Number milestones (D107) sit beside it | Medium; **a decision** |
 
 Done already, by D115: elites in Tier 1 from wave 500, the Protector, coin decay, ageing enemies, the tier speed-up, the boss cap, and Wave Info.

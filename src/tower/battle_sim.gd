@@ -86,7 +86,7 @@ var run_seed: int
 var levels: Dictionary
 ## Row id → levels bought with Cash in this run, on top of the Workshop's.
 var run_levels: Dictionary = {}
-## Effects on this run's stats (D118): Cards, Labs and Perks will add theirs
+## Effects on this run's stats (D119): Cards, Labs and Perks will add theirs
 ## before the first step. Every stat is read through it, with its hard cap.
 var stats := StatStack.new()
 var open_groups: Array = START_GROUPS.duplicate()

@@ -1682,7 +1682,7 @@ Rules:
 - **Measured, the split:** `sim_runs.gd` printed identically, run for run, before and after: fresh runs (10 seeds), a 40-run core career, Tier 2 at level 20 (3 seeds), every group at level 25 for 3 hours (2 seeds), and a maxed Tier 3 Workshop to wave 450 (2 seeds, through the Protectors).
 - **Then, one change in play:** the Ray is **immune to Knockback**, as The Tower's is (the wiki and the patch notes); before, it was only very heavy (476 basics). The knockback roll is still made, so no other enemy's run changes. Only runs that meet a Ray (elite waves, from Tier 1 wave 500) can differ.
 
-## D118 — Every stat is built in one place: Workshop value, effects, hard caps
+## D119 — Every stat is built in one place: Workshop value, effects, hard caps
 
 - **Status:** Accepted (2026-09-29) on owner direction ("yeah please start that"), as TOWER_RULES.md's build item 5 (D116): the foundation Cards (1.1) and Labs (1.2) both need.
 - **Context:** a run's stats were each row's Workshop value at the run's level, read straight from the data, with two hard caps written where they were used (Defense % at 98% in the hit maths, Thorns at 100% in the Thorns maths). Cards, Labs and Perks change stats, and The Tower builds each stat the same way from its sources (the wiki's formulas: Attack Speed = (Workshop × Lab × Card + module) × Enhancement; Coins / Kill likewise; Defense % sums every source and stops at 98%). Without one place, each new system would bolt on its own.
