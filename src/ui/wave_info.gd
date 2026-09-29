@@ -56,7 +56,7 @@ func _init() -> void:
 
 ## Fills it from `sim`: called each frame while it shows.
 func show_for(sim: BattleSim) -> void:
-	var info := sim.wave_info()
+	var info := sim.spawns.wave_info()
 	_title.text = "Wave %d · Tier %d" % [info.wave, info.tier]
 	_spawns.text = "Spawn rate %d%% every %s s, %d%% doubled: about %d a wave\nThis wave: %d of %d spawned%s" % [
 		roundi(info.spawn_rate), String.num(float(info.roll_seconds), 3), roundi(info.double_spawn), roundi(info.expected),

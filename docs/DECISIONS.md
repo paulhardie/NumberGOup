@@ -1670,3 +1670,14 @@ Rules:
 | Every group open, level 25, 3 hours | alive at wave 312; Cash earned 421–444 thousand | alive at wave 312; Cash earned 392–415 thousand (7% less) |
 
   - A run saved mid-way before this won't resume identically if it went past wave 200 or had the Wall or Land Mines open; it ends at its saved wave (D078).
+
+## D117 — Each enemy kind's maths lives in one place, and waves are made in another
+
+- **Status:** Accepted (2026-09-28) on owner direction: "yes of course. Surely we need to keep the math in its own place", on TOWER_RULES.md's build item 4 (D116).
+- **Context:** D115 added the Protector and three elites inside `battle_sim.gd`, taking it past 1,000 lines. Which kinds stop at range, what orbs and shockwaves can't touch, how each attacks, and the maths of health, attack, speed, mass and pay were spread through the battle loop, the defences and a screen, one rule sometimes written twice (the Divider's mass in the battle and in `arena_effects.gd`).
+- **Decision** (AGENTS.md law 7; no change in play):
+  - **`src/tower/enemy_kinds.gd`** says what each kind is: a table of traits (stops at range, orbs kill it, shockwaves move it, its share of Thorns, how it attacks) and the maths of its numbers, from TowerData and Guesses. The battle, its defences and the screens ask it rather than testing kinds. `Guesses.ORB_IMMUNE` and `BattleSim.BOSS_THORNS_SHARE` are gone into it: they are The Tower's rules, not guesses.
+  - **`src/tower/battle_spawns.gd`** decides which enemies each wave sends and when: the spawn rolls, mix, caps, the Protector's gate, elites and the Divider's slot, with the spawn and Divider random streams, and Wave Info's numbers. The battle places each enemy it hands over.
+  - **`battle_sim.gd` keeps the fight:** movement, hits, the ÷, kills and splits, shots, pay-outs at a wave's end. It went from 1,043 lines to 796.
+- **Measured, the split:** `sim_runs.gd` printed identically, run for run, before and after: fresh runs (10 seeds), a 40-run core career, Tier 2 at level 20 (3 seeds), every group at level 25 for 3 hours (2 seeds), and a maxed Tier 3 Workshop to wave 450 (2 seeds, through the Protectors).
+- **Then, one change in play:** the Ray is **immune to Knockback**, as The Tower's is (the wiki and the patch notes); before, it was only very heavy (476 basics). The knockback roll is still made, so no other enemy's run changes. Only runs that meet a Ray (elite waves, from Tier 1 wave 500) can differ.

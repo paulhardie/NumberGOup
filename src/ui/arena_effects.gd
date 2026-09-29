@@ -8,6 +8,7 @@ extends RefCounted
 ## sim. `view` is the arena, whose geometry, fonts and canvas it uses.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
+const EnemyKinds = preload("res://src/tower/enemy_kinds.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Palette = preload("res://src/ui/palette.gd")
 
@@ -393,4 +394,4 @@ func _ease_shoves(delta: float) -> void:
 
 
 func _mass_of(kind: String) -> float:
-	return 1.0 if kind == "divider" else TowerData.mass_ratio(kind)
+	return EnemyKinds.mass_ratio(kind)

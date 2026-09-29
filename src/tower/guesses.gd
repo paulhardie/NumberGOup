@@ -44,15 +44,11 @@ const KNOCKBACK_METRES_PER_FORCE := 5.0
 ## edge; past that, they sit further inside a growing Range, by ORB_RANGE_SLOPE
 ## of every metre over the minimum (the slope is ours: The Tower says only "not
 ## one to one"). They kill an enemy that comes within ORB_HIT_M of one (ours),
-## unless it's one orbs can't kill (ORB_IMMUNE).
+## unless it's one orbs can't kill (EnemyKinds.orbs_kill).
 const ORB_TURNS_PER_SECOND_AT_FIRST_LEVEL := 0.4 / 60.0
 const ORB_MIN_RADIUS_M := 60.0
 const ORB_RANGE_SLOPE := 0.5
 const ORB_HIT_M := 3.0
-## Enemies orbs can't kill (D104): bosses and The Tower's elites (D115). An
-## enemy a Protector shields can't be killed by them either (BattleSim).
-const ORB_IMMUNE := ["boss", "vampire", "ray", "scatter"]
-
 ## A Scatter's two pieces land this many radians either side of where it
 ## fell. Ours; The Tower's split in two is all that's known.
 const SCATTER_SPREAD := 0.06
