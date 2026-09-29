@@ -1713,3 +1713,32 @@ Rules:
   - **A run's starting effects come through `BattleSim`'s constructor**, before the starting Number, its best, the Wall's health and the first Shockwave are worked out from the stats; one added after would leave them on the Workshop's values (the review on #109). `stats` stays open for effects that arrive mid-run, such as Perks, whose effect on what already stands is theirs to decide.
   - **Not built, and why:** The Tower's later stages (a module's add after the multipliers, Enhancements multiplying that) wait for Modules and Enhancements (AGENTS.md law 8). Nothing adds effects yet, so neither the save nor a run's record carries them: when Cards come, a run's record must hold its effects so its replay stays exact (law 6).
 - **Measured:** see the handover's How to measure: every row at levels 0, 1, half and max reads exactly its Workshop value in a test, and `sim_runs.gd` printed identically in the five D117 scenarios.
+
+## D120 — The owner's waves 1, 50 and 100: the SDK's health, and The Tower's mix by wave
+
+- **Status:** Accepted (2026-09-29) as TOWER_RULES.md's build item 3, on the owner's readings of Wave Info at Tier 1 waves 1, 50 and 100, taken at the handover's request (item 2). Waves 50 and 100 come from a long-played save (Enemy Health Level Skip 27 and 55, Attack 18 and 37, and the Wave Accelerator card on), and wave 1 from a new save.
+- **What the readings say:**
+  - **Health and attack are the SDK's exactly** once the skipped levels are taken off: wave 50's basic is level 23's health (75.17) and level 32's attack (32.18), and wave 100's is level 45's (341.33) and level 63's (131.72). So the ×0.9953-a-wave correction fitted to the new save's 24–25 September screens was wrong past wave 22, where it held the SDK about 9% low. Those earlier screens (7.20, 12.15 and 63.11 at waves 5, 8 and 22) still read 2–9% under the SDK, which no whole number of skipped levels explains; they're kept in the data as unmatched.
+  - **The mix grows with the wave:** basic/fast/tank/ranged 95/5/0/0 at wave 1, 74/10/10/6 at 50 and 69/11/13/7 at 100, with the earlier 85/7/6/2 at 22.
+  - **The spawn-rate chart holds** (D118): 10 at wave 1, and 22 and 26 at waves 50 and 100, which are the chart's rates at waves 100 and 200, as Wave Accelerator at 100% gives.
+  - **Bosses have no step at wave 100:** 18.7× a basic there and 18.6× at 50 on the long-played save, exactly 20× on the new save at wave 1. The SDK's ×1.2 would be 24×. The 6.5% under 20× is most likely something on that save, and isn't modelled.
+  - **Speeds disagree with the SDK:** tank 0.60, ranged 1.20, and boss, Protector and elites 0.40 a basic's on both saves, against the SDK's 0.34, 0.56 and 0.22. A basic reads 1.03 at wave 50 and 1.08 at 100 (the SDK's 1.00 until 100). Not acted on (below).
+- **Decision:**
+  - `import_tower_enemies.mjs` takes a basic's health straight from the SDK, and checks every reading at the level it was read on.
+  - **The mix is the four readings** (`TowerData.mix`): fast, tank and ranged in whole percents, straight between the waves read, held past wave 100, with basics the rest, as The Tower keeps them. A tier's weight still raises the three (D113).
+  - **Not changed:** enemy speeds by type (a conflict for the owner: The Tower's ranged close twice as fast and its tanks nearly twice), the boss's 20×, and the roll count (D118's open question).
+- **Measured** (`sim_runs.gd`: fresh runs 20 seeds, even and core; a 40-run core career; every row at level 12, 4 seeds; each on `main` and the branch, and at D118's 104 rolls a wave):
+
+| Benchmark | `main` | This change | Mix only | Health only | `main`, 104 rolls | This change, 104 rolls | The Tower |
+|---|---|---|---|---|---|---|---|
+| Fresh run, spreading Cash | wave 2 (1–6) | 3 (1–6) | 3 (1–6) | 2 (1–6) | 7 (4–9) | 6 (5–7) | 8, with $93 starting Cash |
+| Fresh run, core rows | 2 (1–7) | 2 (1–6) | 2 (1–6) | 2 (1–7) | 3 (2–8) | 3 (2–3) | — |
+| Core career: first run past the wave-10 boss | 20 | 20 | 20 | 20 | 9 | **none in 40** | runs 10–13 |
+| Core career: first run to wave 21 | 25 | 29 | 26 | 25 | 14 | none | — |
+| Coins at waves 20–21 | 221–237 | **139–180** | 123–185 | 232–276 | 105–182 | — | about 162 for wave 22 |
+| Core career, run 40 | wave 31 | 23 | 25 | 28 | 31 | 10 | — |
+| Tier 1, every row at level 12 | waves 99–103 | 99–102 | 101–108 | 99–102 | 101–106 | 101–111 | clears wave 100 |
+
+  - The mix does most of it. Early waves are now nearly all basics, which pay no Coins and walk three times as fast as a tank, so early runs earn less and meet more contact. At 208 rolls a career's Coins at waves 20–21 land on The Tower's. **At 104 rolls a core career now never passes wave 2–3 for 30 runs**, earning 0–2 Coins a run, so D118's recommendation of 104 no longer holds.
+  - The level-12 Workshop, past the early game, barely moves.
+- **Open:** how many rolls a wave gets (D118) now has no setting that fits both a fresh run (wave 8) and a career's Coins. The likeliest cause is how fast enemies reach the Number, which is ours (`Guesses.METRES_PER_SPEED`, 10 m/s: a basic takes 9.7 s from its spawn point) or the SDK's (speeds by type). **The reading that settles it:** how many seconds a wave-1 basic takes in The Tower from appearing to touching the tower.

@@ -19,7 +19,7 @@ So: build The Tower's first hours cleanly, check them against The Tower, then ad
 These keep it from going round in circles again.
 
 1. **The Tower is the spec.** Where The Tower's number is known, use it. Where it isn't, pick one, list it under [Guesses](#guesses) and move on. A guess needs no decision entry; the owner replaces it when they read the real value.
-2. **Numbers are generated, never typed.** The Workshop already comes from TheTowerSDK (`tools/import_tower_workshop.py`). Enemy stats get the same treatment: a script generates per-wave health and damage, type multipliers, type mix and spawn counts from the SDK into `data/tower/enemies.json`. Checked: the SDK's `getEnemyWaveStats` gives a Tier 1 basic 2 HP / 1 damage at wave 1 and 4,364 / 402 at wave 100, matching [the research table](TOWER_SCALING_FOUNDATION.md#tier-1-wave-by-wave-against-ours--24-september-2026). **Take the SDK's values before it rounds them down:** its damage function floors to whole numbers, but unrounded it gives 1.176, 1.386 and 15.908 for waves 1, 2 and 22, which are exactly the owner's screens (1.18, 1.39 and 15.90); Health drifts: unrounded it is exact at wave 1 (2.35) but runs high from there, 3.32 against the screens' 3.31 at wave 2, 7.32 against 7.20 at wave 5, 12.58 against 12.15 at wave 8 and 69.64 against 63.11 at wave 22. Every reading so far fits the SDK's health times 0.9953 to the power of (wave − 1), within 0.3%; that is a fit to five points, not a known rule, so it needs a reading past wave 22 before it is trusted. Where the owner's screens disagree with the SDK (wave 22 health 63.11 against the SDK's 69), the screen wins and the script applies the correction.
+2. **Numbers are generated, never typed.** The Workshop already comes from TheTowerSDK (`tools/import_tower_workshop.py`). Enemy stats get the same treatment: a script generates per-wave health and damage, type multipliers, type mix and spawn counts from the SDK into `data/tower/enemies.json`. Checked: the SDK's `getEnemyWaveStats` gives a Tier 1 basic 2 HP / 1 damage at wave 1 and 4,364 / 402 at wave 100, matching [the research table](TOWER_SCALING_FOUNDATION.md#tier-1-wave-by-wave-against-ours--24-september-2026). **Take the SDK's values before it rounds them down:** its damage function floors to whole numbers, but unrounded it gives 1.176, 1.386 and 15.908 for waves 1, 2 and 22, which are exactly the owner's screens (1.18, 1.39 and 15.90); Health drifts: unrounded it is exact at wave 1 (2.35) but runs high from there, 3.32 against the screens' 3.31 at wave 2, 7.32 against 7.20 at wave 5, 12.58 against 12.15 at wave 8 and 69.64 against 63.11 at wave 22. Those five fitted the SDK's health times 0.9953 to the power of (wave − 1), and the script applied that until D120, when the owner's waves 50 and 100 read the SDK's health exactly at the level Enemy Level Skip left (75.17 at level 23, 341.33 at 45). The health is the SDK's since; the earlier screens' waves 5, 8 and 22 stay unexplained (TOWER_RULES.md).
 3. **One simulation, two faces.** The battle is a plain GDScript simulation: no nodes, a fixed tick, a seeded RNG. The battle screen draws it; a headless tool runs it at thousands of times real speed. What is measured is exactly what is played, so the balance tools can't drift from the game.
 4. **No save compatibility until the loop is fun.** The new game saves to a new file, `user://number_go_up_tower.json`. The old save is left on disk, untouched: not converted and not deleted. The save has a version field. A save from a different version starts fresh and logs why, with no migrations.
 5. **The owner plays each version before the next starts.** "Done" means played, not just measured.
@@ -97,8 +97,8 @@ tests/       tower_tests.gd
 - **A run closed mid-way resumes (D078): built, not yet played by the owner.** The save carries the run in progress beside the Workshop, and the game opens back into it, replayed from its seed. A run that no longer replays the same after an update ends at its saved wave with its Coins kept.
 - **Where it went differently from this spec:**
   - The SDK's enemies per wave (about 4 early) contradict the owner's screens, so D065's count (20 at wave 1, rising) is kept as a guess.
-  - The type mix is the owner's wave 22 screen (85% basic, 7% fast, 6% tank, 2% ranged), not the SDK's 91/3/3/3.
-  - The health correction is only known to wave 22, so it holds at wave 22's value beyond.
+  - The type mix is the owner's Wave Info at waves 1, 22, 50 and 100 (95/5/0/0 to 69/11/13/7), straight between them and held past 100 (D120), not the SDK's 91/3/3/3.
+  - The health correction fitted to the owner's early screens was dropped when waves 50 and 100 read the SDK's health exactly (D120).
   - `scientific_number.gd`, the icons and the old arena effects weren't needed yet: plain floats and one number formatter cover it. They're at `f4f1e95` when wanted.
   - The `pre-rebuild` tag was made but couldn't be pushed from the session; the old game is commit `f4f1e95`.
   - Every script loads the others by path, never by `class_name`, per [`QUALITY_GATES.md`](QUALITY_GATES.md), so a stale editor cache can't blank the game.
@@ -129,6 +129,7 @@ Each version still ends with the owner playing it.
 | Fresh save | Damage 3, Attack Speed 1.00, Crit 1% ×1.20, Health 5, Regen 0 | owner's new save, 24 Sep |
 | Wave 22 basic | Health 63.11, Attack 15.90; mix 85% basic, 7% fast, 6% tank, 2% ranged | owner's screen, 24 Sep |
 | Basic enemy, waves 1, 2, 5 and 8 | Health 2.35, 3.31, 7.20 and 12.15; Attack 1.18, 1.39, 2.30 and 3.56 (the SDK's unrounded Attack exactly) | owner's screens, 25 Sep |
+| Waves 50 and 100 (a long-played save) | Basic Health 75.17 and 341.33 with 27 and 55 health levels skipped, Attack 32.18 and 131.72 with 18 and 37 skipped: the SDK's exactly. Mix 74/10/10/6 and 69/11/13/7; wave 1 (a new save) 95/5/0/0. Spawn rate 22 and 26 with Wave Accelerator at 100%. Boss 18.6–18.7× a basic | owner's screens, 29 Sep (D120) |
 | In-run Cash prices and values | Every one read so far matches `upgrades.json`: Damage 3 → 15 → 19 ($10, $20), Attack Speed 1.00 → 1.25 ($5, $21, $28), Crit Chance 1–3% ($4, $6, $9), Health 26 ($23), Health Regen 0.34 ($23) | owner's screens, 25 Sep |
 | **A fresh run that buys run upgrades** | **dies on wave 8**, even with the owner's $93 starting Cash (Damage 19, Attack Speed 1.25, Crit 3%, Health 26, Regen 0.34 at death). The current game's reaches wave 107 | owner, 25 Sep |
 | **A fresh run that buys nothing** | **dies at once**, in the first waves. The current game's lasts to wave 13 (D072), so it is far too kind | owner, 25 Sep |
@@ -138,7 +139,7 @@ Each version still ends with the owner playing it.
 | A wave-22 run | 12 min 33 s game time, 1.46K Coins | owner's battle report, build not recorded |
 | **The owner's runs on 0.9** | Wave 20–21 runs end at 11½ min of game time and earn 117–165 Coins, against The Tower's 12½ min and about 162 (1.46K over its ×9) for wave 22: **within the 20%**. 13 of 19 runs end on waves 10–11, the boss wall; after 540 Coins into Workshop Damage the next run reached wave 31 (17 min 21 s, 302 Coins) | owner's reports, 26–27 Sep |
 | New player to wave 100 | about an hour at 1× | community research, **unverified** |
-| **Needed from the owner** | 1. One boss kill's Cash. 2. A basic enemy's Health from Wave Info past wave 22 (30 or 50), to settle the health drift. |
+| **Needed from the owner** | 1. One boss kill's Cash. 2. A new save's basic Health at wave 10 or 22 with its Health Level Skip, to settle why the early screens read under the SDK (D120). |
 | **The owner's account is not a new player's** | Its packs and bonuses give starting Cash ($93 by wave 1) and ×9.00 Coins. Divide its Coins by 9, and read its waves as an upper bound for a new player. Leave both bonuses out of the rebuild | owner, 25 Sep | **the two most useful numbers we don't have** |
 
 ## Guesses
@@ -184,7 +185,7 @@ This needs the owner's OK, then an edit to [`AGENTS.md`](../AGENTS.md), since on
 ## Risks
 
 - **Effort is a guess:** milestones 1–3 look like two or three focused sessions, since the current game was built in four days, and they could run longer.
-- **The SDK and the live game disagree in places** (about 10% on wave 22 health, and the type mix). The owner's screens win, which depends on the owner reading a few more.
+- **The SDK and the live game disagree in places** (the type mix, enemy speeds by type, and the early screens' health; D120). The owner's screens win, which depends on the owner reading a few more.
 - **The owner's current progress doesn't carry over.** It stays on disk, and the old game stays reachable at `pre-rebuild`.
 - **The Workshop and enemy data are The Tower's own,** redistributed under the SDK's MIT licence. That's fine for a private build; publishing needs a decision (already open under D068).
 

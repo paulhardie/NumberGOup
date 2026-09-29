@@ -112,6 +112,26 @@ static func spawn_rate(wave: int) -> float:
 	return rate
 
 
+## Tier 1's mix of normal enemies on `wave`, as shares (D120): fast, tank and
+## ranged in whole percents, straight between the waves the owner read and
+## held past the last, with basics the rest, as The Tower keeps them.
+static func mix(wave: int) -> Dictionary:
+	var points: Array = enemies().mix
+	var at := 0
+	while at + 1 < points.size() and int(points[at + 1].wave) <= wave:
+		at += 1
+	var low: Dictionary = points[at]
+	var high: Dictionary = points[mini(at + 1, points.size() - 1)]
+	var along := 0.0
+	if int(high.wave) > int(low.wave):
+		along = clampf(float(wave - int(low.wave)) / float(int(high.wave) - int(low.wave)), 0.0, 1.0)
+	var shares := {"basic": 1.0}
+	for kind in ["fast", "tank", "ranged"]:
+		shares[kind] = roundf(lerpf(float(low[kind]), float(high[kind]), along)) / 100.0
+		shares.basic -= shares[kind]
+	return shares
+
+
 ## Seconds between spawn rolls in the spawning window.
 static func spawn_roll_seconds() -> float:
 	return float(enemies().spawn.roll_seconds)

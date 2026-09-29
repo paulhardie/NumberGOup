@@ -10,14 +10,17 @@
 // What comes from where:
 // - A basic enemy's Attack is the SDK's, unrounded. The SDK floors it, but
 //   unrounded it is exactly what the game shows (1.18, 1.39, 2.30, 3.56 and
-//   15.90 on waves 1, 2, 5, 8 and 22 of the owner's screens).
-// - A basic enemy's health is the SDK's, unrounded, times a correction fitted
-//   to the owner's screens: the SDK runs high by about half a percent a wave.
-//   The fit is only known to wave 22, so it holds at wave 22's value past it.
-//   Replace it when a later wave is read.
+//   15.90 on waves 1, 2, 5, 8 and 22 of the owner's screens, and 32.18 and
+//   131.72 at the levels their waves 50 and 100 stood on).
+// - A basic enemy's health is the SDK's, unrounded (D120). The owner's waves
+//   50 and 100 read it exactly at the level Enemy Level Skip left them on
+//   (75.17 and 341.33), so the correction fitted to their earlier screens is
+//   gone; those screens' health at waves 5, 8 and 22 sits 2-9% under the SDK
+//   for a reason not yet known, and is kept below as unmatched.
 // - Type multipliers, speeds and masses are the SDK's (mass sets how far
-//   Knockback pushes). The type mix is the owner's
-//   wave 22 screen, which disagrees with the SDK's 91/3/3/3.
+//   Knockback pushes). The type mix is the owner's Wave Info at waves 1, 22,
+//   50 and 100 (D120), as whole percents: fast, tank and ranged, with basic
+//   the rest, as The Tower keeps it. The SDK can't recover it (91/3/3/3).
 // - Wave timing is the SDK's: 26 seconds of spawning, then a cooldown.
 // - Tiers 1 to 3 (D107 authors only those), all the SDK's: enemy health and
 //   attack multipliers (checked constant at every wave, Attack unrounded),
@@ -62,26 +65,47 @@ import { createRequire } from "node:module";
 import Module from "node:module";
 
 const LAST_WAVE = 6500;
-const HEALTH_DRIFT_PER_WAVE = 0.9953;
-const HEALTH_DRIFT_KNOWN_TO = 22;
-// The owner's screens, Tier 1, 24 and 25 September 2026.
+// The owner's Wave Info screens, Tier 1: a basic enemy's health and attack at
+// the level each stood on, the wave less the Enemy Health or Attack Level Skip
+// the screen shows (24, 25 and 29 September 2026).
 const READINGS = [
-  { wave: 1, health: 2.35, attack: 1.18 },
-  { wave: 2, health: 3.31, attack: 1.39 },
-  { wave: 5, health: 7.2, attack: 2.3 },
-  { wave: 8, health: 12.15, attack: 3.56 },
-  { wave: 22, health: 63.11, attack: 15.9 },
+  { wave: 1, health_level: 1, health: 2.35, attack_level: 1, attack: 1.18 },
+  { wave: 2, health_level: 2, health: 3.31, attack_level: 2, attack: 1.39 },
+  { wave: 5, attack_level: 5, attack: 2.3 },
+  { wave: 8, attack_level: 8, attack: 3.56 },
+  { wave: 22, attack_level: 22, attack: 15.9 },
+  { wave: 50, health_level: 23, health: 75.17, attack_level: 32, attack: 32.18 },
+  { wave: 100, health_level: 45, health: 341.33, attack_level: 63, attack: 131.72 },
 ];
-const MIX = { basic: 0.85, fast: 0.07, tank: 0.06, ranged: 0.02 };
-// The owner's Wave Info, Tier 1.
+// The earlier screens' health, which the SDK doesn't match: kept, not used.
+const HEALTH_UNMATCHED = [
+  { wave: 5, health: 7.2 },
+  { wave: 8, health: 12.15 },
+  { wave: 22, health: 63.11 },
+];
+// The owner's Wave Info, Tier 1, in whole percents (wave 22 on 24 September,
+// the rest on 29 September). Basic is what's left.
+const MIX = [
+  { wave: 1, fast: 5, tank: 0, ranged: 0 },
+  { wave: 22, fast: 7, tank: 6, ranged: 2 },
+  { wave: 50, fast: 10, tank: 10, ranged: 6 },
+  { wave: 100, fast: 11, tank: 13, ranged: 7 },
+];
 // The chart's Standard column, as it is printed (34 starts at both 600 and
-// 750 there). The owner's own Wave Info read 15 at wave 22, which it agrees with.
+// 750 there). The owner's own Wave Info read 15 at wave 22, which it agrees
+// with, and 22 at wave 50 and 26 at wave 100 with the Wave Accelerator card at
+// its full 100% (D120): it brings each rate in at half its wave.
 const SPAWN_RATES = [
   [1, 10], [3, 11], [6, 15], [40, 17], [60, 19], [80, 20], [100, 22], [150, 24], [200, 26], [250, 28],
   [300, 30], [400, 32], [600, 34], [750, 34], [800, 36], [1000, 37], [1250, 38], [1500, 39], [2000, 40],
   [2500, 42], [3000, 44], [3500, 46], [4000, 48], [4500, 49], [5000, 50], [5500, 52], [6000, 54], [6500, 56],
 ].map(([wave, rate]) => ({ wave, rate }));
-const SPAWN_READINGS = [{ wave: 22, rate: 15 }];
+const SPAWN_READINGS = [
+  { wave: 1, rate: 10, accelerator: 0 },
+  { wave: 22, rate: 15, accelerator: 0 },
+  { wave: 50, rate: 22, accelerator: 1 },
+  { wave: 100, rate: 26, accelerator: 1 },
+];
 const TIERS = [1, 2, 3];
 // The Wave Info panel's tier weight on fast, tank and ranged spawn chances,
 // below Tier 9 (info-panel-stats.js tierSpawnWeight, not exported; checked below).
@@ -123,7 +147,6 @@ const panel = require(path.join(dist, "mechanics/waves/info-panel-stats.js"));
 const uptime = require(path.join(dist, "mechanics/uptime/compute.js"));
 const typeMults = require(path.join(dist, "mechanics/enemies/type-mults.js")).ENEMY_MULT_BY_TYPE_TABLE;
 
-const healthDrift = (wave) => HEALTH_DRIFT_PER_WAVE ** (Math.min(wave, HEALTH_DRIFT_KNOWN_TO) - 1);
 const input = (wave) => ({ wave, tier: 1, tournament: false });
 const keep = (value) => Number(value.toPrecision(9));
 
@@ -133,7 +156,7 @@ const speed = [];
 const massGrowth = [];
 const protectorRadius = [];
 for (let wave = 1; wave <= LAST_WAVE; wave++) {
-  health.push(keep(scaling.computeWaveBaseHealthRaw(input(wave)) * healthDrift(wave)));
+  health.push(keep(scaling.computeWaveBaseHealthRaw(input(wave))));
   attack.push(keep(scaling.computeWaveBaseDamage(input(wave))));
   speed.push(keep(panel.computeWaveInfoPanelEnemyExtras({ ...input(wave), enemyType: "Basic" }).speed));
   massGrowth.push(keep(panel.enemyMassWaveMult(wave)));
@@ -142,11 +165,18 @@ for (let wave = 1; wave <= LAST_WAVE; wave++) {
 
 // Two decimals is what the screen shows; allow the last one either way.
 for (const reading of READINGS) {
-  const got = { health: health[reading.wave - 1], attack: attack[reading.wave - 1] };
   for (const stat of ["health", "attack"]) {
-    if (Math.abs(got[stat] - reading[stat]) > Math.max(0.011, reading[stat] * 0.003)) {
-      throw new Error(`wave ${reading.wave} ${stat}: generated ${got[stat]}, screen ${reading[stat]}`);
+    if (reading[stat] === undefined) continue;
+    const got = (stat === "health" ? health : attack)[reading[`${stat}_level`] - 1];
+    if (Math.abs(got - reading[stat]) > Math.max(0.011, reading[stat] * 0.003)) {
+      throw new Error(`wave ${reading.wave} ${stat}: generated ${got}, screen ${reading[stat]}`);
     }
+  }
+}
+for (let i = 0; i < MIX.length; i++) {
+  const row = MIX[i];
+  if (row.fast + row.tank + row.ranged > 100 || (i > 0 && row.wave <= MIX[i - 1].wave)) {
+    throw new Error(`mix at wave ${row.wave}: over 100%, or out of order`);
   }
 }
 
@@ -170,9 +200,12 @@ for (const row of require(path.join(dist, "data/charts/data.js")).WAVE_ACCELERAT
     throw new Error(`spawn rate at wave ${row.normal}: the chart has ${rateAt(row.normal)}, the SDK ${row.spawnCount}`);
   }
 }
+// Wave Accelerator at share r brings each rate in at wave / (1 + r) (the
+// SDK's chart columns), so a screen with it on reads the chart further on.
 for (const reading of SPAWN_READINGS) {
-  if (rateAt(reading.wave) !== reading.rate) {
-    throw new Error(`spawn rate at wave ${reading.wave}: the chart has ${rateAt(reading.wave)}, the owner's screen ${reading.rate}`);
+  const chartWave = Math.floor(reading.wave * (1 + reading.accelerator));
+  if (rateAt(chartWave) !== reading.rate) {
+    throw new Error(`spawn rate at wave ${reading.wave}: the chart has ${rateAt(chartWave)}, the owner's screen ${reading.rate}`);
   }
 }
 const knowledge = require(path.join(dist, "knowledge/compartments/enemies.js"));
@@ -238,10 +271,10 @@ for (const tier of TIERS) {
 }
 
 const out = {
-  version: 4,
+  version: 5,
   source: "The Tower's Tier 1 enemies via TheTowerSDK 0.11.0 (MIT, TmRxJD), calibrated to the owner's screens. Generated by tools/import_tower_enemies.mjs.",
   readings: READINGS,
-  health_drift: { per_wave: HEALTH_DRIFT_PER_WAVE, known_to_wave: HEALTH_DRIFT_KNOWN_TO },
+  health_unmatched: HEALTH_UNMATCHED,
   spawn_seconds: uptime.computeWaveCombatDurationSeconds(false),
   cooldown_seconds: keep(uptime.computeWaveInterCooldownSeconds(0, { tournament: false })),
   boss_every: 10,
@@ -278,5 +311,10 @@ for (const t of tiers) {
   console.log(`tier ${t.tier}: health ×${t.enemy_health}, attack ×${t.enemy_attack}, Coins ×${t.coins}, boss every ${t.boss_every}, double spawn ${t.double_spawn}, mix weight ${t.mix_weight}, Protector ${t.protector.map((p) => `${p.chance}%@${p.wave}`).join(" ") || "none"}, elites from wave ${t.elites[0].wave}`);
 }
 for (const r of READINGS) {
-  console.log(`wave ${r.wave}: health ${health[r.wave - 1]} (screen ${r.health}), attack ${attack[r.wave - 1]} (screen ${r.attack})`);
+  const shown = (stat, values) => r[stat] === undefined ? "" : ` ${stat} ${values[r[`${stat}_level`] - 1]} at level ${r[`${stat}_level`]} (screen ${r[stat]})`;
+  console.log(`wave ${r.wave}:${shown("health", health)}${shown("attack", attack)}`);
 }
+for (const r of HEALTH_UNMATCHED) {
+  console.log(`wave ${r.wave}: health ${health[r.wave - 1]}, an earlier screen ${r.health} (×${(r.health / health[r.wave - 1]).toFixed(3)}), unmatched`);
+}
+console.log(`mix: ${MIX.map((m) => `${100 - m.fast - m.tank - m.ranged}/${m.fast}/${m.tank}/${m.ranged}@${m.wave}`).join(" ")}`);

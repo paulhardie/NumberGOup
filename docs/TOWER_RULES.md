@@ -15,7 +15,7 @@
 | **SDK**: [TheTowerSDK](https://github.com/TmRxJD/TheTowerSDK) `main` at `da19fef` (0.11.0, 13 September 2026), MIT | Game mechanics mapped from the game's own code (v28.3–v29): method names, constants and field layouts. Its knowledge notes say which claims come from the code, a save, the wiki or players | Highest where it cites the game's code. It has **no real data for spawn rates below wave 1,000** (it draws a line to 37), and it can't see values the game keeps in its scene files (the base fast and ranged chances) |
 | **Wiki**: [the community wiki](https://the-tower-idle-tower-defense.fandom.com/), read through its API on 28 September 2026 | Player-maintained rules and tables: enemies, milestones, labs, cards, tiers | Good for tables and unlock waves; can lag the game |
 | **Patch notes**: the developer's, as the SDK collected them | When rules changed | High, for what changed and roughly when |
-| **The owner's screens** (24–28 September) | Wave Info and battle reports from a new save | Highest, where they exist. They outrank the SDK (REBUILD_SPEC rule 1) |
+| **The owner's screens** (24–29 September) | Wave Info and battle reports: a new save's to wave 22, and on 29 September a new save's wave 1 and a long-played save's waves 50 and 100 (with Enemy Level Skip and the Wave Accelerator card) | Highest, where they exist. They outrank the SDK (REBUILD_SPEC rule 1) |
 
 ## 1. Waves and spawning
 
@@ -25,8 +25,8 @@
 | What a wave fixes when it starts | Health, attack, rewards, spawn chances and when any special spawn lands are all set once as a wave starts, not per enemy (SDK, `NewWave`) | Same: `_schedule_wave` rolls the wave, and enemies take the wave's level | Built |
 | Spawn rolls | Every 0.125 s of the spawning window the game rolls against the wave's spawn rate (0–100), plus a double-spawn chance of 5 + tier ÷ 2.85 | Same (D113, D114) | Built |
 | **Enemies per successful roll** | The SDK reads the game's code as three spawn sites per roll: one enemy for sure, a second 80% of the time, and a third only under a battle condition. That makes **about 1.86 enemies per successful roll** | About 1.06 per roll (D114), because the owner's wave-22 battle report dealt about as much damage as that many enemies hold. The SDK's reading would need nearly twice the damage | **Conflict.** D114 stands until a wave's enemies are counted in the game |
-| **Spawn rate below wave 1,000** | The community's Spawn Rate to Wave Count chart (the owner, 29 September): 10 at wave 1 up to 37 at 1,000, agreeing with the owner's 15 at wave 22 and the SDK from 1,000 | The chart (D118) | Built. **How many rolls a wave gets is now the open number** (D118) |
-| **Type mix by wave** | The game rewrites the tank and protector chances every wave, and the base fast and ranged chances live in its scene files, so the SDK can't recover them. Evidence the mix grows with the wave: the SDK's wave-1 panel shows about 3/3/3, the owner's wave 22 shows 7/6/2, and a measured Tier 21 round (waves 600–4,875) killed about 20% basic, 28% fast, 27% tank and 25% ranged. The wiki: "the spawn rates and chance for non-basic enemies increase with each wave" | The owner's wave-22 mix (85/7/6/2) at every wave | **Gap and unknown.** Early waves get too many specials and later waves far too few. Needs Wave Info readings |
+| **Spawn rate below wave 1,000** | The community's Spawn Rate to Wave Count chart (the owner, 29 September): 10 at wave 1 up to 37 at 1,000, agreeing with the owner's 10 at wave 1, 15 at wave 22, and 22 and 26 at waves 50 and 100 with Wave Accelerator at 100% (the chart's rates at waves 100 and 200, D120), and the SDK from 1,000 | The chart (D118) | Built. **How many rolls a wave gets is now the open number** (D118) |
+| **Type mix by wave** | The owner's Wave Info (basic/fast/tank/ranged): **95/5/0/0 at wave 1, 85/7/6/2 at 22, 74/10/10/6 at 50, 69/11/13/7 at 100**. The SDK can't recover it (the fast and ranged chances live in the game's scene files; its panel shows 91/3/3/3). A measured Tier 21 round (waves 600–4,875) killed about 20% basic, 28% fast, 27% tank and 25% ranged, so the specials likely keep growing past 100 | The four readings, straight between them in whole percents, held past wave 100 (D120) | Built to wave 100. **Past 100 unknown**: a reading at wave 200, 500 or 1,000 would say how it grows |
 | Enemy caps | 150 on the field: 120 normal, 20 elite and 10 boss. Protectors at most 10; each elite type at most 8 | Same (D115) | Built |
 | Boss waves | Every 10th wave, one boss (more from Tier 14). Tier 7+ bosses land at a random 5–75% of the wave; Tiers 1–6 at a fixed moment the sources don't give | A boss at the start of the wave | Built; the timing is **unknown** |
 | Wave skip, Wave Accelerator, Intro Sprint | Cards and labs. A wave skip can't skip a boss wave | — | Later (1.1+) |
@@ -37,13 +37,13 @@
 
 | Rule | The Tower | Us | Mark |
 |---|---|---|---|
-| Health and attack curves | Separate curves for health and attack. The SDK claims exact equality with the game's constants across 21 tiers | The SDK's curves; attack unrounded (it matches the owner's screens exactly); health × 0.9953 per wave, fitted to the owner's screens up to wave 22 | Built. **The health drift is unexplained**: the SDK claims to be exact, yet it runs 10% high at wave 22. A reading at wave 30 or 50 tells us whether the drift keeps going |
+| Health and attack curves | Separate curves for health and attack. The SDK claims exact equality with the game's constants across 21 tiers. **Confirmed at waves 50 and 100** (D120): with Enemy Level Skip's skipped levels taken off, both read exactly the SDK's (health 75.17 and 341.33 at levels 23 and 45, attack 32.18 and 131.72 at levels 32 and 63) | The SDK's curves, unrounded (D120) | Built. **Unmatched:** the new save's health at waves 5, 8 and 22 (24–25 September) reads 2%, 3% and 9% under the SDK, which no whole number of skipped levels explains. A new save's basic health at wave 10 or 22, with its Health Level Skip, would say whether early waves really run lower |
 | Heat-up | **Settled: each hit an enemy lands makes its next hit ×1.04**, compounding. The game's `Enemy$$Attack` does damage × 1.04^attacks (SDK, from the code; the wiki and FAQ agree). Hits on the Wall count too | Same, from the generated data (D116) | Built. The "per wave survived" research was wrong |
-| Boss health past wave 100 | 20× a basic's. The SDK names a step (×1.2 from wave 100, and more later) and flags the boss for it, but its own Wave Info never applies it; it's most likely the Boss's Ultimate battle condition (Tier 20+), not a base rule | 20× at every wave | Built. A reading of a wave-100 boss would confirm it |
+| Boss health past wave 100 | 20× a basic's. The SDK names a step (×1.2 from wave 100, and more later) and flags the boss for it, but its own Wave Info never applies it; it's most likely the Boss's Ultimate battle condition (Tier 20+), not a base rule. The owner's wave 100 (D120) shows no step: its boss is 18.7× the basic (6.39K), not 24×; the same save's wave 50 is 18.6×, and a new save's wave 1 exactly 20×, so something on the long-played save takes about 6.5% off bosses | 20× at every wave | Built |
 | Enemy speed | Rises from wave 100 (+0.03% a wave), with steps at 141 (×1.129) and 678 (×1.324), capped at 12×. Each tier also multiplies speed by its spawn weight (×1.04 in Tier 2, ×1.08 in Tier 3) | Same (D115) | Built |
 | Enemy mass | Each enemy's mass grows 4% for every wave it stays alive (patch notes, August 2025), so knockback weakens against old enemies. Separately, the wave's base mass grows only above wave 4,000 | Same (D115) | Built |
 | Coin decay | An enemy alive for more than three waves pays half its Coins (wiki; the SDK's kill payout has a `LivedWavesCoins` factor) | Same (D115) | Built |
-| Speed and mass by type | Fast ×2.3, tank and boss ×0.34, ranged ×0.56 speed; mass basic 21.2, tank 102.7, boss 261.9 (SDK Wave Info) | Same | Built |
+| Speed and mass by type | The SDK's Wave Info: fast ×2.3, tank and boss ×0.34, ranged ×0.56, Protector and elites ×0.22 speed; mass basic 21.2, tank 102.7, boss 261.9. **The owner's Wave Info disagrees on speed** (D120): tank ×0.60, ranged ×1.20, boss, Protector and elites ×0.40 a basic's, on both saves and at every wave read; fast ×2.10 on the new save (a Lab slows fast enemies, so it varies), and a basic's speed already 1.03 at wave 50 and 1.08 at 100, where the SDK's rises only from 100. Mass agrees exactly | The SDK's speeds | **Conflict, not yet acted on**: ranged enemies close twice as fast in The Tower, and tanks nearly twice. The owner's call (the handover's decisions) |
 
 ### Enemy types
 
@@ -127,14 +127,15 @@
 
 Each replaces a guess or settles a conflict above. Wave Info (tap the wave counter) shows most of them.
 
-1. ~~Spawn rate at waves 1, 50 and 100~~: the chart gives it (D118). Instead: **how many seconds into a wave new enemies stop appearing**, or a count of one wave's enemies at wave 50 or 100, to settle how many spawn rolls a wave gets.
-2. **The spawn chances (the type mix) at waves 1, 50 and 100.** Settles whether and how the mix grows.
-3. **A basic enemy's health at wave 30 or 50.** Says whether the health drift keeps going.
+1. ~~Spawn rate at waves 1, 50 and 100~~: the chart gives it (D118), and the owner's waves 1, 50 and 100 agree (D120). Instead: **how many seconds into a wave new enemies stop appearing**, or a count of one wave's enemies at wave 50 or 100, to settle how many spawn rolls a wave gets.
+2. ~~The spawn chances at waves 1, 50 and 100~~: read (D120). Next: **the mix at wave 200, 500 or 1,000**, to say how it grows past 100.
+3. ~~A basic enemy's health at wave 30 or 50~~: read at 50 and 100, exactly the SDK's (D120). Next: **a new save's basic health at wave 10 or 22, with its Health Level Skip**, to settle the earlier screens that read lower.
 4. **How many enemies one wave sends** (count wave 1, or read kills off a battle report). Settles 1.06 against 1.86 enemies a roll.
 5. **The Cash a boss, a fast and a tank enemy pay** (the floating number on a kill). Settles D071's type weights.
 6. **A boss's health on Wave Info at wave 100.** 20× a basic's confirms the SDK's step isn't a base rule.
 7. **When in the wave a Tier 1 boss appears.**
 8. **The game-speed choices a fresh save has.**
+9. **How many seconds a wave-1 basic takes from appearing to touching the tower** (D120). Our walk speed is a guess (10 m/s over 97 m), and with The Tower's mix it decides whether early runs live.
 
 ## 7. Before 1.1: the build list
 
@@ -143,8 +144,8 @@ In order. Economy and enemy changes go through QUALITY_GATES' high-risk gate (th
 | # | What | Why | Size |
 |---|---|---|---|
 | 1 | ~~**Correct the rules we have**~~: **done** (D116): Cash per kill slowing past wave 200; the Wall shielding the Number from everything but Vampires, and pushing enemies out when it rebuilds; average crit in land-mine damage; heat-up in the generated data | Known Tower rules we got wrong | Done |
-| 2 | **Take the readings in section 6** (owner) | Replaces the biggest guesses (spawn rate, mix, health drift, enemies per roll) before tuning anything on top of them | The owner's time |
-| 3 | **Apply the readings:** spawn rate, a type mix that changes by wave, and the health drift. This is the importer and data, then re-measuring the benchmarks | The wave engine's two big unknowns | Medium |
+| 2 | **Take the readings in section 6** (owner): the mix and the health drift are read (D120) | Replaces the biggest guesses (spawn rate, mix, health drift, enemies per roll) before tuning anything on top of them | The owner's time |
+| 3 | **Apply the readings:** spawn rate (D118; its roll count open), ~~a type mix that changes by wave, and the health drift~~ (D120). This is the importer and data, then re-measuring the benchmarks | The wave engine's two big unknowns | Medium; the roll count waits on the owner |
 | 4 | ~~**Factor enemy behaviour out of `BattleSim`**~~: **done** (D117): `enemy_kinds.gd` says what each kind is, `battle_spawns.gd` which enemies each wave sends | The next enemy lands in its own place | Done |
 | 5 | ~~**A single place where stat effects stack**~~: **done** (D119): `stat_stack.gd` builds every stat as (Workshop + adds) × multipliers, held to The Tower's hard caps | Cards (1.1) and Labs (1.2) add their effects there instead of inventing their own | Done |
 | 6 | **Wave milestones per tier:** claimed once, paying The Tower's Coins now and its Gems when they exist, and holding the unlock spine (Labs at Tier 1 wave 30, Tier 2 at wave 100) | 1.1 and 1.2 open from it; our Number milestones (D107) sit beside it | Medium; **a decision** |
