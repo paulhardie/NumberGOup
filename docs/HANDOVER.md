@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 29 September 2026, by Claude, handing on to the next agent. After the stat stack (D119, #109), this session applied the owner's Wave Info readings at waves 1, 50 and 100 (D120): enemy health is now the SDK's exactly, and the mix of enemy types changes with the wave, as The Tower's does. It changes play: early waves are nearly all basics.
+**Last updated:** 29 September 2026, by Claude, handing on to the next agent. After the owner's Wave Info readings (D120, #110), this session measured The Tower's enemy walk speed and wave cooldown from the owner's screen recording and put them in (D121): basics walk 7.66 m a second (not 10) and the cooldown is 9 s. It changes play: early runs last longer.
 
-**Branch:** `claude/wave-readings`, from `main` after #109. It carries D120. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/walk-speed`, from `main` after #110. It carries D121. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -78,8 +78,9 @@
 
 ## Open decisions for the owner
 
-0. **How many spawn rolls a wave gets (D118, D120).** With The Tower's mix in (D120), neither setting fits: at 208 a career's Coins at waves 20–21 match The Tower's (139–180 against about 162) but fresh runs die on waves 1–3 (The Tower's: 8); at 104 fresh runs reach 5–7 but a core career stays stuck on waves 2–3 for 30 runs, since basics pay no Coins. **Recommend keeping 208 for now** and settling what's really off first: how fast enemies reach the Number (decision 0a). D118's recommendation of 104 is withdrawn.
-0a. **How fast enemies walk.** Ours are a guess (a basic covers 97 m at 10 m/s, 9.7 s) times the SDK's type speeds, and the owner's Wave Info disagrees with the SDK on types: tank 0.60, ranged 1.20, boss and Protector 0.40 a basic's, against 0.34, 0.56 and 0.22 (D120). **Recommend** the owner time a wave-1 basic in The Tower from appearing to touching the tower (TOWER_RULES.md reading 9), then set the walk speed from it and take The Tower's type speeds from Wave Info. Trade-off: faster ranged and tanks make every run harder, so it has to be measured with decision 0.
+0. **How many spawn rolls a wave gets (D118, D120, D121).** With The Tower's walk speed in (D121), 208 is closer on both counts: a fresh run with the owner's $93 reaches wave 6 (The Tower's: 8), a career's Coins at waves 20–21 match The Tower's, and a core career passes the wave-10 boss on run 20 (The Tower's players: 10–13). 104 overshoots a fresh run (waves 10–11) and stalls a career until run 31. **Recommend keeping 208.** What's left of the gap is most likely the type speeds (0a) and how many enemies a roll sends (Known issues).
+0a. **Type speeds.** The owner's Wave Info has tank 0.60, ranged 1.20, and boss and Protector 0.40 a basic's, against the SDK's 0.34, 0.56 and 0.22 (D120), and D121's recording showed Wave Info's fast ratio is how enemies really move. **Recommend** one more recording around wave 20–50, with tanks and ranged enemies, to measure them before changing anything, since faster tanks and ranged make every run harder.
+0b. **×1 runs 1.135 times real time in The Tower** (D121); ours is real time, so our waves take 35 real seconds against The Tower's 31. **Recommend** matching it: it changes nothing in the balance, only how long a run takes to play. Trade-off: ×1 becomes a little busier.
 1. **Sign off 1.0, or name what's missing,** after playing D094. The Tower's benchmarks hold and the Number climbs. In simulation, D094 left fresh runs as they were but a core career beat the wave-10 boss on run 9 (it was 11; The Tower's is 10–13), and ÷ landings sit about 0.3 a minute. **If that feels too easy or ÷ too rare, recommend** raising the Divider's health from 4× to 5× before its rate, since the owner set the rate's ceiling.
 2. **Game speed.** The spec calls the 1×/2×/5× switch a testing tool, yet it's half of how the owner plays. **Recommend** keeping it as a player feature, since The Tower's first hours are long.
 3. **Updates mid-run.** Two runs were lost when a merge landed while a run was saved. **Recommend** the Mac's sync job wait to update while the save holds a run in progress, and say so in its notification. It's small, and changes nothing in the game.
@@ -95,7 +96,7 @@
 12. **The Tower's wave milestones** (TOWER_RULES.md build item 6). They're how The Tower opens Labs (Tier 1 wave 30) and the next tier (wave 100), and pay its Coins and Gems. **Recommend** adding them beside our Number milestones (D107), which stay as the Number's own rewards.
 ## Next steps, in order
 
-0. **Owner:** time a wave-1 basic in The Tower from appearing to touching the tower (decision 0a), and say whether to take Wave Info's type speeds. **Agent, then:** set the walk speed and type speeds, rerun D120's benchmarks at 104 and 208 rolls, and bring decision 0 back with a recommendation. Done when a pull request carries both.
+0. **Owner:** record a wave 20–50 stretch with tanks and ranged enemies at ×1, with the Range ring and Range value on screen (decision 0a), and decide 0 and 0b. **Agent, then:** measure their speeds as D121 did (`ffmpeg` frames, the ring as the scale), set the type speeds if they differ, rerun D121's benchmarks, and set the roll count. Done when a pull request carries them.
 1. **Owner:** play a few runs on D111's growth (free Coins or a reset help try later stages) and say whether the Number's climb feels earned. Done when the owner says so, or names what to change (`--kill-share` and `--peak-drift` measure alternatives).
 1a. **Owner:** sign off 1.0 or name what's missing (decision 1).
 2. **Agent, on the owner's word:** tune the Divider's health with `sim_runs.gd --careers 40 --buy core --divider-health N` if play says so. Then raise `application/config/version` to 1.0 when the owner signs it off. `--careers` always plays the same seeds (run N is seed N), so a second career needs a seed option first.
@@ -107,6 +108,7 @@
 
 ## How to measure
 
+- **D121 (29 September):** the owner's recording was decoded with a static `ffmpeg` (pip's `imageio-ffmpeg`) and measured with numpy in a scratch script, not committed: the Range ring fitted as a circle (189 px = 30 m), each red and yellow enemy tracked frame by frame, and the wave bar's fill fitted over time. `import_tower_enemies.mjs` regenerated the data. `bash run_tests.sh` passes (4155 checks). `sim_runs.gd`: D121's table, with speed and cooldown measured apart and at both roll counts. The review was the author's own. Not played.
 - **D120 (29 September):** `import_tower_enemies.mjs` reproduced the committed data byte for byte before the change, then checks every reading at its level (health and attack at waves 50 and 100 to 0.01). `bash run_tests.sh` passes (4153 checks, with new ones for the readings and the mix; one resume test's fixture run now dies at 34 s, so it's played for 30). `sim_runs.gd` on `main`, the branch, the mix alone and the health alone, and `main` and the branch at 104 rolls: D120's table. `capture_battle.gd`'s `battle_wave_info` checked by eye: Tier 2 wave 600 shows 65/11/14/7 with the Protector's 3%. The review was the author's own. Not played.
 - **D119 (29 September):** `bash run_tests.sh` passed with 4112 checks (17 new: every row at levels 0, 1, half and max reading exactly its Workshop value, the order of adds and multipliers, the four hard caps, and refused effects). The boot is clean. `sim_runs.gd` printed identically in D117's five scenarios. A 40-run core career took 88 s against 86 s on `main`. After the review and with `main` merged in after #108: 4122 checks, with a test that a run's starting effects build its starting Number, Wall and first Shockwave (applying them after start-up fails it four ways), and 10 core-bought fresh runs print identically to `main`.
 - **D117 (28 September):** `bash run_tests.sh` passes (4092 checks with the split alone, 4095 with the Ray test). The boot is clean. `sim_runs.gd` before and after the split printed identically in five scenarios (D117 lists them). With the Ray's immunity added, the maxed Tier 3 run to wave 450 still printed identically: it only changes runs where a Ray is knocked back, and there it can't move one.
@@ -147,7 +149,7 @@
 - **Settings → Testing isn't meant to ship** (D097): free Coins and Reset progress act on the real save. Remove or hide them before anything goes public.
 - **A run saved mid-way before D111 won't resume identically** unless it was played with both D098 switches on and Multipliers off, so it ends at its saved wave (D078). Finish or end a run before merging.
 - **Readings still needed from The Tower:** listed in [`TOWER_RULES.md`](TOWER_RULES.md#6-readings-the-owner-can-take-in-the-tower). The new save's early health screens (waves 5, 8, 22) read 2–9% under the SDK, which is exact at waves 50 and 100; unexplained (D120).
-- **A run saved mid-way before D120 won't resume identically** (its enemies' types and health changed), so it ends at its saved wave (D078). Finish or end a run before merging.
+- **A run saved mid-way before D121 won't resume identically** (enemies walk slower and waves last 35 s), nor one from before D120 (its enemies' types and health changed); either ends at its saved wave (D078). Finish or end a run before merging.
 - **The mix is held at wave 100's past it** (69/11/13/7). A measured Tier 21 round points to more specials deep in a run.
 - **TheTowerSDK reads the game's code as sending about 1.86 enemies per successful spawn roll; we send about 1.06** (D114, on the owner's damage evidence). Counting one wave in The Tower settles it.
 - **A run saved mid-way before D094 won't resume identically**, so it ends at its saved wave (D078). Finish or end a run before merging.
@@ -163,7 +165,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D120), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D121), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.
