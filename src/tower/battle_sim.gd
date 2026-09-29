@@ -86,8 +86,9 @@ var run_seed: int
 var levels: Dictionary
 ## Row id → levels bought with Cash in this run, on top of the Workshop's.
 var run_levels: Dictionary = {}
-## Effects on this run's stats (D119): Cards, Labs and Perks will add theirs
-## before the first step. Every stat is read through it, with its hard cap.
+## Effects on this run's stats (D119). Every stat is read through it, with its
+## hard cap. Effects a run starts with (Cards, Labs) come through `_init`, so
+## the starting Number, the Wall and the first Shockwave are built with them.
 var stats := StatStack.new()
 var open_groups: Array = START_GROUPS.duplicate()
 
@@ -188,12 +189,18 @@ var _attack_skip := 0.0
 
 
 ## `row_levels` and `groups` are the Workshop's: the levels a run starts from
-## and the groups it may buy from.
-func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_GROUPS, run_tier: int = 1) -> void:
+## and the groups it may buy from. `effects` are the ones the run starts with,
+## each {stat, op, value, source} (StatStack.add); a refused one is an error.
+func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_GROUPS, run_tier: int = 1, effects: Array = []) -> void:
 	run_seed = seed_value
 	tier = clampi(run_tier, 1, TowerData.tier_count())
 	levels = row_levels.duplicate()
 	open_groups = groups.duplicate()
+	# Before anything below reads a stat: the starting Number, its best, the
+	# Wall and the first Shockwave all come from the built values.
+	for effect in effects:
+		if not stats.add(str(effect.get("stat", "")), str(effect.get("op", "")), float(effect.get("value", NAN)), str(effect.get("source", ""))):
+			push_error("BattleSim: refused a starting stat effect %s" % [effect])
 	# Separate streams, so a change in how often the tower fires or crits
 	# never changes which enemies a wave sends.
 	spawns.start(seed_value)

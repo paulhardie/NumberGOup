@@ -136,6 +136,23 @@ func test_the_battle_reads_its_stats_through_the_stack() -> void:
 	check_near(sim.landed_damage(100.0), 100.0 * (1.0 - 0.98) - sim.stat("defense_absolute"), 0.0001, "a hit keeps 2% at the Defense % cap, however much is added")
 
 
+func test_a_run_starts_from_its_starting_effects() -> void:
+	var groups: Array = BattleSim.START_GROUPS + ["wall", "shockwave"]
+	var plain := BattleSim.new(1, {"health": 10}, groups)
+	var effects := [
+		{"stat": "health", "op": "multiply", "value": 2.0, "source": "test:card"},
+		{"stat": "wall_health", "op": "add", "value": 0.1, "source": "test:lab"},
+		{"stat": "shockwave_frequency", "op": "multiply", "value": 0.5, "source": "test:lab"},
+	]
+	var sim := BattleSim.new(1, {"health": 10}, groups, 1, effects)
+	check(sim.stats.effects.size() == 3, "every starting effect goes on")
+	check_near(sim.max_health(), plain.max_health() * 2.0, 0.0, "Health is built with them")
+	check_near(sim.health, sim.max_health(), 0.0, "and the Number starts full")
+	check_near(sim.peak_number, sim.max_health(), 0.0, "with its best where it starts")
+	check_near(sim.defences.wall_health, sim.max_health() * (plain.stat("wall_health") + 0.1), 0.0001, "the Wall starts whole at the built share of the built Health")
+	check_near(sim.defences.shockwave_in, maxf(plain.stat("shockwave_frequency") * 0.5, 7.0), 0.0, "and the first Shockwave waits the built time")
+
+
 func test_a_fresh_tower_is_the_towers() -> void:
 	var sim := BattleSim.new(1)
 	check_near(sim.stat("damage"), 3.0, 0.0, "fresh Damage")

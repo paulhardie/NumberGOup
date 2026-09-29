@@ -10,8 +10,9 @@ extends RefCounted
 ##   Damage, Health or Cash Bonus.
 ## The Tower's later stages, a module's add after the multipliers and
 ## Enhancements multiplying that, wait for Modules and Enhancements (AGENTS.md
-## law 8). Nothing adds effects yet: Cards (1.1) and Labs (1.2) will, before a
-## run's first step, and a run's record must then carry them for its replay.
+## law 8). Nothing adds effects yet: Cards (1.1) and Labs (1.2) will, through
+## BattleSim's constructor so a run starts from the built values, and a run's
+## record must then carry them for its replay.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 
