@@ -21,7 +21,8 @@
 
 | Rule | The Tower | Us | Mark |
 |---|---|---|---|
-| Wave timing | 26 s of spawning, then a cooldown of about 9 s (the SDK's 8.7 s; the wiki and the owner's screen say 9). Cash / Wave pays after the cooldown | Same, from the SDK | Built |
+| Wave timing | 26 s of spawning, then a cooldown of 9 s: the owner's wave bar fills the two in 26 : 9 (D121; the SDK's 8.7 s is wrong). Cash / Wave pays after the cooldown. **×1 runs 1.135 times real time** (the same bar: 26 s took 22.9 real seconds) | 26 s, then 9 s (D121). Our ×1 is real time | Built. The ×1 speed is the owner's call (the handover's decisions) |
+| **Walk speed** | Speed 1 is **7.66 m a game second** (8.69 m a real second at ×1), from the owner's recording of 20 basics against the 30 m Range ring (D121). A fast enemy walked 2.09× a basic, as Wave Info's 2.10 says. Where enemies set off isn't known: beyond about 80 m, off the screen | 7.66 m/s (D121), setting off 100 m out (ours) | Built |
 | What a wave fixes when it starts | Health, attack, rewards, spawn chances and when any special spawn lands are all set once as a wave starts, not per enemy (SDK, `NewWave`) | Same: `_schedule_wave` rolls the wave, and enemies take the wave's level | Built |
 | Spawn rolls | Every 0.125 s of the spawning window the game rolls against the wave's spawn rate (0–100), plus a double-spawn chance of 5 + tier ÷ 2.85 | Same (D113, D114) | Built |
 | **Enemies per successful roll** | The SDK reads the game's code as three spawn sites per roll: one enemy for sure, a second 80% of the time, and a third only under a battle condition. That makes **about 1.86 enemies per successful roll** | About 1.06 per roll (D114), because the owner's wave-22 battle report dealt about as much damage as that many enemies hold. The SDK's reading would need nearly twice the damage | **Conflict.** D114 stands until a wave's enemies are counted in the game |
@@ -135,7 +136,7 @@ Each replaces a guess or settles a conflict above. Wave Info (tap the wave count
 6. **A boss's health on Wave Info at wave 100.** 20× a basic's confirms the SDK's step isn't a base rule.
 7. **When in the wave a Tier 1 boss appears.**
 8. **The game-speed choices a fresh save has.**
-9. **How many seconds a wave-1 basic takes from appearing to touching the tower** (D120). Our walk speed is a guess (10 m/s over 97 m), and with The Tower's mix it decides whether early runs live.
+9. ~~How fast a wave-1 basic walks~~: measured from the owner's screen recording (D121). Next: **a recording around wave 20–50 with tanks and ranged enemies**, to measure their speeds the same way and settle Wave Info's type speeds against the SDK's.
 
 ## 7. Before 1.1: the build list
 

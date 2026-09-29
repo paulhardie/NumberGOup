@@ -8,9 +8,6 @@ extends RefCounted
 ## puts them just past the largest Range row (69.5 m), as D067 did.
 const SPAWN_DISTANCE_M := 100.0
 
-## Metres a second for SDK speed 1 (a basic enemy before wave 141).
-const METRES_PER_SPEED := 10.0
-
 ## Where a melee enemy stops: the tower's edge.
 const CONTACT_DISTANCE_M := 3.0
 

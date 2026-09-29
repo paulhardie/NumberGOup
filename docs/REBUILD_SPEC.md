@@ -148,7 +148,7 @@ These are carried from the current game until the owner reads the real value:
 
 - ~~An enemy at the tower hits every 5 seconds~~: once a second (D075).
 - A boss pays 20 basics' Cash (D071).
-- Enemies set off 100 m out, basic speed is 10 m a second and the base range is 30 m (D067, D068). The Tower gives no units.
+- Enemies set off 100 m out and the base range is 30 m (D067, D068). ~~Basic speed 10 m a second~~: The Tower's is 7.66 m a game second, measured from the owner's recording (D121), so it's in the data now. Where enemies set off stays ours: off The Tower's screen, beyond about 80 m.
 - Orbs: ~~a turn a second on the Range edge (D075)~~, ~~radians a second (D104)~~: back to The Tower's, at least 60 m out and 0.4 turns a minute at first (D108). How much further out a larger Range puts them (half of each metre past 60) and the 3 m an orb reaches are ours. They can't kill bosses, elites, or anything a Protector shields (D115).
 - ~~Ranged enemies stop at 30 m~~: on the Range edge as it is (D075).
 - ~~20 enemies in wave 1~~, ~~11 plus 0.123 a wave (D075)~~: The Tower's spawn rolls (D114), a roll every 1/8 s by the wave's spawn rate, now The Tower's chart at every wave (D118). How many rolls a wave gets (208 in a 26-second window) is ours and open (D118).

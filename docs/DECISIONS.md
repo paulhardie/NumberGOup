@@ -1742,3 +1742,30 @@ Rules:
   - The mix does most of it. Early waves are now nearly all basics, which pay no Coins and walk three times as fast as a tank, so early runs earn less and meet more contact. At 208 rolls a career's Coins at waves 20–21 land on The Tower's. **At 104 rolls a core career now never passes wave 2–3 for 30 runs**, earning 0–2 Coins a run, so D118's recommendation of 104 no longer holds.
   - The level-12 Workshop, past the early game, barely moves.
 - **Open:** how many rolls a wave gets (D118) now has no setting that fits both a fresh run (wave 8) and a career's Coins. The likeliest cause is how fast enemies reach the Number, which is ours (`Guesses.METRES_PER_SPEED`, 10 m/s: a basic takes 9.7 s from its spawn point) or the SDK's (speeds by type). **The reading that settles it:** how many seconds a wave-1 basic takes in The Tower from appearing to touching the tower.
+
+## D121 — Enemies walk The Tower's speed, and the cooldown is 9 seconds
+
+- **Status:** Accepted (2026-09-29) on owner direction ("yeah go for it"), from the owner's screen recording of Tier 1 wave 1 on a new save (Range 30 m, ×1), measured frame by frame.
+- **What the recording says:**
+  - **A basic walks 8.69 m a real second at ×1**: 20 basics tracked against the Range ring, 8.54–8.76 each. A fast enemy walked 2.09× a basic, as that save's Wave Info says (2.10), so Wave Info's speeds are how enemies really move.
+  - **×1 runs 1.135 times real time.** The wave bar fills in two phases, 26 seconds of spawning then the cooldown, and the spawning phase took 22.9 real seconds. So speed 1 is **7.66 m a game second**; ours was 10 (a guess since D067), about 30% fast. A basic now takes 3.9 s to cross a fresh tower's 30 m Range, not 3.0.
+  - **The cooldown is 9 s**: the bar's second phase filled 2.887 times as fast as its first, and 26 ÷ 9 is 2.889 (the SDK's 8.7 would give 2.99).
+  - Every enemy walked in from off the screen, so where they set off is only known to be beyond about 80 m. Our 100 m stays.
+  - A community measurement from Discord (bosses, 7 clean runs) gave 9.0 m a real second, within 3% of this.
+- **Decision:** `import_tower_enemies.mjs` sets speed 1 at 7.66 m a second and the cooldown at 9 s, both in the generated data now that they're read, not guessed. `Guesses.METRES_PER_SPEED` is gone.
+- **Not changed:** the type speeds (Wave Info's tank 0.60 and ranged 1.20 against the SDK's 0.34 and 0.56; no tank or ranged enemy was in the recording), our ×1 running at real time, and the enemy hit interval (about one a second at ×1 by the owner's eye on 26 September, which in game time may be 1.135 s).
+- **Measured** (`sim_runs.gd` as in D120; "$93" plays fresh runs with the owner's starting Cash, as their Tower account has):
+
+| Benchmark | `main` (D120) | This change | Speed only | Cooldown only | `main`, 104 rolls | This change, 104 rolls | The Tower |
+|---|---|---|---|---|---|---|---|
+| Fresh run, spreading Cash | wave 3 (1–6) | 5 (1–7) | 5 (1–7) | 3 (1–6) | 6 (5–7) | 6 (5–8) | — |
+| The same, with $93 | — | 6 (1–10) | — | — | — | 10 (7–11) | wave 8, with $93 |
+| Fresh run, core rows (with $93) | 2 (1–6) | 2 (1–6); 6 (1–10) | 2 (1–6) | 2 (1–6) | 3 (2–3) | 3 (2–5); 11 (10–11) | — |
+| Core career: first run past the wave-10 boss | 20 | 20 | 20 | 20 | none in 40 | 31 | runs 10–13 |
+| Core career: first run to wave 21 | 29 | 26 | 29 | 29 | none | none | — |
+| Coins at waves 20–21 | 139–180 | 127–187 | 127–181 | 139–180 | — | — | about 162 for wave 22 |
+| Core career, run 40 | wave 23 | 23 | 23 | 23 | 10 | 19 | — |
+| Tier 1, every row at level 12 | waves 99–102 | 109–113 | 106–112 | 97–101 | 101–111 | 110–114 | clears wave 100 |
+
+  - The walk speed does nearly all of it; the cooldown's extra 0.3 s barely shows.
+  - It narrows D118's question without settling it. At 208 rolls a fresh run with $93 reaches wave 6 (The Tower's: 8) and a career's Coins sit on The Tower's, but a core career takes 20 runs to pass the wave-10 boss (The Tower's players: 10–13). At 104 a fresh run reaches 10–11, past The Tower's, and a career stalls until run 31, since basics pay no Coins.

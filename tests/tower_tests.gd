@@ -191,7 +191,11 @@ func test_a_fresh_tower_is_the_towers() -> void:
 
 func test_a_wave_lasts_the_towers_time() -> void:
 	check_near(TowerData.spawn_seconds(), 26.0, 0.0, "26 seconds of spawning")
-	check_near(TowerData.wave_seconds(), 34.7, 0.01, "then about 8.7 seconds of cooldown")
+	check_near(TowerData.wave_seconds(), 35.0, 0.0, "then 9 seconds of cooldown, as the owner's wave bar shows (D121)")
+	# D121: the owner's recording had a wave-1 basic cross the 30 m range in
+	# about 3.9 game seconds.
+	check_near(TowerData.enemy_speed_m(1, "basic"), 7.66, 0.0001, "a basic walks 7.66 m a second")
+	check_near(30.0 / TowerData.enemy_speed_m(1, "basic"), 3.9, 0.05, "so it crosses a fresh tower's Range in 3.9 s")
 	var sim := BattleSim.new(3)
 	sim.levels = {"health": 6000, "health_regen": 6000}
 	sim.health = sim.max_health()

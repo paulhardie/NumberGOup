@@ -45,7 +45,7 @@ static func enemy_attack(wave: int, kind: String) -> float:
 
 
 static func enemy_speed_m(wave: int, kind: String) -> float:
-	return _per_wave("basic_speed", wave) * float(enemies().types[kind].speed) * Guesses.METRES_PER_SPEED
+	return _per_wave("basic_speed", wave) * float(enemies().types[kind].speed) * float(enemies().metres_per_speed)
 
 
 ## A kind's mass as a share of a basic enemy's, which is how much less far
