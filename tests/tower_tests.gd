@@ -1248,7 +1248,7 @@ func test_a_replay_in_slices_ends_where_one_in_one_go_does() -> void:
 	var run := _through_json(RunReport.build(played))
 	var sliced := RunReport.Replay.new(run)
 	var slices := 0
-	while not sliced.advance(37):
+	while not sliced.advance(17):
 		slices += 1
 	check(slices > 20, "it took many slices: %d" % slices)
 	check(RunReport.matches(run, sliced.sim), "and ends where the run did")
@@ -1439,9 +1439,13 @@ func test_the_game_opens_into_a_saved_run_and_gives_up_one_it_cant_replay() -> v
 		var loaded := Save.load_workshop(TEST_SAVE)
 		check(game._screen is HomeScreen, "a %s run ends and the game goes Home" % reason)
 		check(game._screen._note.text.begins_with("Your run at wave %d" % played.wave), "saying so: %s" % game._screen._note.text)
-		check(Save.load_run(TEST_SAVE).is_empty() and loaded.runs == 1 and loaded.best_wave == played.wave and is_equal_approx(loaded.coins, 60.0),
-			"the run is cleared, counted at its wave, and its Coins kept")
-		var entries := ActivityLog.read(TEST_LOG)
+		# Ending at its saved wave, it pays any best-Number milestone it reached (D107).
+		var expected := Workshop.new()
+		expected.coins = 60.0
+		expected.finish_run(played.wave, played.peak_number)
+		check(Save.load_run(TEST_SAVE).is_empty() and loaded.runs == 1 and loaded.best_wave == played.wave and is_equal_approx(loaded.coins, expected.coins),
+			"the run is cleared, counted at its wave, and its Coins kept, milestones paid: %s" % loaded.coins)
+		var entries := ActivityLog.read(TEST_LOG).filter(func(entry): return entry.kind == "run")
 		check(entries.size() == 1 and entries[0].resume_failed == reason, "and logged as lost: %s" % [entries.map(func(entry): return entry.get("resume_failed"))])
 		game.free()
 		_clear_test_logs()
@@ -1666,11 +1670,15 @@ func test_gains_are_booked_by_source_and_new_highs() -> void:
 ## 22, then the SDK's chart from 37 at wave 1,000 to 56 at 6,500.
 func test_spawns_roll_by_the_waves_spawn_rate() -> void:
 	check_near(TowerData.spawn_roll_seconds(), 0.125, 0.0, "a roll every eighth of a second")
-	check_near(TowerData.spawn_rate(1), 5.0, 0.0001, "5 at wave 1")
+	check_near(TowerData.spawn_rate(1), 10.0, 0.0001, "10 at wave 1, from The Tower's chart (D118)")
+	check_near(TowerData.spawn_rate(2), 10.0, 0.0001, "in steps")
+	check_near(TowerData.spawn_rate(3), 11.0, 0.0001, "11 from wave 3")
 	check_near(TowerData.spawn_rate(22), 15.0, 0.0001, "15 at wave 22, as the owner read it")
-	check(TowerData.spawn_rate(10) > 5.0 and TowerData.spawn_rate(10) < 15.0 and TowerData.spawn_rate(500) > 15.0 and TowerData.spawn_rate(500) < 37.0, "rising between")
+	check_near(TowerData.spawn_rate(100), 22.0, 0.0001, "22 from wave 100")
+	check_near(TowerData.spawn_rate(799), 34.0, 0.0001, "34 to wave 799")
+	check_near(TowerData.spawn_rate(1250), 38.0, 0.0001, "38 from 1,250")
 	check_near(TowerData.spawn_rate(1000), 37.0, 0.0001, "37 from wave 1,000")
-	check_near(TowerData.spawn_rate(1499), 37.0, 0.0001, "in the chart's steps")
+	check_near(TowerData.spawn_rate(1249), 37.0, 0.0001, "in the chart's steps")
 	check_near(TowerData.spawn_rate(1500), 39.0, 0.0001, "39 from 1,500")
 	check_near(TowerData.spawn_rate(9000), 56.0, 0.0001, "and 56 at most")
 	for at_wave in [1, 22, 100]:

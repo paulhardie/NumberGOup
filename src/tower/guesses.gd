@@ -20,13 +20,6 @@ const CONTACT_DISTANCE_M := 3.0
 ## rule lives in BattleSim, since it follows the Range row.
 const ENEMY_HIT_SECONDS := 1.0
 
-## The spawn rate at wave 1 (D114), which no screen has shown: 5, so that a
-## wave-1 spawning window of 208 rolls sends about 11 enemies, as the owner
-## counted ("about 10 to 12"). From there the rate runs in a straight line to
-## each known one (TowerData.spawn_rate): the owner's 15 at wave 22, then the
-## SDK's 37 at wave 1,000; the lines between are ours.
-const FIRST_WAVE_SPAWN_RATE := 5.0
-
 ## Cash every run starts with: none, until the Starting Cash lab (not built;
 ## The Tower opens it at Tier 1 wave 30, $5 a level). The owner, 26 September.
 ## TheTowerSDK's $80 is its figure for Utility Dissonance runs, and the $93 on
