@@ -12,6 +12,7 @@ const TowerData = preload("res://src/tower/tower_data.gd")
 const BattleDefences = preload("res://src/tower/battle_defences.gd")
 const BattleSpawns = preload("res://src/tower/battle_spawns.gd")
 const EnemyKinds = preload("res://src/tower/enemy_kinds.gd")
+const StatStack = preload("res://src/tower/stat_stack.gd")
 
 const TICK := 1.0 / 30.0
 
@@ -69,8 +70,6 @@ class Shot:
 
 ## The groups of rows a run may buy from, before the Workshop opens more.
 const START_GROUPS := ["attack_start", "defense_start"]
-## The most Defense % can take off a hit (community research, unverified).
-const DEFENSE_PERCENT_CAP := 0.98
 ## Rapid Fire fires four times as fast while it lasts (the community wiki).
 const RAPID_FIRE_SPEED := 4.0
 ## The most Interest pays a wave before Labs raise it (D071).
@@ -87,6 +86,9 @@ var run_seed: int
 var levels: Dictionary
 ## Row id → levels bought with Cash in this run, on top of the Workshop's.
 var run_levels: Dictionary = {}
+## Effects on this run's stats (D118): Cards, Labs and Perks will add theirs
+## before the first step. Every stat is read through it, with its hard cap.
+var stats := StatStack.new()
 var open_groups: Array = START_GROUPS.duplicate()
 
 var time := 0.0
@@ -214,8 +216,10 @@ func level(id: String) -> int:
 	return int(levels.get(id, 0)) + int(run_levels.get(id, 0))
 
 
+## A stat's value now: its Workshop row at the run's level, built up by any
+## effects on it and held to its hard cap (StatStack).
 func stat(id: String) -> float:
-	return TowerData.value(id, level(id))
+	return stats.value(id, TowerData.value(id, level(id)))
 
 
 func is_open(id: String) -> bool:
@@ -482,7 +486,7 @@ func _enemies_hit() -> void:
 			alive = false
 			killed_by = enemy.kind
 			return
-		var thorns := minf(stat("thorns"), 1.0) * EnemyKinds.thorns_share(enemy.kind)
+		var thorns := stat("thorns") * EnemyKinds.thorns_share(enemy.kind)
 		if shielded(enemy):
 			thorns *= float(TowerData.enemies().protector.thorns_taken)
 		if thorns > 0.0:
@@ -547,8 +551,7 @@ func divide_loss(divisor: float) -> float:
 
 ## What a hit of `raw` leaves after the tower's defences.
 func landed_damage(raw: float) -> float:
-	var share := clampf(stat("defense_percent"), 0.0, DEFENSE_PERCENT_CAP)
-	return maxf(0.0, raw * (1.0 - share) - stat("defense_absolute"))
+	return maxf(0.0, raw * (1.0 - stat("defense_percent")) - stat("defense_absolute"))
 
 
 func _fire() -> void:

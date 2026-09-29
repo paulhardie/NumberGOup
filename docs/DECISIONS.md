@@ -1681,3 +1681,13 @@ Rules:
   - **`battle_sim.gd` keeps the fight:** movement, hits, the ÷, kills and splits, shots, pay-outs at a wave's end. It went from 1,043 lines to 796.
 - **Measured, the split:** `sim_runs.gd` printed identically, run for run, before and after: fresh runs (10 seeds), a 40-run core career, Tier 2 at level 20 (3 seeds), every group at level 25 for 3 hours (2 seeds), and a maxed Tier 3 Workshop to wave 450 (2 seeds, through the Protectors).
 - **Then, one change in play:** the Ray is **immune to Knockback**, as The Tower's is (the wiki and the patch notes); before, it was only very heavy (476 basics). The knockback roll is still made, so no other enemy's run changes. Only runs that meet a Ray (elite waves, from Tier 1 wave 500) can differ.
+
+## D118 — Every stat is built in one place: Workshop value, effects, hard caps
+
+- **Status:** Accepted (2026-09-29) on owner direction ("yeah please start that"), as TOWER_RULES.md's build item 5 (D116): the foundation Cards (1.1) and Labs (1.2) both need.
+- **Context:** a run's stats were each row's Workshop value at the run's level, read straight from the data, with two hard caps written where they were used (Defense % at 98% in the hit maths, Thorns at 100% in the Thorns maths). Cards, Labs and Perks change stats, and The Tower builds each stat the same way from its sources (the wiki's formulas: Attack Speed = (Workshop × Lab × Card + module) × Enhancement; Coins / Kill likewise; Defense % sums every source and stops at 98%). Without one place, each new system would bolt on its own.
+- **Decision** (no change in play):
+  - **`src/tower/stat_stack.gd`** builds every stat a run reads: the Workshop row's value at its level, plus every "add" effect, times every "multiply" effect, held to The Tower's hard caps (Defense % 98%, Thorns 99%, Shockwave Frequency 7 s, Wall Rebuild 150 s). `BattleSim.stat` reads through it, so the battle, its defences and the run's Upgrade panel all see the same value.
+  - Effects are `{stat, op, value, source}`, kept in order; an unknown row or op, or a value that isn't a finite number, is refused.
+  - **Not built, and why:** The Tower's later stages (a module's add after the multipliers, Enhancements multiplying that) wait for Modules and Enhancements (AGENTS.md law 8). Nothing adds effects yet, so neither the save nor a run's record carries them: when Cards come, a run's record must hold its effects so its replay stays exact (law 6).
+- **Measured:** see the handover's How to measure: every row at levels 0, 1, half and max reads exactly its Workshop value in a test, and `sim_runs.gd` printed identically in the five D117 scenarios.

@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 28 September 2026, by Claude, handing on to the next agent. After the Tower rules research and its corrections (D116, merged in #105 and #106), this session gave each enemy kind's maths one home and waves another (D117): `enemy_kinds.gd` and `battle_spawns.gd`, out of `battle_sim.gd`, with no change in play, then made the Ray truly immune to Knockback.
+**Last updated:** 29 September 2026, by Claude, handing on to the next agent. After the Tower rules research and its corrections (D116, #105 and #106) and the enemy split (D117, #107), this session built the foundation Cards and Labs need: every stat is built in one place, `StatStack` (D118), from its Workshop value, effects and The Tower's hard caps, with no change in play.
 
-**Branch:** `claude/enemy-split`, from `main` after #106. It carries D117: the split (no change in play) and the Ray's Knockback immunity, as two commits. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/stat-stack`, from `main` after #107. It carries D118. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -82,7 +82,7 @@
 2. **Game speed.** The spec calls the 1×/2×/5× switch a testing tool, yet it's half of how the owner plays. **Recommend** keeping it as a player feature, since The Tower's first hours are long.
 3. **Updates mid-run.** Two runs were lost when a merge landed while a run was saved. **Recommend** the Mac's sync job wait to update while the save holds a run in progress, and say so in its notification. It's small, and changes nothing in the game.
 4. **The lighter rebuild process** (REBUILD_SPEC.md, "Process while the rebuild is in progress"), open since 25 September. **Recommend yes.**
-5. **AGENTS.md's law 3** names a modifier pipeline that no longer exists. Cards and Labs now demonstrably need stats that stack in layers (TOWER_RULES.md build item 6), so **recommend** rewording it to that primitive when it's built, rather than dropping it. Only the owner changes that file's rules.
+5. **AGENTS.md's law 3** names a modifier pipeline that no longer exists, in `GameState`, which is gone too. Its stat half now exists: `StatStack` (D118). **Recommend** rewording it to: "Every effect on a stat (Cards, Labs, Perks, tier conditions) enters through `StatStack` in its documented order, not as a special case in `BattleSim`." Only the owner changes that file's rules.
 6. **Publishing The Tower's data** (its Workshop and enemy numbers, under the SDK's MIT licence) needs a decision before anything is public. Not urgent.
 7. **Idle play (D089)** waits for servers. Nothing is built.
 8. **The design canvas's other proposals** (D106 names them): a Number that grows heavier with each new digit, elites in one shared blue with a typeface each, and the rest of the notation assets. **Recommend** trying the heavier Number next, with the Tweaks slider on its board, since it answers the Number shrinking as digits arrive.
@@ -100,11 +100,12 @@
 2a. **Owner:** send [`design/GAME_STAGE_BRIEF.md`](design/GAME_STAGE_BRIEF.md) to Claude Design with its screenshots (`capture_battle.gd` makes them), and choose from what comes back. **Agent, then:** record the choices as the next D-number and build them in `arena_view.gd`, `arena_effects.gd` and `number_motion.gd`; drawing only. Done when the owner has played the new stage.
 3. **Owner:** try the web build on a phone. The light's shader, the music and the portrait layout have never run there.
 4. **Owner:** take the rest of the readings in [`TOWER_RULES.md`](TOWER_RULES.md#6-readings-the-owner-can-take-in-the-tower) (with step 0's spawn rate, the spawn chances at waves 1, 50 and 100 matter most). Done when they're in the chat.
-5. **Agent: 1.0.x, the build list in [`TOWER_RULES.md`](TOWER_RULES.md#7-before-11-the-build-list), in its order** (D116). Items 1 (rule corrections, #106) and 4 (the enemy split, D117) are built. Item 3 waits on the owner's readings (item 2); none are published anywhere, so they need The Tower's Wave Info. Next that doesn't wait: item 5, one place where stat effects stack, before Cards. Done when each item is built or the owner drops it, and the benchmarks are re-measured.
+5. **Agent: 1.0.x, the build list in [`TOWER_RULES.md`](TOWER_RULES.md#7-before-11-the-build-list), in its order** (D116). Items 1 (#106), 4 (D117) and 5 (D118) are built. Item 3 waits on the owner's readings (item 2). Item 6, The Tower's wave milestones, waits on the owner's choice (decision 12). Done when each item is built or the owner drops it, and the benchmarks are re-measured.
 6. **Then Cards (1.1).** The two splits before them are done: the arena's drawing is three files (`arena_view.gd`, `arena_effects.gd`, `number_motion.gd`), and the Wall, orbs, shockwaves and land mines live in `src/tower/battle_defences.gd`, out of `battle_sim.gd`, and since D117 each enemy kind's maths is in `enemy_kinds.gd` and wave-making in `battle_spawns.gd`.
 
 ## How to measure
 
+- **D118 (29 September):** `bash run_tests.sh` passes (4112 checks: 17 new, including every row at levels 0, 1, half and max reading exactly its Workshop value, the order of adds and multipliers, the four hard caps, and refused effects). The boot is clean. `sim_runs.gd` printed identically in D117's five scenarios. A 40-run core career took 88 s against 86 s on `main`.
 - **D117 (28 September):** `bash run_tests.sh` passes (4092 checks with the split alone, 4095 with the Ray test). The boot is clean. `sim_runs.gd` before and after the split printed identically in five scenarios (D117 lists them). With the Ray's immunity added, the maxed Tier 3 run to wave 450 still printed identically: it only changes runs where a Ray is knocked back, and there it can't move one.
 - **D116's rule corrections (28 September):** `bash run_tests.sh` passes (4092 checks: new ones for Cash by wave to 6,500, a standing Wall taking ranged hits but not a Vampire's drain, the rebuild pushing enemies out, mine crit and heat-up from the data). `import_tower_enemies.mjs` reproduced the committed data byte for byte first, then added only `heat_up_per_hit` and `kill_cash`. The boot is clean. Fresh runs and a 40-run core career print identically; the Workshop runs are in D116. `capture_battle.gd` ran; no capture shows a ranged shot at the Wall, so that drawing is tested but not seen. The review was the author's own, not independent.
 - **D115 (28 September):** `bash run_tests.sh` passes (4073 checks, with tests for the Protector, elites, the Vampire, Ray and Scatter, ageing and Wave Info). `import_tower_enemies.mjs` regenerated the data. Fresh runs (10 seeds) and a 40-run core career print identically to before; Tier 1–2 Workshops before and after are in D115; the `battle_invaders` and `battle_wave_info` captures were checked by eye. Tier 3 at level 25 and a maxed Tier 1 run through waves 480–1,300 are in D115. Maxed Tier 2 and 3 runs through the Protector and elite waves are in D115 too. Still running at this commit: the spawn check past wave 4,000. Not played.
@@ -157,7 +158,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D117), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D118), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.
