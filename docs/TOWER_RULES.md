@@ -25,7 +25,7 @@
 | What a wave fixes when it starts | Health, attack, rewards, spawn chances and when any special spawn lands are all set once as a wave starts, not per enemy (SDK, `NewWave`) | Same: `_schedule_wave` rolls the wave, and enemies take the wave's level | Built |
 | Spawn rolls | Every 0.125 s of the spawning window the game rolls against the wave's spawn rate (0–100), plus a double-spawn chance of 5 + tier ÷ 2.85 | Same (D113, D114) | Built |
 | **Enemies per successful roll** | The SDK reads the game's code as three spawn sites per roll: one enemy for sure, a second 80% of the time, and a third only under a battle condition. That makes **about 1.86 enemies per successful roll** | About 1.06 per roll (D114), because the owner's wave-22 battle report dealt about as much damage as that many enemies hold. The SDK's reading would need nearly twice the damage | **Conflict.** D114 stands until a wave's enemies are counted in the game |
-| **Spawn rate below wave 1,000** | The only reading is the owner's: 15 at wave 22. Patch notes say the rate "grows" in steps (tournaments above wave 50; every tier above wave 3,000). From 1,000: the SDK's chart, 37 up to 56 at 6,500 | Our 5 at wave 1, straight lines to 15 at 22 and 37 at 1,000 | **Unknown.** The biggest open wave number |
+| **Spawn rate below wave 1,000** | The community's Spawn Rate to Wave Count chart (the owner, 29 September): 10 at wave 1 up to 37 at 1,000, agreeing with the owner's 15 at wave 22 and the SDK from 1,000 | The chart (D118) | Built. **How many rolls a wave gets is now the open number** (D118) |
 | **Type mix by wave** | The game rewrites the tank and protector chances every wave, and the base fast and ranged chances live in its scene files, so the SDK can't recover them. Evidence the mix grows with the wave: the SDK's wave-1 panel shows about 3/3/3, the owner's wave 22 shows 7/6/2, and a measured Tier 21 round (waves 600–4,875) killed about 20% basic, 28% fast, 27% tank and 25% ranged. The wiki: "the spawn rates and chance for non-basic enemies increase with each wave" | The owner's wave-22 mix (85/7/6/2) at every wave | **Gap and unknown.** Early waves get too many specials and later waves far too few. Needs Wave Info readings |
 | Enemy caps | 150 on the field: 120 normal, 20 elite and 10 boss. Protectors at most 10; each elite type at most 8 | Same (D115) | Built |
 | Boss waves | Every 10th wave, one boss (more from Tier 14). Tier 7+ bosses land at a random 5–75% of the wave; Tiers 1–6 at a fixed moment the sources don't give | A boss at the start of the wave | Built; the timing is **unknown** |
@@ -127,7 +127,7 @@
 
 Each replaces a guess or settles a conflict above. Wave Info (tap the wave counter) shows most of them.
 
-1. **Spawn rate at waves 1, 50 and 100.** Replaces our straight lines.
+1. ~~Spawn rate at waves 1, 50 and 100~~: the chart gives it (D118). Instead: **how many seconds into a wave new enemies stop appearing**, or a count of one wave's enemies at wave 50 or 100, to settle how many spawn rolls a wave gets.
 2. **The spawn chances (the type mix) at waves 1, 50 and 100.** Settles whether and how the mix grows.
 3. **A basic enemy's health at wave 30 or 50.** Says whether the health drift keeps going.
 4. **How many enemies one wave sends** (count wave 1, or read kills off a battle report). Settles 1.06 against 1.86 enemies a roll.

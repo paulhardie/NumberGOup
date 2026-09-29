@@ -1682,6 +1682,27 @@ Rules:
 - **Measured, the split:** `sim_runs.gd` printed identically, run for run, before and after: fresh runs (10 seeds), a 40-run core career, Tier 2 at level 20 (3 seeds), every group at level 25 for 3 hours (2 seeds), and a maxed Tier 3 Workshop to wave 450 (2 seeds, through the Protectors).
 - **Then, one change in play:** the Ray is **immune to Knockback**, as The Tower's is (the wiki and the patch notes); before, it was only very heavy (476 basics). The knockback roll is still made, so no other enemy's run changes. Only runs that meet a Ray (elite waves, from Tier 1 wave 500) can differ.
 
+## D118 — The spawn rate is The Tower's chart at every wave
+
+- **Status:** Accepted (2026-09-29) on owner direction, pointing to the community's "Spawn Rate to Wave Count" chart: "Look at the left table. Spawn rates are there." **Open:** how many spawn rolls a wave gets (below), for the owner.
+- **Decision:** `TowerData.spawn_rate` reads the chart's Standard column, in steps from the wave each rate starts: 10 at wave 1, 11 from 3, 15 from 6, 17 from 40, 19 from 60, 20 from 80, 22 from 100, then up to 37 at 1,000 and 56 at 6,500. It is transcribed in `tools/import_tower_enemies.mjs`, which checks it against the SDK's chart (every row from wave 1,000 agrees; the chart adds 38 at 1,250) and against the owner's Wave Info (15 at wave 22, agreed). It replaces D114's 5 at wave 1 and straight lines. The chart prints 34 at both 600 and 750; kept as printed. Its other columns are the Wave Accelerator card's, not built.
+- **The conflict it opens.** With the chart's rates, D114's 208 rolls a wave (every 1/8 s of a 26-second window) send about 22 enemies on wave 1 and 49 on wave 100. Two readings of the owner's say wave 1 is about half that: they counted 10–12 enemies, and their wave-22 battle report dealt 16,940 damage, where waves 1–21 would hold about 21,300 health at 208 rolls. At half the rolls (every 1/4 s, or a 13-second window) both fit: 11 on wave 1, and about 11,000 health to wave 21 with the rest overkill. The SDK doesn't settle it: its own model sends more per roll, not fewer.
+- **Measured** (`sim_runs.gd`: fresh runs 20 seeds, a 40-run core career, and every affordable row at level 12, 4 seeds):
+
+| Benchmark | `main` (D114's lines) | Chart, 208 rolls a wave | Chart, 104 rolls a wave | The Tower |
+|---|---|---|---|---|
+| Wave 1 / 22 / 100 enemies | 11 / 33 / 37 | 22 / 33 / 49 | 11 / 17 / 24 | about 11 at wave 1 (owner) |
+| Fresh run, spreading Cash | wave 7 (2–8) | 2 (1–6) | 7 (4–9) | wave 8, with $93 starting Cash |
+| Fresh run, core rows | 3 (2–9) | 2 (1–7) | 3 (2–8) | — |
+| Core career: first run past the wave-10 boss | 9 | 20 | 9 | runs 10–13 |
+| Core career: first run to wave 21 | 16 | 25 | 14 | — |
+| Coins at waves 20–21 | 135–207 | 221–237 | 105–182 | about 162 for wave 22 |
+| Core career, run 40 | wave 27 | 31 | 31 | — |
+| Tier 1, every row at level 12 | waves 96–101 | 95–100 | 100–106 | clears wave 100 |
+
+  - At 208 rolls a fresh career dies on waves 1–2 for its first 17 runs, earning almost nothing: the early game breaks. At 104 it plays as `main` does, and its Coins sit nearer The Tower's.
+- **Where the branch stands:** the chart with 208 rolls, as D114 left the rolls. **Recommend** 104 rolls a wave (`Guesses`, until a reading settles it), since it fits both of the owner's wave-1 and wave-22 readings and keeps the early game The Tower's. Trade-off: late waves send half D114's count (about 62 at wave 6,500, not 124), which the owner's "56% every 1/8th of a second" would not give if that runs all 26 seconds. **The reading that settles it:** how many seconds into a Tower wave new enemies stop appearing, or a count of one wave's enemies at wave 50 or 100.
+
 ## D119 — Every stat is built in one place: Workshop value, effects, hard caps
 
 - **Status:** Accepted (2026-09-29) on owner direction ("yeah please start that"), as TOWER_RULES.md's build item 5 (D116): the foundation Cards (1.1) and Labs (1.2) both need.
@@ -1689,5 +1710,6 @@ Rules:
 - **Decision** (no change in play):
   - **`src/tower/stat_stack.gd`** builds every stat a run reads: the Workshop row's value at its level, plus every "add" effect, times every "multiply" effect, held to The Tower's hard caps (Defense % 98%, Thorns 99%, Shockwave Frequency 7 s, Wall Rebuild 150 s). `BattleSim.stat` reads through it, so the battle, its defences and the run's Upgrade panel all see the same value.
   - Effects are `{stat, op, value, source}`, kept in order; an unknown row or op, or a value that isn't a finite number, is refused.
+  - **A run's starting effects come through `BattleSim`'s constructor**, before the starting Number, its best, the Wall's health and the first Shockwave are worked out from the stats; one added after would leave them on the Workshop's values (the review on #109). `stats` stays open for effects that arrive mid-run, such as Perks, whose effect on what already stands is theirs to decide.
   - **Not built, and why:** The Tower's later stages (a module's add after the multipliers, Enhancements multiplying that) wait for Modules and Enhancements (AGENTS.md law 8). Nothing adds effects yet, so neither the save nor a run's record carries them: when Cards come, a run's record must hold its effects so its replay stays exact (law 6).
 - **Measured:** see the handover's How to measure: every row at levels 0, 1, half and max reads exactly its Workshop value in a test, and `sim_runs.gd` printed identically in the five D117 scenarios.
