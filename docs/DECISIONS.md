@@ -1769,3 +1769,27 @@ Rules:
 
   - The walk speed does nearly all of it; the cooldown's extra 0.3 s barely shows.
   - It narrows D118's question without settling it. At 208 rolls a fresh run with $93 reaches wave 6 (The Tower's: 8) and a career's Coins sit on The Tower's, but a core career takes 20 runs to pass the wave-10 boss (The Tower's players: 10–13). At 104 a fresh run reaches 10–11, past The Tower's, and a career stalls until run 31, since basics pay no Coins.
+
+## D122 — The Tower's type speeds, its ×1 pace and its two-part wave bar
+
+- **Status:** Accepted (2026-09-29) on owner direction: "yes and match the tower", with a Wave Info screen of every type's base speed on a new save's Tier 1 wave 1.
+- **Decision:**
+  - **Type speeds are Wave Info's, as a basic's:** fast 2.10, tank 0.60, ranged 1.20, boss, Protector, Vampire and Ray 0.40, Scatter 0.60 (`import_tower_enemies.mjs`). The SDK's were fast 2.31, tank, boss and Scatter 0.34, ranged 0.56, and the rest 0.22. D121's recording had a fast enemy walking the screen's 2.09×, so the screen is how they move. Tanks now close nearly twice as fast, ranged enemies twice.
+  - **Every game speed runs 1.135 times faster** (`BattleScreen.TOWER_CLOCK`), so our ×1 plays at The Tower's ×1 (D121's recording): a 35-second wave takes 31 real seconds. ×2 and ×5 scale the same; The Tower's own aren't measured, and the SDK says each of its steps has its own factor. The simulation's numbers don't change, only real time.
+  - **The wave bar fills over the 26 seconds of spawning, then again, in the accent, over the 9-second cooldown**, as The Tower's does. The cooldown was always there (no enemies come in it); only the bar didn't show it.
+- **Not changed:** a basic's speed before wave 100 (the long-played save reads 1.03 at 50 and 1.08 at 100; the SDK's rises only from 100, and that save's Wave Accelerator or Labs may explain it).
+- **Measured** (`sim_runs.gd` as in D121; "$93" plays fresh runs with the owner's starting Cash):
+
+| Benchmark | `main` (D121) | This change | `main`, 104 rolls | This change, 104 rolls | The Tower |
+|---|---|---|---|---|---|
+| Fresh run, spreading Cash | wave 5 (1–7) | 3 (1–6) | 6 (5–8) | 6 (4–7) | — |
+| The same, with $93 | 6 (1–10) | 6 (1–9) | 10 (7–11) | 10 (8–11) | wave 8, with $93 |
+| Fresh run, core rows, with $93 | 6 (1–10) | 6 (1–9) | 11 (10–11) | 10 (7–10) | — |
+| Core career: first run past the wave-10 boss | 20 | 20 | 31 | 33 | runs 10–13 |
+| Core career: first run to wave 21 | 26 | 29 | none | none | — |
+| Coins at waves 20–21 | 127–187 | 141–188 | — | — | about 162 for wave 22 |
+| Core career, run 40 | wave 23 | 24 | 19 | 11 | — |
+| Tier 1, every row at level 12 | waves 109–113 | 101–107 | 110–114 | 104–111 | clears wave 100 |
+
+  - Faster tanks and ranged make runs a little harder, most at the level-12 Workshop, which now sits just past wave 100, where The Tower's does.
+  - D118's roll count still reads the same: 208 keeps a career's Coins on The Tower's and a fresh run with $93 at wave 6 (The Tower's 8); 104 overshoots fresh runs (10) and stalls careers.

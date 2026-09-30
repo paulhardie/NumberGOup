@@ -97,6 +97,27 @@ func test_the_mix_follows_the_owners_wave_info() -> void:
 	check(fresh.spawns.tier_mix() == TowerData.mix(100), "and its hundredth, wave 100's")
 
 
+func test_enemies_walk_the_towers_speeds_and_the_clock_runs_its_pace() -> void:
+	# D122: the owner's Wave Info, each type's speed as a basic's.
+	var read := {"fast": 2.1, "tank": 0.6, "ranged": 1.2, "boss": 0.4, "protector": 0.4, "vampire": 0.4, "ray": 0.4, "scatter": 0.6}
+	for kind in read:
+		check_near(TowerData.enemy_speed_m(1, kind) / TowerData.enemy_speed_m(1, "basic"), read[kind], 1e-6, "%s walks at Wave Info's speed" % kind)
+	var screen = BattleScreen.new()
+	root.add_child(screen)
+	screen.set_process(false)
+	screen.sim.levels = {"health": 6000}
+	screen.sim.health = screen.sim.max_health()
+	screen._process(1.0)
+	check(screen.sim.ticks == floori(1.135 / BattleSim.TICK), "a real second at ×1 plays The Tower's 1.135 game seconds: %d ticks" % screen.sim.ticks)
+	screen.sim.wave_clock = TowerData.spawn_seconds() * 0.5
+	screen._refresh()
+	check(is_equal_approx(screen._wave_bar.value, 0.5) and screen._wave_fill.bg_color == screen.WAVE_BAR, "the wave bar fills over the spawning")
+	screen.sim.wave_clock = TowerData.spawn_seconds() + 4.5
+	screen._refresh()
+	check(is_equal_approx(screen._wave_bar.value, 0.5) and screen._wave_fill.bg_color == Palette.ACCENT, "then again, in the accent, over the 9-second cooldown")
+	screen.free()
+
+
 func test_enemy_types_scale_the_basic_enemy() -> void:
 	var wave := 30
 	var basic_health := TowerData.enemy_health(wave, "basic")
