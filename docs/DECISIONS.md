@@ -2066,3 +2066,21 @@ Rules:
     - Rows press and spring, and a buy makes the value pop.
 - **Measured:** nothing to measure; the Workshop's rules are untouched.
 
+## D143 — The battle's lower half in our own layout
+
+- **Status:** Accepted (2026-10-01) on owner direction: "go ahead with the battle's lower half, although don't have them in a single row". It follows D142's Workshop.
+- **Decision** (drawing only; buying goes through BattleSim as before):
+  - **No Tower-style stats strip.**
+    - The Tower readout (its HP bar and "5 / 5", damage and regen) is gone: the Number *is* the tower's health (D080) and already sits in the centre.
+    - The enemy "atk" and "hp" are gone too. They're in Wave Info.
+    - What's left is a slim wave line under the arena: "Wave 13 ›" and The Tower's two-phase bar (D122). Tapping it opens Wave Info.
+  - **The top line sits above the arena, not over it,** so an enemy walking in never passes under the Cash and Coins chips.
+  - **The run's upgrades stay two to a row** (the owner's word), restyled in the Workshop's language:
+    - a segmented switch for the category, with the buy multiplier beside it;
+    - tiles with the row's name, its value and a **price chip lit in the accent when the press can be paid**;
+    - a thin bar under each tile filling as the Cash comes towards the price;
+    - a press, and a pop on the value when it's bought.
+    - Tapping the chosen category again still folds them away (D129).
+  - The run's peak Number no longer shows in the battle; Home and the run-over panel keep it.
+  - Progress bars are exact rather than stepped in hundredths (Godot's default), the Workshop's included.
+

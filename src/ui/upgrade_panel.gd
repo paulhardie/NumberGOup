@@ -1,18 +1,19 @@
 extends VBoxContainer
-## The run's upgrades: Attack, Defense and Utility tabs of the rows this run
-## may buy, each a card with its value and the Cash the buy multiplier's press
-## costs (×1, ×5, ×10 or Max, D018). It
-## asks BattleSim what can be bought and what it costs; it decides nothing.
-## As The Tower's, tapping the tab that's already open folds the cards away,
-## so the battle takes the screen, and tapping any tab brings them back
-## (D129).
+## The run's upgrades: Attack, Defense and Utility of the rows this run may
+## buy, two to a row (D143), each a tile with its value and a price chip lit
+## in the accent when the buy multiplier's press (×1, ×5, ×10 or Max, D018)
+## can be paid, over a bar filling as the Cash comes towards it. A segmented
+## switch picks the category. It asks BattleSim what can be bought and what it
+## costs; it decides nothing. As The Tower's, tapping the chosen category again
+## folds the tiles away, so the battle takes the screen, and tapping any
+## category brings them back (D129).
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Palette = preload("res://src/ui/palette.gd")
 
 const TABS := [["Attack", "attack"], ["Defense", "defense"], ["Utility", "utility"]]
-const CARD_HEIGHT := 76
+const CARD_HEIGHT := 74
 const CARD_GAP := 8
 const ROWS_SHOWN := 3
 ## The buy multiplier's steps; 0 is Max. Presentation only, never saved.
@@ -35,28 +36,36 @@ var _mono := Palette.weight(Palette.NUMBER_FONT, 400)
 
 func _init() -> void:
 	add_theme_constant_override("separation", 14)
-	# The tabs are words underlined when chosen, with the buy multiplier as a
-	# pill at the far end.
+	# A segmented switch for the category, as the Workshop's (D142), with the
+	# buy multiplier as a pill beside it.
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 10)
+	add_child(head)
+	var switch := PanelContainer.new()
+	switch.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	var track := Palette.pill_box(Color(1, 1, 1, 0.04), Color(1, 1, 1, 0.05), 3)
+	track.content_margin_top = 3
+	track.content_margin_bottom = 3
+	switch.add_theme_stylebox_override("panel", track)
+	head.add_child(switch)
 	var tabs := HBoxContainer.new()
-	tabs.add_theme_constant_override("separation", 22)
-	add_child(tabs)
+	tabs.add_theme_constant_override("separation", 2)
+	switch.add_child(tabs)
 	for tab in TABS:
 		var button := Button.new()
 		button.text = tab[0]
-		Palette.style_tab(button)
+		Palette.style_segment(button)
 		button.pressed.connect(_tab_pressed.bind(tab[1]))
 		tabs.add_child(button)
 		_tab_buttons[tab[1]] = button
-	var gap := Control.new()
-	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tabs.add_child(gap)
 	_amount_button = Palette.amount_pill(_mono)
+	Palette.press(_amount_button)
 	_amount_button.text = "buy ×1"
 	_amount_button.pressed.connect(func():
 		_amount = AMOUNTS[(AMOUNTS.find(_amount) + 1) % AMOUNTS.size()]
 		_amount_button.text = "buy max" if _amount == 0 else "buy ×%d" % _amount
 		refresh())
-	tabs.add_child(_amount_button)
+	head.add_child(_amount_button)
 	# A fixed height that scrolls, so a tab with many rows never pushes the
 	# arena off the screen: three rows of cards show at once.
 	var scroll := ScrollContainer.new()
@@ -120,50 +129,97 @@ func show_tab(tab: String) -> void:
 func refresh() -> void:
 	for id in _cards:
 		var card: Dictionary = _cards[id]
+		var maxed := sim.at_max(id)
 		card.value.text = Palette.row_value(id, sim.stat(id))
-		card.price.text = "MAX" if sim.at_max(id) else Palette.quote(sim.plan(id, _amount), sim.price(id), "$")
+		card.price.text = "MAX" if maxed else Palette.quote(sim.plan(id, _amount), sim.price(id), "$")
 		var affordable := sim.can_buy(id, _amount)
 		card.button.disabled = not affordable
-		card.price.add_theme_color_override("font_color", Palette.ACCENT if affordable else Palette.MUTED)
+		Palette.style_price_chip(card.chip, affordable, Palette.ACCENT)
+		card.bar.value = 1.0 if maxed else toward(sim.cash, _target(id))
+		(card.bar.get_theme_stylebox("fill") as StyleBoxFlat).bg_color = Palette.ACCENT if affordable or maxed else Color(Palette.ACCENT, 0.35)
 
 
-## A card: the row's name small at the top, its value large at the bottom
-## left and the Cash the press costs at the bottom right.
+## The Cash the multiplier's press on `id` costs now, or the next level's
+## price when it can't be planned.
+func _target(id: String) -> float:
+	var buying := sim.plan(id, _amount)
+	return float(buying.cost) if int(buying.levels) > 0 else sim.price(id)
+
+
+## How far `cash` has come towards `target`, 0 to 1.
+static func toward(cash: float, target: float) -> float:
+	if target <= 0.0:
+		return 1.0
+	if not is_finite(target):
+		return 0.0
+	return clampf(cash / target, 0.0, 1.0)
+
+
+## A tile (D143): the row's name small at the top, its value large at the
+## bottom left with the price chip at the bottom right, and a thin bar along
+## the foot filling towards the price. A buy pops the value.
 func _card(id: String) -> Button:
 	var button := Button.new()
 	button.custom_minimum_size = Vector2(0, CARD_HEIGHT)
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.focus_mode = Control.FOCUS_NONE
 	Palette.style_card(button)
-	button.pressed.connect(func():
-		sim.buy(id, _amount)
-		refresh())
+	Palette.press(button)
 	var inside := VBoxContainer.new()
 	inside.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	inside.offset_left = 14
-	inside.offset_right = -14
-	inside.offset_top = 12
-	inside.offset_bottom = -12
+	inside.offset_right = -12
+	inside.offset_top = 10
+	inside.offset_bottom = -8
+	inside.add_theme_constant_override("separation", 5)
 	inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(inside)
 	var title := Label.new()
 	title.text = Palette.row_title(id)
 	title.add_theme_font_size_override("font_size", 12)
-	title.add_theme_color_override("font_color", Palette.MUTED)
+	title.add_theme_color_override("font_color", Palette.SOFT)
 	title.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	title.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	title.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	inside.add_child(title)
 	var line := HBoxContainer.new()
+	line.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	inside.add_child(line)
 	var value := _number_label(18, Palette.TEXT)
 	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	var price := _number_label(12, Palette.ACCENT)
+	value.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	line.add_child(value)
-	line.add_child(price)
-	_cards[id] = {"button": button, "value": value, "price": price}
+	var chip := Palette.price_chip(Palette.weight(Palette.NUMBER_FONT, 600), 12)
+	line.add_child(chip.panel)
+	var bar := ProgressBar.new()
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 2)
+	bar.max_value = 1.0
+	# Exact, not rounded to hundredths.
+	bar.step = 0.0
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var back := StyleBoxFlat.new()
+	back.bg_color = Color(1, 1, 1, 0.05)
+	bar.add_theme_stylebox_override("background", back)
+	bar.add_theme_stylebox_override("fill", StyleBoxFlat.new())
+	inside.add_child(bar)
+	button.pressed.connect(func():
+		if sim.buy(id, _amount):
+			_pop(value)
+		refresh())
+	_cards[id] = {"button": button, "value": value, "price": chip.label, "chip": chip, "bar": bar}
 	return button
+
+
+## A value that just went up springs a little, so a buy is felt.
+func _pop(label: Label) -> void:
+	if not label.is_inside_tree():
+		return
+	label.pivot_offset = label.size * 0.5
+	var tween := label.create_tween()
+	tween.tween_property(label, "scale", Vector2.ONE * 1.08, 0.07).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_property(label, "scale", Vector2.ONE, 0.16).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _number_label(font_size: int, colour: Color) -> Label:

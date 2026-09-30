@@ -244,30 +244,6 @@ static func pill(text: String, colour: Color, font: Font = null, height: int = 3
 	return button
 
 
-## A tab: a word, underlined in the accent when chosen.
-static func style_tab(button: Button) -> void:
-	button.toggle_mode = true
-	button.custom_minimum_size = Vector2(0, 44)
-	button.add_theme_font_size_override("font_size", 14)
-	for state in ["normal", "hover", "focus", "disabled"]:
-		button.add_theme_stylebox_override(state, _underline(Color(0, 0, 0, 0)))
-	button.add_theme_stylebox_override("pressed", _underline(ACCENT))
-	button.add_theme_stylebox_override("hover_pressed", _underline(ACCENT))
-	button.add_theme_color_override("font_color", MUTED)
-	button.add_theme_color_override("font_hover_color", SOFT)
-	button.add_theme_color_override("font_pressed_color", TEXT)
-	button.add_theme_color_override("font_hover_pressed_color", TEXT)
-	button.add_theme_color_override("font_focus_color", MUTED)
-
-
-static func _underline(colour: Color) -> StyleBoxFlat:
-	var box := StyleBoxFlat.new()
-	box.bg_color = Color(0, 0, 0, 0)
-	box.border_color = colour
-	box.border_width_bottom = 2
-	return box
-
-
 ## The buy multiplier: a quiet filled pill, "buy ×1".
 static func amount_pill(font: Font) -> Button:
 	var button := Button.new()

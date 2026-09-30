@@ -402,18 +402,21 @@ func test_pressing_an_upgrade_card_buys_it() -> void:
 	check(screen.sim.run_levels.get("damage", 0) == 1, "pressing Damage buys a level")
 	check_near(screen.sim.cash, 0.0, 0.0, "for $10")
 	check(card.disabled, "and the card greys out once Cash runs short")
-	screen.sim.health = screen.sim.max_health()
-	screen.sim.run_levels = {"health": 2}
-	screen.sim.health = screen.sim.max_health()
-	screen._refresh()
-	check(screen._health_text.text.begins_with("15 / "), "full health 15.08 reads 15: %s" % screen._health_text.text)
-	screen.sim.health = 0.3
-	screen._refresh()
-	check(screen._health_text.text.begins_with("1 / "), "a tower still standing never reads 0: %s" % screen._health_text.text)
-	screen.sim.health = screen.sim.max_health() * 1.5
-	screen._refresh()
-	check(screen._health_text.text.begins_with(Palette.full(roundf(screen.sim.health))), "overhealed health reads above the most: %s" % screen._health_text.text)
-	check(screen._health_bar.value == screen._health_bar.max_value, "and the bar is full")
+	# The Number is the tower's health, shown only in the centre since D143;
+	# the rule it's shown by, as the old readout was.
+	check(Palette.number_shown(15.08, 15.08, true) == 15.0, "full health 15.08 reads 15")
+	check(Palette.number_shown(0.3, 15.08, true) == 1.0, "a tower still standing never reads 0")
+	check(Palette.number_shown(22.6, 15.08, true) == 23.0, "overhealed health reads above the most")
+	# D143: the lit price and its bar, as the Workshop's.
+	screen.sim.cash = 5.0
+	screen._upgrades.refresh()
+	var damage: Dictionary = screen._upgrades._cards["damage"]
+	check(damage.price.get_theme_color("font_color") == Palette.MUTED and is_equal_approx(damage.bar.value, 5.0 / screen.sim.price("damage")), "a price out of reach is dim, its bar part-way")
+	screen.sim.cash = 1000.0
+	screen._upgrades.refresh()
+	check(damage.price.get_theme_color("font_color") == Palette.ACCENT and damage.bar.value == 1.0, "and lit, its bar full, once it can be paid")
+	check(screen._upgrades._grid.columns == 2, "the tiles stay two to a row")
+	check(screen.find_children("*", "Label", true, false).filter(func(label): return label.text.begins_with("dmg ") or label.text.begins_with("atk ")).is_empty(), "no Tower-style stats strip")
 	screen._upgrades.show_tab("utility")
 	check(screen._upgrades._cards.is_empty() and screen._upgrades._empty.visible, "Utility says its rows open in the Workshop")
 	screen.free()

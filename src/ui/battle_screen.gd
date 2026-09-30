@@ -1,8 +1,10 @@
 extends Control
-## The battle, laid out as the owner's main-screen design: Cash, Coins and the
-## speed and End run pills over the arena, the Number large in its light, the
-## tower's and the wave's readouts under a hairline, then the run's upgrades. It runs the sim at the chosen game speed and draws
-## it; every rule lives in BattleSim. A run starts from the Workshop, and the
+## The battle (premium minimal since D143): Cash, Coins and the speed and End
+## run pills along the top, the arena with the Number large in its light, a
+## slim wave line under it (tap for Wave Info), then the run's upgrades. No
+## Tower-style stats strip: the Number is the tower's health, and the rest
+## lives in Wave Info and on the upgrade cards. It runs the sim at the chosen
+## game speed and draws it; every rule lives in BattleSim. A run starts from the Workshop, and the
 ## Coins it earns go into the Workshop as they come. A run saved mid-way is
 ## resumed from exact state (D126); older saves replay their inputs (D078).
 
@@ -77,13 +79,7 @@ var _arena: ArenaView
 var _cash: Label
 var _coins: Label
 var _speed_button: Button
-var _tower_damage: Label
-var _tower_regen: Label
-var _health_bar: ProgressBar
-var _health_text: Label
 var _wave_title: Label
-var _enemy_attack: Label
-var _enemy_health: Label
 var _wave_bar: ProgressBar
 ## The wave bar's fill, recoloured for the cooldown.
 var _wave_fill: StyleBoxFlat
@@ -262,14 +258,7 @@ func _bank_coins() -> void:
 func _refresh() -> void:
 	_cash.text = "$ " + Palette.money(sim.cash)
 	_coins.text = "● " + Palette.money(workshop.coins)
-	_tower_damage.text = "dmg " + Palette.row_value("damage", sim.stat("damage"))
-	_tower_regen.text = "+%.2f/s" % sim.stat("health_regen")
-	# The Number against this run's peak (D083: it has no ceiling).
-	_health_bar.max_value = maxf(sim.peak_number, 0.001)
-	_health_bar.value = sim.health
-	var now := Palette.number_shown(sim.health, sim.max_health(), sim.alive)
-	_health_text.text = "%s / %s" % [Palette.full(now), Palette.full(maxf(now, roundf(sim.peak_number)))]
-	# The › says the readout opens Wave Info.
+	# The › says the wave line opens Wave Info.
 	_wave_title.text = "Wave %d  ›" % sim.wave
 	# As The Tower's (D122): the bar fills over the spawning, then again, in
 	# the accent, over the cooldown.
@@ -277,9 +266,6 @@ func _refresh() -> void:
 	var cooling := sim.wave_clock >= spawn
 	var through := (sim.wave_clock - spawn) / (TowerData.wave_seconds() - spawn) if cooling else sim.wave_clock / spawn
 	_wave_fill.bg_color = Palette.ACCENT if cooling else WAVE_BAR
-	# The basic enemy's Attack and Health this wave, as values, not multipliers.
-	_enemy_attack.text = "atk " + Palette.amount(sim.enemy_attack_now("basic"))
-	_enemy_health.text = "hp " + Palette.amount(sim.enemy_health_now("basic"))
 	_wave_bar.value = clampf(through, 0.0, 1.0)
 	if _wave_info.visible:
 		_wave_info.show_for(sim)
@@ -327,24 +313,15 @@ func _build() -> void:
 	column.add_theme_constant_override("separation", 0)
 	add_child(column)
 
-	_arena = ArenaView.new()
-	_arena.digit_reached.connect(func(power: int): digit_reached.emit(power))
-	_arena.clip_contents = true
-	_arena.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	_arena.custom_minimum_size = Vector2(0, 320)
-	_arena.resized.connect(func(): _arena.centre = Vector2(_arena.size.x * 0.5, _arena.size.y * 0.55))
-	column.add_child(_arena)
-
-	# One line over the arena: Cash and Coins at the same size on the left,
-	# the speed and End run pills on the right, all centred on the pills.
+	# One line along the top, above the arena rather than over it, so an
+	# enemy walking in never passes under the chips (D143): Cash and Coins on
+	# the left, the speed and End run pills on the right.
 	var top := HBoxContainer.new()
-	top.set_anchors_and_offsets_preset(Control.PRESET_TOP_WIDE)
-	top.offset_left = 20
-	top.offset_right = -20
-	top.offset_top = 20
 	top.custom_minimum_size = Vector2(0, 36)
 	top.add_theme_constant_override("separation", 8)
-	_arena.add_child(top)
+	var top_margin := _margined(top, 4)
+	top_margin.add_theme_constant_override("margin_top", 20)
+	column.add_child(top_margin)
 	var money := Palette.money_line(_mono_bold)
 	top.add_child(money.line)
 	_cash = money.cash
@@ -361,16 +338,19 @@ func _build() -> void:
 			sim.end_run())
 	top.add_child(end)
 
-	var readouts := HBoxContainer.new()
-	readouts.add_theme_constant_override("separation", 28)
-	var readout_margin := _margined(readouts)
-	readout_margin.add_theme_constant_override("margin_top", 16)
-	readout_margin.add_theme_constant_override("margin_bottom", 16)
-	column.add_child(_hairline())
-	column.add_child(readout_margin)
-	readouts.add_child(_tower_panel())
-	readouts.add_child(_wave_panel())
-	column.add_child(_hairline())
+	_arena = ArenaView.new()
+	_arena.digit_reached.connect(func(power: int): digit_reached.emit(power))
+	_arena.clip_contents = true
+	_arena.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	_arena.custom_minimum_size = Vector2(0, 320)
+	_arena.resized.connect(func(): _arena.centre = Vector2(_arena.size.x * 0.5, _arena.size.y * 0.52))
+	column.add_child(_arena)
+
+	# The wave line: its number (tap for Wave Info) and The Tower's two-phase
+	# bar (D122), in place of the old Tower and Wave readouts (D143).
+	var wave_margin := _margined(_wave_line(), 14)
+	wave_margin.add_theme_constant_override("margin_top", 10)
+	column.add_child(wave_margin)
 
 	_upgrades = UpgradePanel.new()
 	var upgrades_margin := _margined(_upgrades, 24)
@@ -459,69 +439,33 @@ func _first_sight(delta: float) -> void:
 		_sight.visible = true
 
 
-func _tower_panel() -> VBoxContainer:
-	var parts := _readout("Tower", Palette.ACCENT)
-	_health_text = parts.value
-	_health_bar = parts.bar
-	_tower_damage = parts.left
-	_tower_regen = parts.right
-	return parts.column
-
-
-func _wave_panel() -> VBoxContainer:
-	var parts := _readout("Wave 1", WAVE_BAR)
-	_wave_title = parts.title
-	# Only the bar says how far through the wave is; a ticking count was noise.
-	parts.value.visible = false
-	_wave_bar = parts.bar
+## The wave's number and its bar on one slim line. A tap anywhere on it
+## opens Wave Info, as The Tower's wave readout does.
+func _wave_line() -> HBoxContainer:
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 14)
+	line.mouse_filter = Control.MOUSE_FILTER_STOP
+	_wave_title = Label.new()
+	_wave_title.text = "Wave 1  ›"
+	_wave_title.add_theme_font_override("font", Palette.weight(Palette.WORD_FONT, 500))
+	_wave_title.add_theme_font_size_override("font_size", 13)
+	_wave_title.add_theme_color_override("font_color", Palette.SOFT)
+	_wave_title.mouse_filter = Control.MOUSE_FILTER_PASS
+	line.add_child(_wave_title)
+	_wave_bar = _bar(WAVE_BAR)
+	_wave_bar.custom_minimum_size = Vector2(0, 3)
+	_wave_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_wave_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	_wave_bar.max_value = 1.0
+	_wave_bar.mouse_filter = Control.MOUSE_FILTER_PASS
 	_wave_fill = _wave_bar.get_theme_stylebox("fill") as StyleBoxFlat
-	_enemy_attack = parts.left
-	_enemy_health = parts.right
-	# A tap anywhere on it opens Wave Info, as The Tower's wave readout does.
-	parts.column.mouse_filter = Control.MOUSE_FILTER_STOP
-	for child in parts.column.find_children("*", "Control", true, false):
-		(child as Control).mouse_filter = Control.MOUSE_FILTER_PASS
-	parts.column.gui_input.connect(func(event: InputEvent):
+	line.add_child(_wave_bar)
+	line.gui_input.connect(func(event: InputEvent):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and sim != null:
 			_wave_info.visible = not _wave_info.visible
 			if _wave_info.visible:
 				_wave_info.show_for(sim))
-	return parts.column
-
-
-## One readout: a title and a figure, a thin bar in `colour`, and two small
-## figures under it. Returns its pieces by name.
-func _readout(title_text: String, colour: Color) -> Dictionary:
-	var column := VBoxContainer.new()
-	column.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	column.add_theme_constant_override("separation", 8)
-	var head := HBoxContainer.new()
-	column.add_child(head)
-	var title := Label.new()
-	title.text = title_text
-	title.add_theme_font_size_override("font_size", 13)
-	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(title)
-	var value := _number_label(12, Palette.MUTED)
-	head.add_child(value)
-	var bar := _bar(colour)
-	bar.custom_minimum_size = Vector2(0, 3)
-	column.add_child(bar)
-	var foot := HBoxContainer.new()
-	column.add_child(foot)
-	var left := _number_label(11, Palette.MUTED)
-	left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	var right := _number_label(11, Palette.MUTED)
-	right.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	foot.add_child(left)
-	foot.add_child(right)
-	return {"column": column, "title": title, "value": value, "bar": bar, "left": left, "right": right}
-
-
-## A thin line across the screen between the arena, the readouts and the upgrades.
-func _hairline() -> MarginContainer:
-	return _margined(Palette.hairline())
+	return line
 
 
 func _bar(colour: Color) -> ProgressBar:
@@ -536,15 +480,6 @@ func _bar(colour: Color) -> ProgressBar:
 	bar.add_theme_stylebox_override("background", back)
 	bar.add_theme_stylebox_override("fill", fill)
 	return bar
-
-
-func _number_label(font_size: int, colour: Color, font: Font = null, text: String = "") -> Label:
-	var label := Label.new()
-	label.text = text
-	label.add_theme_font_override("font", font if font != null else _mono)
-	label.add_theme_font_size_override("font_size", font_size)
-	label.add_theme_color_override("font_color", colour)
-	return label
 
 
 func _margined(child: Control, bottom: int = 0) -> MarginContainer:
