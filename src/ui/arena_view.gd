@@ -40,8 +40,10 @@ const NUMBER_MIN_PX := 28
 ## Without it a four-digit Number covered 22 of a 30 m range, and with orbs
 ## zooming the view out it stood wider than the ring.
 const NUMBER_RING_SHARE := 0.6
-## The range as the design draws its ring: a hairline, barely there.
-const RANGE_LINE := Color(1, 1, 1, 0.06)
+## The range as the design draws its ring: a hairline, now bright enough to
+## read against the light (D128; it was 6%, and hard to find).
+const RANGE_LINE := Color(1, 1, 1, 0.16)
+const RANGE_LINE_PX := 1.25
 ## Enemies at the tower are drawn this clear of the Number's digits, which is
 ## only drawing: the sim's contact distance is unchanged.
 const CONTACT_GAP_PX := 3.0
@@ -66,24 +68,29 @@ const WALL_RISE_SECONDS := 0.4
 
 ## How each enemy type is drawn (D085): its cut of the crowd's typeface
 ## (Anybody's width and weight; the Divider has Fraunces to itself), its size
-## in points, and its colour.
+## in points, and its colour. Two points larger since D128, in the room the
+## dropped − left.
 const LOOKS := {
-	"basic": {"axes": {"wdth": 100, "wght": 650}, "size": 14, "colour": Palette.ENEMY},
-	"fast": {"axes": {"wdth": 62, "wght": 720}, "slant": 0.21, "size": 13, "colour": Palette.FAST},
-	"tank": {"axes": {"wdth": 150, "wght": 900}, "size": 18, "colour": Palette.TANK},
-	"ranged": {"axes": {"wdth": 125, "wght": 380}, "spacing": 1, "size": 14, "colour": Palette.RANGED},
-	"boss": {"axes": {"wdth": 150, "wght": 900}, "size": 24, "colour": Palette.BOSS, "glow": Palette.BOSS_GLOW, "flash": Palette.BOSS_GLOW},
-	"divider": {"axes": {"opsz": 48, "wght": 640, "WONK": 0, "SOFT": 0}, "divider": true, "size": 18, "colour": Palette.DIVIDER,
+	"basic": {"axes": {"wdth": 100, "wght": 650}, "size": 16, "colour": Palette.ENEMY},
+	"fast": {"axes": {"wdth": 62, "wght": 720}, "slant": 0.21, "size": 15, "colour": Palette.FAST},
+	"tank": {"axes": {"wdth": 150, "wght": 900}, "size": 20, "colour": Palette.TANK},
+	"ranged": {"axes": {"wdth": 125, "wght": 380}, "spacing": 1, "size": 16, "colour": Palette.RANGED},
+	"boss": {"axes": {"wdth": 150, "wght": 900}, "size": 26, "colour": Palette.BOSS, "glow": Palette.BOSS_GLOW, "flash": Palette.BOSS_GLOW},
+	"divider": {"axes": {"opsz": 48, "wght": 640, "WONK": 0, "SOFT": 0}, "divider": true, "size": 20, "colour": Palette.DIVIDER,
 		"glow": Palette.DIVIDER},
-	"protector": {"axes": {"wdth": 150, "wght": 560}, "spacing": 1, "size": 16, "colour": Palette.PROTECTOR},
-	"vampire": {"axes": {"wdth": 90, "wght": 900}, "size": 17, "colour": Palette.VAMPIRE, "glow": Palette.VAMPIRE},
-	"ray": {"axes": {"wdth": 50, "wght": 800}, "size": 17, "colour": Palette.RAY, "glow": Palette.RAY},
-	"scatter": {"axes": {"wdth": 120, "wght": 800}, "size": 16, "colour": Palette.SCATTER, "glow": Palette.SCATTER},
+	"protector": {"axes": {"wdth": 150, "wght": 560}, "spacing": 1, "size": 18, "colour": Palette.PROTECTOR},
+	"vampire": {"axes": {"wdth": 90, "wght": 900}, "size": 19, "colour": Palette.VAMPIRE, "glow": Palette.VAMPIRE},
+	"ray": {"axes": {"wdth": 50, "wght": 800}, "size": 19, "colour": Palette.RAY, "glow": Palette.RAY},
+	"scatter": {"axes": {"wdth": 120, "wght": 800}, "size": 18, "colour": Palette.SCATTER, "glow": Palette.SCATTER},
 }
+## An enemy that gives up its spot in a crowd (D127) is a dot this size in its
+## colour, or its ÷ if it's a Divider (D128).
+const CROWD_DOT_PX := 3.0
 ## When enemies' numbers would overlap (D127), the most pressing in each spot
 ## is written in full: bosses and Dividers first, then elites, then
 ## Protectors, then the nearest. Others just like it there count on its label
-## (−16 ×4); anything else there shows only its sign, − or ÷, in its own look.
+## (16 ×4); anything else there shows only a dot in its colour, or a
+## Divider's ÷ (D128).
 const LABEL_RANK := {"boss": 0, "divider": 0, "vampire": 1, "ray": 1, "scatter": 1, "protector": 2}
 ## Labels closer than this count as touching.
 const LABEL_GAP_PX := 2.0
@@ -242,7 +249,7 @@ func _draw() -> void:
 		var from := _number_half.length()
 		var eased := 1.0 - pow(1.0 - spread, 3.0)
 		draw_arc(centre, lerpf(from, reach_px * 0.95, eased), 0.0, TAU, 128, Color(Palette.NUMBER, 0.5 * (1.0 - spread)), 1.5, true)
-	draw_arc(centre, reach_px, 0.0, TAU, 128, RANGE_LINE, 1.0, true)
+	draw_arc(centre, reach_px, 0.0, TAU, 128, RANGE_LINE, RANGE_LINE_PX, true)
 	effects.draw_shockwave(reach_px)
 	for mine in sim.defences.mines:
 		draw_circle(to_view(mine), 3.0, Palette.WARNING)
@@ -436,11 +443,15 @@ func _draw_enemy(enemy: BattleSim.Enemy, label: Dictionary) -> void:
 	if label.shown == "counted":
 		return
 	var look: Dictionary = LOOKS[enemy.kind]
-	var text: String = label.text if label.shown == "full" else String(label.text).left(1)
-	var half: Vector2 = label.half if label.shown == "full" else enemy_half(enemy.kind, text)
 	var at: Vector2 = label.at
 	# A new enemy fades in over its first metres.
 	var shade := clampf((Guesses.SPAWN_DISTANCE_M - enemy.distance) / FADE_IN_M, 0.0, 1.0)
+	if label.shown == "sign" and enemy.kind != "divider":
+		draw_circle(at, CROWD_DOT_PX + HALO_PX * 0.5, Color(HALO, HALO.a * shade))
+		draw_circle(at, CROWD_DOT_PX, Color(look.colour, shade))
+		return
+	var text: String = label.text if label.shown == "full" else String(label.text).left(1)
+	var half: Vector2 = label.half if label.shown == "full" else enemy_half(enemy.kind, text)
 	var font: Font = cuts[enemy.kind]
 	var font_size: int = look.size
 	var baseline := at + Vector2(-half.x, font_size * 0.35)
@@ -588,14 +599,16 @@ static func dealt_text(enemy: BattleSim.Enemy) -> String:
 
 ## What an enemy does: its next hit off the Number, after the tower's
 ## defences and growing 4% a hit (so it ticks up while it stands there), a
-## Divider's ÷, or a Vampire's drain, a share of Health a second (D115).
+## Divider's ÷, or a Vampire's drain, a share of Health a second (D115). A
+## hit is written bare, without its −, since every enemy but the Divider
+## takes away (D128); the Divider keeps its ÷, since it's the one that differs.
 static func operation_text(battle: BattleSim, enemy: BattleSim.Enemy) -> String:
 	if enemy.kind == "divider":
 		return "÷" + divisor_text(enemy.divisor)
 	if enemy.kind == "vampire":
 		var share := snappedf(100.0 * float(TowerData.enemies().elites.vampire_drain), 0.1)
-		return "−%s%%/s" % (str(roundi(share)) if is_equal_approx(share, roundf(share)) else String.num(share, 1))
-	return "−" + Palette.amount(battle.landed_damage(enemy.attack * pow(TowerData.heat_up_per_hit(), enemy.hits)))
+		return "%s%%/s" % (str(roundi(share)) if is_equal_approx(share, roundf(share)) else String.num(share, 1))
+	return Palette.amount(battle.landed_damage(enemy.attack * pow(TowerData.heat_up_per_hit(), enemy.hits)))
 
 
 ## The nearest Divider inside the range and what it will leave: {sign, after},

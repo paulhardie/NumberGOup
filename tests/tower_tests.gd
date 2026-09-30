@@ -1964,7 +1964,7 @@ func test_vampire_drains_and_stops_regen() -> void:
 	check(sim.draining, "a Vampire in range drains")
 	check_near(start - sim.health, sim.max_health() * 0.02, sim.max_health() * 0.0005, "2%% of Health over a second, with no Regen: lost %s" % (start - sim.health))
 	check(float(sim.lost_to.get("vampire", 0.0)) > 0.0, "and it's booked as the Vampire's")
-	check(ArenaView.shown_text(sim, vampire) == "−2%/s", "it shows its drain, not a hit: %s" % ArenaView.shown_text(sim, vampire))
+	check(ArenaView.shown_text(sim, vampire) == "2%/s", "it shows its drain, not a hit, bare as every hit is (D128): %s" % ArenaView.shown_text(sim, vampire))
 	sim._kill(vampire)
 	sim._enemies_hit()
 	var healed := sim.health
@@ -2333,19 +2333,19 @@ func test_an_enemy_shows_what_it_does() -> void:
 	var basic := _place(sim, "basic", 20.0)
 	basic.attack = 20.0
 	var first := sim.landed_damage(20.0)
-	check(ArenaView.shown_text(sim, basic) == "−" + Palette.amount(first), "walking in, it shows what its hit will take, after defences (D102): %s" % ArenaView.shown_text(sim, basic))
+	check(ArenaView.shown_text(sim, basic) == Palette.amount(first), "walking in, it shows what its hit will take, after defences (D102), without a − (D128): %s" % ArenaView.shown_text(sim, basic))
 	check(ArenaView.dealt_text(basic) == "", "unhurt, nothing under it")
 	basic.health = basic.max_health * 0.4
-	check(ArenaView.shown_text(sim, basic) == "−" + Palette.amount(first), "shot, its number doesn't count down")
+	check(ArenaView.shown_text(sim, basic) == Palette.amount(first), "shot, its number doesn't count down")
 	check(ArenaView.dealt_text(basic) == Palette.amount(basic.max_health * 0.6), "the damage dealt so far shows under it: %s" % ArenaView.dealt_text(basic))
 	basic.health = 0.0
 	check(ArenaView.dealt_text(basic) == "", "and a dead one shows none, so a one-shot kill never does")
 	basic.health = basic.max_health
 	basic.distance = basic.stop_at
-	check(ArenaView.shown_text(sim, basic) == "−" + Palette.amount(first), "arrived, the same: its next hit")
+	check(ArenaView.shown_text(sim, basic) == Palette.amount(first), "arrived, the same: its next hit")
 	basic.hits = 10
 	var tenth := sim.landed_damage(20.0 * pow(TowerData.heat_up_per_hit(), 10))
-	check(tenth > first and ArenaView.shown_text(sim, basic) == "−" + Palette.amount(tenth), "and it grows with each hit it lands: %s" % ArenaView.shown_text(sim, basic))
+	check(tenth > first and ArenaView.shown_text(sim, basic) == Palette.amount(tenth), "and it grows with each hit it lands: %s" % ArenaView.shown_text(sim, basic))
 
 	var far := _place(sim, "divider", sim.stat("range") + 5.0)
 	far.divisor = 1.25
