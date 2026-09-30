@@ -2,21 +2,29 @@ extends HBoxContainer
 ## The bar along the bottom of Home and the Workshop, as The Tower has one:
 ## Battle (Home), the Workshop, and the screens the roadmap brings later (D079),
 ## shown locked with the version that brings them until they exist (D096).
-## The battle itself has no bar; a run fills the screen.
+## Each appears only when The Tower would show it (D125), so a new player
+## isn't met with screens they can't use: the Workshop once the first run has
+## ended, Cards once a run reaches wave 20 and Labs wave 30 (The Tower's
+## milestones). When The Tower shows Weapons isn't known, so they wait until
+## they're built. The battle itself has no bar; a run fills the screen.
 
 const Palette = preload("res://src/ui/palette.gd")
 
 ## A screen that exists was chosen: "battle" (Home) or "workshop".
 signal chosen(id: String)
 
-## [id, name, the roadmap version that brings it, or "" for a screen that exists].
+## [id, name, the roadmap version that brings it, or "" for a screen that
+## exists, and when it appears: the best wave a run must reach, AFTER_FIRST_RUN,
+## or NOT_YET].
 const ITEMS := [
-	["battle", "Battle", ""],
-	["workshop", "Workshop", ""],
-	["cards", "Cards", "1.1"],
-	["labs", "Labs", "1.2"],
-	["weapons", "Weapons", "1.3"],
+	["battle", "Battle", "", 0],
+	["workshop", "Workshop", "", AFTER_FIRST_RUN],
+	["cards", "Cards", "1.1", 20],
+	["labs", "Labs", "1.2", 30],
+	["weapons", "Weapons", "1.3", NOT_YET],
 ]
+const AFTER_FIRST_RUN := -1
+const NOT_YET := 1 << 30
 const HEIGHT := 64
 
 ## The screen this bar sits on, shown as chosen.
@@ -25,12 +33,19 @@ var current := "battle"
 var buttons := {}
 
 
-func _init(on: String = "battle") -> void:
+## `runs` and `best_wave` are the Workshop's, and decide what shows.
+func _init(on: String = "battle", runs: int = 0, best_wave: int = 0) -> void:
 	current = on
 	custom_minimum_size = Vector2(0, HEIGHT)
 	add_theme_constant_override("separation", 0)
 	for item in ITEMS:
-		add_child(_item(item[0], item[1], item[2]))
+		if shows(int(item[3]), runs, best_wave):
+			add_child(_item(item[0], item[1], item[2]))
+
+
+## Whether an item that appears at `from` shows yet.
+static func shows(from: int, runs: int, best_wave: int) -> bool:
+	return runs > 0 if from == AFTER_FIRST_RUN else best_wave >= from
 
 
 func _item(id: String, name: String, version: String) -> Button:

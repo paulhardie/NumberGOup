@@ -16,6 +16,18 @@ var best_wave := 0
 ## The highest the Number has stood in any run (D081).
 var best_number := 0.0
 var runs := 0
+## Coins the first run's end just gave (FIRST_RUN_GIFT), for Home to announce
+## once; not saved, so a game closed before Home shows it keeps the Coins
+## and skips the popup.
+var gift_waiting := 0.0
+## Coins the latest finish_run gave as the gift, for the log: 0 after any
+## other run's end.
+var gift_given := 0.0
+
+## The Tower's welcome (the owner, 30 September 2026; D125): when a new
+## player's first run ends, a popup shows them the Workshop and gives them 50
+## Coins to start it. Saves already past their first run never get it.
+const FIRST_RUN_GIFT := 50.0
 
 
 func _init() -> void:
@@ -87,10 +99,16 @@ func add_coins(amount: float) -> void:
 
 
 ## Counts a run as it ends: its wave and its peak Number against the bests.
+## The first run's end also gives FIRST_RUN_GIFT.
 ## A peak that takes the best Number past a milestone for the first time pays
 ## that milestone's Coins (D107); the milestones reached are returned, as
 ## {number, coins}, for the run's end to show and the log to keep.
 func finish_run(wave: int, peak_number: float = 0.0) -> Array[Dictionary]:
+	gift_given = 0.0
+	if runs == 0:
+		coins += FIRST_RUN_GIFT
+		gift_given = FIRST_RUN_GIFT
+		gift_waiting = FIRST_RUN_GIFT
 	runs += 1
 	best_wave = maxi(best_wave, wave)
 	var reached: Array[Dictionary] = []

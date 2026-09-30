@@ -92,6 +92,8 @@ func _print_workshop(entries: Array) -> void:
 				spent[entry.id] = float(spent.get(entry.id, 0.0)) + float(entry.cost)
 			"workshop_open":
 				opened.append("%s (%s, %s)" % [entry.group, _n(entry.cost), entry.get("at", "?")])
+			"gift":
+				print("First run's gift: %s Coins (%s)" % [_n(entry.coins), entry.get("at", "?")])
 			"test_coins":
 				print("Test Coins given: %s (%s)" % [_n(entry.amount), entry.get("at", "?")])
 			"progress_reset":
