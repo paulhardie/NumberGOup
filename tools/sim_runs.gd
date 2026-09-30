@@ -23,7 +23,12 @@ extends SceneTree
 ## 0 none) and --divider-speed N sets their speed as a share of a basic
 ## enemy's, and --divider-health N its health in basic enemies', for trying
 ## the Divider's tuning without changing the game; --divider-divisor N fixes
-## its divisor at every wave. --overfill N sets how much
+## its divisor at every wave, and --divider-refill N the seconds a bite takes
+## to come back (D134; 0, the game's, is Regen straight back).
+## --lock off plays without Locks (D133); --lock-from N sets their first wave,
+## --lock-every A:B their beat (every A waves, then every B from their full
+## wave, which --lock-full N sets) and --lock-health N their health in basic
+## enemies'. --overfill N sets how much
 ## of Lifesteal works past Health (0 a ceiling, 1 none), and --curve
 ## adds the Number at the end of every fifth wave to each run's line.
 ## --peak-drift N and --kill-share N try other numbers for how the Number
@@ -267,11 +272,13 @@ func _losses(sim: BattleSim, options: Dictionary) -> String:
 	var total := 0.0
 	for kind in sim.lost_to:
 		total += float(sim.lost_to[kind])
+	# How long a Lock held the Number (D133), before what took it.
+	var held := " | held %.0f%% of the run" % (100.0 * sim.locked_seconds / sim.time) if sim.locked_seconds > 0.0 else ""
 	if total <= 0.0:
-		return " | lost: nothing"
+		return held + " | lost: nothing"
 	var kinds := sim.lost_to.keys()
 	kinds.sort_custom(func(a, b): return sim.lost_to[a] > sim.lost_to[b])
-	return " | lost: " + ", ".join(kinds.map(func(kind): return "%s %.0f%%" % [kind, 100.0 * float(sim.lost_to[kind]) / total]))
+	return held + " | lost: " + ", ".join(kinds.map(func(kind): return "%s %.0f%%" % [kind, 100.0 * float(sim.lost_to[kind]) / total]))
 
 
 func _workshop_summary(workshop: Workshop) -> String:
@@ -418,6 +425,20 @@ func _tune(sim: BattleSim, options: Dictionary) -> void:
 	if options.has("divider-health"):
 		sim.divider.health_first = float(options["divider-health"])
 		sim.divider.health_full = float(options["divider-health"])
+	if options.has("divider-refill"):
+		sim.divider.refill_seconds = float(options["divider-refill"])
+	if options.get("lock", "") == "off":
+		sim.lock.from_wave = 0
+	if options.has("lock-from"):
+		sim.lock.from_wave = int(options["lock-from"])
+	if options.has("lock-full"):
+		sim.lock.full_wave = int(options["lock-full"])
+	if options.has("lock-every"):
+		var beat: PackedStringArray = String(options["lock-every"]).split(":")
+		sim.lock.every_first = int(beat[0])
+		sim.lock.every_full = int(beat[beat.size() - 1])
+	if options.has("lock-health"):
+		sim.lock.health = float(options["lock-health"])
 
 
 ## The share of everything the Number lost that Dividers took.

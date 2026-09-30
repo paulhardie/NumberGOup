@@ -35,6 +35,15 @@ const SPEEDS := [1.0, 2.0, 5.0]
 const TOWER_CLOCK := 1.135
 ## The wave bar while enemies are spawning.
 const WAVE_BAR := Color(1, 1, 1, 0.55)
+## What a new enemy of ours does, said once the first time a player meets it
+## (D133, D125's disclosure): its sign and one line. A player meets it the
+## first time it comes on a wave past their best, since it comes on the same
+## waves in every run; so nothing new is saved.
+const FIRST_SIGHT := {
+	"lock": {"sign": "=", "text": "Lock: while it stands in range, your Number can't go up. Kill it, or knock it back."},
+}
+## Real seconds a first-sight card stays up, unless tapped away.
+const FIRST_SIGHT_SECONDS := 8.0
 ## At most this many ticks a frame, so a slow frame can't snowball.
 const MAX_TICKS_PER_FRAME := 400
 ## Ticks of a saved run replayed a frame while resuming: about an hour of game
@@ -83,6 +92,12 @@ var _again: Button
 var _wave_info: WaveInfo
 var _over_title: Label
 var _over_text: Label
+## The first-sight card, the kinds it has told of this run, and how long it has left.
+var _sight: PanelContainer
+var _sight_sign: Label
+var _sight_text: Label
+var _sight_left := 0.0
+var _sighted: Array[String] = []
 
 
 func _ready() -> void:
@@ -151,6 +166,8 @@ func _adopt(run_sim: BattleSim) -> void:
 	_real_seconds = 0.0
 	_seconds_at_speed = {}
 	_over.visible = false
+	_sighted.clear()
+	_sight.visible = false
 
 
 func _process(delta: float) -> void:
@@ -187,6 +204,7 @@ func _process(delta: float) -> void:
 	_arena.queue_redraw()
 	_bank_coins()
 	_refresh()
+	_first_sight(delta)
 	if not sim.alive and not _over.visible:
 		milestones = workshop.finish_run(sim.wave, sim.peak_number)
 		run_finished.emit()
@@ -335,6 +353,7 @@ func _build() -> void:
 
 	_wave_info = WaveInfo.new()
 	add_child(_wave_info)
+	_build_first_sight()
 
 	_over = PanelContainer.new()
 	_over.add_theme_stylebox_override("panel", Palette.panel_box())
@@ -363,6 +382,55 @@ func _build() -> void:
 	home.text = "Home"
 	home.pressed.connect(func(): home_pressed.emit())
 	over_column.add_child(home)
+
+
+## The card that tells a player what a new enemy does, under the top line.
+## Tapping it puts it away.
+func _build_first_sight() -> void:
+	_sight = PanelContainer.new()
+	_sight.add_theme_stylebox_override("panel", Palette.panel_box())
+	_sight.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	_sight.offset_left = 16
+	_sight.offset_right = -16
+	_sight.offset_top = 64
+	_sight.visible = false
+	_sight.gui_input.connect(func(event: InputEvent):
+		if event is InputEventMouseButton and event.pressed:
+			_sight.visible = false)
+	add_child(_sight)
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 12)
+	_sight.add_child(line)
+	_sight_sign = Label.new()
+	_sight_sign.add_theme_font_override("font", Palette.weight(Palette.NUMBER_FONT, 700))
+	_sight_sign.add_theme_font_size_override("font_size", 26)
+	line.add_child(_sight_sign)
+	_sight_text = Label.new()
+	_sight_text.add_theme_font_size_override("font_size", 13)
+	_sight_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	_sight_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_sight_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	line.add_child(_sight_text)
+
+
+## Shows the card when one of ours first comes on a wave past the player's
+## best, once a run, and puts it away after FIRST_SIGHT_SECONDS.
+func _first_sight(delta: float) -> void:
+	if _sight.visible:
+		_sight_left -= delta
+		if _sight_left <= 0.0:
+			_sight.visible = false
+	if sim.wave <= workshop.best_wave:
+		return
+	for kind in FIRST_SIGHT:
+		if kind in _sighted or not sim.enemies.any(func(enemy): return enemy.kind == kind):
+			continue
+		_sighted.append(kind)
+		_sight_sign.text = FIRST_SIGHT[kind].sign
+		_sight_sign.add_theme_color_override("font_color", ArenaView.LOOKS[kind].colour)
+		_sight_text.text = FIRST_SIGHT[kind].text
+		_sight_left = FIRST_SIGHT_SECONDS
+		_sight.visible = true
 
 
 func _tower_panel() -> VBoxContainer:

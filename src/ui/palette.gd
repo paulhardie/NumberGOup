@@ -49,6 +49,9 @@ const PROTECTOR := Color("8a9bb8")
 const VAMPIRE := Color("d0204f")
 const RAY := Color("f2ec6b")
 const SCATTER := Color("5b7cff")
+## The Lock (D133): an emerald =, in the Number's own typeface, since what it
+## does is to the Number.
+const LOCK := Color("34e3a0")
 
 const WORD_FONT := preload("res://assets/fonts/Geist.ttf")
 const NUMBER_FONT := preload("res://assets/fonts/GeistMono.ttf")

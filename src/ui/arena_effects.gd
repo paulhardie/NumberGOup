@@ -46,7 +46,7 @@ const SHOVE_EASE := 14.0
 ## A kill bursts into sparks in the enemy's colour, more the heavier it is,
 ## flying out and slowing to a stop over about SPARK_SECONDS, with a thin ring
 ## where it died (D109). MAX_SPARKS caps them in a crowd.
-const SPARKS := {"basic": 10, "fast": 10, "ranged": 12, "tank": 20, "boss": 40, "divider": 16, "protector": 14, "vampire": 20, "ray": 20,
+const SPARKS := {"basic": 10, "fast": 10, "ranged": 12, "tank": 20, "boss": 40, "divider": 16, "lock": 16, "protector": 14, "vampire": 20, "ray": 20,
 	"scatter": 12}
 const SPARK_SPEED_PX := Vector2(50.0, 170.0)
 const SPARK_SECONDS := 0.6
