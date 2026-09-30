@@ -2222,6 +2222,39 @@ func test_the_view_zooms_out_to_keep_the_range_on_screen() -> void:
 	arena.free()
 
 
+## D127: in a crowd each spot has one full label, the most pressing; others
+## just like it count on it, and anything else there shows only its sign.
+func test_a_crowd_keeps_one_readable_label_a_spot() -> void:
+	var sim := _quiet_sim({"health": 100})
+	var arena := ArenaView.new()
+	arena.size = Vector2(474, 427)
+	arena.centre = Vector2(237, 235)
+	arena.sim = sim
+	arena.absorb([], 0.0)
+	var stack: Array = []
+	for i in range(4):
+		stack.append(_place(sim, "basic", 5.0))
+	var near := _place(sim, "basic", 4.0)
+	near.attack *= 3.0
+	var divider := _place(sim, "divider", 5.0)
+	var apart := _place(sim, "basic", 25.0)
+	apart.angle = PI
+	var plan := arena.label_plan()
+	check(plan[divider.id].shown == "full", "a Divider in the crowd keeps its full label")
+	check(plan[near.id].shown == "sign", "a different number in its spot shows only its sign")
+	var counted: Array = stack.filter(func(enemy): return plan[enemy.id].shown == "counted")
+	check(stack.filter(func(enemy): return plan[enemy.id].shown == "sign").size() == stack.size() - counted.size(), "the stacked basics are signs or counted, never overlapping labels")
+	check(plan[apart.id].shown == "full" and int(plan[apart.id].count) == 1, "an enemy on its own keeps its full label")
+	sim.enemies.clear()
+	var same: Array = []
+	for i in range(4):
+		same.append(_place(sim, "basic", 20.0))
+	plan = arena.label_plan()
+	var full: Array = same.filter(func(enemy): return plan[enemy.id].shown == "full")
+	check(full.size() == 1 and int(plan[full[0].id].count) == 4, "four of the same in one spot read as one label counting 4")
+	arena.free()
+
+
 ## D123: the Number fits inside its range ring, even with orbs zooming the
 ## view out, so the ring always shows round it.
 func test_the_number_fits_inside_its_range() -> void:

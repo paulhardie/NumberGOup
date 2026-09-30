@@ -236,6 +236,9 @@ func draw_floats() -> void:
 			var font: Font = part[1]
 			# A part may carry its own colour, as a kill's Coins do.
 			var colour: Color = part[3] if part.size() > 3 else item.colour
+			# The same dark halo as the enemies' numbers (D127), so a float
+			# crossing one stays readable.
+			view.draw_string_outline(font, Vector2(x, at.y), part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, part[2], view.HALO_PX, Color(view.HALO, view.HALO.a * (1.0 - rise)))
 			view.draw_string(font, Vector2(x, at.y), part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, part[2], Color(colour, 1.0 - rise))
 			x += font.get_string_size(part[0], HORIZONTAL_ALIGNMENT_LEFT, -1, part[2]).x
 
