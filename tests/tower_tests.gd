@@ -419,6 +419,30 @@ func test_pressing_an_upgrade_card_buys_it() -> void:
 	screen.free()
 
 
+## D129: as The Tower's, tapping the open tab folds the run's upgrade cards
+## away so the battle takes the screen; tapping a tab brings them back.
+func test_the_upgrade_panel_folds_away() -> void:
+	var screen = BattleScreen.new()
+	root.add_child(screen)
+	screen.set_process(false)
+	await process_frame
+	await process_frame
+	var panel = screen._upgrades
+	var open_height: float = screen._arena.size.y
+	panel._tab_buttons["attack"].pressed.emit()
+	await process_frame
+	await process_frame
+	check(panel.collapsed and not panel._scroll.visible, "the open tab tapped again folds the cards away")
+	check(screen._arena.size.y > open_height + 150.0, "and the battle takes the room: %.0f px tall, from %.0f" % [screen._arena.size.y, open_height])
+	check(not panel._tab_buttons["attack"].button_pressed, "no tab reads as open")
+	panel._tab_buttons["defense"].pressed.emit()
+	await process_frame
+	check(not panel.collapsed and panel._scroll.visible and panel._tab == "defense" and panel._tab_buttons["defense"].button_pressed, "a tab tapped while folded opens it")
+	panel._tab_buttons["attack"].pressed.emit()
+	check(not panel.collapsed and panel._tab == "attack", "and another tab switches as before")
+	screen.free()
+
+
 func test_the_multiplier_buys_several_levels_a_press() -> void:
 	var screen = BattleScreen.new()
 	root.add_child(screen)
