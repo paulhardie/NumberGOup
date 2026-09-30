@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 29 September 2026, by Claude, handing on to the next agent. After The Tower's walk speed and cooldown (D121, #111), this session made enemies walk at The Tower's type speeds from the owner's Wave Info, ran every game speed at The Tower's ×1 pace, and split the wave bar into spawning and cooldown (D122). It changes play: tanks and ranged enemies close about twice as fast.
+**Last updated:** 30 September 2026, by Claude, handing on to the next agent. After The Tower's type speeds, ×1 pace and wave bar (D122, #112), this session fitted the Number inside its range ring (D123): a big Number had covered most of the range, and with orbs stood wider than the ring, so enemies looked closer or further than they were. Drawing only.
 
-**Branch:** `claude/tower-speeds`, from `main` after #111. It carries D122. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/number-fits-ring`, from `main` after #112. It carries D123. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -106,6 +106,7 @@
 
 ## How to measure
 
+- **D123 (30 September):** a scratch script (not committed) opened the battle screen at 540 × 960 under `xvfb-run`, placed enemies at 20, 12 and 3 m beside and below the Number, and printed the ring, the Number's reach and where each enemy was drawn, before and after; D123 has the table, and its screenshots were checked by eye. `bash run_tests.sh` passes (4169 checks, with a test that the Number fits its ring with and without orbs). The review was the author's own. Not played on a phone.
 - **D122 (29 September):** `import_tower_enemies.mjs` regenerated the data. `bash run_tests.sh` passes (4166 checks, with new ones for the type speeds, the ×1 pace and the two-part wave bar). `sim_runs.gd`: D122's table, at both roll counts and with $93. `capture_battle.gd` ran without errors; its captures show the bar while spawning, but none catches the cooldown's accent (the test checks its colour). The review was the author's own. Not played.
 - **D121 (29 September):** the owner's recording was decoded with a static `ffmpeg` (pip's `imageio-ffmpeg`) and measured with numpy in a scratch script, not committed: the Range ring fitted as a circle (189 px = 30 m), each red and yellow enemy tracked frame by frame, and the wave bar's fill fitted over time. `import_tower_enemies.mjs` regenerated the data. `bash run_tests.sh` passes (4155 checks). `sim_runs.gd`: D121's table, with speed and cooldown measured apart and at both roll counts. The review was the author's own. Not played.
 - **D120 (29 September):** `import_tower_enemies.mjs` reproduced the committed data byte for byte before the change, then checks every reading at its level (health and attack at waves 50 and 100 to 0.01). `bash run_tests.sh` passes (4153 checks, with new ones for the readings and the mix; one resume test's fixture run now dies at 34 s, so it's played for 30). `sim_runs.gd` on `main`, the branch, the mix alone and the health alone, and `main` and the branch at 104 rolls: D120's table. `capture_battle.gd`'s `battle_wave_info` checked by eye: Tier 2 wave 600 shows 65/11/14/7 with the Protector's 3%. The review was the author's own. Not played.
@@ -164,7 +165,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D122), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D123), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.

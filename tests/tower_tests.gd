@@ -2220,6 +2220,28 @@ func test_the_view_zooms_out_to_keep_the_range_on_screen() -> void:
 	arena.free()
 
 
+## D123: the Number fits inside its range ring, even with orbs zooming the
+## view out, so the ring always shows round it.
+func test_the_number_fits_inside_its_range() -> void:
+	var arena := ArenaView.new()
+	arena.size = Vector2(474, 427)
+	arena.centre = Vector2(237, 235)
+	for groups in [BattleSim.START_GROUPS, BattleSim.START_GROUPS + ["orbs"]]:
+		var sim := _quiet_sim({"health": 200, "orbs": 2}, groups)
+		arena.sim = sim
+		arena.motion = NumberMotion.new()
+		for _frame in range(240):
+			arena.absorb([], 1.0 / 60.0)
+		var layout: Dictionary = arena._number_layout()
+		var ring := sim.stat("range") * arena.px_per_metre()
+		check(arena._number_half.x <= ring * ArenaView.NUMBER_RING_SHARE + 1.0, "%s's digits reach %.0f of a %.0f px ring (orbs: %s)" % [layout.text, arena._number_half.x, ring, "orbs" in groups])
+	var unsized := ArenaView.new()
+	unsized.sim = _quiet_sim({"health": 200})
+	check(unsized._fit_size("143,009") > ArenaView.NUMBER_MIN_PX, "before the view has a size, the Number isn't squeezed to its smallest")
+	arena.free()
+	unsized.free()
+
+
 ## Milestones (D107): the first time the best Number reaches each new digit,
 ## the Workshop gets its Coins, once; a best already past a milestone pays
 ## nothing more, and Home lists them.

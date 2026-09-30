@@ -1793,3 +1793,24 @@ Rules:
 
   - Faster tanks and ranged make runs a little harder, most at the level-12 Workshop, which now sits just past wave 100, where The Tower's does.
   - D118's roll count still reads the same: 208 keeps a career's Coins on The Tower's and a fresh run with $93 at wave 6 (The Tower's 8); 104 overshoots fresh runs (10) and stalls careers.
+
+## D123 — The Number fits inside its range ring
+
+- **Status:** Accepted (2026-09-30) on owner direction: "yes, fit the Number to its ring", after the owner noticed the range line "seems to be messed up, unless the number is so large that it's making it look closer than it is".
+- **Context:** the ring was drawn at the right distance, but the Number is drawn in screen points, not metres. On a phone-sized view (540 px wide) a four-digit Number spread to 228 px, 22 m either side of a 30 m range. Enemies can't be drawn over its digits, so any enemy beside it anywhere from 24 m in to 3 m was drawn at 24 m, stacked on the digits, while the battle still had it walking in. With orbs the view zooms out to keep them on screen (D101, D108), and the ring (88 px) became narrower than the Number (114 px either side): enemies drawn outside the ring were inside the range, being shot and hitting.
+- **Decision** (drawing only; the battle is unchanged):
+  - The Number fits in 60% of the ring's radius either side, as well as D101's 230 px (`ArenaView.NUMBER_RING_SHARE`). It shrinks, eased as before, when orbs zoom the view out, and grows back with Range.
+  - Its smallest size drops from 36 px to 28, the size that fits its widest text (seven characters, such as 999,999) in the smallest ring a phone shows, orbs at the starting Range.
+  - Before the view has a size, nothing is fitted to the ring, so a run's Number doesn't start small and grow.
+- **Measured** (the battle screen at 540 × 960, enemies placed beside the Number at 20, 12 and 3 m):
+
+| Case | Ring | Number's reach either side, before → after | Where the enemies at 20 / 12 / 3 m were drawn, before → after |
+|---|---|---|---|
+| 5 | 152 px | 19% → 19% of the ring | 20 / 12 / 7.6 m → the same |
+| 1,815 | 152 px | 75% → 59% | 24 / 24 / 24 m → 20 / 20 / 20 m |
+| 143,009 | 152 px | 75% → 60% | 24 / 24 / 24 m → 20 / 20 / 20 m |
+| 143,009 with orbs | 88 px | 130% → 60% | 42 / 42 / 42 m → 21 / 21 / 21 m |
+| 143,009 with orbs, 50 m Range | 147 px | — → 59% | → 33 / 33 / 33 m |
+
+  - An enemy beside the Number still waits at its digits for its last metres, since it can't be drawn over them; that's now at most 60% of the way in, not 75% or past the ring. Above and below, where the Number is short, enemies come in to about 5 m as before.
+  - The cost: four or more digits are drawn about 20% smaller (1,815 is 180 px wide, not 228), and with orbs at the starting Range six digits are as small as 28 px.
