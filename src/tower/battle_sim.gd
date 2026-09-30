@@ -148,6 +148,7 @@ var kill_share := Guesses.KILL_GROWTH
 var divider: Dictionary = Guesses.DIVIDER.duplicate()
 ## The Lock's numbers for this run (Guesses.LOCK), the same way.
 var lock: Dictionary = Guesses.LOCK.duplicate()
+var _starting_tuning: Dictionary
 ## Guesses.NUMBER_OVERFILL for this run, which the measuring tools may change.
 var overfill := Guesses.NUMBER_OVERFILL
 ## Measuring options for sim_runs.gd, off in the game so every run and replay
@@ -215,13 +216,19 @@ var _attack_skip := 0.0
 ## `row_levels` and `groups` are the Workshop's: the levels a run starts from
 ## and the groups it may buy from. `effects` are the ones the run starts with,
 ## each {stat, op, value, source} (StatStack.add); a refused one is an error.
-func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_GROUPS, run_tier: int = 1, effects: Array = [], rule_effects: Array = []) -> void:
+func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_GROUPS, run_tier: int = 1, effects: Array = [], rule_effects: Array = [], tuning: Dictionary = {}) -> void:
 	run_seed = seed_value
 	tier = clampi(run_tier, 1, TowerData.tier_count())
 	levels = row_levels.duplicate()
 	open_groups = groups.duplicate()
 	starting_effects = effects.duplicate(true)
 	starting_rules = rule_effects.duplicate(true)
+	if not RunConfig.valid_tuning(tuning):
+		push_error("BattleSim: refused starting tuning")
+		return
+	for key in tuning:
+		set(key, tuning[key].duplicate(true) if tuning[key] is Dictionary else tuning[key])
+	_starting_tuning = tuning_config()
 	# Before anything below reads a stat: the starting Number, its best, the
 	# Wall and the first Shockwave all come from the built values.
 	for effect in effects:
@@ -245,7 +252,29 @@ func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_G
 func start_config() -> Dictionary:
 	return {"version": RunConfig.VERSION, "rules_version": RunConfig.RULES_VERSION,
 		"tier": tier, "levels": levels.duplicate(), "groups": open_groups.duplicate(),
-		"effects": starting_effects.duplicate(true), "rules": starting_rules.duplicate(true)}
+		"effects": starting_effects.duplicate(true), "rules": starting_rules.duplicate(true),
+		"tuning": _starting_tuning.duplicate(true)}
+
+
+func tuning_config() -> Dictionary:
+	var result := {}
+	for key in RunConfig.default_tuning():
+		var value = get(key)
+		result[key] = value.duplicate(true) if value is Dictionary else value
+	return result
+
+
+## Measuring switches are fixed before the first step. Re-roll wave 1 from
+## its original streams so even a Lock introduced at wave 1 replays exactly.
+func configure_tuning(tuning: Dictionary) -> bool:
+	if ticks != 0 or wave != 1 or not inputs.is_empty() or not RunConfig.valid_tuning(tuning): return false
+	for key in tuning:
+		set(key, tuning[key].duplicate(true) if tuning[key] is Dictionary else tuning[key])
+	_starting_tuning = tuning_config()
+	spawns.start(run_seed)
+	spawns.divider_due = 0.0
+	spawns.schedule_wave()
+	return true
 
 
 ## Perks and later loadout changes use a recorded domain input, so a replay

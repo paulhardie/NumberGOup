@@ -18,6 +18,8 @@ const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 const Settings = preload("res://src/settings.gd")
 const AmbientMusic = preload("res://src/ui/ambient_music.gd")
 const Progression = preload("res://src/tower/progression.gd")
+const RunReport = preload("res://src/tower/run_report.gd")
+const TowerData = preload("res://src/tower/tower_data.gd")
 
 const AUTOSAVE_SECONDS := 20.0
 
@@ -143,6 +145,7 @@ func _show_workshop() -> void:
 	if not progression.writable: return
 	var shop := WorkshopScreen.new()
 	shop.workshop = workshop
+	shop.progression = progression
 	shop.changed.connect(_save)
 	shop.activity.connect(func(entry): ActivityLog.append(entry, log_path))
 	shop.home_pressed.connect(_show_home)
@@ -154,19 +157,24 @@ func _show_workshop() -> void:
 ## already banked.
 func _resume_failed(saved: Dictionary, reason: String) -> void:
 	var result = saved.get("result", {})
-	var wave = result.get("wave", 0) if result is Dictionary else 0
-	# A damaged record can hold anything here.
-	var reached := int(wave) if (wave is float or wave is int) and is_finite(float(wave)) and float(wave) >= 0.0 else 0
-	var peak = result.get("peak_number", 0.0) if result is Dictionary else 0.0
-	for milestone in workshop.finish_run(reached, float(peak) if (peak is float or peak is int) and is_finite(float(peak)) and float(peak) >= 0.0 else 0.0):
+	var trusted := reason == "changed" and RunReport.valid_record(saved, true)
+	var reached := int(result.wave) if trusted else 0
+	# A sound record from changed combat still proves its reached wave. Do
+	# not turn arbitrary wave values in a damaged record into account unlocks.
+	if trusted:
+		for reward in progression.observe(int(saved.start.get("tier", 1)), reached, maxi(0, reached - 1)):
+			ActivityLog.append({"kind": "wave_milestone", "reward": reward}, log_path)
+	var peak := float(result.get("peak_number", 0.0)) if trusted else 0.0
+	for milestone in workshop.finish_run(reached, peak):
 		ActivityLog.append({"kind": "milestone", "number": milestone.number, "coins": milestone.coins}, log_path)
 	var entry := saved.duplicate(true)
 	entry["kind"] = "run"
 	entry["resume_failed"] = reason
 	ActivityLog.append(entry, log_path)
 	_log_gift()
-	var why := "couldn't carry over to this version of the game" if reason == "changed" else "couldn't be read"
-	_show_home().show_note("Your run at wave %d %s, so it ended there. Its Coins are kept." % [reached, why])
+	var note := "Your run at wave %d couldn't carry over to this version of the game, so it ended there. Its Coins are kept." % reached \
+		if trusted else "Your saved run couldn't be read, so it ended. Its banked Coins and previous records are kept."
+	_show_home().show_note(note)
 	_save()
 
 

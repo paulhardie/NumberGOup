@@ -1,6 +1,6 @@
 # NUMBER GO UP
 
-A portrait-first Godot idle game, being rebuilt as The Tower's opening first, with the Number added once that plays right ([D073](docs/DECISIONS.md#d073--rebuild-the-tower-first-the-number-second), [`docs/REBUILD_SPEC.md`](docs/REBUILD_SPEC.md)). Working agreement: [`AGENTS.md`](AGENTS.md); current state and next steps: [`docs/HANDOVER.md`](docs/HANDOVER.md).
+A portrait-first Godot idle game, rebuilding The Tower's opening with the Number as the tower and our own arithmetic enemies ([D073](docs/DECISIONS.md#d073--rebuild-the-tower-first-the-number-second), [`docs/REBUILD_SPEC.md`](docs/REBUILD_SPEC.md), [`docs/THE_NUMBER.md`](docs/THE_NUMBER.md)). Working agreement: [`AGENTS.md`](AGENTS.md); current state and next steps: [`docs/HANDOVER.md`](docs/HANDOVER.md).
 
 ## Run
 
@@ -15,13 +15,15 @@ GODOT=/path/to/Godot bash run_godot.sh --headless --path . -s res://tools/sim_ru
 
 Version **0.9**: Tier 1, all Workshop groups, run upgrades, the activity report and battle resume. The owner still signs off 1.0 before Cards (1.1), Labs (1.2), Ultimate Weapons (1.3) and selectable tiers (1.4) begin.
 
-The Number is the tower. Basic, fast, tank and ranged enemies subtract from it; Dividers divide it. Regen and clean kills grow the Number without a fixed ceiling. Waves have 26 seconds of spawning and 9 seconds of cooldown, with a boss every tenth wave. The Workshop keeps permanent upgrades bought with Coins; Cash buys this run's upgrades. Every Workshop group works, including Orbs, the Wall, mines, packages and level skips. Fresh even-bought runs currently reach waves 1–6, median 3 over ten seeds; this is a measurement of our game, not a claim about The Tower.
+The Number is the tower. Basic, fast, tank and ranged enemies subtract from it; Dividers divide it. Clean kills, bought Health and Lifesteal grow it without a fixed ceiling; Regen restores it to its run's best. The Lock comes from wave 35, stopping Regen, Lifesteal, packages and kill growth while it stands in range; bought Health still lands. Waves have 26 seconds of spawning and 9 seconds of cooldown, with a boss every tenth wave. The Workshop keeps permanent upgrades bought with Coins; Cash buys this run's upgrades. Every Workshop group works, including Orbs, the Wall, mines, packages and level skips. Fresh even-bought runs currently reach waves 4–7, median 6 over twenty seeds (D135); this is a measurement of our game, not a claim about The Tower.
 
 Home shows Coins, Gems, the best Number and Milestones. The first run's end gives the Workshop's 50-Coin welcome. Known early wave milestones pay once alongside Number milestones, and a free daily claim gives 20 Gems after the first run. Cards and Labs appear at waves 20 and 30 as roadmap placeholders. Settings holds Music, Export report, free test Coins and a two-press progress reset.
 
+The bottom bars read their reveal points from the generated milestone table through permanent progression: Workshop after one run, Cards at Tier 1 wave 20 and Labs at 30. The bars contain no separate wave thresholds.
+
 **Scaling foundations (D126)** are built for the next versions: complete starting builds, lossless battle snapshots, rule effects and combat-source counts, deterministic cooldown state, per-tier records and claims, and persisted real-time research jobs. Research has no player catalogue yet; closed-game battles and servers remain D089's later work. See [the contracts and limits](docs/SCALING_FOUNDATIONS.md).
 
-The version-2 save is `user://number_go_up_tower.json`; the old pre-rebuild file stays untouched. Version 1 migrates with a backup and newly introduced wave rewards. New battles resume directly from exact state; old records still replay their seed and inputs. Unsupported or changed battles end with already banked Coins kept. Newer-schema or damaged current progress is protected from writes and shown with a recovery notice.
+The version-2 save is `user://number_go_up_tower.json`; the old pre-rebuild file stays untouched. Version 1 migrates with a backup and newly introduced wave rewards. New battles resume directly from exact state, including the Lock; old records still replay their seed and inputs. Unsupported or changed battles end with already banked Coins kept. A sound changed-rules record also retains its per-tier reached wave and unlocks. **An active battle with an older snapshot or combat contract can end during recovery after this update.** Newer-schema or damaged current progress is protected from writes and shown with a recovery notice.
 
 Every run, purchase and reward is logged to `user://number_go_up_activity.jsonl`. **Export report** writes the log, Workshop and progression to `user://reports/`; `tools/read_report.gd` reads it and replays on the rules that recorded it. Nothing is sent by the game.
 

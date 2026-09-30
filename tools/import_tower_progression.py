@@ -10,8 +10,8 @@ from pathlib import Path
 
 milestones = [
     {"tier": 1, "wave": 10, "coins": 10, "gems": 0},
-    {"tier": 1, "wave": 20, "coins": 0, "gems": 10},
-    {"tier": 1, "wave": 30, "coins": 0, "gems": 0},
+    {"tier": 1, "wave": 20, "coins": 0, "gems": 10, "reveals": ["cards"]},
+    {"tier": 1, "wave": 30, "coins": 0, "gems": 0, "reveals": ["labs"]},
     {"tier": 1, "wave": 40, "coins": 150, "gems": 0},
     {"tier": 1, "wave": 50, "coins": 0, "gems": 15},
     {"tier": 1, "wave": 80, "coins": 1500, "gems": 0},
@@ -26,6 +26,10 @@ data = {
         "https://www.techtreegames.com/post/v29-patch-notes-august-25-2026",
     ],
     "milestones": milestones,
+    "run_milestones": [
+        {"runs": 0, "reveals": ["battle"]},
+        {"runs": 1, "reveals": ["workshop"]},
+    ],
     "daily_gems": 20,
 }
 output = Path(__file__).resolve().parents[1] / "data/tower/progression.json"

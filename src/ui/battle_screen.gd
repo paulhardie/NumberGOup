@@ -131,7 +131,7 @@ func _begin_resume() -> void:
 	_resuming.text = "Resuming your run…"
 	add_child(_resuming)
 	if not RunReport.is_replayable(resume):
-		_fail_resume("damaged")
+		_fail_resume("changed" if RunReport.valid_record(resume, true) else "damaged")
 		return
 	if resume.has("snapshot"):
 		var restored := BattleSnapshot.restore(resume.snapshot)

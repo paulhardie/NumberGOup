@@ -1587,12 +1587,12 @@ func test_the_game_opens_into_a_saved_run_and_gives_up_one_it_cant_replay() -> v
 			await process_frame
 		var loaded := Save.load_workshop(TEST_SAVE)
 		check(game._screen is HomeScreen, "a %s run ends and the game goes Home" % reason)
-		check(game._screen._note.text.begins_with("Your run at wave %d" % played.wave), "saying so: %s" % game._screen._note.text)
-		# Ending at its saved wave, it pays any best-Number milestone it reached (D107).
+		check(game._screen._note.text.begins_with("Your run at wave %d" % played.wave if reason == "changed" else "Your saved run couldn't be read"), "saying so: %s" % game._screen._note.text)
+		# Sound changed-rules records retain milestones; damaged values can't pay.
 		var expected := Workshop.new()
 		expected.coins = 60.0
-		expected.finish_run(played.wave, played.peak_number)
-		check(Save.load_run(TEST_SAVE).is_empty() and loaded.runs == 1 and loaded.best_wave == played.wave and is_equal_approx(loaded.coins, expected.coins),
+		expected.finish_run(played.wave if reason == "changed" else 0, played.peak_number if reason == "changed" else 0.0)
+		check(Save.load_run(TEST_SAVE).is_empty() and loaded.runs == 1 and loaded.best_wave == expected.best_wave and is_equal_approx(loaded.coins, expected.coins),
 			"the run is cleared, counted at its wave, and its Coins kept, milestones paid: %s" % loaded.coins)
 		var entries := ActivityLog.read(TEST_LOG).filter(func(entry): return entry.kind == "run")
 		check(entries.size() == 1 and entries[0].resume_failed == reason, "and logged as lost: %s" % [entries.map(func(entry): return entry.get("resume_failed"))])

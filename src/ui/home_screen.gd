@@ -197,7 +197,7 @@ func _ready() -> void:
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(_note)
 
-	var nav := NavBar.new("battle", workshop.runs, workshop.best_wave)
+	var nav := NavBar.new("battle", workshop.runs, workshop.best_wave, progression)
 	nav.chosen.connect(func(id: String):
 		if id == "workshop":
 			workshop_pressed.emit())

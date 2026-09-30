@@ -9,6 +9,7 @@ const TowerData = preload("res://src/tower/tower_data.gd")
 ## Known free-track rewards from TOWER_RULES.md. Unknown later rewards wait
 ## for their source rather than extrapolating an economy.
 static var MILESTONES: Array = TowerData.progression().milestones
+static var RUN_MILESTONES: Array = TowerData.progression().run_milestones
 ## The Tower v29's free daily claim (developer notes, 25 August 2026).
 static var DAILY_GEMS: int = int(TowerData.progression().daily_gems)
 
@@ -55,10 +56,18 @@ func best_wave(tier: int, cleared := false) -> int:
 
 
 func unlocked(feature: String) -> bool:
-	match feature:
-		"workshop": return workshop.runs > 0
-		"cards": return best_wave(1) >= 20
-		"labs": return best_wave(1) >= 30
+	return revealed(feature, workshop.runs, records)
+
+
+## Both bars and domain gates use the milestone table. The legacy bar API
+## supplies a Tier 1 record; the game supplies its full permanent records.
+static func revealed(feature: String, runs: int, tier_records: Dictionary) -> bool:
+	for milestone in RUN_MILESTONES:
+		if feature in milestone.reveals and runs >= int(milestone.runs): return true
+	for milestone in MILESTONES:
+		if feature in milestone.get("reveals", []):
+			var reached := int(tier_records.get(str(int(milestone.tier)), {}).get("reached", 0))
+			if reached >= int(milestone.wave): return true
 	return false
 
 

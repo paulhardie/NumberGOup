@@ -64,7 +64,7 @@ class Replay:
 		# Runs recorded with the testing switches (D097, D098) kept them in
 		# "switches"; the rules they tested are now the game's or gone (D111),
 		# so those runs replay only on the commits that recorded them, as any does.
-		sim = BattleSim.new(int(run.get("seed", 0)), levels, groups, int(start.get("tier", 1)), start.get("effects", []), start.get("rules", []))
+		sim = BattleSim.new(int(run.get("seed", 0)), levels, groups, int(start.get("tier", 1)), start.get("effects", []), start.get("rules", []), start.get("tuning", {}))
 
 	## Steps at most `budget` ticks, applying each input at its tick; true once
 	## the run is back at the tick it was left at (or has ended).
@@ -101,21 +101,42 @@ static func replay(run: Dictionary) -> BattleSim:
 ## so a damaged save's run fails here rather than part way through a replay
 ## or while being resumed. Anything a replay or a resume reads is checked.
 static func is_replayable(run) -> bool:
+	return valid_record(run)
+
+
+## Older declared rules may be read for end-run recovery, never asserted as
+## equivalent to today's combat. Legacy unversioned runs still compare a replay.
+static func valid_record(run, allow_old_rules := false) -> bool:
 	if not run is Dictionary or not valid_seed(run.get("seed")):
 		return false
 	var start = run.get("start")
-	if not RunConfig.valid(start):
+	if not RunConfig.valid(start, allow_old_rules):
 		return false
 	var result = run.get("result")
 	if not run.get("inputs") is Array or not result is Dictionary:
 		return false
-	if run.has("commands") and not commands_match(run): return false
+	if run.has("commands") and not commands_match(run, allow_old_rules): return false
 	for key in ["ticks", "wave", "kills", "cash", "cash_earned", "coins", "health"]:
 		if not _is_number(result.get(key)):
 			return false
+	for key in ["ticks", "wave", "kills"]:
+		if float(result[key]) < 0.0 or float(result[key]) > 9007199254740991.0 or float(result[key]) != int(result[key]): return false
+	if result.wave < 1 or result.wave > TowerData.last_wave(): return false
+	if result.has("enemies"):
+		if not _is_number(result.enemies) or float(result.enemies) < 0.0 or float(result.enemies) > 2048.0 \
+				or float(result.enemies) != int(result.enemies): return false
+	if result.has("rng"):
+		if not result.rng is Array or result.rng.size() != 3: return false
+		for state in result.rng:
+			if not state is String or not valid_seed(state): return false
+	if result.has("peak_number") and (not _is_number(result.peak_number) or float(result.peak_number) < 0.0): return false
 	var last := int(result.ticks)
 	if last < 0 or last > MOST_TICKS or not result.get("bought") is Dictionary:
 		return false
+	for id in result.bought:
+		var count = result.bought[id]
+		if id not in TowerData.rows() or not _is_number(count) or float(count) < 0.0 \
+				or float(count) > TowerData.max_level(id) or float(count) != int(count): return false
 	if not valid_inputs(run.inputs, last):
 		return false
 	# A saved run in progress also carries the Coins it banked (never more than
@@ -129,12 +150,12 @@ static func is_replayable(run) -> bool:
 	return true
 
 
-static func commands_match(run: Dictionary) -> bool:
+static func commands_match(run: Dictionary, allow_old_rules := false) -> bool:
 	if not run.get("result") is Dictionary: return false
 	var tick = run.result.get("ticks")
 	if not _is_number(tick) or float(tick) < 0.0 or float(tick) > MOST_TICKS or float(tick) != int(tick): return false
 	var commands = RunConfig.unpack(run.get("commands"))
-	if not commands is Dictionary or not RunConfig.valid(commands.get("start")) or not valid_inputs(commands.get("inputs"), int(tick)): return false
+	if not commands is Dictionary or not RunConfig.valid(commands.get("start"), allow_old_rules) or not valid_inputs(commands.get("inputs"), int(tick)): return false
 	return _json_view(commands.start) == _json_view(run.get("start")) and _json_view(commands.inputs) == _json_view(run.get("inputs"))
 
 
@@ -177,12 +198,13 @@ static func _is_number(value) -> bool:
 ## random streams at the same place, so it drew exactly the same numbers. A
 ## rule or price that changed since shows up here.
 static func matches(run: Dictionary, sim: BattleSim) -> bool:
+	if sim == null or not valid_record(run): return false
 	if run.has("commands") and not commands_match(run): return false
 	var start: Dictionary = run.get("start", {})
 	if run.has("commands"): start = RunConfig.unpack(run.commands).start
 	var config := sim.start_config()
 	var expected := {}
-	for key in config: expected[key] = start.get(key, {"version": 1, "rules_version": 1, "tier": 1, "effects": [], "rules": []}.get(key))
+	for key in config: expected[key] = start.get(key, {"version": RunConfig.VERSION, "rules_version": RunConfig.RULES_VERSION, "tier": 1, "effects": [], "rules": [], "tuning": RunConfig.default_tuning()}.get(key))
 	if _json_view(config) != _json_view(expected) or _json_view(sim.inputs) != _json_view(run.get("inputs", [])):
 		return false
 	var result: Dictionary = run.get("result", {})

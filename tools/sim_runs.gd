@@ -147,7 +147,9 @@ func _init() -> void:
 	print("seed  wave  game time  kills  cash earned  coins  peak Number  ÷ came/landed  ÷ took  killed by  levels bought")
 	for index in range(seeds):
 		var sim := BattleSim.new(index + 1, levels, groups, int(options.get("tier", "1")))
-		_tune(sim, options)
+		if not _tune(sim, options):
+			quit(1)
+			return
 		var last_wave := int(options.get("until-wave", "0"))
 		while sim.alive and sim.time < cap_seconds and (last_wave <= 0 or sim.wave < last_wave):
 			_spend(sim, strategy)
@@ -171,7 +173,9 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 	var seed_base := int(options.get("career-seed", "0")) * 1000
 	for run in range(runs):
 		var sim := BattleSim.new(seed_base + run + 1, workshop.levels, workshop.open_groups, int(options.get("tier", "1")))
-		_tune(sim, options)
+		if not _tune(sim, options):
+			quit(1)
+			return
 		var start_number := sim.health
 		while sim.alive and sim.time < cap_seconds:
 			_spend(sim, strategy)
@@ -403,7 +407,7 @@ func _gains(sim: BattleSim, options: Dictionary) -> String:
 	return "  | gained %.0f, highs %.0f: %s" % [total, highs, " ".join(parts)]
 
 
-func _tune(sim: BattleSim, options: Dictionary) -> void:
+func _tune(sim: BattleSim, options: Dictionary) -> bool:
 	if options.has("peak-drift"):
 		sim.peak_drift = float(options["peak-drift"])
 	if options.has("packages"):
@@ -447,6 +451,10 @@ func _tune(sim: BattleSim, options: Dictionary) -> void:
 		sim.lock.every_full = int(beat[beat.size() - 1])
 	if options.has("lock-health"):
 		sim.lock.health = float(options["lock-health"])
+	if not sim.configure_tuning(sim.tuning_config()):
+		printerr("Unsupported measuring tuning; check positive intervals and finite, bounded values.")
+		return false
+	return true
 
 
 ## The share of everything the Number lost that Dividers took.
