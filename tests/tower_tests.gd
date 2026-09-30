@@ -2728,7 +2728,7 @@ func test_settings_drop_the_old_range_switch() -> void:
 func test_a_first_run_ends_with_the_workshops_welcome() -> void:
 	var fresh := Workshop.new()
 	fresh.finish_run(4, 6.0)
-	check(fresh.coins == Workshop.FIRST_RUN_GIFT and fresh.gift_waiting == Workshop.FIRST_RUN_GIFT, "the first run's end gives 50 Coins")
+	check(fresh.coins == Workshop.FIRST_RUN_GIFT and fresh.gift_waiting == Workshop.FIRST_RUN_GIFT, "the first run's end gives %d Coins" % Workshop.FIRST_RUN_GIFT)
 	fresh.gift_waiting = 0.0
 	fresh.finish_run(6, 7.0)
 	check(fresh.coins == Workshop.FIRST_RUN_GIFT and fresh.gift_waiting == 0.0, "and the second gives none")

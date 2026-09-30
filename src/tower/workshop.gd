@@ -34,9 +34,10 @@ var gift_waiting := 0.0
 var gift_given := 0.0
 
 ## The Tower's welcome (the owner, 30 September 2026; D125): when a new
-## player's first run ends, a popup shows them the Workshop and gives them 50
-## Coins to start it. Saves already past their first run never get it.
-const FIRST_RUN_GIFT := 50.0
+## player's first run ends, a popup shows them the Workshop and gives them
+## Coins to start it: The Tower's 50, ours 57 (D137). Saves already past
+## their first run never get it.
+const FIRST_RUN_GIFT := 57.0
 
 
 func _init() -> void:
