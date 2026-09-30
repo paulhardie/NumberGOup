@@ -32,6 +32,12 @@ const TEST_COINS := [1000.0, 100000.0]
 ## The best Number, large and thin in the light, as the battle draws the Number.
 const EMBLEM_HEIGHT := 250
 const EMBLEM_NUMBER_PX := 72
+## The Coins count-up (D141): its shortest and longest, the extra for each
+## digit of the gain, and the chip's pop as it lands.
+const COUNT_SECONDS := 0.6
+const COUNT_SECONDS_MOST := 1.6
+const COUNT_SECONDS_PER_DIGIT := 0.25
+const COUNT_POP := 1.06
 
 var workshop: Workshop
 var progression: Progression
@@ -41,6 +47,8 @@ var _daily_day := -1
 ## The player's settings, changed in place; fresh ones if not set.
 var settings: Settings
 var _coins: Label
+## Coins counting up after a run (D141): the tween, while it runs.
+var _coin_count: Tween
 var _best_number: Label
 ## The best Number's emblem, and the next digit's reward under it.
 var _emblem: Button
@@ -250,7 +258,8 @@ func refresh() -> void:
 		_daily.disabled = not available
 		_daily.visible = available
 		_daily.tooltip_text = "Today's free Gems. One claim per UTC day; Gems stay between runs for Cards and Labs."
-	_coins.text = "● " + Palette.money(workshop.coins)
+	if _coin_count == null or not _coin_count.is_running():
+		_coins.text = "● " + Palette.money(workshop.coins)
 	_best_number.text = Palette.full(ceilf(workshop.best_number))
 	var next := workshop.next_milestone()
 	_next_digit.text = "next digit  ● %s" % Palette.money(float(next.coins)) if not next.is_empty() else "every digit reached"
@@ -314,6 +323,29 @@ static func _battle_box_for(fill: Color) -> StyleBoxFlat:
 	box.shadow_color = Color(fill, 0.35)
 	box.shadow_size = 12
 	return box
+
+
+## Back from a battle, the Coins chip counts up from what it read when the
+## player left Home to what they have now (D141), then gives a small pop.
+## Longer for a bigger haul, from 0.6 s to 1.6 s.
+func count_coins_from(start: float) -> void:
+	var gain := workshop.coins - start
+	if gain <= 0.0:
+		return
+	var seconds := clampf(COUNT_SECONDS + COUNT_SECONDS_PER_DIGIT * log(gain + 1.0) / log(10.0), COUNT_SECONDS, COUNT_SECONDS_MOST)
+	_show_coins(start)
+	if _coin_count != null:
+		_coin_count.kill()
+	_coin_count = create_tween()
+	_coin_count.tween_method(_show_coins, start, workshop.coins, seconds).set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
+	var chip: Control = _coins.get_parent()
+	_coin_count.tween_callback(func(): chip.pivot_offset = chip.size * 0.5)
+	_coin_count.tween_property(chip, "scale", Vector2.ONE * COUNT_POP, 0.08).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	_coin_count.tween_property(chip, "scale", Vector2.ONE, 0.18).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+func _show_coins(value: float) -> void:
+	_coins.text = "● " + Palette.money(floorf(value))
 
 
 func show_note(text: String) -> void:

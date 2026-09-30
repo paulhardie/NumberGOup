@@ -2738,6 +2738,46 @@ func test_settings_drop_the_old_range_switch() -> void:
 	await process_frame
 
 
+## D141: back from a battle, Home's Coins count up from what they read when
+## the player left, landing on the balance; a resumed run counts nothing.
+func test_home_counts_up_the_coins_a_battle_brought() -> void:
+	var home := HomeScreen.new()
+	home.workshop = Workshop.new()
+	home.workshop.add_coins(500.0)
+	root.add_child(home)
+	await process_frame
+	home.count_coins_from(100.0)
+	check(home._coins.text == "● 100", "it starts from the Coins held on leaving Home: %s" % home._coins.text)
+	home.refresh()
+	check(home._coins.text == "● 100", "and a refresh mid-count doesn't jump it")
+	home._coin_count.custom_step(HomeScreen.COUNT_SECONDS_MOST + 1.0)
+	check(home._coins.text == "● 500" and not home._coin_count.is_running(), "it lands on the balance: %s" % home._coins.text)
+	home.count_coins_from(600.0)
+	check(home._coins.text == "● 500", "nothing counts down")
+	home.queue_free()
+	_clear_test_saves()
+	_clear_test_logs()
+	var game = _game()
+	await process_frame
+	var before: float = game.workshop.coins
+	game._show_battle()
+	check(game._coins_leaving_home == before, "a new run remembers the Coins held on leaving Home")
+	var battle = game._screen
+	battle.sim.coins = 12.0
+	battle._bank_coins()
+	battle.sim.end_run()
+	battle._process(0.0)
+	battle.home_pressed.emit()
+	await process_frame
+	var back = game._screen
+	check(back is HomeScreen and back._coin_count != null and back._coin_count.is_running() and back._coins.text != "● " + Palette.money(game.workshop.coins),
+		"Home is counting up towards the balance: %s of %s" % [back._coins.text, Palette.money(game.workshop.coins)])
+	check(game._coins_leaving_home < 0.0, "and forgets it once counted")
+	game._show_battle({"seed": "1"})
+	check(game._coins_leaving_home < 0.0, "a resumed run counts nothing: its Coins were banked before")
+	await process_frame
+
+
 ## D125: a new player's first run ends with The Tower's welcome: 50 Coins,
 ## given once, and a popup on Home that opens the Workshop. A save already
 ## past its first run never gets it.

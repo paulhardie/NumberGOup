@@ -35,6 +35,9 @@ var settings := Settings.new()
 ## The music, playing across every screen (D092).
 var music := AmbientMusic.new()
 var _screen: Control
+## The Coins the player had when they left Home for a new run, so Home can
+## count up what the battle brought (D141); -1 when there's nothing to count.
+var _coins_leaving_home := -1.0
 
 
 func _ready() -> void:
@@ -112,6 +115,15 @@ func _show_home() -> HomeScreen:
 	return home
 
 
+## Home after a battle, counting up the Coins it brought (D141).
+func _show_home_after_battle() -> HomeScreen:
+	var home := _show_home()
+	if _coins_leaving_home >= 0.0:
+		home.count_coins_from(_coins_leaving_home)
+	_coins_leaving_home = -1.0
+	return home
+
+
 ## Testing (D097): back to a fresh Workshop, as a new player has. The log
 ## keeps what was wiped, so the reports still add up; settings stay.
 func _reset_progress() -> void:
@@ -127,6 +139,10 @@ func _reset_progress() -> void:
 func _show_battle(saved: Dictionary = {}) -> void:
 	if not progression.writable: return
 	progression.advance_time()
+	# A resumed run's earlier Coins were banked in a past session, so only a
+	# new run's are counted up (D141). Battle again keeps the first balance.
+	if saved.is_empty() and _coins_leaving_home < 0.0:
+		_coins_leaving_home = workshop.coins
 	var battle := BattleScreen.new()
 	battle.workshop = workshop
 	battle.progression = progression
@@ -138,7 +154,7 @@ func _show_battle(saved: Dictionary = {}) -> void:
 	battle.run_finished.connect(func():
 		_log_run(battle)
 		_save())
-	battle.home_pressed.connect(_show_home)
+	battle.home_pressed.connect(_show_home_after_battle)
 	battle.digit_reached.connect(func(_power: int): music.chime())
 	_swap(battle)
 
