@@ -1817,7 +1817,7 @@ Rules:
 
 ## D124 — 208 spawn rolls a wave, settled
 
-- **Status:** Accepted (2026-09-30) on owner direction: "yes to 208 rolls", closing D118's open question.
+- **Status:** Replaced by [D135](#d135--104-spawn-rolls-a-wave-so-a-fresh-tower-survives-wave-1) (104 rolls). Accepted (2026-09-30) on owner direction: "yes to 208 rolls", closing D118's open question.
 - **Decision:** a wave rolls for an enemy every 1/8 s of its 26-second spawning window, 208 rolls, as the SDK reads The Tower's spawn timer and as D114 built it. Nothing changes in the game; the half-rate alternative (104 rolls, D118's earlier recommendation) is dropped.
 - **Why:** with The Tower's mix, walk speed and type speeds in (D120–D122), 208 is closer on every benchmark measured. A fresh run with the owner's $93 reaches wave 6 (The Tower's: 8), a core career's Coins at waves 20–21 are 141–188 (The Tower's about 162), and a core career passes the wave-10 boss on run 20. At 104 a fresh run overshoots to wave 10 and a career stalls until run 33, since basics pay no Coins (D122's table).
 - **Still open:** a core career passes the wave-10 boss on run 20 where The Tower's players do on runs 10–13. How many enemies a successful roll sends (our 1.06 against the SDK's 1.86, D114) is the likeliest remaining cause; counting one wave's enemies in The Tower settles it (TOWER_RULES.md, reading 4).
@@ -1956,6 +1956,7 @@ Rules:
 | 100K | 100 → **93** | 43 → 43 | 37 → 36 | 60 → 60 |
 
   - At 100K the Lock held the turtle's Number for 46% of the run; the turtle loses about 7% of its wall and still wins at every budget measured.
+  - At 1M the turtle goes from 188 to 181, spread from 151 to 149, core and blender unchanged (64, 62); at 10M the turtle and spread builds are alive at the 180-minute cap either way (wave 309), core 102 and blender 103 to 102. So the Lock stays inside the 10% bound at every budget and changes no winner.
   - 40-run core careers print identically to `main` (none reaches wave 35), so the early benchmark holds: the wave-10 boss falls on run 12.
   - With `--lock off --divider-refill 0`, runs print identically to `main`.
 - **What it means:** the Lock does what it was designed for, pressing the turtle's Regen, within the plan's 10% bound, but it doesn't yet change which build wins. The owner plays it before it's tuned (`--lock-health`, `--lock-every`, `--lock-from`).
@@ -1966,3 +1967,26 @@ Rules:
 - **The rule tried:** what a Divider takes is held back from Regen's room to the run's best and released evenly over `Guesses.DIVIDER.refill_seconds` from the last bite; bites add up. Lifesteal, packages and bought Health are unaffected. `sim_runs.gd --divider-refill N` switches it on.
 - **Measured** (the 10K turtle, 4 seeds, `--lock off`): 10, 30, 60 and 120 seconds all end at a median of wave 45, as without it; at 10 s the 100K turtle stays at 100.
 - **Why:** the turtle's Regen already takes longer than 10 s to refill a bite, and when basics break it the Number is nowhere near its best, so a ceiling below the best never binds. It confirms D132: Dividers are the Number's drama, not its danger. If they're to matter to the outcome, it's a new enemy's job (the Countdown, THE_NUMBER.md section 8), not the Divider's.
+
+## D135 — 104 spawn rolls a wave, so a fresh tower survives wave 1
+
+- **Status:** Accepted (2026-09-30) on owner direction: "yes, 104 again", after the owner reported dying on wave 1 on a fresh save ("overwhelmed by basic enemies"). It replaces D124.
+- **What went wrong:** a fresh tower (Damage 3, one shot a second, $0 Cash) kills at most one basic a second, and nothing reaches its range until about 9 s in. At 208 rolls wave 1 sent 16 to 29 basics in 26 s (22 on average), so any wave that bunched above one a second walked in and ended the run. D121–D124 judged fresh runs by runs that started with $93, the owner's Tower account's Cash; the game starts with none (the owner, 26 and 30 September), and with none their own tables show fresh runs dying on waves 1–3. It began with D118 (#108), when The Tower's spawn-rate chart came in: before it a fresh run spreading its Cash reached wave 7.
+- **Decision:** a wave rolls for an enemy every quarter second of its 26-second spawning window, 104 rolls, twice the SDK's timer (`SPAWN_ROLL_TICKS` in `tools/import_tower_enemies.mjs`, which regenerates `data/tower/enemies.json`). Wave 1 sends about 11, as the owner counted in The Tower (D118); wave 100 about 24. The spawn-rate chart, the mix and every enemy number are unchanged.
+- **Measured** (`sim_runs.gd`, `main` against this change; fresh runs 20 seeds, careers 40 runs of `core`, walls 4 seeds of in-run `core`):
+
+| | 208 rolls | **104 rolls** | The Tower |
+|---|---|---|---|
+| Fresh run, spreading Cash | wave 3 (1–6) | **6 (4–7)** | wave 8, with $93 |
+| Fresh run, core rows | 2 (1–5) | 3 (2–4) | — |
+| Fresh run, buying nothing | 2 (1–2) | 3 (2–3) | dies at once |
+| Fresh runs ending on wave 1 | 15 of 60 | **0 of 60** | — |
+| Career beats the wave-10 boss | run 12 | run 13 | runs 10–13 |
+| Career: run 40 | wave 27, 258 Coins | wave 24, 98 Coins | — |
+| A wave-21 run's Coins | 139–162 | **77–99** | about 162 for wave 22 |
+| Turtle wall, 10K / 100K Coins | 42 / 93 | 41 / 84 | — |
+| Core wall, 10K / 100K Coins | 29 / 43 | 31 / 51 | — |
+
+- **What it costs:** Coins per run roughly halve (basics pay no Coins, and there are half as many specials), so a career climbs more slowly: a wave-21 run earns about 90 Coins against The Tower's about 162. In a run, fewer enemies means less Cash, so the turtle breaks sooner (84 at 100K, not 93), while builds that walled on crowds of ranged enemies go further (core 51, not 43).
+- **Open:** Coins are now the lever to tune separately if careers feel slow (Coins per kill, the Coin milestones, or the wave-end Coins), and the owner's count of one whole early wave (TOWER_RULES.md reading 4) would settle whether 104 is The Tower's or only close to it.
+
