@@ -96,6 +96,7 @@ The vision's test still applies: **honest.** Every number that kills you should 
 - **(b) Keep all of The Tower's types flat, and add new operator enemies on top,** at a small, tunable share that grows with the wave. The Tower's benchmarks hold, and the operators come in one at a time, each measured.
 - **Recommend (b).** For example, ÷2 enemies from wave 3 at about 3% of a wave, and percent enemies not in Tier 1.
 - *Since D094 the Divider replaces a basic, in The Tower's Protector slot, rather than coming on top, so The Tower's wave sizes hold exactly.*
+- *Since D133 our new enemies come on top of The Tower's waves, as (b) first proposed (the owner's choice); the Divider keeps its basic's slot.*
 - **Decision 3.**
 
 **2.7 Bosses.** A Tier 1 boss stays and hits flat, like The Tower's. A boss that divided every second would be unwinnable. **Recommend:** the boss stays flat in Tier 1. Operator bosses belong to later tiers, if anywhere.
@@ -323,3 +324,29 @@ As built:
 - The Tower's benchmarks are unchanged, for single runs and careers.
 - About a third of Dividers reach the Number: one every 6 minutes or so in the middle waves.
 - That's rarer than 5.2's first target of one a minute. Getting there needs more Dividers or tougher ones, and the owner judges that in play. The figures are in D082, and the levers are in `Guesses.DIVIDER`.
+
+## 8. Our base roster (D133)
+
+The owner asked for enemy types that fit a game about a number, for the base roster a player meets in Tier 1 and the early tiers; elites and fleets stay The Tower's, late. Until D133 the base roster said nothing about numbers bar the Divider, and D132 showed the Divider can't change a run's outcome.
+
+**Every base enemy of ours:**
+1. Carries one arithmetic idea a player gets at a glance, written on its body in its own typeface and colour (D085, D086, D128), readable in a crowd (D127).
+2. Lets only flat hits kill (2.2).
+3. Takes no percent of maximum Health (D001) and adds nothing to the Number (D097, D111).
+4. Is answered by rows the Workshop already has (D068): kill it first, hold it off, or absorb it.
+5. Comes on top of The Tower's waves, at most one of a kind a wave at first, so each moves the benchmarks and is sized by measuring.
+6. Is explained once, by a card the first time a player meets it (D125's disclosure).
+
+**The proposed roster**, each asking a different build question (and so giving Cards clear jobs later):
+
+| Enemy | Sign | Rule | Tests | Status |
+|---|---|---|---|---|
+| Divider | ÷1.25, ÷1.5 | Takes a share of the Number now | Big Numbers | Built (D082, D094) |
+| **Lock** | = | While it stands on the range's edge, the Number can't go up | The turtle's Regen | **Built (D133)** |
+| Countdown | 5…4…3 | Stops inside the range and counts down, then hits hard, flat | Burst damage | Proposed, around wave 15 |
+| Carrier | 36 | Killed, it splits into its digits, small and fast | Area damage | Proposed, around wave 25 |
+| Rounder | ≈ | On contact, rounds the Number down to two leading digits | Hovering under a round number | Proposed, around wave 50 |
+
+Dropped: a digit Reverser (random, not skill), Modulo (swingy and opaque), a ÷10 shift (too brutal), a zero-shield (0 is the orbs'), parity or prime immunities (opaque), and buffers that strengthen other enemies (a late Commander's job, if anyone's).
+
+**The Divider's slow refill (D134)** was tried with the Lock: what a ÷ took, held back from Regen for 10 to 120 seconds. It moved no wall, since by the time basics break a tower the Number is nowhere near its best, so it stays a measuring option (`--divider-refill`), off in the game.

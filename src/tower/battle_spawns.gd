@@ -1,11 +1,13 @@
 extends RefCounted
 ## Which enemies each wave sends and when, factored out of BattleSim (AGENTS.md
 ## law 7, D117): The Tower's spawn rolls (D114), its mix and caps (D113), the
-## Protector's gate and the elites' chances (D115), and the Divider's slot
-## (D094). It rolls a wave as the wave starts and hands each enemy to the sim
-## as it falls due; what an enemy is comes from EnemyKinds.
-## It draws only from its own two streams, in the same order as before, so a
-## run and its replay are unchanged.
+## Protector's gate and the elites' chances (D115), the Divider's slot (D094)
+## and the Lock's beat on top of them all (D133). It rolls a wave as the wave
+## starts and hands each enemy to the sim as it falls due; what an enemy is
+## comes from EnemyKinds.
+## It draws only from its own two streams, in the same order as before, and
+## the Lock from one seeded afresh each wave, so a run and its replay are
+## unchanged.
 
 const Guesses = preload("res://src/tower/guesses.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
@@ -98,6 +100,14 @@ func schedule_wave() -> void:
 				count += 1
 			for copy in range(count):
 				insert_spawn(kind, _spawn_rng.randf() * TowerData.spawn_seconds())
+	# The Lock comes on top of The Tower's wave (D133), on a fixed beat, its
+	# moment and direction drawn from a stream of its own for this wave, so
+	# The Tower's enemies and the Divider are exactly as they'd be without
+	# it and there's nothing to save.
+	if EnemyKinds.lock_comes(sim.lock, wave):
+		var lock_rng := RandomNumberGenerator.new()
+		lock_rng.seed = hash([sim.run_seed, "lock", wave])
+		insert_spawn("lock", lock_rng.randf() * TowerData.spawn_seconds(), lock_rng.randf() * TAU)
 	# A Divider takes the Protector's slot in The Tower's standard pool (D094):
 	# it replaces one of the wave's basics, so the wave's size and the rest of
 	# its enemies are The Tower's. At most one a wave, so at a rate of one
@@ -128,8 +138,8 @@ func spawn_due() -> void:
 			continue
 		wave_spawned += 1
 		# A Divider comes from where the basic it replaced would have, so every
-		# other enemy's direction is The Tower's too.
-		sim._place(kind, _spawn_rng.randf() * TAU)
+		# other enemy's direction is The Tower's too; a Lock brings its own.
+		sim._place(kind, float(schedule[next_spawn - 1].angle) if schedule[next_spawn - 1].has("angle") else _spawn_rng.randf() * TAU)
 
 
 ## The mix of kinds on the run's wave: a tier raises the fast, tank and ranged
@@ -171,12 +181,16 @@ func has_room(kind: String) -> bool:
 	return count_on_field("normal") < TowerData.enemy_cap()
 
 
-## Puts a spawn into the wave's schedule, after everything due at or before it.
-func insert_spawn(kind: String, at: float) -> void:
+## Puts a spawn into the wave's schedule, after everything due at or before
+## it; `angle`, if given, is where it comes from, else the spawn stream picks.
+func insert_spawn(kind: String, at: float, angle := NAN) -> void:
 	var index := schedule.size()
 	while index > 0 and float(schedule[index - 1].at) > at:
 		index -= 1
-	schedule.insert(index, {"kind": kind, "at": at})
+	var entry := {"kind": kind, "at": at}
+	if not is_nan(angle):
+		entry.angle = angle
+	schedule.insert(index, entry)
 
 
 ## A normal enemy's kind, from the mix; a Protector drawn after this wave's
@@ -224,6 +238,9 @@ func wave_info() -> Dictionary:
 	var dividers := EnemyKinds.divider_rate(sim.divider, wave)
 	if dividers > 0.0:
 		rows.append(_info_row("divider", 100.0 * minf(1.0, dividers)))
+	var lock_in := EnemyKinds.lock_waits(sim.lock, wave)
+	if lock_in >= 0 and wave >= int(sim.lock.from_wave) - 10:
+		rows.append(_info_row("lock", 100.0 if lock_in == 0 else 0.0, lock_in))
 	var elite := TowerData.elite_chance(wave, tier)
 	for kind in TowerData.ELITES:
 		rows.append(_info_row(kind, elite.single, 0, elite.double))

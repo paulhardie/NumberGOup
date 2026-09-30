@@ -4,8 +4,52 @@ extends RefCounted
 const TowerData = preload("res://src/tower/tower_data.gd")
 const RunRules = preload("res://src/tower/run_rules.gd")
 const StatStack = preload("res://src/tower/stat_stack.gd")
+const Guesses = preload("res://src/tower/guesses.gd")
 const VERSION := 1
-const RULES_VERSION := 1
+const RULES_VERSION := 2
+
+
+static func default_tuning() -> Dictionary:
+	return {"divider": Guesses.DIVIDER.duplicate(), "lock": Guesses.LOCK.duplicate(),
+		"peak_drift": Guesses.PEAK_REGEN_DRIFT, "kill_share": Guesses.KILL_GROWTH,
+		"overfill": Guesses.NUMBER_OVERFILL, "packages_to_best": false,
+		"sure_from": 0, "sure_every": 5, "sure_divisor": 1.1}
+
+
+## The measuring tool is a real consumer: its starting switches must replay
+## before the first wave is rolled, just like the normal game's build.
+static func valid_tuning(tuning) -> bool:
+	if not tuning is Dictionary: return false
+	var defaults := default_tuning()
+	for key in tuning:
+		if key not in defaults: return false
+	var full := defaults.duplicate(true)
+	full.merge(tuning, true)
+	if not full.packages_to_best is bool: return false
+	for key in ["peak_drift", "kill_share", "overfill", "sure_divisor"]:
+		if not number(full[key]) or float(full[key]) < 0.0 or float(full[key]) > 1e6: return false
+	if full.sure_divisor < 1.0: return false
+	for key in ["sure_from", "sure_every"]:
+		if not _integer(full[key], 0 if key == "sure_from" else 1): return false
+	for key in ["divider", "lock"]:
+		if not full[key] is Dictionary or full[key].size() != defaults[key].size(): return false
+		for part in defaults[key]:
+			if not number(full[key].get(part)) or float(full[key][part]) < 0.0 or float(full[key][part]) > 1e12: return false
+	var divider: Dictionary = full.divider
+	for key in ["from_wave", "full_wave"]:
+		if not _integer(divider[key], 1): return false
+	for key in ["divisor_step", "health_first", "health_full", "speed"]:
+		if divider[key] <= 0.0: return false
+	if divider.full_wave < divider.from_wave or divider.rate_first > 1.0 or divider.rate_full > 1.0 \
+			or divider.divisor_first < 1.0 or divider.divisor_full < 1.0: return false
+	var lock: Dictionary = full.lock
+	for key in ["from_wave", "full_wave", "every_first", "every_full"]:
+		if not _integer(lock[key], 0 if key == "from_wave" else 1): return false
+	return lock.full_wave >= lock.from_wave and lock.health > 0.0
+
+
+static func _integer(value, minimum: int) -> bool:
+	return number(value) and float(value) >= minimum and float(value) <= 100000.0 and float(value) == int(value)
 
 
 static func valid_effect(effect, rule := false) -> bool:
@@ -17,13 +61,15 @@ static func valid_effect(effect, rule := false) -> bool:
 		and (effect.op != "multiply" or float(effect.value) >= 0.0)
 
 
-static func valid(start) -> bool:
+static func valid(start, allow_old_rules := false) -> bool:
 	if not start is Dictionary or not start.get("levels") is Dictionary or not start.get("groups") is Array:
 		return false
 	if start.has("version") and start.version != VERSION:
 		return false
-	if start.has("rules_version") and start.rules_version != RULES_VERSION:
-		return false
+	if start.has("rules_version"):
+		if not _integer(start.rules_version, 1) or start.rules_version > RULES_VERSION \
+				or (not allow_old_rules and start.rules_version != RULES_VERSION): return false
+	if not valid_tuning(start.get("tuning", {})): return false
 	if not number(start.get("tier", 1)) or float(start.get("tier", 1)) != int(start.get("tier", 1)) \
 			or int(start.get("tier", 1)) < 1 or int(start.get("tier", 1)) > TowerData.tier_count():
 		return false

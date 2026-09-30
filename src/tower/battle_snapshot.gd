@@ -7,13 +7,13 @@ const RunConfig = preload("res://src/tower/run_config.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
 const RunReport = preload("res://src/tower/run_report.gd")
 const Guesses = preload("res://src/tower/guesses.gd")
-const VERSION := 1
+const VERSION := 2
 const FLOATS := ["time", "wave_clock", "health", "cash", "cash_earned", "coins",
 	"peak_drift", "kill_share", "overfill", "sure_divisor", "peak_number", "_high",
-	"_shot_charge", "_health_skip", "_attack_skip"]
+	"_shot_charge", "_health_skip", "_attack_skip", "locked_seconds", "divider_held", "_held_release"]
 const INTS := ["ticks", "wave", "kills", "sure_from", "sure_every", "_sure_landed",
 	"dividers_spawned", "dividers_landed", "_next_id", "health_level", "attack_level"]
-const BOOLS := ["alive", "packages_to_best", "draining"]
+const BOOLS := ["alive", "packages_to_best", "draining", "locked"]
 const MAPS := ["run_levels", "lost_to", "gained_from", "raised_by", "damage_by", "kills_by"]
 const ENEMY_FLOATS := ["health", "max_health", "attack", "speed", "angle", "distance",
 	"stop_at", "hit_in", "last_distance", "rend", "divisor", "mass"]
@@ -28,6 +28,7 @@ static func capture(sim: BattleSim) -> Dictionary:
 		state[key] = value.duplicate(true) if value is Dictionary else value
 	state.killed_by = sim.killed_by
 	state.divider = sim.divider.duplicate()
+	state.lock = sim.lock.duplicate()
 	state.cooldowns = sim.cooldowns.remaining.duplicate()
 	var targets := {}
 	var field: Array = []
@@ -106,17 +107,16 @@ static func _valid_state(data) -> bool:
 			return false
 	if int(state.ticks) < 0 or int(state.ticks) > 30 * 60 * 60 * 24 * 7 or int(state.wave) < 1 \
 			or int(state.sure_every) <= 0 or not state.get("killed_by") is String \
-			or not _numeric_map(state.get("divider")) or not _numeric_map(state.get("cooldowns")):
+			or not _numeric_map(state.get("cooldowns")):
 		return false
 	if int(state.wave) > TowerData.last_wave() or int(state.health_level) < 1 or int(state.health_level) > int(state.wave) \
 			or int(state.attack_level) < 1 or int(state.attack_level) > int(state.wave) or float(state._shot_charge) < 0.0 or float(state._shot_charge) > 128.0:
 		return false
-	for key in ["health", "cash", "cash_earned", "coins", "peak_number"]:
+	for key in ["health", "cash", "cash_earned", "coins", "peak_number", "locked_seconds", "divider_held", "_held_release"]:
 		if float(state[key]) < 0.0: return false
-	for key in Guesses.DIVIDER:
-		if not state.divider.has(key) or float(state.divider[key]) <= 0.0: return false
-	if state.divider.full_wave < state.divider.from_wave or state.divider.rate_first > 1.0 or state.divider.rate_full > 1.0 \
-			or state.divider.divisor_first < 1.0 or state.divider.divisor_full < 1.0: return false
+	var tuning := {}
+	for key in RunConfig.default_tuning(): tuning[key] = state.get(key)
+	if not RunConfig.valid_tuning(tuning): return false
 	for id in state.run_levels:
 		if id not in TowerData.rows() or not _integer(state.run_levels[id]) or int(state.run_levels[id]) < 0 \
 				or int(state.run_levels[id]) + int(data.start.levels.get(id, 0)) > TowerData.max_level(id): return false
@@ -127,7 +127,7 @@ static func _valid_state(data) -> bool:
 	for id in data.targets:
 		var enemy = data.targets[id]
 		if not id is String or not enemy is Dictionary or not enemy.get("kind") is String \
-				or (enemy.kind != "divider" and not TowerData.enemies().types.has(enemy.kind)):
+				or (enemy.kind not in ["divider", "lock"] and not TowerData.enemies().types.has(enemy.kind)):
 			return false
 		for key in ENEMY_FLOATS:
 			if not RunConfig.number(enemy.get(key)):
@@ -166,9 +166,10 @@ static func _valid_state(data) -> bool:
 	var previous := -1.0
 	for item in spawns.schedule:
 		if not item is Dictionary or not item.get("kind") is String \
-				or (item.kind != "divider" and not TowerData.enemies().types.has(item.kind)) \
+				or (item.kind not in ["divider", "lock"] and not TowerData.enemies().types.has(item.kind)) \
 				or not RunConfig.number(item.get("at")) or float(item.at) < previous:
 			return false
+		if item.has("angle") and not RunConfig.number(item.angle): return false
 		previous = float(item.at)
 	var defences = data.get("defences")
 	if not defences is Dictionary or not defences.get("mines") is Array or defences.mines.size() > 30:
@@ -192,7 +193,7 @@ static func restore(data) -> BattleSim:
 	if not _valid_state(data):
 		return null
 	var start: Dictionary = data.start
-	var sim := BattleSim.new(int(data.seed), start.levels, start.groups, int(start.get("tier", 1)), start.get("effects", []), start.get("rules", []))
+	var sim := BattleSim.new(int(data.seed), start.levels, start.groups, int(start.get("tier", 1)), start.get("effects", []), start.get("rules", []), start.get("tuning", {}))
 	for key in FLOATS:
 		sim.set(key, float(data.state[key]))
 	for key in INTS:
@@ -202,6 +203,7 @@ static func restore(data) -> BattleSim:
 		sim.set(key, value.duplicate(true) if value is Dictionary else value)
 	sim.killed_by = data.state.killed_by
 	sim.divider = data.state.divider.duplicate()
+	sim.lock = data.state.lock.duplicate()
 	sim.cooldowns.remaining = data.state.cooldowns.duplicate()
 	# Mid-run effects are state, not the frozen starting build.
 	sim.stats = preload("res://src/tower/stat_stack.gd").new()
