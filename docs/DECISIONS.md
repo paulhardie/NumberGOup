@@ -1854,3 +1854,14 @@ Rules:
   - The damage dealt so far shows only under full labels.
   - Every enemy's number, count and damage, and every float, has a thin dark halo, so what still crosses stays readable.
 - **Measured:** a staged crowd of 40 mixed enemies (basics, fast, tanks, ranged and Dividers) around a wave-25 Number, rendered on `main` and on this change: the pile became readable rows of counted labels and a few signs. The capture tool's Tier 2 invaders shot shows two stacked Scatters as "−1.42M ×2". Checked by eye; not seen in motion, where labels can swap between full and sign as enemies pass each other.
+
+## D128 — A visible range ring, and larger enemies without the −
+
+- **Status:** Accepted (2026-09-30) on owner direction: "go ahead with the ring and enemy contrast", and "happy for you to remove the - from enemies and use that saved space to make them slightly larger", after the look review found the ring at 6% nearly invisible and the enemies small against the Number. Numbered D128, leaving D126 to the foundation pass running in parallel.
+- **Decision** (drawing only):
+  - **The range ring is 16% white at 1.25 px** (it was 6% at 1 px), still a hairline but findable against the Number's light.
+  - **An enemy's hit is written bare:** 20, not −20, and a Vampire's drain 2%/s. Every enemy but the Divider takes away, so the − said nothing; the Divider keeps its ÷, the one operation that differs (D085's enemies as numbers stand; D102's "what its hit will take" stands).
+  - **Every enemy type is 2 points larger** (a basic 16, a tank 20, a boss 26, a Divider 20), in the room the − left.
+  - In a crowd (D127), an enemy giving up its spot is a dot in its colour, with the halo, since its sign was the −; a Divider still shows its ÷.
+  - The hits the Number takes, the Wall's and the floats keep their −: those are the Number going down.
+- **Checked by eye:** a staged sparse scene (9 enemies walking in) and a crowd of 40 at wave 25, on `main` and this change. Not seen in motion.
