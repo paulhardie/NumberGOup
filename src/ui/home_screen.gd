@@ -1,7 +1,7 @@
 extends Control
 ## Between runs (D096, premium minimal since D138): the currencies as chips
-## along the top, the best Number in its light inside a ring filling towards
-## its next digit, a line with the tier and the best wave, the one lit Battle
+## along the top, the best Number in its light with its next digit's reward
+## under it, a line with the tier and the best wave, the one lit Battle
 ## button, and the dock below. Tapping the Number opens the milestones (D107).
 ## The dock shows Cards and Labs, locked, once a run reaches The Tower's wave
 ## for them (D125); the tier chooser comes back with Tier 2 (1.4). Settings
@@ -42,8 +42,7 @@ var _daily_day := -1
 var settings: Settings
 var _coins: Label
 var _best_number: Label
-## The ring round the best Number, and the next digit's reward under it.
-var _ring: DigitRing
+## The best Number's emblem, and the next digit's reward under it.
 var _emblem: Button
 var _next_digit: Label
 var _battle: Button
@@ -126,9 +125,8 @@ func _ready() -> void:
 	lift.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	body.add_child(lift)
 
-	# The emblem: the best Number, in the same light as the battle's, inside a
-	# ring filling towards its next digit's milestone. Tapping it opens the
-	# milestones (D138).
+	# The emblem: the best Number, in the same light as the battle's, with no
+	# ring round it (the owner, D138). Tapping it opens the milestones.
 	var emblem := Button.new()
 	emblem.flat = true
 	emblem.custom_minimum_size = Vector2(0, EMBLEM_HEIGHT)
@@ -146,10 +144,6 @@ func _ready() -> void:
 	_light.material = ShaderMaterial.new()
 	(_light.material as ShaderMaterial).shader = preload("res://src/ui/number_glow.gdshader")
 	emblem.add_child(_light)
-	_ring = DigitRing.new()
-	_ring.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	_ring.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	emblem.add_child(_ring)
 	_best_number = Label.new()
 	_best_number.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	_best_number.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -258,8 +252,6 @@ func refresh() -> void:
 		_daily.tooltip_text = "Today's free Gems. One claim per UTC day; Gems stay between runs for Cards and Labs."
 	_coins.text = "● " + Palette.money(workshop.coins)
 	_best_number.text = Palette.full(ceilf(workshop.best_number))
-	_ring.fill = digit_progress(workshop)
-	_ring.queue_redraw()
 	var next := workshop.next_milestone()
 	_next_digit.text = "next digit  ● %s" % Palette.money(float(next.coins)) if not next.is_empty() else "every digit reached"
 	_best_wave.text = "Tier 1  ·  best wave %d  ·  %d run%s" % [progression.best_wave(1) if progression != null and progression.records.has("1") else workshop.best_wave, workshop.runs, "" if workshop.runs == 1 else "s"]
@@ -307,19 +299,6 @@ func _build_gift() -> void:
 	_gift_panel.visible = true
 
 
-## How far the best Number has come from its last milestone towards the
-## next, 0 to 1; 1 once every milestone is reached. The ring shows it.
-static func digit_progress(from: Workshop) -> float:
-	var next := from.next_milestone()
-	if next.is_empty():
-		return 1.0
-	var floor_number := 0.0
-	for milestone in Guesses.MILESTONES:
-		if float(milestone.number) < float(next.number):
-			floor_number = float(milestone.number)
-	return clampf((from.best_number - floor_number) / (float(next.number) - floor_number), 0.0, 1.0)
-
-
 func _open_milestones() -> void:
 	_fill_milestones()
 	_milestones_panel.visible = true
@@ -335,23 +314,6 @@ static func _battle_box_for(fill: Color) -> StyleBoxFlat:
 	box.shadow_color = Color(fill, 0.35)
 	box.shadow_size = 12
 	return box
-
-
-## A thin ring round the best Number: a faint track, and an arc in the
-## accent from the top, clockwise, as far as `fill` has come.
-class DigitRing extends Control:
-	const Palette = preload("res://src/ui/palette.gd")
-	const WIDTH := 2.0
-	var fill := 0.0
-
-	func _draw() -> void:
-		# Just outside the light's halo, so the ring frames it rather than
-		# cutting it off.
-		var radius := minf(size.x, size.y) * 0.5 - 6.0
-		var centre := size * 0.5
-		draw_arc(centre, radius, 0.0, TAU, 128, Color(1, 1, 1, 0.07), WIDTH, true)
-		if fill > 0.0:
-			draw_arc(centre, radius, -PI * 0.5, -PI * 0.5 + TAU * fill, maxi(8, roundi(128 * fill)), Color(Palette.ACCENT, 0.8), WIDTH, true)
 
 
 func show_note(text: String) -> void:

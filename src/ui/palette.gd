@@ -254,42 +254,24 @@ static func hairline() -> ColorRect:
 	return line
 
 
-## Cash and Coins side by side at one size, as a top bar has them: a muted
-## "$" before Cash, a gold dot before Coins. Without Cash (Home, the Workshop)
-## it is Coins alone. Returns {line, cash, coins}.
+## Cash and Coins side by side as chips, as Home has its currencies (D138):
+## "$ 155" in the text's colour, "● 0" in gold. Without Cash (the Workshop)
+## it is Coins alone. The callers write each amount with its glyph. Returns
+## {line, cash, coins}; the font is the one the amounts are written in.
 static func money_line(font: Font, with_cash: bool = true) -> Dictionary:
 	var line := HBoxContainer.new()
-	line.add_theme_constant_override("separation", 18)
+	line.add_theme_constant_override("separation", 8)
 	line.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	var cash: Label = null
 	if with_cash:
-		var cash_part := HBoxContainer.new()
-		cash_part.add_theme_constant_override("separation", 6)
-		line.add_child(cash_part)
-		cash_part.add_child(_money_label(font, MUTED, "$"))
-		cash = _money_label(font, TEXT, "0")
-		cash_part.add_child(cash)
-	var coin_part := HBoxContainer.new()
-	coin_part.add_theme_constant_override("separation", 8)
-	line.add_child(coin_part)
-	var dot := Panel.new()
-	dot.custom_minimum_size = Vector2(7, 7)
-	dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
-	dot.add_theme_stylebox_override("panel", pill_box(COIN, Color(0, 0, 0, 0), 0))
-	coin_part.add_child(dot)
-	var coins := _money_label(font, COIN, "0")
-	coin_part.add_child(coins)
-	return {"line": line, "cash": cash, "coins": coins}
-
-
-static func _money_label(font: Font, colour: Color, text: String) -> Label:
-	var label := Label.new()
-	label.text = text
-	label.add_theme_font_override("font", font)
-	label.add_theme_font_size_override("font_size", MONEY_PX)
-	label.add_theme_color_override("font_color", colour)
-	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	return label
+		var cash_chip := chip(TEXT, MONEY_PX - 2)
+		cash = cash_chip.label
+		cash.add_theme_font_override("font", font)
+		line.add_child(cash_chip.panel)
+	var coin_chip := chip(COIN, MONEY_PX - 2)
+	coin_chip.label.add_theme_font_override("font", font)
+	line.add_child(coin_chip.panel)
+	return {"line": line, "cash": cash, "coins": coin_chip.label}
 
 
 ## A font at one weight of its variable axis, with every digit the same

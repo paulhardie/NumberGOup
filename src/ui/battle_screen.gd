@@ -260,8 +260,8 @@ func _bank_coins() -> void:
 
 
 func _refresh() -> void:
-	_cash.text = Palette.money(sim.cash)
-	_coins.text = Palette.money(workshop.coins)
+	_cash.text = "$ " + Palette.money(sim.cash)
+	_coins.text = "● " + Palette.money(workshop.coins)
 	_tower_damage.text = "dmg " + Palette.row_value("damage", sim.stat("damage"))
 	_tower_regen.text = "+%.2f/s" % sim.stat("health_regen")
 	# The Number against this run's peak (D083: it has no ceiling).
