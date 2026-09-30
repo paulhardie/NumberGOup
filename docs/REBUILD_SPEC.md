@@ -21,7 +21,7 @@ These keep it from going round in circles again.
 1. **The Tower is the spec.** Where The Tower's number is known, use it. Where it isn't, pick one, list it under [Guesses](#guesses) and move on. A guess needs no decision entry; the owner replaces it when they read the real value.
 2. **Numbers are generated, never typed.** The Workshop already comes from TheTowerSDK (`tools/import_tower_workshop.py`). Enemy stats get the same treatment: a script generates per-wave health and damage, type multipliers, type mix and spawn counts from the SDK into `data/tower/enemies.json`. Checked: the SDK's `getEnemyWaveStats` gives a Tier 1 basic 2 HP / 1 damage at wave 1 and 4,364 / 402 at wave 100, matching [the research table](TOWER_SCALING_FOUNDATION.md#tier-1-wave-by-wave-against-ours--24-september-2026). **Take the SDK's values before it rounds them down:** its damage function floors to whole numbers, but unrounded it gives 1.176, 1.386 and 15.908 for waves 1, 2 and 22, which are exactly the owner's screens (1.18, 1.39 and 15.90); Health drifts: unrounded it is exact at wave 1 (2.35) but runs high from there, 3.32 against the screens' 3.31 at wave 2, 7.32 against 7.20 at wave 5, 12.58 against 12.15 at wave 8 and 69.64 against 63.11 at wave 22. Those five fitted the SDK's health times 0.9953 to the power of (wave − 1), and the script applied that until D120, when the owner's waves 50 and 100 read the SDK's health exactly at the level Enemy Level Skip left (75.17 at level 23, 341.33 at 45). The health is the SDK's since; the earlier screens' waves 5, 8 and 22 stay unexplained (TOWER_RULES.md).
 3. **One simulation, two faces.** The battle is a plain GDScript simulation: no nodes, a fixed tick, a seeded RNG. The battle screen draws it; a headless tool runs it at thousands of times real speed. What is measured is exactly what is played, so the balance tools can't drift from the game.
-4. **No save compatibility until the loop is fun.** The new game saves to a new file, `user://number_go_up_tower.json`. The old save is left on disk, untouched: not converted and not deleted. The save has a version field. A save from a different version starts fresh and logs why, with no migrations.
+4. **Save compatibility is now explicit (D126).** The rebuild still uses `user://number_go_up_tower.json`, leaving the pre-rebuild save untouched. Version 1 migrates with a backup to version 2, preserving permanent progress and granting the newly introduced wave rewards once. Newer schemas and damaged current progress are protected from writes. Active battles use lossless snapshots; older records retain replay support.
 5. **The owner plays each version before the next starts.** "Done" means played, not just measured.
 6. **Light paperwork.** Tests cover the formulas (prices, enemy stats, pay) and the simulation's determinism. The rebuild gets one decision entry, plus one for each owner choice, not one per tuning. The handover stays under a page.
 
@@ -43,7 +43,7 @@ This was the first plan. The game (0.9) has gone past it: every Workshop group, 
 
 ## Not in 1.0
 
-Tiers 2 and up, milestones, Gems, Cards, Labs, Knowledge, Ultimate Weapons, Perks, Modules, Tournaments and offline earnings. Also tapping to shoot (The Tower has no tap). The [Roadmap](#roadmap) says when each comes, if it does.
+Selectable tiers 2 and up, Cards, the Labs catalogue, Knowledge, Ultimate Weapons, Perks, Modules, Tournaments and offline battle earnings. Also tapping to shoot (The Tower has no tap). Wave rewards, Gems, real-time research jobs and the other [scaling foundations](SCALING_FOUNDATIONS.md) are built under D126; they support the existing roadmap rather than sign off those versions.
 
 ## The Number (in 1.0)
 
@@ -94,7 +94,8 @@ tests/       tower_tests.gd
   - The run-over screen and Home show the peak and best Number, and Ranged pays 2 Coins.
 - **The owner's first reports (27 September): 21 runs, 37 in the Workshop, best wave 21.** See [Benchmarks](#benchmarks) for how they compare with The Tower.
 - **An activity report (D077): built, and used by the owner.** Every run (seed, starting Workshop, each buy with its tick, a snapshot per wave) and every Workshop purchase is logged beside the save. Home's Export report writes one file for the owner to drop into the chat, and `tools/read_report.gd` reads it and replays each run exactly on the commit that recorded it. From here, benchmarks can come from the owner's own runs rather than screenshots.
-- **A run closed mid-way resumes (D078): built, not yet played by the owner.** The save carries the run in progress beside the Workshop, and the game opens back into it, replayed from its seed. A run that no longer replays the same after an update ends at its saved wave with its Coins kept.
+- **A run closed mid-way resumes (D078, D126): built, not yet played by the owner.** New saves restore exact battle state; older ones replay from their seed. A run whose rules/data changed ends at its saved wave with its banked Coins kept.
+- **Scaling foundations (D126): built.** Wave milestones, Gems and daily claims sit beside Number rewards. Versioned saves migrate with backups, protected future schemas and lossless Coins. Frozen builds, rule effects, attributed damage/kills, shared cooldowns and real-time paid research jobs support Cards, Labs and weapons. Generated data has an explicit horizon rather than a silent plateau. Contracts and limits are in [SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.md); final evidence is in [HANDOVER.md](HANDOVER.md).
 - **Where it went differently from this spec:**
   - The SDK's enemies per wave (about 4 early) contradict the owner's screens, so D065's count (20 at wave 1, rising) is kept as a guess.
   - The type mix is the owner's Wave Info at waves 1, 22, 50 and 100 (95/5/0/0 to 69/11/13/7), straight between them and held past 100 (D120), not the SDK's 91/3/3/3.
@@ -109,11 +110,11 @@ Versions, each one a playable thing the owner plays and signs off (D079). The nu
 
 | Version | What | Done when |
 |---|---|---|
-| **0.9** (now) | Tier 1, the whole Workshop with multi-buy, the activity report, resuming a run | Built: the first plan's milestones 1 to 4 and D076–D078 |
+| **0.9** (now) | Tier 1, the whole Workshop with multi-buy, reports, direct battle resume, wave milestones and Gems; the next systems' foundations | Built: milestones 1 to 4, D076–D078 and D126; 1.0 still needs owner sign-off |
 | **1.0** | The Tower's first hours with **the Number as the tower** (D080): the Number in the centre, enemies that subtract, divide or take a share on contact | The Number's decisions are answered ([`THE_NUMBER.md`](THE_NUMBER.md)). Measured runs hold The Tower's benchmarks and meet the Number's targets. The owner says the core loop is satisfying and fun |
 | **1.0.x** | The Tower's run rules finished (D116): the rule corrections, the readings, and the foundations Cards and Labs need, as the build list in [`TOWER_RULES.md`](TOWER_RULES.md#7-before-11-the-build-list) orders them | Every item on the list is built or dropped by the owner, and the benchmarks are re-measured |
-| **1.1** | Cards, and Gems to buy card slots: what The Tower launched with | The owner plays to wave 20 and uses them |
-| **1.2** | Labs, opening at wave 30 (Starting Cash, Wall Regen and the rest) | The owner plays to them |
+| **1.1** | Cards and card slots using D126's Gem balance and frozen run configuration | The owner plays to wave 20 and uses them |
+| **1.2** | Labs catalogue and UI at wave 30, using D126's paid jobs, real-time clock and permanent effects | The owner plays to them |
 | **1.3** | Ultimate Weapons | The owner plays to them |
 | **1.4** | Tier 2 and up, where the Tier 1 turtle breaks, each tier with its own enemies (D112). The Tower's are built in the battle (D115): the Protector from Tier 2 wave 80, and elites (Vampire, Ray, Scatter) from wave 500 in Tier 1, 450 in Tier 2 and 405 in Tier 3. Tier 2 opens after Tier 1's wave 100, at 20× enemy health and attack for 1.8× Coins; Tier 3 after Tier 2's wave 100 at 60× and 2.6× (D107) | A Tier 1 turtle fails in Tier 2 and a pivot wins, as The Tower intends; the Number keeps D110's shape: it climbs through a run and can still be hurt |
 | Later, unscheduled | Perks, Modules | The owner asks |

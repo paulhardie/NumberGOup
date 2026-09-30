@@ -39,7 +39,7 @@ bash run_godot.sh --path . -s res://tools/capture_battle.gd
 
 - Every Godot run goes through `run_godot.sh`, which keeps it away from the live save (see "Protect the real save" in [`AGENTS.md`](../AGENTS.md)).
 
-- `run_tests.sh` runs the whole headless suite (`tests/tower_tests.gd`). A green count printed alongside errors is not a pass, and the script enforces it: any `SCRIPT ERROR`, parse error or `ERROR:` line fails the run, because a runtime error aborts only the test it happens in and the suite still prints PASS. A stale `.godot` class cache shows up the same way; `bash run_godot.sh --headless --path . --import` refreshes it.
+- `run_tests.sh` runs both headless suites (`tests/tower_tests.gd` and `tests/foundation_tests.gd`). A green count printed alongside errors is not a pass: every suite independently fails on any `SCRIPT ERROR`, parse error or `ERROR:` line. A stale `.godot` cache is refreshed with `bash run_godot.sh --headless --path . --import`.
 - The headless project run imports and parses every script and builds the main scene; it catches UI-script and scene errors the suite does not load.
 - **A new script is loaded by path where it is used** (`const Foo = preload("res://src/foo.gd")`), as every script in `src/` does, not by a global `class_name`. The owner's play folder keeps the editor's class cache across pulls, and a cache that predates the new script fails to parse whatever names it, so the game opens to a blank window (it did after D051 added `ArenaFx`). CI and the headless run import fresh, so they cannot catch this; the check is reading the diff for a new `class_name` used by name elsewhere.
 - `tools/sim_runs.gd` is a measurement tool, not a gate.

@@ -6,8 +6,17 @@ extends RefCounted
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 const Guesses = preload("res://src/tower/guesses.gd")
+const RunConfig = preload("res://src/tower/run_config.gd")
 
-var coins := 0.0
+## Compensation preserves small awards beside a very large balance. The
+## display/API remains a float; the remainder survives saving and spending.
+var _coins := 0.0
+var _coin_remainder := 0.0
+var coins: float:
+	get: return _coins
+	set(value):
+		_coins = value
+		_coin_remainder = 0.0
 ## Row id → Workshop level. Rows not listed are at level 0.
 var levels: Dictionary = {}
 ## Every group opened, the free starting ones included.
@@ -54,13 +63,14 @@ func next_group(category: String) -> String:
 
 func can_open(group: String) -> bool:
 	var category := TowerData.group_category(group)
-	return group == next_group(category) and coins >= TowerData.group_price(group)
+	return group == next_group(category) and can_spend_coins(TowerData.group_price(group))
 
 
 func open_group(group: String) -> bool:
 	if not can_open(group):
 		return false
-	coins -= TowerData.group_price(group)
+	if not spend_coins(TowerData.group_price(group)):
+		return false
 	open_groups.append(group)
 	return true
 
@@ -77,7 +87,7 @@ func plan(id: String, count: int = 1) -> Dictionary:
 
 func can_buy(id: String, count: int = 1) -> bool:
 	var buying := plan(id, count)
-	return is_group_open(TowerData.group(id)) and int(buying.levels) > 0 and coins >= float(buying.cost)
+	return is_group_open(TowerData.group(id)) and int(buying.levels) > 0 and can_spend_coins(float(buying.cost))
 
 
 ## Buys `count` levels of `id` (0: Max) with Coins; false, and nothing
@@ -86,7 +96,8 @@ func buy(id: String, count: int = 1) -> bool:
 	if not can_buy(id, count):
 		return false
 	var buying := plan(id, count)
-	coins -= float(buying.cost)
+	if not spend_coins(float(buying.cost)):
+		return false
 	levels[id] = level(id) + int(buying.levels)
 	return true
 
@@ -94,8 +105,32 @@ func buy(id: String, count: int = 1) -> bool:
 ## Coins a run has earned, kept as they come in, so quitting mid-run loses
 ## none of them.
 func add_coins(amount: float) -> void:
-	if amount > 0.0:
-		coins += amount
+	if is_finite(amount) and amount > 0.0:
+		_change_coins(amount)
+
+
+func spend_coins(amount: float) -> bool:
+	if not can_spend_coins(amount):
+		return false
+	_change_coins(-amount)
+	return true
+
+
+func can_spend_coins(amount: float) -> bool:
+	return is_finite(amount) and amount >= 0.0 and amount <= _coins and (amount < _coins or _coin_remainder >= 0.0)
+
+
+func _change_coins(amount: float) -> void:
+	# TwoSum keeps the rounding error even when spending the whole high part.
+	var total := _coins + amount
+	if not is_finite(total):
+		return
+	var rounded := total - _coins
+	var error := (_coins - (total - rounded)) + (amount - rounded)
+	var low := _coin_remainder + error
+	var high := total + low
+	_coin_remainder = low - (high - total)
+	_coins = high
 
 
 ## Counts a run as it ends: its wave and its peak Number against the bests.
@@ -106,7 +141,7 @@ func add_coins(amount: float) -> void:
 func finish_run(wave: int, peak_number: float = 0.0) -> Array[Dictionary]:
 	gift_given = 0.0
 	if runs == 0:
-		coins += FIRST_RUN_GIFT
+		add_coins(FIRST_RUN_GIFT)
 		gift_given = FIRST_RUN_GIFT
 		gift_waiting = FIRST_RUN_GIFT
 	runs += 1
@@ -116,7 +151,7 @@ func finish_run(wave: int, peak_number: float = 0.0) -> Array[Dictionary]:
 		for milestone in Guesses.MILESTONES:
 			if best_number < float(milestone.number) and peak_number >= float(milestone.number):
 				reached.append(milestone.duplicate())
-				coins += float(milestone.coins)
+				add_coins(float(milestone.coins))
 		best_number = maxf(best_number, peak_number)
 	return reached
 
@@ -130,7 +165,7 @@ func next_milestone() -> Dictionary:
 
 
 func to_dict() -> Dictionary:
-	return {"coins": coins, "levels": levels.duplicate(), "open_groups": open_groups.duplicate(), "best_wave": best_wave, "best_number": best_number, "runs": runs}
+	return {"coins": coins, "coin_remainder": _coin_remainder, "coin_parts": RunConfig.pack({"coins": coins, "remainder": _coin_remainder}), "levels": levels.duplicate(), "open_groups": open_groups.duplicate(), "best_wave": best_wave, "best_number": best_number, "runs": runs}
 
 
 ## Takes saved data into this fresh Workshop, keeping only what still makes
@@ -138,6 +173,14 @@ func to_dict() -> Dictionary:
 ## range, and counts that are real, non-negative numbers.
 func restore(data: Dictionary) -> void:
 	coins = _amount(data.get("coins"))
+	var remainder = data.get("coin_remainder", 0.0)
+	if (remainder is float or remainder is int) and is_finite(float(remainder)) and absf(float(remainder)) <= maxf(1e-9, absf(coins) * 1e-15):
+		_coin_remainder = float(remainder)
+	var parts = RunConfig.unpack(data.get("coin_parts"))
+	if parts is Dictionary and RunConfig.number(parts.get("coins")) and float(parts.coins) >= 0.0 and RunConfig.number(parts.get("remainder")) \
+			and absf(float(parts.remainder)) <= maxf(1e-9, absf(float(parts.coins)) * 1e-15):
+		_coins = float(parts.coins)
+		_coin_remainder = float(parts.remainder)
 	var saved_levels = data.get("levels")
 	if saved_levels is Dictionary:
 		var known := TowerData.rows()

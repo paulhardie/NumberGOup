@@ -7,6 +7,7 @@ extends RefCounted
 
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
+const RunConfig = preload("res://src/tower/run_config.gd")
 
 
 ## `play` is what only the screen knows: real seconds played, seconds at each
@@ -14,8 +15,9 @@ const TowerData = preload("res://src/tower/tower_data.gd")
 static func build(sim: BattleSim, play: Dictionary = {}) -> Dictionary:
 	return {
 		"kind": "run",
-		"seed": sim.run_seed,
-		"start": {"levels": sim.levels.duplicate(), "groups": sim.open_groups.duplicate()},
+		"seed": str(sim.run_seed),
+		"start": sim.start_config(),
+		"commands": RunConfig.pack({"start": sim.start_config(), "inputs": sim.inputs.duplicate(true)}),
 		"inputs": sim.inputs.duplicate(true),
 		"waves": sim.wave_log.duplicate(true),
 		"result": {
@@ -26,6 +28,7 @@ static func build(sim: BattleSim, play: Dictionary = {}) -> Dictionary:
 			"peak_number": sim.peak_number, "lost_to": sim.lost_to.duplicate(),
 			"dividers": {"spawned": sim.dividers_spawned, "landed": sim.dividers_landed},
 			"gained_from": sim.gained_from.duplicate(), "raised_by": sim.raised_by.duplicate(),
+			"damage_by": sim.damage_by.duplicate(), "kills_by": sim.kills_by.duplicate(),
 		},
 		"play": play.duplicate(true),
 	}
@@ -46,9 +49,10 @@ class Replay:
 
 	## Takes a run straight from JSON, where every number is a float.
 	func _init(run: Dictionary) -> void:
-		_inputs = run.get("inputs", [])
+		var commands = RunConfig.unpack(run.get("commands"))
+		_inputs = commands.inputs if commands is Dictionary else run.get("inputs", [])
 		_last = int(run.get("result", {}).get("ticks", 0))
-		var start: Dictionary = run.get("start", {})
+		var start: Dictionary = commands.start if commands is Dictionary else run.get("start", {})
 		var levels := {}
 		var saved_levels: Dictionary = start.get("levels", {})
 		for id in saved_levels:
@@ -60,7 +64,7 @@ class Replay:
 		# Runs recorded with the testing switches (D097, D098) kept them in
 		# "switches"; the rules they tested are now the game's or gone (D111),
 		# so those runs replay only on the commits that recorded them, as any does.
-		sim = BattleSim.new(int(run.get("seed", 0)), levels, groups)
+		sim = BattleSim.new(int(run.get("seed", 0)), levels, groups, int(start.get("tier", 1)), start.get("effects", []), start.get("rules", []))
 
 	## Steps at most `budget` ticks, applying each input at its tick; true once
 	## the run is back at the tick it was left at (or has ended).
@@ -78,6 +82,8 @@ class Replay:
 			_next += 1
 			if input.has("end"):
 				sim.end_run()
+			elif input.has("effect"):
+				sim.apply_effect(input.effect, String(input.domain))
 			else:
 				sim.buy(String(input.buy), int(input.count))
 		return true
@@ -95,39 +101,23 @@ static func replay(run: Dictionary) -> BattleSim:
 ## so a damaged save's run fails here rather than part way through a replay
 ## or while being resumed. Anything a replay or a resume reads is checked.
 static func is_replayable(run) -> bool:
-	if not run is Dictionary or not _is_number(run.get("seed")):
+	if not run is Dictionary or not valid_seed(run.get("seed")):
 		return false
 	var start = run.get("start")
-	if not start is Dictionary or not start.get("levels") is Dictionary or not start.get("groups") is Array:
+	if not RunConfig.valid(start):
 		return false
-	for id in start.levels:
-		if not id is String or not _is_number(start.levels[id]):
-			return false
-	for group in start.groups:
-		if not group is String:
-			return false
 	var result = run.get("result")
 	if not run.get("inputs") is Array or not result is Dictionary:
 		return false
+	if run.has("commands") and not commands_match(run): return false
 	for key in ["ticks", "wave", "kills", "cash", "cash_earned", "coins", "health"]:
 		if not _is_number(result.get(key)):
 			return false
 	var last := int(result.ticks)
 	if last < 0 or last > MOST_TICKS or not result.get("bought") is Dictionary:
 		return false
-	var previous := 0
-	for input in run.inputs:
-		if not input is Dictionary or not _is_number(input.get("tick")):
-			return false
-		var tick := int(input.tick)
-		if tick < previous or tick > last:
-			return false
-		previous = tick
-		if input.has("end"):
-			continue
-		# A row this version doesn't know would stop the game on an assert.
-		if not input.get("buy") is String or not String(input.buy) in TowerData.rows() or not _is_number(input.get("count")):
-			return false
+	if not valid_inputs(run.inputs, last):
+		return false
 	# A saved run in progress also carries the Coins it banked (never more than
 	# it earned) and its play time.
 	if run.has("banked") and (not _is_number(run.banked) or float(run.banked) < 0.0 or float(run.banked) > float(result.coins)):
@@ -135,6 +125,45 @@ static func is_replayable(run) -> bool:
 	if run.has("play"):
 		var play = run.play
 		if not play is Dictionary or not _is_number(play.get("real_seconds", 0.0)) or not play.get("seconds_at_speed", {}) is Dictionary:
+			return false
+	return true
+
+
+static func commands_match(run: Dictionary) -> bool:
+	if not run.get("result") is Dictionary: return false
+	var tick = run.result.get("ticks")
+	if not _is_number(tick) or float(tick) < 0.0 or float(tick) > MOST_TICKS or float(tick) != int(tick): return false
+	var commands = RunConfig.unpack(run.get("commands"))
+	if not commands is Dictionary or not RunConfig.valid(commands.get("start")) or not valid_inputs(commands.get("inputs"), int(tick)): return false
+	return _json_view(commands.start) == _json_view(run.get("start")) and _json_view(commands.inputs) == _json_view(run.get("inputs"))
+
+
+static func _json_view(value) -> String:
+	var json := JSON.new()
+	if json.parse(JSON.stringify(value, "", true, true)) != OK: return "invalid"
+	return JSON.stringify(json.data, "", true, true)
+
+
+static func valid_seed(value) -> bool:
+	return (value is String and value.is_valid_int() and str(int(value)) == value) or (_is_number(value) and absf(float(value)) <= 9007199254740991.0 and float(value) == int(value))
+
+
+static func valid_inputs(inputs, last: int) -> bool:
+	if not inputs is Array or inputs.size() > 100000:
+		return false
+	var previous := 0
+	for input in inputs:
+		if not input is Dictionary or not _is_number(input.get("tick")) or float(input.tick) != int(input.tick):
+			return false
+		var tick := int(input.tick)
+		if tick < previous or tick > last:
+			return false
+		previous = tick
+		if input.has("end"):
+			if input.end != true: return false
+		elif input.has("effect"):
+			if input.get("domain") not in ["stat", "rule"] or not RunConfig.valid_effect(input.effect, input.domain == "rule"): return false
+		elif not input.get("buy") is String or input.buy not in TowerData.rows() or not _is_number(input.get("count")) or float(input.count) != int(input.count) or float(input.count) < 0.0 or float(input.count) > TowerData.max_level(input.buy):
 			return false
 	return true
 
@@ -148,6 +177,14 @@ static func _is_number(value) -> bool:
 ## random streams at the same place, so it drew exactly the same numbers. A
 ## rule or price that changed since shows up here.
 static func matches(run: Dictionary, sim: BattleSim) -> bool:
+	if run.has("commands") and not commands_match(run): return false
+	var start: Dictionary = run.get("start", {})
+	if run.has("commands"): start = RunConfig.unpack(run.commands).start
+	var config := sim.start_config()
+	var expected := {}
+	for key in config: expected[key] = start.get(key, {"version": 1, "rules_version": 1, "tier": 1, "effects": [], "rules": []}.get(key))
+	if _json_view(config) != _json_view(expected) or _json_view(sim.inputs) != _json_view(run.get("inputs", [])):
+		return false
 	var result: Dictionary = run.get("result", {})
 	if sim.inputs.size() != run.get("inputs", []).size():
 		return false

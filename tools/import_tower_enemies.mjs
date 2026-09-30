@@ -68,7 +68,12 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import Module from "node:module";
 
-const LAST_WAVE = 6500;
+// Expand the checked horizon explicitly: node ... package --waves 10000.
+const waveOption = process.argv.indexOf("--waves");
+const LAST_WAVE = waveOption < 0 ? 6500 : Number(process.argv[waveOption + 1]);
+if (!Number.isInteger(LAST_WAVE) || LAST_WAVE < 6500 || LAST_WAVE > 100000) {
+  throw new Error("--waves must be a whole number from 6500 to 100000");
+}
 // The owner's Wave Info screens, Tier 1: a basic enemy's health and attack at
 // the level each stood on, the wave less the Enemy Health or Attack Level Skip
 // the screen shows (24, 25 and 29 September 2026).
@@ -325,6 +330,11 @@ const out = {
 };
 const outPath = path.join(path.dirname(new URL(import.meta.url).pathname), "..", "data", "tower", "enemies.json");
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
+for (const series of [out.basic_health, out.basic_attack, out.basic_speed, out.mass_growth, out.protector_radius]) {
+  if (series.some(value => !Number.isFinite(value) || value < 0)) {
+    throw new Error("The requested horizon contains invalid numbers; no data was written");
+  }
+}
 fs.writeFileSync(outPath, JSON.stringify(out) + "\n");
 console.log(`wrote ${LAST_WAVE} waves to ${path.relative(process.cwd(), outPath)}`);
 console.log(`spawn: a roll every ${spawnRoll} s; rates ${SPAWN_RATES.map((r) => `${r.rate}@${r.wave}`).join(" ")}`);

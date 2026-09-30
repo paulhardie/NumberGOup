@@ -78,7 +78,10 @@ func _print_run(runs: Array, number: int) -> void:
 	print("\nBuys (game time, row × count):")
 	for input in run.inputs:
 		var at := _clock(float(input.tick) * RunReport.BattleSim.TICK)
-		print("  %s  %s" % [at, "End run" if input.has("end") else "%s ×%s" % [input.buy, "Max" if int(input.count) == 0 else str(int(input.count))]])
+		if input.has("effect"):
+			print("  %s  %s: %s %s %s (%s)" % [at, input.domain, input.effect.stat, input.effect.op, input.effect.value, input.effect.source])
+		else:
+			print("  %s  %s" % [at, "End run" if input.has("end") else "%s ×%s" % [input.buy, "Max" if int(input.count) == 0 else str(int(input.count))]])
 	var result: Dictionary = run.result
 	print("\nEnded wave %d at %s by %s." % [int(result.wave), _clock(float(result.time)), "closing the game" if bool(result.closed_mid_run) else result.killed_by])
 

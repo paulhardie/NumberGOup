@@ -10,13 +10,16 @@ extends RefCounted
 ##   Damage, Health or Cash Bonus.
 ## The Tower's later stages, a module's add after the multipliers and
 ## Enhancements multiplying that, wait for Modules and Enhancements (AGENTS.md
-## law 8). Nothing adds effects yet: Cards (1.1) and Labs (1.2) will, through
-## BattleSim's constructor so a run starts from the built values, and a run's
-## record must then carry them for its replay.
+## law 8). D126's completed research and recorded mid-run effects use this
+## pipeline; future catalogues enter through the same frozen run configuration.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 
 const OPS := ["add", "multiply"]
+## Supported computational range, not a balance clamp. Unsupported effects
+## are rejected before charging or starting a run. Re-benchmark before raising.
+const MAX_VALUE := 1e30
+const LIMITS := {"attack_speed": 900.0, "range": 1e6, "orbs": 128.0, "multishot_targets": 128.0, "bounce_shot_targets": 128.0}
 ## Hard caps no source passes, as [lowest, highest]: The Tower's, from the
 ## wiki and TheTowerSDK's reading of the game (TOWER_RULES.md, "Hard caps").
 ## The Workshop alone never reaches them.
@@ -39,7 +42,12 @@ var _multipliers: Dictionary = {}
 ## "card:damage"); false, and nothing changes, if the row or op is unknown or
 ## the value isn't a finite number.
 func add(stat: String, op: String, value: float, source: String) -> bool:
-	if op not in OPS or not is_finite(value) or stat not in TowerData.rows():
+	if op not in OPS or not is_finite(value) or stat not in TowerData.rows() or (op == "multiply" and value < 0.0):
+		return false
+	var adds := float(_adds.get(stat, 0.0)) + (value if op == "add" else 0.0)
+	var mult := float(_multipliers.get(stat, 1.0)) * (value if op == "multiply" else 1.0)
+	var built := (TowerData.value(stat, TowerData.max_level(stat)) + adds) * mult
+	if not is_finite(adds) or not is_finite(mult) or not is_finite(built) or absf(built) > float(LIMITS.get(stat, MAX_VALUE)):
 		return false
 	if op == "add":
 		_adds[stat] = float(_adds.get(stat, 0.0)) + value
@@ -60,4 +68,4 @@ func value(stat: String, base: float) -> float:
 	var cap = HARD_CAPS.get(stat)
 	if cap != null:
 		built = clampf(built, float(cap[0]), float(cap[1]))
-	return built
+	return maxf(0.0, built)

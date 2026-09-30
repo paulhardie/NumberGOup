@@ -18,9 +18,13 @@ var sim:
 var _battle: WeakRef
 ## The Wall's health now, and seconds until a fallen one is rebuilt.
 var wall_health := 0.0
-var wall_rebuild_in := 0.0
+var wall_rebuild_in: float:
+	get: return sim.cooldowns.time_left("wall")
+	set(value): sim.cooldowns.set_time("wall", value)
 ## Seconds until the next shockwave.
-var shockwave_in := 0.0
+var shockwave_in: float:
+	get: return sim.cooldowns.time_left("shockwave")
+	set(value): sim.cooldowns.set_time("shockwave", value)
 ## Land mines lying in range, as positions.
 var mines: Array[Vector2] = []
 ## How fast orbs turn at Orb Speed's first level (Guesses), which the
@@ -132,8 +136,7 @@ func sweep_orbs() -> void:
 				touched.append(enemy)
 				break
 	for enemy in touched.filter(func(enemy): return not sim.shielded(enemy)):
-		enemy.health = 0.0
-		sim._kill(enemy, "orb")
+		sim.deal_damage(enemy, enemy.health, "orb")
 
 
 ## A shot may lay a land mine, by Land Mine Chance, somewhere between the
@@ -170,10 +173,10 @@ func trigger_mines() -> void:
 		var fallen := []
 		for enemy in sim.enemies:
 			if enemy.position().distance_to(mine) <= sim.stat("land_mine_radius"):
-				enemy.health -= mine_damage() * sim.damage_taken(enemy)
+				sim.deal_damage(enemy, mine_damage() * sim.damage_taken(enemy), "mine", false)
 				if enemy.health <= 0.0:
 					fallen.append(enemy)
 		for enemy in fallen:
-			sim._kill(enemy)
+			sim._kill(enemy, "mine")
 		if sim.record_events:
 			sim.events.append({"type": "mine", "at": mine})
