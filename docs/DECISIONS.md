@@ -2054,3 +2054,15 @@ Rules:
     - A resumed run counts nothing, since its earlier Coins were banked in a past session.
     - `main.gd` holds the balance, `HomeScreen.count_coins_from` counts.
 
+## D142 — The Workshop in our own layout
+
+- **Status:** Accepted (2026-10-01) on owner direction. In the UI step-back the Workshop read as a web page in The Tower's layout, and the owner chose to rework it first ("Workshop first"). The battle's upgrade panel follows in the same language.
+- **Decision** (drawing only; buying and opening go through the Workshop's rules as before):
+  - **The top line matches Home's:** the Coins chip, a small spaced "WORKSHOP" wordmark and the buy multiplier. The big heading and its hairline are gone.
+  - **Attack, Defense and Utility are a segmented switch,** with the chosen one raised (`Palette.style_segment`), instead of underlined tabs.
+  - **The next unlock leads the category as its hero:** "NEXT", what it opens, and an "Unlock ● N" price chip over a bar filling as the Coins come towards it. As in The Tower, the groups after it stay hidden.
+  - **One slim row per upgrade, not a two-column grid.** Each row shows its name over its value, its level, and a **price chip lit in gold when the press can be paid** and dim when it can't (`Palette.price_chip`, `style_price_chip`, for the battle's panel next).
+    - A thin bar under each row fills as the Coins come towards that price. A "level out of max" bar would sit near empty on rows with thousands of levels, so the bar tracks the next buy instead.
+    - Rows press and spring, and a buy makes the value pop.
+- **Measured:** nothing to measure; the Workshop's rules are untouched.
+

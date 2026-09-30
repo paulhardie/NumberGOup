@@ -179,6 +179,52 @@ static func chip(colour: Color, font_size: int = 15) -> Dictionary:
 	return {"panel": panel, "label": label}
 
 
+## A price as a capsule (D142): "● 128", lit in its currency's colour when
+## it can be paid and dim when it can't, so what's affordable reads at a
+## glance. Returns {panel, label}; style_price_chip lights or dims it.
+static func price_chip(font: Font, font_size: int = 13) -> Dictionary:
+	var panel := PanelContainer.new()
+	panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var label := Label.new()
+	label.add_theme_font_override("font", font)
+	label.add_theme_font_size_override("font_size", font_size)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	panel.add_child(label)
+	return {"panel": panel, "label": label}
+
+
+static func style_price_chip(chip: Dictionary, lit: bool, colour: Color = COIN) -> void:
+	var box := pill_box(Color(colour, 0.14) if lit else Color(1, 1, 1, 0.03), Color(colour, 0.45) if lit else Color(1, 1, 1, 0.06), 10)
+	box.content_margin_top = 4
+	box.content_margin_bottom = 4
+	(chip.panel as PanelContainer).add_theme_stylebox_override("panel", box)
+	(chip.label as Label).add_theme_color_override("font_color", colour if lit else MUTED)
+
+
+## A segmented switch's segment (D142): the chosen one raised on a capsule,
+## the others quiet, in place of a web page's underlined tabs.
+static func style_segment(button: Button) -> void:
+	button.toggle_mode = true
+	button.focus_mode = Control.FOCUS_NONE
+	button.custom_minimum_size = Vector2(0, 34)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.add_theme_font_size_override("font_size", 13)
+	var quiet := pill_box(Color(0, 0, 0, 0), Color(0, 0, 0, 0), 12)
+	var raised := pill_box(SURFACE_RAISED, TOP_EDGE, 12)
+	for state in ["normal", "hover", "focus", "disabled"]:
+		button.add_theme_stylebox_override(state, quiet)
+	button.add_theme_stylebox_override("pressed", raised)
+	button.add_theme_stylebox_override("hover_pressed", raised)
+	button.add_theme_color_override("font_color", MUTED)
+	button.add_theme_color_override("font_hover_color", SOFT)
+	button.add_theme_color_override("font_focus_color", MUTED)
+	button.add_theme_color_override("font_pressed_color", TEXT)
+	button.add_theme_color_override("font_hover_pressed_color", TEXT)
+
+
 ## A pill button: a hairline edge on the ground, as the design's top corner has.
 static func pill(text: String, colour: Color, font: Font = null, height: int = 36) -> Button:
 	var button := Button.new()
