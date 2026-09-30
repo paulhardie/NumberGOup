@@ -1877,7 +1877,7 @@ Rules:
 
 ## D130 — The Workshop-only wall, measured
 
-- **Status:** Accepted (2026-09-30) on owner direction: before Cards, "establish a realistic level of progress a brand new player can get to with a relatively maxed workshop (excluding very expensive late stuff like enemy skips) before they hit a wall", to tune the game and choose what Cards should do. Measurement only; nothing in the game changed.
+- **Status:** Corrected by [D132](#d132--dividers-dont-make-the-wall-the-turtle-breaks-as-the-towers-does): Dividers take most of what the turtle loses but don't decide where it falls. Accepted (2026-09-30) on owner direction: before Cards, "establish a realistic level of progress a brand new player can get to with a relatively maxed workshop (excluding very expensive late stuff like enemy skips) before they hit a wall", to tune the game and choose what Cards should do. Measurement only; nothing in the game changed.
 - **How:** `sim_runs.gd --workshop-coins N --workshop-plan P` (new) spends N Coins on a fresh Workshop, opening groups in The Tower's order up to Recovery Packages (1.5M; the owner's cut-off, leaving out Super Crit, the Wall, Enemy Level Skip and Rend Armor), then buys the plan's rows, cheapest for their weight first. Plans: **turtle** (The Tower's Tier 1 meta from its wiki: Defense Absolute, Thorns, Defense %, Health, Cash / Wave), **core** (Damage, Attack Speed, Health, Regen, Defense Absolute), **blender** (The Tower's Tier 2 pivot: Health, Lifesteal, Knockback, Orbs) and **spread** (everything evenly). Four seeds each, in-run Cash spent `core` or `even`, a 180-minute cap, Tier 1, no Cards or Labs, on `main` after D129.
 - **The wall by budget** (median wave, in-run `core` unless noted):
 
@@ -1909,3 +1909,23 @@ Rules:
   - **Digit milestones (ours, D107) open the Number's identity:** ways of showing it, such as a typeface, with its light and notation. Each carries a very small permanent account bonus, so there's a reason to push the Number and not just waves.
   - A digit milestone never opens a system a wave milestone opens.
 - **Direction, not yet designed:** the owner wants more unlocks than The Tower, so there's more to do between farming and Tournaments, and to move the UI's layout away from The Tower's, deciding what sits where and what needn't be front and centre. Both are to be discussed before anything is built.
+
+## D132 — Dividers don't make the wall; the turtle breaks as The Tower's does
+
+- **Status:** Accepted (2026-09-30), measured on owner direction ("yes tune dividers first"), after D130 read the Dividers' share of the Number lost as the turtle's wall. It corrects D130; nothing in the game changed.
+- **Measured** (the D130 sweep repeated with the Divider changed through `sim_runs.gd`'s measuring options, 4 seeds, in-run `core`, median wave):
+
+| Workshop | D130 | No Dividers | Half as many | ÷1.25 at every wave | 2× a basic's health (not 4×) |
+|---|---|---|---|---|---|
+| turtle, 10K | 45 | 46 | 45 | 45 | 45 |
+| turtle, 100K | 100 | 100 | 100 | 100 | 100 |
+| turtle, 1M | 188 | 190 | 189 | 189 | 188 |
+| core, 10K | 29 | 29 | 29 | 29 | 29 |
+| core, 100K | 43 | 43 | 43 | 43 | 43 |
+| core, 1M | 64 | 69 | 64 | 64 | 64 |
+
+- **What it means:**
+  - **Taking the Dividers away moves no wall by more than five waves.** A ÷ takes a share, the Number refills to its best by regen before the next threat, and a ÷ can't end a run (D080's "operators kill honestly"). They're the Number's drama, not its danger.
+  - **The wall is The Tower's turtle breaking** (D110): basic enemies' Attack outgrows Defense Absolute, the Workshop's and what a run can buy, and basics finish the tower. The Workshop's Defense Absolute is passed at wave 20 (10K Coins), 40 (100K), 82 (1M) and 163 (10M); runs then last about twice as long on what they buy in the run, and end at 45, 100, 188 and 309+.
+  - **No Divider tuning is called for by the wall.** D130's second card pointer ("Dividers are our own wall") is withdrawn: cards that answer Dividers would change little. The pointers that stand are Coins as the pace lever, ranged enemies against non-turtle builds, and The Tower's own answer to the turtle break (Defense Absolute, Health, and later Lifesteal and the pivot).
+- **Open, for the owner:** whether Dividers should matter to the outcome. Today they can't; making them bite (for instance a ÷'s loss refilling slowly rather than by regen at once) would be a design change to the Number (D080, D111), not a tuning, and belongs with the enemy roster discussion.
