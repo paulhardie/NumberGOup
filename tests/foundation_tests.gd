@@ -278,6 +278,52 @@ func test_snapshot_continuation() -> void:
 		check(Snapshot.restore(corrupt) == null, "semantically broken state rejected: " + key)
 
 
+## D133, D134: a Lock holding the Number, one still to come, and a Divider's
+## held bite all survive a snapshot and continue exactly.
+func test_snapshot_keeps_the_lock_and_a_held_bite() -> void:
+	var sim := BattleSim.new(5, {"health": 200, "damage": 20, "attack_speed": 10})
+	sim.divider.refill_seconds = 10.0
+	sim.wave = 38
+	sim.health_level = 38
+	sim.attack_level = 38
+	sim.spawns.schedule_wave()
+	check(sim.spawns.schedule.any(func(item): return item.kind == "lock" and item.has("angle")), "wave 38 schedules a Lock with its own direction")
+	while sim.alive and not sim.locked and sim.ticks < 30 * 60:
+		sim.health = sim.max_health() * 50.0
+		sim.step()
+	check(sim.locked, "a Lock stands and holds the Number")
+	var divider := BattleSim.Enemy.new()
+	divider.id = sim._next_id
+	sim._next_id += 1
+	divider.kind = "divider"
+	divider.wave = sim.wave
+	divider.max_health = 1.0
+	divider.health = 1.0
+	divider.divisor = 1.5
+	divider.distance = 0.0
+	divider.stop_at = 3.0
+	divider.mass = 1.0
+	sim.enemies.append(divider)
+	sim.step()
+	check(sim.divider_held > 0.0, "and a Divider's bite is held back")
+	sim.spawns.schedule_wave()
+	var saved: Dictionary = json(Snapshot.capture(sim))
+	var again := Snapshot.restore(saved)
+	check(again != null, "a snapshot with a Lock parses")
+	if again == null: return
+	check(again.locked and again.divider_held == sim.divider_held and again.lock == sim.lock, "the Lock's hold, its numbers and the held bite come back")
+	check(Snapshot.capture(again).digest == saved.digest, "every saved field round trips")
+	for i in range(600):
+		sim.step()
+		again.step()
+	check(Snapshot.capture(sim).digest == Snapshot.capture(again).digest, "exact continuation with a Lock: %s" % difference(json(Snapshot.capture(sim)), json(Snapshot.capture(again))))
+	var state: Dictionary = RunConfig.unpack(saved)
+	state.state.lock = {}
+	var broken := RunConfig.pack(state)
+	broken.version = Snapshot.VERSION
+	check(Snapshot.restore(broken) == null, "a snapshot without the Lock's numbers is rejected")
+
+
 func test_save_migration_and_future_protection() -> void:
 	DirAccess.remove_absolute(PATH)
 	DirAccess.remove_absolute(PATH + ".v1-backup.json")

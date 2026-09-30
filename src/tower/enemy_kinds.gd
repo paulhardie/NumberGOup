@@ -18,7 +18,8 @@ const TowerData = preload("res://src/tower/tower_data.gd")
 ## - thorns: the share of Thorns it takes; a boss takes half (TheTowerSDK's
 ##   breakpoints agree).
 ## - attack: "hit" every ENEMY_HIT_SECONDS; "charge", a Ray's charged shot;
-##   "drain", a Vampire's share of Health a second; "divide", a Divider's ÷.
+##   "drain", a Vampire's share of Health a second; "divide", a Divider's ÷;
+##   "hold", a Lock's: no hit, but the Number can't go up while it stands.
 const TRAITS := {
 	"ranged": {"stops_at_range": true},
 	"boss": {"orbs_kill": false, "shockwave_moves": false, "thorns": 0.5},
@@ -26,6 +27,7 @@ const TRAITS := {
 	"ray": {"stops_at_range": true, "orbs_kill": false, "shockwave_moves": false, "knockback_moves": false, "attack": "charge"},
 	"scatter": {"orbs_kill": false, "shockwave_moves": false},
 	"divider": {"attack": "divide"},
+	"lock": {"stops_at_range": true, "attack": "hold"},
 }
 const DEFAULTS := {"stops_at_range": false, "orbs_kill": true, "shockwave_moves": true, "knockback_moves": true, "thorns": 1.0, "attack": "hit"}
 
@@ -71,19 +73,21 @@ static func hit_seconds(kind: String) -> float:
 
 
 ## A `kind`'s health at Enemy Level Skip's `level`, on `wave`, in `tier`. The
-## Divider isn't The Tower's: its health is a basic enemy's times the run's
-## `divider` numbers (Guesses.DIVIDER).
-static func health(kind: String, level: int, wave: int, tier: int, divider: Dictionary) -> float:
+## Divider and the Lock aren't The Tower's: their health is a basic enemy's
+## times the run's `divider` or `lock` numbers (Guesses.DIVIDER, Guesses.LOCK).
+static func health(kind: String, level: int, wave: int, tier: int, divider: Dictionary, lock: Dictionary = Guesses.LOCK) -> float:
 	var scale := float(TowerData.tier(tier).enemy_health)
+	if kind == "lock":
+		return TowerData.enemy_health(level, "basic") * float(lock.health) * scale
 	if kind == "divider":
 		return TowerData.enemy_health(level, "basic") * lerpf(float(divider.health_first), float(divider.health_full), divider_ramp(divider, wave)) * scale
 	return TowerData.enemy_health(level, kind) * scale
 
 
 ## A `kind`'s attack at Enemy Level Skip's `level`, in `tier`. A Divider
-## doesn't subtract: it takes a share (BattleSim._divide).
+## doesn't subtract: it takes a share (BattleSim._divide); a Lock never hits.
 static func attack(kind: String, level: int, tier: int) -> float:
-	if kind == "divider":
+	if kind == "divider" or kind == "lock":
 		return 0.0
 	return TowerData.enemy_attack(level, kind) * float(TowerData.tier(tier).enemy_attack)
 
@@ -94,12 +98,14 @@ static func speed_m(kind: String, wave: int, tier: int, divider: Dictionary) -> 
 	var weight := float(TowerData.tier(tier).mix_weight)
 	if kind == "divider":
 		return TowerData.enemy_speed_m(wave, "basic") * float(divider.speed) * weight
+	if kind == "lock":
+		return TowerData.enemy_speed_m(wave, "basic") * weight
 	return TowerData.enemy_speed_m(wave, kind) * weight
 
 
-## A kind's mass over a basic enemy's; a Divider weighs as a basic.
+## A kind's mass over a basic enemy's; a Divider and a Lock weigh as a basic.
 static func mass_ratio(kind: String) -> float:
-	return 1.0 if kind == "divider" else TowerData.mass_ratio(kind)
+	return 1.0 if kind == "divider" or kind == "lock" else TowerData.mass_ratio(kind)
 
 
 ## The mass a `kind` spawns with on `wave` (heavier past wave 4,000).
@@ -157,3 +163,30 @@ static func divider_divisor(divider: Dictionary, wave: int) -> float:
 static func divider_ramp(divider: Dictionary, wave: int) -> float:
 	var first := int(divider.from_wave)
 	return clampf(float(wave - first) / float(maxi(1, int(divider.full_wave) - first)), 0.0, 1.0)
+
+
+## Whether a Lock (Guesses.LOCK's shape) comes on `wave`: on its first wave
+## and every `every_first` waves after, then every `every_full` from its full
+## wave. A fixed beat rather than a chance, so nothing about it needs saving.
+static func lock_comes(lock: Dictionary, wave: int) -> bool:
+	return lock_waits(lock, wave) == 0
+
+
+## Waves until the next Lock from `wave`: 0 if one comes on it, -1 if none
+## ever will.
+static func lock_waits(lock: Dictionary, wave: int) -> int:
+	var first := int(lock.from_wave)
+	if first <= 0:
+		return -1
+	if wave < first:
+		return first - wave
+	var full := maxi(first, int(lock.full_wave))
+	var every := maxi(1, int(lock.every_first))
+	# On the first beat until its next would pass the full wave; the second
+	# beat counts from the full wave itself.
+	if wave < full:
+		var next := wave + posmod(first - wave, every)
+		if next < full:
+			return next - wave
+	var every_full := maxi(1, int(lock.every_full))
+	return posmod(full - wave, every_full)

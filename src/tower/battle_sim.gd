@@ -146,6 +146,8 @@ var kill_share := Guesses.KILL_GROWTH
 ## The Divider's numbers for this run (Guesses.DIVIDER), which the measuring
 ## tools may change before the first step to try others.
 var divider: Dictionary = Guesses.DIVIDER.duplicate()
+## The Lock's numbers for this run (Guesses.LOCK), the same way.
+var lock: Dictionary = Guesses.LOCK.duplicate()
 ## Guesses.NUMBER_OVERFILL for this run, which the measuring tools may change.
 var overfill := Guesses.NUMBER_OVERFILL
 ## Measuring options for sim_runs.gd, off in the game so every run and replay
@@ -181,6 +183,16 @@ var _protectors: Array[Enemy] = []
 ## Whether a Vampire was draining the tower last tick, which stops Regen and
 ## Lifesteal (D115).
 var draining := false
+## Whether a Lock stood in range last tick (D133): the Number can't go up,
+## by Regen, Lifesteal, a Recovery Package or a kill. Bought Health still lands.
+var locked := false
+## Seconds the Number has stood held by a Lock this run; counted only.
+var locked_seconds := 0.0
+## What Dividers have taken that Regen may not yet put back (D134), and how
+## fast it comes back: the lot evenly over `divider.refill_seconds` from the
+## last bite.
+var divider_held := 0.0
+var _held_release := 0.0
 var _next_id := 1
 var _shot_charge := 0.0
 ## Seconds of Rapid Fire left.
@@ -333,13 +345,18 @@ func max_health() -> float:
 ## Regen restores in full up to the higher of Health and the run's best, and
 ## past it only at `peak_drift`'s share (D111). Lifesteal fills in full up to
 ## Health, and past it at `overfill`'s share (Guesses.NUMBER_OVERFILL; 0 is a
-## ceiling). Neither takes away a recovery package's overheal.
+## ceiling). Neither takes away a recovery package's overheal. What Dividers
+## took and haven't given back yet lowers Regen's ceiling (D134).
 func _heal(amount: float, source: String) -> void:
-	# A draining Vampire stops both (D115); packages still land.
-	if draining and (source == "regen" or source == "lifesteal"):
+	# A draining Vampire stops both (D115), and so does a standing Lock (D133).
+	if (draining or locked) and (source == "regen" or source == "lifesteal"):
 		return
 	var before := health
-	if source == "regen":
+	if source == "regen" and divider_held > 0.0:
+		# No drift past the best while any of a bite is held: the ceiling is
+		# below the best.
+		health += minf(amount, maxf(0.0, maxf(max_health(), peak_number) - divider_held - health))
+	elif source == "regen":
 		# Regen restores what enemies took, up to the best this run.
 		var to_best := maxf(0.0, maxf(max_health(), peak_number) - health)
 		health += minf(amount, to_best) + maxf(0.0, amount - to_best) * peak_drift
@@ -364,7 +381,7 @@ func _count_gain(source: String, before: float) -> void:
 ## The health and attack a `kind` has right now, Enemy Level Skip included
 ## (EnemyKinds holds the maths).
 func enemy_health_now(kind: String) -> float:
-	return EnemyKinds.health(kind, health_level, wave, tier, divider)
+	return EnemyKinds.health(kind, health_level, wave, tier, divider, lock)
 
 
 func enemy_attack_now(kind: String) -> float:
@@ -416,12 +433,15 @@ func step() -> void:
 	spawns.spawn_due()
 	if sure_from > 0 and wave >= sure_from and (wave - sure_from) % sure_every == 0 and _sure_landed != wave and wave_clock >= SURE_LANDS_AT:
 		_land_sure_divider()
+	divider_held = maxf(0.0, divider_held - _held_release * TICK)
 	_heal(stat("health_regen") * TICK, "regen")
 	peak_number = maxf(peak_number, health)
 	defences.tick_wall()
 	defences.tick_shockwave()
 	_move_enemies()
 	_enemies_hit()
+	if locked:
+		locked_seconds += TICK
 	if not alive:
 		return
 	_fire()
@@ -494,12 +514,18 @@ func _enemies_hit() -> void:
 	var thorned: Array[Enemy] = []
 	var spent: Array[Enemy] = []
 	draining = false
+	locked = false
 	for enemy in enemies:
 		if not enemy.arrived():
 			continue
 		var style := EnemyKinds.attack_style(enemy.kind)
 		if style == "divide":
 			spent.append(enemy)
+			continue
+		# A Lock in place hits nothing, so takes no Thorns; it only holds the
+		# Number where it is (D133).
+		if style == "hold":
+			locked = true
 			continue
 		# A Vampire in range drains a share of Health a second, past the
 		# defences and the Wall, and stops Regen and Lifesteal while it does;
@@ -573,6 +599,9 @@ func _divide(enemy: Enemy) -> void:
 	else:
 		loss = divide_loss(divisor)
 		health -= loss
+		if float(divider.get("refill_seconds", 0.0)) > 0.0:
+			divider_held += loss
+			_held_release = divider_held / float(divider.refill_seconds)
 		lost_to["divider"] = float(lost_to.get("divider", 0.0)) + loss
 	dividers_landed += 1
 	enemy.health = 0.0
@@ -771,9 +800,9 @@ func _kill(enemy: Enemy, by := "") -> void:
 	kills += 1
 	var source := by if by != "" else "shot"
 	kills_by[source] = int(kills_by.get(source, 0)) + 1
-	if enemy.hits == 0 and enemy.attack > 0.0:
+	if enemy.hits == 0 and enemy.attack > 0.0 and not locked:
 		# Killed before it could land a hit: a share of the hit it never
-		# landed grows the Number, past Health too (D098).
+		# landed grows the Number, past Health too (D098); not under a Lock.
 		var before := health
 		health += enemy.attack * kill_share
 		_count_gain("kills", before)
@@ -826,8 +855,9 @@ func _pay_wave_end() -> void:
 	if is_open("coins_per_wave"):
 		coins += stat("coins_per_wave") * float(TowerData.tier(tier).coins) * rules.value("coin_multiplier")
 	# Recovery Packages: by its chance a wave's end heals a share of Health,
-	# which may go past Health up to Max Recovery times it.
-	if is_open("package_chance") and _combat_rng.randf() < stat("package_chance"):
+	# which may go past Health up to Max Recovery times it. A standing Lock
+	# stops it (D133), after the roll, so the stream is drawn as ever.
+	if is_open("package_chance") and _combat_rng.randf() < stat("package_chance") and not locked:
 		var before := health
 		health = maxf(health, minf(package_ceiling(), health + max_health() * stat("recovery_amount")))
 		_count_gain("package", before)

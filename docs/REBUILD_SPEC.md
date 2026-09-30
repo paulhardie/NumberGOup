@@ -92,6 +92,7 @@ tests/       tower_tests.gd
   - A new Divider divides the Number on contact and is used up: ÷1.25 to wave 17, then ÷1.5, gentle because Tier 1 is the tutorial (D083). It takes the Protector's slot in The Tower's enemies, replacing a basic, at most once a wave: one every third wave from wave 5 (the first on wave 7), every other wave by wave 30 (D094). It has 4× a basic's health.
   - Measured, fresh runs match The Tower (waves 3 and 8). Careers climb past the old wave-20 wall, reaching wave 30 by run 24, and most Dividers land.
   - The run-over screen and Home show the peak and best Number, and Ranged pays 2 Coins.
+- **Our base roster (D133): the Lock built, not yet played by the owner.** THE_NUMBER.md section 8 sets the rules every base enemy of ours follows and proposes the roster (Countdown, Carrier, Rounder after the Lock). The Lock (=) comes on top of The Tower's waves from wave 35 and holds the Number while it stands on the range's edge; the first one past a player's best wave brings a card saying so. The Divider's slow refill was measured and left off (D134).
 - **The owner's first reports (27 September): 21 runs, 37 in the Workshop, best wave 21.** See [Benchmarks](#benchmarks) for how they compare with The Tower.
 - **An activity report (D077): built, and used by the owner.** Every run (seed, starting Workshop, each buy with its tick, a snapshot per wave) and every Workshop purchase is logged beside the save. Home's Export report writes one file for the owner to drop into the chat, and `tools/read_report.gd` reads it and replays each run exactly on the commit that recorded it. From here, benchmarks can come from the owner's own runs rather than screenshots.
 - **A run closed mid-way resumes (D078, D126): built, not yet played by the owner.** New saves restore exact battle state; older ones replay from their seed. A run whose rules/data changed ends at its saved wave with its banked Coins kept.
@@ -172,6 +173,11 @@ These are carried from the current game until the owner reads the real value:
   - 4× a basic's health;
   - a basic's speed and mass;
   - 2× a basic's Cash and 2 Coins.
+- The Lock's numbers (D133, `Guesses.LOCK`) are all ours:
+  - on top of The Tower's wave, on a beat: wave 35, then every third wave, every other from wave 60;
+  - 3× a basic's health, a basic's speed and mass, no Attack;
+  - stops on the Range edge; while it stands there the Number can't go up (Regen, Lifesteal, packages, kill growth), though bought Health lands;
+  - a basic's Cash and Coins.
 - Enemies at the tower are drawn just clear of the Number's digits on their own side, some metres before they truly arrive (drawing only, D085).
 - ~~Heat-up per hit or per wave~~: settled, 4% for each hit an enemy lands, compounding, from the game's own attack code (D116, [`TOWER_RULES.md`](TOWER_RULES.md)). The mass part is separate: an enemy grows 4% heavier for each wave it lives, and is built (D115).
 

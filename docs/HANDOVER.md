@@ -1,6 +1,6 @@
 # Handover
 
-**Last updated:** 30 September 2026, by Codex. This branch includes `main` through `a50e59e` (D127–D132's drawing changes and Workshop/Divider measurements). D126 implements the scaling foundations authorised by the owner after the whole-game audit. Final independent review approved the diff with no actionable findings.
+**Last updated:** 30 September 2026, by Codex. This branch includes `main` through `3196f85` (D127–D132's drawing changes and Workshop/Divider measurements, and D133–D134's Lock, merged in by Claude). D126 implements the scaling foundations authorised by the owner after the whole-game audit. Final independent review approved the diff with no actionable findings.
 
 **Branch:** `codex/scaling-foundations`, in the attached worktree. Not merged. The owner's play folder remains `~/NumberGOup-main`, kept on `origin/main` by `com.paulhardie.ngu-sync`; this work is not in their game until they merge its pull request. The pre-rebuild game is commit `f4f1e95`.
 
@@ -11,6 +11,8 @@ Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md
 ## Where the game is
 
 Tier 1 and the whole Workshop work, with the Number as the tower, Dividers, the Tower-derived spawning/enemy rules, progressive disclosure, the 50-Coin first-run welcome, Number milestones and the existing presentation/music. The battle remains governed by `BattleSim`; generated enemy and Workshop data remain their number authorities. D126 leaves their default balance intact.
+
+**Our first base-roster enemy is built (D133):** the Lock (=) comes on top of The Tower's waves from wave 35 (every third wave, every other from 60), stops on the range's edge, and while it stands the Number can't go up (no Regen, Lifesteal, Recovery Package or kill growth; bought Health lands). Its state (`locked`, `lock`, the Divider's held bite) is in the battle snapshot. [THE_NUMBER.md](THE_NUMBER.md) section 8 has the roster's rules and the proposed enemies after it. The Divider's slow refill (D134) is a measuring option, off: it moved no wall.
 
 **The new foundations are built:**
 
@@ -46,7 +48,7 @@ Contracts, authorities and limits: [SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.
 6. **Decide how to publish Tower-derived data before a public release.** Its current source/licence context remains in the reference/importer documents.
 7. **Choose the remaining design-canvas proposals and elite appearance.** Recommend reviewing the existing Protector/elite captures before changing their colours, and trying the heavier Number from the design brief if the current digit changes still feel too small. Elites stay at Tier 1 wave 500 unless the owner changes that choice.
 8. **Idle battle policy and servers remain D089's later choice.** This pass supplies real-time research, not unattended battle earnings.
-9. **Design the digit rewards and enemy roster before choosing their content.** D131 accepts digit milestones for typefaces/Number identity with small permanent bonuses, while wave milestones open systems; those bonus amounts and presentation are not designed. D132 finds no need to tune Dividers for the Workshop wall, and leaves whether they should affect outcomes to the roster discussion. Recommend keeping current rules until those choices are concrete.
+9. **Design the digit rewards and enemy roster before choosing their content.** D131 accepts digit milestones for typefaces/Number identity with small permanent bonuses, while wave milestones open systems; those bonus amounts and presentation are not designed. D132 finds no need to tune Dividers for the Workshop wall; D133 built the roster's first enemy, the Lock, and D134 left the Divider's slow refill off. Recommend the owner plays the Lock past wave 35 before the next roster enemy (the Countdown is proposed).
 
 ## Next steps, in order
 
@@ -67,4 +69,4 @@ Contracts, authorities and limits: [SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.
 
 ## Handing on
 
-Replace this page with the next current state. Decisions stay with decisions, intent with the spec and contracts with their owning documents. Keep the real save protected, use `run_godot.sh`, and report actual evidence. Commit on a feature branch, push it and keep an open PR to `main`; merging belongs to the owner. The latest accepted decision is D132; the foundation pass is D126.
+Replace this page with the next current state. Decisions stay with decisions, intent with the spec and contracts with their owning documents. Keep the real save protected, use `run_godot.sh`, and report actual evidence. Commit on a feature branch, push it and keep an open PR to `main`; merging belongs to the owner. The latest accepted decision is D134; the foundation pass is D126.

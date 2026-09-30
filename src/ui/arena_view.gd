@@ -67,7 +67,8 @@ const WALL_FALL_SECONDS := 0.7
 const WALL_RISE_SECONDS := 0.4
 
 ## How each enemy type is drawn (D085): its cut of the crowd's typeface
-## (Anybody's width and weight; the Divider has Fraunces to itself), its size
+## (Anybody's width and weight; the Divider has Fraunces to itself and the
+## Lock the Number's Geist Mono), its size
 ## in points, and its colour. Two points larger since D128, in the room the
 ## dropped − left.
 const LOOKS := {
@@ -82,16 +83,22 @@ const LOOKS := {
 	"vampire": {"axes": {"wdth": 90, "wght": 900}, "size": 19, "colour": Palette.VAMPIRE, "glow": Palette.VAMPIRE},
 	"ray": {"axes": {"wdth": 50, "wght": 800}, "size": 19, "colour": Palette.RAY, "glow": Palette.RAY},
 	"scatter": {"axes": {"wdth": 120, "wght": 800}, "size": 18, "colour": Palette.SCATTER, "glow": Palette.SCATTER},
+	"lock": {"axes": {"wght": 700}, "mono": true, "size": 22, "colour": Palette.LOCK, "glow": Palette.LOCK},
 }
 ## An enemy that gives up its spot in a crowd (D127) is a dot this size in its
-## colour, or its ÷ if it's a Divider (D128).
+## colour, or its ÷ if it's a Divider (D128) and its = if it's a Lock (D133).
 const CROWD_DOT_PX := 3.0
 ## When enemies' numbers would overlap (D127), the most pressing in each spot
 ## is written in full: bosses and Dividers first, then elites, then
 ## Protectors, then the nearest. Others just like it there count on its label
 ## (16 ×4); anything else there shows only a dot in its colour, or a
 ## Divider's ÷ (D128).
-const LABEL_RANK := {"boss": 0, "divider": 0, "vampire": 1, "ray": 1, "scatter": 1, "protector": 2}
+const LABEL_RANK := {"boss": 0, "divider": 0, "lock": 0, "vampire": 1, "ray": 1, "scatter": 1, "protector": 2}
+## A standing Lock's double line to the Number: half the gap between its two
+## strokes, how faint, and how far the held Number leans to its colour (D133).
+const LOCK_LINE_GAP_PX := 2.0
+const LOCK_LINE_ALPHA := 0.35
+const LOCK_TINT := 0.35
 ## Labels closer than this count as touching.
 const LABEL_GAP_PX := 2.0
 ## A dark halo round every enemy's number and every float, so what does
@@ -151,7 +158,7 @@ func _init() -> void:
 	add_child(_glow)
 	for kind in LOOKS:
 		var look: Dictionary = LOOKS[kind]
-		var base: Font = Palette.DIVIDER_FONT if look.get("divider", false) else Palette.CROWD_FONT
+		var base: Font = Palette.DIVIDER_FONT if look.get("divider", false) else Palette.NUMBER_FONT if look.get("mono", false) else Palette.CROWD_FONT
 		cuts[kind] = _cut(base, look.axes, look.get("slant", 0.0), look.get("spacing", 0))
 	motion.digit_reached.connect(func(power: int): digit_reached.emit(power))
 
@@ -323,7 +330,9 @@ func _draw_tower(number: Dictionary) -> void:
 	# The design's text-shadow, faked with wide faint outlines rather than a blur.
 	for glow in [[22, 0.025], [12, 0.04], [5, 0.06]]:
 		draw_string_outline(_number_cut, baseline, number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, glow[0], Color(1.0, 0.98, 0.94, glow[1]))
-	draw_string(_number_cut, baseline, number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Palette.NUMBER)
+	# Held by a Lock, the Number takes a little of its colour (D133).
+	var colour := Palette.NUMBER.lerp(Palette.LOCK, LOCK_TINT) if sim.locked else Palette.NUMBER
+	draw_string(_number_cut, baseline, number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, colour)
 	draw_set_transform(Vector2.ZERO)
 
 
@@ -446,7 +455,7 @@ func _draw_enemy(enemy: BattleSim.Enemy, label: Dictionary) -> void:
 	var at: Vector2 = label.at
 	# A new enemy fades in over its first metres.
 	var shade := clampf((Guesses.SPAWN_DISTANCE_M - enemy.distance) / FADE_IN_M, 0.0, 1.0)
-	if label.shown == "sign" and enemy.kind != "divider":
+	if label.shown == "sign" and enemy.kind != "divider" and enemy.kind != "lock":
 		draw_circle(at, CROWD_DOT_PX + HALO_PX * 0.5, Color(HALO, HALO.a * shade))
 		draw_circle(at, CROWD_DOT_PX, Color(look.colour, shade))
 		return
@@ -480,8 +489,9 @@ func _draw_enemy(enemy: BattleSim.Enemy, label: Dictionary) -> void:
 		draw_string(hit_cut, dealt_at, dealt, HORIZONTAL_ALIGNMENT_LEFT, -1, DEALT_PX, Color(Palette.NUMBER, 0.8))
 
 
-## Each Protector's shield, a faint ring at its radius, and each draining
-## Vampire's line to the Number, flickering as it drains (D115).
+## Each Protector's shield, a faint ring at its radius, each draining
+## Vampire's line to the Number, flickering as it drains (D115), and each
+## standing Lock's double line to it, an = drawn out, steady (D133).
 func _draw_shields_and_drains() -> void:
 	var radius_px := TowerData.protector_radius_m(sim.wave, sim.tier) * px_per_metre()
 	for enemy in sim.enemies:
@@ -494,6 +504,13 @@ func _draw_shields_and_drains() -> void:
 			var from := enemy_at(enemy.angle, _shown_metres(enemy), enemy_half(enemy.kind, "0")) - toward * 10.0
 			var flicker := 0.35 + 0.2 * sin(sim.time * 17.0 + float(enemy.id))
 			draw_line(from, centre + toward * edge_px(toward), Color(Palette.VAMPIRE, flicker), 1.5, true)
+		elif enemy.kind == "lock" and enemy.arrived():
+			var toward := Vector2.from_angle(enemy.angle)
+			var across := toward.orthogonal() * LOCK_LINE_GAP_PX
+			var from := enemy_at(enemy.angle, _shown_metres(enemy), enemy_half(enemy.kind, "=")) - toward * 12.0
+			var to := centre + toward * edge_px(toward)
+			for side in [-1.0, 1.0]:
+				draw_line(from + across * side, to + across * side, Color(Palette.LOCK, LOCK_LINE_ALPHA), 1.0, true)
 
 
 ## The nearest Divider inside the range shows what it will do above the
@@ -601,10 +618,13 @@ static func dealt_text(enemy: BattleSim.Enemy) -> String:
 ## defences and growing 4% a hit (so it ticks up while it stands there), a
 ## Divider's ÷, or a Vampire's drain, a share of Health a second (D115). A
 ## hit is written bare, without its −, since every enemy but the Divider
-## takes away (D128); the Divider keeps its ÷, since it's the one that differs.
+## takes away (D128); the Divider keeps its ÷, since it's the one that differs,
+## and a Lock, which takes nothing, shows = (D133).
 static func operation_text(battle: BattleSim, enemy: BattleSim.Enemy) -> String:
 	if enemy.kind == "divider":
 		return "÷" + divisor_text(enemy.divisor)
+	if enemy.kind == "lock":
+		return "="
 	if enemy.kind == "vampire":
 		var share := snappedf(100.0 * float(TowerData.enemies().elites.vampire_drain), 0.1)
 		return "%s%%/s" % (str(roundi(share)) if is_equal_approx(share, roundf(share)) else String.num(share, 1))

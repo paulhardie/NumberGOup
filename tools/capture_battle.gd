@@ -274,6 +274,43 @@ func _capture() -> void:
 	invaded.queue_free()
 	await process_frame
 
+	# The Lock (D133) on Tier 1's wave 40, holding the Number from the range's
+	# edge in a crowd walking in, with the card a player sees the first time.
+	var held := BattleScreen.new()
+	held.workshop = middling
+	root.add_child(held)
+	await process_frame
+	held._adopt(BattleSim.new(7, middling.levels, middling.open_groups))
+	held.set_process(false)
+	var locked: BattleSim = held.sim
+	locked.wave = 40
+	locked.health_level = 40
+	locked.attack_level = 40
+	var walking := [["lock", 0.4, 0.0], ["basic", 0.5, 40.0], ["basic", 0.3, 47.0], ["fast", 0.45, 52.0], ["basic", 2.2, 30.0],
+		["ranged", 2.6, 0.0], ["tank", 3.4, 44.0], ["divider", 4.4, 38.0], ["basic", 5.2, 34.0], ["basic", 5.3, 39.0]]
+	locked.spawns.schedule.assign(walking.map(func(entry): return {"kind": entry[0], "at": 0.0}))
+	locked.spawns.next_spawn = 0
+	locked.wave_clock = 0.0
+	locked.step()
+	for index in range(walking.size()):
+		var enemy: BattleSim.Enemy = locked.enemies[index]
+		enemy.angle = walking[index][1]
+		enemy.distance = walking[index][2] if walking[index][2] > 0.0 else locked.stat("range")
+		enemy.speed = 0.0
+	locked.health = locked.max_health() * 3.0
+	for tick in range(10):
+		locked.step()
+	var best_before := middling.best_wave
+	middling.best_wave = 30
+	held._first_sight(0.0)
+	middling.best_wave = best_before
+	held._refresh()
+	held._arena.queue_redraw()
+	await _frames()
+	_save_png("battle_lock")
+	held.queue_free()
+	await process_frame
+
 	var screen := BattleScreen.new()
 	screen.workshop = Workshop.new()
 	root.add_child(screen)
