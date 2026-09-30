@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 30 September 2026, by Claude, handing on to the next agent. After fitting the Number inside its range ring (D123, #113), the owner settled D118's open question: a wave gets 208 spawn rolls (D124). Documents only; nothing in the game changes.
+**Last updated:** 30 September 2026, by Claude, handing on to the next agent. After settling 208 spawn rolls (D124, #114), this session added The Tower's welcome and its early progressive disclosure (D125): a fresh save's first run ends with 50 Coins and a popup into the Workshop, Home's bar shows screens only once The Tower would, and opening a Workshop group says what its rows do. The gift brings a core career past the wave-10 boss on run 12, inside The Tower's 10–13.
 
-**Branch:** `claude/settle-rolls`, from `main` after #113. It carries D124. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/first-death-gift`, from `main` after #114. It carries D125. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -26,7 +26,7 @@
 - **Enemies as numbers** (D085, D086). Each type has its own typeface and colour. An enemy shows what it does to the Number (−2.4, ÷1.5) from start to death, with the damage dealt so far in small white under it once it survives a shot (D102).
 - **Shots** are white and leave from the edge of the Number's digits with a small flash; hits chip the enemies' numbers, knockback slides (D090), and a kill bursts into sparks with its Cash, and Coins if it paid any, floating beside it (D109). Orbs are mint 0s circling at least 60 m out, turning as slowly as The Tower's (D108), and the Wall is a pair of brackets round the Number that fall away when it breaks (D106).
 - **Sound.** No combat sounds (D091). Generative ambient music plays across every screen (D092).
-- **Home and the Workshop** wear the same look, with a bar along the bottom (D096). Home follows The Tower's: Coins, the best Number in its light, the Coin bonus, the tier, Battle. Milestones opens a list of the best-Number milestones, each paying Coins once (D107). Cards, Labs, Weapons, Missions and the tier arrows stand locked as placeholders; the Difficulty card says Tier 2 opens after wave 100. Settings (Music, Export report) opens over Home and is kept in `user://number_go_up_settings.json` (D088).
+- **Home and the Workshop** wear the same look, with a bar along the bottom (D096). Home follows The Tower's: Coins, the best Number in its light, the Coin bonus, the tier, Battle. Like The Tower's, it shows each system only once it's open (D125): a fresh save's bar is Battle alone; the first run's end gives 50 Coins and a popup into the Workshop, which then joins the bar; Cards and Labs appear, locked, from waves 20 and 30. Opening a Workshop group says what its rows do. Milestones opens a list of the best-Number milestones, each paying Coins once (D107). Cards, Labs, Weapons, Missions and the tier arrows stand locked as placeholders; the Difficulty card says Tier 2 opens after wave 100. Settings (Music, Export report) opens over Home and is kept in `user://number_go_up_settings.json` (D088).
 - **Saving, resuming and the report.** The save is `user://number_go_up_tower.json`, version 1. A run closed mid-way resumes by replay (D078). Every run and Workshop buy is logged, and Home exports a report (D077).
 - **The owner has played it:** 37 runs in the Workshop, and reports exported on 26 and 27 September. Not yet on a phone or the web build.
 
@@ -88,12 +88,12 @@
 8. **The design canvas's other proposals** (D106 names them): a Number that grows heavier with each new digit, elites in one shared blue with a typeface each, and the rest of the notation assets. **Recommend** trying the heavier Number next, with the Tweaks slider on its board, since it answers the Number shrinking as digits arrive.
 9. **The new enemies' looks (D115)** are ours: the Protector in steel with a faint ring at its shield's radius, the Vampire crimson with a line to the Number while it drains, the Ray lemon with a heavy line when it fires, the Scatter blue, the three elites glowing. `capture_battle.gd`'s `battle_invaders` and `battle_wave_info` show them. **Recommend** looking at those two screens and saying what to change, since the design canvas proposed elites in one shared blue (decision 8).
 10. **Elites come to Tier 1 from wave 500**, as The Tower's do, where D112's table had them from Tier 3. Only a deep Tier 1 run meets them (1% of waves at 500). **Recommend** keeping The Tower's placement.
-11. **Missions** stands on Home as a placeholder at the owner's request, but isn't on the roadmap (Milestones is now built, D107). **Recommend** deciding whether Missions joins it before 1.1, or dropping it, so a placeholder never promises something unplanned.
+11. ~~**Missions**~~: the placeholder is gone (D125), since it isn't on the roadmap and The Tower shows nothing before it's open.
 
 12. **The Tower's wave milestones** (TOWER_RULES.md build item 6). They're how The Tower opens Labs (Tier 1 wave 30) and the next tier (wave 100), and pay its Coins and Gems. **Recommend** adding them beside our Number milestones (D107), which stay as the Number's own rewards.
 ## Next steps, in order
 
-0. **Owner:** play a few runs on D122 and D123: whether faster tanks and ranged feel like The Tower's, and whether the Number reads right inside its ring. Then count one Tower wave's enemies (TOWER_RULES.md reading 4). **Agent, then:** set how many enemies a roll sends from the count (D114's 1.06 against the SDK's 1.86) and rerun D122's benchmarks. Done when a career passes the wave-10 boss near The Tower's runs 10–13, or the count says it shouldn't.
+0. **Owner:** play a few runs on D122, D123 and D125: faster tanks and ranged, the Number inside its ring, and a reset save's welcome (Settings → Testing → Reset, then die once). Then record one whole early Tower wave at ×1 for the enemy count (TOWER_RULES.md reading 4; wave 1 of the owner's earlier clip already points to about 24, near our 22, not the SDK's 39). **Agent, then:** count it from the recording as D121 measured speeds, and change how many enemies a roll sends only if it disagrees. Done when the owner has played it and the count is in.
 1. **Owner:** play a few runs on D111's growth (free Coins or a reset help try later stages) and say whether the Number's climb feels earned. Done when the owner says so, or names what to change (`--kill-share` and `--peak-drift` measure alternatives).
 1a. **Owner:** sign off 1.0 or name what's missing (decision 1).
 2. **Agent, on the owner's word:** tune the Divider's health with `sim_runs.gd --careers 40 --buy core --divider-health N` if play says so. Then raise `application/config/version` to 1.0 when the owner signs it off. `--careers` always plays the same seeds (run N is seed N), so a second career needs a seed option first.
@@ -105,6 +105,7 @@
 
 ## How to measure
 
+- **D125 (30 September):** `bash run_tests.sh` passes (4182 checks, with new ones for the gift once and only on a fresh save, the first run leading Home, the popup opening the Workshop, the gift logged once, the bar's reveals and the unlock popup; tests that finished a fresh Workshop's first run now account for the gift). 40-run careers, core and even, against `main`: D125's table. Screens checked by eye from a scratch script: a fresh Home, the welcome, the Range unlock popup, Home at wave 31. The review was the author's own. Not played.
 - **D124 (30 September):** documents only; the benchmarks behind it are D122's. `bash run_tests.sh` passes (4169 checks, unchanged).
 - **D123 (30 September):** a scratch script (not committed) opened the battle screen at 540 × 960 under `xvfb-run`, placed enemies at 20, 12 and 3 m beside and below the Number, and printed the ring, the Number's reach and where each enemy was drawn, before and after; D123 has the table, and its screenshots were checked by eye. `bash run_tests.sh` passes (4169 checks, with a test that the Number fits its ring with and without orbs). The review was the author's own. Not played on a phone.
 - **D122 (29 September):** `import_tower_enemies.mjs` regenerated the data. `bash run_tests.sh` passes (4166 checks, with new ones for the type speeds, the ×1 pace and the two-part wave bar). `sim_runs.gd`: D122's table, at both roll counts and with $93. `capture_battle.gd` ran without errors; its captures show the bar while spawning, but none catches the cooldown's accent (the test checks its colour). The review was the author's own. Not played.
@@ -165,7 +166,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D124), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D125), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.

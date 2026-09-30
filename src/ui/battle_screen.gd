@@ -78,6 +78,8 @@ var _mono := Palette.weight(Palette.NUMBER_FONT, 400)
 var _mono_bold := Palette.weight(Palette.NUMBER_FONT, 500)
 var _upgrades: UpgradePanel
 var _over: PanelContainer
+## The run-over panel's "Battle again", hidden after a first run (D125).
+var _again: Button
 var _wave_info: WaveInfo
 var _over_title: Label
 var _over_text: Label
@@ -260,6 +262,8 @@ func _show_run_over() -> void:
 	_over_text.text += "\nKills grew the Number by %s" % Palette.amount(float(sim.gained_from.get("kills", 0.0)))
 	for milestone in milestones:
 		_over_text.text += "\nMilestone: %s reached · +● %s" % [Palette.full(float(milestone.number), INF), Palette.money(float(milestone.coins))]
+	# A first run's end leads Home, where the Workshop's welcome waits (D125).
+	_again.visible = workshop.gift_waiting <= 0.0
 	_over.visible = true
 
 
@@ -351,10 +355,10 @@ func _build() -> void:
 	_over_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_over_text.custom_minimum_size = Vector2(300, 0)
 	over_column.add_child(_over_text)
-	var again := Button.new()
-	again.text = "Battle again"
-	again.pressed.connect(func(): start_run(randi()))
-	over_column.add_child(again)
+	_again = Button.new()
+	_again.text = "Battle again"
+	_again.pressed.connect(func(): start_run(randi()))
+	over_column.add_child(_again)
 	var home := Button.new()
 	home.text = "Home"
 	home.pressed.connect(func(): home_pressed.emit())

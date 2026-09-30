@@ -3,10 +3,10 @@ extends Control
 ## pills, the game's name over the best Number in its light, the Coin bonus
 ## and the tier, and the Battle button, with the bar to the Workshop below.
 ## Milestones open over the screen (D107). Placeholders stand where the
-## roadmap's later pieces will go (
-## Missions, tiers past 1, and Cards, Labs and Weapons in the bar); they are
-## shown, locked, and do nothing. Settings (Music, Export report and the
-## build) open over the screen.
+## roadmap's later pieces will go (tiers past 1, and in the bar Cards and Labs
+## once a run reaches The Tower's wave for them, D125); they are shown,
+## locked, and do nothing. Settings (Music, Export report and the build) open
+## over the screen. A first run's end opens the Workshop's welcome (D125).
 
 const Workshop = preload("res://src/tower/workshop.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
@@ -43,6 +43,9 @@ var _best_wave: Label
 var _settings_panel: PanelContainer
 var _milestones_panel: PanelContainer
 var _milestones_list: VBoxContainer
+## The Workshop's welcome after a first run (D125), and the Coins it announces.
+var _gift_panel: PanelContainer
+var _gift := 0.0
 var _reset: Button
 ## Reset asks twice: the first press arms it, the second resets.
 var _reset_armed := false
@@ -79,10 +82,6 @@ func _ready() -> void:
 	var gap := Control.new()
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(gap)
-	var missions := Palette.pill("Missions", Palette.SOFT)
-	missions.disabled = true
-	missions.tooltip_text = "Coming later"
-	top.add_child(missions)
 	var open_settings := Palette.pill("Settings", Palette.SOFT)
 	open_settings.pressed.connect(func(): _settings_panel.visible = true)
 	top.add_child(open_settings)
@@ -183,7 +182,7 @@ func _ready() -> void:
 	_note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	body.add_child(_note)
 
-	var nav := NavBar.new("battle")
+	var nav := NavBar.new("battle", workshop.runs, workshop.best_wave)
 	nav.chosen.connect(func(id: String):
 		if id == "workshop":
 			workshop_pressed.emit())
@@ -192,6 +191,8 @@ func _ready() -> void:
 
 	_build_settings()
 	_build_milestones()
+	if _gift > 0.0:
+		_build_gift()
 	refresh()
 
 
@@ -221,6 +222,39 @@ func show_exported(result: Dictionary) -> void:
 		return
 	show_note("Saved %s (%d runs). Drop it into the chat.\n%s" % [
 		String(result.path).get_file(), int(result.runs), ProjectSettings.globalize_path(String(result.path)).get_base_dir()])
+
+
+## The Workshop's welcome, over Home, after a new player's first run (D125):
+## what the Workshop is, the Coins given to start it, and the way in.
+func show_gift(coins: float) -> void:
+	_gift = coins
+	if is_node_ready():
+		_build_gift()
+
+
+func _build_gift() -> void:
+	_gift_panel = _overlay()
+	var column: VBoxContainer = _gift_panel.get_meta("column")
+	var heading := Label.new()
+	heading.text = "The Workshop"
+	heading.add_theme_font_size_override("font_size", 16)
+	column.add_child(heading)
+	var about := Label.new()
+	about.text = "Coins you earn in battle stay between runs. Spend them in the Workshop on upgrades every run starts with."
+	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	about.custom_minimum_size = Vector2(260, 0)
+	about.add_theme_font_size_override("font_size", 13)
+	about.add_theme_color_override("font_color", Palette.SOFT)
+	column.add_child(about)
+	var given := _figure(20, Palette.COIN)
+	given.text = "+● %s to get you started" % Palette.money(_gift)
+	column.add_child(given)
+	var go := Palette.pill("Open the Workshop", Palette.ACCENT, null, 40)
+	go.pressed.connect(func():
+		_gift_panel.visible = false
+		workshop_pressed.emit())
+	column.add_child(go)
+	_gift_panel.visible = true
 
 
 func show_note(text: String) -> void:

@@ -78,6 +78,10 @@ func _show_home() -> HomeScreen:
 		ActivityLog.append({"kind": "test_coins", "amount": amount, "coins_left": workshop.coins}, log_path)
 		_save())
 	home.reset_pressed.connect(_reset_progress)
+	# The first run's end brings the Workshop's welcome and its Coins (D125).
+	if workshop.gift_waiting > 0.0:
+		home.show_gift(workshop.gift_waiting)
+		workshop.gift_waiting = 0.0
 	home.battle_pressed.connect(_show_battle)
 	home.workshop_pressed.connect(_show_workshop)
 	home.export_pressed.connect(func():
@@ -136,6 +140,7 @@ func _resume_failed(saved: Dictionary, reason: String) -> void:
 	entry["kind"] = "run"
 	entry["resume_failed"] = reason
 	ActivityLog.append(entry, log_path)
+	_log_gift()
 	var why := "couldn't carry over to this version of the game" if reason == "changed" else "couldn't be read"
 	_show_home().show_note("Your run at wave %d %s, so it ended there. Its Coins are kept." % [reached, why])
 	_save()
@@ -148,6 +153,13 @@ func _log_run(battle: BattleScreen) -> void:
 	# Logged apart, so a report never counts a milestone's Coins as earned (D107).
 	for milestone in battle.milestones:
 		ActivityLog.append({"kind": "milestone", "number": milestone.number, "coins": milestone.coins}, log_path)
+	_log_gift()
+
+
+## Logged apart, so a report never counts the first run's gift as earned (D125).
+func _log_gift() -> void:
+	if workshop.gift_given > 0.0:
+		ActivityLog.append({"kind": "gift", "coins": workshop.gift_given}, log_path)
 
 
 func _swap(next: Control) -> void:

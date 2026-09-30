@@ -1821,3 +1821,24 @@ Rules:
 - **Decision:** a wave rolls for an enemy every 1/8 s of its 26-second spawning window, 208 rolls, as the SDK reads The Tower's spawn timer and as D114 built it. Nothing changes in the game; the half-rate alternative (104 rolls, D118's earlier recommendation) is dropped.
 - **Why:** with The Tower's mix, walk speed and type speeds in (D120–D122), 208 is closer on every benchmark measured. A fresh run with the owner's $93 reaches wave 6 (The Tower's: 8), a core career's Coins at waves 20–21 are 141–188 (The Tower's about 162), and a core career passes the wave-10 boss on run 20. At 104 a fresh run overshoots to wave 10 and a career stalls until run 33, since basics pay no Coins (D122's table).
 - **Still open:** a core career passes the wave-10 boss on run 20 where The Tower's players do on runs 10–13. How many enemies a successful roll sends (our 1.06 against the SDK's 1.86, D114) is the likeliest remaining cause; counting one wave's enemies in The Tower settles it (TOWER_RULES.md, reading 4).
+
+## D125 — The first run's Workshop welcome, and screens shown only when they open
+
+- **Status:** Accepted (2026-09-30) on owner direction: "add in the gift after dying the first time, same as the tower, and also look at other progressive disclosure it uses early game too, so the player isn't too overwhelmed by systems". The Tower's welcome is the owner's reading of a fresh save: "when you die for the first time you get a popup in the menu that shows you the workshop, and gives you 50 coins to get started."
+- **What The Tower hides, and when it shows it** (TOWER_RULES.md, section 5): the Workshop's welcome after the first run; Workshop groups one at a time with an info popup as each upgrade unlocks (its patch notes); menus by milestone (Cards from wave 20, Labs at 30, Tournaments 60, Events 70, Tier 2 at 100; the Vault until a key is owned); game speed and the Buy Multiplier as Labs.
+- **Decision:**
+  1. **The first run's end gives 50 Coins** (`Workshop.FIRST_RUN_GIFT`), once, whether the tower fell or the run was ended. It leads Home rather than into another battle (no Battle again on that run's panel), where a popup says what the Workshop is and opens it. It's logged apart as a gift, so reports don't count it as earned. It needs no new save key: a save that has finished a run is past it, so **saves already played, the owner's included, never get it**; a reset save does.
+  2. **Home's bar shows a screen only once The Tower would**: Battle alone before the first run ends, the Workshop from then, Cards from a best wave of 20 and Labs from 30, both still locked with the version that brings them. Weapons (when The Tower opens them isn't known) and Home's Missions placeholder (not on the roadmap, handover decision 11) no longer show.
+  3. **Opening a Workshop group says what each of its rows does**, from the Workshop data's descriptions, as The Tower's info popups do.
+  4. **Not changed:** game speed and the buy multiplier, which The Tower gates behind Labs, stay from the start (the owner's D076 and their ×5 play); the tier arrows and Tier 2's goal stay on Home.
+- **Measured** (`sim_runs.gd --careers 40`, from a fresh Workshop, `main` against this change):
+
+| Career | `main` | With the gift | The Tower |
+|---|---|---|---|
+| Core: first run past the wave-10 boss | run 20 | **run 12** | runs 10–13 |
+| Core: first run to wave 21 | run 29 | run 20 | — |
+| Core: run 40 | wave 24 | wave 27 | — |
+| Spread evenly (`even`): best by run 40 | wave 6 | wave 6 | — |
+
+  - The first five runs play exactly as before (the gift arrives after the first); what changes is that the Workshop starts with 50 Coins, which buys Damage and Attack Speed levels runs 2–5 couldn't afford. **This closes the gap D124 left open**: careers now pass the boss where The Tower's players do.
+  - Spreading the Coins evenly across every open row still stalls, with or without it, as it did before; it's the sim's weakest buyer, not a player's.

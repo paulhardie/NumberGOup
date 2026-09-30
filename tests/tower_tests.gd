@@ -593,10 +593,10 @@ func test_the_save_round_trips() -> void:
 	var workshop := Workshop.new()
 	workshop.coins = 40.0
 	workshop.open_group("cash")
-	workshop.coins = 123456789.123456
-	workshop.levels = {"damage": 7, "health": 3}
 	workshop.finish_run(12)
 	workshop.finish_run(9)
+	workshop.coins = 123456789.123456
+	workshop.levels = {"damage": 7, "health": 3}
 	check(Save.save_workshop(workshop, TEST_SAVE), "saved")
 	check(not FileAccess.file_exists(TEST_SAVE + ".tmp"), "no half-written file left behind")
 	var loaded := Save.load_workshop(TEST_SAVE)
@@ -1585,8 +1585,10 @@ func test_every_run_on_a_battle_screen_is_logged() -> void:
 		battle.start_run(seed_value)
 		battle.sim.end_run()
 		battle._process(0.0)
-	var entries := ActivityLog.read(TEST_LOG)
+	var entries := ActivityLog.read(TEST_LOG).filter(func(entry): return entry.kind == "run")
 	check(entries.size() == 2 and int(entries[0].seed) == 1 and int(entries[1].seed) == 2, "a run and its Battle again are both logged: %d" % entries.size())
+	var gifts := ActivityLog.read(TEST_LOG).filter(func(entry): return entry.kind == "gift")
+	check(gifts.size() == 1 and float(gifts[0].coins) == Workshop.FIRST_RUN_GIFT, "and the first run's gift once, apart from what runs earned (D125)")
 	check(Save.load_run(TEST_SAVE).is_empty(), "and neither stays in the save")
 	game.free()
 	_clear_test_logs()
@@ -2247,6 +2249,8 @@ func test_the_number_fits_inside_its_range() -> void:
 ## nothing more, and Home lists them.
 func test_milestones_pay_once_when_the_best_number_reaches_a_new_digit() -> void:
 	var workshop := Workshop.new()
+	# Past the first run's gift (D125), so only milestones pay here.
+	workshop.runs = 1
 	check(workshop.finish_run(3, 9.0).is_empty() and workshop.coins == 0.0, "a best Number under 10 reaches none")
 	var first := workshop.finish_run(5, 12.0)
 	check(first.size() == 1 and float(first[0].number) == 10.0 and workshop.coins == 10.0, "reaching 10 pays its Coins: %s" % [first])
@@ -2467,25 +2471,99 @@ func test_settings_drop_the_old_range_switch() -> void:
 	await process_frame
 
 
+## D125: a new player's first run ends with The Tower's welcome: 50 Coins,
+## given once, and a popup on Home that opens the Workshop. A save already
+## past its first run never gets it.
+func test_a_first_run_ends_with_the_workshops_welcome() -> void:
+	var fresh := Workshop.new()
+	fresh.finish_run(4, 6.0)
+	check(fresh.coins == Workshop.FIRST_RUN_GIFT and fresh.gift_waiting == Workshop.FIRST_RUN_GIFT, "the first run's end gives 50 Coins")
+	fresh.gift_waiting = 0.0
+	fresh.finish_run(6, 7.0)
+	check(fresh.coins == Workshop.FIRST_RUN_GIFT and fresh.gift_waiting == 0.0, "and the second gives none")
+	var played := Workshop.new()
+	played.restore({"coins": 10.0, "runs": 12})
+	played.finish_run(9, 5.0)
+	check(played.coins == 10.0 and played.gift_waiting == 0.0, "a save already past its first run never gets it")
+	_clear_test_saves()
+	_clear_test_logs()
+	var game = _game()
+	await process_frame
+	game._show_battle()
+	var battle = game._screen
+	battle.sim.end_run()
+	battle._process(0.0)
+	check(not battle._again.visible, "the first run's end leads Home, not straight into another battle")
+	check(Save.load_workshop(TEST_SAVE).coins == Workshop.FIRST_RUN_GIFT + battle.sim.coins, "the gift is saved with the run's end")
+	battle.home_pressed.emit()
+	await process_frame
+	var home = game._screen
+	check(home is HomeScreen and home._gift_panel != null and home._gift_panel.visible, "Home opens with the Workshop's welcome")
+	var open: Array = home.find_children("*", "Button", true, false).filter(func(button): return button.text == "Open the Workshop")
+	open[0].pressed.emit()
+	await process_frame
+	check(game._screen is WorkshopScreen, "which takes the player into the Workshop")
+	game._show_home()
+	await process_frame
+	check(game._screen._gift_panel == null, "and it shows once")
+	game._show_battle()
+	battle = game._screen
+	battle.sim.end_run()
+	battle._process(0.0)
+	check(battle._again.visible, "later runs end with Battle again as before")
+	game.free()
+	_clear_test_saves()
+	_clear_test_logs()
+
+
+## D125: opening a Workshop group says what its rows do, as The Tower explains
+## an upgrade the first time it unlocks.
+func test_opening_a_group_says_what_it_does() -> void:
+	var shop = WorkshopScreen.new()
+	shop.workshop = Workshop.new()
+	shop.workshop.coins = 1000.0
+	root.add_child(shop)
+	await process_frame
+	var unlock: Array = shop.find_children("*", "Button", true, false).filter(func(button): return not button.find_children("*", "Label", true, false).filter(func(label): return label.text.begins_with("Unlock")).is_empty())
+	unlock[0].pressed.emit()
+	check(shop.workshop.is_group_open("range") and shop._opened_panel != null, "opening Range shows what it opened")
+	var texts: Array = shop._opened_panel.find_children("*", "Label", true, false).map(func(label): return label.text)
+	check("Range" in texts and String(TowerData.upgrade("range").description) in texts, "each row with what it does: %s" % [texts])
+	shop.free()
+
+
 ## Home and the Workshop share a bar along the bottom (D096): Battle and the
 ## Workshop take the player there, and the roadmap's later screens stand
-## locked with the version that brings them. Home's other placeholders are
-## locked too.
+## locked with the version that brings them, each appearing only when The
+## Tower would show it (D125). The tier arrows stand locked too.
 func test_the_bottom_bar_and_placeholders() -> void:
+	var fresh := Workshop.new()
+	var first_bar := NavBar.new("battle", fresh.runs, fresh.best_wave)
+	check(first_bar.buttons.keys() == ["battle"], "before a first run ends the bar is Battle alone: %s" % [first_bar.buttons.keys()])
+	first_bar.free()
+	var after_first := NavBar.new("battle", 1, 19)
+	check(after_first.buttons.keys() == ["battle", "workshop"], "a first run's end brings the Workshop")
+	after_first.free()
+	var at_20 := NavBar.new("battle", 5, 20)
+	check(at_20.buttons.keys() == ["battle", "workshop", "cards"] and at_20.buttons.cards.disabled, "wave 20 brings Cards, locked until they're built")
+	at_20.free()
+	var at_30 := NavBar.new("battle", 5, 30)
+	check(at_30.buttons.keys() == ["battle", "workshop", "cards", "labs"] and at_30.buttons.labs.disabled, "wave 30 brings Labs; Weapons wait until they're built")
+	at_30.free()
 	var home := HomeScreen.new()
 	home.workshop = Workshop.new()
+	home.workshop.runs = 3
 	root.add_child(home)
 	await process_frame
 	var bars := home.find_children("*", "HBoxContainer", true, false).filter(func(node): return node is NavBar)
 	check(bars.size() == 1, "Home has the bar")
 	var bar: NavBar = bars[0]
-	for id in ["cards", "labs", "weapons"]:
-		check(bar.buttons[id].disabled, "%s is locked for now" % id)
 	var went := [""]
 	home.workshop_pressed.connect(func(): went[0] = "workshop")
 	bar.buttons["workshop"].pressed.emit()
 	check(went[0] == "workshop", "the bar takes Home to the Workshop")
-	for name in ["Missions", "‹", "›"]:
+	check(home.find_children("*", "Button", true, false).filter(func(button): return button.text == "Missions").is_empty(), "no Missions placeholder, as it isn't on the roadmap")
+	for name in ["‹", "›"]:
 		var found := home.find_children("*", "Button", true, false).filter(func(button): return button.text == name)
 		check(found.size() == 1 and found[0].disabled, "%s stands locked" % name)
 	home.queue_free()

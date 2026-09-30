@@ -4,7 +4,8 @@ extends Control
 ## it opens, as one big Unlock card, never the ones after it. The rules are
 ## the Workshop's; this only shows and asks. It wears the main screen's look
 ## (D095, D096): Coins over a title, underlined tabs, quiet cards, and the bar
-## back to Home along the bottom.
+## back to Home along the bottom. Opening a group says what its rows do, as
+## The Tower's info popups do when an upgrade unlocks (D125).
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
@@ -30,6 +31,8 @@ var _coins: Label
 var _list: VBoxContainer
 ## Refreshed every frame: [{button, refresh: Callable}].
 var _cards: Array[Dictionary] = []
+## What a group just opened does (D125), over the screen until closed.
+var _opened_panel: PanelContainer
 var _mono := Palette.weight(Palette.NUMBER_FONT, 400)
 var _mono_bold := Palette.weight(Palette.NUMBER_FONT, 500)
 
@@ -93,7 +96,7 @@ func _ready() -> void:
 	_list.add_theme_constant_override("separation", 8)
 	scroll.add_child(_list)
 
-	var nav := NavBar.new("workshop")
+	var nav := NavBar.new("workshop", workshop.runs, workshop.best_wave)
 	nav.chosen.connect(func(id: String):
 		if id == "battle":
 			home_pressed.emit())
@@ -203,11 +206,55 @@ func _unlock_card(group: String) -> Button:
 		if workshop.open_group(group):
 			activity.emit({"kind": "workshop_open", "group": group, "cost": coins_before - workshop.coins, "coins_left": workshop.coins})
 			changed.emit()
-			show_tab(_tab))
+			show_tab(_tab)
+			show_opened(group))
 	_cards.append({"button": button, "refresh": func():
 		button.disabled = not workshop.can_open(group)
 		unlock.add_theme_color_override("font_color", Palette.COIN if workshop.can_open(group) else Palette.MUTED)})
 	return button
+
+
+## Over the screen: the rows a group just opened, each with what it does, as
+## The Tower explains an upgrade the first time it unlocks (D125).
+func show_opened(group: String) -> void:
+	if _opened_panel != null:
+		_opened_panel.queue_free()
+	_opened_panel = PanelContainer.new()
+	var shade := StyleBoxFlat.new()
+	shade.bg_color = Color(0, 0, 0, 0.6)
+	_opened_panel.add_theme_stylebox_override("panel", shade)
+	_opened_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_opened_panel)
+	var centre := CenterContainer.new()
+	_opened_panel.add_child(centre)
+	var card := PanelContainer.new()
+	card.add_theme_stylebox_override("panel", Palette.panel_box())
+	card.custom_minimum_size = Vector2(300, 0)
+	centre.add_child(card)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 12)
+	card.add_child(column)
+	var heading := Label.new()
+	heading.text = "Unlocked"
+	heading.add_theme_font_size_override("font_size", 16)
+	column.add_child(heading)
+	for row in TowerData.group_rows(group):
+		var name_label := Label.new()
+		name_label.text = Palette.row_title(row)
+		name_label.add_theme_font_size_override("font_size", 14)
+		column.add_child(name_label)
+		var about := Label.new()
+		about.text = String(TowerData.upgrade(row).description)
+		about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		about.custom_minimum_size = Vector2(260, 0)
+		about.add_theme_font_size_override("font_size", 12)
+		about.add_theme_color_override("font_color", Palette.SOFT)
+		column.add_child(about)
+	var close := Palette.pill("Got it", Palette.SOFT, null, 36)
+	close.pressed.connect(func():
+		_opened_panel.queue_free()
+		_opened_panel = null)
+	column.add_child(close)
 
 
 func _card_button() -> Button:

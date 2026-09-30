@@ -123,6 +123,12 @@
 - **Perks:** chosen during a run every 200 waves, once the Tier 2 wave-150 milestone and its lab are done.
 - **Game speed:** a Lab from Tier 1 wave 30, ×2.0 to ×5.0 over seven levels; the stated ×5 plays like about ×4. What a fresh save allows before that isn't recorded (the owner's report was at ×1.5 on a paid account).
 - **Buy Multiplier:** The Tower opens it at Tier 2 wave 20; we have had it from the start (D076).
+- **What a new player sees, and when** (D125). The Tower shows each system only once the player can use it:
+  - **The first run's end:** a popup introduces the Workshop and gives 50 Coins to start it (the owner, 30 September). Ours does the same, and the Workshop only joins Home's bar then.
+  - **The Workshop, a group at a time:** each tab shows only its next locked group (D076), and each upgrade shows an info popup the first time it unlocks (patch notes, 0.2x: "the info popups about each upgrade" when unlocked). Ours says what each row of a group does as it opens.
+  - **Menus by milestone:** Cards from wave 20 (its milestone pays the Gems for a first card; the owner's reference text says Cards open there), Labs at 30, Tournaments at 60, Events at 70, Tier 2 at 100; the Vault is hidden until a player owns a key. Ours shows Cards and Labs in the bar from those waves, locked until built; Weapons, whose opening point isn't known, and Missions, which aren't on the roadmap, don't show.
+  - **Labs we don't have:** game speed (Tier 1 wave 30) and the Buy Multiplier (Tier 2 wave 20) are Labs in The Tower. Ours has both from the start, at the owner's direction (D076, and game speed as a testing switch); left as they are.
+  - **Unknown:** whether a fresh save's first battle shows all three upgrade tabs (the owner's new save at wave 1 did) and Wave Info (it did); when Ultimate Weapons open.
 
 ## 6. Readings the owner can take in The Tower
 
