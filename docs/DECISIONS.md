@@ -2021,7 +2021,7 @@ Rules:
   - Screens fade in (0.15 s) rather than snap.
 - **Home:**
   - Coins and Gems chips, with today's Gems claim beside them only while it's there, a small wordmark, and Settings as •••.
-  - The best Number in its light. Tapping it opens Milestones, so the Milestones pill is gone. Under it: the next digit's reward. (A ring round it filling towards the next digit was built, then removed on the owner's word before merging; D139.)
+  - The best Number in its light. Tapping it opens Milestones, so the Milestones pill is gone. Under it: the next digit's reward. (A ring round it filling towards the next digit shipped here and was removed on the owner's word in D139.)
   - A line reading "Tier 1 · best wave · runs".
   - One filled, lit Battle button carrying the tier, its glow breathing with the Number's light.
   - The Coin bonus card is gone (the Workshop shows that row), and so is the Difficulty card with its locked arrows, until Tier 2 exists (1.4).
@@ -2034,6 +2034,12 @@ Rules:
 - **Status:** Accepted (2026-10-01) on owner direction: "carry the chips to the Workshop and battle next. Also on the home screen can we remove the range ring around the number. And in battle, can the range ring be a bit fainter/more subtle, just enough that it is visible, but not so it just looks like a tower rip off".
 - **Decision** (drawing only):
   - **Home's Number has no ring round it.** The next digit's reward stays written under it, and tapping the Number still opens Milestones.
-  - **The battle's range ring is 9% white at 1 px.** D128 made it 16% at 1.25 px, which read as The Tower's ring. Before that it was 6% at 1 px, which was hard to find.
+  - **The battle's range ring is 9% white at 1 px** (6% since D140). D128 made it 16% at 1.25 px, which read as The Tower's ring. Before that it was 6% at 1 px, which was hard to find.
   - **Cash and Coins are chips on the battle's top line and the Workshop's**, as Home's are (`Palette.money_line` now builds chips): "$ 155" in the text's colour, "● 0" in gold.
+
+## D140 — The range ring at 6%
+
+- **Status:** Accepted (2026-10-01) on owner direction, after playing D139's 9% ring: "Still too visible. Takes away some of the shine of the number in the centre of the screen".
+- **Decision:** the battle's range ring is 6% white at 1 px (`ArenaView.RANGE_LINE`), where it was before D128. It's the faintest that stays findable on the dark ground. The Number's light is what should catch the eye; the ring only marks where shots reach. Drawing only.
+- **If it's still too much:** fading the ring where the Number's light is brightest, or a dotted hairline, would keep it findable at the edges while leaving the centre to the Number.
 
