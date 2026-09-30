@@ -2514,11 +2514,10 @@ func test_milestones_pay_once_when_the_best_number_reaches_a_new_digit() -> void
 	home.workshop = workshop
 	root.add_child(home)
 	await process_frame
-	# Tapping the best Number opens them (D138); the ring round it fills
-	# from the last milestone reached towards the next.
+	# Tapping the best Number opens them (D138), with the next digit's reward
+	# written under it.
 	check(home.find_children("*", "Button", true, false).filter(func(button): return button.text == "Milestones").is_empty(), "no Milestones pill any more")
-	check_near(home._ring.fill, HomeScreen.digit_progress(workshop), 0.0, "the ring shows the way to the next digit")
-	check_near(HomeScreen.digit_progress(workshop), (workshop.best_number - 1000.0) / 9000.0, 0.0001, "from 1,000 towards 10,000: %.3f" % HomeScreen.digit_progress(workshop))
+	check(home._next_digit.text.contains(Palette.money(float(workshop.next_milestone().coins))), "the next digit's reward shows: %s" % home._next_digit.text)
 	home._emblem.pressed.emit()
 	check(home._milestones_panel.visible and home._milestones_list.get_child_count() == Guesses.MILESTONES.size() + 1, "listing every milestone, with progress to the next")
 	home.queue_free()

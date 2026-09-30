@@ -141,7 +141,7 @@ func _next_amount() -> void:
 
 
 func refresh() -> void:
-	_coins.text = Palette.money(workshop.coins)
+	_coins.text = "● " + Palette.money(workshop.coins)
 	_amount_button.text = "buy max" if _amount == 0 else "buy ×%d" % _amount
 	for card in _cards:
 		card.refresh.call()
