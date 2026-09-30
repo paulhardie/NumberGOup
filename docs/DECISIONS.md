@@ -1824,7 +1824,7 @@ Rules:
 
 ## D125 — The first run's Workshop welcome, and screens shown only when they open
 
-- **Status:** Accepted (2026-09-30) on owner direction: "add in the gift after dying the first time, same as the tower, and also look at other progressive disclosure it uses early game too, so the player isn't too overwhelmed by systems". The Tower's welcome is the owner's reading of a fresh save: "when you die for the first time you get a popup in the menu that shows you the workshop, and gives you 50 coins to get started."
+- **Status:** The gift is 57 Coins since [D137](#d137--the-welcome-gives-57-coins). Accepted (2026-09-30) on owner direction: "add in the gift after dying the first time, same as the tower, and also look at other progressive disclosure it uses early game too, so the player isn't too overwhelmed by systems". The Tower's welcome is the owner's reading of a fresh save: "when you die for the first time you get a popup in the menu that shows you the workshop, and gives you 50 coins to get started."
 - **What The Tower hides, and when it shows it** (TOWER_RULES.md, section 5): the Workshop's welcome after the first run; Workshop groups one at a time with an info popup as each upgrade unlocks (its patch notes); menus by milestone (Cards from wave 20, Labs at 30, Tournaments 60, Events 70, Tier 2 at 100; the Vault until a key is owned); game speed and the Buy Multiplier as Labs.
 - **Decision:**
   1. **The first run's end gives 50 Coins** (`Workshop.FIRST_RUN_GIFT`), once, whether the tower fell or the run was ended. It leads Home rather than into another battle (no Battle again on that run's panel), where a popup says what the Workshop is and opens it. It's logged apart as a gift, so reports don't count it as earned. It needs no new save key: a save that has finished a run is past it, so **saves already played, the owner's included, never get it**; a reset save does.
@@ -1998,3 +1998,9 @@ Rules:
 - **Documentation and delivery:** Update the README and replace the current handover. This is a new record; prior accepted choices are not rewritten. PR #121 has merged; deliver the verified follow-up through a new feature-branch pull request rather than pushing to `main`.
 - **Compatibility:** Snapshot and combat-rules version 2 freeze the known measuring switches before wave 1. Older declared contracts recover rather than silently claim current equivalence. A sound changed-rules record retains its tier records, unlocks and earned rewards; damaged records cannot inflate bests or pay milestones. Banked Coins and previous permanent progress remain.
 - **Evidence:** [HANDOVER.md](HANDOVER.md); contracts in [SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.md). The latest copied version-1 save passed 16 checks. The older wave-39 copy passed 28 checks including all 23 ranks, exact backup, version-2 reload and actual changed-rules recovery: banked Coins retained, Tier 1 reached 39/cleared 38, Labs retained, run counted/logged once. Input copies stayed byte-identical; all gameplay writes used scratch storage.
+
+## D137 — The welcome gives 57 Coins
+
+- **Status:** Accepted (2026-10-01) on owner direction, after playing a fresh save on D135's 104 rolls: "wave 1 feels fine now, coins feel slow but made up for by the 50 coins on first death. Can we make it 57 coins instead."
+- **Decision:** the first run's end gives 57 Coins (`Workshop.FIRST_RUN_GIFT`), where The Tower gives 50. Everything else about D125's welcome stands: once, logged apart as a gift, and never for a save already past its first run, so existing saves are unaffected.
+
