@@ -25,7 +25,7 @@ This high-risk pass supplies a preserved permanent account, exact battle continu
 
 The daily amount is 20 Gems, the developer's [v29 reward change](https://www.techtreegames.com/post/v29-patch-notes-august-25-2026). It opens after the first run and pays once per UTC day, without missed-day accumulation, ads, purchases or servers.
 
-Research has one default slot and supports up to five. `Progression.start_research` requires wave 30, advances time before purchase and validates the combined completed/pending build before charging. The 1.2 catalogue supplies real ids, prices, durations and effects. Completed effects flatten by sorted id so reload cannot reorder arithmetic. Active runs keep their frozen build.
+Research has one default slot and supports up to five. `Progression.start_research` requires wave 30, advances time before purchase and validates every reachable combination of completed/pending jobs before charging, so completion order cannot break the account. The 1.2 catalogue supplies real ids, prices, durations and effects. Completed effects flatten by sorted id so reload cannot reorder arithmetic. Active runs keep their frozen build.
 
 ## Saves
 

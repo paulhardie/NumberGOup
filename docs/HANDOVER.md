@@ -1,6 +1,6 @@
 # Handover
 
-**Last updated:** 30 September 2026, by Codex. D125 is merged in `main` (`478dcac`). D126 implements the scaling foundations authorised by the owner after the whole-game audit. Final independent review is in progress.
+**Last updated:** 30 September 2026, by Codex. This branch includes `main` through `a50e59e` (D127–D132's drawing changes and Workshop/Divider measurements). D126 implements the scaling foundations authorised by the owner after the whole-game audit. Final independent review approved the diff with no actionable findings.
 
 **Branch:** `codex/scaling-foundations`, in the attached worktree. Not merged. The owner's play folder remains `~/NumberGOup-main`, kept on `origin/main` by `com.paulhardie.ngu-sync`; this work is not in their game until they merge its pull request. The pre-rebuild game is commit `f4f1e95`.
 
@@ -26,14 +26,15 @@ Contracts, authorities and limits: [SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.
 
 **High-risk change:** saves, economy, clocks and exports.
 
-- Fresh scratch-home import, `bash run_tests.sh` and headless main-scene boot passed: **4,182 tower checks + 108 foundation checks = 4,290**; both suites exited 0 with no script/error lines. The existing boot warning about 13 ObjectDB instances remains.
-- Fixtures cover old/current/malformed/future saves, backups, protected current progress, migration rewards once, Gems/spending bounds, Coin precision and decimal-parser drift, clock rollback, long elapsed research, duplicate/combined jobs, stable effect order and malformed records.
-- Nine seeded snapshot continuations across tiers 1–3 restore and remain byte-identical after 600 further ticks. Frozen builds and starting/mid-run effects replay, including complete Workshop/input comparisons. Invalid rank/tuning/timer state and corrupt snapshots are rejected.
+- After integrating current `main`, fresh scratch-home import, `bash run_tests.sh` and headless main-scene boot passed: **4,192 tower checks + 117 foundation checks = 4,309**; both suites exited 0 with no script/error lines. Exit-time ObjectDB warnings remain (24 tower, 2 foundation, 13 boot); no leak fix is claimed.
+- Fixtures cover old/current/malformed/future saves, backups, protected current progress, migration rewards once, Gems/spending bounds, Coin precision and decimal-parser drift, clock rollback, long elapsed research, duplicate/combined jobs, every reachable completion-order build, stable effect order and malformed records.
+- Nine seeded snapshot continuations across tiers 1–3 restore and remain byte-identical after 600 further ticks. Frozen builds and starting/mid-run effects replay, including complete Workshop/input comparisons. A demonstrably decimal-shifting effect round-trips through report JSON, replay and exact direct screen resume. Invalid rank/tuning/timer state and corrupt snapshots are rejected.
 - Ten fresh `--buy even` seeded runs print byte-identically to the pre-change output (median wave 3, range 1–6). The 40-run `--buy core` career and `--legacy-progression` comparison both first pass wave 10 on run 12, reach wave 21 on run 20, and finish with best wave 28 after about 6 game hours. Wave-10's extra 10 Coins changes some spending and Number results, as expected; this is not a claim that every career result is identical.
 - `tools/check_scaling.gd -- --hours 1`: all groups at level 25, seed 7, reached wave 103 at 108,001 ticks. Snapshot 105,215 bytes; restore 2.76 ms versus replay 13.64 s. Replay matched and the next 600 ticks were exact. Timing is one local measurement, not a device benchmark. Full Workshop cost about 2.626e20 Coins; generated horizon HP about 7.020e24, Attack about 4.245e10.
 - `capture_battle.gd` exited 0; Home, wave Milestones and daily-claimed captures were inspected at 540 × 960. The bottom bar, Gem balance, rewards and claimed state are visible. Automated screen checks exercise fresh/progressed state and save/resume.
 - A scratch exported record with a mid-run rule effect prints correctly in `read_report.gd --run 1` and matches replay in its table. The progression generator reproduced its output byte-identically. Enemy importer syntax and rejection of a too-short horizon were checked.
-- **Not checked:** the owner's real save (deliberately untouched), owner play or real-window close/reopen, phone/web behaviour, a full week of simulation, regeneration past wave 6,500 against the SDK, or unpublished reward rows. No authoritative clock server exists. The final review/CI status must be recorded before hand-off.
+- Independent adversarial review approved the final diff after resolving persistence, malformed-save, effect-boundary, completion-order and report-reader findings. The reviewer independently ran scratch import, both final suites (4,309 checks), headless boot and diff checks, all exiting 0 without error lines. CI status belongs to the PR checks.
+- **Not checked:** the owner's real save (deliberately untouched), owner play or real-window close/reopen, phone/web behaviour, a full week of simulation, regeneration past wave 6,500 against the SDK, or unpublished reward rows. No authoritative clock server exists.
 
 ## Open decisions for the owner
 
@@ -45,11 +46,12 @@ Contracts, authorities and limits: [SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.
 6. **Decide how to publish Tower-derived data before a public release.** Its current source/licence context remains in the reference/importer documents.
 7. **Choose the remaining design-canvas proposals and elite appearance.** Recommend reviewing the existing Protector/elite captures before changing their colours, and trying the heavier Number from the design brief if the current digit changes still feel too small. Elites stay at Tier 1 wave 500 unless the owner changes that choice.
 8. **Idle battle policy and servers remain D089's later choice.** This pass supplies real-time research, not unattended battle earnings.
+9. **Design the digit rewards and enemy roster before choosing their content.** D131 accepts digit milestones for typefaces/Number identity with small permanent bonuses, while wave milestones open systems; those bonus amounts and presentation are not designed. D132 finds no need to tune Dividers for the Workshop wall, and leaves whether they should affect outcomes to the roster discussion. Recommend keeping current rules until those choices are concrete.
 
 ## Next steps, in order
 
 1. **Owner:** merge the foundation PR, then play the preserved progress, wave/daily rewards and close/reopen a battle. Small play check; removes the gap between local verification and the owner's experience. Do not reset real progress just to test migration. Done when the owner has seen it and signed off 1.0 or named the missing pieces.
-2. **Agent, on the owner's word:** finish the remaining 1.0.x reference readings, then implement Cards 1.1 on these primitives. The open readings are the early HP discrepancy, actual enemies per spawn/wave and the mix beyond wave 100 in [TOWER_RULES.md](TOWER_RULES.md). Do not invent Cards prices/effects or reopen accepted combat choices.
+2. **Owner/agent:** settle D131's digit rewards and the enemy roster discussion, and finish the remaining 1.0.x reference readings before Cards 1.1. The open readings are the early HP discrepancy, actual enemies per spawn/wave and the mix beyond wave 100 in [TOWER_RULES.md](TOWER_RULES.md). On the owner's word, implement Cards using the new primitives; do not invent prices/effects or reopen accepted combat choices. D130/D132's Workshop wall evidence makes Coins the pace lever, not Divider tuning.
 3. **Owner/agent:** test a phone/web build before calling the presentation or long-run performance ready there; this remains unmeasured.
 
 ## Known issues and risks
@@ -61,8 +63,8 @@ Contracts, authorities and limits: [SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.
 - Numeric/stat/computational and snapshot limits are explicit in the foundation contract. Coins are compensated doubles, not arbitrary precision. Larger generated horizons need data regeneration and measurement.
 - Generated enemy content currently ends at wave 6,500 and tier 3. Content beyond that is not claimed as implemented.
 - Activity reports from a managed Git worktree identify the commit as `unknown` because the existing reader expects a `.git` directory. The owner's play checkout has that directory; extending worktree provenance is a separate small follow-up.
-- The Wall with a six-digit Number sits close to the range ring; enemies can overlap at the Number. Phone shader/music performance and elite motion have not been manually played in this pass.
+- The Wall with a six-digit Number sits close to the range ring. D127/D128 now make overlapping crowds readable and D129 folds the upgrade panel; their rules and tests are preserved. Phone shader/music performance and elite motion have not been manually played in this pass.
 
 ## Handing on
 
-Replace this page with the next current state. Decisions stay with decisions, intent with the spec and contracts with their owning documents. Keep the real save protected, use `run_godot.sh`, and report actual evidence. Commit on a feature branch, push it and keep an open PR to `main`; merging belongs to the owner. The latest accepted decision is D126.
+Replace this page with the next current state. Decisions stay with decisions, intent with the spec and contracts with their owning documents. Keep the real save protected, use `run_godot.sh`, and report actual evidence. Commit on a feature branch, push it and keep an open PR to `main`; merging belongs to the owner. The latest accepted decision is D132; the foundation pass is D126.

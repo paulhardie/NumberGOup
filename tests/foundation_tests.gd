@@ -198,6 +198,38 @@ func test_config_replay_and_sources() -> void:
 	check(quiet.damage_by["weapon:test"] == hp and quiet.kills_by["weapon:test"] == 1, "actual damage, excluding overkill, and kill attribution")
 
 
+func test_decimal_shifting_effects_replay_and_resume() -> void:
+	var shifted := 0.0
+	for i in range(1, 5000):
+		var candidate := 123456.7 / (float(i) + 0.1)
+		if json({"v": candidate}).v != candidate:
+			shifted = candidate
+			break
+	check(shifted > 0.0, "effect fixture demonstrably shifts in decimal JSON")
+	var p := Progression.new()
+	p.research.completed_effects = {"health": [{"stat": "health", "op": "add", "value": shifted, "source": "lab:health"}]}
+	var first := BattleScreen.new()
+	first.workshop = p.workshop
+	first.progression = p
+	root.add_child(first)
+	first.set_process(false)
+	for i in range(120): first.sim.step()
+	first.sim.apply_effect({"stat": "health", "op": "add", "value": shifted, "source": "perk:health"})
+	for i in range(100): first.sim.step()
+	var saved: Dictionary = json(first.run_state())
+	var replayable := RunReport.is_replayable(saved)
+	check(replayable, "decimal-shifting starting and mid-run effects remain readable/replayable")
+	check(replayable and RunReport.matches(saved, RunReport.replay(saved)), "exact effects survive report JSON round trip and replay")
+	var second := BattleScreen.new()
+	second.workshop = p.workshop
+	second.resume = saved
+	root.add_child(second)
+	second.set_process(false)
+	check(second.sim != null and Snapshot.capture(second.sim).digest == Snapshot.capture(first.sim).digest, "decimal-shifting effects resume directly with every saved field exact")
+	first.free()
+	second.free()
+
+
 func test_snapshot_continuation() -> void:
 	var groups: Array = []
 	var ranks := {}
