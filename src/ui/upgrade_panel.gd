@@ -3,6 +3,9 @@ extends VBoxContainer
 ## may buy, each a card with its value and the Cash the buy multiplier's press
 ## costs (×1, ×5, ×10 or Max, D018). It
 ## asks BattleSim what can be bought and what it costs; it decides nothing.
+## As The Tower's, tapping the tab that's already open folds the cards away,
+## so the battle takes the screen, and tapping any tab brings them back
+## (D129).
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
@@ -17,6 +20,9 @@ const AMOUNTS := [1, 5, 10, 0]
 
 var sim: BattleSim
 var _tab := "attack"
+## Whether the cards are folded away (D129); the tabs stay to bring them back.
+var collapsed := false
+var _scroll: ScrollContainer
 var _tab_buttons: Dictionary = {}
 var _amount := 1
 var _amount_button: Button
@@ -38,7 +44,7 @@ func _init() -> void:
 		var button := Button.new()
 		button.text = tab[0]
 		Palette.style_tab(button)
-		button.pressed.connect(show_tab.bind(tab[1]))
+		button.pressed.connect(_tab_pressed.bind(tab[1]))
 		tabs.add_child(button)
 		_tab_buttons[tab[1]] = button
 	var gap := Control.new()
@@ -57,6 +63,7 @@ func _init() -> void:
 	scroll.custom_minimum_size = Vector2(0, ROWS_SHOWN * CARD_HEIGHT + (ROWS_SHOWN - 1) * CARD_GAP)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	add_child(scroll)
+	_scroll = scroll
 	_grid = GridContainer.new()
 	_grid.columns = 2
 	_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -75,20 +82,38 @@ func set_sim(run: BattleSim) -> void:
 	show_tab(_tab)
 
 
+## The open tab tapped again folds the cards away; any tab tapped while
+## they're folded, or another tab, opens it.
+func _tab_pressed(tab: String) -> void:
+	if tab == _tab and not collapsed:
+		set_collapsed(true)
+	else:
+		set_collapsed(false)
+		show_tab(tab)
+
+
+func set_collapsed(folded: bool) -> void:
+	collapsed = folded
+	_scroll.visible = not folded
+	_empty.visible = not folded and _cards.is_empty() and sim != null
+	for id in _tab_buttons:
+		_tab_buttons[id].set_pressed_no_signal(id == _tab and not folded)
+
+
 func show_tab(tab: String) -> void:
 	_tab = tab
 	# While a saved run is being resumed there is no run to show yet.
 	if sim == null:
 		return
 	for id in _tab_buttons:
-		_tab_buttons[id].set_pressed_no_signal(id == tab)
+		_tab_buttons[id].set_pressed_no_signal(id == tab and not collapsed)
 	for child in _grid.get_children():
 		child.queue_free()
 	_cards.clear()
 	for id in TowerData.rows():
 		if TowerData.category(id) == tab and sim.is_open(id):
 			_grid.add_child(_card(id))
-	_empty.visible = _cards.is_empty()
+	_empty.visible = _cards.is_empty() and not collapsed
 	refresh()
 
 

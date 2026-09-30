@@ -1865,3 +1865,12 @@ Rules:
   - In a crowd (D127), an enemy giving up its spot is a dot in its colour, with the halo, since its sign was the −; a Divider still shows its ÷.
   - The hits the Number takes, the Wall's and the floats keep their −: those are the Number going down.
 - **Checked by eye:** a staged sparse scene (9 enemies walking in) and a crowd of 40 at wave 25, on `main` and this change. Not seen in motion.
+
+## D129 — The run's upgrade panel folds away, as The Tower's does
+
+- **Status:** Accepted (2026-09-30) on owner direction: "go ahead with the collapsible upgrade panel", the last of the look review's three fixes (after D127 and D128). The Tower's way, from its wiki: "The workshop menu can be collapsed by clicking the same icon that is currently opened."
+- **Decision** (drawing and layout only):
+  - Tapping the run's open upgrade tab (Attack, Defense or Utility) folds its cards away. The arena takes the room, showing more of the field above and below the range. Tapping any tab opens the cards on it again.
+  - The tabs and the buy multiplier stay visible while folded; no tab reads as open.
+  - The fold lasts for the battle screen, across Battle again, and isn't saved.
+- **Measured:** in the battle screen's test the arena grows by more than 150 px when folded; a phone-sized screenshot, open and folded, was checked by eye. The range ring itself doesn't grow, as its size follows the view's width (D101), so folding shows more of the field rather than a bigger battle.
