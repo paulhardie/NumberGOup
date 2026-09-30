@@ -2027,7 +2027,7 @@ Rules:
   - The Coin bonus card is gone (the Workshop shows that row), and so is the Difficulty card with its locked arrows, until Tier 2 exists (1.4).
 - **The dock** (Home and the Workshop): a glyph over each name, from the game's own arithmetic rather than icon art. Battle ▶, Workshop +, Cards ×, Labs ÷, Weapons ^. The current screen's glyph is lit with a dot under it; locked screens are dim with their version. When each appears is unchanged (D125).
 - **Not changed:** any rule, save or number.
-- **Still to do:** count Coins up on Home after a run. That needs the balance before the run passed to Home. (The chips reached the Workshop and the battle in D139.)
+- **Since done:** the chips reached the Workshop and the battle in D139, and Coins count up on Home after a run in D141.
 
 ## D139 — No ring on Home, a fainter range ring, and chips on every screen
 
@@ -2040,6 +2040,17 @@ Rules:
 ## D140 — The range ring at 6%
 
 - **Status:** Accepted (2026-10-01) on owner direction, after playing D139's 9% ring: "Still too visible. Takes away some of the shine of the number in the centre of the screen".
-- **Decision:** the battle's range ring is 6% white at 1 px (`ArenaView.RANGE_LINE`), where it was before D128. It's the faintest that stays findable on the dark ground. The Number's light is what should catch the eye; the ring only marks where shots reach. Drawing only.
+- **Decision** (4.5% since D141): the battle's range ring is 6% white at 1 px (`ArenaView.RANGE_LINE`), where it was before D128. It's the faintest that stays findable on the dark ground. The Number's light is what should catch the eye; the ring only marks where shots reach. Drawing only.
 - **If it's still too much:** fading the ring where the Number's light is brightest, or a dotted hairline, would keep it findable at the edges while leaving the centre to the Number.
+
+## D141 — The range ring at 4.5%, and Coins counting up on Home
+
+- **Status:** Accepted (2026-10-01) on owner direction: "The ring light is still a bit too visible for my liking. Tone it down a little. Yeah and then do the coin things."
+- **Decision** (drawing only):
+  - **The battle's range ring is 4.5% white at 1 px** (`ArenaView.RANGE_LINE`), down from D140's 6%. If it's still too much, the next step is fading it near the Number's light rather than dimming further, since below this it disappears on some screens.
+  - **Back from a battle, Home's Coins count up** from what they read when the player left Home to what they have now, then the chip gives a small pop.
+    - It takes 0.6 s plus 0.25 s for each digit of the gain, at most 1.6 s, easing out.
+    - "Battle again" keeps the first balance, so it counts everything since the player left Home, the first-run gift and milestone Coins included.
+    - A resumed run counts nothing, since its earlier Coins were banked in a past session.
+    - `main.gd` holds the balance, `HomeScreen.count_coins_from` counts.
 
