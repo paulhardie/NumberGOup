@@ -1817,7 +1817,7 @@ func test_gains_are_booked_by_source_and_new_highs() -> void:
 ## enemy comes by the wave's spawn rate, 5 at wave 1, the owner's 15 at wave
 ## 22, then the SDK's chart from 37 at wave 1,000 to 56 at 6,500.
 func test_spawns_roll_by_the_waves_spawn_rate() -> void:
-	check_near(TowerData.spawn_roll_seconds(), 0.125, 0.0, "a roll every eighth of a second")
+	check_near(TowerData.spawn_roll_seconds(), 0.25, 0.0, "a roll every quarter second: 104 a wave, as the owner counted (D135)")
 	check_near(TowerData.spawn_rate(1), 10.0, 0.0001, "10 at wave 1, from The Tower's chart (D118)")
 	check_near(TowerData.spawn_rate(2), 10.0, 0.0001, "in steps")
 	check_near(TowerData.spawn_rate(3), 11.0, 0.0001, "11 from wave 3")
@@ -1835,8 +1835,10 @@ func test_spawns_roll_by_the_waves_spawn_rate() -> void:
 			var sim := BattleSim.new(seed)
 			sim.wave = at_wave
 			sim.spawns.schedule_wave()
-			total += sim.spawns.schedule.filter(func(entry): return entry.kind != "boss").size()
-		var expected := 208.0 * TowerData.spawn_rate(at_wave) / 100.0 * (1.0 + float(TowerData.tier(1).double_spawn))
+			# The Tower's spawns: not the boss, nor the Lock on top (D133).
+			total += sim.spawns.schedule.filter(func(entry): return entry.kind != "boss" and entry.kind != "lock").size()
+		var rolls := TowerData.spawn_seconds() / TowerData.spawn_roll_seconds()
+		var expected := rolls * TowerData.spawn_rate(at_wave) / 100.0 * (1.0 + float(TowerData.tier(1).double_spawn))
 		check_near(float(total) / 40.0, expected, expected * 0.08, "wave %d sends about %.0f enemies: %.1f" % [at_wave, expected, float(total) / 40.0])
 
 

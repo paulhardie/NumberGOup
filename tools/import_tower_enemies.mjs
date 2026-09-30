@@ -213,7 +213,13 @@ const gates = require(path.join(dist, "mechanics/waves/update-spawn-gate-pass.js
 const tierRows = require(path.join(dist, "data/tiers/data.js")).TIER_COIN_BONUS_ROWS;
 const bossEvery = require(path.join(dist, "data/enemies/data.js")).bossWaveIntervalForTier;
 const spawnCap = require(path.join(dist, "knowledge/compartments/enemies.js")).ENEMY_SPAWN_CAP;
-const spawnRoll = require(path.join(dist, "mechanics/waves/spawn-gate-constants.js")).WAVE_SPAWN_TIMER_QUANTUM_SECONDS_V29;
+const sdkSpawnRoll = require(path.join(dist, "mechanics/waves/spawn-gate-constants.js")).WAVE_SPAWN_TIMER_QUANTUM_SECONDS_V29;
+// A roll every other tick of the SDK's timer: 104 rolls a wave, about 11
+// enemies in wave 1, as the owner counted in The Tower (D135). At the SDK's
+// 1/8 s (208 rolls, D124) wave 1 sent about 22, more than a fresh tower with
+// no Cash can shoot, and fresh runs died on waves 1 to 3.
+const SPAWN_ROLL_TICKS = 2;
+const spawnRoll = sdkSpawnRoll * SPAWN_ROLL_TICKS;
 const rateAt = (wave) => SPAWN_RATES.filter((row) => row.wave <= wave).at(-1).rate;
 for (const row of require(path.join(dist, "data/charts/data.js")).WAVE_ACCELERATOR_SPAWN_RATE_ROWS) {
   if (rateAt(row.normal) !== row.spawnCount) {
@@ -327,7 +333,7 @@ const outPath = path.join(path.dirname(new URL(import.meta.url).pathname), "..",
 fs.mkdirSync(path.dirname(outPath), { recursive: true });
 fs.writeFileSync(outPath, JSON.stringify(out) + "\n");
 console.log(`wrote ${LAST_WAVE} waves to ${path.relative(process.cwd(), outPath)}`);
-console.log(`spawn: a roll every ${spawnRoll} s; rates ${SPAWN_RATES.map((r) => `${r.rate}@${r.wave}`).join(" ")}`);
+console.log(`spawn: a roll every ${spawnRoll} s (the SDK's ${sdkSpawnRoll} s × ${SPAWN_ROLL_TICKS}); rates ${SPAWN_RATES.map((r) => `${r.rate}@${r.wave}`).join(" ")}`);
 for (const t of tiers) {
   console.log(`tier ${t.tier}: health ×${t.enemy_health}, attack ×${t.enemy_attack}, Coins ×${t.coins}, boss every ${t.boss_every}, double spawn ${t.double_spawn}, mix weight ${t.mix_weight}, Protector ${t.protector.map((p) => `${p.chance}%@${p.wave}`).join(" ") || "none"}, elites from wave ${t.elites[0].wave}`);
 }

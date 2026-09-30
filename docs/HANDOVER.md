@@ -21,7 +21,7 @@
 **Version 0.9, with all of 1.0's Number built.**
 
 - **The battle.** Tier 1, with every one of The Tower's Workshop groups working (D076). The Number sits in the centre as the tower, white, with no ceiling (D083), fitted inside a visible range ring (D123, D128). The run's upgrade panel folds away to give the arena more room (D129).
-- **The Tower's pace and spawning** (D113–D124): its spawn rate chart, 208 rolls a wave, its mix by wave, its walk speeds, 9 s cooldown and ×1 clock, its caps, the Protector from Tier 2 and elites from wave 500. Wave Info opens from the wave readout.
+- **The Tower's pace and spawning** (D113–D124): its spawn rate chart, 104 rolls a wave (D135: 208 overwhelmed a fresh tower on wave 1), its mix by wave, its walk speeds, 9 s cooldown and ×1 clock, its caps, the Protector from Tier 2 and elites from wave 500. Wave Info opens from the wave readout.
 - **Enemies as numbers** (D085, D102, D127, D128): each type in its own typeface and colour, showing what it does, bare (20, not −20). A crowd keeps one full label a spot, with counts and signs for the rest.
 - **Our enemies.** The Divider (÷1.25, then ÷1.5 from wave 18) takes a basic's place from wave 7 (D094). **The Lock (=, D133)** comes on top of The Tower's waves from wave 35 (every third wave, every other from 60), stops on the range's edge, and while it stands the Number can't go up: no Regen, Lifesteal, Recovery Package or kill growth; bought Health still lands. It has no Attack. The first one past a player's best wave brings a card saying what it does.
 - **How the Number grows** (D111): regen only restores it up to the run's best; a clean kill adds 5% of its Attack; bought Health and Lifesteal lift it too.
