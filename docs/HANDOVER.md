@@ -2,7 +2,7 @@
 
 **Last updated:** 30 September 2026, by Codex. Current `main` through `48ba170` includes the scaling foundations (D126, PR #121), the Lock (D133), the off-by-default Divider refill experiment (D134), and the accepted 104 spawn rolls (D135, PR #123). This worktree adds D136: milestone-owned bar reveals, copied-save migration proof, frozen measuring builds and safe recovery across combat contracts.
 
-**Branch:** `codex/scaling-foundations`, in the attached worktree. PR #121 is already merged; this follow-up requires its own PR to `main`. The follow-up is not in the owner's game until they merge it. The play folder follows `origin/main` through `com.paulhardie.ngu-sync`. The pre-rebuild game is commit `f4f1e95`.
+**Branch:** `codex/scaling-foundations`, in the attached worktree. PR #121 is already merged; this follow-up is [PR #124](https://github.com/paulhardie/NumberGOup/pull/124) to `main`. The follow-up is not in the owner's game until they merge it. The play folder follows `origin/main` through `com.paulhardie.ngu-sync`. The pre-rebuild game is commit `f4f1e95`.
 
 ## Start here
 
@@ -36,7 +36,7 @@ Contracts and limits: [SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.md). This wor
 - **Twenty fresh `--buy even` runs print byte-identically to current `main`**, median wave 6, range 4–7. D135 owns the pacing/balance measurements; older 208-roll career figures are historical and are not claimed as current.
 - `check_scaling.gd --hours 1`, after D135: all groups at level 25, seed 7, reached wave 103 at 108,001 ticks, alive. Snapshot 131,071 bytes; restore 4.79 ms versus replay 9.92 s; result matched and the next 600 ticks were exact. One local timing, not a device benchmark. Full Workshop cost about 2.626e20 Coins; horizon HP about 7.020e24, Attack about 4.245e10.
 - `capture_battle.gd` exited 0. Home, wave Milestones, daily-claimed state and the Lock were inspected at 540 × 960; balance, claims and navigation fit. This proves the captured states, not manual play.
-- The progression generator reproduces its output byte-identically. Final diff/path/decision checks preserve all accepted records on `main`; D136 is appended. Independent review passed the same 4,490 checks, boot and both copied-save probes; the source guards have no remaining actionable findings. Final owning-document sign-off and PR CI are checked at hand-off.
+- The progression generator reproduces its output byte-identically. Final diff/path/decision checks preserve all accepted records on `main`; D136 is appended. Independent adversarial review approved final source and owning documents at `d06c8b8`, repeating the same 4,490 checks, boot and both copied-save probes; no actionable findings remain. The required baseline runs in CI on [PR #124](https://github.com/paulhardie/NumberGOup/pull/124); its checks show the current status.
 - **Not checked:** owner play, real-window close/reopen, phone/web behaviour, a full week of simulation, SDK regeneration beyond wave 6,500, or unpublished reward rows. The real save was not used for gameplay verification. No authoritative clock server exists.
 
 ## Open decisions for the owner
