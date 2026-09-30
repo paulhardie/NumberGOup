@@ -1842,3 +1842,15 @@ Rules:
 
   - The first five runs play exactly as before (the gift arrives after the first); what changes is that the Workshop starts with 50 Coins, which buys Damage and Attack Speed levels runs 2–5 couldn't afford. **This closes the gap D124 left open**: careers now pass the boss where The Tower's players do.
   - Spreading the Coins evenly across every open row still stalls, with or without it, as it did before; it's the sim's weakest buyer, not a player's.
+
+## D127 — A crowd keeps one readable label a spot
+
+- **Status:** Accepted (2026-09-30) on owner direction: "go straight to the crowd fix", after a review of the game's look found crowds unreadable (a Tier 2 crowd's −1.42M written over itself). Numbered D127 because the foundation pass running in parallel may take D126.
+- **Context:** every enemy is drawn as its number (D085, D102). Where several stand in one spot, above all at the Number, their labels overlapped into a pile, which defeats an identity built on reading them.
+- **Decision** (drawing only; the battle is unchanged):
+  - Each frame, `ArenaView.label_plan` writes one full label per spot, the most pressing first: bosses and Dividers, then elites, then Protectors, then the nearest.
+  - Others just like it in that spot (same type, same number) count on its label: **−20 ×6**.
+  - Anything different there shows only its sign, − or ÷, in its own type's look, so its kind and place still read.
+  - The damage dealt so far shows only under full labels.
+  - Every enemy's number, count and damage, and every float, has a thin dark halo, so what still crosses stays readable.
+- **Measured:** a staged crowd of 40 mixed enemies (basics, fast, tanks, ranged and Dividers) around a wave-25 Number, rendered on `main` and on this change: the pile became readable rows of counted labels and a few signs. The capture tool's Tier 2 invaders shot shows two stacked Scatters as "−1.42M ×2". Checked by eye; not seen in motion, where labels can swap between full and sign as enemies pass each other.
