@@ -419,6 +419,30 @@ func test_pressing_an_upgrade_card_buys_it() -> void:
 	screen.free()
 
 
+## D129: as The Tower's, tapping the open tab folds the run's upgrade cards
+## away so the battle takes the screen; tapping a tab brings them back.
+func test_the_upgrade_panel_folds_away() -> void:
+	var screen = BattleScreen.new()
+	root.add_child(screen)
+	screen.set_process(false)
+	await process_frame
+	await process_frame
+	var panel = screen._upgrades
+	var open_height: float = screen._arena.size.y
+	panel._tab_buttons["attack"].pressed.emit()
+	await process_frame
+	await process_frame
+	check(panel.collapsed and not panel._scroll.visible, "the open tab tapped again folds the cards away")
+	check(screen._arena.size.y > open_height + 150.0, "and the battle takes the room: %.0f px tall, from %.0f" % [screen._arena.size.y, open_height])
+	check(not panel._tab_buttons["attack"].button_pressed, "no tab reads as open")
+	panel._tab_buttons["defense"].pressed.emit()
+	await process_frame
+	check(not panel.collapsed and panel._scroll.visible and panel._tab == "defense" and panel._tab_buttons["defense"].button_pressed, "a tab tapped while folded opens it")
+	panel._tab_buttons["attack"].pressed.emit()
+	check(not panel.collapsed and panel._tab == "attack", "and another tab switches as before")
+	screen.free()
+
+
 func test_the_multiplier_buys_several_levels_a_press() -> void:
 	var screen = BattleScreen.new()
 	root.add_child(screen)
@@ -1967,7 +1991,7 @@ func test_vampire_drains_and_stops_regen() -> void:
 	check(sim.draining, "a Vampire in range drains")
 	check_near(start - sim.health, sim.max_health() * 0.02, sim.max_health() * 0.0005, "2%% of Health over a second, with no Regen: lost %s" % (start - sim.health))
 	check(float(sim.lost_to.get("vampire", 0.0)) > 0.0, "and it's booked as the Vampire's")
-	check(ArenaView.shown_text(sim, vampire) == "−2%/s", "it shows its drain, not a hit: %s" % ArenaView.shown_text(sim, vampire))
+	check(ArenaView.shown_text(sim, vampire) == "2%/s", "it shows its drain, not a hit, bare as every hit is (D128): %s" % ArenaView.shown_text(sim, vampire))
 	sim._kill(vampire)
 	sim._enemies_hit()
 	var healed := sim.health
@@ -2226,6 +2250,39 @@ func test_the_view_zooms_out_to_keep_the_range_on_screen() -> void:
 	arena.free()
 
 
+## D127: in a crowd each spot has one full label, the most pressing; others
+## just like it count on it, and anything else there shows only its sign.
+func test_a_crowd_keeps_one_readable_label_a_spot() -> void:
+	var sim := _quiet_sim({"health": 100})
+	var arena := ArenaView.new()
+	arena.size = Vector2(474, 427)
+	arena.centre = Vector2(237, 235)
+	arena.sim = sim
+	arena.absorb([], 0.0)
+	var stack: Array = []
+	for i in range(4):
+		stack.append(_place(sim, "basic", 5.0))
+	var near := _place(sim, "basic", 4.0)
+	near.attack *= 3.0
+	var divider := _place(sim, "divider", 5.0)
+	var apart := _place(sim, "basic", 25.0)
+	apart.angle = PI
+	var plan := arena.label_plan()
+	check(plan[divider.id].shown == "full", "a Divider in the crowd keeps its full label")
+	check(plan[near.id].shown == "sign", "a different number in its spot shows only its sign")
+	var counted: Array = stack.filter(func(enemy): return plan[enemy.id].shown == "counted")
+	check(stack.filter(func(enemy): return plan[enemy.id].shown == "sign").size() == stack.size() - counted.size(), "the stacked basics are signs or counted, never overlapping labels")
+	check(plan[apart.id].shown == "full" and int(plan[apart.id].count) == 1, "an enemy on its own keeps its full label")
+	sim.enemies.clear()
+	var same: Array = []
+	for i in range(4):
+		same.append(_place(sim, "basic", 20.0))
+	plan = arena.label_plan()
+	var full: Array = same.filter(func(enemy): return plan[enemy.id].shown == "full")
+	check(full.size() == 1 and int(plan[full[0].id].count) == 4, "four of the same in one spot read as one label counting 4")
+	arena.free()
+
+
 ## D123: the Number fits inside its range ring, even with orbs zooming the
 ## view out, so the ring always shows round it.
 func test_the_number_fits_inside_its_range() -> void:
@@ -2304,19 +2361,19 @@ func test_an_enemy_shows_what_it_does() -> void:
 	var basic := _place(sim, "basic", 20.0)
 	basic.attack = 20.0
 	var first := sim.landed_damage(20.0)
-	check(ArenaView.shown_text(sim, basic) == "−" + Palette.amount(first), "walking in, it shows what its hit will take, after defences (D102): %s" % ArenaView.shown_text(sim, basic))
+	check(ArenaView.shown_text(sim, basic) == Palette.amount(first), "walking in, it shows what its hit will take, after defences (D102), without a − (D128): %s" % ArenaView.shown_text(sim, basic))
 	check(ArenaView.dealt_text(basic) == "", "unhurt, nothing under it")
 	basic.health = basic.max_health * 0.4
-	check(ArenaView.shown_text(sim, basic) == "−" + Palette.amount(first), "shot, its number doesn't count down")
+	check(ArenaView.shown_text(sim, basic) == Palette.amount(first), "shot, its number doesn't count down")
 	check(ArenaView.dealt_text(basic) == Palette.amount(basic.max_health * 0.6), "the damage dealt so far shows under it: %s" % ArenaView.dealt_text(basic))
 	basic.health = 0.0
 	check(ArenaView.dealt_text(basic) == "", "and a dead one shows none, so a one-shot kill never does")
 	basic.health = basic.max_health
 	basic.distance = basic.stop_at
-	check(ArenaView.shown_text(sim, basic) == "−" + Palette.amount(first), "arrived, the same: its next hit")
+	check(ArenaView.shown_text(sim, basic) == Palette.amount(first), "arrived, the same: its next hit")
 	basic.hits = 10
 	var tenth := sim.landed_damage(20.0 * pow(TowerData.heat_up_per_hit(), 10))
-	check(tenth > first and ArenaView.shown_text(sim, basic) == "−" + Palette.amount(tenth), "and it grows with each hit it lands: %s" % ArenaView.shown_text(sim, basic))
+	check(tenth > first and ArenaView.shown_text(sim, basic) == Palette.amount(tenth), "and it grows with each hit it lands: %s" % ArenaView.shown_text(sim, basic))
 
 	var far := _place(sim, "divider", sim.stat("range") + 5.0)
 	far.divisor = 1.25

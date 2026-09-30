@@ -40,8 +40,10 @@ const NUMBER_MIN_PX := 28
 ## Without it a four-digit Number covered 22 of a 30 m range, and with orbs
 ## zooming the view out it stood wider than the ring.
 const NUMBER_RING_SHARE := 0.6
-## The range as the design draws its ring: a hairline, barely there.
-const RANGE_LINE := Color(1, 1, 1, 0.06)
+## The range as the design draws its ring: a hairline, now bright enough to
+## read against the light (D128; it was 6%, and hard to find).
+const RANGE_LINE := Color(1, 1, 1, 0.16)
+const RANGE_LINE_PX := 1.25
 ## Enemies at the tower are drawn this clear of the Number's digits, which is
 ## only drawing: the sim's contact distance is unchanged.
 const CONTACT_GAP_PX := 3.0
@@ -66,20 +68,38 @@ const WALL_RISE_SECONDS := 0.4
 
 ## How each enemy type is drawn (D085): its cut of the crowd's typeface
 ## (Anybody's width and weight; the Divider has Fraunces to itself), its size
-## in points, and its colour.
+## in points, and its colour. Two points larger since D128, in the room the
+## dropped − left.
 const LOOKS := {
-	"basic": {"axes": {"wdth": 100, "wght": 650}, "size": 14, "colour": Palette.ENEMY},
-	"fast": {"axes": {"wdth": 62, "wght": 720}, "slant": 0.21, "size": 13, "colour": Palette.FAST},
-	"tank": {"axes": {"wdth": 150, "wght": 900}, "size": 18, "colour": Palette.TANK},
-	"ranged": {"axes": {"wdth": 125, "wght": 380}, "spacing": 1, "size": 14, "colour": Palette.RANGED},
-	"boss": {"axes": {"wdth": 150, "wght": 900}, "size": 24, "colour": Palette.BOSS, "glow": Palette.BOSS_GLOW, "flash": Palette.BOSS_GLOW},
-	"divider": {"axes": {"opsz": 48, "wght": 640, "WONK": 0, "SOFT": 0}, "divider": true, "size": 18, "colour": Palette.DIVIDER,
+	"basic": {"axes": {"wdth": 100, "wght": 650}, "size": 16, "colour": Palette.ENEMY},
+	"fast": {"axes": {"wdth": 62, "wght": 720}, "slant": 0.21, "size": 15, "colour": Palette.FAST},
+	"tank": {"axes": {"wdth": 150, "wght": 900}, "size": 20, "colour": Palette.TANK},
+	"ranged": {"axes": {"wdth": 125, "wght": 380}, "spacing": 1, "size": 16, "colour": Palette.RANGED},
+	"boss": {"axes": {"wdth": 150, "wght": 900}, "size": 26, "colour": Palette.BOSS, "glow": Palette.BOSS_GLOW, "flash": Palette.BOSS_GLOW},
+	"divider": {"axes": {"opsz": 48, "wght": 640, "WONK": 0, "SOFT": 0}, "divider": true, "size": 20, "colour": Palette.DIVIDER,
 		"glow": Palette.DIVIDER},
-	"protector": {"axes": {"wdth": 150, "wght": 560}, "spacing": 1, "size": 16, "colour": Palette.PROTECTOR},
-	"vampire": {"axes": {"wdth": 90, "wght": 900}, "size": 17, "colour": Palette.VAMPIRE, "glow": Palette.VAMPIRE},
-	"ray": {"axes": {"wdth": 50, "wght": 800}, "size": 17, "colour": Palette.RAY, "glow": Palette.RAY},
-	"scatter": {"axes": {"wdth": 120, "wght": 800}, "size": 16, "colour": Palette.SCATTER, "glow": Palette.SCATTER},
+	"protector": {"axes": {"wdth": 150, "wght": 560}, "spacing": 1, "size": 18, "colour": Palette.PROTECTOR},
+	"vampire": {"axes": {"wdth": 90, "wght": 900}, "size": 19, "colour": Palette.VAMPIRE, "glow": Palette.VAMPIRE},
+	"ray": {"axes": {"wdth": 50, "wght": 800}, "size": 19, "colour": Palette.RAY, "glow": Palette.RAY},
+	"scatter": {"axes": {"wdth": 120, "wght": 800}, "size": 18, "colour": Palette.SCATTER, "glow": Palette.SCATTER},
 }
+## An enemy that gives up its spot in a crowd (D127) is a dot this size in its
+## colour, or its ÷ if it's a Divider (D128).
+const CROWD_DOT_PX := 3.0
+## When enemies' numbers would overlap (D127), the most pressing in each spot
+## is written in full: bosses and Dividers first, then elites, then
+## Protectors, then the nearest. Others just like it there count on its label
+## (16 ×4); anything else there shows only a dot in its colour, or a
+## Divider's ÷ (D128).
+const LABEL_RANK := {"boss": 0, "divider": 0, "vampire": 1, "ray": 1, "scatter": 1, "protector": 2}
+## Labels closer than this count as touching.
+const LABEL_GAP_PX := 2.0
+## A dark halo round every enemy's number and every float, so what does
+## cross stays readable against what's behind it.
+const HALO_PX := 4
+const HALO := Color(Palette.GROUND, 0.85)
+## The count on a label standing for several (−16 ×4), in points.
+const COUNT_PX := 11
 ## A Protector's shield, drawn round it at its radius, this faint.
 const SHIELD_ALPHA := 0.4
 ## A new enemy fades in over its first metres.
@@ -229,7 +249,7 @@ func _draw() -> void:
 		var from := _number_half.length()
 		var eased := 1.0 - pow(1.0 - spread, 3.0)
 		draw_arc(centre, lerpf(from, reach_px * 0.95, eased), 0.0, TAU, 128, Color(Palette.NUMBER, 0.5 * (1.0 - spread)), 1.5, true)
-	draw_arc(centre, reach_px, 0.0, TAU, 128, RANGE_LINE, 1.0, true)
+	draw_arc(centre, reach_px, 0.0, TAU, 128, RANGE_LINE, RANGE_LINE_PX, true)
 	effects.draw_shockwave(reach_px)
 	for mine in sim.defences.mines:
 		draw_circle(to_view(mine), 3.0, Palette.WARNING)
@@ -238,8 +258,9 @@ func _draw() -> void:
 	_draw_wall()
 	effects.draw_ranged_shots(_number_half, _clear_half)
 	_draw_shields_and_drains()
+	var labels := label_plan()
 	for enemy in sim.enemies:
-		_draw_enemy(enemy)
+		_draw_enemy(enemy, labels[enemy.id])
 	effects.draw_pops()
 	effects.draw_sparks()
 	_draw_orbs()
@@ -373,22 +394,68 @@ func _light_glow() -> void:
 	light.set_shader_parameter("breath", now.breath)
 
 
+## How each enemy is labelled this frame (D127): enemy id → {text, at, half,
+## shown, count}. `shown` is "full" (its number, with "×count" when others
+## just like it stand on it), "counted" (drawn only in that count) or "sign"
+## (only its − or ÷, since something more pressing holds the spot).
+func label_plan() -> Dictionary:
+	var entries: Array[Dictionary] = []
+	for enemy in sim.enemies:
+		var text := shown_text(sim, enemy)
+		var half := enemy_half(enemy.kind, text)
+		var at := enemy_at(enemy.angle, _shown_metres(enemy), half)
+		# A shot rocks it back, landing a hit it lunges in (D103).
+		at += Vector2.from_angle(enemy.angle) * float(effects.recoil.get(enemy.id, 0.0))
+		entries.append({"enemy": enemy, "text": text, "at": at, "half": half, "shown": "full", "count": 1})
+	entries.sort_custom(func(a, b):
+		var rank_a := int(LABEL_RANK.get(a.enemy.kind, 3))
+		var rank_b := int(LABEL_RANK.get(b.enemy.kind, 3))
+		if rank_a != rank_b:
+			return rank_a < rank_b
+		if a.enemy.distance != b.enemy.distance:
+			return a.enemy.distance < b.enemy.distance
+		return a.enemy.id < b.enemy.id)
+	var placed: Array[Dictionary] = []
+	var plan := {}
+	for entry in entries:
+		var box := Rect2(entry.at - entry.half, entry.half * 2.0).grow(LABEL_GAP_PX)
+		for held in placed:
+			if box.intersects(held.box):
+				if held.enemy.kind == entry.enemy.kind and held.text == entry.text:
+					entry.shown = "counted"
+					held.count += 1
+				else:
+					entry.shown = "sign"
+				break
+		if entry.shown == "full":
+			entry["box"] = box
+			placed.append(entry)
+		plan[entry.enemy.id] = entry
+	return plan
+
+
 ## An enemy is drawn as its one number (D085, D102): what it does to the
 ## Number, in its type's typeface and colour, with the damage dealt so far
 ## under it once it has lived through a shot. It rocks as it's shot and lunges
-## as it hits (D103), and fades in as it arrives.
-func _draw_enemy(enemy: BattleSim.Enemy) -> void:
+## as it hits (D103), and fades in as it arrives. In a crowd its label follows
+## `label` (label_plan, D127).
+func _draw_enemy(enemy: BattleSim.Enemy, label: Dictionary) -> void:
+	if label.shown == "counted":
+		return
 	var look: Dictionary = LOOKS[enemy.kind]
-	var text := shown_text(sim, enemy)
-	var half := enemy_half(enemy.kind, text)
-	var at := enemy_at(enemy.angle, _shown_metres(enemy), half)
-	# A shot rocks it back, landing a hit it lunges in (D103).
-	at += Vector2.from_angle(enemy.angle) * float(effects.recoil.get(enemy.id, 0.0))
+	var at: Vector2 = label.at
 	# A new enemy fades in over its first metres.
 	var shade := clampf((Guesses.SPAWN_DISTANCE_M - enemy.distance) / FADE_IN_M, 0.0, 1.0)
+	if label.shown == "sign" and enemy.kind != "divider":
+		draw_circle(at, CROWD_DOT_PX + HALO_PX * 0.5, Color(HALO, HALO.a * shade))
+		draw_circle(at, CROWD_DOT_PX, Color(look.colour, shade))
+		return
+	var text: String = label.text if label.shown == "full" else String(label.text).left(1)
+	var half: Vector2 = label.half if label.shown == "full" else enemy_half(enemy.kind, text)
 	var font: Font = cuts[enemy.kind]
 	var font_size: int = look.size
 	var baseline := at + Vector2(-half.x, font_size * 0.35)
+	draw_string_outline(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, HALO_PX, Color(HALO, HALO.a * shade))
 	if look.has("glow"):
 		# A soft glow, faked with two wide faint outlines rather than a blur.
 		draw_string_outline(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 10, Color(look.glow, 0.08 * shade))
@@ -396,11 +463,21 @@ func _draw_enemy(enemy: BattleSim.Enemy) -> void:
 	if effects.flashes.has(enemy.id):
 		draw_string_outline(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, 3, look.get("flash", FLASH))
 	draw_string(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(look.colour, shade))
+	if label.shown != "full":
+		return
+	if int(label.count) > 1:
+		# The others just like it standing on it, as one count.
+		var count := "×%d" % int(label.count)
+		var count_at := at + Vector2(half.x + 2.0, font_size * 0.35)
+		draw_string_outline(hit_cut, count_at, count, HORIZONTAL_ALIGNMENT_LEFT, -1, COUNT_PX, HALO_PX, Color(HALO, HALO.a * shade))
+		draw_string(hit_cut, count_at, count, HORIZONTAL_ALIGNMENT_LEFT, -1, COUNT_PX, Color(look.colour, 0.85 * shade))
 	var dealt := dealt_text(enemy)
 	if dealt != "":
 		# The Tower's way: the damage so far, small and white, under the enemy.
 		var dealt_width := hit_cut.get_string_size(dealt, HORIZONTAL_ALIGNMENT_LEFT, -1, DEALT_PX).x
-		draw_string(hit_cut, at + Vector2(-dealt_width * 0.5, half.y + DEALT_PX + 1.0), dealt, HORIZONTAL_ALIGNMENT_LEFT, -1, DEALT_PX, Color(Palette.NUMBER, 0.8))
+		var dealt_at := at + Vector2(-dealt_width * 0.5, half.y + DEALT_PX + 1.0)
+		draw_string_outline(hit_cut, dealt_at, dealt, HORIZONTAL_ALIGNMENT_LEFT, -1, DEALT_PX, HALO_PX, Color(HALO, HALO.a * shade))
+		draw_string(hit_cut, dealt_at, dealt, HORIZONTAL_ALIGNMENT_LEFT, -1, DEALT_PX, Color(Palette.NUMBER, 0.8))
 
 
 ## Each Protector's shield, a faint ring at its radius, and each draining
@@ -522,14 +599,16 @@ static func dealt_text(enemy: BattleSim.Enemy) -> String:
 
 ## What an enemy does: its next hit off the Number, after the tower's
 ## defences and growing 4% a hit (so it ticks up while it stands there), a
-## Divider's ÷, or a Vampire's drain, a share of Health a second (D115).
+## Divider's ÷, or a Vampire's drain, a share of Health a second (D115). A
+## hit is written bare, without its −, since every enemy but the Divider
+## takes away (D128); the Divider keeps its ÷, since it's the one that differs.
 static func operation_text(battle: BattleSim, enemy: BattleSim.Enemy) -> String:
 	if enemy.kind == "divider":
 		return "÷" + divisor_text(enemy.divisor)
 	if enemy.kind == "vampire":
 		var share := snappedf(100.0 * float(TowerData.enemies().elites.vampire_drain), 0.1)
-		return "−%s%%/s" % (str(roundi(share)) if is_equal_approx(share, roundf(share)) else String.num(share, 1))
-	return "−" + Palette.amount(battle.landed_damage(enemy.attack * pow(TowerData.heat_up_per_hit(), enemy.hits)))
+		return "%s%%/s" % (str(roundi(share)) if is_equal_approx(share, roundf(share)) else String.num(share, 1))
+	return Palette.amount(battle.landed_damage(enemy.attack * pow(TowerData.heat_up_per_hit(), enemy.hits)))
 
 
 ## The nearest Divider inside the range and what it will leave: {sign, after},

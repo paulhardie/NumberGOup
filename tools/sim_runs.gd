@@ -41,6 +41,13 @@ extends SceneTree
 ## --workshop-unlock N, with --workshop, opens only the groups that cost N
 ## Coins or less to unlock (15000: every group up to Orbs).
 ##
+## --workshop-coins N builds each run's Workshop by spending N Coins from a
+## fresh one, as --workshop-plan says (core, turtle, blender or spread; see
+## WORKSHOP_PLANS): groups open in The Tower's order, up to --workshop-unlock
+## (1.5M by default: everything below Super Crit, the Wall, Enemy Level Skip
+## and Rend Armor), then the rest buys the plan's rows, cheapest for its weight
+## first. Each run also prints what took the Number, by enemy kind.
+##
 ## --until-wave N ends a career once a run reaches wave N, saying which run
 ## and after how many hours of game time; in single runs it ends each run there.
 ## --tier N plays each run in Tier N (1 to 3, D107): its enemies' health and
@@ -76,6 +83,20 @@ const CORE_ROWS := ["damage", "attack_speed", "health", "health_regen", "defense
 ## these with the core rows, cheapest first: a focused player who invests in
 ## income, as The Tower's players do. In the run it buys as core does.
 const GROW_ROWS := ["coins_per_kill", "coins_per_wave"]
+## Ways a player might spend a Workshop budget, for --workshop-coins: the
+## groups to open (in The Tower's order, only while each costs at most half
+## what's left), and each row's weight when choosing the next level to buy.
+## "turtle" is The Tower's Tier 1 meta from its wiki's beginner guide (Defense
+## Absolute first, Thorns for damage, Defense % after); "blender" its Tier 2
+## pivot (Health, Lifesteal, Knockback, Orbs); "spread" everything evenly.
+const WORKSHOP_PLANS := {
+	"core": {"groups": ["defense"], "rows": {"damage": 1, "attack_speed": 1, "health": 1, "health_regen": 1, "defense_absolute": 1}},
+	"turtle": {"groups": ["cash", "defense", "thorns"], "rows": {"defense_absolute": 3, "thorns": 2, "defense_percent": 1, "health": 1,
+		"health_regen": 1, "damage": 1, "attack_speed": 1, "cash_per_wave": 1}},
+	"blender": {"groups": ["defense", "thorns", "lifesteal", "knockback", "orbs"], "rows": {"damage": 1, "attack_speed": 1, "health": 2,
+		"health_regen": 1, "defense_absolute": 1, "lifesteal": 1, "knockback_chance": 1, "knockback_force": 1, "orbs": 1, "orb_speed": 1}},
+	"spread": {"groups": [], "rows": {}},
+}
 
 
 func _init() -> void:
@@ -98,7 +119,17 @@ func _init() -> void:
 		return
 	var levels := {}
 	var groups: Array = BattleSim.START_GROUPS
-	if workshop != "":
+	if options.has("workshop-coins"):
+		var plan: String = options.get("workshop-plan", "core")
+		if plan not in WORKSHOP_PLANS:
+			printerr("--workshop-plan must be one of %s" % ", ".join(WORKSHOP_PLANS.keys()))
+			quit(1)
+			return
+		var built := _budget_workshop(float(options["workshop-coins"]), plan, float(options.get("workshop-unlock", "1500000")))
+		levels = built.levels
+		groups = built.open_groups
+		print("Workshop from %s Coins, %s: %s" % [options["workshop-coins"], plan, _levels_text(levels)])
+	elif workshop != "":
 		groups = TowerData.groups().map(func(entry): return String(entry.id))
 		if options.has("workshop-unlock"):
 			groups = TowerData.groups().filter(func(entry): return float(entry.unlock_coins) <= float(options["workshop-unlock"])).map(func(entry): return String(entry.id))
@@ -119,7 +150,7 @@ func _init() -> void:
 		waves.append(sim.wave)
 		print("%4d  %4d  %9s  %5d  %11.0f  %5.0f  %11.1f  %13s  %5.0f%%  %-9s  %s" % [index + 1, sim.wave, _clock(sim.time), sim.kills, sim.cash_earned, sim.coins,
 			sim.peak_number, "%d/%d" % [sim.dividers_spawned, sim.dividers_landed], _divider_share_of_loss(sim),
-			sim.killed_by if not sim.alive else "(alive)", _bought(sim)] + _curve(sim, options) + _gains(sim, options))
+			sim.killed_by if not sim.alive else "(alive)", _bought(sim)] + _curve(sim, options) + _gains(sim, options) + _losses(sim, options))
 	waves.sort()
 	print("median wave %d, range %d to %d" % [waves[waves.size() / 2], waves[0], waves[-1]])
 	quit()
@@ -190,6 +221,65 @@ func _spend_workshop(workshop: Workshop, strategy: String) -> void:
 					fewest = id
 		if fewest == "" or not workshop.buy(fewest):
 			return
+
+
+## A fresh Workshop with `coins` spent as `plan` says (WORKSHOP_PLANS), opening
+## no group that costs more than `unlock_cap` to unlock.
+func _budget_workshop(coins: float, plan: String, unlock_cap: float) -> Workshop:
+	var workshop := Workshop.new()
+	workshop.coins = coins
+	var wanted: Array = WORKSHOP_PLANS[plan].groups
+	var weights: Dictionary = WORKSHOP_PLANS[plan].rows
+	# A group opens only after those before it in its tab, as in The Tower.
+	var opening := true
+	while opening:
+		opening = false
+		for category in ["attack", "defense", "utility"]:
+			var next := workshop.next_group(category)
+			if next == "" or TowerData.group_price(next) > unlock_cap or TowerData.group_price(next) > workshop.coins * 0.5:
+				continue
+			var needed := plan == "spread"
+			for group in wanted:
+				if TowerData.group_category(group) == category and not workshop.is_group_open(group):
+					needed = true
+			if needed and workshop.open_group(next):
+				opening = true
+	while true:
+		var best := ""
+		var best_cost := INF
+		for id in TowerData.rows():
+			var weight := float(weights.get(id, 1.0 if plan == "spread" else 0.0))
+			if weight <= 0.0 or not workshop.is_group_open(TowerData.group(id)) or workshop.level(id) >= TowerData.max_level(id):
+				continue
+			if workshop.price(id) / weight < best_cost:
+				best = id
+				best_cost = workshop.price(id) / weight
+		if best == "" or not workshop.buy(best):
+			break
+	return workshop
+
+
+func _levels_text(levels: Dictionary) -> String:
+	var parts: Array[String] = []
+	for id in levels:
+		if int(levels[id]) > 0:
+			parts.append("%s %d" % [id, int(levels[id])])
+	return ", ".join(parts)
+
+
+## With --workshop-coins, what took the Number, as each kind's share of all
+## it lost: " | lost: basic 40%, ranged 35%, …".
+func _losses(sim: BattleSim, options: Dictionary) -> String:
+	if not options.has("workshop-coins"):
+		return ""
+	var total := 0.0
+	for kind in sim.lost_to:
+		total += float(sim.lost_to[kind])
+	if total <= 0.0:
+		return " | lost: nothing"
+	var kinds := sim.lost_to.keys()
+	kinds.sort_custom(func(a, b): return sim.lost_to[a] > sim.lost_to[b])
+	return " | lost: " + ", ".join(kinds.map(func(kind): return "%s %.0f%%" % [kind, 100.0 * float(sim.lost_to[kind]) / total]))
 
 
 func _workshop_summary(workshop: Workshop) -> String:
