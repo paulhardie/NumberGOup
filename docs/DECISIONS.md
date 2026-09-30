@@ -1684,7 +1684,7 @@ Rules:
 
 ## D118 — The spawn rate is The Tower's chart at every wave
 
-- **Status:** Accepted (2026-09-29) on owner direction, pointing to the community's "Spawn Rate to Wave Count" chart: "Look at the left table. Spawn rates are there." **Open:** how many spawn rolls a wave gets (below), for the owner.
+- **Status:** Accepted (2026-09-29) on owner direction, pointing to the community's "Spawn Rate to Wave Count" chart: "Look at the left table. Spawn rates are there." Its open question, how many spawn rolls a wave gets, was settled at 208 by [D124](#d124--208-spawn-rolls-a-wave-settled).
 - **Decision:** `TowerData.spawn_rate` reads the chart's Standard column, in steps from the wave each rate starts: 10 at wave 1, 11 from 3, 15 from 6, 17 from 40, 19 from 60, 20 from 80, 22 from 100, then up to 37 at 1,000 and 56 at 6,500. It is transcribed in `tools/import_tower_enemies.mjs`, which checks it against the SDK's chart (every row from wave 1,000 agrees; the chart adds 38 at 1,250) and against the owner's Wave Info (15 at wave 22, agreed). It replaces D114's 5 at wave 1 and straight lines. The chart prints 34 at both 600 and 750; kept as printed. Its other columns are the Wave Accelerator card's, not built.
 - **The conflict it opens.** With the chart's rates, D114's 208 rolls a wave (every 1/8 s of a 26-second window) send about 22 enemies on wave 1 and 49 on wave 100. Two readings of the owner's say wave 1 is about half that: they counted 10–12 enemies, and their wave-22 battle report dealt 16,940 damage, where waves 1–21 would hold about 21,300 health at 208 rolls. At half the rolls (every 1/4 s, or a 13-second window) both fit: 11 on wave 1, and about 11,000 health to wave 21 with the rest overkill. The SDK doesn't settle it: its own model sends more per roll, not fewer.
 - **Measured** (`sim_runs.gd`: fresh runs 20 seeds, a 40-run core career, and every affordable row at level 12, 4 seeds):
@@ -1814,3 +1814,10 @@ Rules:
 
   - An enemy beside the Number still waits at its digits for its last metres, since it can't be drawn over them; that's now at most 60% of the way in, not 75% or past the ring. Above and below, where the Number is short, enemies come in to about 5 m as before.
   - The cost: four or more digits are drawn about 20% smaller (1,815 is 180 px wide, not 228), and with orbs at the starting Range six digits are as small as 28 px.
+
+## D124 — 208 spawn rolls a wave, settled
+
+- **Status:** Accepted (2026-09-30) on owner direction: "yes to 208 rolls", closing D118's open question.
+- **Decision:** a wave rolls for an enemy every 1/8 s of its 26-second spawning window, 208 rolls, as the SDK reads The Tower's spawn timer and as D114 built it. Nothing changes in the game; the half-rate alternative (104 rolls, D118's earlier recommendation) is dropped.
+- **Why:** with The Tower's mix, walk speed and type speeds in (D120–D122), 208 is closer on every benchmark measured. A fresh run with the owner's $93 reaches wave 6 (The Tower's: 8), a core career's Coins at waves 20–21 are 141–188 (The Tower's about 162), and a core career passes the wave-10 boss on run 20. At 104 a fresh run overshoots to wave 10 and a career stalls until run 33, since basics pay no Coins (D122's table).
+- **Still open:** a core career passes the wave-10 boss on run 20 where The Tower's players do on runs 10–13. How many enemies a successful roll sends (our 1.06 against the SDK's 1.86, D114) is the likeliest remaining cause; counting one wave's enemies in The Tower settles it (TOWER_RULES.md, reading 4).

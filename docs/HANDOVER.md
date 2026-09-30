@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 30 September 2026, by Claude, handing on to the next agent. After The Tower's type speeds, ×1 pace and wave bar (D122, #112), this session fitted the Number inside its range ring (D123): a big Number had covered most of the range, and with orbs stood wider than the ring, so enemies looked closer or further than they were. Drawing only.
+**Last updated:** 30 September 2026, by Claude, handing on to the next agent. After fitting the Number inside its range ring (D123, #113), the owner settled D118's open question: a wave gets 208 spawn rolls (D124). Documents only; nothing in the game changes.
 
-**Branch:** `claude/number-fits-ring`, from `main` after #112. It carries D123. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `claude/settle-rolls`, from `main` after #113. It carries D124. Not yet merged. The old game is commit `f4f1e95`.
 
 **The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
 
@@ -68,7 +68,7 @@
 - Below it, the Number stays five digits to wave 90 and Dividers are the main threat. **The owner kept the turtle (D110)**: a solved Tier 1 is the push to Tier 2.
 - A wave-90 run pays about 1,700 Coins, so reaching the cliff on the Workshop alone takes on the order of a thousand runs: the pace problem is Coins, which The Tower eases with Cards, Labs and higher tiers.
 
-**Spawns are The Tower's (D114, D118, D120):** a roll every 1/8 s of the spawning window by the wave's spawn rate, which is The Tower's chart at every wave (10 at wave 1, 15 from 6, 22 from 100, 37 at 1,000, 56 at 6,500; the owner's waves 1, 50 and 100 agree). Each spawn's type follows The Tower's mix for its wave (95% basic at wave 1, 69% by wave 100; D120). Enemy health and attack are the SDK's exactly, confirmed at waves 50 and 100. How many rolls a wave gets is open (decision 0). **Needed from the owner:** the rest of the readings in [`TOWER_RULES.md`](TOWER_RULES.md#6-readings-the-owner-can-take-in-the-tower), above all item 9 (how long a basic takes to walk in).
+**Spawns are The Tower's (D114, D118, D120):** a roll every 1/8 s of the spawning window by the wave's spawn rate, which is The Tower's chart at every wave (10 at wave 1, 15 from 6, 22 from 100, 37 at 1,000, 56 at 6,500; the owner's waves 1, 50 and 100 agree). Each spawn's type follows The Tower's mix for its wave (95% basic at wave 1, 69% by wave 100; D120). Enemy health and attack are the SDK's exactly, confirmed at waves 50 and 100. A wave gets 208 rolls, settled (D124). **Needed from the owner:** the rest of the readings in [`TOWER_RULES.md`](TOWER_RULES.md#6-readings-the-owner-can-take-in-the-tower), above all item 9 (how long a basic takes to walk in).
 
 **Tiers in the battle (D113):** `BattleSim` has a tier (1–3 generated from the SDK: ×20 and ×60 enemies, ×1.8 and ×2.6 Coins, The Tower's tier spawn mix and double spawns, and the 120-enemy cap in every tier). The game still plays Tier 1; `sim_runs.gd --tier N` measures the others.
 
@@ -78,7 +78,6 @@
 
 ## Open decisions for the owner
 
-0. **How many spawn rolls a wave gets (D118, D120–D122).** With The Tower's walk and type speeds in, 208 is still the closer: a fresh run with the owner's $93 reaches wave 6 (The Tower's: 8), a career's Coins at waves 20–21 match The Tower's, and a core career passes the wave-10 boss on run 20 (The Tower's players: 10–13). 104 overshoots a fresh run (wave 10) and stalls a career until run 33. **Recommend setting 208 for good** and closing D118's question. What's left of the gap is most likely how many enemies a roll sends (Known issues) or our sim's buying, not a person's.
 1. **Sign off 1.0, or name what's missing,** after playing D094. The Tower's benchmarks hold and the Number climbs. In simulation, D094 left fresh runs as they were but a core career beat the wave-10 boss on run 9 (it was 11; The Tower's is 10–13), and ÷ landings sit about 0.3 a minute. **If that feels too easy or ÷ too rare, recommend** raising the Divider's health from 4× to 5× before its rate, since the owner set the rate's ceiling.
 2. **Game speed.** The spec calls the 1×/2×/5× switch a testing tool, yet it's half of how the owner plays. **Recommend** keeping it as a player feature, since The Tower's first hours are long.
 3. **Updates mid-run.** Two runs were lost when a merge landed while a run was saved. **Recommend** the Mac's sync job wait to update while the save holds a run in progress, and say so in its notification. It's small, and changes nothing in the game.
@@ -94,18 +93,19 @@
 12. **The Tower's wave milestones** (TOWER_RULES.md build item 6). They're how The Tower opens Labs (Tier 1 wave 30) and the next tier (wave 100), and pay its Coins and Gems. **Recommend** adding them beside our Number milestones (D107), which stay as the Number's own rewards.
 ## Next steps, in order
 
-0. **Owner:** decide the roll count (decision 0), and play a few runs on D122 to say whether faster tanks and ranged feel like The Tower's. **Agent, then:** record the roll count in D118 and `Guesses`. Done when the owner has played it and the roll count is settled.
+0. **Owner:** play a few runs on D122 and D123: whether faster tanks and ranged feel like The Tower's, and whether the Number reads right inside its ring. Then count one Tower wave's enemies (TOWER_RULES.md reading 4). **Agent, then:** set how many enemies a roll sends from the count (D114's 1.06 against the SDK's 1.86) and rerun D122's benchmarks. Done when a career passes the wave-10 boss near The Tower's runs 10–13, or the count says it shouldn't.
 1. **Owner:** play a few runs on D111's growth (free Coins or a reset help try later stages) and say whether the Number's climb feels earned. Done when the owner says so, or names what to change (`--kill-share` and `--peak-drift` measure alternatives).
 1a. **Owner:** sign off 1.0 or name what's missing (decision 1).
 2. **Agent, on the owner's word:** tune the Divider's health with `sim_runs.gd --careers 40 --buy core --divider-health N` if play says so. Then raise `application/config/version` to 1.0 when the owner signs it off. `--careers` always plays the same seeds (run N is seed N), so a second career needs a seed option first.
 2a. **Owner:** send [`design/GAME_STAGE_BRIEF.md`](design/GAME_STAGE_BRIEF.md) to Claude Design with its screenshots (`capture_battle.gd` makes them), and choose from what comes back. **Agent, then:** record the choices as the next D-number and build them in `arena_view.gd`, `arena_effects.gd` and `number_motion.gd`; drawing only. Done when the owner has played the new stage.
 3. **Owner:** try the web build on a phone. The light's shader, the music and the portrait layout have never run there.
 4. **Owner:** take the rest of the readings in [`TOWER_RULES.md`](TOWER_RULES.md#6-readings-the-owner-can-take-in-the-tower): after step 0's walk time, a new save's basic health at wave 10 or 22 (why the early screens read under the SDK) and the mix at wave 200, 500 or 1,000. Done when they're in the chat.
-5. **Agent: 1.0.x, the build list in [`TOWER_RULES.md`](TOWER_RULES.md#7-before-11-the-build-list), in its order** (D116). Items 1 (#106), 4 (D117) and 5 (D119) are built. Item 3 is built: the spawn rate (D118), the mix by wave and the SDK's health (D120); the roll count waits on decision 0. Item 6, The Tower's wave milestones, waits on the owner's choice (decision 12). Done when each item is built or the owner drops it, and the benchmarks are re-measured.
+5. **Agent: 1.0.x, the build list in [`TOWER_RULES.md`](TOWER_RULES.md#7-before-11-the-build-list), in its order** (D116). Items 1 (#106), 4 (D117) and 5 (D119) are built. Item 3 is built: the spawn rate (D118), the mix by wave and the SDK's health (D120); the roll count is settled at 208 (D124). Item 6, The Tower's wave milestones, waits on the owner's choice (decision 12). Done when each item is built or the owner drops it, and the benchmarks are re-measured.
 6. **Then Cards (1.1).** The two splits before them are done: the arena's drawing is three files (`arena_view.gd`, `arena_effects.gd`, `number_motion.gd`), and the Wall, orbs, shockwaves and land mines live in `src/tower/battle_defences.gd`, out of `battle_sim.gd`, and since D117 each enemy kind's maths is in `enemy_kinds.gd` and wave-making in `battle_spawns.gd`.
 
 ## How to measure
 
+- **D124 (30 September):** documents only; the benchmarks behind it are D122's. `bash run_tests.sh` passes (4169 checks, unchanged).
 - **D123 (30 September):** a scratch script (not committed) opened the battle screen at 540 × 960 under `xvfb-run`, placed enemies at 20, 12 and 3 m beside and below the Number, and printed the ring, the Number's reach and where each enemy was drawn, before and after; D123 has the table, and its screenshots were checked by eye. `bash run_tests.sh` passes (4169 checks, with a test that the Number fits its ring with and without orbs). The review was the author's own. Not played on a phone.
 - **D122 (29 September):** `import_tower_enemies.mjs` regenerated the data. `bash run_tests.sh` passes (4166 checks, with new ones for the type speeds, the ×1 pace and the two-part wave bar). `sim_runs.gd`: D122's table, at both roll counts and with $93. `capture_battle.gd` ran without errors; its captures show the bar while spawning, but none catches the cooldown's accent (the test checks its colour). The review was the author's own. Not played.
 - **D121 (29 September):** the owner's recording was decoded with a static `ffmpeg` (pip's `imageio-ffmpeg`) and measured with numpy in a scratch script, not committed: the Range ring fitted as a circle (189 px = 30 m), each red and yellow enemy tracked frame by frame, and the wave bar's fill fitted over time. `import_tower_enemies.mjs` regenerated the data. `bash run_tests.sh` passes (4155 checks). `sim_runs.gd`: D121's table, with speed and cooldown measured apart and at both roll counts. The review was the author's own. Not played.
@@ -165,7 +165,7 @@
 ## Handing on
 
 1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D123), and update the spec's Progress.
+2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D124), and update the spec's Progress.
 3. **Say plainly what ran and what didn't.**
 4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
 5. **Leave no scratch files** in the repository.
