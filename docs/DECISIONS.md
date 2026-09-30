@@ -1874,3 +1874,38 @@ Rules:
   - The tabs and the buy multiplier stay visible while folded; no tab reads as open.
   - The fold lasts for the battle screen, across Battle again, and isn't saved.
 - **Measured:** in the battle screen's test the arena grows by more than 150 px when folded; a phone-sized screenshot, open and folded, was checked by eye. The range ring itself doesn't grow, as its size follows the view's width (D101), so folding shows more of the field rather than a bigger battle.
+
+## D130 — The Workshop-only wall, measured
+
+- **Status:** Accepted (2026-09-30) on owner direction: before Cards, "establish a realistic level of progress a brand new player can get to with a relatively maxed workshop (excluding very expensive late stuff like enemy skips) before they hit a wall", to tune the game and choose what Cards should do. Measurement only; nothing in the game changed.
+- **How:** `sim_runs.gd --workshop-coins N --workshop-plan P` (new) spends N Coins on a fresh Workshop, opening groups in The Tower's order up to Recovery Packages (1.5M; the owner's cut-off, leaving out Super Crit, the Wall, Enemy Level Skip and Rend Armor), then buys the plan's rows, cheapest for their weight first. Plans: **turtle** (The Tower's Tier 1 meta from its wiki: Defense Absolute, Thorns, Defense %, Health, Cash / Wave), **core** (Damage, Attack Speed, Health, Regen, Defense Absolute), **blender** (The Tower's Tier 2 pivot: Health, Lifesteal, Knockback, Orbs) and **spread** (everything evenly). Four seeds each, in-run Cash spent `core` or `even`, a 180-minute cap, Tier 1, no Cards or Labs, on `main` after D129.
+- **The wall by budget** (median wave, in-run `core` unless noted):
+
+| Workshop Coins | turtle | core | blender | spread | The turtle's Workshop (main rows) |
+|---|---|---|---|---|---|
+| 1K | 21 | 21 | 21 | 18 | Defense Absolute 4, the rest 1–2 |
+| 10K | **46** | 29 | 26 | 27 | Defense Absolute 11, Thorns 9 |
+| 100K | **100** | 43 | 37 | 60 | Defense Absolute 26, Thorns 22 |
+| 1M | **188** | 64 (72 even) | 61 (112 even) | 153 | Defense Absolute 55, Thorns 47 |
+| 10M | **309+, alive at the cap** | 102 (118 even) | 103 (302 even) | — | Defense Absolute 111, Thorns 96 |
+
+- **What makes the wall** (share of all the Number lost, and what ended the run):
+  - **The turtle's wall is the Divider:** 44% of its losses at 10K, 60% at 100K, 74% at 1M, all of it at 10M. A ÷ takes a share of the Number, which Defense Absolute and Thorns can't stop, so a solved Tier 1 defence still bleeds to Dividers until basics finish it.
+  - **Builds without Thorns wall on ranged enemies:** core and blender lose 50–77% to them from 10K up, since they hit from the range's edge and since D122 close at 1.2× a basic's speed.
+  - At 1K every build dies at the wave-20 boss's wave to basics.
+- **The pace wall is Coins, not survival.** What a run of each turtle build earns: 155 Coins at 1K (about 800 an hour), 608 at 10K (1,400 an hour), 2,543 at 100K (2,600 an hour), 6,560 at 1M (3,600 an hour). So on the Workshop alone, getting from 1K to 10K takes about 8 game hours, 10K to 100K about 45 more (wave 100, Tier 2's gate, around 50 hours in), and 100K to 1M about 300 more. Spreading Coins into the Coins rows earns up to twice as much a run at 1M and above (5,600 an hour), so a player who buys income as well as defence gets there faster.
+- **What it says for Cards:**
+  1. **Coins are the pace lever.** A Coins card, coin milestones and a Coin Bonus lab close more of the gap to The Tower's pace than any combat card.
+  2. **Dividers are our own wall, and our own design space.** Cards that answer them (a divisor reduced, Dividers killed faster, a share of each ÷ kept) have no Tower equivalent and make the Number's mechanic matter to builds. Their late strength is also the first thing to check before tuning: the ÷1.5 from wave 18 and their rate (D083, D094) are ours.
+  3. **Ranged enemies punish anything but the turtle,** so Range, Extra Defense and Fortress cards make the other builds viable in Tier 1.
+  4. **The turtle solves Tier 1 as The Tower intends (D110):** 100K Coins reaches wave 100 and 10M outlasts a three-hour run. Blender builds only pay off late and with even in-run buying, as The Tower's Tier 2 pivot should.
+- **Limits:** the buyer is a bot (a person spends better, especially in a run: spreading in-run Cash evenly lost up to 40 waves); four seeds; Tier 1 only; no Cards, Labs or milestone Coins; the enemy count per roll is only partly confirmed (about 24 in wave 1 against our 22).
+
+## D131 — Waves open systems; the Number's digits open its identity
+
+- **Status:** Accepted (2026-09-30) on owner direction: "yeah happy with this. Good shout on the fonts idea. Different fonts could have a very small permanent account bonus on them to entice people to push for them, even if small."
+- **Decision:**
+  - **Wave milestones (The Tower's) open systems:** Cards, Labs, tiers and anything else The Tower gates by wave. They stay the one source of unlocks (the foundation pass).
+  - **Digit milestones (ours, D107) open the Number's identity:** ways of showing it, such as a typeface, with its light and notation. Each carries a very small permanent account bonus, so there's a reason to push the Number and not just waves.
+  - A digit milestone never opens a system a wave milestone opens.
+- **Direction, not yet designed:** the owner wants more unlocks than The Tower, so there's more to do between farming and Tournaments, and to move the UI's layout away from The Tower's, deciding what sits where and what needn't be front and centre. Both are to be discussed before anything is built.
