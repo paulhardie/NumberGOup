@@ -2021,11 +2021,19 @@ Rules:
   - Screens fade in (0.15 s) rather than snap.
 - **Home:**
   - Coins and Gems chips, with today's Gems claim beside them only while it's there, a small wordmark, and Settings as •••.
-  - The best Number in its light inside a thin ring filling from the last milestone reached towards the next. Tapping it opens Milestones, so the Milestones pill is gone. Under it: the next digit's reward.
+  - The best Number in its light. Tapping it opens Milestones, so the Milestones pill is gone. Under it: the next digit's reward. (A ring round it filling towards the next digit was built, then removed on the owner's word before merging; D139.)
   - A line reading "Tier 1 · best wave · runs".
   - One filled, lit Battle button carrying the tier, its glow breathing with the Number's light.
   - The Coin bonus card is gone (the Workshop shows that row), and so is the Difficulty card with its locked arrows, until Tier 2 exists (1.4).
 - **The dock** (Home and the Workshop): a glyph over each name, from the game's own arithmetic rather than icon art. Battle ▶, Workshop +, Cards ×, Labs ÷, Weapons ^. The current screen's glyph is lit with a dot under it; locked screens are dim with their version. When each appears is unchanged (D125).
 - **Not changed:** any rule, save or number.
-- **Still to do:** carry the chips to the Workshop's and the battle's top lines, and count Coins up on Home after a run. That needs the balance before the run passed to Home.
+- **Still to do:** count Coins up on Home after a run. That needs the balance before the run passed to Home. (The chips reached the Workshop and the battle in D139.)
+
+## D139 — No ring on Home, a fainter range ring, and chips on every screen
+
+- **Status:** Accepted (2026-10-01) on owner direction: "carry the chips to the Workshop and battle next. Also on the home screen can we remove the range ring around the number. And in battle, can the range ring be a bit fainter/more subtle, just enough that it is visible, but not so it just looks like a tower rip off".
+- **Decision** (drawing only):
+  - **Home's Number has no ring round it.** The next digit's reward stays written under it, and tapping the Number still opens Milestones.
+  - **The battle's range ring is 9% white at 1 px.** D128 made it 16% at 1.25 px, which read as The Tower's ring. Before that it was 6% at 1 px, which was hard to find.
+  - **Cash and Coins are chips on the battle's top line and the Workshop's**, as Home's are (`Palette.money_line` now builds chips): "$ 155" in the text's colour, "● 0" in gold.
 
