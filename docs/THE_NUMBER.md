@@ -350,3 +350,4 @@ The owner asked for enemy types that fit a game about a number, for the base ros
 Dropped: a digit Reverser (random, not skill), Modulo (swingy and opaque), a ÷10 shift (too brutal), a zero-shield (0 is the orbs'), parity or prime immunities (opaque), and buffers that strengthen other enemies (a late Commander's job, if anyone's).
 
 **The Divider's slow refill (D134)** was tried with the Lock: what a ÷ took, held back from Regen for 10 to 120 seconds. It moved no wall, since by the time basics break a tower the Number is nowhere near its best, so it stays a measuring option (`--divider-refill`), off in the game.
+

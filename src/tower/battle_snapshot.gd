@@ -6,7 +6,6 @@ const BattleSim = preload("res://src/tower/battle_sim.gd")
 const RunConfig = preload("res://src/tower/run_config.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
 const RunReport = preload("res://src/tower/run_report.gd")
-const Guesses = preload("res://src/tower/guesses.gd")
 const VERSION := 2
 const FLOATS := ["time", "wave_clock", "health", "cash", "cash_earned", "coins",
 	"peak_drift", "kill_share", "overfill", "sure_divisor", "peak_number", "_high",
@@ -19,6 +18,9 @@ const ENEMY_FLOATS := ["health", "max_health", "attack", "speed", "angle", "dist
 	"stop_at", "hit_in", "last_distance", "rend", "divisor", "mass"]
 const ENEMY_INTS := ["id", "wave", "hits", "generation"]
 const SPAWN_INTS := ["next_spawn", "wave_spawned", "wave_missed", "protector_gate"]
+## Our enemies, which The Tower's generated data doesn't list (D082, D133).
+const OUR_KINDS := ["divider", "lock"]
+## Guesses.DIVIDER's numbers that may be 0: the slow refill, off (D134).
 
 
 static func capture(sim: BattleSim) -> Dictionary:
@@ -127,7 +129,7 @@ static func _valid_state(data) -> bool:
 	for id in data.targets:
 		var enemy = data.targets[id]
 		if not id is String or not enemy is Dictionary or not enemy.get("kind") is String \
-				or (enemy.kind not in ["divider", "lock"] and not TowerData.enemies().types.has(enemy.kind)):
+				or not _known_kind(enemy.kind):
 			return false
 		for key in ENEMY_FLOATS:
 			if not RunConfig.number(enemy.get(key)):
@@ -166,10 +168,10 @@ static func _valid_state(data) -> bool:
 	var previous := -1.0
 	for item in spawns.schedule:
 		if not item is Dictionary or not item.get("kind") is String \
-				or (item.kind not in ["divider", "lock"] and not TowerData.enemies().types.has(item.kind)) \
-				or not RunConfig.number(item.get("at")) or float(item.at) < previous:
+				or not _known_kind(item.kind) \
+				or not RunConfig.number(item.get("at")) or float(item.at) < previous \
+				or (item.has("angle") and not RunConfig.number(item.angle)):
 			return false
-		if item.has("angle") and not RunConfig.number(item.angle): return false
 		previous = float(item.at)
 	var defences = data.get("defences")
 	if not defences is Dictionary or not defences.get("mines") is Array or defences.mines.size() > 30:
@@ -263,6 +265,10 @@ static func restore(data) -> BattleSim:
 	for item in data.waves:
 		sim.wave_log.append(item.duplicate(true))
 	return sim
+
+
+static func _known_kind(kind: String) -> bool:
+	return kind in OUR_KINDS or TowerData.enemies().types.has(kind)
 
 
 static func _integer(value) -> bool:

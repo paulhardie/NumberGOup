@@ -15,6 +15,7 @@ const Main = preload("res://src/main.gd")
 const Home = preload("res://src/ui/home_screen.gd")
 const NavBar = preload("res://src/ui/nav_bar.gd")
 const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
+const ActivityLog = preload("res://src/tower/activity_log.gd")
 const PATH := "user://foundation_save.json"
 var failures: Array[String] = []
 var checks := 0
@@ -280,6 +281,52 @@ func test_snapshot_continuation() -> void:
 		check(Snapshot.restore(corrupt) == null, "semantically broken state rejected: " + key)
 
 
+## D133, D134: a Lock holding the Number, one still to come, and a Divider's
+## held bite all survive a snapshot and continue exactly.
+func test_snapshot_keeps_the_lock_and_a_held_bite() -> void:
+	var sim := BattleSim.new(5, {"health": 200, "damage": 20, "attack_speed": 10})
+	sim.divider.refill_seconds = 10.0
+	sim.wave = 38
+	sim.health_level = 38
+	sim.attack_level = 38
+	sim.spawns.schedule_wave()
+	check(sim.spawns.schedule.any(func(item): return item.kind == "lock" and item.has("angle")), "wave 38 schedules a Lock with its own direction")
+	while sim.alive and not sim.locked and sim.ticks < 30 * 60:
+		sim.health = sim.max_health() * 50.0
+		sim.step()
+	check(sim.locked, "a Lock stands and holds the Number")
+	var divider := BattleSim.Enemy.new()
+	divider.id = sim._next_id
+	sim._next_id += 1
+	divider.kind = "divider"
+	divider.wave = sim.wave
+	divider.max_health = 1.0
+	divider.health = 1.0
+	divider.divisor = 1.5
+	divider.distance = 0.0
+	divider.stop_at = 3.0
+	divider.mass = 1.0
+	sim.enemies.append(divider)
+	sim.step()
+	check(sim.divider_held > 0.0, "and a Divider's bite is held back")
+	sim.spawns.schedule_wave()
+	var saved: Dictionary = json(Snapshot.capture(sim))
+	var again := Snapshot.restore(saved)
+	check(again != null, "a snapshot with a Lock parses")
+	if again == null: return
+	check(again.locked and again.divider_held == sim.divider_held and again.lock == sim.lock, "the Lock's hold, its numbers and the held bite come back")
+	check(Snapshot.capture(again).digest == saved.digest, "every saved field round trips")
+	for i in range(600):
+		sim.step()
+		again.step()
+	check(Snapshot.capture(sim).digest == Snapshot.capture(again).digest, "exact continuation with a Lock: %s" % difference(json(Snapshot.capture(sim)), json(Snapshot.capture(again))))
+	var state: Dictionary = RunConfig.unpack(saved)
+	state.state.lock = {}
+	var broken := RunConfig.pack(state)
+	broken.version = Snapshot.VERSION
+	check(Snapshot.restore(broken) == null, "a snapshot without the Lock's numbers is rejected")
+
+
 func test_save_migration_and_future_protection() -> void:
 	DirAccess.remove_absolute(PATH)
 	DirAccess.remove_absolute(PATH + ".v1-backup.json")
@@ -405,6 +452,110 @@ func test_both_bars_follow_the_milestone_table() -> void:
 	early.free()
 	cards.free()
 	labs.free()
+
+
+func test_malformed_optional_replay_fields_recover_safely() -> void:
+	var sim := BattleSim.new(5)
+	var recorded: Dictionary = json(RunReport.build(sim))
+	for value in [null, [], {}, "bad", INF, -1, 1.5, 2049]:
+		var broken: Dictionary = recorded.duplicate(true)
+		broken.result.enemies = value
+		check(not RunReport.valid_record(broken) and not RunReport.matches(broken, sim), "malformed optional enemy count cannot fail inside matching")
+	for value in [null, {}, "bad", [], ["1"], ["1", "2", 3], ["1", "2", "9223372036854775808"]]:
+		var broken: Dictionary = recorded.duplicate(true)
+		broken.result.rng = value
+		check(not RunReport.valid_record(broken) and not RunReport.matches(broken, sim), "malformed optional RNG cannot fail inside matching")
+	for value in [null, [], {}, "bad", INF, -1.0]:
+		var broken: Dictionary = recorded.duplicate(true)
+		broken.result.peak_number = value
+		check(not RunReport.valid_record(broken), "malformed peak cannot grant a milestone during recovery")
+
+
+func test_starting_tuning_replays_and_freezes_before_wave_one() -> void:
+	var tuning := RunConfig.default_tuning()
+	tuning.lock.from_wave = 1
+	tuning.lock.every_first = 1
+	tuning.lock.health = 1e6
+	tuning.divider.from_wave = 1
+	tuning.divider.rate_first = 1.0
+	tuning.divider.rate_full = 1.0
+	tuning.divider.refill_seconds = 30.0
+	var sim := BattleSim.new(7, {"health": 500})
+	check(sim.configure_tuning(tuning), "measuring switches freeze before the first wave")
+	tuning.lock.health = 1.0
+	check(sim.start_config().tuning.lock.health == 1e6 and sim.spawns.schedule.any(func(item): return item.kind == "lock"), "a wave-one Lock uses the copied starting tuning")
+	while sim.alive and sim.ticks < 3600 and not (sim.locked and sim.divider_held > 0.0): sim.step()
+	check(sim.alive and sim.locked and sim.divider_held > 0.0, "a real scheduled Lock and held Divider loss are active together")
+	var report: Dictionary = json(RunReport.build(sim))
+	check(RunReport.is_replayable(report) and RunReport.matches(report, RunReport.replay(report)), "starting Lock and refill switches replay from the first wave")
+	check(not sim.configure_tuning(RunConfig.default_tuning()), "starting switches cannot change after a tick")
+	var saved: Dictionary = json(Snapshot.capture(sim))
+	var again := Snapshot.restore(saved)
+	check(again != null and Snapshot.capture(again).digest == saved.digest, "actual Lock and held-loss state round trips exactly")
+	if again != null:
+		for i in range(600):
+			sim.step()
+			again.step()
+		check(Snapshot.capture(sim).digest == Snapshot.capture(again).digest, "scheduled Lock and refill continue exactly for 600 ticks")
+	var disabled := RunConfig.default_tuning()
+	disabled.lock.from_wave = 0
+	disabled.divider.rate_first = 0.0
+	disabled.divider.rate_full = 0.0
+	check(RunConfig.valid_tuning(disabled), "disabled Lock, Divider rates and default zero refill remain valid")
+	disabled.lock.every_first = 0
+	check(not RunConfig.valid_tuning(disabled), "a zero Lock interval cannot reach modulo arithmetic")
+
+
+func test_changed_and_damaged_run_recovery_preserves_the_account() -> void:
+	var sim := BattleSim.new(4)
+	sim.wave = 39
+	sim.peak_number = 1500.0
+	var old: Dictionary = json(RunReport.build(sim))
+	old.start.rules_version = 1
+	old.commands = RunConfig.pack({"start": old.start, "inputs": old.inputs})
+	check(not RunReport.is_replayable(old) and RunReport.valid_record(old, true), "old declared combat rules are readable for recovery, not current equivalence")
+	var legacy: Dictionary = json(RunReport.build(BattleSim.new(6)))
+	legacy.erase("commands")
+	for key in ["version", "rules_version", "tuning"]: legacy.start.erase(key)
+	check(RunReport.is_replayable(legacy) and RunReport.matches(legacy, RunReport.replay(legacy)), "a compatible unversioned legacy record still replays")
+	for damaged in [false, true]:
+		var record := old.duplicate(true)
+		if damaged:
+			record.seed = "bad"
+			record.result.wave = TowerData.last_wave()
+			record.result.peak_number = 1e300
+		var permanent := Workshop.new()
+		permanent.coins = 100.0
+		permanent.runs = 2
+		permanent.best_wave = 27
+		permanent.best_number = 100.0
+		permanent.levels = {"health": 3}
+		var p := Progression.new(permanent)
+		p.observe(1, 27, 26)
+		DirAccess.remove_absolute("user://recovery_test.jsonl")
+		check(Save.save_progress(p, PATH, record), "recovery fixture saves")
+		var main := Main.new()
+		main.save_path = PATH
+		main.log_path = "user://recovery_test.jsonl"
+		main.settings_path = "user://recovery_settings.json"
+		root.add_child(main)
+		for frame in range(4): await process_frame
+		check(main._screen is Home and Save.load_run(PATH).is_empty(), "incompatible or damaged run ends once and opens Home")
+		var loaded := Save.load_progress(PATH)
+		check(loaded.workshop.levels == permanent.levels and loaded.workshop.runs == 3, "ranks survive and the ended run is counted once")
+		if damaged:
+			check(loaded.workshop.coins == 110.0 and loaded.workshop.best_wave == 27 and loaded.workshop.best_number == 100.0, "damaged wave and peak cannot inflate permanent bests or milestone Coins")
+			check(loaded.best_wave(1) == 27 and not loaded.unlocked("labs"), "damaged values cannot create progression unlocks")
+		else:
+			check(loaded.workshop.coins == 360.0 and loaded.workshop.best_wave == 39 and loaded.workshop.best_number == 1500.0, "sound old-rules recovery keeps its wave, peak and one earned Number reward")
+			check(loaded.best_wave(1) == 39 and loaded.best_wave(1, true) == 38 and loaded.unlocked("labs"), "changed combat preserves reached/cleared records and Labs")
+		var run_entries := ActivityLog.read(main.log_path).filter(func(entry): return entry.kind == "run")
+		check(run_entries.size() == 1 and run_entries[0].resume_failed == ("damaged" if damaged else "changed"), "recovery is logged once with the right reason")
+		main.free()
+		await process_frame
+		var coins := loaded.workshop.coins
+		check(loaded.observe(1, loaded.best_wave(1), loaded.best_wave(1, true)).is_empty() and loaded.workshop.coins == coins, "reload cannot repay recovery wave rewards")
+	DirAccess.remove_absolute(PATH)
 
 
 func difference(a, b, path := "") -> String:
