@@ -486,6 +486,35 @@ func test_the_workshop_shows_only_each_tabs_next_group() -> void:
 	shop.free()
 
 
+## D142: the Workshop in our own layout. The next unlock leads, rows are one
+## per line, a price lights when it can be paid, and each row's bar fills
+## towards its price.
+func test_the_workshop_lights_what_can_be_bought() -> void:
+	var workshop := Workshop.new()
+	workshop.coins = 60.0
+	var shop = WorkshopScreen.new()
+	shop.workshop = workshop
+	root.add_child(shop)
+	await process_frame
+	check(shop._list.get_child(0) is Button and shop._list.get_child(0) == _unlock_cards(shop)[0], "the next unlock leads the list")
+	check(shop.find_children("*", "GridContainer", true, false).is_empty(), "rows are one per line, not a grid")
+	check(shop._tab_buttons["attack"].button_pressed and not shop._tab_buttons["defense"].button_pressed, "the switch marks only the chosen category")
+	var rows: Array = shop._cards.filter(func(card): return card.has("id"))
+	check(rows.size() == 4, "the Attack category's four starting rows: %d" % rows.size())
+	for card in rows:
+		var lit: bool = card.price.label.get_theme_color("font_color") == Palette.COIN
+		check(lit == workshop.can_buy(card.id, 1), "%s's price is lit exactly when it can be bought" % card.id)
+		check_near(card.bar.value, WorkshopScreen.toward(workshop.coins, workshop.plan(card.id, 1).cost), 0.0001, "%s's bar reads how far the Coins have come" % card.id)
+	var hero: Dictionary = shop._cards.filter(func(card): return card.has("group"))[0]
+	check(hero.price.label.get_theme_color("font_color") == Palette.COIN and hero.bar.value == 1.0, "the unlock lights when it can be opened")
+	workshop.coins = 10.0
+	shop.refresh()
+	check(hero.price.label.get_theme_color("font_color") == Palette.MUTED and is_equal_approx(hero.bar.value, 10.0 / TowerData.group_price("range")), "and dims, its bar part-way, when it can't")
+	check(WorkshopScreen.toward(5.0, 10.0) == 0.5 and WorkshopScreen.toward(50.0, 10.0) == 1.0 and WorkshopScreen.toward(5.0, INF) == 0.0, "a bar never passes full, and a maxed row's target never fills it")
+	shop.queue_free()
+	await process_frame
+
+
 ## The Workshop screen's Unlock cards: its list's buttons outside the row grid.
 func _unlock_cards(shop) -> Array[Button]:
 	var found: Array[Button] = []
