@@ -95,12 +95,12 @@
 | Cash and tiers | No source says whether a tier multiplies Cash | Not multiplied (D071 assumed it would be) | **Unknown** |
 | Coins per kill | By type: fast 2, ranged 2, tank 4, boss 5, protector 3, elites 4; basics pay nothing without a card. Times Coins / Kill Bonus × the tier bonus × every other bonus, all multiplied together, and ×0.5 for an enemy alive more than 3 waves | Flat by type × Coins / Kill × tier (D074); no decay | Built |
 | Coins / Wave | A flat 1–150 a wave, × the tier bonus | Same | Built |
-| Other Coin sources | Daily Missions, and wave milestones (below) | Our Number milestones (D107) | **Gap** (milestones); Missions is open decision 9 |
-| **Gems** | Cards (20 each), card slots (50 to 10,000), lab slots (100 to 3,000), rushing labs and Modules. Free sources: milestones (**235 Gems across Tier 1's milestones**), floating gems in a run (2 each, at most 10 a run, about every 400–500 waves and never more than once in 15 minutes), plus ads, daily gifts, missions and events, which we don't have | None | Comes with 1.1. **Without ads or a store, a player earns very few Gems**, which 1.1's design has to answer |
+| Other Coin sources | Daily Missions, and wave milestones (below) | Number milestones (D107) and known early wave milestones (D126) | Missions remains unscheduled |
+| **Gems** | Cards, card slots, lab slots/rushing and Modules. Sources include wave milestones, floating gems, ads, daily gifts, missions and events | D126: known early wave Gems and a free daily 20-Gem claim; no ads or store | Cards spend this balance in 1.1; later rewards need exact source amounts |
 
 ## 5. Progression
 
-**Tier 1's milestones: The Tower's unlock order.** Reaching a wave in a tier pays once (the free track; the paid one is left out):
+**Tier 1's milestones: The Tower's unlock order.** Reaching a reward wave pays once on the free track. Our next-tier gate specifically requires **clearing** wave 100 (D107); reaching the boss does not clear it. D126 implements the exact early Coin/Gem rows below through wave 100, plus Tier 2 wave 10; later reward amounts remain reference material until verified precisely.
 
 | Tier 1 wave | Reward | Tier 2 wave | Reward |
 |---|---|---|---|
@@ -155,8 +155,8 @@ In order. Economy and enemy changes go through QUALITY_GATES' high-risk gate (th
 | 3 | ~~**Apply the readings:** spawn rate, a type mix that changes by wave, and the health drift~~: **done** (D118, D120, D124) | The wave engine's two big unknowns | Done |
 | 4 | ~~**Factor enemy behaviour out of `BattleSim`**~~: **done** (D117): `enemy_kinds.gd` says what each kind is, `battle_spawns.gd` which enemies each wave sends | The next enemy lands in its own place | Done |
 | 5 | ~~**A single place where stat effects stack**~~: **done** (D119): `stat_stack.gd` builds every stat as (Workshop + adds) × multipliers, held to The Tower's hard caps | Cards (1.1) and Labs (1.2) add their effects there instead of inventing their own | Done |
-| 6 | **Wave milestones per tier:** claimed once, paying The Tower's Coins now and its Gems when they exist, and holding the unlock spine (Labs at Tier 1 wave 30, Tier 2 at wave 100) | 1.1 and 1.2 open from it; our Number milestones (D107) sit beside it | Medium; **a decision** |
+| 6 | **Done (D126): per-tier reached/cleared records and claims**, known early Coin/Gem rewards and a 20-Gem daily claim, alongside Number milestones | Cards and Labs consume this progression spine | High-risk verification in SCALING_FOUNDATIONS.md |
 
 Done already, by D115: elites in Tier 1 from wave 500, the Protector, coin decay, ageing enemies, the tier speed-up, the boss cap, and Wave Info.
 
-**Not before 1.1** (their own versions): tier selection and opening Tier 2 (1.4); game speed as a Lab and a clock that runs while the game is closed (1.2); Perks (after Tier 2); fleets (Tier 14, and Tier 1 wave 15,000); tier battle conditions (Tier 14); Modules, Bots, Guardians, Relics, the Vault, Enhancements, Tournaments, Events and Guilds.
+**Their own versions:** tier selection and opening Tier 2 (1.4); the Labs catalogue and game-speed research (1.2); Perks (after Tier 2); fleets, tier conditions, Modules, Bots, Guardians, Relics, the Vault, Enhancements, Tournaments, Events and Guilds. D126 already supplies the real-time research clock and job persistence. Its free daily amount is the developer's [v29 reward change](https://www.techtreegames.com/post/v29-patch-notes-august-25-2026).

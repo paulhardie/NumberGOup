@@ -15,6 +15,7 @@ const ActivityLog = preload("res://src/tower/activity_log.gd")
 const Palette = preload("res://src/ui/palette.gd")
 const Settings = preload("res://src/settings.gd")
 const NavBar = preload("res://src/ui/nav_bar.gd")
+const Progression = preload("res://src/tower/progression.gd")
 
 signal battle_pressed
 signal workshop_pressed
@@ -25,15 +26,20 @@ signal settings_changed
 ## Testing (D097): free Coins for the Workshop, and a fresh start.
 signal test_coins_pressed(amount: float)
 signal reset_pressed
+signal daily_pressed
 
 ## The free Coins the testing buttons give.
 const TEST_COINS := [1000.0, 100000.0]
 
 ## The best Number, large and thin in the light, as the battle draws the Number.
-const EMBLEM_HEIGHT := 230
+const EMBLEM_HEIGHT := 190
 const EMBLEM_NUMBER_PX := 64
 
 var workshop: Workshop
+var progression: Progression
+var _gems: Label
+var _daily: Button
+var _daily_day := -1
 ## The player's settings, changed in place; fresh ones if not set.
 var settings: Settings
 var _coins: Label
@@ -79,6 +85,9 @@ func _ready() -> void:
 	var money := Palette.money_line(_mono_bold, false)
 	top.add_child(money.line)
 	_coins = money.coins
+	if progression != null:
+		_gems = _figure(14, Palette.ACCENT)
+		top.add_child(_gems)
 	var gap := Control.new()
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	top.add_child(gap)
@@ -127,6 +136,11 @@ func _ready() -> void:
 	milestones.custom_minimum_size = Vector2(200, 40)
 	milestones.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	body.add_child(milestones)
+	if progression != null:
+		_daily = Palette.pill("Daily Gems", Palette.ACCENT, null, 36)
+		_daily.pressed.connect(func(): daily_pressed.emit())
+		_daily.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+		body.add_child(_daily)
 
 	var bonus := _card()
 	body.add_child(bonus.panel)
@@ -174,6 +188,7 @@ func _ready() -> void:
 		battle.add_theme_stylebox_override(state, Palette.card_box(fill, Color(Palette.ACCENT, 0.7), 16))
 	battle.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	battle.pressed.connect(func(): battle_pressed.emit())
+	battle.disabled = progression != null and not progression.writable
 	body.add_child(battle)
 	_note = Label.new()
 	_note.add_theme_color_override("font_color", Palette.MUTED)
@@ -197,6 +212,8 @@ func _ready() -> void:
 
 
 func _process(delta: float) -> void:
+	if progression != null and floori(Time.get_unix_time_from_system() / 86400.0) != _daily_day:
+		refresh()
 	_light_time += delta
 	var light := _light.material as ShaderMaterial
 	light.set_shader_parameter("centre_px", _light.size * 0.5)
@@ -209,10 +226,17 @@ func _process(delta: float) -> void:
 
 
 func refresh() -> void:
+	if progression != null:
+		_gems.text = "◆ %d" % progression.gems
+		_daily_day = floori(Time.get_unix_time_from_system() / 86400.0)
+		var available := progression.workshop.runs > 0 and _daily_day > progression.last_daily_day and progression.writable
+		_daily.disabled = not available
+		_daily.text = "+◆ %d daily" % Progression.DAILY_GEMS if available else ("Daily Gems after your first run" if workshop.runs == 0 else "Daily Gems claimed")
+		_daily.tooltip_text = "One free claim per UTC day. Gems stay between runs for Cards and Labs."
 	_coins.text = Palette.money(workshop.coins)
 	_best_number.text = Palette.full(ceilf(workshop.best_number))
 	_coin_bonus.text = "×%.2f" % TowerData.value("coins_per_kill", workshop.level("coins_per_kill"))
-	_best_wave.text = "Best wave %d · %d run%s" % [workshop.best_wave, workshop.runs, "" if workshop.runs == 1 else "s"]
+	_best_wave.text = "Best wave %d · %d run%s" % [progression.best_wave(1) if progression != null and progression.records.has("1") else workshop.best_wave, workshop.runs, "" if workshop.runs == 1 else "s"]
 
 
 ## Says where the report went, from ActivityLog.export_report's result.
@@ -278,14 +302,21 @@ func _build_milestones() -> void:
 	close.pressed.connect(func(): _milestones_panel.visible = false)
 	head.add_child(close)
 	var about := Label.new()
-	about.text = "Your best Number's first new digit pays once."
+	about.text = "Number and wave rewards pay once." if progression != null else "Your best Number's first new digit pays once."
 	about.add_theme_font_size_override("font_size", 12)
 	about.add_theme_color_override("font_color", Palette.MUTED)
 	column.add_child(about)
 	column.add_child(Palette.hairline())
 	_milestones_list = VBoxContainer.new()
 	_milestones_list.add_theme_constant_override("separation", 10)
-	column.add_child(_milestones_list)
+	if progression != null:
+		var scroll := ScrollContainer.new()
+		scroll.custom_minimum_size = Vector2(300, 350)
+		_milestones_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		scroll.add_child(_milestones_list)
+		column.add_child(scroll)
+	else:
+		column.add_child(_milestones_list)
 	_fill_milestones()
 
 
@@ -293,6 +324,21 @@ func _fill_milestones() -> void:
 	for child in _milestones_list.get_children():
 		_milestones_list.remove_child(child)
 		child.queue_free()
+	if progression != null:
+		_milestones_list.add_child(_caption("Tier 1 waves · best %d" % progression.best_wave(1)))
+		for milestone in Progression.MILESTONES:
+			if int(milestone.tier) != 1: continue
+			var claimed := "%d:%d" % [int(milestone.tier), int(milestone.wave)] in progression.claimed
+			var text := "Wave %d · " % int(milestone.wave)
+			if int(milestone.coins) > 0: text += "● %d" % int(milestone.coins)
+			elif int(milestone.gems) > 0: text += "◆ %d" % int(milestone.gems)
+			else: text += {30: "Labs gate · comes in 1.2", 100: "Tier 2 gate · comes in 1.4"}.get(int(milestone.wave), "Unlock")
+			var label := _caption(("✓  " if claimed else "") + text)
+			label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+			label.add_theme_color_override("font_color", Palette.MUTED if claimed else Palette.TEXT)
+			_milestones_list.add_child(label)
+		_milestones_list.add_child(Palette.hairline())
+		_milestones_list.add_child(_caption("Best Number"))
 	var next := workshop.next_milestone()
 	for milestone in Guesses.MILESTONES:
 		var reached := workshop.best_number >= float(milestone.number)
@@ -435,7 +481,7 @@ func _build_testing(column: VBoxContainer) -> void:
 func _press_reset() -> void:
 	if not _reset_armed:
 		_reset_armed = true
-		_reset.text = "Press again to wipe the Workshop"
+		_reset.text = "Press again to wipe all progress"
 		return
 	_reset_armed = false
 	_reset.text = "Reset progress"

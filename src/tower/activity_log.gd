@@ -50,7 +50,7 @@ static func read(path: String = PATH) -> Array[Dictionary]:
 
 ## Writes the whole log and the Workshop as it stands to one report file in
 ## `folder`: {path, runs, entries}, or {} if it couldn't be written.
-static func export_report(workshop_state: Dictionary, path: String = PATH, folder: String = REPORTS) -> Dictionary:
+static func export_report(workshop_state: Dictionary, path: String = PATH, folder: String = REPORTS, progression_state: Dictionary = {}) -> Dictionary:
 	DirAccess.make_dir_recursive_absolute(folder)
 	var stamp := Time.get_datetime_string_from_system(false).replace("-", "").replace(":", "")
 	var out := "%s/number_go_up_report-%s.json" % [folder, stamp]
@@ -66,6 +66,7 @@ static func export_report(workshop_state: Dictionary, path: String = PATH, folde
 	file.store_string(JSON.stringify({
 		"format": FORMAT, "version": VERSION, "exported_at": Time.get_datetime_string_from_system(true),
 		"game": game_version(), "game_version": version(), "workshop": workshop_state, "entries": entries,
+		"progression": progression_state,
 	}, "", false, true))
 	file.close()
 	return {"path": out, "runs": entries.filter(func(entry): return entry.get("kind") == "run").size(), "entries": entries.size()}

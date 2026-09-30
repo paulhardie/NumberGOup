@@ -68,10 +68,13 @@ extends SceneTree
 ## the Coins between runs: it opens the cheapest group it can, otherwise buys
 ## the open Workshop row with the fewest levels, until nothing is affordable.
 ## Each run buys with --buy (use even). Each row printed is one run.
+## --legacy-progression omits D126's wave rewards for a before/after career
+## comparison; normal careers receive the same one-time rewards as the UI.
 
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
+const Progression = preload("res://src/tower/progression.gd")
 
 const STRATEGIES := ["none", "cheapest", "even", "attack", "core", "grow", "health", "survival"]
 ## With --buy health, this share of the Cash earned goes to Health.
@@ -160,6 +163,7 @@ func _init() -> void:
 
 func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionary) -> void:
 	var workshop := Workshop.new()
+	var progression := Progression.new(workshop)
 	var hours := 0.0
 	print("career, buying %s in each run, %d-minute cap" % [strategy, int(cap_seconds / 60.0)])
 	print("run  wave  game time  hours  coins earned  coins left  peak Number  start Number  last wave's Number  ÷ came/landed  killed by  Workshop")
@@ -174,6 +178,10 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 			sim.step()
 		workshop.add_coins(sim.coins)
 		workshop.finish_run(sim.wave, sim.peak_number)
+		# Same one-time rewards as the screens; the switch measures D125's
+		# earlier progression without altering any battle rules.
+		if not options.has("legacy-progression"):
+			progression.observe(sim.tier, sim.wave, sim.wave if sim.killed_by == "data_limit" else sim.wave - 1)
 		hours += sim.time / 3600.0
 		_spend_workshop(workshop, strategy)
 		# The Number as the wave it ended on began (at death it reads 0).

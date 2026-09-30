@@ -13,6 +13,9 @@ const BattleDefences = preload("res://src/tower/battle_defences.gd")
 const BattleSpawns = preload("res://src/tower/battle_spawns.gd")
 const EnemyKinds = preload("res://src/tower/enemy_kinds.gd")
 const StatStack = preload("res://src/tower/stat_stack.gd")
+const RunRules = preload("res://src/tower/run_rules.gd")
+const RunConfig = preload("res://src/tower/run_config.gd")
+const BattleCooldowns = preload("res://src/tower/battle_cooldowns.gd")
 
 const TICK := 1.0 / 30.0
 
@@ -73,7 +76,7 @@ const START_GROUPS := ["attack_start", "defense_start"]
 ## Rapid Fire fires four times as fast while it lasts (the community wiki).
 const RAPID_FIRE_SPEED := 4.0
 ## The most Interest pays a wave before Labs raise it (D071).
-const INTEREST_CAP := 50.0
+const INTEREST_CAP := RunRules.DEFAULTS.interest_cap
 ## The Free Upgrade row for each category.
 const FREE_UPGRADE_ROWS := {"attack": "free_attack_upgrade", "defense": "free_defense_upgrade", "utility": "free_utility_upgrade"}
 ## Rend Armor stacks to 800% more damage taken (the community wiki).
@@ -90,6 +93,13 @@ var run_levels: Dictionary = {}
 ## hard cap. Effects a run starts with (Cards, Labs) come through `_init`, so
 ## the starting Number, the Wall and the first Shockwave are built with them.
 var stats := StatStack.new()
+var rules := RunRules.new()
+var cooldowns := BattleCooldowns.new()
+var starting_effects: Array = []
+var starting_rules: Array = []
+## Damage and kills by source, shared by stats and later missions/Weapons.
+var damage_by: Dictionary = {}
+var kills_by: Dictionary = {}
 var open_groups: Array = START_GROUPS.duplicate()
 
 var time := 0.0
@@ -186,7 +196,9 @@ var _held_release := 0.0
 var _next_id := 1
 var _shot_charge := 0.0
 ## Seconds of Rapid Fire left.
-var rapid_fire_left := 0.0
+var rapid_fire_left: float:
+	get: return cooldowns.time_left("rapid_fire")
+	set(value): cooldowns.set_time("rapid_fire", value)
 
 ## The Wall, orbs, shockwaves and land mines, with their own state.
 var defences := BattleDefences.new(self)
@@ -203,16 +215,22 @@ var _attack_skip := 0.0
 ## `row_levels` and `groups` are the Workshop's: the levels a run starts from
 ## and the groups it may buy from. `effects` are the ones the run starts with,
 ## each {stat, op, value, source} (StatStack.add); a refused one is an error.
-func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_GROUPS, run_tier: int = 1, effects: Array = []) -> void:
+func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_GROUPS, run_tier: int = 1, effects: Array = [], rule_effects: Array = []) -> void:
 	run_seed = seed_value
 	tier = clampi(run_tier, 1, TowerData.tier_count())
 	levels = row_levels.duplicate()
 	open_groups = groups.duplicate()
+	starting_effects = effects.duplicate(true)
+	starting_rules = rule_effects.duplicate(true)
 	# Before anything below reads a stat: the starting Number, its best, the
 	# Wall and the first Shockwave all come from the built values.
 	for effect in effects:
 		if not stats.add(str(effect.get("stat", "")), str(effect.get("op", "")), float(effect.get("value", NAN)), str(effect.get("source", ""))):
 			push_error("BattleSim: refused a starting stat effect %s" % [effect])
+	for effect in rule_effects:
+		if not rules.add(effect):
+			push_error("BattleSim: refused a starting rule effect %s" % [effect])
+	cash = rules.value("starting_cash")
 	# Separate streams, so a change in how often the tower fires or crits
 	# never changes which enemies a wave sends.
 	spawns.start(seed_value)
@@ -222,6 +240,35 @@ func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_G
 	_high = health
 	defences.start()
 	spawns.schedule_wave()
+
+
+func start_config() -> Dictionary:
+	return {"version": RunConfig.VERSION, "rules_version": RunConfig.RULES_VERSION,
+		"tier": tier, "levels": levels.duplicate(), "groups": open_groups.duplicate(),
+		"effects": starting_effects.duplicate(true), "rules": starting_rules.duplicate(true)}
+
+
+## Perks and later loadout changes use a recorded domain input, so a replay
+## applies the same effect at the same tick.
+func apply_effect(effect: Dictionary, domain := "stat", record := true) -> bool:
+	if not alive or domain not in ["stat", "rule"] or not RunConfig.valid_effect(effect, domain == "rule"):
+		return false
+	var before := max_health()
+	if domain == "rule":
+		if not rules.add(effect):
+			return false
+	else:
+		if not stats.add(String(effect.stat), String(effect.op), float(effect.value), String(effect.source)):
+			return false
+		var previous := health
+		health = maxf(0.0, health + max_health() - before)
+		_count_gain("health", previous)
+		if health == 0.0:
+			alive = false
+			killed_by = "effect"
+	if record:
+		inputs.append({"tick": ticks, "effect": effect.duplicate(true), "domain": domain})
+	return true
 
 
 ## Where the two random streams stand, as text: their 64-bit states are more
@@ -376,6 +423,10 @@ func step() -> void:
 	if wave_clock >= TowerData.wave_seconds():
 		wave_clock -= TowerData.wave_seconds()
 		_pay_wave_end()
+		if wave >= TowerData.last_wave():
+			alive = false
+			killed_by = "data_limit"
+			return
 		wave += 1
 		_advance_levels()
 		spawns.schedule_wave()
@@ -523,14 +574,14 @@ func _enemies_hit() -> void:
 		if shielded(enemy):
 			thorns *= float(TowerData.enemies().protector.thorns_taken)
 		if thorns > 0.0:
-			enemy.health -= enemy.max_health * thorns
+			deal_damage(enemy, enemy.max_health * thorns, "thorns", false)
 			if enemy.health <= 0.0:
 				thorned.append(enemy)
 	# Removed after the loop, which mustn't lose enemies from under it.
 	for enemy in spent:
 		_divide(enemy)
 	for enemy in thorned:
-		_kill(enemy)
+		_kill(enemy, "thorns")
 
 
 ## A Divider reaches the Number, or the Wall in front of it, and takes
@@ -719,19 +770,36 @@ func _strike(enemy: Enemy, shot_damage: float, critical: bool) -> void:
 	if knocked and EnemyKinds.knockback_moves(enemy.kind):
 		var push := stat("knockback_force") * Guesses.KNOCKBACK_METRES_PER_FORCE / EnemyKinds.mass_now(enemy, wave)
 		enemy.distance = minf(Guesses.SPAWN_DISTANCE_M, enemy.distance + push)
-	enemy.health -= damage
+	deal_damage(enemy, damage, "shot", false)
 	if record_events:
 		events.append({"type": "enemy_hit", "enemy": enemy, "damage": damage, "critical": critical})
 	if enemy.health <= 0.0:
 		_kill(enemy)
 
 
+## One damage/kill boundary for shots, defences and later abilities. The
+## caller resolves source-specific crit, shielding and lifesteal first.
+## Deferred kills preserve existing iteration and effect order.
+func deal_damage(enemy: Enemy, amount: float, source: String, finish := true) -> bool:
+	if enemy not in enemies or enemy.health <= 0.0 or not is_finite(amount) or amount < 0.0 or source.is_empty():
+		return false
+	damage_by[source] = float(damage_by.get(source, 0.0)) + minf(amount, enemy.health)
+	enemy.health -= amount
+	if finish and enemy.health <= 0.0:
+		_kill(enemy, source)
+	return true
+
+
 ## `by` names what killed it when the screen draws that differently: "orb" for
 ## an orb, which sets it to 0 (D106).
 func _kill(enemy: Enemy, by := "") -> void:
+	if enemy not in enemies:
+		return
 	enemies.erase(enemy)
 	_protectors.erase(enemy)
 	kills += 1
+	var source := by if by != "" else "shot"
+	kills_by[source] = int(kills_by.get(source, 0)) + 1
 	if enemy.hits == 0 and enemy.attack > 0.0 and not locked:
 		# Killed before it could land a hit: a share of the hit it never
 		# landed grows the Number, past Health too (D098); not under a Lock.
@@ -740,8 +808,8 @@ func _kill(enemy: Enemy, by := "") -> void:
 		_count_gain("kills", before)
 		if record_events:
 			events.append({"type": "grown", "enemy": enemy, "gain": health - before})
-	var paid_cash := EnemyKinds.cash(enemy, stat("cash_bonus"))
-	var paid_coins := EnemyKinds.coins(enemy, wave, stat("coins_per_kill"), tier)
+	var paid_cash := EnemyKinds.cash(enemy, stat("cash_bonus")) * rules.value("cash_multiplier")
+	var paid_coins := EnemyKinds.coins(enemy, wave, stat("coins_per_kill"), tier, rules.value("basic_coins")) * rules.value("coin_multiplier")
 	cash += paid_cash
 	cash_earned += paid_cash
 	coins += paid_coins
@@ -779,13 +847,13 @@ func _split(scatter: Enemy) -> void:
 ## Workshop has opened it (its first level is worth 1, so a closed row must pay
 ## nothing).
 func _pay_wave_end() -> void:
-	var paid_cash := stat("cash_per_wave") * stat("cash_bonus")
+	var paid_cash := stat("cash_per_wave") * stat("cash_bonus") * rules.value("cash_multiplier")
 	# Interest on the Cash held, after the wave's Cash, up to its cap.
-	paid_cash += minf(INTEREST_CAP, (cash + paid_cash) * stat("interest"))
+	paid_cash += minf(rules.value("interest_cap"), (cash + paid_cash) * stat("interest"))
 	cash += paid_cash
 	cash_earned += paid_cash
 	if is_open("coins_per_wave"):
-		coins += stat("coins_per_wave") * float(TowerData.tier(tier).coins)
+		coins += stat("coins_per_wave") * float(TowerData.tier(tier).coins) * rules.value("coin_multiplier")
 	# Recovery Packages: by its chance a wave's end heals a share of Health,
 	# which may go past Health up to Max Recovery times it. A standing Lock
 	# stops it (D133), after the roll, so the stream is drawn as ever.

@@ -12,6 +12,7 @@ const HomeScreen = preload("res://src/ui/home_screen.gd")
 const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
+const Progression = preload("res://src/tower/progression.gd")
 
 const MOMENTS := [4.0, 30.0, 120.0, 240.0, 600.0]
 const FOLDER := "user://capture"
@@ -32,7 +33,20 @@ func _capture() -> void:
 
 	var home := HomeScreen.new()
 	home.workshop = progress
+	home.progression = Progression.new(progress)
 	await _shoot(home, "home")
+	var earned := Progression.new(progress)
+	earned.observe(1, 50, 49)
+	home = HomeScreen.new()
+	home.workshop = progress
+	home.progression = earned
+	home.ready.connect(func(): home._milestones_panel.visible = true)
+	await _shoot(home, "home_wave_milestones")
+	earned.claim_daily()
+	home = HomeScreen.new()
+	home.workshop = progress
+	home.progression = earned
+	await _shoot(home, "home_daily_claimed")
 	var shop := WorkshopScreen.new()
 	shop.workshop = progress
 	await _shoot(shop, "workshop_attack")
