@@ -4,7 +4,7 @@ extends Control
 ## tower's and the wave's readouts under a hairline, then the run's upgrades. It runs the sim at the chosen game speed and draws
 ## it; every rule lives in BattleSim. A run starts from the Workshop, and the
 ## Coins it earns go into the Workshop as they come. A run saved mid-way is
-## resumed by replaying it from its seed and inputs, a slice a frame (D078).
+## resumed from exact state (D126); older saves replay their inputs (D078).
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
@@ -15,12 +15,15 @@ const Workshop = preload("res://src/tower/workshop.gd")
 const RunReport = preload("res://src/tower/run_report.gd")
 const ActivityLog = preload("res://src/tower/activity_log.gd")
 const WaveInfo = preload("res://src/ui/wave_info.gd")
+const Progression = preload("res://src/tower/progression.gd")
+const BattleSnapshot = preload("res://src/tower/battle_snapshot.gd")
 
 ## The run is over and its record is in the Workshop, so the game can save.
 signal run_finished
 signal home_pressed
 ## The Number reached a new digit (D099), for the music's chime.
 signal digit_reached(power: int)
+signal wave_reward(reward: Dictionary)
 ## A saved run couldn't be brought back: its record is damaged ("damaged"),
 ## or the game changed so its replay no longer ends where it was left
 ## ("changed").
@@ -55,6 +58,7 @@ var sim: BattleSim
 var milestones: Array[Dictionary] = []
 ## Set before the screen is added; a fresh one if not.
 var workshop: Workshop
+var progression: Progression
 ## The saved run to resume (Save.load_run), set before the screen is added;
 ## empty for a new run.
 var resume: Dictionary = {}
@@ -113,7 +117,9 @@ func _ready() -> void:
 
 
 func start_run(seed_value: int) -> void:
-	_adopt(BattleSim.new(seed_value, workshop.levels, workshop.open_groups))
+	var effects := progression.run_effects() if progression != null else []
+	var rules := progression.run_effects("rule") if progression != null else []
+	_adopt(BattleSim.new(seed_value, workshop.levels, workshop.open_groups, 1, effects, rules))
 
 
 func _begin_resume() -> void:
@@ -127,6 +133,13 @@ func _begin_resume() -> void:
 	if not RunReport.is_replayable(resume):
 		_fail_resume("damaged")
 		return
+	if resume.has("snapshot"):
+		var restored := BattleSnapshot.restore(resume.snapshot)
+		if restored == null or not restored.alive or not RunReport.matches(resume, restored):
+			_fail_resume("changed")
+			return
+		_accept_resume(restored)
+		return
 	_replay = RunReport.Replay.new(resume)
 
 
@@ -136,12 +149,16 @@ func _finish_resume() -> void:
 	if not again.alive or not RunReport.matches(resume, again):
 		_fail_resume("changed")
 		return
+	_accept_resume(again)
+
+
+func _accept_resume(again: BattleSim) -> void:
 	var saved := resume
 	resume = {}
 	_resuming.queue_free()
 	_adopt(again)
 	# The Coins it had already put in the Workshop, which the save kept with it.
-	_banked = float(saved.get("banked", again.coins))
+	_banked = again.coins if saved.has("snapshot") else float(saved.get("banked", again.coins))
 	var play: Dictionary = saved.get("play", {})
 	_real_seconds = float(play.get("real_seconds", 0.0))
 	_seconds_at_speed = play.get("seconds_at_speed", {}).duplicate()
@@ -203,6 +220,9 @@ func _process(delta: float) -> void:
 	sim.events.clear()
 	_arena.queue_redraw()
 	_bank_coins()
+	if progression != null:
+		for reward in progression.observe(sim.tier, sim.wave, sim.wave if sim.killed_by == "data_limit" else sim.wave - 1):
+			wave_reward.emit(reward)
 	_refresh()
 	_first_sight(delta)
 	if not sim.alive and not _over.visible:
@@ -218,10 +238,14 @@ func run_state() -> Dictionary:
 		return resume
 	if sim == null or not sim.alive:
 		return {}
+	# The same atomic save keeps every earned Coin with this snapshot. Resume
+	# uses its lossless Coin total rather than the rounded report readout.
+	_bank_coins()
 	var state := report()
 	state["banked"] = _banked
 	# The version that recorded it, which a lost run's log entry keeps.
 	state["game"] = ActivityLog.game_version()
+	state["snapshot"] = BattleSnapshot.capture(sim)
 	return state
 
 
@@ -265,7 +289,7 @@ func _refresh() -> void:
 func _show_run_over() -> void:
 	var cause := {"basic": "a basic enemy", "fast": "a fast enemy", "tank": "a tank", "ranged": "a ranged enemy", "boss": "a boss", "divider": "a Divider",
 		"protector": "a Protector", "vampire": "a Vampire", "ray": "a Ray", "scatter": "a Scatter"}
-	var ended := sim.killed_by == "ended"
+	var ended := sim.killed_by in ["ended", "data_limit"]
 	_over_title.text = "Run ended" if ended else "Tower destroyed"
 	var how := "Ended on wave %d" % sim.wave if ended else "Destroyed on wave %d by %s" % [sim.wave, cause.get(sim.killed_by, sim.killed_by)]
 	var lost := 0.0
@@ -278,6 +302,8 @@ func _show_run_over() -> void:
 		how, Palette.clock(sim.time), sim.kills, Palette.full(ceilf(sim.peak_number)), dividers, Palette.money(sim.cash_earned),
 		Palette.money(sim.coins), workshop.best_wave, Palette.full(ceilf(workshop.best_number))]
 	_over_text.text += "\nKills grew the Number by %s" % Palette.amount(float(sim.gained_from.get("kills", 0.0)))
+	if sim.killed_by == "data_limit":
+		_over_text.text += "\nAll supported waves cleared. More enemy data is needed to continue further."
 	for milestone in milestones:
 		_over_text.text += "\nMilestone: %s reached · +● %s" % [Palette.full(float(milestone.number), INF), Palette.money(float(milestone.coins))]
 	# A first run's end leads Home, where the Workshop's welcome waits (D125).

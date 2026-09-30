@@ -9,10 +9,28 @@ const ENEMIES_PATH := "res://data/tower/enemies.json"
 ## The Tower's elites (D115): Vampire, Ray and Scatter.
 const ELITES := ["vampire", "ray", "scatter"]
 const WORKSHOP_PATH := "res://data/workshop/upgrades.json"
+const PROGRESSION_PATH := "res://data/tower/progression.json"
 
 static var _enemies: Dictionary
 static var _upgrades: Dictionary
 static var _groups: Array
+static var _signature := ""
+static var _progression: Dictionary
+
+
+static func progression() -> Dictionary:
+	if _progression.is_empty(): _progression = _load(PROGRESSION_PATH)
+	return _progression
+
+
+static func data_signature() -> String:
+	if _signature.is_empty():
+		_signature = (FileAccess.get_file_as_string(ENEMIES_PATH) + FileAccess.get_file_as_string(WORKSHOP_PATH)).sha256_text()
+	return _signature
+
+
+static func last_wave() -> int:
+	return enemies().basic_health.size()
 
 
 static func enemies() -> Dictionary:

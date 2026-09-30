@@ -1843,6 +1843,15 @@ Rules:
   - The first five runs play exactly as before (the gift arrives after the first); what changes is that the Workshop starts with 50 Coins, which buys Damage and Attack Speed levels runs 2–5 couldn't afford. **This closes the gap D124 left open**: careers now pass the boss where The Tower's players do.
   - Spreading the Coins evenly across every open row still stalls, with or without it, as it did before; it's the sim's weakest buyer, not a player's.
 
+## D126 — Build the scaling foundations before the next catalogues
+
+- **Status:** Accepted (2026-09-30), on the owner's “can you build that all in for me?” after the whole-game scaling audit. This authorises the identified dependencies of the existing roadmap; the public version stays 0.9.
+- **Decision:** Build per-tier reached/cleared records and one-time known wave rewards beside Number milestones; Gems and a 20-Gem free UTC-day claim after the first run; complete frozen configurations and lossless battle snapshots; rule effects, shared damage/kill source counts and cooldown state; a persisted real-time clock and paid research jobs; save migration/protection and large-Coin precision; explicit data/computational horizons and repeatable measurements.
+- **Compatibility:** Version-1 rebuild saves get a backup, preserve permanent progress and receive newly introduced wave rewards once. Version 2 writes account and battle atomically. Newer or damaged current progress is protected from writes. Legacy battles still replay; new ones restore exact state. The pre-rebuild file is untouched.
+- **Boundaries:** D107's next-tier gate remains clear wave 100. Generated early rewards are those checked in TOWER_RULES.md; late unknown amounts are omitted. Daily 20 comes from the developer's v29 notes. Cards, the Labs catalogue/UI, Ultimate Weapons, tier selection and D089's offline battle remain their roadmap work.
+- **Engineering:** Snapshot/command/Coin payloads use bounded object-free Variant bytes with checksums because Godot's JSON decimal parser can shift a double by one bit. Unsupported effects are rejected before payment rather than clamped. Clearing the final generated wave ends safely; the importer can explicitly extend the horizon.
+- **Contracts and limits:** [SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.md). Final verification and career comparison: [HANDOVER.md](HANDOVER.md).
+
 ## D127 — A crowd keeps one readable label a spot
 
 - **Status:** Accepted (2026-09-30) on owner direction: "go straight to the crowd fix", after a review of the game's look found crowds unreadable (a Tier 2 crowd's −1.42M written over itself). Numbered D127 because the foundation pass running in parallel may take D126.

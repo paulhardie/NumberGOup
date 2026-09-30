@@ -134,8 +134,10 @@ static func cash(enemy, cash_bonus: float) -> float:
 ## The Coins `enemy` pays when killed on `wave`: its kind's Coins times Coins /
 ## Kill and the tier's bonus, halved once it has lived three waves (The
 ## Tower's coin decay, D115).
-static func coins(enemy, wave: int, coins_per_kill: float, tier: int) -> float:
-	var paid := float(Guesses.COINS_BY_TYPE[pays_as(enemy)]) * coins_per_kill * float(TowerData.tier(tier).coins)
+static func coins(enemy, wave: int, coins_per_kill: float, tier: int, basic_coins := 0.0) -> float:
+	var kind := pays_as(enemy)
+	var base := basic_coins if kind == "basic" else float(Guesses.COINS_BY_TYPE[kind])
+	var paid := base * coins_per_kill * float(TowerData.tier(tier).coins)
 	var decay: Dictionary = TowerData.enemies().coin_decay
 	if wave - enemy.wave >= int(decay.after_waves):
 		paid *= float(decay.share)

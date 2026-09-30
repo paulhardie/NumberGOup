@@ -1,77 +1,72 @@
 # Handover
 
-**Last updated:** 30 September 2026, by Claude, handing on to the next agent. Since the last handover (D125) the owner merged the look review (D127–D129), the Workshop-only wall and its correction (D130, D132) and the waves-versus-digits split (D131). This session designed our own base enemy roster and built its first enemy, the Lock (D133); the Divider's slow refill was measured and left off (D134).
+**Last updated:** 30 September 2026, by Codex. This branch includes `main` through `3196f85` (D127–D132's drawing changes and Workshop/Divider measurements, and D133–D134's Lock, merged in by Claude). D126 implements the scaling foundations authorised by the owner after the whole-game audit. Final independent review approved the diff with no actionable findings.
 
-**Branch:** `claude/lock-enemy`, from `main` after #120. It carries D133 and D134. Not yet merged. The old game is commit `f4f1e95`.
+**Branch:** `codex/scaling-foundations`, in the attached worktree. Not merged. The owner's play folder remains `~/NumberGOup-main`, kept on `origin/main` by `com.paulhardie.ngu-sync`; this work is not in their game until they merge its pull request. The pre-rebuild game is commit `f4f1e95`.
 
-**The owner's play folder is `~/NumberGOup-main`.** `com.paulhardie.ngu-sync` keeps it on `origin/main` every minute, imports new assets, and notifies the owner when `claude/` work is waiting to be merged (AGENTS.md).
+## Start here
 
-**Rule:** this page is the current state and the next steps, nothing else. Whoever hands off **replaces** it; history lives in [`DECISIONS.md`](DECISIONS.md) and git.
-
-## For the next agent: start here
-
-1. Read [`AGENTS.md`](../AGENTS.md), then [`REBUILD_SPEC.md`](REBUILD_SPEC.md)'s Roadmap and Benchmarks. Fetch and check the branch against `origin` before new work.
-2. **The Tower is the spec** (D073): copy it, and put anything unknown in `src/tower/guesses.gd` rather than debating it. **Our own enemies are the exception:** they follow [`THE_NUMBER.md`](THE_NUMBER.md) section 8's rules. The owner plays each version before the next starts.
-3. **The plan is the roadmap** (D079). The game is 0.9. 1.0 is The Tower's first hours with the Number as the tower (D080). Then **1.0.x, The Tower's rules finished** (D115: the build list in [`TOWER_RULES.md`](TOWER_RULES.md#7-before-11-the-build-list)). **Cards (1.1) wait** until the wall is understood (the owner, after D130).
-4. **A foundation pass may be running in parallel** (another model, on the owner's prompt): wave milestones as the one source of unlocks (D131), a run record with its tier and effects, and a save migration. D126 is left for it. Stay off its files and review its pull request when it's up, the save migration above all (law 5).
-5. **When a report arrives, read it first** with `tools/read_report.gd -- --file <report>`. Runs replay only on the commit that recorded them.
+Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md). Fetch and inspect the checkout before editing. The accepted choices live in [DECISIONS.md](DECISIONS.md), not in old handovers. The game stays **0.9** until the owner signs off 1.0 (D079). Cards are 1.1, the Labs catalogue 1.2, Ultimate Weapons 1.3 and selectable tiers 1.4.
 
 ## Where the game is
 
-**Version 0.9, with all of 1.0's Number built.**
+Tier 1 and the whole Workshop work, with the Number as the tower, Dividers, the Tower-derived spawning/enemy rules, progressive disclosure, the 50-Coin first-run welcome, Number milestones and the existing presentation/music. The battle remains governed by `BattleSim`; generated enemy and Workshop data remain their number authorities. D126 leaves their default balance intact.
 
-- **The battle.** Tier 1, with every one of The Tower's Workshop groups working (D076). The Number sits in the centre as the tower, white, with no ceiling (D083), fitted inside a visible range ring (D123, D128). The run's upgrade panel folds away to give the arena more room (D129).
-- **The Tower's pace and spawning** (D113–D124): its spawn rate chart, 208 rolls a wave, its mix by wave, its walk speeds, 9 s cooldown and ×1 clock, its caps, the Protector from Tier 2 and elites from wave 500. Wave Info opens from the wave readout.
-- **Enemies as numbers** (D085, D102, D127, D128): each type in its own typeface and colour, showing what it does, bare (20, not −20). A crowd keeps one full label a spot, with counts and signs for the rest.
-- **Our enemies.** The Divider (÷1.25, then ÷1.5 from wave 18) takes a basic's place from wave 7 (D094). **The Lock (=, D133)** comes on top of The Tower's waves from wave 35 (every third wave, every other from 60), stops on the range's edge, and while it stands the Number can't go up: no Regen, Lifesteal, Recovery Package or kill growth; bought Health still lands. It has no Attack. The first one past a player's best wave brings a card saying what it does.
-- **How the Number grows** (D111): regen only restores it up to the run's best; a clean kill adds 5% of its Attack; bought Health and Lifesteal lift it too.
-- **Home and the Workshop** (D096, D125): The Tower's welcome (50 Coins after the first run, a popup into the Workshop), screens shown only once The Tower would, and a popup saying what each newly opened group's rows do. Milestones pay Coins for each new digit of the best Number (D107).
-- **Saving, resuming and the report.** The save is `user://number_go_up_tower.json`, version 1. A run closed mid-way resumes by replay (D078); one that no longer replays after an update ends at its saved wave with its Coins kept. Every run and Workshop buy is logged, and Home exports a report (D077).
+**Our first base-roster enemy is built (D133):** the Lock (=) comes on top of The Tower's waves from wave 35 (every third wave, every other from 60), stops on the range's edge, and while it stands the Number can't go up (no Regen, Lifesteal, Recovery Package or kill growth; bought Health lands). Its state (`locked`, `lock`, the Divider's held bite) is in the battle snapshot. [THE_NUMBER.md](THE_NUMBER.md) section 8 has the roster's rules and the proposed enemies after it. The Divider's slow refill (D134) is a measuring option, off: it moved no wall.
 
-**The wall, measured (D130, D132, D133):** on the Workshop alone, the turtle (Defense Absolute, Thorns) is the best Tier 1 build at every budget from 10K Coins. It breaks as The Tower's does, when basic enemies' Attack outgrows Defense Absolute; Dividers don't decide where. **Coins set the pace:** about 50 game hours to wave 100 on the Workshop alone. D133 has the table with and without the Lock.
+**The new foundations are built:**
+
+- Permanent progression owns per-tier reached/cleared records, known early wave milestones, Gems, daily claims and research. Wave and Number rewards each pay once. Daily claims give 20 Gems after the first completed run, once per UTC day. The clear-wave-100 tier gate remains D107's choice.
+- **Save version 2** migrates version 1 with a backup and retroactive one-time wave rewards. Future schemas and current saves that would lose declared progress are protected from writing. New active runs restore a complete lossless snapshot rather than replaying every tick; legacy records retain replay. Incompatible battle rules/data use the existing end-run recovery and retain banked Coins.
+- Frozen run configurations include tier, Workshop, starting stat/rule effects and a rules version. Shared stat/rule pipelines, recorded mid-run effects, damage/kill attribution and stable cooldown ids give the later systems their entry points.
+- Paid research jobs advance on the real-time clock while the game is closed. Completed effects belong to the permanent account; an active run keeps its frozen build. Clock rollback earns no extra time. This is the jobs/clock primitive; no Labs catalogue or screen has been shipped.
+- Compensated, losslessly saved Coins retain small awards beside large balances. Invalid or impractical effect values are rejected before purchase. Battles end cleanly at the generated wave-6,500 horizon rather than silently holding enemy values forever. The importer accepts an explicit extended horizon after its values are checked.
+
+Contracts, authorities and limits: [SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.md). Research prices, durations, Cards, weapons, Perks, Modules, tournaments, servers and offline battle are not introduced by this pass. Later reward amounts without checked evidence remain absent.
+
+## Checked, and not checked
+
+**High-risk change:** saves, economy, clocks and exports.
+
+- After integrating current `main`, fresh scratch-home import, `bash run_tests.sh` and headless main-scene boot passed: **4,192 tower checks + 117 foundation checks = 4,309**; both suites exited 0 with no script/error lines. Exit-time ObjectDB warnings remain (24 tower, 2 foundation, 13 boot); no leak fix is claimed.
+- Fixtures cover old/current/malformed/future saves, backups, protected current progress, migration rewards once, Gems/spending bounds, Coin precision and decimal-parser drift, clock rollback, long elapsed research, duplicate/combined jobs, every reachable completion-order build, stable effect order and malformed records.
+- Nine seeded snapshot continuations across tiers 1–3 restore and remain byte-identical after 600 further ticks. Frozen builds and starting/mid-run effects replay, including complete Workshop/input comparisons. A demonstrably decimal-shifting effect round-trips through report JSON, replay and exact direct screen resume. Invalid rank/tuning/timer state and corrupt snapshots are rejected.
+- Ten fresh `--buy even` seeded runs print byte-identically to the pre-change output (median wave 3, range 1–6). The 40-run `--buy core` career and `--legacy-progression` comparison both first pass wave 10 on run 12, reach wave 21 on run 20, and finish with best wave 28 after about 6 game hours. Wave-10's extra 10 Coins changes some spending and Number results, as expected; this is not a claim that every career result is identical.
+- `tools/check_scaling.gd -- --hours 1`: all groups at level 25, seed 7, reached wave 103 at 108,001 ticks. Snapshot 105,215 bytes; restore 2.76 ms versus replay 13.64 s. Replay matched and the next 600 ticks were exact. Timing is one local measurement, not a device benchmark. Full Workshop cost about 2.626e20 Coins; generated horizon HP about 7.020e24, Attack about 4.245e10.
+- `capture_battle.gd` exited 0; Home, wave Milestones and daily-claimed captures were inspected at 540 × 960. The bottom bar, Gem balance, rewards and claimed state are visible. Automated screen checks exercise fresh/progressed state and save/resume.
+- A scratch exported record with a mid-run rule effect prints correctly in `read_report.gd --run 1` and matches replay in its table. The progression generator reproduced its output byte-identically. Enemy importer syntax and rejection of a too-short horizon were checked.
+- Independent adversarial review approved the final diff after resolving persistence, malformed-save, effect-boundary, completion-order and report-reader findings. The reviewer independently ran scratch import, both final suites (4,309 checks), headless boot and diff checks, all exiting 0 without error lines. CI status belongs to the PR checks.
+- **Not checked:** the owner's real save (deliberately untouched), owner play or real-window close/reopen, phone/web behaviour, a full week of simulation, regeneration past wave 6,500 against the SDK, or unpublished reward rows. No authoritative clock server exists.
 
 ## Open decisions for the owner
 
-1. **The Lock (D133): keep it as built, or tune it?** It takes the turtle's wall down by a few waves and barely touches other builds. **Recommend** playing it first; `sim_runs.gd --lock-health N` and `--lock-every A:B` measure changes.
-2. **The Divider's slow refill (D134): leave it off?** It moved no wall at 10 to 120 seconds, so it's off. **Recommend** leaving it off; if Dividers must matter to the outcome, a Countdown (THE_NUMBER.md section 8) is the stronger lever.
-3. **Should the Divider come on top too?** New enemies come on top (the owner's choice); the Divider still takes a basic's place (D094). **Recommend** leaving it, as moving it would shift the early benchmarks for no measured gain.
-4. **The next enemy** from section 8's roster. **Recommend** the Countdown (burst damage, around wave 15), since it tests a different build question and lands before the wave-20 Cards.
-5. **More unlocks than The Tower, and a UI of our own** (D131): both to be discussed before anything is built.
-6. **Sign off 1.0, or name what's missing,** after playing.
-7. **AGENTS.md's law 3** still names a modifier pipeline in `GameState`, which is gone. **Recommend** rewording it for `StatStack` (D119). Only the owner changes that file's rules.
-8. **The Tower's wave milestones** (TOWER_RULES.md build item 6) are part of the foundation pass (item 4 above).
+1. **Sign off 1.0 after playing the current build, or name what is missing.** Recommend judging the Number's growth, the wave-10 wall, the welcome and the new rewards/resume before starting Cards. No balance curve is silently changed here.
+2. **Keep the 1×/2×/5× switch as a player feature?** Recommend keeping it: the owner's reports show substantial use of ×5. The spec still calls it a testing tool.
+3. **Make the Mac sync job wait while a battle is saved?** Recommend it as a small follow-up: snapshots avoid replay delay, but a rules/data change can still end an active run on update. The sync job is unchanged.
+4. **Accept the lighter rebuild process** in the spec? Recommend yes; it remains open.
+5. **Update AGENTS.md's modifier-law wording?** Recommend naming `StatStack` and `RunRules`; the law still names the removed `GameState`. Its working rules have not been changed by this pass.
+6. **Decide how to publish Tower-derived data before a public release.** Its current source/licence context remains in the reference/importer documents.
+7. **Choose the remaining design-canvas proposals and elite appearance.** Recommend reviewing the existing Protector/elite captures before changing their colours, and trying the heavier Number from the design brief if the current digit changes still feel too small. Elites stay at Tier 1 wave 500 unless the owner changes that choice.
+8. **Idle battle policy and servers remain D089's later choice.** This pass supplies real-time research, not unattended battle earnings.
+9. **Design the digit rewards and enemy roster before choosing their content.** D131 accepts digit milestones for typefaces/Number identity with small permanent bonuses, while wave milestones open systems; those bonus amounts and presentation are not designed. D132 finds no need to tune Dividers for the Workshop wall; D133 built the roster's first enemy, the Lock, and D134 left the Divider's slow refill off. Recommend the owner plays the Lock past wave 35 before the next roster enemy (the Countdown is proposed).
 
 ## Next steps, in order
 
-1. **Owner:** merge D133 and play past wave 35 (free Coins or a strong Workshop helps). Say whether the Lock reads and feels fair. Done when the owner says keep, tune or drop.
-2. **Agent, on the owner's word:** the next roster enemy (decision 4), built as the Lock was: a kind in `enemy_kinds.gd`, numbers in `guesses.gd`, its slot in `battle_spawns.gd`, its rule in `battle_sim.gd`, its look in `arena_view.gd`, a first-sight line in `battle_screen.gd`, a `sim_runs.gd` switch, and the D130 sweep with and without it. Done when it's measured and the owner has played it.
-3. **Agent:** review the foundation pass's pull request when it appears. Done when reviewed.
-4. **Owner:** record one whole early Tower wave at ×1 for the enemy count (TOWER_RULES.md reading 4). Done when it's counted.
-
-## How to measure
-
-- **D133 and D134 (30 September):** `bash run_tests.sh` passes (4315 checks, with new ones for the Lock's hold, its beat on top of the wave with every Tower spawn unchanged, the cap, Wave Info, the first-sight card, and the refill). The headless boot is clean. With `--lock off --divider-refill 0`, runs print identically to `main`. The D130 sweep (four plans at 10K–10M Coins, 4 seeds, 180-minute cap) on `main` and with the Lock, and 40-run core careers: D133's table. The refill at 10, 30, 60 and 120 seconds on the 10K turtle: D134. `capture_battle.gd`'s new `battle_lock` checked by eye. The review was the author's own. Not played.
-- **The tools:** `bash run_tests.sh` (the baseline); `sim_runs.gd` for balance (`--workshop-coins N --workshop-plan P` for walls); `capture_battle.gd` for screenshots; `record_music.gd` for the music; `read_report.gd` for the owner's runs. AGENTS.md's Commands has their options.
-- **On Linux:** download Godot 4.7.2 and check its SHA-512 as `.github/workflows/verify.yml` does, then set `GODOT`. Wrap window tools in `xvfb-run -a -s "-screen 0 1024x1100x24"`. Run `--import` once after new assets.
-- **Not yet run anywhere:** a phone; the web build's performance.
+1. **Owner:** merge the foundation PR, then play the preserved progress, wave/daily rewards and close/reopen a battle. Small play check; removes the gap between local verification and the owner's experience. Do not reset real progress just to test migration. Done when the owner has seen it and signed off 1.0 or named the missing pieces.
+2. **Owner/agent:** settle D131's digit rewards and the enemy roster discussion, and finish the remaining 1.0.x reference readings before Cards 1.1. The open readings are the early HP discrepancy, actual enemies per spawn/wave and the mix beyond wave 100 in [TOWER_RULES.md](TOWER_RULES.md). On the owner's word, implement Cards using the new primitives; do not invent prices/effects or reopen accepted combat choices. D130/D132's Workshop wall evidence makes Coins the pace lever, not Divider tuning.
+3. **Owner/agent:** test a phone/web build before calling the presentation or long-run performance ready there; this remains unmeasured.
 
 ## Known issues and risks
 
-- **A run saved mid-way past wave 35 before D133 won't resume identically,** so it ends at its saved wave with its Coins kept (D078). Finish or end a run before merging.
-- **The first-sight card shows only past a player's best wave,** so a player already past wave 35 never sees the Lock's. That keeps the save unchanged; a "seen" list would need a save key.
-- **The music test sometimes leaves audio playbacks at exit** (13 or 24 "leaked" warnings, varying run to run; none on some runs). A warning, not a failure, and not from the game's code under test.
-- **`capture_battle.gd`'s seeded run dies on wave 1,** so its timed screenshots (4 s to 600 s) show little.
-- **The README is stale** (the foundation pass was to refresh it).
-- **TOWER_RULES.md says The Tower's wave-10 milestone pays 10 Coins;** the SDK says 25. Unchecked.
-- **Settings → Testing isn't meant to ship** (D097): free Coins and Reset progress act on the real save.
-- **Resuming replays the whole run,** about 4.6 s per hour of game time. Idle play will need a battle-state snapshot.
-- **Seven save-file checks fail locally on the owner's Mac** (`DirAccess.get_files_at("user://")` lists the project folder there); CI on Linux passes.
-- **The light's shader and the music are unmeasured on a phone.** Past wave 6,500 the enemy data holds its last value.
+- **Settings → Testing can grant Coins and wipe all progress.** It remains a development tool and must be hidden/removed before public release. Reset logs the discarded permanent account, including Gems/jobs, and keeps settings.
+- **A pre-D126 active run may end through the existing recovery path after this update.** Permanent progress and banked Coins remain. Later incompatible rules/data still end active runs; compatible snapshot saves resume directly.
+- The enemy mix is held at wave 100's beyond it; early HP screens are 2–9% below the SDK while waves 50/100 match. The SDK's successful-roll spawn count and the owner's evidence differ. These are reference/balance uncertainties, not fixed by adding foundations.
+- The clock is local UTC; rollback is handled, but a forward clock change is not server-verified. No accumulated daily claims are granted for missed days.
+- Numeric/stat/computational and snapshot limits are explicit in the foundation contract. Coins are compensated doubles, not arbitrary precision. Larger generated horizons need data regeneration and measurement.
+- Generated enemy content currently ends at wave 6,500 and tier 3. Content beyond that is not claimed as implemented.
+- Activity reports from a managed Git worktree identify the commit as `unknown` because the existing reader expects a `.git` directory. The owner's play checkout has that directory; extending worktree provenance is a separate small follow-up.
+- The Wall with a six-digit Number sits close to the range ring. D127/D128 now make overlapping crowds readable and D129 folds the upgrade panel; their rules and tests are preserved. Phone shader/music performance and elite motion have not been manually played in this pass.
 
 ## Handing on
 
-1. **Replace this page.** Keep its shape: who hands to whom and when; the branch and what's on it; where the game is; the owner's open decisions with a recommendation each; next steps with a "done when"; how to measure; known issues; this section.
-2. **Record any new choice the owner accepts** as the next `D0NN` in [`DECISIONS.md`](DECISIONS.md) (the last is D134; D126 is left for the foundation pass), and update the spec's Progress.
-3. **Say plainly what ran and what didn't.**
-4. **Commit on a branch, never `main`, push it, and open a pull request for it** (AGENTS.md's hand-off). Never merge one; that's the owner's.
-5. **Leave no scratch files** in the repository.
+Replace this page with the next current state. Decisions stay with decisions, intent with the spec and contracts with their owning documents. Keep the real save protected, use `run_godot.sh`, and report actual evidence. Commit on a feature branch, push it and keep an open PR to `main`; merging belongs to the owner. The latest accepted decision is D134; the foundation pass is D126.

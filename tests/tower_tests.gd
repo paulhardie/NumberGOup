@@ -639,7 +639,7 @@ func test_no_save_starts_fresh() -> void:
 
 
 func test_an_unreadable_save_is_kept_aside_never_written_over() -> void:
-	for text in ["{not json", JSON.stringify({"version": 2, "workshop": {"coins": 5}}), JSON.stringify([1, 2])]:
+	for text in ["{not json", JSON.stringify({"version": 0, "workshop": {"coins": 5}}), JSON.stringify([1, 2])]:
 		_clear_test_saves()
 		var file := FileAccess.open(TEST_SAVE, FileAccess.WRITE)
 		file.store_string(text)
@@ -1375,7 +1375,7 @@ func test_screens_report_what_the_log_needs() -> void:
 	root.add_child(screen)
 	screen._process(0.5)
 	var run: Dictionary = screen.report()
-	check(run.kind == "run" and run.seed == screen.sim.run_seed and is_equal_approx(float(run.play.real_seconds), 0.5), "a battle reports its run and play time")
+	check(run.kind == "run" and int(run.seed) == screen.sim.run_seed and is_equal_approx(float(run.play.real_seconds), 0.5), "a battle reports its run and play time")
 	check(bool(run.result.closed_mid_run), "a run still going is marked as closed mid-run")
 	screen.free()
 	var home = HomeScreen.new()
@@ -1500,6 +1500,9 @@ func test_a_saved_run_resumes_where_it_was_left() -> void:
 	check(first.sim.alive, "the first screen's run is still going")
 	var coins_banked := workshop.coins
 	var saved := _through_json(first.run_state())
+	# Legacy records still resume by replay. Full snapshots have their own
+	# continuation and direct-resume coverage in foundation_tests.gd.
+	saved.erase("snapshot")
 	check(saved.has("banked") and is_equal_approx(float(saved.banked), first._banked), "the run keeps the Coins it has banked")
 	check(first.sim.inputs.size() > 1, "and some buys to replay: %d" % first.sim.inputs.size())
 	var second = BattleScreen.new()
@@ -2356,6 +2359,7 @@ func test_the_number_grows_by_fighting_not_waiting() -> void:
 	var record := _through_json(RunReport.build(played))
 	check(not record.start.has("switches"), "a run's record keeps no switches")
 	# A run recorded while the switches existed still loads and replays.
+	record.erase("commands")
 	record.start["switches"] = {"multipliers": true, "peak_regen": true, "kill_growth": true}
 	var again := RunReport.Replay.new(record)
 	while not again.advance(100000):
@@ -2997,7 +3001,7 @@ func _place(sim: BattleSim, kind: String, distance: float) -> BattleSim.Enemy:
 
 func _test_save_copies() -> Array[String]:
 	var found: Array[String] = []
-	for name in DirAccess.get_files_at("user://"):
+	for name in DirAccess.get_files_at(ProjectSettings.globalize_path("user://")):
 		if name.begins_with("test_tower_save"):
 			found.append(name)
 	return found
