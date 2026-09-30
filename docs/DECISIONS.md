@@ -2004,3 +2004,28 @@ Rules:
 - **Status:** Accepted (2026-10-01) on owner direction, after playing a fresh save on D135's 104 rolls: "wave 1 feels fine now, coins feel slow but made up for by the 50 coins on first death. Can we make it 57 coins instead."
 - **Decision:** the first run's end gives 57 Coins (`Workshop.FIRST_RUN_GIFT`), where The Tower gives 50. Everything else about D125's welcome stands: once, logged apart as a gift, and never for a save already past its first run, so existing saves are unaffected.
 
+## D138 — Inter everywhere, and a premium-minimal Home
+
+- **Status:** Accepted (2026-10-01) on owner direction. After a review of Home found it reading "very html5": "yes Inter everywhere, and go premium minimal". Before that: "I want one that is a little more subtle, and one that doesn't have a score through the 0s. Find the most basic neutral font you can find for our main font."
+- **Type:**
+  - **Inter** (variable, SIL OFL, `assets/fonts/Inter.ttf`) replaces Geist and Geist Mono for words and numbers alike. Its 0 is plain; the slashed 0 was Geist Mono's.
+  - Every cut asks for tabular digits (`tnum`), so a ticking number stays put, which was the only job the mono font had.
+  - The Number and Home's emblem use Inter's display optical size at weight 200.
+  - Inter also has ◆ and ✓, which Geist Mono and Geist lacked. The Gems diamond would have been an empty box wherever the system had no fallback font (the web, phones).
+  - The enemies' Anybody and the Divider's Fraunces are unchanged.
+  - Inter's steady digits run wider than Geist's, so the battle's Number may shrink to 24 px, not 28, to keep a seven-character Number inside the smallest ring (D123's rule, re-derived).
+- **The look, premium minimal:** keep the dark ground, thin type and the Number's light, and give the controls a game's weight:
+  - Cards and panels drop the web outline for a lit top edge and a soft shadow (`Palette.card_box`, `panel_box`), on every screen.
+  - Every pill, the dock and Home's big buttons sink a little when pressed and spring back (`Palette.press`).
+  - Currencies are chips (`Palette.chip`).
+  - Screens fade in (0.15 s) rather than snap.
+- **Home:**
+  - Coins and Gems chips, with today's Gems claim beside them only while it's there, a small wordmark, and Settings as •••.
+  - The best Number in its light inside a thin ring filling from the last milestone reached towards the next. Tapping it opens Milestones, so the Milestones pill is gone. Under it: the next digit's reward.
+  - A line reading "Tier 1 · best wave · runs".
+  - One filled, lit Battle button carrying the tier, its glow breathing with the Number's light.
+  - The Coin bonus card is gone (the Workshop shows that row), and so is the Difficulty card with its locked arrows, until Tier 2 exists (1.4).
+- **The dock** (Home and the Workshop): a glyph over each name, from the game's own arithmetic rather than icon art. Battle ▶, Workshop +, Cards ×, Labs ÷, Weapons ^. The current screen's glyph is lit with a dot under it; locked screens are dim with their version. When each appears is unchanged (D125).
+- **Not changed:** any rule, save or number.
+- **Still to do:** carry the chips to the Workshop's and the battle's top lines, and count Coins up on Home after a run. That needs the balance before the run passed to Home.
+

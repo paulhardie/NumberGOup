@@ -1,7 +1,8 @@
 extends RefCounted
-## The look (D049, the main-screen design of D095): a near-black ground (D087), Geist for
-## words and Geist Mono for numbers, one accent for good and one warning for
-## bad, hairlines and quiet cards.
+## The look (D049, the main-screen design of D095, premium minimal since D138):
+## a near-black ground (D087), Inter for words and numbers alike with every
+## digit the same width, one accent for good and one warning for bad, and
+## cards that sit on the ground with a soft shadow and a lit top edge.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 
@@ -53,8 +54,15 @@ const SCATTER := Color("5b7cff")
 ## does is to the Number.
 const LOCK := Color("34e3a0")
 
-const WORD_FONT := preload("res://assets/fonts/Geist.ttf")
-const NUMBER_FONT := preload("res://assets/fonts/GeistMono.ttf")
+## Inter, the most neutral face going, with a plain 0 (D138). One file serves
+## words and numbers; the two names stay so every caller reads as before.
+const WORD_FONT := preload("res://assets/fonts/Inter.ttf")
+const NUMBER_FONT := WORD_FONT
+## A card's lit top edge, and the shadow it casts on the ground (D138).
+const TOP_EDGE := Color(1, 1, 1, 0.09)
+const SHADOW := Color(0, 0, 0, 0.45)
+## A pressed button sinks to this scale and springs back (D138).
+const PRESSED_SCALE := 0.96
 ## The crowd's typeface, cut by width and weight per enemy type, and the
 ## Divider's alone (D085). Both are variable fonts under the SIL OFL.
 const CROWD_FONT := preload("res://assets/fonts/Anybody.ttf")
@@ -65,7 +73,7 @@ const SUFFIXES := ["", "K", "M", "B", "T", "q", "Q", "s", "S", "O", "N", "D"]
 
 static func make_theme() -> Theme:
 	var theme := Theme.new()
-	theme.default_font = WORD_FONT
+	theme.default_font = weight(WORD_FONT, 400)
 	theme.default_font_size = 14
 	theme.set_color("font_color", "Label", TEXT)
 	# A plain button is a quiet card, as the design's are (D095).
@@ -82,12 +90,11 @@ static func make_theme() -> Theme:
 	return theme
 
 
-## A panel's box: raised surface, a hairline border.
+## A panel's box: a raised surface lit along its top, casting a soft shadow.
 static func panel_box() -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
 	box.bg_color = SURFACE
-	box.border_color = CARD_EDGE
-	box.set_border_width_all(1)
+	_lift(box, TOP_EDGE)
 	box.set_corner_radius_all(14)
 	box.content_margin_left = 12
 	box.content_margin_right = 12
@@ -110,12 +117,12 @@ static func pill_box(fill: Color, edge: Color, pad: int) -> StyleBoxFlat:
 	return box
 
 
-## An upgrade card's box: a quiet surface with a faint edge.
-static func card_box(fill: Color = SURFACE, edge: Color = CARD_EDGE, radius: int = 14) -> StyleBoxFlat:
+## An upgrade card's box: a quiet surface lit along its top by `edge` (at
+## least TOP_EDGE), casting a soft shadow, rather than a web page's outline.
+static func card_box(fill: Color = SURFACE, edge: Color = TOP_EDGE, radius: int = 14) -> StyleBoxFlat:
 	var box := StyleBoxFlat.new()
 	box.bg_color = fill
-	box.border_color = edge
-	box.set_border_width_all(1)
+	_lift(box, edge if edge.a >= TOP_EDGE.a else TOP_EDGE)
 	box.set_corner_radius_all(radius)
 	box.corner_detail = 8
 	box.content_margin_left = 14
@@ -123,6 +130,53 @@ static func card_box(fill: Color = SURFACE, edge: Color = CARD_EDGE, radius: int
 	box.content_margin_top = 12
 	box.content_margin_bottom = 12
 	return box
+
+
+## Lifts a box off the ground: a lit top edge only, and a soft shadow below.
+static func _lift(box: StyleBoxFlat, edge: Color) -> void:
+	box.border_color = edge
+	box.border_width_top = 1
+	box.shadow_color = SHADOW
+	box.shadow_size = 10
+	box.shadow_offset = Vector2(0, 3)
+	box.anti_aliasing = true
+
+
+## A button sinks a little while held and springs back when let go, so a
+## press feels like one (D138). Scaled about its centre, whatever its size.
+static func press(button: BaseButton) -> void:
+	button.resized.connect(func(): button.pivot_offset = button.size * 0.5)
+	button.button_down.connect(func(): _spring(button, PRESSED_SCALE, 0.08))
+	button.button_up.connect(func(): _spring(button, 1.0, 0.16))
+
+
+static func _spring(button: BaseButton, to: float, seconds: float) -> void:
+	if not button.is_inside_tree():
+		return
+	if button.has_meta("spring"):
+		(button.get_meta("spring") as Tween).kill()
+	var tween := button.create_tween()
+	tween.tween_property(button, "scale", Vector2.ONE * to, seconds) \
+			.set_trans(Tween.TRANS_BACK if to == 1.0 else Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	button.set_meta("spring", tween)
+
+
+## A currency chip: a capsule on the ground holding a glyph and an amount in
+## the currency's colour, "● 180" (D138). Returns {panel, label}.
+static func chip(colour: Color, font_size: int = 15) -> Dictionary:
+	var panel := PanelContainer.new()
+	panel.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	var box := pill_box(Color(1, 1, 1, 0.05), Color(1, 1, 1, 0.08), 12)
+	box.content_margin_top = 5
+	box.content_margin_bottom = 5
+	panel.add_theme_stylebox_override("panel", box)
+	var label := Label.new()
+	label.add_theme_font_override("font", weight(NUMBER_FONT, 600))
+	label.add_theme_font_size_override("font_size", font_size)
+	label.add_theme_color_override("font_color", colour)
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	panel.add_child(label)
+	return {"panel": panel, "label": label}
 
 
 ## A pill button: a hairline edge on the ground, as the design's top corner has.
@@ -140,6 +194,7 @@ static func pill(text: String, colour: Color, font: Font = null, height: int = 3
 	for state in ["font_color", "font_hover_color", "font_pressed_color", "font_focus_color"]:
 		button.add_theme_color_override(state, colour)
 	button.add_theme_color_override("font_disabled_color", Color(colour, 0.4))
+	press(button)
 	return button
 
 
@@ -237,11 +292,13 @@ static func _money_label(font: Font, colour: Color, text: String) -> Label:
 	return label
 
 
-## A font at one weight of its variable axis.
+## A font at one weight of its variable axis, with every digit the same
+## width, so a number changing its digits stays put (D138).
 static func weight(base: Font, value: int) -> FontVariation:
 	var cut := FontVariation.new()
 	cut.base_font = base
 	cut.variation_opentype = {TextServerManager.get_primary_interface().name_to_tag("wght"): value}
+	cut.opentype_features = {TextServerManager.get_primary_interface().name_to_tag("tnum"): 1}
 	return cut
 
 

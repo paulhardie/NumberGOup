@@ -30,10 +30,11 @@ const ZOOM_EASE := 4.0
 ## owner's main-screen design has it: this size, shrinking to fit
 ## NUMBER_FIT_PX as its digits grow, never below NUMBER_MIN_PX: small enough
 ## that its widest text, seven characters, fits the smallest ring a phone
-## shows (orbs zooming out at the starting Range, D123).
+## shows (orbs zooming out at the starting Range, D123). Inter's steady
+## digits run wider than Geist's did, so it's 24, not 28 (D138).
 const NUMBER_FONT_PX := 96
 const NUMBER_FIT_PX := 230.0
-const NUMBER_MIN_PX := 28
+const NUMBER_MIN_PX := 24
 ## The Number also fits inside its range (D123): its digits reach at most this
 ## share of the ring's radius either side, so the ring always shows round it
 ## and an enemy drawn at its digits is near the tower in the battle too.
@@ -58,7 +59,7 @@ const ORB_TRAIL_PX := 28.0
 const ORB_TRAIL_ALPHA := 0.35
 ## The Wall is a pair of brackets round the Number, since brackets are worked
 ## out first and the Wall is hit first: BRACKET_SCALE times the Number's size,
-## in Geist at its thinnest, WALL_GAP_PX clear of its digits. When it falls
+## in Inter at its thinnest, WALL_GAP_PX clear of its digits. When it falls
 ## they tip outward and drop in the warning colour over WALL_FALL_SECONDS;
 ## rebuilt, they slide back in over WALL_RISE_SECONDS.
 const BRACKET_SCALE := 1.1
@@ -68,7 +69,7 @@ const WALL_RISE_SECONDS := 0.4
 
 ## How each enemy type is drawn (D085): its cut of the crowd's typeface
 ## (Anybody's width and weight; the Divider has Fraunces to itself and the
-## Lock the Number's Geist Mono), its size
+## Lock the Number's Inter), its size
 ## in points, and its colour. Two points larger since D128, in the room the
 ## dropped − left.
 const LOOKS := {
@@ -83,7 +84,7 @@ const LOOKS := {
 	"vampire": {"axes": {"wdth": 90, "wght": 900}, "size": 19, "colour": Palette.VAMPIRE, "glow": Palette.VAMPIRE},
 	"ray": {"axes": {"wdth": 50, "wght": 800}, "size": 19, "colour": Palette.RAY, "glow": Palette.RAY},
 	"scatter": {"axes": {"wdth": 120, "wght": 800}, "size": 18, "colour": Palette.SCATTER, "glow": Palette.SCATTER},
-	"lock": {"axes": {"wght": 700}, "mono": true, "size": 22, "colour": Palette.LOCK, "glow": Palette.LOCK},
+	"lock": {"axes": {"wght": 700}, "number_font": true, "size": 22, "colour": Palette.LOCK, "glow": Palette.LOCK},
 }
 ## An enemy that gives up its spot in a crowd (D127) is a dot this size in its
 ## colour, or its ÷ if it's a Divider (D128) and its = if it's a Lock (D133).
@@ -125,11 +126,12 @@ var centre := Vector2.ZERO
 ## The fonts each enemy type is drawn in, built once from LOOKS, and the
 ## Number's and the floats' (shared with ArenaEffects).
 var cuts := {}
-var _number_cut := _cut(Palette.WORD_FONT, {"wght": 200})
+## The Number in Inter's display cut (D138), thin as Geist's was.
+var _number_cut := _cut(Palette.WORD_FONT, {"wght": 200, "opsz": 32})
 var mono_cut := _cut(Palette.NUMBER_FONT, {"wght": 500})
 var hit_cut := _cut(Palette.NUMBER_FONT, {"wght": 400})
 var divide_cut := _cut(Palette.DIVIDER_FONT, LOOKS.divider.axes)
-var _bracket_cut := _cut(Palette.WORD_FONT, {"wght": 100})
+var _bracket_cut := _cut(Palette.WORD_FONT, {"wght": 100, "opsz": 32})
 ## The light behind the Number, drawn by its shader.
 var _glow := ColorRect.new()
 ## How the Number moves and its light behaves, and what fades around the battle.
@@ -158,7 +160,7 @@ func _init() -> void:
 	add_child(_glow)
 	for kind in LOOKS:
 		var look: Dictionary = LOOKS[kind]
-		var base: Font = Palette.DIVIDER_FONT if look.get("divider", false) else Palette.NUMBER_FONT if look.get("mono", false) else Palette.CROWD_FONT
+		var base: Font = Palette.DIVIDER_FONT if look.get("divider", false) else Palette.NUMBER_FONT if look.get("number_font", false) else Palette.CROWD_FONT
 		cuts[kind] = _cut(base, look.axes, look.get("slant", 0.0), look.get("spacing", 0))
 	motion.digit_reached.connect(func(power: int): digit_reached.emit(power))
 

@@ -44,7 +44,7 @@ The screens and the enemies have been designed already. **What hasn't been desig
 
 These were chosen by the owner and should be kept, not redesigned:
 
-- **The Number:** pure white, Geist at weight 200 with tabular figures, 96 px shrinking to fit as digits grow (never below 36), written out in full with commas up to 999,999, then "1.00M". It rolls to new values, and a spring nudges it away from a hit and back.
+- **The Number:** pure white, Inter at weight 200 with tabular figures (Geist until D138), 96 px shrinking to fit as digits grow (never below 24), written out in full with commas up to 999,999, then "1.00M". It rolls to new values, and a spring nudges it away from a hit and back.
 - **Its light:** a warm-white (`#FFF4E6`) halo behind it that breathes over 5.5 seconds, with a soft bloom at its heart. The owner wants **the light to carry states and, later, Ultimate Weapons**: today a ÷ flares it violet and a new digit flares it white. Design more of these (see below).
 - **The ground** `#0A0A0B`, cards `#141416`, text `#EDEDED`, muted `#8C8C8C`, accent `#9CC5AE`, Coins gold `#D4B25C`.
 - **Enemies are numbers showing what they do to the Number** ("−2.4", "÷1.5", "×1.1"), each type in its own cut and colour:
@@ -60,7 +60,7 @@ These were chosen by the owner and should be kept, not redesigned:
   | Multiplier (on test) | Fraunces, as the Divider | 18 pt | mint `#A8F0C6` |
 
   An enemy that survives a shot shows the damage dealt so far under it, small and white (9 pt). The enemy cuts can be refined if the stage needs it, but not replaced.
-- **Fonts:** Geist, Geist Mono, Anybody and Fraunces, all SIL OFL, all on Google Fonts. Add a fifth only with a strong reason.
+- **Fonts:** Inter (words and numbers since D138; Geist and Geist Mono before), Anybody and Fraunces, all SIL OFL, all on Google Fonts. Add a fifth only with a strong reason.
 - **No combat sounds** (ambient music only), and **no reduced-motion variant**: design the motion as it should be.
 - **Portrait, 390 × 844.** The arena is the upper half; the range ring is a hairline (1 px, 6% white) of about 125 pt radius, centred about 190 pt from the top.
 

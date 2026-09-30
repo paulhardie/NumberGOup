@@ -22,6 +22,8 @@ const RunReport = preload("res://src/tower/run_report.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
 
 const AUTOSAVE_SECONDS := 20.0
+## How long a new screen takes to fade in (D138).
+const SCREEN_FADE_SECONDS := 0.15
 
 ## Where the game saves and logs; the tests point these at their own files.
 var save_path := Save.PATH
@@ -199,3 +201,6 @@ func _swap(next: Control) -> void:
 		_screen.queue_free()
 	_screen = next
 	add_child(next)
+	# Screens fade in rather than snap (D138).
+	next.modulate.a = 0.0
+	next.create_tween().tween_property(next, "modulate:a", 1.0, SCREEN_FADE_SECONDS)
