@@ -41,10 +41,10 @@ const NUMBER_MIN_PX := 24
 ## Without it a four-digit Number covered 22 of a 30 m range, and with orbs
 ## zooming the view out it stood wider than the ring.
 const NUMBER_RING_SHARE := 0.6
-## The range as a hairline just visible against the ground (D139): fainter
-## than D128's 16% at 1.25 px, which read as The Tower's ring, and a touch
-## brighter than the 6% at 1 px before that, which was hard to find.
-const RANGE_LINE := Color(1, 1, 1, 0.09)
+## The range as a hairline just visible against the ground, so it never
+## takes the shine off the Number (D140): 6% at 1 px. D128's 16% read as The
+## Tower's ring, and D139's 9% still drew the eye from the Number.
+const RANGE_LINE := Color(1, 1, 1, 0.06)
 const RANGE_LINE_PX := 1.0
 ## Enemies at the tower are drawn this clear of the Number's digits, which is
 ## only drawing: the sim's contact distance is unchanged.
