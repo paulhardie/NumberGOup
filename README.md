@@ -19,6 +19,8 @@ The Number is the tower. Basic, fast, tank and ranged enemies subtract from it; 
 
 Home shows Coins, Gems, the best Number and Milestones. The first run's end gives the Workshop's 50-Coin welcome. Known early wave milestones pay once alongside Number milestones, and a free daily claim gives 20 Gems after the first run. Cards and Labs appear at waves 20 and 30 as roadmap placeholders. Settings holds Music, Export report, free test Coins and a two-press progress reset.
 
+The bottom bars read their reveal points from the generated milestone table through permanent progression: Workshop after one run, Cards at Tier 1 wave 20 and Labs at 30. The screens contain no separate wave thresholds.
+
 **Scaling foundations (D126)** are built for the next versions: complete starting builds, lossless battle snapshots, rule effects and combat-source counts, deterministic cooldown state, per-tier records and claims, and persisted real-time research jobs. Research has no player catalogue yet; closed-game battles and servers remain D089's later work. See [the contracts and limits](docs/SCALING_FOUNDATIONS.md).
 
 The version-2 save is `user://number_go_up_tower.json`; the old pre-rebuild file stays untouched. Version 1 migrates with a backup and newly introduced wave rewards. New battles resume directly from exact state; old records still replay their seed and inputs. Unsupported or changed battles end with already banked Coins kept. Newer-schema or damaged current progress is protected from writes and shown with a recovery notice.

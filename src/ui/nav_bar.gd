@@ -9,22 +9,20 @@ extends HBoxContainer
 ## they're built. The battle itself has no bar; a run fills the screen.
 
 const Palette = preload("res://src/ui/palette.gd")
+const Progression = preload("res://src/tower/progression.gd")
 
 ## A screen that exists was chosen: "battle" (Home) or "workshop".
 signal chosen(id: String)
 
 ## [id, name, the roadmap version that brings it, or "" for a screen that
-## exists, and when it appears: the best wave a run must reach, AFTER_FIRST_RUN,
-## or NOT_YET].
+## exists]. Reveal points belong to the generated milestone table.
 const ITEMS := [
-	["battle", "Battle", "", 0],
-	["workshop", "Workshop", "", AFTER_FIRST_RUN],
-	["cards", "Cards", "1.1", 20],
-	["labs", "Labs", "1.2", 30],
-	["weapons", "Weapons", "1.3", NOT_YET],
+	["battle", "Battle", ""],
+	["workshop", "Workshop", ""],
+	["cards", "Cards", "1.1"],
+	["labs", "Labs", "1.2"],
+	["weapons", "Weapons", "1.3"],
 ]
-const AFTER_FIRST_RUN := -1
-const NOT_YET := 1 << 30
 const HEIGHT := 64
 
 ## The screen this bar sits on, shown as chosen.
@@ -33,19 +31,16 @@ var current := "battle"
 var buttons := {}
 
 
-## `runs` and `best_wave` are the Workshop's, and decide what shows.
-func _init(on: String = "battle", runs: int = 0, best_wave: int = 0) -> void:
+## Workshop-only callers retain their Tier 1 view; the real screens pass
+## progression so another tier's best cannot reveal Tier 1's systems.
+func _init(on: String = "battle", runs: int = 0, best_wave: int = 0, progression: Progression = null) -> void:
 	current = on
 	custom_minimum_size = Vector2(0, HEIGHT)
 	add_theme_constant_override("separation", 0)
 	for item in ITEMS:
-		if shows(int(item[3]), runs, best_wave):
+		var shown := progression.unlocked(String(item[0])) if progression != null else Progression.revealed(String(item[0]), runs, {"1": {"reached": best_wave}})
+		if shown:
 			add_child(_item(item[0], item[1], item[2]))
-
-
-## Whether an item that appears at `from` shows yet.
-static func shows(from: int, runs: int, best_wave: int) -> bool:
-	return runs > 0 if from == AFTER_FIRST_RUN else best_wave >= from
 
 
 func _item(id: String, name: String, version: String) -> Button:

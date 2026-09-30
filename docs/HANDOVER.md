@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 30 September 2026, by Codex. This branch includes `main` through `a50e59e` (D127–D132's drawing changes and Workshop/Divider measurements). D126 implements the scaling foundations authorised by the owner after the whole-game audit. Final independent review approved the diff with no actionable findings.
+**Last updated:** 30 September 2026, by Codex. This branch includes `main` through `a50e59e` (D127–D132's drawing changes and Workshop/Divider measurements). D126 implements the scaling foundations authorised by the owner after the whole-game audit. D135 follows up with milestone-owned bar reveals and migration proof against a copy of the owner's current save. The D126 review passed; review of this follow-up is in progress.
 
-**Branch:** `codex/scaling-foundations`, in the attached worktree. Not merged. The owner's play folder remains `~/NumberGOup-main`, kept on `origin/main` by `com.paulhardie.ngu-sync`; this work is not in their game until they merge its pull request. The pre-rebuild game is commit `f4f1e95`.
+**Branch:** `codex/scaling-foundations`, in the attached worktree, [PR #121](https://github.com/paulhardie/NumberGOup/pull/121). Not merged. The owner's play folder remains `~/NumberGOup-main`, kept on `origin/main` by `com.paulhardie.ngu-sync`; this work is not in their game until they merge its pull request. The pre-rebuild game is commit `f4f1e95`.
 
 ## Start here
 
@@ -14,7 +14,7 @@ Tier 1 and the whole Workshop work, with the Number as the tower, Dividers, the 
 
 **The new foundations are built:**
 
-- Permanent progression owns per-tier reached/cleared records, known early wave milestones, Gems, daily claims and research. Wave and Number rewards each pay once. Daily claims give 20 Gems after the first completed run, once per UTC day. The clear-wave-100 tier gate remains D107's choice.
+- Permanent progression owns per-tier reached/cleared records, known early wave milestones, Gems, daily claims and research. Wave and Number rewards each pay once. Daily claims give 20 Gems after the first completed run, once per UTC day. Generated run/wave milestone rows also own both bottom bars' reveal points; the bars and domain gates evaluate the same Tier 1 records. The clear-wave-100 tier gate remains D107's choice.
 - **Save version 2** migrates version 1 with a backup and retroactive one-time wave rewards. Future schemas and current saves that would lose declared progress are protected from writing. New active runs restore a complete lossless snapshot rather than replaying every tick; legacy records retain replay. Incompatible battle rules/data use the existing end-run recovery and retain banked Coins.
 - Frozen run configurations include tier, Workshop, starting stat/rule effects and a rules version. Shared stat/rule pipelines, recorded mid-run effects, damage/kill attribution and stable cooldown ids give the later systems their entry points.
 - Paid research jobs advance on the real-time clock while the game is closed. Completed effects belong to the permanent account; an active run keeps its frozen build. Clock rollback earns no extra time. This is the jobs/clock primitive; no Labs catalogue or screen has been shipped.
@@ -26,15 +26,17 @@ Contracts, authorities and limits: [SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.
 
 **High-risk change:** saves, economy, clocks and exports.
 
-- After integrating current `main`, fresh scratch-home import, `bash run_tests.sh` and headless main-scene boot passed: **4,192 tower checks + 117 foundation checks = 4,309**; both suites exited 0 with no script/error lines. Exit-time ObjectDB warnings remain (24 tower, 2 foundation, 13 boot); no leak fix is claimed.
+- After integrating current `main`, fresh scratch-home import, `bash run_tests.sh` and headless main-scene boot passed: **4,192 tower checks + 121 foundation checks = 4,313**; both suites exited 0 with no script/error lines. Exit-time ObjectDB warnings remain (24 tower, 2 foundation, 13 boot); no leak fix is claimed.
+- A copy of the owner's current version-1 save passed **18 migration checks** through `tools/check_migration.gd`: all 23 ranks, opened groups, Coins, bests and run count preserved; +10 Coins/+10 Gems were the expected new rewards; the saved wave-39 battle replayed successfully; the backup was byte-identical and version-2 reload did not duplicate rewards. The actual save's SHA-256 stayed unchanged. No raw owner save is committed.
+- Bar tests alter table reveal points and confirm both Home and Workshop follow them; a higher Tier 2 record cannot reveal a Tier 1 system.
 - Fixtures cover old/current/malformed/future saves, backups, protected current progress, migration rewards once, Gems/spending bounds, Coin precision and decimal-parser drift, clock rollback, long elapsed research, duplicate/combined jobs, every reachable completion-order build, stable effect order and malformed records.
 - Nine seeded snapshot continuations across tiers 1–3 restore and remain byte-identical after 600 further ticks. Frozen builds and starting/mid-run effects replay, including complete Workshop/input comparisons. A demonstrably decimal-shifting effect round-trips through report JSON, replay and exact direct screen resume. Invalid rank/tuning/timer state and corrupt snapshots are rejected.
 - Ten fresh `--buy even` seeded runs print byte-identically to the pre-change output (median wave 3, range 1–6). The 40-run `--buy core` career and `--legacy-progression` comparison both first pass wave 10 on run 12, reach wave 21 on run 20, and finish with best wave 28 after about 6 game hours. Wave-10's extra 10 Coins changes some spending and Number results, as expected; this is not a claim that every career result is identical.
 - `tools/check_scaling.gd -- --hours 1`: all groups at level 25, seed 7, reached wave 103 at 108,001 ticks. Snapshot 105,215 bytes; restore 2.76 ms versus replay 13.64 s. Replay matched and the next 600 ticks were exact. Timing is one local measurement, not a device benchmark. Full Workshop cost about 2.626e20 Coins; generated horizon HP about 7.020e24, Attack about 4.245e10.
 - `capture_battle.gd` exited 0; Home, wave Milestones and daily-claimed captures were inspected at 540 × 960. The bottom bar, Gem balance, rewards and claimed state are visible. Automated screen checks exercise fresh/progressed state and save/resume.
 - A scratch exported record with a mid-run rule effect prints correctly in `read_report.gd --run 1` and matches replay in its table. The progression generator reproduced its output byte-identically. Enemy importer syntax and rejection of a too-short horizon were checked.
-- Independent adversarial review approved the final diff after resolving persistence, malformed-save, effect-boundary, completion-order and report-reader findings. The reviewer independently ran scratch import, both final suites (4,309 checks), headless boot and diff checks, all exiting 0 without error lines. CI status belongs to the PR checks.
-- **Not checked:** the owner's real save (deliberately untouched), owner play or real-window close/reopen, phone/web behaviour, a full week of simulation, regeneration past wave 6,500 against the SDK, or unpublished reward rows. No authoritative clock server exists.
+- Independent adversarial review approved the final diff after resolving persistence, malformed-save, effect-boundary, completion-order and report-reader findings. The reviewer independently ran scratch import, both D126 suites (4,309 checks), headless boot and diff checks, all exiting 0 without error lines. D135's updated review and CI must pass before hand-off; current CI status belongs to PR #121.
+- **Not checked:** a migration on the original real save (deliberately untouched; a copy was checked), owner play or real-window close/reopen, phone/web behaviour, a full week of simulation, regeneration past wave 6,500 against the SDK, or unpublished reward rows. No authoritative clock server exists.
 
 ## Open decisions for the owner
 
@@ -67,4 +69,4 @@ Contracts, authorities and limits: [SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.
 
 ## Handing on
 
-Replace this page with the next current state. Decisions stay with decisions, intent with the spec and contracts with their owning documents. Keep the real save protected, use `run_godot.sh`, and report actual evidence. Commit on a feature branch, push it and keep an open PR to `main`; merging belongs to the owner. The latest accepted decision is D132; the foundation pass is D126.
+Replace this page with the next current state. Decisions stay with decisions, intent with the spec and contracts with their owning documents. Keep the real save protected, use `run_godot.sh`, and report actual evidence. Commit on a feature branch, push it and keep an open PR to `main`; merging belongs to the owner. The latest accepted decision is D135; the foundation pass is D126. No old decision record was changed for this follow-up.

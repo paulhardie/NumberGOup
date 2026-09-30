@@ -143,6 +143,7 @@ func _show_workshop() -> void:
 	if not progression.writable: return
 	var shop := WorkshopScreen.new()
 	shop.workshop = workshop
+	shop.progression = progression
 	shop.changed.connect(_save)
 	shop.activity.connect(func(entry): ActivityLog.append(entry, log_path))
 	shop.home_pressed.connect(_show_home)

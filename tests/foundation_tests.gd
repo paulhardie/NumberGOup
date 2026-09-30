@@ -13,6 +13,8 @@ const RealClock = preload("res://src/tower/real_clock.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
 const Main = preload("res://src/main.gd")
 const Home = preload("res://src/ui/home_screen.gd")
+const NavBar = preload("res://src/ui/nav_bar.gd")
+const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 const PATH := "user://foundation_save.json"
 var failures: Array[String] = []
 var checks := 0
@@ -374,6 +376,35 @@ func test_supported_horizon() -> void:
 	sim.wave_clock = TowerData.wave_seconds() - BattleSim.TICK * 0.5
 	sim.step()
 	check(not sim.alive and sim.killed_by == "data_limit" and sim.wave == TowerData.last_wave(), "run ends safely at data horizon instead of farming a flat plateau")
+
+
+func test_both_bars_follow_the_milestone_table() -> void:
+	var original: Array = Progression.MILESTONES
+	var changed: Array = original.duplicate(true)
+	for row in changed:
+		if "cards" in row.get("reveals", []): row.wave = 21
+		if "labs" in row.get("reveals", []): row.wave = 31
+	Progression.MILESTONES = changed
+	var early := NavBar.new("battle", 2, 20)
+	var cards := NavBar.new("battle", 2, 21)
+	var labs := NavBar.new("battle", 2, 31)
+	check(not early.buttons.has("cards") and cards.buttons.has("cards") and not cards.buttons.has("labs") and labs.buttons.has("labs"), "bar reveals move with their table rows")
+	var p := Progression.new()
+	p.workshop.runs = 2
+	p.workshop.best_wave = 500
+	p.records = {"2": {"reached": 500, "cleared": 499}, "1": {"reached": 20, "cleared": 19}}
+	check(not p.unlocked("cards") and not p.unlocked("labs"), "domain gates use the same rows and the right tier")
+	for screen in [Home.new(), WorkshopScreen.new()]:
+		screen.workshop = p.workshop
+		screen.progression = p
+		root.add_child(screen)
+		var bars: Array = screen.find_children("*", "HBoxContainer", true, false).filter(func(node): return node is NavBar)
+		check(bars.size() == 1 and not bars[0].buttons.has("cards") and not bars[0].buttons.has("labs"), "Home and Workshop use progression rather than the global Workshop best")
+		screen.free()
+	Progression.MILESTONES = original
+	early.free()
+	cards.free()
+	labs.free()
 
 
 func difference(a, b, path := "") -> String:

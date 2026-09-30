@@ -11,6 +11,7 @@ const TowerData = preload("res://src/tower/tower_data.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 const Palette = preload("res://src/ui/palette.gd")
 const NavBar = preload("res://src/ui/nav_bar.gd")
+const Progression = preload("res://src/tower/progression.gd")
 
 ## A purchase or an opened group, so the game can save.
 signal changed
@@ -23,6 +24,7 @@ const TABS := [["Attack", "attack"], ["Defense", "defense"], ["Utility", "utilit
 const AMOUNTS := [1, 5, 10, 0]
 
 var workshop: Workshop
+var progression: Progression
 var _tab := "attack"
 var _tab_buttons: Dictionary = {}
 var _amount := 1
@@ -96,7 +98,7 @@ func _ready() -> void:
 	_list.add_theme_constant_override("separation", 8)
 	scroll.add_child(_list)
 
-	var nav := NavBar.new("workshop", workshop.runs, workshop.best_wave)
+	var nav := NavBar.new("workshop", workshop.runs, workshop.best_wave, progression)
 	nav.chosen.connect(func(id: String):
 		if id == "battle":
 			home_pressed.emit())

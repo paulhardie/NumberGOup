@@ -13,6 +13,7 @@ This high-risk pass supplies a preserved permanent account, exact battle continu
 | Authority | Contract and consumer |
 |---|---|
 | Generated `data/tower/progression.json`, through `TowerData` | Known free rewards: Tier 1 waves 10–100 and Tier 2 wave 10. `import_tower_progression.py` regenerates it. Unknown late rewards are omitted. |
+| Milestone `reveals` and `run_milestones` in that table (D135) | Home/Workshop bars and domain gates share the reveal rules: Battle immediately, Workshop after one run, Cards at Tier 1 wave 20 and Labs at 30. NavBar owns only labels and locked-version presentation. |
 | `Progression` | Per-tier reached/cleared records, stable claim ids, Gems and daily claim day. Home, battle screens and career measurement use it. Ordinary reward waves pay on reaching; the tier gate requires clear 100 (D107). |
 | `RunConfig` | Frozen ranks/groups, tier, initial stat/rule effects and contract versions. Object-free checksummed Variant payloads preserve exact numbers; readable JSON accompanies reports. |
 | `StatStack` / `RunRules` | Add then multiply, with source ids. Rules cover Starting Cash, Interest cap, basic-enemy Coins and Cash/Coin multipliers. Research and recorded mid-run effects enter these domains. |
@@ -52,6 +53,7 @@ These are implementation limits, not balance clamps: invalid effects are rejecte
 
 - `bash run_tests.sh`: battle and foundation suites. Old/current/malformed/future saves, one-time rewards, exact Coin parts, invalid/large boundaries, clock rollback, paid jobs, frozen builds, effects and nine exact seeded tier continuations.
 - `bash run_godot.sh --headless --path . --quit`: scene/script boot.
+- `tools/check_migration.gd -- --file <version-1-save-copy.json>`: copies its input into scratch `user://`, verifies every permanent field and expected new rewards, exact backup, active replay, current-schema reload and no duplicate rewards. It never edits the input; run through `run_godot.sh` as always.
 - `tools/check_scaling.gd -- --hours N`: state size, restore/replay latency, horizon and 600-tick exact continuation; a measurement rather than a gate.
 - `sim_runs.gd -- --careers 40 --buy core`: includes wave rewards. `--legacy-progression` measures the previous economy. Battle-only output remains unchanged.
 - `capture_battle.gd`: Home, wave milestones, claimed daily state, Workshop and battles. The shorter Home emblem keeps claim/navigation inside the portrait screen.
