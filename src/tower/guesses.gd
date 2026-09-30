@@ -58,9 +58,9 @@ const SHOT_SPEED_M := 80.0
 ## Cash a kill pays, times what its wave pays (TowerData.kill_cash, D116).
 ## These weights are community research (D071); the boss's 20 is ours until
 ## the owner reads one boss kill, and so are the Protector's and the elites',
-## set at their Coin values (D115).
+## set at their Coin values (D115). The Lock pays as a basic (D133).
 ## A Scatter's split-off pieces pay as basics.
-const CASH_BY_TYPE := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "boss": 20.0, "divider": 2.0,
+const CASH_BY_TYPE := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "boss": 20.0, "divider": 2.0, "lock": 1.0,
 	"protector": 3.0, "vampire": 4.0, "ray": 4.0, "scatter": 4.0}
 
 ## Coins a kill pays, flat, whatever its wave (the owner's reference table;
@@ -68,7 +68,7 @@ const CASH_BY_TYPE := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "b
 ## about 14 times the owner's Tower report; flat is within 2 times. Ranged pays
 ## 2, as The Tower's own enemy list says (D082); the Protector 3 and the
 ## elites 4 (the SDK's base coin values, D115). A Scatter's pieces pay as basics.
-const COINS_BY_TYPE := {"basic": 0.0, "fast": 2.0, "ranged": 2.0, "tank": 4.0, "boss": 5.0, "divider": 2.0,
+const COINS_BY_TYPE := {"basic": 0.0, "fast": 2.0, "ranged": 2.0, "tank": 4.0, "boss": 5.0, "divider": 2.0, "lock": 0.0,
 	"protector": 3.0, "vampire": 4.0, "ray": 4.0, "scatter": 4.0}
 
 ## How much of Lifesteal still works once the Number is past Health: 0 would
@@ -107,6 +107,29 @@ const DIVIDER := {
 	"full_wave": 30,
 	"rate_first": 1.0 / 3.0,
 	"rate_full": 0.5,
+	# Seconds what a Divider takes is held back from Regen, coming back
+	# evenly from the last bite (D134): a measuring option, off (0), since
+	# holding it for 10 s, or even 120, moved no wall; by the time basics
+	# break the tower the Number is nowhere near its best.
+	"refill_seconds": 0.0,
+}
+
+## The Lock (=, D133): ours, not The Tower's. It comes on top of The Tower's
+## waves rather than in a basic's place (the owner's choice), walks in at a
+## basic's speed, stops on the edge of the tower's Range as a ranged enemy
+## does, and while it stands there the Number can't go up: no Regen,
+## Lifesteal, Recovery Package or growth from kills. Bought Health still
+## lands. It has no Attack, so it never hits and grows nothing when killed.
+## It is what tests the turtle's Regen, the thing that carries it (D132).
+## One comes on FROM_WAVE (after Labs, which The Tower opens at 30) and every
+## EVERY_FIRST waves after, then every EVERY_FULL waves from FULL_WAVE; its
+## health is HEALTH basic enemies' of its wave. `from_wave` 0 is none.
+const LOCK := {
+	"from_wave": 35,
+	"every_first": 3,
+	"full_wave": 60,
+	"every_full": 2,
+	"health": 3.0,
 }
 
 

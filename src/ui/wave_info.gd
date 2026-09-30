@@ -9,7 +9,7 @@ const Palette = preload("res://src/ui/palette.gd")
 const ArenaView = preload("res://src/ui/arena_view.gd")
 
 const NAMES := {"basic": "Basic", "fast": "Fast", "tank": "Tank", "ranged": "Ranged", "protector": "Protector", "boss": "Boss",
-	"divider": "Divider", "vampire": "Vampire", "ray": "Ray", "scatter": "Scatter"}
+	"divider": "Divider", "lock": "Lock", "vampire": "Vampire", "ray": "Ray", "scatter": "Scatter"}
 const COLUMNS := ["", "HP", "Atk", "m/s", "Chance"]
 
 var _title: Label
@@ -71,20 +71,29 @@ func show_for(sim: BattleSim) -> void:
 	for header in COLUMNS:
 		colours.append(Palette.MUTED)
 	for row in info.rows:
-		cells.append_array([NAMES.get(row.kind, row.kind), Palette.amount(float(row.health)), Palette.amount(float(row.attack)) if row.kind != "divider" else "÷ a share",
+		cells.append_array([NAMES.get(row.kind, row.kind), Palette.amount(float(row.health)), _attack_text(row),
 			String.num(float(row.speed), 1), _chance(row)])
 		var colour: Color = ArenaView.LOOKS[row.kind].colour if ArenaView.LOOKS.has(row.kind) else Palette.TEXT
 		colours.append_array([colour, Palette.TEXT, Palette.TEXT, Palette.TEXT, Palette.SOFT])
 	_fill(cells, colours)
 
 
-## Its chance, and what else it needs saying: a boss's or a shut Protector's
-## wait in waves, an elite's chance of a second.
+## What it does: its Attack, or for our operators what they do instead.
+static func _attack_text(row: Dictionary) -> String:
+	if row.kind == "divider":
+		return "÷ a share"
+	if row.kind == "lock":
+		return "holds"
+	return Palette.amount(float(row.attack))
+
+
+## Its chance, and what else it needs saying: a boss's or a Lock's wait in
+## waves, or a shut Protector's, and an elite's chance of a second.
 static func _chance(row: Dictionary) -> String:
 	var chance := float(row.chance)
 	var text := "%d%%" % roundi(chance) if chance >= 1.0 or chance == 0.0 else "%s%%" % String.num(chance, 1)
 	if int(row.waits) > 0:
-		text += ", in %d" % int(row.waits) if row.kind == "boss" else ", shut %d" % int(row.waits)
+		text += ", in %d" % int(row.waits) if row.kind == "boss" or row.kind == "lock" else ", shut %d" % int(row.waits)
 	if float(row.second) > 0.0:
 		text += " +%d%%" % roundi(float(row.second))
 	return text

@@ -1929,3 +1929,31 @@ Rules:
   - **The wall is The Tower's turtle breaking** (D110): basic enemies' Attack outgrows Defense Absolute, the Workshop's and what a run can buy, and basics finish the tower. The Workshop's Defense Absolute is passed at wave 20 (10K Coins), 40 (100K), 82 (1M) and 163 (10M); runs then last about twice as long on what they buy in the run, and end at 45, 100, 188 and 309+.
   - **No Divider tuning is called for by the wall.** D130's second card pointer ("Dividers are our own wall") is withdrawn: cards that answer Dividers would change little. The pointers that stand are Coins as the pace lever, ranged enemies against non-turtle builds, and The Tower's own answer to the turtle break (Defense Absolute, Health, and later Lifesteal and the pivot).
 - **Open, for the owner:** whether Dividers should matter to the outcome. Today they can't; making them bite (for instance a ÷'s loss refilling slowly rather than by regen at once) would be a design change to the Number (D080, D111), not a tuning, and belongs with the enemy roster discussion.
+
+## D133 — Our base roster, and its first enemy: the Lock
+
+- **Status:** Accepted (2026-09-30) on owner direction: "let's discuss enemy types in more depth in a way that will thematically fit in with this game ... we are currently focusing on the base roster", with elites and fleets kept for the late game. The owner picked the Lock to build first, and chose that new enemies **come on top** of The Tower's waves rather than taking a basic's place.
+- **The roster's rules** (THE_NUMBER.md section 8): one arithmetic idea per enemy, written on its body; only flat hits kill; no percent of maximum Health and nothing added to the Number; answered by rows the Workshop already has; on top of The Tower's waves; explained once, the first time a player meets it. Proposed after the Lock: the Countdown, the Carrier and the Rounder.
+- **The Lock (=):**
+  - Comes on top of The Tower's wave on a fixed beat: wave 35 (after Labs at 30), then every third wave, every other from wave 60 (`Guesses.LOCK`). Its moment and direction come from a stream seeded afresh each wave, so The Tower's enemies and the Divider are exactly as without it, and nothing new is saved. It counts against the 120 normal-enemy cap.
+  - 3× a basic's health, a basic's speed and mass, no Attack, a basic's Cash and Coins.
+  - Stops on the range's edge, as a ranged enemy does. While it stands there the Number can't go up: no Regen, Lifesteal, Recovery Package or growth from kills. Bought Health still lands. It shares the Vampire's gate on Regen and Lifesteal (D115) and also stops packages and kill growth; a Vampire alone still lets packages through, as The Tower's does. Knockback, shockwaves and orbs move or kill it as any basic.
+  - Drawn as an emerald = in the Number's Geist Mono, with a double line to the Number while it holds it, and the Number takes a little of its colour. Wave Info shows it ("holds", and waves until the next). The first one on a wave past a player's best brings a card: "Lock: while it stands in range, your Number can't go up. Kill it, or knock it back."
+- **Measured** (`sim_runs.gd --workshop-coins N --workshop-plan P`, 4 seeds, in-run `core`, 180-minute cap, median wave; `main` against this change):
+
+| Workshop | turtle | core | blender | spread |
+|---|---|---|---|---|
+| 10K | 45 → **42** | 29 → 29 | 26 → 26 | 27 → 27 |
+| 100K | 100 → **93** | 43 → 43 | 37 → 36 | 60 → 60 |
+
+  - At 100K the Lock held the turtle's Number for 46% of the run; the turtle loses about 7% of its wall and still wins at every budget measured.
+  - 40-run core careers print identically to `main` (none reaches wave 35), so the early benchmark holds: the wave-10 boss falls on run 12.
+  - With `--lock off --divider-refill 0`, runs print identically to `main`.
+- **What it means:** the Lock does what it was designed for, pressing the turtle's Regen, within the plan's 10% bound, but it doesn't yet change which build wins. The owner plays it before it's tuned (`--lock-health`, `--lock-every`, `--lock-from`).
+
+## D134 — The Divider's slow refill: measured, left off
+
+- **Status:** Measured (2026-09-30) on owner direction ("Should the Divider's loss come back slowly?" "Yes, slow refill"), with the Lock. Built as a measuring option and **left off in the game**, since it failed the roster's acceptance test (it must change an outcome).
+- **The rule tried:** what a Divider takes is held back from Regen's room to the run's best and released evenly over `Guesses.DIVIDER.refill_seconds` from the last bite; bites add up. Lifesteal, packages and bought Health are unaffected. `sim_runs.gd --divider-refill N` switches it on.
+- **Measured** (the 10K turtle, 4 seeds, `--lock off`): 10, 30, 60 and 120 seconds all end at a median of wave 45, as without it; at 10 s the 100K turtle stays at 100.
+- **Why:** the turtle's Regen already takes longer than 10 s to refill a bite, and when basics break it the Number is nowhere near its best, so a ceiling below the best never binds. It confirms D132: Dividers are the Number's drama, not its danger. If they're to matter to the outcome, it's a new enemy's job (the Countdown, THE_NUMBER.md section 8), not the Divider's.

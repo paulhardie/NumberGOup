@@ -1996,6 +1996,194 @@ func test_vampire_drains_and_stops_regen() -> void:
 	check(not sim.draining and sim.health > healed, "Regen comes back once it's gone")
 
 
+## D133: a Lock standing in range stops the Number going up by any means but
+## buying Health, and hits nothing.
+func test_a_lock_holds_the_number_while_it_stands() -> void:
+	var sim := _quiet_sim({"health_regen": 20, "thorns": 10, "lifesteal": 10}, BattleSim.START_GROUPS + ["recovery_packages"])
+	sim.levels["package_chance"] = TowerData.max_level("package_chance")
+	var lock := _place(sim, "lock", 20.0)
+	lock.stop_at = 20.0
+	check(EnemyKinds.stops_at_range("lock") and lock.attack == 0.0, "a Lock stops at range and has no Attack")
+	check_near(lock.max_health, sim.enemy_health_now("basic") * float(Guesses.LOCK.health), 0.0001, "and a basic's health times Guesses.LOCK's")
+	sim.health = sim.max_health() * 0.5
+	var start := sim.health
+	for tick in range(90):
+		sim._enemies_hit()
+		sim._heal(sim.stat("health_regen") * BattleSim.TICK, "regen")
+	check(sim.locked and sim.health == start, "while it stands the Number holds: no hit, no Regen")
+	check(lock.hits == 0 and lock.health == lock.max_health, "it never hits, so takes no Thorns")
+	sim._heal(5.0, "lifesteal")
+	check(sim.health == start, "no Lifesteal")
+	var clean := _place(sim, "basic", 50.0)
+	sim._kill(clean)
+	check(sim.health == start, "no growth from a kill")
+	for _i in range(50):
+		sim._pay_wave_end()
+	check(sim.health == start, "no Recovery Package")
+	sim._raise("health")
+	check(sim.health > start, "but bought Health still lands")
+	# Knocked back off its spot, it frees the Number until it walks back.
+	lock.distance = 40.0
+	sim._enemies_hit()
+	var held := sim.health
+	sim._heal(1.0, "regen")
+	check(not sim.locked and sim.health > held, "knocked out of place, it lets Regen back")
+	lock.distance = 20.0
+	sim._enemies_hit()
+	check(sim.locked, "and holds again once back in place")
+	var cash := sim.cash
+	sim._kill(lock)
+	check_near(sim.cash - cash, EnemyKinds.cash(lock, sim.stat("cash_bonus")), 0.0, "killed, it pays as a basic")
+	check_near(EnemyKinds.cash(lock, 1.0), TowerData.kill_cash(lock.wave), 0.0, "which is a basic's Cash")
+	sim._enemies_hit()
+	check(not sim.locked, "and the Number is free once it's gone")
+	# Beside a Vampire, which lets packages through, the Lock still stops them.
+	var both := _quiet_sim({}, BattleSim.START_GROUPS + ["recovery_packages"])
+	both.levels["package_chance"] = TowerData.max_level("package_chance")
+	var vampire := _place(both, "vampire", 20.0)
+	vampire.stop_at = 20.0
+	both.health = both.max_health()
+	both._enemies_hit()
+	var drained := both.health
+	both.record_events = true
+	for _i in range(20):
+		both._pay_wave_end()
+	check(both.health > drained, "a Vampire alone lets packages land, as The Tower's does")
+
+
+## D133: the Lock comes on a fixed beat on top of The Tower's wave; with it
+## every Tower enemy, and the Divider, is exactly as without it.
+func test_a_lock_comes_on_top_of_the_towers_wave() -> void:
+	var lock: Dictionary = Guesses.LOCK
+	var waves: Array[int] = []
+	for at_wave in range(1, 81):
+		if EnemyKinds.lock_comes(lock, at_wave):
+			waves.append(at_wave)
+	check(waves[0] == 35, "the first comes on wave 35, after Labs: %s" % [waves])
+	check(waves.slice(0, 9) == [35, 38, 41, 44, 47, 50, 53, 56, 59], "every third wave until wave 60: %s" % [waves])
+	check(waves.slice(9, 12) == [60, 62, 64] and waves[-1] == 80, "then every other: %s" % [waves])
+	check(EnemyKinds.lock_waits(lock, 30) == 5 and EnemyKinds.lock_waits(lock, 36) == 2 and EnemyKinds.lock_waits(lock, 61) == 1, "Wave Info can say how long until the next")
+	check(EnemyKinds.lock_waits({"from_wave": 0, "every_first": 3, "full_wave": 60, "every_full": 2}, 50) == -1, "from wave 0 there are none")
+	var sim := BattleSim.new(8)
+	var plain := BattleSim.new(8)
+	plain.lock.from_wave = 0
+	for at_wave in range(30, 71):
+		for each in [sim, plain]:
+			each.wave = at_wave
+			each.spawns.schedule_wave()
+		var locks := sim.spawns.schedule.filter(func(entry): return entry.kind == "lock")
+		check(locks.size() == (1 if EnemyKinds.lock_comes(lock, at_wave) else 0), "wave %d: one Lock on its beat, else none" % at_wave)
+		var rest := sim.spawns.schedule.filter(func(entry): return entry.kind != "lock")
+		check(rest == plain.spawns.schedule, "wave %d: every other enemy, Dividers too, comes as without it" % at_wave)
+	for each in [sim, plain]:
+		each.enemies.clear()
+		each.wave = 35
+		each.spawns.schedule_wave()
+		each.wave_clock = 999.0
+		each.spawns.spawn_due()
+	var others := sim.enemies.filter(func(enemy): return enemy.kind != "lock")
+	check(others.size() == plain.enemies.size() and sim.enemies.size() == plain.enemies.size() + 1, "a Lock's wave sends one more")
+	var same_directions := true
+	for index in range(others.size()):
+		same_directions = same_directions and others[index].angle == plain.enemies[index].angle and others[index].kind == plain.enemies[index].kind
+	check(same_directions, "and every other enemy comes from the same direction")
+	var again := BattleSim.new(8)
+	again.wave = 35
+	again.spawns.schedule_wave()
+	check(again.spawns.schedule.filter(func(entry): return entry.kind == "lock") == sim.spawns.schedule.filter(func(entry): return entry.kind == "lock"),
+		"the same seed and wave bring the same Lock, with nothing saved")
+	# It counts against the normal cap, as any normal enemy does.
+	var full := _quiet_sim()
+	for _i in range(TowerData.enemy_cap()):
+		_place(full, "basic", 90.0)
+	full.spawns.schedule = [{"kind": "lock", "at": 0.0, "angle": 0.0}]
+	full.spawns.next_spawn = 0
+	full.wave_clock = 0.0
+	full.spawns.spawn_due()
+	check(full.spawns.wave_missed == 1 and not full.enemies.any(func(enemy): return enemy.kind == "lock"), "a full field turns a Lock away")
+	var info := BattleSim.new(8)
+	info.wave = 33
+	var rows: Array = info.spawns.wave_info().rows.filter(func(row): return row.kind == "lock")
+	check(rows.size() == 1 and rows[0].waits == 2 and rows[0].chance == 0.0, "Wave Info shows the Lock coming in two waves: %s" % [rows])
+	info.wave = 20
+	check(info.spawns.wave_info().rows.all(func(row): return row.kind != "lock"), "and nothing of it long before")
+
+
+## D133: the Lock shows =, Wave Info says what it does, and the first time a
+## player meets one, past their best wave, a card says so once.
+func test_a_lock_shows_its_sign_and_is_explained_once() -> void:
+	var sim := _quiet_sim()
+	var lock := _place(sim, "lock", 20.0)
+	check(ArenaView.shown_text(sim, lock) == "=", "a Lock shows = on its body: %s" % ArenaView.shown_text(sim, lock))
+	check(ArenaView.LOOKS.lock.colour == Palette.LOCK and ArenaView.LABEL_RANK.lock == 0, "in its own colour, written in full in a crowd as a Divider is")
+	check(WaveInfo._attack_text({"kind": "lock", "attack": 0.0}) == "holds" and WaveInfo._chance({"kind": "lock", "chance": 0.0, "waits": 2, "second": 0.0}) == "0%, in 2",
+		"Wave Info says it holds, and how many waves until one")
+	var screen = BattleScreen.new()
+	screen.workshop = Workshop.new()
+	screen.workshop.best_wave = 34
+	root.add_child(screen)
+	screen.set_process(false)
+	screen.sim.wave = 35
+	screen._first_sight(0.0)
+	check(not screen._sight.visible, "no card before a Lock is on the field")
+	var first := BattleSim.Enemy.new()
+	first.kind = "lock"
+	screen.sim.enemies.append(first)
+	screen._first_sight(0.0)
+	check(screen._sight.visible and screen._sight_sign.text == "=" and screen._sight_text.text.contains("can't go up"), "the first Lock past the best wave brings its card")
+	screen._first_sight(BattleScreen.FIRST_SIGHT_SECONDS + 0.1)
+	check(not screen._sight.visible, "which goes away on its own")
+	screen._first_sight(0.0)
+	check(not screen._sight.visible, "and doesn't come back the same run")
+	screen._adopt(BattleSim.new(3))
+	screen.sim.wave = 35
+	screen.sim.enemies.append(first)
+	screen.workshop.best_wave = 40
+	screen._first_sight(0.0)
+	check(not screen._sight.visible, "a player who has been past it before isn't told again")
+	screen.free()
+
+
+## D134, a measuring option: what a Divider takes, Regen gives back only over
+## `refill_seconds` from the last bite, whatever the Regen; two bites add up.
+func test_a_dividers_bite_comes_back_slowly() -> void:
+	check(float(Guesses.DIVIDER.refill_seconds) == 0.0, "the game keeps the old rule: it moved no wall")
+	var sim := _quiet_sim({"health": 400})
+	sim.divider.refill_seconds = 10.0
+	var best := sim.max_health()
+	sim.health = best
+	_place(sim, "divider", Guesses.CONTACT_DISTANCE_M)
+	sim.step()
+	var bite := best * 0.2
+	check_near(sim.divider_held, bite, 0.0001, "a ÷1.25 bite holds back the fifth it took")
+	sim._heal(1e9, "regen")
+	check_near(sim.health, best - bite, 0.0001, "however strong the Regen, it can't refill that at once")
+	sim._heal(5.0, "lifesteal")
+	check_near(sim.health, best - bite + 5.0, 0.0001, "Lifesteal still lands")
+	sim.health = best - bite
+	var seconds := float(sim.divider.refill_seconds)
+	for tick in range(roundi(seconds * 0.5 / BattleSim.TICK) - 1):
+		sim.step()
+		sim._heal(1e9, "regen")
+	check_near(sim.health, best - bite * 0.5, best * 0.001, "half of it after five seconds: %.1f of %.1f" % [sim.health, best])
+	_place(sim, "divider", Guesses.CONTACT_DISTANCE_M)
+	var before := sim.health
+	sim.step()
+	var second := before / 5.0
+	check_near(sim.divider_held, bite * 0.5 + second, best * 0.001, "a second bite adds to what's still held")
+	for tick in range(roundi(seconds / BattleSim.TICK)):
+		sim.step()
+		sim._heal(1e9, "regen")
+	check(sim.divider_held == 0.0 and is_equal_approx(sim.health, best), "and ten seconds after the last, it's all back")
+	var old := _quiet_sim({"health": 400})
+	old.divider.refill_seconds = 0.0
+	old.health = old.max_health()
+	_place(old, "divider", Guesses.CONTACT_DISTANCE_M)
+	old.step()
+	old._heal(1e9, "regen")
+	check(old.divider_held == 0.0 and is_equal_approx(old.health, old.max_health()), "a refill of 0 is the old rule: Regen puts it straight back")
+
+
 ## A Ray charges 30 seconds, then fires its attack, twice a basic's, and
 ## charges again.
 func test_ray_charges_between_shots() -> void:
@@ -2161,7 +2349,7 @@ func test_the_number_grows_by_fighting_not_waiting() -> void:
 	for at_wave in range(2, 41):
 		fresh.wave = at_wave
 		fresh.spawns.schedule_wave()
-		check(fresh.spawns.schedule.all(func(entry): return entry.kind in ["basic", "fast", "tank", "ranged", "boss", "divider"]), "wave %d: no Multipliers" % at_wave)
+		check(fresh.spawns.schedule.all(func(entry): return entry.kind in ["basic", "fast", "tank", "ranged", "boss", "divider", "lock"]), "wave %d: no Multipliers" % at_wave)
 
 	var played := BattleSim.new(13)
 	played.run_until_dead(300.0)
