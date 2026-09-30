@@ -2,13 +2,13 @@
 
 importer="font_data_dynamic"
 type="FontFile"
-uid="uid://dqtilwh4ne1vd"
-path="res://.godot/imported/Geist.ttf-6497dbea5b9a5fc7a3ea09731e83a2d2.fontdata"
+uid="uid://db1c64o33l8j7"
+path="res://.godot/imported/Inter.ttf-48d80b607bc8c026a4a7deff5f7e1456.fontdata"
 
 [deps]
 
-source_file="res://assets/fonts/Geist.ttf"
-dest_files=["res://.godot/imported/Geist.ttf-6497dbea5b9a5fc7a3ea09731e83a2d2.fontdata"]
+source_file="res://assets/fonts/Inter.ttf"
+dest_files=["res://.godot/imported/Inter.ttf-48d80b607bc8c026a4a7deff5f7e1456.fontdata"]
 
 [params]
 

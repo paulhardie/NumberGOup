@@ -2514,12 +2514,29 @@ func test_milestones_pay_once_when_the_best_number_reaches_a_new_digit() -> void
 	home.workshop = workshop
 	root.add_child(home)
 	await process_frame
-	var buttons := home.find_children("*", "Button", true, false).filter(func(button): return button.text == "Milestones")
-	check(buttons.size() == 1 and not buttons[0].disabled, "Home's Milestones opens")
-	buttons[0].pressed.emit()
+	# Tapping the best Number opens them (D138); the ring round it fills
+	# from the last milestone reached towards the next.
+	check(home.find_children("*", "Button", true, false).filter(func(button): return button.text == "Milestones").is_empty(), "no Milestones pill any more")
+	check_near(home._ring.fill, HomeScreen.digit_progress(workshop), 0.0, "the ring shows the way to the next digit")
+	check_near(HomeScreen.digit_progress(workshop), (workshop.best_number - 1000.0) / 9000.0, 0.0001, "from 1,000 towards 10,000: %.3f" % HomeScreen.digit_progress(workshop))
+	home._emblem.pressed.emit()
 	check(home._milestones_panel.visible and home._milestones_list.get_child_count() == Guesses.MILESTONES.size() + 1, "listing every milestone, with progress to the next")
 	home.queue_free()
 	await process_frame
+
+
+## D138: one neutral face, Inter, for words and numbers, with every glyph the
+## screens use and every digit the same width, so a ticking number stays put.
+func test_one_neutral_font_has_every_glyph_and_steady_digits() -> void:
+	check(Palette.WORD_FONT == Palette.NUMBER_FONT and Palette.WORD_FONT.resource_path.ends_with("Inter.ttf"), "Inter for words and numbers alike")
+	for glyph in "●◆▶+×÷^✓‹›→…•·=()$%":
+		check(Palette.WORD_FONT.has_char(glyph.unicode_at(0)), "Inter has %s" % glyph)
+	var cut := Palette.weight(Palette.NUMBER_FONT, 400)
+	check(int(cut.opentype_features.get(TextServerManager.get_primary_interface().name_to_tag("tnum"), 0)) == 1, "cuts ask for tabular digits")
+	var widths := {}
+	for digit in "0123456789":
+		widths[roundi(cut.get_string_size(digit, HORIZONTAL_ALIGNMENT_LEFT, -1, 40).x * 10.0)] = true
+	check(widths.size() == 1, "and get them: every digit the same width, %s" % [widths.keys()])
 
 
 func test_numbers_read_as_the_towers() -> void:
@@ -2786,7 +2803,8 @@ func test_opening_a_group_says_what_it_does() -> void:
 ## Home and the Workshop share a bar along the bottom (D096): Battle and the
 ## Workshop take the player there, and the roadmap's later screens stand
 ## locked with the version that brings them, each appearing only when The
-## Tower would show it (D125). The tier arrows stand locked too.
+## Tower would show it (D125). Tier 1 rides on the Battle button until Tier 2
+## exists, with no locked arrows or Coin bonus card on Home (D138).
 func test_the_bottom_bar_and_placeholders() -> void:
 	var fresh := Workshop.new()
 	var first_bar := NavBar.new("battle", fresh.runs, fresh.best_wave)
@@ -2815,8 +2833,11 @@ func test_the_bottom_bar_and_placeholders() -> void:
 	check(went[0] == "workshop", "the bar takes Home to the Workshop")
 	check(home.find_children("*", "Button", true, false).filter(func(button): return button.text == "Missions").is_empty(), "no Missions placeholder, as it isn't on the roadmap")
 	for name in ["‹", "›"]:
-		var found := home.find_children("*", "Button", true, false).filter(func(button): return button.text == name)
-		check(found.size() == 1 and found[0].disabled, "%s stands locked" % name)
+		check(home.find_children("*", "Button", true, false).filter(func(button): return button.text == name).is_empty(), "no locked %s on Home" % name)
+	var words := home._battle.find_children("*", "Label", true, false).map(func(label): return label.text)
+	check("Tier 1" in words and words.any(func(text): return text.contains("Battle")), "the Battle button carries the tier: %s" % [words])
+	check(home.find_children("*", "Label", true, false).filter(func(label): return label.text == "Coin bonus").is_empty(), "the Coin bonus is the Workshop's to show")
+	check(bar.buttons["battle"].find_children("*", "Label", true, false).any(func(label): return label.text == NavBar.GLYPHS.battle), "the dock shows each screen's glyph")
 	home.queue_free()
 	var shop = WorkshopScreen.new()
 	shop.workshop = Workshop.new()

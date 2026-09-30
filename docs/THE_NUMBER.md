@@ -135,7 +135,7 @@ Every Workshop row needs a line on what it now does. Most are unchanged in meani
 
 ## 4. The screen
 
-- **4.1 The Number sits in the middle, in place of the hexagon,** big, in Geist Mono, whole and rounded up.
+- **4.1 The Number sits in the middle, in place of the hexagon,** big, in Inter at its thinnest (Geist Mono until D138), whole and rounded up.
   - Its size must fit from "5" to "1.23M" without jumping about. The suffixes start at 1,000 as they do now; the full digits up to 99,999 may read better in the centre. To be decided on a screenshot.
 - **4.2 (Superseded, D083 and D084: no ceiling and no ring; the Number stands alone.)** Health (the ceiling) shows small beneath it, or as a ring around it that empties. **Recommend a ring:** it reads at a glance without a second big number.
 - **4.3 Every contact shows its operator** as floating text at the Number: "−3", "÷2", "−10%". A ÷ gets the biggest moment (a flash and a short shake), because it's the identity beat. (No reduced-motion option: D093.)

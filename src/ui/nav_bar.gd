@@ -23,7 +23,11 @@ const ITEMS := [
 	["labs", "Labs", "1.2"],
 	["weapons", "Weapons", "1.3"],
 ]
-const HEIGHT := 64
+## Each screen's glyph, from the game's own arithmetic rather than icon art
+## (D138): play, add (the Workshop builds up), then the operators.
+const GLYPHS := {"battle": "▶", "workshop": "+", "cards": "×", "labs": "÷", "weapons": "^"}
+const HEIGHT := 76
+const GLYPH_PX := 22
 
 ## The screen this bar sits on, shown as chosen.
 var current := "battle"
@@ -48,40 +52,45 @@ func _item(id: String, name: String, version: String) -> Button:
 	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	button.custom_minimum_size = Vector2(0, HEIGHT)
 	button.disabled = version != ""
+	button.focus_mode = Control.FOCUS_NONE
 	var here := id == current
-	var fill := Palette.SURFACE if here else Color(0, 0, 0, 0)
-	for state in ["normal", "hover", "pressed", "disabled"]:
+	# A dock, not a tab bar: no filled tab. The chosen screen's glyph is lit
+	# in the accent with a dot under it (D138).
+	for state in ["normal", "hover", "pressed", "disabled", "focus"]:
 		var box := StyleBoxFlat.new()
-		box.bg_color = fill if state != "hover" or here else Color(1, 1, 1, 0.03)
-		# The chosen screen carries a line of the accent along its top.
-		box.border_color = Palette.ACCENT
-		box.border_width_top = 2 if here else 0
+		box.bg_color = Color(1, 1, 1, 0.03) if state == "hover" and not here else Color(0, 0, 0, 0)
 		button.add_theme_stylebox_override(state, box)
-	button.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	var column := VBoxContainer.new()
 	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	column.alignment = BoxContainer.ALIGNMENT_CENTER
-	column.add_theme_constant_override("separation", 2)
+	column.add_theme_constant_override("separation", 3)
 	column.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(column)
+	var tone: Color = Palette.ACCENT if here else (Palette.SOFT if version == "" else Color(Palette.MUTED, 0.45))
+	var glyph := Label.new()
+	glyph.text = GLYPHS.get(id, "·")
+	glyph.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	glyph.add_theme_font_override("font", Palette.weight(Palette.WORD_FONT, 500))
+	glyph.add_theme_font_size_override("font_size", GLYPH_PX)
+	glyph.add_theme_color_override("font_color", tone)
+	glyph.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(glyph)
 	var label := Label.new()
-	label.text = name
+	# Locked: the roadmap version that brings it, beside its name.
+	label.text = name if version == "" else "%s · %s" % [name, version]
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	label.add_theme_font_size_override("font_size", 12)
-	label.add_theme_color_override("font_color", Palette.TEXT if here else (Palette.SOFT if version == "" else Color(Palette.MUTED, 0.6)))
+	label.add_theme_font_size_override("font_size", 11)
+	label.add_theme_color_override("font_color", Palette.TEXT if here else tone)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	column.add_child(label)
-	if version != "":
-		# Locked: the roadmap version that brings it, small, under its name.
-		var soon := Label.new()
-		soon.text = version
-		soon.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		soon.add_theme_font_override("font", Palette.NUMBER_FONT)
-		soon.add_theme_font_size_override("font_size", 10)
-		soon.add_theme_color_override("font_color", Color(Palette.MUTED, 0.6))
-		soon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		column.add_child(soon)
+	var dot := ColorRect.new()
+	dot.custom_minimum_size = Vector2(4, 4)
+	dot.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	dot.color = Palette.ACCENT if here else Color(0, 0, 0, 0)
+	dot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	column.add_child(dot)
 	if version == "" and not here:
+		Palette.press(button)
 		button.pressed.connect(func(): chosen.emit(id))
 	buttons[id] = button
 	return button
