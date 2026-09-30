@@ -28,10 +28,18 @@ const MAX_RANGE_SHARE := 0.92
 const ZOOM_EASE := 4.0
 ## The Number is the biggest thing on screen (D085), large and thin as the
 ## owner's main-screen design has it: this size, shrinking to fit
-## NUMBER_FIT_PX as its digits grow, never below NUMBER_MIN_PX.
+## NUMBER_FIT_PX as its digits grow, never below NUMBER_MIN_PX: small enough
+## that its widest text, seven characters, fits the smallest ring a phone
+## shows (orbs zooming out at the starting Range, D123).
 const NUMBER_FONT_PX := 96
 const NUMBER_FIT_PX := 230.0
-const NUMBER_MIN_PX := 36
+const NUMBER_MIN_PX := 28
+## The Number also fits inside its range (D123): its digits reach at most this
+## share of the ring's radius either side, so the ring always shows round it
+## and an enemy drawn at its digits is near the tower in the battle too.
+## Without it a four-digit Number covered 22 of a 30 m range, and with orbs
+## zooming the view out it stood wider than the ring.
+const NUMBER_RING_SHARE := 0.6
 ## The range as the design draws its ring: a hairline, barely there.
 const RANGE_LINE := Color(1, 1, 1, 0.06)
 ## Enemies at the tower are drawn this clear of the Number's digits, which is
@@ -268,10 +276,14 @@ func _number_layout() -> Dictionary:
 
 
 ## The size the Number's text fits at: NUMBER_FONT_PX, a size larger while
-## Rapid Fire runs, shrinking as its digits grow.
+## Rapid Fire runs, shrinking as its digits grow or its ring gets smaller.
 func _fit_size(text: String) -> int:
 	var font_size := NUMBER_FONT_PX + (6 if sim.rapid_fire_left > 0.0 else 0)
-	while font_size > NUMBER_MIN_PX and _number_cut.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > NUMBER_FIT_PX:
+	# Before the view has its size there's no ring to fit, and the Number
+	# mustn't start at its smallest and grow.
+	var ring_fit := 2.0 * NUMBER_RING_SHARE * sim.stat("range") * px_per_metre()
+	var fit := minf(NUMBER_FIT_PX, ring_fit) if ring_fit > 0.0 else NUMBER_FIT_PX
+	while font_size > NUMBER_MIN_PX and _number_cut.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > fit:
 		font_size -= 2
 	return font_size
 
