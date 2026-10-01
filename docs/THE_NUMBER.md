@@ -349,5 +349,15 @@ The owner asked for enemy types that fit a game about a number, for the base ros
 
 Dropped: a digit Reverser (random, not skill), Modulo (swingy and opaque), a ÷10 shift (too brutal), a zero-shield (0 is the orbs'), parity or prime immunities (opaque), and buffers that strengthen other enemies (a late Commander's job, if anyone's).
 
+**How The Tower's base enemies read as ours (D145).** They keep The Tower's health, attack, speed and pay; only how each one reads changes, plus one small rule on the tank:
+
+| Enemy | The Tower | Ours |
+|---|---|---|
+| Basic | A square | A bare number in the plain cut. **Left plain on purpose:** it's the unit every other enemy is read against, and anything added to it repeats across every crowd |
+| Fast | A triangle | Narrow and slanted, trailing two faint copies of its number while it walks in |
+| Tank | A big square | Wide, heavy and glowing (D144), and it **loses weight as it's shot**: its cut thins from the heaviest weight towards a light one, and its mass falls with its health, never below a basic's, so Knockback moves a worn tank further |
+| Boss | A big shape | **A rival Number**, in the Number's own Inter. While it lives the wave line reads "Wave 10 · Boss" and fills in its glow, and a first-sight card says orbs and shockwaves can't touch it |
+| Divider | (ours) | When a ÷ lands, the Number as it stood peels away in the Divider's colour behind the Number that's left |
+
 **The Divider's slow refill (D134)** was tried with the Lock: what a ÷ took, held back from Regen for 10 to 120 seconds. It moved no wall, since by the time basics break a tower the Number is nowhere near its best, so it stays a measuring option (`--divider-refill`), off in the game.
 

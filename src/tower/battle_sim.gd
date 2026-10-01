@@ -640,7 +640,8 @@ func _divide(enemy: Enemy) -> void:
 	enemy.health = 0.0
 	enemies.erase(enemy)
 	if record_events:
-		events.append({"type": "divided", "enemy": enemy, "damage": loss, "at_wall": at_wall, "divisor": divisor})
+		# The Number as it stood, for the screen's peel (D145).
+		events.append({"type": "divided", "enemy": enemy, "damage": loss, "at_wall": at_wall, "divisor": divisor, "before": health + (0.0 if at_wall else loss)})
 
 
 ## The most a Recovery Package may heal the Number to: Max Recovery times

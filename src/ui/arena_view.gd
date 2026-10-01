@@ -70,16 +70,19 @@ const WALL_RISE_SECONDS := 0.4
 
 ## How each enemy type is drawn (D085): its cut of the crowd's typeface
 ## (Anybody's width and weight; the Divider has Fraunces to itself and the
-## Lock the Number's Inter), its size
+## Lock and the boss the Number's Inter), its size
 ## in points, and its colour. Two points larger since D128, in the room the
 ## dropped − left.
 const LOOKS := {
 	"basic": {"axes": {"wdth": 100, "wght": 650}, "size": 16, "colour": Palette.ENEMY},
-	"fast": {"axes": {"wdth": 62, "wght": 720}, "slant": 0.21, "size": 15, "colour": Palette.FAST},
+	# Fast trails faint copies of its number behind it (D145).
+	"fast": {"axes": {"wdth": 62, "wght": 720}, "slant": 0.21, "size": 15, "colour": Palette.FAST, "trail": true},
 	# The tank is the crowd's heaviest number: bigger, with a pink glow (D144).
+	# It thins as it's shot, through TANK_WEIGHTS, as it sheds mass (D145).
 	"tank": {"axes": {"wdth": 150, "wght": 900}, "size": 22, "colour": Palette.TANK, "glow": Palette.TANK},
 	"ranged": {"axes": {"wdth": 125, "wght": 380}, "spacing": 1, "size": 16, "colour": Palette.RANGED},
-	"boss": {"axes": {"wdth": 150, "wght": 900}, "size": 26, "colour": Palette.BOSS, "glow": Palette.BOSS_GLOW, "flash": Palette.BOSS_GLOW},
+	# The boss is a rival Number, in the Number's own Inter (D145).
+	"boss": {"axes": {"wght": 500}, "number_font": true, "size": 28, "colour": Palette.BOSS, "glow": Palette.BOSS_GLOW, "flash": Palette.BOSS_GLOW},
 	"divider": {"axes": {"opsz": 48, "wght": 640, "WONK": 0, "SOFT": 0}, "divider": true, "size": 20, "colour": Palette.DIVIDER,
 		"glow": Palette.DIVIDER},
 	"protector": {"axes": {"wdth": 150, "wght": 560}, "spacing": 1, "size": 18, "colour": Palette.PROTECTOR},
@@ -97,6 +100,13 @@ const CROWD_DOT_PX := 3.0
 ## (16 ×4); anything else there shows only a dot in its colour, or a
 ## Divider's ÷ (D128).
 const LABEL_RANK := {"boss": 0, "divider": 0, "lock": 0, "vampire": 1, "ray": 1, "scatter": 1, "protector": 2}
+## A fast enemy's trail (D145): faint copies of its number behind it along
+## its path, this far apart in seconds of its walk, this bright, nearest first.
+const TRAIL_SECONDS := 0.12
+const TRAIL_ALPHAS := [0.25, 0.1]
+## The tank's weights as it's shot (D145), lightest first: it shows the one
+## its share of health left reaches, so it thins as it sheds mass.
+const TANK_WEIGHTS := [400, 525, 650, 775, 900]
 ## A standing Lock's double line to the Number: half the gap between its two
 ## strokes, how faint, and how far the held Number leans to its colour (D133).
 const LOCK_LINE_GAP_PX := 2.0
@@ -128,6 +138,8 @@ var centre := Vector2.ZERO
 ## The fonts each enemy type is drawn in, built once from LOOKS, and the
 ## Number's and the floats' (shared with ArenaEffects).
 var cuts := {}
+## The tank's cut at each of TANK_WEIGHTS.
+var tank_cuts: Array[Font] = []
 ## The Number in Inter's display cut (D138), thin as Geist's was.
 var _number_cut := _cut(Palette.WORD_FONT, {"wght": 200, "opsz": 32})
 var mono_cut := _cut(Palette.NUMBER_FONT, {"wght": 500})
@@ -164,6 +176,10 @@ func _init() -> void:
 		var look: Dictionary = LOOKS[kind]
 		var base: Font = Palette.DIVIDER_FONT if look.get("divider", false) else Palette.NUMBER_FONT if look.get("number_font", false) else Palette.CROWD_FONT
 		cuts[kind] = _cut(base, look.axes, look.get("slant", 0.0), look.get("spacing", 0))
+	for weight in TANK_WEIGHTS:
+		var axes: Dictionary = LOOKS.tank.axes.duplicate()
+		axes.wght = weight
+		tank_cuts.append(_cut(Palette.CROWD_FONT, axes))
 	motion.digit_reached.connect(func(power: int): digit_reached.emit(power))
 
 
@@ -278,6 +294,7 @@ func _draw() -> void:
 	for shot in sim.shots:
 		_draw_shot(shot)
 	effects.draw_chips()
+	_draw_peels(number)
 	_draw_tower(number)
 	effects.draw_glints()
 	_draw_divider_preview()
@@ -337,6 +354,20 @@ func _draw_tower(number: Dictionary) -> void:
 	# Held by a Lock, the Number takes a little of its colour (D133).
 	var colour := Palette.NUMBER.lerp(Palette.LOCK, LOCK_TINT) if sim.locked else Palette.NUMBER
 	draw_string(_number_cut, baseline, number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, colour)
+	draw_set_transform(Vector2.ZERO)
+
+
+## What a landed ÷ cut away (D145): the Number as it stood, in the Divider's
+## colour, dropping and fading behind the Number that's left.
+func _draw_peels(number: Dictionary) -> void:
+	var font_size: int = number.size
+	for peel in effects.peels:
+		var done: float = peel.age / ArenaEffects.PEEL_SECONDS
+		var drop := ArenaEffects.PEEL_DROP_PX * (1.0 - pow(1.0 - done, 2.0))
+		var text := Palette.full(Palette.number_shown(float(peel.value), sim.max_health(), true))
+		var width := _number_cut.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+		draw_set_transform(centre + Vector2(0.0, drop), 0.0, Vector2.ONE * float(number.scale))
+		draw_string(_number_cut, Vector2(-width * 0.5, font_size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(Palette.DIVIDER, 0.5 * (1.0 - done)))
 	draw_set_transform(Vector2.ZERO)
 
 
@@ -465,9 +496,13 @@ func _draw_enemy(enemy: BattleSim.Enemy, label: Dictionary) -> void:
 		return
 	var text: String = label.text if label.shown == "full" else String(label.text).left(1)
 	var half: Vector2 = label.half if label.shown == "full" else enemy_half(enemy.kind, text)
-	var font: Font = cuts[enemy.kind]
+	var font: Font = tank_cuts[tank_weight_step(enemy)] if enemy.kind == "tank" else cuts[enemy.kind]
 	var font_size: int = look.size
 	var baseline := at + Vector2(-half.x, font_size * 0.35)
+	if shows_trail(enemy, label):
+		var behind := Vector2.from_angle(enemy.angle) * maxf(4.0, enemy.speed * px_per_metre() * TRAIL_SECONDS)
+		for i in TRAIL_ALPHAS.size():
+			draw_string(font, baseline + behind * (i + 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(look.colour, TRAIL_ALPHAS[i] * shade))
 	draw_string_outline(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, HALO_PX, Color(HALO, HALO.a * shade))
 	if look.has("glow"):
 		# A soft glow, faked with two wide faint outlines rather than a blur.
@@ -491,6 +526,19 @@ func _draw_enemy(enemy: BattleSim.Enemy, label: Dictionary) -> void:
 		var dealt_at := at + Vector2(-dealt_width * 0.5, half.y + DEALT_PX + 1.0)
 		draw_string_outline(hit_cut, dealt_at, dealt, HORIZONTAL_ALIGNMENT_LEFT, -1, DEALT_PX, HALO_PX, Color(HALO, HALO.a * shade))
 		draw_string(hit_cut, dealt_at, dealt, HORIZONTAL_ALIGNMENT_LEFT, -1, DEALT_PX, Color(Palette.NUMBER, 0.8))
+
+
+## Whether `enemy` trails copies of its number (D145): a kind that does,
+## written in full and still walking in.
+static func shows_trail(enemy: BattleSim.Enemy, label: Dictionary) -> bool:
+	return LOOKS[enemy.kind].get("trail", false) and label.shown == "full" and not enemy.arrived()
+
+
+## Which of TANK_WEIGHTS a tank is drawn in: the step its share of health
+## left reaches, so a fresh one is the heaviest.
+static func tank_weight_step(enemy: BattleSim.Enemy) -> int:
+	var share := clampf(enemy.health / enemy.max_health, 0.0, 1.0) if enemy.max_health > 0.0 else 1.0
+	return clampi(ceili(share * TANK_WEIGHTS.size()) - 1, 0, TANK_WEIGHTS.size() - 1)
 
 
 ## Each Protector's shield, a faint ring at its radius, each draining

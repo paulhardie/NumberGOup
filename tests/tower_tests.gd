@@ -2148,6 +2148,75 @@ func test_the_first_tank_comes_on_wave_5() -> void:
 	screen.free()
 
 
+## D145: the base enemies each read as ours. The tank sheds mass as it's shot,
+## down to a basic's, and thins as it does; the fast one trails its number;
+## the boss is a rival Number with a card and the wave line; a landed ÷ peels
+## the Number it cut away.
+func test_the_base_enemies_read_as_ours() -> void:
+	var sim := _quiet_sim()
+	sim.wave = 10
+	var tank := _place(sim, "tank", 50.0)
+	var basic := _place(sim, "basic", 50.0)
+	var full := EnemyKinds.mass_now(tank, sim.wave)
+	check_near(full, TowerData.mass_ratio("tank"), 0.0001, "a fresh tank weighs The Tower's tank")
+	tank.health = tank.max_health * 0.5
+	check_near(EnemyKinds.mass_now(tank, sim.wave), full * 0.5, 0.0001, "half shot, half as heavy")
+	tank.health = tank.max_health * 0.01
+	check_near(EnemyKinds.mass_now(tank, sim.wave), EnemyKinds.mass_now(basic, sim.wave), 0.0001, "and never lighter than a basic")
+	basic.health = basic.max_health * 0.5
+	check_near(EnemyKinds.mass_now(basic, sim.wave), 1.0, 0.0001, "a basic weighs the same however shot")
+	var boss := _place(sim, "boss", 50.0)
+	boss.health = boss.max_health * 0.5
+	check_near(EnemyKinds.mass_now(boss, sim.wave), TowerData.mass_ratio("boss"), 0.0001, "and so does a boss")
+	# Knockback reads it: a worn tank goes further than a fresh one.
+	for share in [1.0, 0.5]:
+		var pushed := _quiet_sim()
+		pushed.levels = {"knockback_chance": TowerData.max_level("knockback_chance"), "knockback_force": 10}
+		var shot := _place(pushed, "tank", 20.0)
+		shot.max_health = 1e9
+		shot.health = 1e9 * share
+		for _i in range(roundi(10.0 / BattleSim.TICK)):
+			pushed.step()
+			if shot.distance > 20.0:
+				break
+		var want: float = pushed.stat("knockback_force") * Guesses.KNOCKBACK_METRES_PER_FORCE / (TowerData.mass_ratio("tank") * share)
+		check_near(shot.distance - 20.0, want, 0.001, "a tank at %d%% health goes %.2f m back" % [roundi(share * 100.0), want])
+	tank.health = tank.max_health
+	check(ArenaView.tank_weight_step(tank) == ArenaView.TANK_WEIGHTS.size() - 1, "a fresh tank is drawn at its heaviest")
+	tank.health = tank.max_health * 0.5
+	check(ArenaView.tank_weight_step(tank) == 2, "half shot, in the middle weight")
+	tank.health = tank.max_health * 0.05
+	check(ArenaView.tank_weight_step(tank) == 0, "nearly dead, at its lightest")
+	var fast := _place(sim, "fast", 50.0)
+	check(ArenaView.shows_trail(fast, {"shown": "full"}), "a fast enemy written in full trails its number")
+	check(not ArenaView.shows_trail(fast, {"shown": "sign"}) and not ArenaView.shows_trail(basic, {"shown": "full"}), "not as a crowd dot, and no other kind does")
+	fast.distance = fast.stop_at
+	check(not ArenaView.shows_trail(fast, {"shown": "full"}), "nor once it stands at the Number")
+	check(ArenaView.LOOKS.boss.get("number_font", false), "the boss is drawn in the Number's own font")
+	check(BattleScreen.FIRST_SIGHT.has("boss"), "and is explained the first time it's met")
+	check(BattleScreen.wave_title(sim) == "Wave 10 · Boss  ›", "the wave line names it while it lives: %s" % BattleScreen.wave_title(sim))
+	sim._kill(boss)
+	check(BattleScreen.wave_title(sim) == "Wave 10  ›", "and not once it's dead")
+	var arena := ArenaView.new()
+	var divider := BattleSim.Enemy.new()
+	divider.kind = "divider"
+	arena.absorb([{"type": "divided", "enemy": divider, "damage": 10.0, "at_wall": false, "divisor": 1.5, "before": 30.0}], 0.0)
+	check(arena.effects.peels.size() == 1 and is_equal_approx(arena.effects.peels[0].value, 30.0), "a landed ÷ peels away the Number as it stood")
+	arena.absorb([{"type": "divided", "enemy": divider, "damage": 5.0, "at_wall": true, "divisor": 1.5, "before": 20.0}], 0.0)
+	check(arena.effects.peels.size() == 1, "but not one the Wall took")
+	arena.absorb([], ArenaEffects.PEEL_SECONDS + 0.01)
+	check(arena.effects.peels.is_empty(), "and it's gone once it has fallen")
+	arena.free()
+	var cut := _quiet_sim()
+	cut.health = 30.0
+	var landing := _place(cut, "divider", 1.0)
+	landing.divisor = 1.5
+	cut.record_events = true
+	cut._divide(landing)
+	var event: Dictionary = cut.events.filter(func(item): return item.type == "divided")[0]
+	check_near(float(event.before), 30.0, 0.0001, "the sim tells the screen what the Number stood at")
+
+
 ## D133: the Lock comes on a fixed beat on top of The Tower's wave; with it
 ## every Tower enemy, and the Divider, is exactly as without it.
 func test_a_lock_comes_on_top_of_the_towers_wave() -> void:
