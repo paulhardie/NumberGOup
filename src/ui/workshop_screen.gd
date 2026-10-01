@@ -371,6 +371,8 @@ func _bar() -> ProgressBar:
 	bar.show_percentage = false
 	bar.custom_minimum_size = Vector2(0, 2)
 	bar.max_value = 1.0
+	# Exact, not rounded to hundredths.
+	bar.step = 0.0
 	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	var back := StyleBoxFlat.new()
 	back.bg_color = Color(1, 1, 1, 0.05)
