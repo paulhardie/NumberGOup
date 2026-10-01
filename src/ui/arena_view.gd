@@ -76,7 +76,8 @@ const WALL_RISE_SECONDS := 0.4
 const LOOKS := {
 	"basic": {"axes": {"wdth": 100, "wght": 650}, "size": 16, "colour": Palette.ENEMY},
 	"fast": {"axes": {"wdth": 62, "wght": 720}, "slant": 0.21, "size": 15, "colour": Palette.FAST},
-	"tank": {"axes": {"wdth": 150, "wght": 900}, "size": 20, "colour": Palette.TANK},
+	# The tank is the crowd's heaviest number: bigger, with a pink glow (D144).
+	"tank": {"axes": {"wdth": 150, "wght": 900}, "size": 22, "colour": Palette.TANK, "glow": Palette.TANK},
 	"ranged": {"axes": {"wdth": 125, "wght": 380}, "spacing": 1, "size": 16, "colour": Palette.RANGED},
 	"boss": {"axes": {"wdth": 150, "wght": 900}, "size": 26, "colour": Palette.BOSS, "glow": Palette.BOSS_GLOW, "flash": Palette.BOSS_GLOW},
 	"divider": {"axes": {"opsz": 48, "wght": 640, "WONK": 0, "SOFT": 0}, "divider": true, "size": 20, "colour": Palette.DIVIDER,

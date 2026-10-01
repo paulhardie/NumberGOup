@@ -25,7 +25,8 @@ extends SceneTree
 ## the Divider's tuning without changing the game; --divider-divisor N fixes
 ## its divisor at every wave, and --divider-refill N the seconds a bite takes
 ## to come back (D134; 0, the game's, is Regen straight back).
-## --lock off plays without Locks (D133); --lock-from N sets their first wave,
+## --tank-intro N brings the first tank on wave N (D144; 0 for none, as The
+## Tower's mix alone). --lock off plays without Locks (D133); --lock-from N sets their first wave,
 ## --lock-every A:B their beat (every A waves, then every B from their full
 ## wave, which --lock-full N sets) and --lock-health N their health in basic
 ## enemies'. --overfill N sets how much
@@ -439,6 +440,8 @@ func _tune(sim: BattleSim, options: Dictionary) -> bool:
 		sim.divider.health_full = float(options["divider-health"])
 	if options.has("divider-refill"):
 		sim.divider.refill_seconds = float(options["divider-refill"])
+	if options.has("tank-intro"):
+		sim.tank_intro = int(options["tank-intro"])
 	if options.get("lock", "") == "off":
 		sim.lock.from_wave = 0
 	if options.has("lock-from"):

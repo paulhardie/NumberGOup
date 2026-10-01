@@ -2088,6 +2088,66 @@ func test_a_lock_holds_the_number_while_it_stands() -> void:
 	check(both.health > drained, "a Vampire alone lets packages land, as The Tower's does")
 
 
+## D144: the first tank comes on wave 5, in one basic's place: the wave's
+## size and every other enemy, the Divider's pick included, are as without it.
+func test_the_first_tank_comes_on_wave_5() -> void:
+	check(Guesses.TANK_INTRO_WAVE == 5, "the first tank's wave is 5")
+	for seed in range(1, 21):
+		var sim := BattleSim.new(seed)
+		var plain := BattleSim.new(seed)
+		plain.tank_intro = 0
+		for at_wave in range(2, 9):
+			for each in [sim, plain]:
+				each.wave = at_wave
+				each.spawns.schedule_wave()
+			var ours: Array = sim.spawns.schedule
+			var theirs: Array = plain.spawns.schedule
+			check(ours.size() == theirs.size(), "seed %d wave %d: the same number of enemies" % [seed, at_wave])
+			var changed := []
+			for index in range(ours.size()):
+				if ours[index] != theirs[index]:
+					changed.append(index)
+			if at_wave != 5:
+				check(changed.is_empty(), "seed %d wave %d: untouched" % [seed, at_wave])
+			elif theirs.any(func(entry): return entry.kind == "basic"):
+				check(changed.size() == 1 and theirs[changed[0]].kind == "basic" and ours[changed[0]].kind == "tank"
+					and float(ours[changed[0]].at) == float(theirs[changed[0]].at), "seed %d: one basic became a tank, at its time" % seed)
+	# Spawned, it is The Tower's tank, from the direction its basic would have come.
+	var sim := BattleSim.new(3)
+	var plain := BattleSim.new(3)
+	plain.tank_intro = 0
+	for each in [sim, plain]:
+		each.wave = 5
+		each.spawns.schedule_wave()
+		each.wave_clock = 999.0
+		each.spawns.spawn_due()
+	var tanks := sim.enemies.filter(func(enemy): return enemy.kind == "tank")
+	check(tanks.size() == 1 and tanks[0].max_health == sim.enemy_health_now("tank") and tanks[0].speed == EnemyKinds.speed_m("tank", 5, 1, sim.divider), "it walks in as The Tower's tank")
+	var same := true
+	for index in range(sim.enemies.size()):
+		same = same and sim.enemies[index].angle == plain.enemies[index].angle
+	check(same, "and every enemy comes from the same direction as without it")
+	check(ArenaView.LOOKS.tank.size == 22 and ArenaView.LOOKS.tank.has("glow"), "the tank is drawn heavier, with a glow")
+	check(BattleScreen.FIRST_SIGHT.has("tank"), "and is explained the first time it's met")
+	var screen = BattleScreen.new()
+	screen.workshop = Workshop.new()
+	root.add_child(screen)
+	screen.set_process(false)
+	screen.sim.wave = 40
+	for kind in ["lock", "tank"]:
+		var met := BattleSim.Enemy.new()
+		met.kind = kind
+		screen.sim.enemies.append(met)
+	screen._first_sight(0.0)
+	check(screen._sight.visible and screen._sight_text.text.begins_with("Lock") and screen._sighted == ["lock"], "two new kinds at once: the first card shows")
+	screen._first_sight(0.0)
+	check(screen._sight_text.text.begins_with("Lock"), "and stays until it's gone")
+	screen._first_sight(BattleScreen.FIRST_SIGHT_SECONDS + 0.1)
+	screen._first_sight(0.0)
+	check(screen._sight.visible and screen._sight_text.text.begins_with("Tank"), "then the second's")
+	screen.free()
+
+
 ## D133: the Lock comes on a fixed beat on top of The Tower's wave; with it
 ## every Tower enemy, and the Divider, is exactly as without it.
 func test_a_lock_comes_on_top_of_the_towers_wave() -> void:
