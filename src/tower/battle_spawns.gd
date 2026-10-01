@@ -1,8 +1,8 @@
 extends RefCounted
 ## Which enemies each wave sends and when, factored out of BattleSim (AGENTS.md
 ## law 7, D117): The Tower's spawn rolls (D114), its mix and caps (D113), the
-## Protector's gate and the elites' chances (D115), the Divider's slot (D094)
-## and the Lock's beat on top of them all (D133). It rolls a wave as the wave
+## Protector's gate and the elites' chances (D115), the Divider's slot (D094),
+## the Lock's beat on top of them all (D133) and the first tank's wave (D144). It rolls a wave as the wave
 ## starts and hands each enemy to the sim as it falls due; what an enemy is
 ## comes from EnemyKinds.
 ## It draws only from its own two streams, in the same order as before, and
@@ -108,23 +108,49 @@ func schedule_wave() -> void:
 		var lock_rng := RandomNumberGenerator.new()
 		lock_rng.seed = hash([sim.run_seed, "lock", wave])
 		insert_spawn("lock", lock_rng.randf() * TowerData.spawn_seconds(), lock_rng.randf() * TAU)
-	# A Divider takes the Protector's slot in The Tower's standard pool (D094):
-	# it replaces one of the wave's basics, so the wave's size and the rest of
-	# its enemies are The Tower's. At most one a wave, so at a rate of one
-	# every other wave or less never two waves running; one owed with no basic
-	# to replace waits for the next wave without piling up.
+	_place_divider(wave)
+	_introduce_tank(wave)
+
+
+## A Divider takes the Protector's slot in The Tower's standard pool (D094):
+## it replaces one of the wave's basics, so the wave's size and the rest of
+## its enemies are The Tower's. At most one a wave, so at a rate of one every
+## other wave or less never two waves running; one owed with no basic to
+## replace waits for the next wave without piling up.
+func _place_divider(wave: int) -> void:
 	divider_due += EnemyKinds.divider_rate(sim.divider, wave)
 	if divider_due < 1.0 - sim.SKIP_SLACK:
 		return
-	var basics: Array[int] = []
-	for index in range(schedule.size()):
-		if schedule[index].kind == "basic":
-			basics.append(index)
+	var basics := _basics()
 	if basics.is_empty():
 		divider_due = 1.0
 		return
 	divider_due -= 1.0
 	schedule[basics[_divider_rng.randi_range(0, basics.size() - 1)]].kind = "divider"
+
+
+## The first tank a player meets comes on the run's tank_intro wave (D144):
+## one of that wave's basics, after the Divider has had its pick, becomes The
+## Tower's tank. The wave's size and every other enemy stay as they were, and
+## the choice is drawn from a stream of its own for that wave, so nothing
+## else shifts and nothing needs saving.
+func _introduce_tank(wave: int) -> void:
+	if wave != sim.tank_intro:
+		return
+	var basics := _basics()
+	if basics.is_empty():
+		return
+	var pick := RandomNumberGenerator.new()
+	pick.seed = hash([sim.run_seed, "tank_intro", wave])
+	schedule[basics[pick.randi_range(0, basics.size() - 1)]].kind = "tank"
+
+
+func _basics() -> Array[int]:
+	var basics: Array[int] = []
+	for index in range(schedule.size()):
+		if schedule[index].kind == "basic":
+			basics.append(index)
+	return basics
 
 
 ## Hands the sim every spawn now due, bar those the caps turn away.

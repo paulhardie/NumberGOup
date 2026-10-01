@@ -2084,3 +2084,26 @@ Rules:
   - The run's peak Number no longer shows in the battle; Home and the run-over panel keep it.
   - Progress bars are exact rather than stepped in hundredths (Godot's default), the Workshop's included.
 
+## D144 — The first tank on wave 5, heavier to the eye
+
+- **Status:** Accepted (2026-10-01) on owner direction. Asked for a tanky enemy ("a bit slower and better knock back resistance than basic enemies", one orbs can still kill), the owner learnt The Tower's tank already is that: 5× health, 0.5× hit, 0.6× speed, about 4.9× the weight, orbs kill it. They chose to have it "earlier and easier to see" rather than a new enemy. A Factorial (5! → 4! → …) was considered and set aside as "a balancing nightmare for coins".
+- **Decision:**
+  - **Wave 5 always turns one of its basics into The Tower's tank** (`Guesses.TANK_INTRO_WAVE`).
+    - The Tower's mix brings it in slowly (0% at wave 1, 6% at 22), so the first tank usually came around waves 8–12.
+    - The wave's size, every other enemy's kind, time and direction, and the Divider's pick are unchanged.
+    - The choice is drawn from a stream seeded for that wave, after the Divider's pick, so nothing new is saved.
+    - `sim_runs.gd --tank-intro N` moves it (0 for none).
+  - **The tank is drawn heavier:** 22 pt (from 20) in its wide, heavy pink, with a soft pink glow.
+  - **A first-sight card:** "5× · Tank: five times a basic's health, slow and heavy. Knockback barely moves it." It shows the first time one comes past the player's best wave: a new player's first run.
+  - **First-sight cards now queue.** Two new kinds met at once each get their card in turn, where before the second silently replaced the first.
+- **Measured** (`sim_runs.gd`, with the intro against `--tank-intro 0`):
+
+| | Without | With |
+|---|---|---|
+| Fresh run, spreading Cash | wave 6 (4–7) | wave 6 (4–7) |
+| Fresh run, core rows | wave 3 (2–4) | wave 3 (2–4) |
+| Career beats the wave-10 boss | run 13 | **run 11** |
+| Career, run 40 | wave 24 | wave 24 |
+
+  - The career is two runs quicker to the boss because a tank pays 4 Coins and $5 where the basic it replaces pays none and $1. That's a few more Coins for every early run that reaches wave 5. It stays within The Tower's runs 10–13.
+

@@ -114,6 +114,11 @@ const DIVIDER := {
 	"refill_seconds": 0.0,
 }
 
+## The wave a player's first tank comes on (D144): one of its basics becomes
+## The Tower's tank, so the tank is met early and on purpose rather than when
+## The Tower's mix first happens to roll one (about waves 8 to 12 at 104 rolls).
+const TANK_INTRO_WAVE := 5
+
 ## The Lock (=, D133): ours, not The Tower's. It comes on top of The Tower's
 ## waves rather than in a basic's place (the owner's choice), walks in at a
 ## basic's speed, stops on the edge of the tower's Range as a ranged enemy

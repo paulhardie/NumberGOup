@@ -40,12 +40,13 @@ const SPEEDS := [1.0, 2.0, 5.0]
 const TOWER_CLOCK := 1.135
 ## The wave bar while enemies are spawning.
 const WAVE_BAR := Color(1, 1, 1, 0.55)
-## What a new enemy of ours does, said once the first time a player meets it
-## (D133, D125's disclosure): its sign and one line. A player meets it the
-## first time it comes on a wave past their best, since it comes on the same
-## waves in every run; so nothing new is saved.
+## What a new enemy does, said once the first time a player meets it (D133,
+## D144, D125's disclosure): its sign and one line. A player meets it the
+## first time it comes on a wave past their best, since our enemies and the
+## first tank come on the same waves in every run; so nothing new is saved.
 const FIRST_SIGHT := {
 	"lock": {"sign": "=", "text": "Lock: while it stands in range, your Number can't go up. Kill it, or knock it back."},
+	"tank": {"sign": "5×", "text": "Tank: five times a basic's health, slow and heavy. Knockback barely moves it."},
 }
 ## Real seconds a first-sight card stays up, unless tapped away.
 const FIRST_SIGHT_SECONDS := 8.0
@@ -426,7 +427,9 @@ func _first_sight(delta: float) -> void:
 		_sight_left -= delta
 		if _sight_left <= 0.0:
 			_sight.visible = false
-	if sim.wave <= workshop.best_wave:
+	# One card at a time: two new kinds meeting the player at once each get
+	# theirs, the second once the first has gone.
+	if sim.wave <= workshop.best_wave or _sight.visible:
 		return
 	for kind in FIRST_SIGHT:
 		if kind in _sighted or not sim.enemies.any(func(enemy): return enemy.kind == kind):
@@ -437,6 +440,7 @@ func _first_sight(delta: float) -> void:
 		_sight_text.text = FIRST_SIGHT[kind].text
 		_sight_left = FIRST_SIGHT_SECONDS
 		_sight.visible = true
+		return
 
 
 ## The wave's number and its bar on one slim line. A tap anywhere on it

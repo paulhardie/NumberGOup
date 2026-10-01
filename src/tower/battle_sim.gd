@@ -148,6 +148,10 @@ var kill_share := Guesses.KILL_GROWTH
 var divider: Dictionary = Guesses.DIVIDER.duplicate()
 ## The Lock's numbers for this run (Guesses.LOCK), the same way.
 var lock: Dictionary = Guesses.LOCK.duplicate()
+## The wave the first tank comes on (Guesses.TANK_INTRO_WAVE, D144); the
+## measuring tools may set 0 for none. The game never changes it, so a
+## battle snapshot needn't carry it.
+var tank_intro := Guesses.TANK_INTRO_WAVE
 var _starting_tuning: Dictionary
 ## Guesses.NUMBER_OVERFILL for this run, which the measuring tools may change.
 var overfill := Guesses.NUMBER_OVERFILL
