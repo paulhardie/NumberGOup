@@ -311,6 +311,37 @@ func _capture() -> void:
 	held.queue_free()
 	await process_frame
 
+	# The five base enemies as ours (D145): a fast one trailing its number, a
+	# fresh tank and a worn one thinned, and the boss as a rival Number, with
+	# the wave line naming it.
+	var base := BattleScreen.new()
+	base.workshop = middling
+	root.add_child(base)
+	await process_frame
+	base._adopt(BattleSim.new(7, middling.levels, middling.open_groups))
+	base.set_process(false)
+	var lineup: BattleSim = base.sim
+	lineup.wave = 10
+	# Kind, angle, share of the range out, share of health left.
+	var placed := [["basic", 0.3, 0.8, 1.0], ["fast", 1.2, 0.75, 1.0], ["tank", 2.2, 0.7, 1.0], ["tank", 3.0, 0.8, 0.25],
+		["boss", 4.2, 0.85, 1.0], ["divider", 5.3, 0.75, 1.0]]
+	lineup.spawns.schedule.assign(placed.map(func(entry): return {"kind": entry[0], "at": 0.0}))
+	lineup.spawns.next_spawn = 0
+	lineup.wave_clock = 0.0
+	lineup.step()
+	for index in range(placed.size()):
+		var enemy: BattleSim.Enemy = lineup.enemies[index]
+		enemy.angle = placed[index][1]
+		enemy.distance = placed[index][2] * lineup.stat("range")
+		enemy.last_distance = enemy.distance
+		enemy.health = enemy.max_health * placed[index][3]
+	base._refresh()
+	base._arena.queue_redraw()
+	await _frames()
+	_save_png("battle_base_enemies")
+	base.queue_free()
+	await process_frame
+
 	var screen := BattleScreen.new()
 	screen.workshop = Workshop.new()
 	root.add_child(screen)

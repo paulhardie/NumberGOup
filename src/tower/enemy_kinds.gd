@@ -20,7 +20,10 @@ const TowerData = preload("res://src/tower/tower_data.gd")
 ## - attack: "hit" every ENEMY_HIT_SECONDS; "charge", a Ray's charged shot;
 ##   "drain", a Vampire's share of Health a second; "divide", a Divider's ÷;
 ##   "hold", a Lock's: no hit, but the Number can't go up while it stands.
+## - sheds_mass: it loses weight as it loses health, down to a basic's, so
+##   Knockback moves a worn-down one further (D145). Ours, the tank's.
 const TRAITS := {
+	"tank": {"sheds_mass": true},
 	"ranged": {"stops_at_range": true},
 	"boss": {"orbs_kill": false, "shockwave_moves": false, "thorns": 0.5},
 	"vampire": {"stops_at_range": true, "orbs_kill": false, "shockwave_moves": false, "attack": "drain"},
@@ -29,7 +32,7 @@ const TRAITS := {
 	"divider": {"attack": "divide"},
 	"lock": {"stops_at_range": true, "attack": "hold"},
 }
-const DEFAULTS := {"stops_at_range": false, "orbs_kill": true, "shockwave_moves": true, "knockback_moves": true, "thorns": 1.0, "attack": "hit"}
+const DEFAULTS := {"sheds_mass": false, "stops_at_range": false, "orbs_kill": true, "shockwave_moves": true, "knockback_moves": true, "thorns": 1.0, "attack": "hit"}
 
 
 static func _trait(kind: String, name: String):
@@ -115,9 +118,13 @@ static func spawn_mass(kind: String, wave: int) -> float:
 
 ## How heavy `enemy` is on `wave`, over a basic enemy on wave 1: its mass as
 ## it spawned, 4% more for each wave since (D115). Knockback pushes it that
-## much less.
+## much less. A kind that sheds mass (the tank, D145) weighs its share of
+## health left of that, never less than a basic would.
 static func mass_now(enemy, wave: int) -> float:
-	return enemy.mass * pow(float(TowerData.enemies().mass_per_wave_alive), wave - enemy.wave)
+	var mass: float = enemy.mass * pow(float(TowerData.enemies().mass_per_wave_alive), wave - enemy.wave)
+	if _trait(enemy.kind, "sheds_mass") and enemy.max_health > 0.0:
+		mass *= maxf(enemy.health / enemy.max_health, 1.0 / mass_ratio(enemy.kind))
+	return mass
 
 
 ## What a kill pays as: a Scatter's split-off pieces pay as basics.

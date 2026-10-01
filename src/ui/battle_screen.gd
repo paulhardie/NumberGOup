@@ -41,12 +41,14 @@ const TOWER_CLOCK := 1.135
 ## The wave bar while enemies are spawning.
 const WAVE_BAR := Color(1, 1, 1, 0.55)
 ## What a new enemy does, said once the first time a player meets it (D133,
-## D144, D125's disclosure): its sign and one line. A player meets it the
-## first time it comes on a wave past their best, since our enemies and the
-## first tank come on the same waves in every run; so nothing new is saved.
+## D144, D145, D125's disclosure): its sign and one line. A player meets it
+## the first time it comes on a wave past their best, since our enemies, the
+## first tank and the boss come on the same waves in every run; so nothing
+## new is saved.
 const FIRST_SIGHT := {
 	"lock": {"sign": "=", "text": "Lock: while it stands in range, your Number can't go up. Kill it, or knock it back."},
-	"tank": {"sign": "5×", "text": "Tank: five times a basic's health, slow and heavy. Knockback barely moves it."},
+	"tank": {"sign": "5×", "text": "Tank: five times a basic's health, slow and heavy. Knockback barely moves it until it's worn down."},
+	"boss": {"sign": "20×", "text": "Boss: twenty times a basic's health, every tenth wave. Orbs and shockwaves can't touch it."},
 }
 ## Real seconds a first-sight card stays up, unless tapped away.
 const FIRST_SIGHT_SECONDS := 8.0
@@ -256,17 +258,27 @@ func _bank_coins() -> void:
 	_banked = sim.coins
 
 
+## The wave line's title: the wave, and "Boss" while one lives (D145). The ›
+## says it opens Wave Info.
+static func wave_title(battle: BattleSim) -> String:
+	return ("Wave %d · Boss  ›" if boss_alive(battle) else "Wave %d  ›") % battle.wave
+
+
+static func boss_alive(battle: BattleSim) -> bool:
+	return battle.enemies.any(func(enemy): return enemy.kind == "boss")
+
+
 func _refresh() -> void:
 	_cash.text = "$ " + Palette.money(sim.cash)
 	_coins.text = "● " + Palette.money(workshop.coins)
-	# The › says the wave line opens Wave Info.
-	_wave_title.text = "Wave %d  ›" % sim.wave
+	_wave_title.text = wave_title(sim)
 	# As The Tower's (D122): the bar fills over the spawning, then again, in
 	# the accent, over the cooldown.
 	var spawn := TowerData.spawn_seconds()
 	var cooling := sim.wave_clock >= spawn
 	var through := (sim.wave_clock - spawn) / (TowerData.wave_seconds() - spawn) if cooling else sim.wave_clock / spawn
-	_wave_fill.bg_color = Palette.ACCENT if cooling else WAVE_BAR
+	# While a boss lives, the bar is in its glow (D145).
+	_wave_fill.bg_color = Palette.BOSS_GLOW if boss_alive(sim) else Palette.ACCENT if cooling else WAVE_BAR
 	_wave_bar.value = clampf(through, 0.0, 1.0)
 	if _wave_info.visible:
 		_wave_info.show_for(sim)

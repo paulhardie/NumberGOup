@@ -29,6 +29,10 @@ const DIVIDE_FLARE_SECONDS := 0.8
 ## A ÷ or × float lasts longer and rises further than the others.
 const DIVIDE_FLOAT_SECONDS := 1.2
 const DIVIDE_FLOAT_RISE_PX := 30.0
+## A landed ÷ peels the Number it cut away (D145): the Number as it stood,
+## in the Divider's colour, dropping this far as it fades over this long.
+const PEEL_SECONDS := 0.6
+const PEEL_DROP_PX := 26.0
 ## Shot feel (D090): the chips a hit knocks off an enemy's number, how many,
 ## how fast in points a second and for how long; and how quickly a
 ## knocked-back enemy slides to where it was pushed, rather than jumping there
@@ -70,6 +74,8 @@ var blasts: Array[Dictionary] = []
 var flashes := {}
 ## Killed enemies' numbers, swelling as they fade: {kind, angle, distance, age, text}.
 var pops: Array[Dictionary] = []
+## The Numbers landed ÷s cut away, peeling off under it: {value, age}.
+var peels: Array[Dictionary] = []
 ## Chips knocked off enemies by hits, in view points: {at, velocity, colour, age}.
 var chips: Array[Dictionary] = []
 ## Where each enemy is drawn, in metres out, while a knockback eases it back.
@@ -112,6 +118,9 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 		flashes[id] -= delta
 		if flashes[id] <= 0.0:
 			flashes.erase(id)
+	for peel in peels:
+		peel.age += delta
+	peels = peels.filter(func(peel): return peel.age < PEEL_SECONDS)
 	for pop in pops:
 		pop.age += delta
 	pops = pops.filter(func(pop): return pop.age < POP_SECONDS)
@@ -192,7 +201,9 @@ func draw_pops() -> void:
 		var done: float = pop.age / POP_SECONDS
 		var grow := 1.0 + 0.3 * done
 		view.draw_set_transform(at, 0.0, Vector2(grow, grow))
-		view.draw_string(view.cuts[pop.kind], Vector2(-half.x, look.size * 0.35), pop.text, HORIZONTAL_ALIGNMENT_LEFT, -1, look.size, Color(look.colour, 0.35 * (1.0 - done)))
+		# A tank has been shot thin by the time it dies (D145).
+		var cut: Font = view.tank_cuts[0] if pop.kind == "tank" else view.cuts[pop.kind]
+		view.draw_string(cut, Vector2(-half.x, look.size * 0.35), pop.text, HORIZONTAL_ALIGNMENT_LEFT, -1, look.size, Color(look.colour, 0.35 * (1.0 - done)))
 		view.draw_set_transform(Vector2.ZERO)
 
 
@@ -287,6 +298,7 @@ func _take(events: Array[Dictionary]) -> void:
 				else:
 					motion.shake()
 					motion.flare(Palette.DIVIDER, DIVIDE_FLARE, DIVIDE_FLARE_SECONDS)
+					peels.append({"value": float(event.get("before", 0.0)), "age": 0.0})
 					floats.append({"parts": [[sign, view.divide_cut, 22], ["  −" + Palette.amount(float(event.damage)), view.mono_cut, 15]], "anchor": "above",
 						"age": 0.0, "colour": Palette.DIVIDER, "life": DIVIDE_FLOAT_SECONDS, "rise": DIVIDE_FLOAT_RISE_PX, "divide": true})
 			"grown":

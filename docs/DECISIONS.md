@@ -2107,3 +2107,29 @@ Rules:
 
   - The career is two runs quicker to the boss because a tank pays 4 Coins and $5 where the basic it replaces pays none and $1. That's a few more Coins for every early run that reaches wave 5. It stays within The Tower's runs 10–13.
 
+
+## D145 — The five base enemies read as ours
+
+- **Status:** Accepted (2026-10-01) on owner direction: "We'll do our basic, a faster one, the tank, the divider, and boss... in their own number go up style. Think of small tweaks to differentiate them from the tower". The owner approved the plan below, including the tank's rule.
+- **Decision:** they keep The Tower's health, attack, speed and pay, since the benchmarks and Coin pace rest on them. Only how each one reads changes, plus one small rule on the tank:
+  - **Basic stays plain on purpose.** A bare number in the plain cut is already our answer to The Tower's square. It's the unit every other enemy is read against, and anything added would repeat across every crowd and fight the premium-minimal look (D138).
+  - **Fast trails its number:** two faint copies (25% and 10%) behind it along its path, 0.12 s of its walk apart. Only when written in full and still walking in, so crowds don't smear. Drawing only.
+  - **The tank loses weight as it's shot.**
+    - Its cut thins through five weights, 900 down to 400, by its share of health left.
+    - Its mass, which only Knockback reads, falls with that share and never drops below a basic's (`EnemyKinds` trait `sheds_mass`). Knockback barely moves a fresh tank, but moves a worn one like a basic.
+    - It's worked out from health already saved, so nothing new is saved. Its card now ends "…Knockback barely moves it until it's worn down."
+  - **The boss is a rival Number,** drawn in the Number's own Inter (weight 500, 28 pt) with its glow and flash.
+    - While one lives, the wave line reads "Wave 10 · Boss" and its bar fills in the boss's glow.
+    - A first-sight card says "20× · Boss: twenty times a basic's health, every tenth wave. Orbs and shockwaves can't touch it."
+  - **A landed ÷ peels the Number away:** the Number as it stood, in the Divider's colour, drops 26 px and fades over 0.6 s behind the Number that's left. One the Wall takes doesn't peel. The sim's `divided` event now carries `before`, for the screen only.
+- **Measured** (`sim_runs.gd`, against `main`): only the tank's rule can move a run, and only once Knockback is bought.
+
+| | `main` | D145 |
+|---|---|---|
+| Fresh run, spreading Cash (20 seeds) | wave 6 (4–7) | identical, run for run |
+| Fresh run, core rows (20 seeds) | wave 3 (2–4) | identical, run for run |
+| Fresh run, every group open, spreading Cash (20 seeds) | wave 5 (4–7) | identical, run for run |
+| 40-run core career | boss beaten on run 11, wave 24 by run 40 | identical, run for run |
+| Every row at level 12, Knockback included (12 seeds) | median 105 (101–111), mean 105.0 | median 107 (95–112), mean 105.3 |
+
+  - Once Knockback is bought, which enemy a shot meets next shifts, so single runs go up or down by up to 8 waves. On average they come out level, with no lean either way.
