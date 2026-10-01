@@ -16,6 +16,8 @@ const Home = preload("res://src/ui/home_screen.gd")
 const NavBar = preload("res://src/ui/nav_bar.gd")
 const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 const ActivityLog = preload("res://src/tower/activity_log.gd")
+const Cards = preload("res://src/tower/cards.gd")
+const CardsScreen = preload("res://src/ui/cards_screen.gd")
 const PATH := "user://foundation_save.json"
 var failures: Array[String] = []
 var checks := 0
@@ -359,6 +361,159 @@ func test_save_migration_and_future_protection() -> void:
 	check(not loaded.writable and not Save.save_progress(loaded, PATH) and FileAccess.get_file_as_string(PATH) == bytes, "unsupported current permanent progress is never silently dropped")
 	DirAccess.remove_absolute(PATH)
 	DirAccess.remove_absolute(PATH + ".v1-backup.json")
+
+
+## D146: Cards are drawn for Gems once wave 20 opens them, level by copies,
+## fill bought slots, and go into a run's frozen starting build.
+func test_cards_draw_level_equip_and_reach_a_run() -> void:
+	var p := Progression.new()
+	p.gems = 1000
+	var rng := RandomNumberGenerator.new()
+	rng.seed = 7
+	check(p.draw_card(rng) == "" and p.gems == 1000, "no draw before Cards open, and no Gems taken")
+	p.observe(1, 20, 19)
+	p.gems = 19
+	check(p.draw_card(rng) == "" and p.gems == 19, "a draw waits for its 20 Gems")
+	p.gems = 1000
+	var id := p.draw_card(rng)
+	check(id in Cards.built_ids() and p.cards.copies[id] == 1 and p.cards.level(id) == 1 and p.gems == 980, "a draw gives a built card's first copy for 20 Gems: %s" % id)
+	check([0, 1, 2, 3, 7, 8, 79, 80].map(func(n): return Cards.level_for(n)) == [0, 1, 1, 2, 2, 3, 6, 7], "levels by the wiki's copies, 80 to max")
+	# Every built card can be drawn, by rarity first, until all are maxed.
+	var all := Cards.new()
+	var seen := {}
+	var rares := 0
+	var draws := 0
+	while all.can_draw():
+		var got := all.draw(rng)
+		seen[got] = true
+		draws += 1
+		if Cards.card(got).rarity == "rare" and draws <= 200:
+			rares += 1
+	check(seen.size() == Cards.built_ids().size() and draws == 80 * Cards.built_ids().size(), "every built card drawn, each to 80 copies: %d draws" % draws)
+	check(all.draw(rng) == "" and Cards.built_ids().all(func(each): return all.maxed(each)), "nothing more to draw once all are maxed")
+	check(rares >= 15 and rares <= 60, "rares come about a sixth of the time while commons last: %d of 200" % rares)
+	check(not Cards.built("death_ray") and not Cards.built_ids().has("enemy_balance"), "unbuilt cards are never drawn")
+	# Slots and the loadout.
+	var cards := p.cards
+	cards.copies = {"damage": 3, "cash": 1, "free_upgrades": 1}
+	check(cards.equip("damage") and not cards.equip("cash") and not cards.equip("health"), "one free slot; unowned cards can't be equipped")
+	check(cards.slot_price() == 50 and p.buy_card_slot() and cards.slots == 2 and p.gems == 930, "the second slot costs 50 Gems")
+	check(cards.equip("cash") and not cards.equip("free_upgrades") and not cards.equip("cash"), "two slots, each card once")
+	cards.unequip("cash")
+	check(cards.equip("free_upgrades") and cards.equipped == ["damage", "free_upgrades"], "taken off, its slot is free again")
+	p.gems = 0
+	check(not p.buy_card_slot() and cards.slots == 2, "a slot waits for its Gems")
+	var full := Cards.new()
+	full.slots = Cards.built_ids().size()
+	check(full.slot_price() == -1, "no slot is sold beyond one for each built card")
+	var odds := Cards.new().odds()
+	check(odds.keys() == ["common", "rare"] and is_equal_approx(odds.common + odds.rare, 1.0) and is_equal_approx(odds.rare, 0.17 / 0.97),
+		"with no epic built, a draw's real odds are The Tower's among common and rare: %s" % [odds])
+	check(CardsScreen.odds_text(odds) == "Common 82% · Rare 18%", "and the screen shows them: %s" % CardsScreen.odds_text(odds))
+	var stat_effects := p.run_effects()
+	check(stat_effects.size() == 4 and stat_effects[0] == {"stat": "damage", "op": "multiply", "value": 2.0, "source": "card:damage", "domain": "stat"},
+		"a level-2 Damage card multiplies Damage by 2: %s" % [stat_effects])
+	check(stat_effects.slice(1).all(func(effect): return effect.op == "add" and is_equal_approx(effect.value, 0.04) and effect.source == "card:free_upgrades"),
+		"Free Upgrades adds 4% to each free upgrade chance")
+	cards.unequip("free_upgrades")
+	cards.equip("cash")
+	check(p.run_effects("rule") == [{"domain": "rule", "stat": "cash_multiplier", "op": "multiply", "value": 1.2, "source": "card:cash"}], "Cash is a rule effect")
+	# A run starts with them, frozen in its starting build.
+	var screen := BattleScreen.new()
+	screen.workshop = p.workshop
+	screen.progression = p
+	root.add_child(screen)
+	screen.set_process(false)
+	var plain := BattleSim.new(screen.sim.run_seed)
+	check(is_equal_approx(screen.sim.stat("damage"), plain.stat("damage") * 2.0) and is_equal_approx(screen.sim.rules.value("cash_multiplier"), 1.2), "the run's Damage and Cash carry the cards")
+	check(RunConfig.valid(screen.sim.start_config()) and screen.sim.start_config().effects.any(func(effect): return effect.source == "card:damage"), "and its frozen build records them")
+	var saved: Dictionary = json(screen.run_state())
+	cards.unequip("damage")
+	var resumed := BattleScreen.new()
+	resumed.workshop = p.workshop
+	resumed.progression = p
+	resumed.resume = saved
+	root.add_child(resumed)
+	resumed.set_process(false)
+	check(resumed.sim != null and is_equal_approx(resumed.sim.stat("damage"), plain.stat("damage") * 2.0), "a resumed run keeps the cards it began with, whatever is equipped now")
+	screen.free()
+	resumed.free()
+
+
+## D146: save version 3 holds Cards; a version-2 save migrates to an empty
+## collection with a byte-exact backup, and damaged Cards are protected.
+func test_cards_save_and_version_two_migration() -> void:
+	for extra in ["", ".v2-backup.json"]:
+		DirAccess.remove_absolute(PATH + extra)
+	var p := Progression.new()
+	p.observe(1, 25, 24)
+	p.gems = 300
+	p.cards.copies = {"damage": 8, "coins": 1}
+	p.cards.slots = 2
+	p.cards.equipped.assign(["coins", "damage"])
+	check(Save.save_progress(p, PATH), "Cards save")
+	var loaded := Save.load_progress(PATH)
+	check(loaded.writable and loaded.to_dict() == p.to_dict() and loaded.cards.level("damage") == 3 and loaded.cards.equipped == ["coins", "damage"], "and load exactly: %s" % [loaded.cards.to_dict()])
+	check(JSON.parse_string(FileAccess.get_file_as_string(PATH)).version == 3, "as version 3")
+	var older := Progression.new()
+	older.observe(1, 25, 24)
+	older.gems = 40
+	var v2_progression := older.to_dict()
+	v2_progression.erase("cards")
+	write({"version": 2, "workshop": older.workshop.to_dict(), "progression": v2_progression})
+	var bytes := FileAccess.get_file_as_string(PATH)
+	loaded = Save.load_progress(PATH)
+	check(loaded.writable and loaded.gems == 40 and loaded.best_wave(1) == 25 and loaded.cards.copies.is_empty() and loaded.cards.slots == 1, "version 2 migrates with its Gems and records, and no Cards")
+	check(FileAccess.get_file_as_string(PATH + ".v2-backup.json") == bytes, "keeping a byte-exact backup")
+	check(Save.save_progress(loaded, PATH) and Save.load_progress(PATH).writable, "and writes version 3")
+	var claimed_cards := v2_progression.duplicate(true)
+	claimed_cards.cards = {"copies": {"damage": 80}, "slots": 22, "equipped": ["damage"]}
+	write({"version": 2, "workshop": older.workshop.to_dict(), "progression": claimed_cards})
+	bytes = FileAccess.get_file_as_string(PATH)
+	loaded = Save.load_progress(PATH)
+	check(not loaded.writable and FileAccess.get_file_as_string(PATH) == bytes, "a version-2 save claiming Cards, which no version-2 build wrote, is protected")
+	for broken in [{"copies": {"damage": 81}}, {"copies": {"retired_card": 3}}, {"copies": {"damage": 1}, "equipped": ["health"]},
+			{"slots": 0}, {"slots": 23}, {"copies": {"damage": 1.5}}]:
+		var damaged := {"version": Save.VERSION, "workshop": p.workshop.to_dict(), "progression": p.to_dict()}
+		var saved_cards := {"copies": {}, "slots": 1, "equipped": []}
+		saved_cards.merge(broken, true)
+		damaged.progression.cards = saved_cards
+		write(damaged)
+		bytes = FileAccess.get_file_as_string(PATH)
+		loaded = Save.load_progress(PATH)
+		check(not loaded.writable and not Save.save_progress(loaded, PATH) and FileAccess.get_file_as_string(PATH) == bytes, "damaged Cards are protected, never dropped: %s" % [broken])
+	var missing := {"version": Save.VERSION, "workshop": p.workshop.to_dict(), "progression": p.to_dict()}
+	missing.progression.erase("cards")
+	write(missing)
+	check(not Save.load_progress(PATH).writable, "a version-3 save without Cards is damaged")
+	for extra in ["", ".v2-backup.json"]:
+		DirAccess.remove_absolute(PATH + extra)
+
+
+## D146: the Cards screen draws, buys a slot and equips, saying so each time.
+func test_the_cards_screen() -> void:
+	var p := Progression.new()
+	p.observe(1, 20, 19)
+	p.gems = 100
+	var screen := CardsScreen.new()
+	screen.workshop = p.workshop
+	screen.progression = p
+	root.add_child(screen)
+	await process_frame
+	screen.rng.seed = 3
+	var said: Array[Dictionary] = []
+	var saves := [0]
+	screen.activity.connect(func(entry): said.append(entry))
+	screen.changed.connect(func(): saves[0] += 1)
+	check(screen.rows.size() == Cards.built_ids().size(), "a row for every built card")
+	var id := screen.draw()
+	check(id != "" and p.gems == 80 and screen.drawn_panel != null and said[-1].kind == "card_draw" and saves[0] == 1, "a draw shows the card and saves")
+	check(screen.toggle(id) and p.cards.is_equipped(id) and said[-1].kind == "card_equip", "a tap equips it")
+	check(screen.buy_slot() and p.cards.slots == 2 and p.gems == 30 and said[-1].kind == "card_slot", "a slot is bought")
+	check(screen.toggle(id) and not p.cards.is_equipped(id), "and a second tap takes it off")
+	check(CardsScreen.describe("damage", 1) == "×1.50" and CardsScreen.describe("critical_chance", 1) == "+5%" and CardsScreen.describe("free_upgrades", 7) == "+10% each",
+		"values read as The Tower writes them: %s" % CardsScreen.describe("damage", 1))
+	screen.free()
 
 
 func write(value) -> void:

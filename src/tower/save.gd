@@ -1,10 +1,13 @@
 extends RefCounted
-## One atomic file owns permanent progress and the active battle. Version 1
-## migrates explicitly; newer files stay in place and disable progress writes.
+## One atomic file owns permanent progress and the active battle. Versions 1
+## and 2 migrate explicitly, each kept first as a backup; newer files stay in
+## place and disable progress writes. Version 3 adds Cards (D146).
 const Workshop = preload("res://src/tower/workshop.gd")
 const Progression = preload("res://src/tower/progression.gd")
 const PATH := "user://number_go_up_tower.json"
-const VERSION := 2
+const VERSION := 3
+## The older versions this build migrates.
+const OLDER := [1, 2]
 
 
 static func _read(path: String):
@@ -21,21 +24,27 @@ static func load_progress(path: String = PATH) -> Progression:
 		progress.writable = false
 		progress.notice = "This save needs a newer game version. Progress is protected; update the game to continue."
 		return progress
-	if data is Dictionary and (data.get("version") == 1 or data.get("version") == VERSION) and data.get("workshop") is Dictionary:
+	if data is Dictionary and _known(data.get("version")) and data.get("workshop") is Dictionary:
 		progress.workshop.restore(data.workshop)
-		if data.version == 1:
-			var backup := path + ".v1-backup.json"
+		if int(data.version) != VERSION:
+			var backup := path + ".v%d-backup.json" % int(data.version)
 			if FileAccess.file_exists(backup) and FileAccess.get_file_as_string(backup) != FileAccess.get_file_as_string(path):
-				backup = path + ".v1-backup-%d.json" % Time.get_ticks_usec()
+				backup = path + ".v%d-backup-%d.json" % [int(data.version), Time.get_ticks_usec()]
 			if not FileAccess.file_exists(backup) and DirAccess.copy_absolute(path, backup) != OK:
 				progress.writable = false
 				progress.notice = "Couldn't back up the older save. Progress is protected until the save folder is writable."
 				return progress
+		if int(data.version) == 1:
 			# The old best is Tier 1's reached wave, not proof it was cleared.
 			progress.observe(1, progress.workshop.best_wave, maxi(0, progress.workshop.best_wave - 1))
 		elif data.get("progression") is Dictionary:
-			progress.restore(data.progression)
-			if not _valid_current(data, progress):
+			var migrated = _migrated(data)
+			if migrated == null:
+				progress.writable = false
+				progress.notice = "The save contains unsupported or damaged progress. It has been kept untouched for recovery."
+				return progress
+			progress.restore(migrated)
+			if not _valid_current(data.workshop, migrated, progress):
 				progress.writable = false
 				progress.notice = "The save contains unsupported or damaged progress. It has been kept untouched for recovery."
 		else:
@@ -52,22 +61,37 @@ static func load_progress(path: String = PATH) -> Progression:
 	return progress
 
 
+## A version-2 or current save's progression as the current schema holds it:
+## version 2 had no Cards and gains an empty collection (D146). Null if a
+## version-2 save already claims Cards, which no version-2 build wrote.
+static func _migrated(data: Dictionary):
+	var progression: Dictionary = data.progression.duplicate(true)
+	if int(data.version) == 2:
+		if progression.has("cards"): return null
+		progression.cards = preload("res://src/tower/cards.gd").new().to_dict()
+	return progression
+
+
+static func _known(version) -> bool:
+	return (version is int or version is float) and (int(version) == VERSION or int(version) in OLDER) and float(version) == int(version)
+
+
 static func _view(value) -> String:
 	var json := JSON.new()
 	if json.parse(JSON.stringify(value, "", true, true)) != OK: return "invalid"
 	return JSON.stringify(json.data, "", true, true)
 
 
-static func _valid_current(data: Dictionary, progress: Progression) -> bool:
+static func _valid_current(saved_workshop: Dictionary, progression: Dictionary, progress: Progression) -> bool:
 	# A repair in a current schema must not silently delete permanent progress.
 	# Legacy sanitisation is backed up separately before the v1 migration.
-	var workshop: Dictionary = data.workshop.duplicate(true)
+	var workshop: Dictionary = saved_workshop.duplicate(true)
 	if workshop.has("coin_parts"):
 		var parts = preload("res://src/tower/run_config.gd").unpack(workshop.coin_parts)
 		if not parts is Dictionary or not parts.has("coins") or not parts.has("remainder"): return false
 		workshop.coins = progress.workshop.coins
 		workshop.coin_remainder = progress.workshop._coin_remainder
-	return _view(workshop) == _view(progress.workshop.to_dict()) and _view(data.progression) == _view(progress.to_dict()) \
+	return _view(workshop) == _view(progress.workshop.to_dict()) and _view(progression) == _view(progress.to_dict()) \
 		and preload("res://src/tower/research.gd")._pending_valid(progress.research.completed_effects, progress.research.jobs)
 
 
@@ -78,7 +102,7 @@ static func load_workshop(path: String = PATH) -> Workshop:
 static func load_run(path: String = PATH) -> Dictionary:
 	if not FileAccess.file_exists(path): return {}
 	var data = _read(path)
-	if not data is Dictionary or (data.get("version") != 1 and data.get("version") != VERSION): return {}
+	if not data is Dictionary or not _known(data.get("version")): return {}
 	var run = data.get("run")
 	return run if run is Dictionary else {}
 

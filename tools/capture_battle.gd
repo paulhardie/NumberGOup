@@ -13,6 +13,7 @@ const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Progression = preload("res://src/tower/progression.gd")
+const CardsScreen = preload("res://src/ui/cards_screen.gd")
 
 const MOMENTS := [4.0, 30.0, 120.0, 240.0, 600.0]
 const FOLDER := "user://capture"
@@ -61,6 +62,25 @@ func _capture() -> void:
 		shop.show_tab("defense")
 		shop._next_amount())
 	await _shoot(shop, "workshop_defense_x5")
+
+	# Cards (D146): a few found and two equipped, then a draw's card.
+	var collected := Progression.new(progress)
+	collected.observe(1, 25, 24)
+	collected.gems = 140
+	collected.cards.copies = {"damage": 4, "attack_speed": 1, "health": 9, "cash": 2, "free_upgrades": 1}
+	collected.cards.slots = 2
+	collected.cards.equipped.assign(["damage", "health"])
+	var cards := CardsScreen.new()
+	cards.workshop = progress
+	cards.progression = collected
+	await _shoot(cards, "cards")
+	cards = CardsScreen.new()
+	cards.workshop = progress
+	cards.progression = collected
+	cards.ready.connect(func():
+		cards.rng.seed = 5
+		cards.draw())
+	await _shoot(cards, "cards_drawn")
 
 	# A strong tower, to show the later groups: orbs, Rapid Fire, bounces,
 	# the wall, land mines and a shockwave.

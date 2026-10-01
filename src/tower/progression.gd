@@ -1,10 +1,11 @@
 extends RefCounted
 ## Permanent progression beside the Workshop: records, claimed wave rewards,
-## Gems, unlocks and research. One atomic save owns both domains.
+## Gems, unlocks, research and Cards (D146). One atomic save owns both domains.
 
 const Workshop = preload("res://src/tower/workshop.gd")
 const RealClock = preload("res://src/tower/real_clock.gd")
 const Research = preload("res://src/tower/research.gd")
+const Cards = preload("res://src/tower/cards.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
 ## Known free-track rewards from TOWER_RULES.md. Unknown later rewards wait
 ## for their source rather than extrapolating an economy.
@@ -21,6 +22,7 @@ var claimed: Array[String] = []
 var last_daily_day := -1
 var clock := RealClock.new()
 var research := Research.new()
+var cards := Cards.new()
 ## Newer or unreadable data is never overwritten by this older build.
 var writable := true
 var notice := ""
@@ -99,8 +101,41 @@ func advance_time(now: float = Time.get_unix_time_from_system()) -> Array[String
 	return research.advance(clock.advance(now))
 
 
+## What a new run starts with beyond the Workshop: completed research and
+## the equipped Cards (D146), frozen into its starting build.
 func run_effects(domain: String = "stat") -> Array:
-	return research.effects().filter(func(effect): return effect.get("domain", "stat") == domain)
+	var effects := research.effects()
+	effects.append_array(cards.effects())
+	return effects.filter(func(effect): return effect.get("domain", "stat") == domain)
+
+
+## A card drawn for Cards.price() Gems (D146): its id, or "" if Cards aren't
+## open yet, the Gems are short or nothing is left to draw. A draw never takes
+## Gems without giving a card.
+func draw_card(rng: RandomNumberGenerator) -> String:
+	if not can_draw_card():
+		return ""
+	var id := cards.draw(rng)
+	if id != "":
+		gems -= Cards.price()
+	return id
+
+
+func can_draw_card() -> bool:
+	return writable and unlocked("cards") and gems >= Cards.price() and cards.can_draw()
+
+
+## The next card slot, for its Gems.
+func buy_card_slot() -> bool:
+	if not can_buy_card_slot():
+		return false
+	gems -= cards.slot_price()
+	cards.slots += 1
+	return true
+
+
+func can_buy_card_slot() -> bool:
+	return writable and unlocked("cards") and cards.slot_price() >= 0 and gems >= cards.slot_price()
 
 
 func start_research(id: String, cost: float, seconds: float, effects: Array, now: float = Time.get_unix_time_from_system()) -> bool:
@@ -112,7 +147,7 @@ func start_research(id: String, cost: float, seconds: float, effects: Array, now
 
 func to_dict() -> Dictionary:
 	return {"gems": gems, "records": records.duplicate(true), "claimed": claimed.duplicate(),
-		"last_daily_day": last_daily_day, "clock": clock.last_utc, "research": research.to_dict()}
+		"last_daily_day": last_daily_day, "clock": clock.last_utc, "research": research.to_dict(), "cards": cards.to_dict()}
 
 
 func restore(data: Dictionary) -> void:
@@ -133,6 +168,7 @@ func restore(data: Dictionary) -> void:
 	clock.restore(data.get("clock", -1.0))
 	if data.get("research") is Dictionary:
 		research.restore(data.research)
+	cards.restore(data.get("cards", {}))
 
 
 static func _count(value, fallback := 0) -> int:

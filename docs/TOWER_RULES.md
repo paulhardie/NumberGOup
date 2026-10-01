@@ -96,7 +96,7 @@
 | Coins per kill | By type: fast 2, ranged 2, tank 4, boss 5, protector 3, elites 4; basics pay nothing without a card. Times Coins / Kill Bonus × the tier bonus × every other bonus, all multiplied together, and ×0.5 for an enemy alive more than 3 waves | Flat by type × Coins / Kill × tier (D074); no decay | Built |
 | Coins / Wave | A flat 1–150 a wave, × the tier bonus | Same | Built |
 | Other Coin sources | Daily Missions, and wave milestones (below) | Number milestones (D107) and known early wave milestones (D126) | Missions remains unscheduled |
-| **Gems** | Cards, card slots, lab slots/rushing and Modules. Sources include wave milestones, floating gems, ads, daily gifts, missions and events | D126: known early wave Gems and a free daily 20-Gem claim; no ads or store | Cards spend this balance in 1.1; later rewards need exact source amounts |
+| **Gems** | Cards, card slots, lab slots/rushing and Modules. Sources include wave milestones, floating gems, ads, daily gifts, missions and events | D126: known early wave Gems and a free daily 20-Gem claim; no ads or store | Cards spend it (D146: draws and slots); later rewards need exact source amounts |
 
 ## 5. Progression
 
@@ -119,7 +119,7 @@
 
 - **Tiers:** the next opens at wave 100 of the one before (300 from Tier 16). Coin bonus by tier: 1.0, 1.8, 2.6, 3.4, 4.2, 5.0, 5.8, 6.6, 7.5, 8.7, 10.3, 12.2, 14.7, rising to 103 at Tier 24 (the table in [`TOWER_SCALING_FOUNDATION.md`](TOWER_SCALING_FOUNDATION.md#campaign-tier-reference)). Tier battle conditions start at Tier 14.
 - **Labs:** up to five slots (the first free at Tier 1 wave 30, then 100, 400, 1,400 and 3,000 Gems). Each research costs Coins and real time, and runs while the game is closed. Rushing costs Gems.
-- **Cards:** 20 Gems a pull (80% common, 17% rare, 3% epic), seven levels by duplicates, and slots bought with Gems. Some cards open only at milestones.
+- **Cards:** 20 Gems a pull (80% common, 17% rare, 3% epic), seven levels by duplicates, and slots bought with Gems. Some cards open only at milestones. **Built (D146)** with eleven cards; the rest, and changing cards mid-run, are listed in [CARDS.md](CARDS.md).
 - **Perks:** chosen during a run every 200 waves, once the Tier 2 wave-150 milestone and its lab are done.
 - **Game speed:** a Lab from Tier 1 wave 30, ×2.0 to ×5.0 over seven levels; the stated ×5 plays like about ×4. What a fresh save allows before that isn't recorded (the owner's report was at ×1.5 on a paid account).
 - **Buy Multiplier:** The Tower opens it at Tier 2 wave 20; we have had it from the start (D076).

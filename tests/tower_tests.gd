@@ -3000,8 +3000,8 @@ func test_opening_a_group_says_what_it_does() -> void:
 	shop.free()
 
 
-## Home and the Workshop share a bar along the bottom (D096): Battle and the
-## Workshop take the player there, and the roadmap's later screens stand
+## Home and the Workshop share a bar along the bottom (D096): Battle, the
+## Workshop and Cards (D146) take the player there, and the roadmap's later screens stand
 ## locked with the version that brings them, each appearing only when The
 ## Tower would show it (D125). Tier 1 rides on the Battle button until Tier 2
 ## exists, with no locked arrows or Coin bonus card on Home (D138).
@@ -3014,7 +3014,7 @@ func test_the_bottom_bar_and_placeholders() -> void:
 	check(after_first.buttons.keys() == ["battle", "workshop"], "a first run's end brings the Workshop")
 	after_first.free()
 	var at_20 := NavBar.new("battle", 5, 20)
-	check(at_20.buttons.keys() == ["battle", "workshop", "cards"] and at_20.buttons.cards.disabled, "wave 20 brings Cards, locked until they're built")
+	check(at_20.buttons.keys() == ["battle", "workshop", "cards"] and not at_20.buttons.cards.disabled, "wave 20 brings Cards, built (D146)")
 	at_20.free()
 	var at_30 := NavBar.new("battle", 5, 30)
 	check(at_30.buttons.keys() == ["battle", "workshop", "cards", "labs"] and at_30.buttons.labs.disabled, "wave 30 brings Labs; Weapons wait until they're built")
