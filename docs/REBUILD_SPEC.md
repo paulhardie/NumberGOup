@@ -128,6 +128,8 @@ Each version still ends with the owner playing it.
 
 ## Benchmarks
 
+D150 adds repeatable quick/full bot comparisons against committed measurements. [BALANCE_TESTS.md](BALANCE_TESTS.md) owns their coverage and interpretation. They expose changed pace and D149 design failures without approving them or replacing owner play.
+
 | What | The Tower | Source |
 |---|---|---|
 | Fresh save | Damage 3, Attack Speed 1.00, Crit 1% ×1.20, Health 5, Regen 0 | owner's new save, 24 Sep |

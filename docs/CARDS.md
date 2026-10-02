@@ -89,6 +89,8 @@ With no card, the build is a Workshop worth 2,000 Coins: Damage 4, Attack Speed 
 - **Coins only pays its share.** That makes it the clean income card, as The Tower intends.
 - **Ten seeds are a first look, not a verdict.** The test series should repeat this at other builds (a turtle, a later Workshop) and with pairs of cards, since slots make cards a combination question.
 
+The repeatable D150 full suite (`python3 tools/balance_report.py compare --suite full`) now measures every drawable card at level 7 on the three builds below, reports its D149 floor and compares paired seeds with the committed baseline. It does not measure candidates or card pairs. [Commands and interpretation](BALANCE_TESTS.md).
+
 ## The card test series (2 October 2026)
 
 The question: which of The Tower's unbuilt cards to add, and which cards of our own would open a strategy. Every run below is `sim_runs.gd`, 10 seeds a line, `--buy core`, the card alone at the level shown.
