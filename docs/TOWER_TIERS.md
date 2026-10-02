@@ -81,6 +81,7 @@ All `sim_runs.gd`, seeds as stated, `--buy core` unless "none". Our Tier 2 is Th
 | **Blender**: Health 50, Damage 37, Attack Speed 31, Regen 37, Defense Absolute 37, Lifesteal 33, Knockback 32/31, **1 orb**, Orb Speed 22 | — | **wave 21** (20–21) |
 | **Turtle**: Defense Absolute 55, Thorns 47, Defense % 31, Damage 33, Attack Speed 28, Health 34, Regen 34, Cash / Wave 29 | — | **wave 36**, 2.1× the core build's Coins |
 
+- **This misses D149.** The owner decided tiers keep The Tower's shape: the turtle best in Tier 1, and a pivot to the blender for Tier 2. Our Tier 2 doesn't deliver the second half yet.
 - **Our Tier 2 rewards the opposite of The Tower's.** The Turtle, which The Tower's Tier 2 is built to break, goes furthest. The Blender, The Tower's answer, does no better than plain stats.
 - **Likely reasons** (inferred, not traced):
   - At this budget the Blender buys a single slow orb. The Tower's Blender leans on several orbs, the Range lab set to Orb range, and the Plasma Cannon card for bosses, none of which we have.
@@ -99,5 +100,12 @@ All `sim_runs.gd`, seeds as stated, `--buy core` unless "none". Our Tier 2 is Th
   - Enemy Level Skip labs (Tier 11);
   - battle conditions (Tier 14+).
   - Labs (1.2) and Ultimate Weapons (1.3) are on the roadmap. Perks, modules and battle conditions are "later, unscheduled".
-- **Cards' value follows the tier.** The test series (CARDS.md) found Tier 1 a pure killing-power check. The Tower's Tier 2 answer needs the **Plasma Cannon** card (and later Energy Net) against bosses. Our Factor candidate is a stateless stand-in for it.
+- **Cards' value follows the tier.**
+  - The test series (CARDS.md) found Tier 1 a pure killing-power check.
+  - Super Tower and Berserker were measured since (D148): Super Tower is a strong killing card, and Berserker does nothing at The Tower's numbers.
+  - The Tower's Tier 2 answer needs the **Plasma Cannon** card (and later Energy Net) against bosses. Our Factor candidate is a stateless stand-in for it, and passes D149's card floor.
+- **To meet D149's shape in Tier 2**, the blender has to beat the turtle there. The likely levers (to test, not decided) are:
+  - Plasma Cannon or Factor against bosses;
+  - more orbs within Tier 2's budgets;
+  - checking our Thorns and Defense % against The Tower's, which is what lets the turtle survive ×20 attack.
 - **Not a decision:** which of these to build, and in what order, is the owner's call. This page is the evidence.
