@@ -213,4 +213,6 @@ The test series found Tier 1's walls test killing power alone (above), and asked
 - **Of the first round's candidates, only Factor earns a place,** as a modest rare against the boss. It's safe for Coins (+9% over a career).
 - **Of the second, Super Tower earns a place as The Tower has it,** and Berserker only rescaled for a Tier 1 Number, with a finer sweep and a tank career first. Whether either becomes drawable is the owner's call (HANDOVER).
 
+**The floor (D149).** Cards are held to a floor: at level 7 on at least one of the three builds a drawable card moves the median wave by at least one, or, for Coins, pays its Coins. **Six of the eleven built cards fail it today:** Health, Health Regen, Range, Critical Chance, Extra Defense and Free Upgrades, which move no median wave at either level on any build. Making the Number matter at the walls (THE_NUMBER.md section 9) is the one change that might lift several of them; a Number that powers the shots lifted the Health card by two waves at best.
+
 The owner's decisions from this are in HANDOVER.

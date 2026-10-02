@@ -1,6 +1,6 @@
 # The Number: design considerations
 
-**Status:** the direction is decided (D080), its four decisions are answered (D081, section 6), and the enemy design is answered and built (D082, section 7): the Number in the centre, and the Divider. Since then the owner removed the Number's ceiling and made Tier 1's Divider gentle (D083: ÷1.25, then ÷1.5). What's left for 1.0 is the owner playing it. This page is the working list of everything that changes now that the tower *is* a number; the owner's answers go into [`DECISIONS.md`](DECISIONS.md), and this page is updated to match.
+**Status:** the direction is decided (D080), its four decisions are answered (D081, section 6), and the enemy design is answered and built (D082, section 7): the Number in the centre, and the Divider. Since then the owner removed the Number's ceiling and made Tier 1's Divider gentle (D083: ÷1.25, then ÷1.5). What's left for 1.0 is the owner playing it. Section 9 (2 October 2026) reopens what the Number *is*: it is measurably a health pool, and that is open. This page is the working list of everything that changes now that the tower *is* a number; the owner's answers go into [`DECISIONS.md`](DECISIONS.md), and this page is updated to match.
 
 ## The direction, in the owner's words
 
@@ -361,3 +361,51 @@ Dropped: a digit Reverser (random, not skill), Modulo (swingy and opaque), a ÷1
 
 **The Divider's slow refill (D134)** was tried with the Lock: what a ÷ took, held back from Regen for 10 to 120 seconds. It moved no wall, since by the time basics break a tower the Number is nowhere near its best, so it stays a measuring option (`--divider-refill`), off in the game.
 
+
+## 9. Revisited (2 October 2026): is the Number a health pool?
+
+The owner has now said it twice: "literally just a swap of health" (26 September, which led to D083's no ceiling) and, after Dividers, the Lock and growth rules were built, "a bit of an add on ... effectively a health pool". I read "identity" as what the Number does; how it looks (D131's digit milestones, typefaces) follows from that. **Status: open, waiting for the owner's choice of what the Number is** (HANDOVER).
+
+**It is, as measured.** Median wave on `main` at `0cb286d`, bots, Tier 1, with the Number's own rules on and then stripped (`--divider-share 0 --lock off --kill-share 0 --peak-drift 0`, which leaves a plain health bar that regen refills):
+
+| Build | With the Number's rules | Stripped |
+|---|---|---|
+| Fresh run, Cash spread (20 seeds) | 6 | 6 |
+| Core, 10K Coins (8 seeds) | 31 | 31 |
+| Turtle, 10K | 41 | 41 |
+| Core, 100K (4 seeds) | 51 | 51 |
+| Turtle, 100K | 84 | **89** |
+| Core career: run that first reaches wave 31 | run 47 | run 60 |
+
+- **No build's wave depends on the Number's rules.** The turtle does five waves *better* without them.
+- **Only the growth rules show, and only in pace:** a career without regen's drift past the best and kills growing the Number is about 13 runs (about two game hours) slower to wave 31. That is "a bigger health pool", not an identity.
+
+**Why, three reasons:**
+1. **Every loss is transient.** Regen refills the Number to the run's best before the next threat (D111).
+2. **Size can't beat a boss.** An enemy at the Number hits 4% harder each hit (`heat_up_per_hit` 1.04), so survival against one that stands there grows only about with the log of the Number: a Health card at level 7 took the peak from about 340 to 720 and the run still died on wave 31 (CARDS.md). This is a reading of the code and a traced collapse, not a separate measurement.
+3. **Tier 1's Dividers are gentle by decision** (÷1.25, ÷1.5, D083) and can't end a run (2.2), so they can't be a threat whatever surrounds them.
+
+**Two obvious fixes, tried and not enough** (scratch or existing options, 10 seeds or fewer, bots; nothing is in the game):
+- **Make losses durable:** `--divider-refill 1000000`, a Divider's bite never coming back. Fresh 6 → 6, core 10K 31 → 31, turtle 10K 41 → 40, core 100K 51 → 51, turtle 100K 84 → 83. Only the career moved (wave 31 on run 60, from 47).
+- **Make the Number ammunition:** each shot's Damage × (1 + c · log10(Number ÷ 5)), the Number floored at 5. It is a strong lever on pace and an inadequate one on identity:
+
+| | c = 0 | c = 0.5 | c = 1 |
+|---|---|---|---|
+| Fresh run, Cash spread | 6 | 7 | 10 |
+| Core 10K / core 100K | 31 / 51 | 41 / 73 | 51 / 81 |
+| Turtle 100K | 84 | 91 | 97 |
+| Core career: wave 31 on run | 47 | 20 | 9 |
+| Core 10K without Dividers / core 100K without | | 41 / 74 | 51 / 81 |
+| Health card, level 7, wave-21 build (no card → card) | | 31 → 33 | 40 → 42 |
+| Damage card for comparison | | 31 → 61 | 40 → 81 |
+
+  - **It breaks the early benchmarks well before it makes anything else matter.** Spread Cash dies on wave 10 at c = 1 against The Tower's 8, and a career passes wave 31 in 9 runs. A usable c would be small.
+  - **Dividers still don't matter** (41 → 41, 73 → 74 without them): a ÷1.5 costs a smooth function of the Number a few per cent.
+  - **A Health card gains two waves, Regen and Extra Defense none to one,** against Damage's thirty to forty.
+
+**What that says.** The wall is decided by killing power against a boss's health, so the Number can only gain an identity if one new rule makes its size or state decide something *at that wall*. Tuning the rules we have can't, and a smooth coupling can't by itself. The candidates, none built:
+1. **Ammunition.** The Number powers the shots: the old vision's "score, health and ammunition at once". One-way (the Number sets damage, damage doesn't set the Number), so D037's loop doesn't return. Tested above: needs a small c and something steeper than a log to bite; changes every benchmark when real.
+2. **A stake.** Losses that last and gains that can be taken away (÷ and Locks cutting the run's best, not only what stands). Tested in its mildest form above, which moved no wall; it would need bigger or more frequent ÷, against D083's choice.
+3. **Spent.** The player trades Number for a burst of power, a decision in place of a bar. It reopens 1.3 ("the Number isn't spent"), and The Tower has no tap, so the trigger would be a rule.
+
+The cheapest next step for any of them is the card test series' method: a measure-only candidate, swept against the three card builds, before any rule reaches a real run.
