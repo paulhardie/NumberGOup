@@ -2189,3 +2189,25 @@ Rules:
   - Left open: the Cards and Workshop screens share copied bar and card helpers that could move into Palette.
   - A first sweep is in CARDS.md: at a wave-21 build, only Damage and Attack Speed move the wall at level 1.
 - **Not checked:** owner play, phone layout, or the owner's real save (the migration was run on a copy made by the same code).
+
+## D147 — Cards in a grid, details on tap
+
+- **Status:** Accepted (2026-10-02) on owner direction: "cards menu shouldn't be a list. Needs to be a grid, with card info available on tap. Similar to the tower".
+- **Decision:** the Cards screen lays the built cards out three to a row, as The Tower does, in place of D146's one row per card.
+  - **A tile** has:
+    - a thin line in its rarity's colour;
+    - its value at its level, large, and its name;
+    - its level as seven dots;
+    - a bar of copies towards the next level;
+    - "EQUIPPED" in the accent while equipped.
+  - **An unfound card** is dimmed, with a "?".
+  - **A tap opens the card:**
+    - its rarity, name, value and what it does;
+    - its level and copies towards the next;
+    - every level's value, with this one lit;
+    - Equip or Remove. Equip is disabled with "No free slot" or "Not found".
+  - The draw's card and a card's details share one overlay; opening one closes the other.
+  - Draws, slots and the rules are unchanged (D146).
+- **Checked:**
+  - tests cover the tiles in a grid, a tap opening the card, Equip from it, and an unfound card refused;
+  - the `cards` and new `cards_card` captures were inspected.

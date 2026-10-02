@@ -63,7 +63,8 @@ func _capture() -> void:
 		shop._next_amount())
 	await _shoot(shop, "workshop_defense_x5")
 
-	# Cards (D146): a few found and two equipped, then a draw's card.
+	# Cards (D146): a few found and two equipped, then a draw's card, then a
+# card's details from the grid (D147).
 	var collected := Progression.new(progress)
 	collected.observe(1, 25, 24)
 	collected.gems = 140
@@ -81,6 +82,11 @@ func _capture() -> void:
 		cards.rng.seed = 5
 		cards.draw())
 	await _shoot(cards, "cards_drawn")
+	cards = CardsScreen.new()
+	cards.workshop = progress
+	cards.progression = collected
+	cards.ready.connect(func(): cards.show_card("damage"))
+	await _shoot(cards, "cards_card")
 
 	# A strong tower, to show the later groups: orbs, Rapid Fire, bounces,
 	# the wall, land mines and a shockwave.
