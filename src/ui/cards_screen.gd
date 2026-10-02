@@ -1,9 +1,9 @@
 extends Control
-## Cards between runs (D146), in the Workshop's premium-minimal layout: Gems
-## along the top, a draw as the hero (a card for Gems, by The Tower's odds),
-## the equipped cards and the next slot, then every built card as one slim
-## row: its value at its level, its copies towards the next level, and a tap
-## to equip or take it off. A run takes the cards equipped when it starts.
+## Cards between runs (D146), premium minimal: Gems along the top, a draw as
+## the hero (a card for Gems, by The Tower's odds), the equipped count and the
+## next slot, then every built card as a tile in a grid of three, as The
+## Tower lays them out (D147). A tap opens a card's details, where it is
+## equipped or taken off. A run takes the cards equipped when it starts.
 ## The rules are Progression's and Cards'; this only shows and asks.
 
 const Cards = preload("res://src/tower/cards.gd")
@@ -36,10 +36,18 @@ var _slot_line: Label
 var _slot_button: Button
 var _slot_price: Dictionary
 var _list: VBoxContainer
+## Cards across, in the grid.
+const GRID_COLUMNS := 3
 ## Refreshed after each change: [{id, button, refresh: Callable}].
 var rows: Array[Dictionary] = []
 ## The card just drawn, over the screen until closed.
 var drawn_panel: PanelContainer
+## A card's details, over the screen until closed, and its Equip button.
+var info_panel: PanelContainer
+var info_equip: Button
+## Whichever of the two is up, and what closing it clears.
+var _shade: PanelContainer
+var _on_close: Callable
 var _mono := Palette.weight(Palette.NUMBER_FONT, 400)
 var _mono_bold := Palette.weight(Palette.NUMBER_FONT, 500)
 
@@ -98,8 +106,14 @@ func _ready() -> void:
 	scroll.add_child(_list)
 	_list.add_child(_draw_card())
 	_list.add_child(_slots_line())
+	var grid := GridContainer.new()
+	grid.columns = GRID_COLUMNS
+	grid.add_theme_constant_override("h_separation", 8)
+	grid.add_theme_constant_override("v_separation", 8)
+	grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_list.add_child(grid)
 	for id in Cards.built_ids():
-		_list.add_child(_card_row(id))
+		grid.add_child(_card_tile(id))
 
 	var nav := NavBar.new("cards", workshop.runs, workshop.best_wave, progression)
 	nav.chosen.connect(func(id: String):
@@ -210,55 +224,120 @@ func buy_slot() -> bool:
 	return true
 
 
-## One card, one line: its name in its rarity's colour over its value at its
-## level, its level and copies towards the next on the right, and a thin bar
-## of those copies along the bottom. Lit with the accent's edge while
-## equipped; a tap equips it or takes it off. Not yet found, it waits dimmed.
-func _card_row(id: String) -> Button:
-	var button := _card_button(66)
-	var inside := _inside(button, 10)
-	var line := _line(inside)
-	line.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	var words := VBoxContainer.new()
-	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	words.add_theme_constant_override("separation", 0)
-	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	line.add_child(words)
+## One card as a tile in the grid, as The Tower lays its cards out: a thin
+## line in its rarity's colour along the top, its value at its level large,
+## its name, its level as seven dots and a bar of copies towards the next.
+## Lit with the accent's edge while equipped; dimmed, with a "?", until it is
+## found. A tap opens the card (show_card), where it is equipped.
+func _card_tile(id: String) -> Button:
+	var button := _card_button(118)
 	var card: Dictionary = Cards.card(id)
+	var inside := VBoxContainer.new()
+	inside.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	inside.offset_left = 10
+	inside.offset_right = -10
+	inside.offset_top = 0
+	inside.offset_bottom = -10
+	inside.add_theme_constant_override("separation", 4)
+	inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(inside)
+	var edge := ColorRect.new()
+	edge.custom_minimum_size = Vector2(0, 2)
+	edge.color = Color(RARITY_COLOURS[card.rarity], 0.7)
+	edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inside.add_child(edge)
+	# "Equipped", small in the accent, while it is.
+	var worn := _small("EQUIPPED", Palette.ACCENT)
+	worn.add_theme_font_override("font", _spaced(Palette.weight(Palette.WORD_FONT, 500), 2))
+	worn.add_theme_font_size_override("font_size", 8)
+	worn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	worn.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	worn.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	inside.add_child(worn)
+	var value := _number(20, Palette.TEXT)
+	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	inside.add_child(value)
 	var name_label := _small(String(card.name), RARITY_COLOURS[card.rarity])
-	words.add_child(name_label)
-	var value := _number(19, Palette.TEXT)
-	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	words.add_child(value)
-	var level := _number(11, Palette.MUTED)
-	level.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	line.add_child(level)
-	var state := Palette.price_chip(_mono_bold, 12)
-	state.panel.custom_minimum_size = Vector2(84, 0)
-	line.add_child(state.panel)
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_label.add_theme_font_size_override("font_size", 11)
+	inside.add_child(name_label)
+	var dots := _small("", Palette.ACCENT)
+	dots.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	dots.add_theme_font_size_override("font_size", 8)
+	inside.add_child(dots)
 	var bar := _bar()
 	inside.add_child(bar)
-	button.pressed.connect(func(): toggle(id))
+	button.pressed.connect(func(): show_card(id))
 	rows.append({"id": id, "button": button, "refresh": func():
 		var cards := progression.cards
 		var found := cards.owned(id)
 		var on := cards.is_equipped(id)
-		name_label.modulate.a = 1.0 if found else 0.5
-		value.text = describe(id, maxi(1, cards.level(id)))
-		value.add_theme_color_override("font_color", Palette.TEXT if found else Palette.MUTED)
+		button.modulate.a = 1.0 if found else 0.55
+		worn.modulate.a = 1.0 if on else 0.0
+		value.text = describe(id, cards.level(id)) if found else "?"
+		dots.text = level_dots(cards.level(id))
 		var toward_next := cards.progress(id)
-		if not found:
-			level.text = String(card.rarity).capitalize()
-		elif cards.maxed(id):
-			level.text = "Lv %d · max" % cards.level(id)
-		else:
-			level.text = "Lv %d · %d/%d" % [cards.level(id), toward_next[0], toward_next[1]]
-		state.label.text = "Equipped" if on else ("Equip" if found else "Not found")
-		Palette.style_price_chip(state, on, Palette.ACCENT)
-		button.disabled = not (on or cards.can_equip(id))
 		_style_row(button, on)
 		_fill(bar, 1.0 if cards.maxed(id) else (float(toward_next[0]) / maxf(1.0, float(toward_next[1])) if found else 0.0), on)})
 	return button
+
+
+## A card's level as seven dots, filled up to it: "●●○○○○○".
+static func level_dots(level: int) -> String:
+	return "●".repeat(level) + "○".repeat(Cards.max_level() - level)
+
+
+## Over the screen: a card's details, as The Tower's card popup has them:
+## its rarity, name and value, what it does, its level and copies, every
+## level's value with this one lit, and Equip or Remove. Unfound, it says so
+## and can't be equipped.
+func show_card(id: String) -> void:
+	var column := _overlay(func(): info_panel = null)
+	info_panel = _shade
+	var card: Dictionary = Cards.card(id)
+	var cards := progression.cards
+	var found := cards.owned(id)
+	var level := cards.level(id)
+	_card_heading(column, id, maxi(1, level))
+	var status := _small("", Palette.MUTED)
+	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	if not found:
+		status.text = "Not found yet: draw cards to find it"
+	elif cards.maxed(id):
+		status.text = "Level %d · max" % level
+	else:
+		status.text = "Level %d · %d/%d copies to level %d" % [level, cards.progress(id)[0], cards.progress(id)[1], level + 1]
+	column.add_child(status)
+	# Every level's value, this one lit.
+	var ladder := GridContainer.new()
+	ladder.columns = Cards.max_level()
+	ladder.add_theme_constant_override("h_separation", 6)
+	ladder.add_theme_constant_override("v_separation", 2)
+	ladder.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	for step in range(1, Cards.max_level() + 1):
+		var at := _small(str(step), Palette.ACCENT if step == level else Palette.MUTED)
+		at.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+		at.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		at.add_theme_font_size_override("font_size", 9)
+		ladder.add_child(at)
+	for step in range(1, Cards.max_level() + 1):
+		var worth := _small(describe(id, step).trim_suffix(" each"), Palette.TEXT if step == level else Palette.MUTED)
+		worth.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+		worth.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		worth.add_theme_font_size_override("font_size", 10)
+		ladder.add_child(worth)
+	column.add_child(ladder)
+	var on := cards.is_equipped(id)
+	var label := "Remove" if on else ("Equip" if cards.can_equip(id) else ("Not found" if not found else "No free slot"))
+	info_equip = Palette.pill(label, Palette.ACCENT, null, 38)
+	info_equip.disabled = not (on or cards.can_equip(id))
+	info_equip.pressed.connect(func():
+		toggle(id)
+		_close_overlay())
+	column.add_child(info_equip)
+	var close := Palette.pill("Close", Palette.SOFT, null, 36)
+	close.pressed.connect(_close_overlay)
+	column.add_child(close)
 
 
 ## Equips `id`, or takes it off if it is equipped.
@@ -299,25 +378,27 @@ static func describe(id: String, level: int) -> String:
 ## Over the screen: the card just drawn, its rarity, and whether it is new or
 ## a copy towards its next level.
 func show_drawn(id: String) -> void:
-	if drawn_panel != null:
-		drawn_panel.queue_free()
-	drawn_panel = PanelContainer.new()
-	var shade := StyleBoxFlat.new()
-	shade.bg_color = Color(0, 0, 0, 0.6)
-	drawn_panel.add_theme_stylebox_override("panel", shade)
-	drawn_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(drawn_panel)
-	var centre := CenterContainer.new()
-	drawn_panel.add_child(centre)
-	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", Palette.panel_box())
-	panel.custom_minimum_size = Vector2(280, 0)
-	centre.add_child(panel)
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 10)
-	panel.add_child(column)
-	var card: Dictionary = Cards.card(id)
+	var column := _overlay(func(): drawn_panel = null)
+	drawn_panel = _shade
 	var cards := progression.cards
+	_card_heading(column, id, cards.level(id))
+	var count := int(cards.copies[id])
+	var note := "A copy: %d/%d to level %d" % [cards.progress(id)[0], cards.progress(id)[1], cards.level(id) + 1]
+	if count == 1:
+		note = "New card"
+	elif Cards.level_for(count - 1) < cards.level(id):
+		note = "Up to level %d" % cards.level(id)
+	var status := _small(note, Palette.ACCENT)
+	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column.add_child(status)
+	var close := Palette.pill("Got it", Palette.SOFT, null, 36)
+	close.pressed.connect(_close_overlay)
+	column.add_child(close)
+
+
+## A card's rarity, name, value at `level` and what it does, centred.
+func _card_heading(column: VBoxContainer, id: String, level: int) -> void:
+	var card: Dictionary = Cards.card(id)
 	var rarity := _small(String(card.rarity).to_upper(), RARITY_COLOURS[card.rarity])
 	rarity.add_theme_font_override("font", _spaced(Palette.weight(Palette.WORD_FONT, 500), 3))
 	rarity.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -329,28 +410,46 @@ func show_drawn(id: String) -> void:
 	column.add_child(name_label)
 	var value := _number(28, Palette.TEXT)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	value.text = describe(id, cards.level(id))
+	value.text = describe(id, level)
 	column.add_child(value)
-	var about := _small(String(card.description).replace("[x]%", "[x]").replace("[x]", describe(id, cards.level(id))), Palette.SOFT)
+	var about := _small(String(card.description).replace("[x]%", "[x]").replace("[x]", describe(id, level)), Palette.SOFT)
 	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	about.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	about.custom_minimum_size = Vector2(240, 0)
 	column.add_child(about)
-	var count := int(cards.copies[id])
-	var note := "A copy: %d/%d to level %d" % [cards.progress(id)[0], cards.progress(id)[1], cards.level(id) + 1]
-	if count == 1:
-		note = "New card"
-	elif Cards.level_for(count - 1) < cards.level(id):
-		note = "Up to level %d" % cards.level(id)
-	var status := _small(note, Palette.ACCENT)
-	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(status)
-	var close := Palette.pill("Got it", Palette.SOFT, null, 36)
-	close.pressed.connect(func():
-		drawn_panel.queue_free()
-		drawn_panel = null)
-	column.add_child(close)
+
+
+## A panel over a darkened screen, replacing any other; returns its column.
+## `on_close` runs when it closes.
+func _overlay(on_close: Callable) -> VBoxContainer:
+	_close_overlay()
+	_shade = PanelContainer.new()
+	_on_close = on_close
+	var shade := StyleBoxFlat.new()
+	shade.bg_color = Color(0, 0, 0, 0.6)
+	_shade.add_theme_stylebox_override("panel", shade)
+	_shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(_shade)
+	var centre := CenterContainer.new()
+	_shade.add_child(centre)
+	var panel := PanelContainer.new()
+	panel.add_theme_stylebox_override("panel", Palette.panel_box())
+	panel.custom_minimum_size = Vector2(300, 0)
+	centre.add_child(panel)
+	var column := VBoxContainer.new()
+	column.add_theme_constant_override("separation", 10)
+	panel.add_child(column)
+	return column
+
+
+func _close_overlay() -> void:
+	if _shade == null:
+		return
+	_shade.queue_free()
+	_shade = null
+	if _on_close.is_valid():
+		_on_close.call()
 
 
 ## How far `have` has come towards `target`, 0 to 1.
