@@ -267,6 +267,40 @@ static func style_card(button: Button) -> void:
 	button.add_theme_stylebox_override("pressed", card_box(Color("101012"), Color(1, 1, 1, 0.12)))
 
 
+## A screen's card button, with its height chosen by the layout.
+static func card_button(height: int) -> Button:
+	var button := Button.new()
+	button.custom_minimum_size = Vector2(0, height)
+	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	button.focus_mode = Control.FOCUS_NONE
+	style_card(button)
+	press(button)
+	return button
+
+
+## A thin bar along a card's foot, filled towards a price or the next level.
+static func progress_bar() -> ProgressBar:
+	var bar := ProgressBar.new()
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 2)
+	bar.max_value = 1.0
+	# Exact, not rounded to hundredths.
+	bar.step = 0.0
+	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var back := StyleBoxFlat.new()
+	back.bg_color = Color(1, 1, 1, 0.05)
+	bar.add_theme_stylebox_override("background", back)
+	return bar
+
+
+## Fills a bar to `share`, dimming the screen's colour unless lit.
+static func fill_progress(bar: ProgressBar, share: float, lit: bool, colour: Color) -> void:
+	bar.value = share
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = colour if lit else Color(colour, 0.35)
+	bar.add_theme_stylebox_override("fill", fill)
+
+
 ## A thin line across a screen.
 static func hairline() -> ColorRect:
 	var line := ColorRect.new()

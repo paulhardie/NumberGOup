@@ -137,7 +137,7 @@ func refresh() -> void:
 	_odds.text = odds_text(cards.odds()) if can_draw else "Every card found"
 	_draw_price.label.text = "◆ %d" % Cards.price() if can_draw else "All found"
 	Palette.style_price_chip(_draw_price, affordable, Palette.ACCENT)
-	_fill(_draw_bar, toward(progression.gems, Cards.price()), affordable)
+	Palette.fill_progress(_draw_bar, toward(progression.gems, Cards.price()), affordable, Palette.ACCENT)
 	_slot_line.text = "EQUIPPED  %d / %d" % [cards.equipped.size(), cards.slots]
 	var slot_price := cards.slot_price()
 	_slot_button.visible = slot_price >= 0
@@ -153,7 +153,7 @@ func refresh() -> void:
 ## The draw as the hero, as the Workshop's next unlock: what it is, The
 ## Tower's odds, its price chip and a bar filling towards it.
 func _draw_card() -> Button:
-	_draw_button = _card_button(78)
+	_draw_button = Palette.card_button(78)
 	var column := _inside(_draw_button, 12)
 	var heading := _small("DRAW A CARD", Palette.MUTED)
 	heading.add_theme_font_override("font", _spaced(Palette.weight(Palette.WORD_FONT, 500), 3))
@@ -170,7 +170,7 @@ func _draw_card() -> Button:
 	line.add_child(chances)
 	_draw_price = Palette.price_chip(_mono_bold, 14)
 	line.add_child(_draw_price.panel)
-	_draw_bar = _bar()
+	_draw_bar = Palette.progress_bar()
 	column.add_child(_draw_bar)
 	_draw_button.pressed.connect(draw)
 	return _draw_button
@@ -230,7 +230,7 @@ func buy_slot() -> bool:
 ## Lit with the accent's edge while equipped; dimmed, with a "?", until it is
 ## found. A tap opens the card (show_card), where it is equipped.
 func _card_tile(id: String) -> Button:
-	var button := _card_button(118)
+	var button := Palette.card_button(118)
 	var card: Dictionary = Cards.card(id)
 	var inside := VBoxContainer.new()
 	inside.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -265,7 +265,7 @@ func _card_tile(id: String) -> Button:
 	dots.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	dots.add_theme_font_size_override("font_size", 8)
 	inside.add_child(dots)
-	var bar := _bar()
+	var bar := Palette.progress_bar()
 	inside.add_child(bar)
 	button.pressed.connect(func(): show_card(id))
 	rows.append({"id": id, "button": button, "refresh": func():
@@ -278,7 +278,7 @@ func _card_tile(id: String) -> Button:
 		dots.text = level_dots(cards.level(id))
 		var toward_next := cards.progress(id)
 		_style_row(button, on)
-		_fill(bar, 1.0 if cards.maxed(id) else (float(toward_next[0]) / maxf(1.0, float(toward_next[1])) if found else 0.0), on)})
+		Palette.fill_progress(bar, 1.0 if cards.maxed(id) else (float(toward_next[0]) / maxf(1.0, float(toward_next[1])) if found else 0.0), on, Palette.ACCENT)})
 	return button
 
 
@@ -467,16 +467,6 @@ func _style_row(button: Button, on: bool) -> void:
 	button.add_theme_stylebox_override("disabled", Palette.card_box(Palette.SURFACE, edge))
 
 
-func _card_button(height: int) -> Button:
-	var button := Button.new()
-	button.custom_minimum_size = Vector2(0, height)
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.focus_mode = Control.FOCUS_NONE
-	Palette.style_card(button)
-	Palette.press(button)
-	return button
-
-
 func _inside(button: Button, top: int) -> VBoxContainer:
 	var inside := VBoxContainer.new()
 	inside.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -517,27 +507,6 @@ func _number(font_size: int, colour: Color) -> Label:
 	label.vertical_alignment = VERTICAL_ALIGNMENT_BOTTOM
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	return label
-
-
-## A thin bar along a row's foot (D142).
-func _bar() -> ProgressBar:
-	var bar := ProgressBar.new()
-	bar.show_percentage = false
-	bar.custom_minimum_size = Vector2(0, 2)
-	bar.max_value = 1.0
-	bar.step = 0.0
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var back := StyleBoxFlat.new()
-	back.bg_color = Color(1, 1, 1, 0.05)
-	bar.add_theme_stylebox_override("background", back)
-	return bar
-
-
-func _fill(bar: ProgressBar, share: float, lit: bool) -> void:
-	bar.value = share
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = Palette.ACCENT if lit else Color(Palette.ACCENT, 0.35)
-	bar.add_theme_stylebox_override("fill", fill)
 
 
 static func _spaced(font: FontVariation, spacing: int) -> FontVariation:
