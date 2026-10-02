@@ -508,7 +508,19 @@ func test_the_cards_screen() -> void:
 	check(screen.rows.size() == Cards.built_ids().size(), "a row for every built card")
 	var id := screen.draw()
 	check(id != "" and p.gems == 80 and screen.drawn_panel != null and said[-1].kind == "card_draw" and saves[0] == 1, "a draw shows the card and saves")
-	check(screen.toggle(id) and p.cards.is_equipped(id) and said[-1].kind == "card_equip", "a tap equips it")
+	check(screen.rows.size() == Cards.built_ids().size() and screen.rows.all(func(row): return row.button.get_parent() is GridContainer), "the cards sit in a grid (D147)")
+	var tile: Button = screen.rows.filter(func(row): return row.id == id)[0].button
+	tile.pressed.emit()
+	check(screen.info_panel != null and screen.drawn_panel == null and screen.info_equip.text == "Equip", "a tap opens the card, replacing the draw's panel")
+	screen.info_equip.pressed.emit()
+	check(p.cards.is_equipped(id) and said[-1].kind == "card_equip" and screen.info_panel == null, "its Equip equips it and closes")
+	var other: String = Cards.built_ids().filter(func(each): return each != id)[0]
+	screen.rows.filter(func(row): return row.id == other)[0].button.pressed.emit()
+	check(screen.info_equip.disabled and screen.info_equip.text in ["Not found", "No free slot"], "an unfound card can't be equipped: %s" % screen.info_equip.text)
+	screen._close_overlay()
+	check(screen.info_panel == null, "and closes")
+	check(screen.toggle(id) and not p.cards.is_equipped(id), "toggling takes it off")
+	check(screen.toggle(id) and p.cards.is_equipped(id), "and back on")
 	check(screen.buy_slot() and p.cards.slots == 2 and p.gems == 30 and said[-1].kind == "card_slot", "a slot is bought")
 	check(screen.toggle(id) and not p.cards.is_equipped(id), "and a second tap takes it off")
 	check(CardsScreen.describe("damage", 1) == "×1.50" and CardsScreen.describe("critical_chance", 1) == "+5%" and CardsScreen.describe("free_upgrades", 7) == "+10% each",
