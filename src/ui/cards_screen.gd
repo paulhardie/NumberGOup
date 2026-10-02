@@ -6,6 +6,11 @@ extends Control
 
 const Cards = preload("res://src/tower/cards.gd")
 const Palette = preload("res://src/ui/palette.gd")
+const CARD_ART := {
+	"damage": preload("res://assets/cards/damage.svg"),
+	"health": preload("res://assets/cards/health.svg"),
+	"cash": preload("res://assets/cards/cash.svg"),
+}
 const MAXED_SHEEN = preload("res://src/ui/shaders/maxed_card_sheen.gdshader")
 const NavBar = preload("res://src/ui/nav_bar.gd")
 const Progression = preload("res://src/tower/progression.gd")
@@ -267,6 +272,15 @@ func _refresh_active() -> void:
 			title.add_theme_color_override("font_color", Palette.TEXT)
 			value.text = describe(id, cards.level(id))
 			value.add_theme_color_override("font_color", Palette.ACCENT)
+			if CARD_ART.has(id):
+				var art := _art_region(id, 24)
+				art.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT)
+				art.offset_left = 6
+				art.offset_right = 34
+				art.offset_top = -12
+				art.offset_bottom = 12
+				button.add_child(art)
+				column.offset_left = 34
 			button.tooltip_text = "%s · tap for details or Remove" % title.text
 			button.pressed.connect(func(): show_card(id))
 			_style_row(button, true, cards.maxed(id))
@@ -279,7 +293,7 @@ func _refresh_active() -> void:
 ## Inventory: name first, the current effect, seven level dots, and the
 ## exact copies towards the next level. Equipped cards carry a visible tick.
 func _card_tile(id: String) -> Button:
-	var button := Palette.card_button(112)
+	var button := Palette.card_button(176)
 	var card: Dictionary = Cards.card(id)
 	button.tooltip_text = String(card.name) + " · tap for details"
 	var inside := _inside(button, 8)
@@ -293,6 +307,8 @@ func _card_tile(id: String) -> Button:
 	heading.custom_minimum_size = Vector2(0, 30)
 	heading.add_theme_font_size_override("font_size", 11)
 	inside.add_child(heading)
+	var art := _art_region(id, 56)
+	inside.add_child(art)
 	var value := _number(16 if id == "free_upgrades" else 20, Palette.TEXT)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	inside.add_child(value)
@@ -312,6 +328,8 @@ func _card_tile(id: String) -> Button:
 		var found := cards.owned(id)
 		var on := cards.is_equipped(id)
 		button.modulate.a = 1.0 if found else 0.7
+		for image in art.get_children():
+			image.visible = found
 		value.text = describe(id, cards.level(id)) if found else "?"
 		dots.text = level_dots(cards.level(id))
 		var toward_next := cards.progress(id)
@@ -322,6 +340,23 @@ func _card_tile(id: String) -> Button:
 		_style_row(button, on, maxed)
 		Palette.fill_progress(bar, 1.0 if maxed else (float(toward_next[0]) / maxf(1.0, float(toward_next[1])) if found else 0.0), on or maxed, Palette.COIN if maxed else Palette.ACCENT)})
 	return button
+
+
+## Art is decorative and leaves button input to the existing card action.
+## Reserving the same space keeps names and values aligned across each row.
+func _art_region(id: String, height: float) -> Control:
+	var region := Control.new()
+	region.custom_minimum_size = Vector2(0, height)
+	region.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if CARD_ART.has(id):
+		var art := TextureRect.new()
+		art.texture = CARD_ART[id]
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		region.add_child(art)
+	return region
 
 
 ## A card's level as seven dots, filled up to it: "●●○○○○○".
@@ -447,6 +482,8 @@ func _card_heading(column: VBoxContainer, id: String, level: int) -> void:
 	rarity.add_theme_font_override("font", _spaced(Palette.weight(Palette.WORD_FONT, 500), 3))
 	rarity.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(rarity)
+	if CARD_ART.has(id) and progression.cards.owned(id):
+		column.add_child(_art_region(id, 124))
 	var name_label := Label.new()
 	name_label.text = String(card.name)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

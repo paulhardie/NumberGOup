@@ -89,6 +89,12 @@ func _capture() -> void:
 	cards.progression = collected
 	cards.ready.connect(func(): cards.show_card("damage"))
 	await _shoot(cards, "cards_card")
+	for art_id in ["health", "cash"]:
+		cards = CardsScreen.new()
+		cards.workshop = progress
+		cards.progression = collected
+		cards.ready.connect(cards.show_card.bind(art_id))
+		await _shoot(cards, "cards_card_" + art_id)
 
 	# One maxed card beside ordinary cards, both equipped and unequipped.
 	var gilded := Progression.new(progress)

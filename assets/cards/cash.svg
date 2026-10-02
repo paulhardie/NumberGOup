@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="192" height="128" viewBox="0 0 192 128">
+  <defs>
+    <radialGradient id="halo"><stop stop-color="#d8bd7c" stop-opacity=".13"/><stop offset="1" stop-color="#d8bd7c" stop-opacity="0"/></radialGradient>
+    <linearGradient id="edge" x1="0" y1="1" x2="1" y2="0"><stop stop-color="#9b834e"/><stop offset=".55" stop-color="#f0dfae"/><stop offset="1" stop-color="#b7a172"/></linearGradient>
+  </defs>
+  <ellipse cx="96" cy="64" rx="70" ry="60" fill="url(#halo)"/>
+  <g fill="none" stroke="#c6ae77" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M51 77H111V101H51ZM59 69H119V93M67 61H127V85" opacity=".32"/>
+    <path d="M75 53H135V77H75Z" stroke="url(#edge)" stroke-width="1.5"/>
+    <path d="M99 60L105 56L111 60V70L105 74L99 70Z" stroke="url(#edge)" stroke-width="1.5"/>
+    <path d="M82 60V70M128 60V70" opacity=".5"/>
+    <path d="M68 44L86 26L99 39L122 16M108 16H122V30" stroke="url(#edge)" stroke-width="2.5"/>
+    <path d="M42 109H145M38 62H44M149 62H155" opacity=".25"/>
+  </g>
+  <g fill="#e7d3a0"><circle cx="51" cy="101" r="1.5"/><circle cx="145" cy="109" r="1.5"/><circle cx="86" cy="26" r="2"/></g>
+</svg>
