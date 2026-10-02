@@ -59,7 +59,7 @@ What each does in a run lives in `Cards.EFFECTS` (`src/tower/cards.gd`). Each ca
 - `--cards damage:3,health:1` equips those cards at those levels in every run;
 - `--card-sweep LEVEL` plays the seeds with no card, then with each built card alone at that level, and prints the median wave, Cash and Coins of each.
 
-Both combine with `--buy`, `--workshop` and `--workshop-coins`. A build that has just reached wave 20, when Cards open, is about `--workshop-coins 2000 --workshop-plan core --buy core` (median wave 21).
+Both combine with `--buy`, `--workshop` and `--workshop-coins`, and `--cards` with `--careers`, where cards come in once a run has reached wave 20, as in the game. The test series' candidates (`Cards.CANDIDATES`) are measured the same way, by name in `--cards`, or with `--with-candidates` or `--sweep-cards ID,ID` on a sweep. The game never draws them. A build that has just reached wave 20, when Cards open, is about `--workshop-coins 2000 --workshop-plan core --buy core` (median wave 21).
 
 **First sweep** (10 seeds, a wave-21 build bought as core, each card alone; D146):
 
@@ -86,17 +86,82 @@ With no card, the build is a Workshop worth 2,000 Coins: Damage 4, Attack Speed 
 - **Coins only pays its share.** That makes it the clean income card, as The Tower intends.
 - **Ten seeds are a first look, not a verdict.** The test series should repeat this at other builds (a turtle, a later Workshop) and with pairs of cards, since slots make cards a combination question.
 
-## Candidates of our own
+## The card test series (2 October 2026)
 
-These are proposals for the test series, not built. Each is meant to fit the Number's rules (THE_NUMBER.md): one arithmetic idea, nothing that adds percent of max Health, and each opening a strategy rather than only adding stats.
+The question: which of The Tower's unbuilt cards to add, and which cards of our own would open a strategy. Every run below is `sim_runs.gd`, 10 seeds a line, `--buy core`, the card alone at the level shown.
 
-| Candidate | Idea | Strategy it opens |
-|---|---|---|
-| **Compound** | Clean kills grow the Number by more (D111's kill share ×) | An aggressive build that grows by fighting rather than Regen |
-| **Remainder** | A landed ÷ takes less: the divisor is softened | Holding a big Number against Dividers |
-| **Unequal** | A Lock in range takes extra damage, or holds for less | Answering the Lock without Knockback |
-| **Carry the One** | Each new digit the Number reaches in a run gives a short burst (Regen or Damage) | Pushing the Number up rather than sitting still |
-| **Interest** | A higher interest cap | An economy build that banks Cash |
-| **Absolute** | The first hit each wave does nothing | Shrugging off chip damage, a light Energy Shield |
+**The three builds:**
+- **Wave 21:** a Workshop worth 2,000 Coins, bought core.
+- **Turtle, wave 31:** 4,000 Coins on The Tower's Tier 1 turtle (Defense Absolute, Thorns, Defense %).
+- **Wave 42:** 40,000 Coins, bought core.
 
-The test series should run each one as a `--cards` candidate against The Tower's cards at the same level, then keep the ones that open a build The Tower's cards don't.
+### The finding that decides everything else: Tier 1's walls are its boss waves
+
+- **Every build dies just after a boss wave.** The medians land on 21, 31, 42 and 51.
+- **Traced in two runs of the turtle build** (a scratch script, not a tool):
+  - nothing threatens the Number while the wave-30 boss walks in;
+  - once the boss reaches the Number, with wave 31 arriving, the Number goes from about 300 to 0 in about 8 seconds;
+  - meanwhile the shots go into the boss.
+- **Doubling the Number doesn't help.** A Health card at level 7 took the peak from about 340 to 720, and the run still died on wave 31.
+- **So a Tier 1 wall is a check on killing power.** Cards that kill faster, or buy killing power, move it. Cards that make the Number bigger or harder to hurt don't, at any level.
+
+### The Tower's built cards
+
+Median wave, with the no-card median in the header:
+
+| Card | Wave 21: Lv 1 / Lv 7 | Turtle 31: Lv 1 / Lv 7 | Wave 42: Lv 1 / Lv 7 | Coins at Lv 7, best build |
+|---|---|---|---|---|
+| **Damage** | **29 / 47** | **35 / 51** | **51 / 65** | +255% |
+| **Attack Speed** | 23 / **35** | 33 / **41** | **51 / 56** | +101% |
+| **Cash** | 21 / 31 | 35 / 41 | 42 / 51 | +89% |
+| Fortress | 21 / 29 | 35 / 41 | 42 / 46 | +46% |
+| Coins | 21 / 21 | 31 / 31 | 42 / 42 | +45% (its own) |
+| Health, Health Regen, Range, Critical Chance, Extra Defense, Free Upgrades | 21 / 21 | 31 / 31 | 42 / 42 | 0–5% |
+
+- **Pairs at the wave-21 build, both cards at level 1:**
+  - Damage with Attack Speed, Damage with Cash, Damage with Fortress, and Attack Speed with Cash all reach wave 31 (from 29 for Damage alone);
+  - Attack Speed with Fortress reaches 30;
+  - Cash with Fortress reaches 28.
+- **A second card adds about a boss wave on top of Damage,** and any killing card does.
+- **Careers** (40 runs, core, one level-1 card equipped from wave 20, as in the game):
+
+| Card from wave 20 | First run past 20 | First run past 30 | Wave on run 40 | Coins, runs 21–40 |
+|---|---|---|---|---|
+| None | 21 | never | 24 | 1,924 |
+| **Damage** | 17 | **27** | **31** | 3,091 (+61%) |
+| Fortress | 17 | 40 | 31 | 2,339 (+22%) |
+| Cash | 17 | never | 24 | 2,290 (+19%) |
+| Coins | 21 | never | 24 | 2,369 (+23%) |
+| Factor (candidate) | 21 | never | 24 | 2,089 (+9%) |
+
+**Coin balance:**
+- No card multiplies the Coin pace out of shape.
+- The Coins card pays its own +15% to +45%.
+- Everything else earns more only by reaching further waves: Damage +61% over 20 runs, by reaching wave 31 instead of 24.
+
+### The candidates (measure-only, never drawn)
+
+Each was swept at all three builds at levels 1 and 7.
+
+| Candidate | Idea | Best result | Verdict |
+|---|---|---|---|
+| Slow Aura (The Tower) | Enemies in range walk 13–31% slower | +0 waves; +1–5% Coins | Doesn't move a wall. Park |
+| Critical Coin (The Tower) | A basic killed by a critical shot may drop Coins | +0 to 1% Coins | Tier 1 critical chance is about 1–12%, so it barely fires. Park until crit builds exist |
+| Compound (ours) | Clean kills grow the Number ×1.5–×4 | +0 waves | The Number's size isn't what fails. Park |
+| Remainder (ours) | A landed ÷ takes ×0.85–×0.5 of its share | +0 waves | Dividers take a share but never end a run (D132, D134). Park |
+| Unequal (ours) | Shots deal ×2–×5 to a Lock | +0 waves (at wave 42, past three Locks) | The Lock isn't the wall. Park |
+| Interest (ours) | Interest cap +$25–$250 | Not measurable | None of these builds open Interest. Untested |
+| **Factor (ours, after Plasma Cannon)** | A boss arrives with ×0.70–×0.46 of its health | **+4 waves at Lv 7** (21 → 25, 42 → 46); +2 on the turtle | The only candidate to move a wall, but a weak card: less than a level-1 Damage |
+
+Absolute and Carry the One (both need state saved per wave), and Enemy Balance and Wave Accelerator (both move every benchmark), weren't built.
+
+### What it means for which cards to add
+
+- **Today, any card that isn't killing power is a dead slot in Tier 1.** That isn't the cards' fault; it's the wall. A strategy that isn't "more Damage" needs a reason to exist, and none of the defence, Number or economy cards gives one, The Tower's or ours.
+- **The cards most likely to open a second strategy turn one thing into killing power:**
+  - **Berserker** (The Tower, epic): damage grows with the damage the Number absorbs. It makes Health and defence feed killing power, which is the bridge a tanky build needs.
+  - **Super Tower** (The Tower, epic): Damage ×2.5 for 15 s of every 30. A timed burst that could be lined up with boss waves.
+  - Both need a timed or per-run state, so they are the next prototypes rather than quick rules.
+- **Of the candidates, only Factor earns a place,** as a modest rare against the boss. It's safe for Coins (+9% over a career).
+
+The owner's decisions from this are in HANDOVER.
