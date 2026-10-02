@@ -14,6 +14,8 @@ const BattleScreen = preload("res://src/ui/battle_screen.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Progression = preload("res://src/tower/progression.gd")
 const CardsScreen = preload("res://src/ui/cards_screen.gd")
+const Cards = preload("res://src/tower/cards.gd")
+const TowerData = preload("res://src/tower/tower_data.gd")
 
 const MOMENTS := [4.0, 30.0, 120.0, 240.0, 600.0]
 const FOLDER := "user://capture"
@@ -87,6 +89,57 @@ func _capture() -> void:
 	cards.progression = collected
 	cards.ready.connect(func(): cards.show_card("damage"))
 	await _shoot(cards, "cards_card")
+
+	# Layout boundaries: a newly opened Cards screen, an unused bought slot,
+	# and a fully collected loadout whose inventory needs scrolling.
+	var fresh_cards := Progression.new()
+	fresh_cards.observe(1, 20, 19)
+	cards = CardsScreen.new()
+	cards.workshop = fresh_cards.workshop
+	cards.progression = fresh_cards
+	await _shoot(cards, "cards_empty")
+	collected.cards.slots = 3
+	cards = CardsScreen.new()
+	cards.workshop = progress
+	cards.progression = collected
+	await _shoot(cards, "cards_empty_slot")
+	var complete := Progression.new()
+	complete.observe(1, 30, 29)
+	complete.gems = 0
+	complete.cards.slots = Cards.built_ids().size()
+	for id in Cards.built_ids():
+		complete.cards.copies[id] = int(Cards.data().copies_to_level[-1])
+	complete.cards.equipped.assign(Cards.built_ids())
+	cards = CardsScreen.new()
+	cards.workshop = complete.workshop
+	cards.progression = complete
+	await _shoot(cards, "cards_maxed")
+	cards = CardsScreen.new()
+	cards.workshop = complete.workshop
+	cards.progression = complete
+	await _shoot(cards, "cards_maxed_inventory", true)
+	var open_shop := Workshop.new()
+	open_shop.coins = 1e12
+	for group in TowerData.groups():
+		if not open_shop.is_group_open(String(group.id)):
+			open_shop.open_groups.append(String(group.id))
+	for id in TowerData.rows():
+		open_shop.levels[id] = TowerData.max_level(id)
+	shop = WorkshopScreen.new()
+	shop.workshop = open_shop
+	await _shoot(shop, "workshop_maxed")
+	shop = WorkshopScreen.new()
+	shop.workshop = open_shop
+	await _shoot(shop, "workshop_maxed_bottom", true)
+	for tab in ["defense", "utility"]:
+		shop = WorkshopScreen.new()
+		shop.workshop = open_shop
+		shop.ready.connect(shop.show_tab.bind(tab))
+		await _shoot(shop, "workshop_maxed_" + tab)
+		shop = WorkshopScreen.new()
+		shop.workshop = open_shop
+		shop.ready.connect(shop.show_tab.bind(tab))
+		await _shoot(shop, "workshop_maxed_" + tab + "_bottom", true)
 
 	# A strong tower, to show the later groups: orbs, Rapid Fire, bounces,
 	# the wall, land mines and a shockwave.
@@ -394,9 +447,13 @@ func _capture() -> void:
 	quit()
 
 
-func _shoot(screen: Control, name: String) -> void:
+func _shoot(screen: Control, name: String, scroll_bottom: bool = false) -> void:
 	root.add_child(screen)
 	await _frames()
+	if scroll_bottom:
+		var scroll := screen.find_children("*", "ScrollContainer", true, false)[0] as ScrollContainer
+		scroll.scroll_vertical = 100000
+		await _frames()
 	_save_png(name)
 	screen.queue_free()
 	await process_frame
