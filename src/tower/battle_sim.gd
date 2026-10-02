@@ -506,6 +506,9 @@ func _place(kind: String, angle: float) -> void:
 	enemy.kind = kind
 	enemy.wave = wave
 	enemy.max_health = enemy_health_now(kind)
+	# Factor (a candidate card): a boss arrives with less health.
+	if kind == "boss":
+		enemy.max_health *= minf(1.0, rules.value("boss_health"))
 	enemy.health = enemy.max_health
 	enemy.attack = enemy_attack_now(kind)
 	enemy.speed = EnemyKinds.speed_m(kind, wave, tier, divider)

@@ -9,9 +9,10 @@ const Guesses = preload("res://src/tower/guesses.gd")
 ## - critical_coin: the chance a basic killed by a critical shot drops Coins;
 ## - kill_growth: times a clean kill's growth of the Number (D111's share);
 ## - divide_share: times the share a landed ÷ takes;
-## - lock_damage: times the damage shots deal a Lock.
+## - lock_damage: times the damage shots deal a Lock;
+## - boss_health: times a boss's health as it arrives.
 const DEFAULTS := {"starting_cash": Guesses.STARTING_CASH, "interest_cap": 50.0, "basic_coins": Guesses.COINS_BY_TYPE.basic, "cash_multiplier": 1.0, "coin_multiplier": 1.0,
-	"slow_aura": 0.0, "critical_coin": 0.0, "kill_growth": 1.0, "divide_share": 1.0, "lock_damage": 1.0}
+	"slow_aura": 0.0, "critical_coin": 0.0, "kill_growth": 1.0, "divide_share": 1.0, "lock_damage": 1.0, "boss_health": 1.0}
 const MAX_VALUE := 1e30
 var effects: Array[Dictionary] = []
 

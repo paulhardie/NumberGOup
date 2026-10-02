@@ -2291,6 +2291,18 @@ func test_candidate_cards_act_only_when_equipped() -> void:
 	var walled := _quiet_sim()
 	walled.rules.add(Cards.effects_at("remainder", 7)[0])
 	check_near(walled.divide_share(1.5), (1.0 - 1.0 / 1.5) * 0.5, 1e-9, "one share for the Number and the Wall")
+	# Factor: a boss arrives with less health; nothing else does.
+	for id in ["", "factor"]:
+		var sim := _quiet_sim()
+		sim.wave = 10
+		if id != "":
+			sim.rules.add(Cards.effects_at(id, 1)[0])
+		sim._place("boss", 0.0)
+		sim._place("basic", 1.0)
+		var boss: BattleSim.Enemy = sim.enemies.filter(func(e): return e.kind == "boss")[0]
+		var basic: BattleSim.Enemy = sim.enemies.filter(func(e): return e.kind == "basic")[0]
+		check_near(boss.max_health, sim.enemy_health_now("boss") * (0.7 if id != "" else 1.0), 1e-6, "a boss arrives with ×%s health" % ("0.7" if id != "" else "1"))
+		check(boss.health == boss.max_health and basic.max_health == sim.enemy_health_now("basic"), "full of it, and a basic unchanged")
 	# Interest raises the cap on what interest pays.
 	var capped := _quiet_sim()
 	capped.rules.add(Cards.effects_at("interest", 1)[0])

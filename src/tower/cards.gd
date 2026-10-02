@@ -52,6 +52,11 @@ const CANDIDATES := {
 		"values": [0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.5], "effects": [{"domain": "rule", "stat": "divide_share", "op": "multiply"}]},
 	"unequal": {"name": "Unequal", "rarity": "common", "unit": "multiplier", "description": "Shots deal [x] damage to a Lock",
 		"values": [2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0], "effects": [{"domain": "rule", "stat": "lock_damage", "op": "multiply"}]},
+	# Ours, after The Tower's Plasma Cannon (a boss's health cut by 30% to 54%),
+	# but at the boss's arrival, so it needs no state: the test series found
+	# Tier 1's walls are its boss waves (docs/CARDS.md).
+	"factor": {"name": "Factor", "rarity": "rare", "unit": "multiplier", "description": "A boss arrives with [x] of its health",
+		"values": [0.7, 0.66, 0.62, 0.58, 0.54, 0.5, 0.46], "effects": [{"domain": "rule", "stat": "boss_health", "op": "multiply"}]},
 	"interest": {"name": "Interest", "rarity": "common", "unit": "count", "description": "Raises the interest cap by $[x] a wave",
 		"values": [25.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0], "effects": [{"domain": "rule", "stat": "interest_cap", "op": "add"}]},
 }
