@@ -73,7 +73,18 @@ All `sim_runs.gd`, seeds as stated, `--buy core` unless "none". Our Tier 2 is Th
 - **But the band from "dies at a boss wave" to "never dies" is narrow.** Every row at level 20 dies at Tier 2's wave 60; at level 30 it lives for hours. With no Perks, Labs, Ultimate Weapons or battle conditions yet, nothing in our Tier 2 asks for a *different* build. It asks for *more* of the same stats.
 - **A maxed Workshop is untouchable in both tiers** for at least 10 hours of play. The Tower keeps it honest with more tiers, Overheat and battle conditions; we have three tiers of data.
 
-<!-- builds -->
+**The same Coins, three ways** (`--workshop-coins 1000000 --workshop-plan <plan>`, 3 seeds, Tier 2; core in Tier 1 for reference):
+
+| Plan (what 1M Coins bought) | Tier 1 | Tier 2 |
+|---|---|---|
+| **Core**: Damage 46, Attack Speed 39, Health 47, Regen 47, Defense Absolute 46 | wave 81 (78–82) | **wave 21**, killed by the crowd |
+| **Blender**: Health 50, Damage 37, Attack Speed 31, Regen 37, Defense Absolute 37, Lifesteal 33, Knockback 32/31, **1 orb**, Orb Speed 22 | — | **wave 21** (20–21) |
+| **Turtle**: Defense Absolute 55, Thorns 47, Defense % 31, Damage 33, Attack Speed 28, Health 34, Regen 34, Cash / Wave 29 | — | **wave 36**, 2.1× the core build's Coins |
+
+- **Our Tier 2 rewards the opposite of The Tower's.** The Turtle, which The Tower's Tier 2 is built to break, goes furthest. The Blender, The Tower's answer, does no better than plain stats.
+- **Likely reasons** (inferred, not traced):
+  - At this budget the Blender buys a single slow orb. The Tower's Blender leans on several orbs, the Range lab set to Orb range, and the Plasma Cannon card for bosses, none of which we have.
+  - Our Thorns and Defense % carry the Turtle further than The Tower's would.
 
 ## What it means for our roadmap
 
