@@ -66,7 +66,8 @@ All `sim_runs.gd`, seeds as stated, `--buy core` unless "none". Our Tier 2 is Th
 | Every row at level 45 | — | alive at 4 h, wave 412 |
 | Fully maxed Workshop | **alive at 10 h, wave 1,029**; no Divider landed (510 came) | **alive at 10 h, wave 1,029**, earning 1.83× Tier 1's Coins |
 
-<!-- horizon -->
+- **Run on to 25 game hours** (1 seed each, `--cap-minutes 1500`): both maxed runs are still alive on **wave 2,572**. None of 1,281 Dividers landed. Tier 2 earned 1.14M Coins against Tier 1's 622K (1.84×).
+- Runs to the generated wave-6,500 horizon didn't finish within the 2-hour time limit for a background job, so whether anything ends a maxed run before then is unknown.
 
 **What it shows:**
 - **The 20× jump lands as The Tower intends:** a Workshop that clears Tier 1 to wave ~110 dies around Tier 2's wave 20, so a player can't carry straight on.
