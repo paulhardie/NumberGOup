@@ -11,6 +11,15 @@ GODOT=/path/to/Godot bash run_tests.sh
 GODOT=/path/to/Godot bash run_godot.sh --headless --path . -s res://tools/sim_runs.gd
 ```
 
+## Balance comparisons
+
+```bash
+python3 tools/balance_report.py compare
+python3 tools/balance_report.py compare --suite full
+```
+
+These run the real battle with repeatable bot strategies and compare waves, earnings and progression against committed measurements. The Markdown report shows per-seed changes and known design failures; balance movement needs review, not automatic approval. The quick suite runs in CI. [Coverage, interpretation and baseline updates](docs/BALANCE_TESTS.md).
+
 ## Current game
 
 Version **0.9**: Tier 1, all Workshop groups, run upgrades, the activity report and battle resume. The owner still signs off 1.0 before Cards (1.1), Labs (1.2), Ultimate Weapons (1.3) and selectable tiers (1.4) begin.

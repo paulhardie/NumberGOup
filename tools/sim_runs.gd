@@ -88,6 +88,10 @@ extends SceneTree
 ## --legacy-progression omits D126's wave rewards for a before/after career
 ## comparison; normal careers receive the same one-time rewards as the UI.
 
+## --uncached-buys uses the original per-tick purchase checks for parity measurements.
+## --json-out PATH also writes unrounded per-run measurements for balance comparisons.
+## It never writes a player save; no output file is written after invalid options.
+
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
@@ -125,10 +129,15 @@ const WORKSHOP_PLANS := {
 }
 ## --berserker-scale, read once in _init.
 var _berserker_scale := 1.0
+var _measurements: Array[Dictionary] = []
+var _export_measurements := false
+var _cache_buys := true
 
 
 func _init() -> void:
 	var options := _options()
+	_export_measurements = options.has("json-out")
+	_cache_buys = not options.has("uncached-buys")
 	var seeds := int(options.get("seeds", "10"))
 	var cap_seconds := float(options.get("cap-minutes", "90")) * 60.0
 	var strategy: String = options.get("buy", "none")
@@ -150,8 +159,10 @@ func _init() -> void:
 			printerr("--card-sweep plays single runs, not --careers")
 			quit(1)
 			return
-		_career(int(options.careers), strategy, cap_seconds, options, loadout)
-		quit()
+		if not _career(int(options.careers), strategy, cap_seconds, options, loadout):
+			quit(1)
+			return
+		quit(0 if _write_measurements(options) else 1)
 		return
 	var workshop: String = options.get("workshop", "")
 	if workshop not in ["", "open", "max"] and not workshop.is_valid_int():
@@ -188,7 +199,8 @@ func _init() -> void:
 			printerr("--card-sweep takes a level from 1 to %d" % Cards.max_level())
 			quit(1)
 			return
-		quit(0 if _card_sweep(level, seeds, levels, groups, strategy, cap_seconds, options) else 1)
+		var measured := _card_sweep(level, seeds, levels, groups, strategy, cap_seconds, options)
+		quit(0 if measured and _write_measurements(options) else 1)
 		return
 	var waves: Array[int] = []
 	print("buying: %s%s%s" % [strategy, ", Workshop " + workshop if workshop != "" else "", ", Cards " + options.cards if options.has("cards") else ""])
@@ -203,12 +215,13 @@ func _init() -> void:
 			_spend(sim, strategy)
 			sim.step()
 		waves.append(sim.wave)
+		_record_run(sim, "run", 0, cap_seconds)
 		print("%4d  %4d  %9s  %5d  %11.0f  %5.0f  %11.1f  %13s  %5.0f%%  %-9s  %s" % [index + 1, sim.wave, _clock(sim.time), sim.kills, sim.cash_earned, sim.coins,
 			sim.peak_number, "%d/%d" % [sim.dividers_spawned, sim.dividers_landed], _divider_share_of_loss(sim),
 			sim.killed_by if not sim.alive else "(alive)", _bought(sim)] + _curve(sim, options) + _gains(sim, options) + _losses(sim, options))
 	waves.sort()
 	print("median wave %d, range %d to %d" % [waves[waves.size() / 2], waves[0], waves[-1]])
-	quit()
+	quit(0 if _write_measurements(options) else 1)
 
 
 ## The effects of Cards given as "id:level,id:level", split by domain:
@@ -265,6 +278,7 @@ func _card_sweep(level: int, seeds: int, levels: Dictionary, groups: Array, stra
 				_spend(sim, strategy)
 				sim.step()
 			waves.append(sim.wave)
+			_record_run(sim, "no_card" if id == "" else id, 0, cap_seconds)
 			cash.append(sim.cash_earned)
 			coins.append(sim.coins)
 		waves.sort()
@@ -280,7 +294,7 @@ func _card_sweep(level: int, seeds: int, levels: Dictionary, groups: Array, stra
 	return true
 
 
-func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionary, loadout: Dictionary) -> void:
+func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionary, loadout: Dictionary) -> bool:
 	var workshop := Workshop.new()
 	var progression := Progression.new(workshop)
 	var hours := 0.0
@@ -294,18 +308,21 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 		var sim := BattleSim.new(seed_base + run + 1, workshop.levels, workshop.open_groups, int(options.get("tier", "1")),
 			loadout.stat if carded else [], loadout.rule if carded else [])
 		if not _tune(sim, options):
-			quit(1)
-			return
+			return false
 		var start_number := sim.health
 		while sim.alive and sim.time < cap_seconds:
 			_spend(sim, strategy)
 			sim.step()
+		_record_run(sim, "career", run + 1, cap_seconds)
 		workshop.add_coins(sim.coins)
+		var before_rewards := workshop.coins
 		workshop.finish_run(sim.wave, sim.peak_number)
 		# Same one-time rewards as the screens; the switch measures D125's
 		# earlier progression without altering any battle rules.
 		if not options.has("legacy-progression"):
 			progression.observe(sim.tier, sim.wave, sim.wave if sim.killed_by == "data_limit" else sim.wave - 1)
+		if _export_measurements:
+			_measurements[-1]["permanent_rewards"] = workshop.coins - before_rewards
 		hours += sim.time / 3600.0
 		_spend_workshop(workshop, strategy)
 		# The Number as the wave it ended on began (at death it reads 0).
@@ -314,7 +331,9 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 			sim.peak_number, start_number, entering, "%d/%d" % [sim.dividers_spawned, sim.dividers_landed], sim.killed_by if not sim.alive else "(alive)", _workshop_summary(workshop)] + _curve(sim, options) + _gains(sim, options))
 		if until > 0 and sim.wave >= until:
 			print("reached wave %d on run %d, after %.1f hours of game time" % [until, run + 1, hours])
-			return
+			return true
+
+	return true
 
 
 func _spend_workshop(workshop: Workshop, strategy: String) -> void:
@@ -433,10 +452,19 @@ func _spend(sim: BattleSim, strategy: String) -> void:
 	if strategy == "survival":
 		_spend_survival(sim)
 		return
+	# These fixed policies depend only on Cash and upgrade levels. The only
+	# automatic level changes happen at wave boundaries (Free Upgrades), so
+	# nothing affordable can change between checks with the same Cash/wave.
+	# Health-sensitive policies above must still run on every tick.
+	if _cache_buys and sim.get_meta("last_spend_cash", NAN) == sim.cash and sim.get_meta("last_spend_wave", -1) == sim.wave and sim.get_meta("last_spend_policy", "") == strategy:
+		return
 	while true:
 		var choice := _choose(sim, strategy)
 		if choice == "" or not sim.buy(choice):
-			return
+			break
+	sim.set_meta("last_spend_cash", sim.cash)
+	sim.set_meta("last_spend_wave", sim.wave)
+	sim.set_meta("last_spend_policy", strategy)
 
 
 ## --buy health: every Cash earned is split into a Health budget and a budget
@@ -607,3 +635,46 @@ func _options() -> Dictionary:
 			var has_value := index + 1 < args.size() and not args[index + 1].begins_with("--")
 			found[args[index].substr(2)] = args[index + 1] if has_value else "true"
 	return found
+
+
+## JSON keeps measurements separate from rounded console text. A stopped run
+## is censored, not a death; a career still follows its existing spending policy.
+func _record_run(sim: BattleSim, case_id: String, run: int, cap_seconds: float) -> void:
+	if not _export_measurements:
+		return
+	var reached := {}
+	for target in [10, 20, 30]:
+		if sim.wave >= target:
+			# Wave logs describe completed waves. Reaching N is finishing N-1.
+			for point in sim.wave_log:
+				if int(point.wave) == target - 1:
+					reached[str(target)] = float(point.time)
+					break
+	_measurements.append({"case": case_id, "seed": sim.run_seed, "run": run,
+		"wave": sim.wave, "game_seconds": sim.time, "kills": sim.kills,
+		"cash": sim.cash_earned, "coins": sim.coins, "peak_number": sim.peak_number,
+		"stop": ("time_cap" if sim.time >= cap_seconds else "wave_target") if sim.alive else ("data_limit" if sim.killed_by == "data_limit" else "death"),
+		"killed_by": sim.killed_by, "reached": reached,
+		"dividers_spawned": sim.dividers_spawned, "dividers_landed": sim.dividers_landed,
+		"lost_to": sim.lost_to.duplicate(), "damage_by": sim.damage_by.duplicate(),
+		"start": sim.start_config()})
+
+
+func _write_measurements(options: Dictionary) -> bool:
+	if not options.has("json-out"):
+		return true
+	var path := String(options["json-out"])
+	var file := FileAccess.open(path, FileAccess.WRITE)
+	if file == null:
+		printerr("Could not write measurements: %s (error %d)" % [path, FileAccess.get_open_error()])
+		return false
+	file.store_string(JSON.stringify({"schema": 1, "engine": Engine.get_version_info().string,
+		"data_signature": TowerData.data_signature(), "built_cards": Cards.built_ids(),
+		"options": options, "runs": _measurements}, "\t", true, true) + "\n")
+	file.flush()
+	var error := file.get_error()
+	file.close()
+	if error != OK:
+		printerr("Could not finish writing measurements: %s (error %d)" % [path, error])
+		return false
+	return true
