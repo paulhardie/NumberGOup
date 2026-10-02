@@ -25,6 +25,8 @@ const Main = preload("res://src/main.gd")
 const Settings = preload("res://src/settings.gd")
 const AmbientMusic = preload("res://src/ui/ambient_music.gd")
 const WaveInfo = preload("res://src/ui/wave_info.gd")
+const Cards = preload("res://src/tower/cards.gd")
+const CardsScreen = preload("res://src/ui/cards_screen.gd")
 
 const TEST_SAVE := "user://test_tower_save.json"
 const TEST_LOG := "user://test_activity.jsonl"
@@ -2215,6 +2217,89 @@ func test_the_base_enemies_read_as_ours() -> void:
 	cut._divide(landing)
 	var event: Dictionary = cut.events.filter(func(item): return item.type == "divided")[0]
 	check_near(float(event.before), 30.0, 0.0001, "the sim tells the screen what the Number stood at")
+
+
+## The card test series' candidates (docs/CARDS.md): each rule acts only
+## with its card's effect, and none is ever drawn.
+func test_candidate_cards_act_only_when_equipped() -> void:
+	for id in Cards.CANDIDATES:
+		check(Cards.candidate(id) and not Cards.built(id) and id not in Cards.built_ids(), "%s is measured, never drawn" % id)
+	check(CardsScreen.describe("interest", 1) == "+25" and CardsScreen.describe("remainder", 1) == "×0.85" and CardsScreen.describe("slow_aura", 7) == "+31%",
+		"candidates read as cards do: %s" % CardsScreen.describe("interest", 1))
+	# Slow Aura: inside Range only.
+	for slow in [0.0, 0.13]:
+		var sim := _quiet_sim()
+		if slow > 0.0:
+			check(sim.rules.add(Cards.effects_at("slow_aura", 1)[0]), "Slow Aura is a valid rule")
+		var near := _place(sim, "basic", sim.stat("range") - 1.0)
+		var far := _place(sim, "basic", sim.stat("range") + 20.0)
+		near.speed = 5.0
+		far.speed = 5.0
+		var near_from := near.distance
+		var far_from := far.distance
+		sim._move_enemies()
+		check_near(near_from - near.distance, 5.0 * BattleSim.TICK * (1.0 - slow), 1e-9, "inside Range an enemy walks %d%% slower" % roundi(slow * 100.0))
+		check_near(far_from - far.distance, 5.0 * BattleSim.TICK, 1e-9, "outside it, at full speed")
+	# Compound: a clean kill grows the Number by more.
+	for level in [0, 7]:
+		var sim := _quiet_sim()
+		if level > 0:
+			sim.rules.add(Cards.effects_at("compound", level)[0])
+		var before := sim.health
+		var clean := _place(sim, "basic", 20.0)
+		sim._kill(clean)
+		check_near(sim.health - before, clean.attack * sim.kill_share * (4.0 if level > 0 else 1.0), 1e-9, "a clean kill grows the Number ×%s" % ("4" if level > 0 else "1"))
+	# Remainder: a ÷ takes less.
+	var plain := _quiet_sim()
+	plain.health = 300.0
+	var softened := _quiet_sim()
+	softened.health = 300.0
+	softened.rules.add(Cards.effects_at("remainder", 7)[0])
+	check_near(softened.divide_loss(1.5), plain.divide_loss(1.5) * 0.5, 1e-9, "Remainder at its last level halves what a ÷1.5 takes: %s" % softened.divide_loss(1.5))
+	# Unequal: shots hit a Lock harder, and nothing else.
+	for id in ["", "unequal"]:
+		var sim := _quiet_sim()
+		if id != "":
+			sim.rules.add(Cards.effects_at(id, 3)[0])
+		var lock := _place(sim, "lock", 20.0)
+		lock.max_health = 1e9
+		lock.health = 1e9
+		var basic := _place(sim, "basic", 20.0)
+		basic.max_health = 1e9
+		basic.health = 1e9
+		sim._strike(lock, 10.0, false)
+		sim._strike(basic, 10.0, false)
+		check_near(1e9 - lock.health, 10.0 * (3.0 if id != "" else 1.0), 1e-6, "a Lock takes ×%s" % ("3" if id != "" else "1"))
+		check_near(1e9 - basic.health, 10.0, 1e-6, "a basic takes the shot as it was")
+	# Critical Coin: a basic killed by a critical shot drops Coins.
+	for chance in [0.0, 1.0]:
+		var sim := _quiet_sim()
+		if chance > 0.0:
+			sim.rules.add({"domain": "rule", "stat": "critical_coin", "op": "add", "value": chance, "source": "card:critical_coin"})
+		var basic := _place(sim, "basic", 20.0)
+		var tank := _place(sim, "tank", 20.0)
+		var before := sim.coins
+		var stream: int = sim._combat_rng.state
+		sim._strike(basic, basic.health * 2.0, true)
+		check((sim._combat_rng.state == stream) == (chance == 0.0), "the combat stream moves only with the card")
+		var dropped := sim.coins - before
+		check_near(dropped, Guesses.CRITICAL_COIN_COINS * sim.stat("coins_per_kill") if chance > 0.0 else 0.0, 1e-9, "a critical kill of a basic drops %s Coins" % dropped)
+		before = sim.coins
+		sim._strike(tank, tank.health * 2.0, true)
+		check_near(sim.coins - before, EnemyKinds.coins(tank, sim.wave, sim.stat("coins_per_kill"), sim.tier), 1e-9, "a tank pays only its own")
+	# Remainder softens a ÷ at the Wall too.
+	var walled := _quiet_sim()
+	walled.rules.add(Cards.effects_at("remainder", 7)[0])
+	check_near(walled.divide_share(1.5), (1.0 - 1.0 / 1.5) * 0.5, 1e-9, "one share for the Number and the Wall")
+	# Interest raises the cap on what interest pays.
+	var capped := _quiet_sim()
+	capped.rules.add(Cards.effects_at("interest", 1)[0])
+	check_near(capped.rules.value("interest_cap"), BattleSim.INTEREST_CAP + 25.0, 1e-9, "Interest lifts the cap by $25")
+	# A candidate equipped by any path never reaches a real run.
+	var cards := Cards.new()
+	cards.copies = {"slow_aura": 1}
+	cards.equipped.assign(["slow_aura"])
+	check(cards.effects().is_empty(), "an equipped candidate adds nothing to a run")
 
 
 ## D133: the Lock comes on a fixed beat on top of The Tower's wave; with it

@@ -38,6 +38,24 @@ const EFFECTS := {
 		{"stat": "free_utility_upgrade", "op": "add"}],
 }
 
+## Cards under test (the card test series, docs/CARDS.md): measured with
+## sim_runs.gd --cards, never drawn, listed, equipped or saved. Two are The
+## Tower's, valued from its table; the rest are ours, with their own values,
+## scaled as The Tower's nearest cards are. The rules they need live in
+## RunRules and BattleSim, inert without them.
+const CANDIDATES := {
+	"slow_aura": {"effects": [{"domain": "rule", "stat": "slow_aura", "op": "add"}]},
+	"critical_coin": {"effects": [{"domain": "rule", "stat": "critical_coin", "op": "add"}]},
+	"compound": {"name": "Compound", "rarity": "common", "unit": "multiplier", "description": "Clean kills grow the Number by [x]",
+		"values": [1.5, 2.0, 2.4, 2.8, 3.2, 3.6, 4.0], "effects": [{"domain": "rule", "stat": "kill_growth", "op": "multiply"}]},
+	"remainder": {"name": "Remainder", "rarity": "rare", "unit": "multiplier", "description": "A landed ÷ takes [x] of its share",
+		"values": [0.85, 0.8, 0.75, 0.7, 0.65, 0.6, 0.5], "effects": [{"domain": "rule", "stat": "divide_share", "op": "multiply"}]},
+	"unequal": {"name": "Unequal", "rarity": "common", "unit": "multiplier", "description": "Shots deal [x] damage to a Lock",
+		"values": [2.0, 2.5, 3.0, 3.5, 4.0, 4.5, 5.0], "effects": [{"domain": "rule", "stat": "lock_damage", "op": "multiply"}]},
+	"interest": {"name": "Interest", "rarity": "common", "unit": "count", "description": "Raises the interest cap by $[x] a wave",
+		"values": [25.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0], "effects": [{"domain": "rule", "stat": "interest_cap", "op": "add"}]},
+}
+
 static var _data: Dictionary
 static var _by_id: Dictionary
 
@@ -68,6 +86,33 @@ static func all_ids() -> Array[String]:
 	for entry in data().cards:
 		ids.append(String(entry.id))
 	return ids
+
+
+## A card's name, rarity, unit and values: The Tower's table, or a
+## candidate's own (CANDIDATES), or empty.
+static func definition(id: String) -> Dictionary:
+	if not card(id).is_empty():
+		return card(id)
+	var candidate: Dictionary = CANDIDATES.get(id, {})
+	return candidate if candidate.has("values") else {}
+
+
+static func candidate(id: String) -> bool:
+	return CANDIDATES.has(id) and not definition(id).is_empty()
+
+
+## The effects of card `id` at `level`, built or candidate, each naming its
+## card as its source.
+static func effects_at(id: String, level: int) -> Array:
+	var result := []
+	for effect in EFFECTS.get(id, CANDIDATES.get(id, {}).get("effects", [])):
+		var built_effect: Dictionary = effect.duplicate()
+		built_effect.value = value_at(id, level)
+		built_effect.source = "card:" + id
+		if not built_effect.has("domain"):
+			built_effect.domain = "stat"
+		result.append(built_effect)
+	return result
 
 
 static func built(id: String) -> bool:
@@ -104,7 +149,7 @@ static func level_for(count: int) -> int:
 
 ## A card's value at `level` (1 to 7) in the data's units.
 static func value_at(id: String, level: int) -> float:
-	return float(card(id).values[clampi(level, 1, max_level()) - 1])
+	return float(definition(id).values[clampi(level, 1, max_level()) - 1])
 
 
 func level(id: String) -> int:
@@ -211,13 +256,9 @@ func unequip(id: String) -> bool:
 func effects() -> Array:
 	var result := []
 	for id in equipped:
-		for effect in EFFECTS[id]:
-			var built_effect: Dictionary = effect.duplicate()
-			built_effect.value = value(id)
-			built_effect.source = "card:" + id
-			if not built_effect.has("domain"):
-				built_effect.domain = "stat"
-			result.append(built_effect)
+		# Only built cards reach a run; a candidate is the sim's alone.
+		if built(id):
+			result.append_array(effects_at(id, level(id)))
 	return result
 
 

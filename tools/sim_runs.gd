@@ -75,7 +75,12 @@ extends SceneTree
 ## built card alone at LEVEL, and prints each one's median wave, Cash and
 ## Coins beside the no-card line: what a card is worth to that build. Both
 ## work with --buy, --workshop and the other run options, and --cards with
-## --careers too (every run of the career has those cards).
+## --careers too (every run of the career has those cards). Both also take the
+## card test series' candidates (Cards.CANDIDATES, docs/CARDS.md), which the
+## game never draws: name them in --cards, or add --with-candidates to a sweep.
+## --sweep-cards ID,ID, with --card-sweep, sweeps only those cards (built or
+## candidate), plus the candidates if --with-candidates is given too. --cards
+## takes each card once, and no more than the game's slots.
 ## --legacy-progression omits D126's wave rewards for a before/after career
 ## comparison; normal careers receive the same one-time rewards as the UI.
 
@@ -159,6 +164,10 @@ func _init() -> void:
 			for id in TowerData.rows():
 				if TowerData.group(id) in groups:
 					levels[id] = TowerData.max_level(id) if workshop == "max" else mini(int(workshop), TowerData.max_level(id))
+	if (options.has("sweep-cards") or options.has("with-candidates")) and not options.has("card-sweep"):
+		printerr("--sweep-cards and --with-candidates go with --card-sweep LEVEL")
+		quit(1)
+		return
 	if options.has("card-sweep"):
 		var level := int(options["card-sweep"])
 		if level < 1 or level > Cards.max_level():
@@ -192,18 +201,21 @@ func _init() -> void:
 ## {stat, rule}; empty, having said why, if a card isn't built or a level
 ## isn't 1 to 7.
 func _card_effects(spec: String) -> Dictionary:
-	var cards := Cards.new()
+	var effects := []
+	var seen: Array[String] = []
+	if spec.split(",", false).size() > Cards.max_slots():
+		printerr("--cards takes at most %d cards, the game's slots" % Cards.max_slots())
+		return {}
 	for part in spec.split(",", false):
 		var pieces := part.split(":")
 		var id := pieces[0].strip_edges()
 		var level := int(pieces[1]) if pieces.size() > 1 else 1
-		if not Cards.built(id) or level < 1 or level > Cards.max_level():
-			printerr("--cards takes built cards at levels 1 to %d: %s (built: %s)" % [Cards.max_level(), part, ", ".join(Cards.built_ids())])
+		if not (Cards.built(id) or Cards.candidate(id)) or id in seen or level < 1 or level > Cards.max_level():
+			printerr("--cards takes built or candidate cards, once each, at levels 1 to %d: %s (built: %s; candidates: %s)" % [Cards.max_level(), part,
+				", ".join(Cards.built_ids()), ", ".join(Cards.CANDIDATES.keys())])
 			return {}
-		cards.copies[id] = int(Cards.data().copies_to_level[level - 1])
-		cards.slots = mini(Cards.max_slots(), cards.slots + 1)
-		cards.equip(id)
-	var effects := cards.effects()
+		seen.append(id)
+		effects.append_array(Cards.effects_at(id, level))
 	return {"stat": effects.filter(func(effect): return effect.domain == "stat"), "rule": effects.filter(func(effect): return effect.domain == "rule")}
 
 
@@ -214,9 +226,16 @@ func _card_sweep(level: int, seeds: int, levels: Dictionary, groups: Array, stra
 	print("card                     value   median wave   range      median Cash   median Coins")
 	var cases: Array = [""]
 	cases.append_array(Cards.built_ids())
+	if options.has("sweep-cards"):
+		cases = [""]
+		cases.append_array(String(options["sweep-cards"]).split(",", false))
+	if options.has("with-candidates"):
+		cases.append_array(Cards.CANDIDATES.keys().filter(func(id): return id not in cases))
 	var base_coins := 0.0
 	for id in cases:
 		var loadout := _card_effects("" if id == "" else "%s:%d" % [id, level])
+		if loadout.is_empty():
+			return false
 		var waves: Array[int] = []
 		var cash: Array[float] = []
 		var coins: Array[float] = []
@@ -237,7 +256,7 @@ func _card_sweep(level: int, seeds: int, levels: Dictionary, groups: Array, stra
 		var median_coins := coins[coins.size() / 2]
 		if id == "":
 			base_coins = median_coins
-		var shown := "(no card)" if id == "" else String(Cards.card(id).name)
+		var shown := "(no card)" if id == "" else String(Cards.definition(id).name) + (" *" if Cards.candidate(id) else "")
 		var value := "" if id == "" else preload("res://src/ui/cards_screen.gd").describe(id, level)
 		print("%-24s %6s   %11d   %3d–%-4d   %11.0f   %12.0f%s" % [shown, value, waves[waves.size() / 2], waves[0], waves[-1], cash[cash.size() / 2], median_coins,
 			"  (%+.0f%%)" % (100.0 * (median_coins / base_coins - 1.0)) if id != "" and base_coins > 0.0 else ""])

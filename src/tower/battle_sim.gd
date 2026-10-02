@@ -526,6 +526,9 @@ func _place(kind: String, angle: float) -> void:
 
 
 func _move_enemies() -> void:
+	# Slow Aura (a candidate card): enemies inside Range walk slower.
+	var slow := clampf(rules.value("slow_aura"), 0.0, Guesses.SLOW_AURA_MOST)
+	var reach := stat("range") if slow > 0.0 else 0.0
 	for enemy in enemies:
 		# Ranged enemies stop on the edge of the tower's Range, wherever it is
 		# now: more Range and the ones still walking stop further out.
@@ -536,7 +539,8 @@ func _move_enemies() -> void:
 			var at_wall := defences.wall_up() and enemy.distance >= Guesses.WALL_DISTANCE_M
 			enemy.stop_at = Guesses.WALL_DISTANCE_M if at_wall else Guesses.CONTACT_DISTANCE_M
 		if not enemy.arrived():
-			enemy.distance = maxf(enemy.stop_at, enemy.distance - enemy.speed * TICK)
+			var speed := enemy.speed * (1.0 - slow) if slow > 0.0 and enemy.distance <= reach else enemy.speed
+			enemy.distance = maxf(enemy.stop_at, enemy.distance - speed * TICK)
 
 
 ## Every enemy in place hits when its time comes: Defense % comes off first,
@@ -623,7 +627,7 @@ func _enemies_hit() -> void:
 ## Half of anything is never all of it, so it can't end a run on its own.
 func _divide(enemy: Enemy) -> void:
 	var divisor := enemy.divisor if enemy.divisor > 0.0 else EnemyKinds.divider_divisor(divider, wave)
-	var share := 1.0 - 1.0 / maxf(1.0, divisor)
+	var share := divide_share(divisor)
 	var at_wall := defences.wall_up() and enemy.distance > Guesses.CONTACT_DISTANCE_M
 	var loss := 0.0
 	if at_wall:
@@ -666,8 +670,13 @@ func _land_sure_divider() -> void:
 ## 1/divisor of it, through the defences, never all of it. The arena's
 ## preview of a coming ÷ reads this too.
 func divide_loss(divisor: float) -> float:
-	var share := 1.0 - 1.0 / maxf(1.0, divisor)
-	return minf(health, landed_damage(health * share))
+	return minf(health, landed_damage(health * divide_share(divisor)))
+
+
+## The share a ÷ of `divisor` takes, of the Number or of a standing Wall:
+## 1 - 1/divisor, softened by Remainder (a candidate card).
+func divide_share(divisor: float) -> float:
+	return (1.0 - 1.0 / maxf(1.0, divisor)) * minf(1.0, rules.value("divide_share"))
 
 
 ## What a hit of `raw` leaves after the tower's defences.
@@ -793,6 +802,9 @@ func _bounce(shot: Shot) -> Shot:
 ## set off; it walks back and hits again when it arrives.
 func _strike(enemy: Enemy, shot_damage: float, critical: bool) -> void:
 	var damage := shot_damage * (1.0 + stat("damage_per_meter") * enemy.distance) * (1.0 + enemy.rend) * damage_taken(enemy)
+	# Unequal (a candidate card): shots hit a Lock harder.
+	if enemy.kind == "lock":
+		damage *= rules.value("lock_damage")
 	# Rend Armor: by its chance a strike makes every later one on this enemy
 	# hit harder, stacking to REND_CAP.
 	if is_open("rend_armor_chance") and _combat_rng.randf() < stat("rend_armor_chance"):
@@ -809,6 +821,15 @@ func _strike(enemy: Enemy, shot_damage: float, critical: bool) -> void:
 		events.append({"type": "enemy_hit", "enemy": enemy, "damage": damage, "critical": critical})
 	if enemy.health <= 0.0:
 		_kill(enemy)
+		# Critical Coin (a candidate card): a basic a critical shot kills may
+		# drop Coins. Rolled only with the card, so the stream is unchanged without.
+		var drop := rules.value("critical_coin")
+		if critical and drop > 0.0 and EnemyKinds.pays_as(enemy) == "basic" and _combat_rng.randf() < drop:
+			# Paid as a basic worth CRITICAL_COIN_COINS, decay and all.
+			var dropped := EnemyKinds.coins(enemy, wave, stat("coins_per_kill"), tier, Guesses.CRITICAL_COIN_COINS) * rules.value("coin_multiplier")
+			coins += dropped
+			if record_events:
+				events.append({"type": "critical_coin", "enemy": enemy, "coins": dropped})
 
 
 ## One damage/kill boundary for shots, defences and later abilities. The
@@ -838,7 +859,7 @@ func _kill(enemy: Enemy, by := "") -> void:
 		# Killed before it could land a hit: a share of the hit it never
 		# landed grows the Number, past Health too (D098); not under a Lock.
 		var before := health
-		health += enemy.attack * kill_share
+		health += enemy.attack * kill_share * rules.value("kill_growth")
 		_count_gain("kills", before)
 		if record_events:
 			events.append({"type": "grown", "enemy": enemy, "gain": health - before})

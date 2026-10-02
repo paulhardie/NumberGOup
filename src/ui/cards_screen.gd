@@ -284,7 +284,7 @@ static func odds_text(odds: Dictionary) -> String:
 ## What a card does at `level`, written as The Tower writes its value: "×1.50",
 ## "+5%", "+4% each".
 static func describe(id: String, level: int) -> String:
-	var card: Dictionary = Cards.card(id)
+	var card: Dictionary = Cards.definition(id)
 	var amount := Cards.value_at(id, level)
 	match String(card.unit):
 		"multiplier":
@@ -293,6 +293,8 @@ static func describe(id: String, level: int) -> String:
 			var percent := snappedf(amount * 100.0, 0.01)
 			var text := "+%s%%" % (str(roundi(percent)) if is_equal_approx(percent, roundf(percent)) else str(percent))
 			return text + (" each" if id == "free_upgrades" else "")
+		"count":
+			return "+%s" % Palette.number(amount)
 	return Palette.number(amount)
 
 
