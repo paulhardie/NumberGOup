@@ -1,7 +1,7 @@
 # Handover
 
 **Last updated:** 2 October 2026, by Codex.
-- Base `main` is `4989a44`, including D149 (PR #140), which is now merged.
+- Base `main` is `abbd5a8`, including D149 (PR #140), the Number-as-currency research (PR #141) and Tier research (PR #142). The two newer merges are documents only, so they do not change the measured baseline.
 - `codex/balance-comparisons` builds D150: repeatable quick/full measurements, explicit balance impact reports and CI integration. It changes no game behaviour or saves; public version remains 0.9.
 - The harness is not in the play folder until its PR is merged; the play folder follows `origin/main` through `com.paulhardie.ngu-sync`.
 - The pre-rebuild game is commit `f4f1e95`.
@@ -30,6 +30,8 @@ Tier 1 and every Workshop group work.
 - **Six of the eleven built cards fail that floor today:** Health, Health Regen, Range, Critical Chance, Extra Defense and Free Upgrades. Super Tower and Factor pass; Berserker fails at The Tower's numbers.
 - **The Number is a health pool, as the owner says.** Stripping Dividers, the Lock and the growth rules leaves every build's median wave unchanged (the turtle at 100K does five waves better), and making a Divider's bite permanent changes none either. Only careers' pace moves. THE_NUMBER.md section 9 has the table, the three reasons, and two fixes that were tried and weren't enough (a Number that powers the shots, and durable losses).
 - **Where the baseline is soft:** it is bots, not players. The core bot's wave-21 runs earn 81–101 Coins against The Tower's about 162; spreading Cash dies on wave 6 against 8.
+
+Recent reference research is preserved in [THE_NUMBER.md section 9.1](THE_NUMBER.md#91-tested-the-number-as-the-in-run-currency-2-october-2026) and [TOWER_TIERS.md](TOWER_TIERS.md). The latter finds the Tier 2 turtle still beats the blender at 1M Coins; this is an existing D149 design gap, not a rule changed by this harness.
 
 ## Balance harness (D150)
 
