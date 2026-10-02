@@ -50,7 +50,8 @@ Risk: medium, tooling/reporting with broad verification adjacency. Gameplay, sim
 - Full meets the early no-buy benchmark and Tier 1 turtle ordering at 10K/100K Coins. The six D149 card failures remain FAIL; Coins and the four useful combat/economy cards meet the measured floor.
 - Actual original/current simulator console comparisons matched for fresh runs, careers and card sweeps, with JSON export on/off. Actual time-cap and wave-target labels, invalid tuning and failed output writes were exercised. Runtime cached/uncached parity includes progressed Free Upgrades and both health-dependent policies.
 - Independent review found shuffled-career milestone timing depended on array order; fixed with a regression. Final review and the bot-cache review found no remaining actionable issue. The source-change guard also refused a capture during reporter edits, leaving the baseline intact.
-- Not checked: player/visual experience, late-game runtime performance, cross-platform repetition, card pairs, extra career seed sequences or the Tier 2 strategy pivot. Current GitHub CI status is on [PR #143](https://github.com/paulhardie/NumberGOup/pull/143).
+- GitHub Linux verification passed on `6c122d8`: tests, headless boot, Quick comparison, summary and artifact upload. The downloaded Quick report shows zero changes across all 130 samples against the Mac baseline ([run](https://github.com/paulhardie/NumberGOup/actions/runs/37037666778)). Current status remains on [PR #143](https://github.com/paulhardie/NumberGOup/pull/143).
+- Not checked: player/visual experience, late-game runtime performance, Full across platforms, card pairs, extra career seed sequences or the Tier 2 strategy pivot.
 
  D148's historical measurement and unverified wiki/card findings remain in CARDS.md and D148. This task does not provide an independent review of the D148 implementation.
 
