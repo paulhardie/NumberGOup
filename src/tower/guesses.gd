@@ -71,6 +71,13 @@ const CASH_BY_TYPE := {"basic": 1.0, "fast": 2.0, "ranged": 2.0, "tank": 5.0, "b
 const COINS_BY_TYPE := {"basic": 0.0, "fast": 2.0, "ranged": 2.0, "tank": 4.0, "boss": 5.0, "divider": 2.0, "lock": 0.0,
 	"protector": 3.0, "vampire": 4.0, "ray": 4.0, "scatter": 4.0}
 
+## Coins a Critical Coin drop pays (a candidate card, docs/CARDS.md), before
+## Coins / Kill and the tier: TheTowerSDK's base Coins for a basic enemy, which
+## pays none without the card (D074). Ours until the owner reads one.
+const CRITICAL_COIN_COINS := 1.0
+## The most Slow Aura slows an enemy, whatever adds to it.
+const SLOW_AURA_MOST := 0.9
+
 ## How much of Lifesteal still works once the Number is past Health: 0 would
 ## be a ceiling (D081); all of it is the owner's choice (D083), measured in
 ## docs/THE_NUMBER.md 1.2. Health is where the Number starts and what buying

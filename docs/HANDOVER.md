@@ -1,54 +1,67 @@
 # Handover
 
-**Last updated:** 1 October 2026, by Claude. `main` is at `5edd068`, which takes in everything through D145 (PR #133: the five base enemies). The branch `claude/cards` adds **D146: Cards, with their menu, collection, save and measuring**. Its pull request goes to `main`, and it isn't in the owner's game until merged. The play folder follows `origin/main` through `com.paulhardie.ngu-sync`. The pre-rebuild game is commit `f4f1e95`.
+**Last updated:** 2 October 2026, by Claude.
+- `main` is at `b77f4d4`, which takes in everything through D147:
+  - Cards (D146, PR #134);
+  - the Cards grid with a card's details on tap (D147, PR #135).
+- [PR #136](https://github.com/paulhardie/NumberGOup/pull/136) (`claude/card-tests`) is the card test series: measure-only candidate cards, the measuring options and the results in [CARDS.md](CARDS.md). Nothing a player sees changes.
+- It isn't in the owner's game until merged; the play folder follows `origin/main` through `com.paulhardie.ngu-sync`.
+- The pre-rebuild game is commit `f4f1e95`.
 
 ## Start here
 
-Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md). Fetch and inspect the checkout before editing. Accepted choices live in [DECISIONS.md](DECISIONS.md); grep it by ID, and the next free one is **D147**. The public version stays **0.9**. Cards (1.1) were built ahead of 1.0's sign-off, at the owner's word.
+Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md). Fetch and inspect the checkout before editing. Accepted choices live in [DECISIONS.md](DECISIONS.md); grep it by ID. The next free ID is **D148**. The public version stays **0.9**.
 
 ## Where the game is
 
 Tier 1 and every Workshop group work.
 - **The Number is the tower.** Flat enemies subtract from it, Dividers divide it, and the Lock (from wave 35) holds its growth.
 - **Enemies:** the five base enemies read as ours (D145).
-- **Look:** the UI is premium minimal throughout.
+- **Cards (D146):** they open at Tier 1 wave 20 (the dock shows them then, and the run pays 10 Gems). Eleven of The Tower's cards are built, and save version 3 holds the collection.
+- **Grid:** the cards are laid out as a grid, with a card's details on tap (D147).
 
-**Cards (D146) are built.** [CARDS.md](CARDS.md) owns the detail.
-- **Opening:** the dock shows Cards from Tier 1 wave 20.
-- **Getting them:** a draw costs 20 Gems, with The Tower's rarity odds among the built cards (82% common, 18% rare today). Copies level a card to 7, and slots are bought with Gems.
-- **Using them:** cards are equipped for the next run. A run takes the cards equipped when it starts.
-- **Built:** eleven of The Tower's cards: Damage, Attack Speed, Health, Health Regen, Range, Cash, Coins, Critical Chance, Extra Defense, Fortress and Free Upgrades. The rest wait for the rules they need.
-- **Saving:** save version 3 holds the collection. A version-2 save (the owner's) migrates to an empty collection after a byte-exact `.v2-backup.json`.
-- **Testing:** Settings → Testing has +◆ 500.
-- **Measuring:** `sim_runs.gd --cards ID:LEVEL,...` and `--card-sweep LEVEL`.
+**The card test series (#136, CARDS.md)** measured:
+- the built cards on three builds, at levels 1 and 7;
+- pairs of cards;
+- careers with one card from wave 20;
+- seven measure-only candidates: Slow Aura, Critical Coin, Compound, Remainder, Unequal, Interest and Factor.
 
-## Checked, and not checked (D146)
+**The finding: Tier 1's walls are its boss waves, and they test killing power alone.**
+- **When runs die:** right after a boss wave. Traced, the Number goes from about 300 to 0 within about 8 seconds of the wave-30 boss reaching it, with wave 31 arriving.
+- **What moves the wall:** cards that kill faster or buy killing power (Damage, Attack Speed, Cash, Fortress at level 7).
+- **What doesn't, at any level:** Health, Regen, the defence cards and our Number cards.
+- **Damage dominates.** One level-1 Damage card from wave 20 takes a 40-run career from wave 24 to wave 31.
+- **Coin pace stays sane.** No card multiplies Coins beyond its own share; the rest earn more only by reaching further.
 
-- **Tests:** `bash run_tests.sh` passed, 4,676 tower checks and 217 foundation checks, exit 0. The headless boot printed no errors. New tests cover:
-  - Cards opening at wave 20, Gem prices, and draws never charging without a card;
-  - every built card drawable to 80 copies, with the real odds shown;
-  - levels by copies, slots capped at the built cards, and the loadout;
-  - card effects reaching a run's frozen build and surviving resume;
-  - the version-3 round trip, and the version-2 migration with its backup;
-  - damaged or impossible Cards protected rather than trimmed;
-  - the screen's draw, equip and slot.
-- **Migration:** `check_migration.gd` (now able to take a version-2 copy) passed 19 checks on a version-2 save written by `main`'s own code. It had 30 runs, wave 37, research done, Gems and an active battle. Everything was kept, the backup was byte-exact and the battle resumed.
-- **Runs without cards:** 20 fresh runs are unchanged, median wave 6 (4–7).
-- **First card sweep:** recorded in CARDS.md. At a wave-21 build, Damage at level 1 is worth eight waves. Health, Regen and the defence cards don't move the wall even at level 7.
-- **Screenshots:** `cards` and `cards_drawn` were captured and checked by eye.
-- **Review:** an independent review of the diff found ten points and nine were fixed. The one left: the Cards and Workshop screens share copied bar and card helpers.
+## Checked, and not checked (#136)
+
+- **Tests:** `bash run_tests.sh` passed after merging `main`, 4,709 tower checks and 223 foundation checks, exit 0. New tests cover:
+  - every candidate's rule, with and without its card;
+  - that the combat random stream moves only with Critical Coin;
+  - that candidates are never drawn and an equipped candidate never reaches a real run.
+- **Inert without the cards:** 20 fresh `--buy even` runs on this branch printed byte-identically to `main`'s, after the last rule change.
+- **Measurements:** the series is above and in CARDS.md, 10 seeds a line. One traced pair of turtle runs (a scratch script, not a tool) showed the boss-wave collapse.
+- **Review:** an independent review of the candidate code found ten points; six were fixed. Of the rest:
+  - the run-rules version stays put, because candidates never reach the game;
+  - Slow Aura's per-tick rule lookup is cheap at today's effect counts.
+  - Factor and the career change came after that review and have only my own read.
 - **Not checked:**
-  - the owner's real save (only a copy made by the same code);
-  - owner play;
-  - phone layout.
+  - Interest (no build opens it);
+  - Tier 2;
+  - more than 10 seeds a line;
+  - owner play.
 
 ## Open decisions for the owner
 
-1. **Run the card test series, and pick what to build next.** CARDS.md lists The Tower's unbuilt cards, with what each needs, and six candidates of our own (Compound, Remainder, Unequal, Carry the One, Interest, Absolute). I'd start by sweeping two more builds, a turtle and a later Workshop, and pairs of cards. Then I'd prototype two of ours as `--cards` candidates.
-2. **Changing cards mid-run.** The Tower allows it, except while a boss lives. Ours freezes cards at the run's start. I'd keep that until the test series says otherwise, since it keeps runs deterministic and simple.
-3. **Play the D145 enemies and the Lock.**
-4. **Sign off 1.0, or name what's missing.**
-5. **Earlier open items, still standing:**
+1. **Should Tier 1 stay a pure killing-power check at its boss waves?** Today it makes every non-damage card a dead slot. I'd keep the boss walls, which are The Tower's, but give defence a route into killing power. Berserker (damage from damage absorbed) is the card that does that, so the cheapest test of whether a second strategy can exist is to prototype it next. The other way, softening the pile-up at the Number, would move every benchmark.
+2. **Which cards to make drawable next?**
+   - **Factor** (ours, rare): a boss arrives with less health. It's the only candidate that moved a wall (+2 to +4 waves at level 7) and it's safe for Coins.
+   - **Park** the rest: Slow Aura, Critical Coin, Compound, Remainder, Unequal and Interest.
+   - **Prototype next:** Berserker and Super Tower.
+3. **Changing cards mid-run:** I'd still keep them fixed for the run.
+4. **Still open from before:**
+   - play the D145 enemies and the Lock;
+   - sign off 1.0;
    - the D131 digit rewards;
    - the speed switch;
    - the Mac sync waiting on a saved battle;
@@ -57,16 +70,16 @@ Tier 1 and every Workshop group work.
 
 ## Next steps, in order
 
-1. **Owner:** merge, then open the game once on the laptop. The save migrates to version 3 and keeps a `.v2-backup.json` beside it. Then try Cards: they open at wave 20, and Testing gives Gems.
-2. **Agent, on instruction:** the card test series (CARDS.md, "Measuring" and "Candidates of our own").
-3. **Agent, small:** move the shared bar and card helpers into Palette for both screens.
+1. **Owner:** merge #136 (the test series; it's measuring only), then reach wave 20 on the fresh save to see Cards in their grid.
+2. **Owner:** answer decisions 1 and 2. A yes to Berserker means prototyping it and Super Tower as measure-only cards, sweeping them like the rest, and recording the pick as D148.
+3. **Agent, small:** move the Cards and Workshop screens' shared bar and card helpers into Palette.
 
 ## Known issues and limits
 
-- **A first-sight card only shows past the player's best wave**, so a save past wave 10 never sees the boss card.
-- **The Cards screen refreshes only on its own changes.** Gems can't change while it's open today. If they ever can, it must listen.
-- **Unbuilt cards are hidden, not shown locked.** The Tower shows the whole table; ours lists only what a draw can give.
-- **Wave 10 pays 10 Coins in our table against the SDK's 25,** pending a reference reading.
+- **A first-sight card only shows past the player's best wave.**
+- **Unbuilt cards are hidden, not shown locked.**
+- **The Cards screen refreshes only on its own changes.**
+- **Wave 10 pays 10 Coins against the SDK's 25,** pending a reading.
 - **Settings → Testing can grant Coins and Gems and wipe progress.** It must go before a public release.
 - **Older snapshot or combat-contract runs can end on update,** keeping banked Coins and permanent progress ([SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.md)).
 
