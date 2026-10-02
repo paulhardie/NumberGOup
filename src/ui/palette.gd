@@ -395,7 +395,7 @@ static func amount(value: float) -> String:
 
 
 ## A row's value the way The Tower writes it.
-static func row_value(id: String, value: float) -> String:
+static func row_value(id: String, value: float, compact_rates: bool = false) -> String:
 	match id:
 		"attack_speed":
 			return "%.2f" % value
@@ -408,6 +408,8 @@ static func row_value(id: String, value: float) -> String:
 		"multiplier":
 			return "×%.2f" % value
 		"per_second":
+			if compact_rates and absf(value) >= 1000.0:
+				return "%s/s" % number(value)
 			return "%.2f/s" % value
 		"metres":
 			return "%s m" % number(value)

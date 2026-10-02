@@ -491,9 +491,8 @@ func test_the_workshop_shows_only_each_tabs_next_group() -> void:
 	shop.free()
 
 
-## D142: the Workshop in our own layout. The next unlock leads, rows are one
-## per line, a price lights when it can be paid, and each row's bar fills
-## towards its price.
+## The Workshop's two-column layout preserves affordability and progress,
+## with the next unlock following the upgrades it expands.
 func test_the_workshop_lights_what_can_be_bought() -> void:
 	var workshop := Workshop.new()
 	workshop.coins = 60.0
@@ -501,9 +500,12 @@ func test_the_workshop_lights_what_can_be_bought() -> void:
 	shop.workshop = workshop
 	root.add_child(shop)
 	await process_frame
-	check(shop._list.get_child(0) is Button and shop._list.get_child(0) == _unlock_cards(shop)[0], "the next unlock leads the list")
-	check(shop.find_children("*", "GridContainer", true, false).is_empty(), "rows are one per line, not a grid")
+	check(shop._list.get_child(0) is GridContainer and shop._list.get_child(0).columns == 2, "upgrades sit in two columns")
+	check(shop._list.get_child(1) == _unlock_cards(shop)[0], "the next unlock follows the upgrade grid")
 	check(shop._tab_buttons["attack"].button_pressed and not shop._tab_buttons["defense"].button_pressed, "the switch marks only the chosen category")
+	check(Palette.row_value("health_regen", 1000000.0, true) == "1.00M/s" and Palette.row_value("health_regen", 0.0, true) == "0.00/s",
+		"Workshop rates stay readable at large values without losing the unit")
+	check(Palette.row_value("health_regen", 1000000.0) == "1000000.00/s", "other screens retain their existing rate format")
 	var rows: Array = shop._cards.filter(func(card): return card.has("id"))
 	check(rows.size() == 4, "the Attack category's four starting rows: %d" % rows.size())
 	for card in rows:

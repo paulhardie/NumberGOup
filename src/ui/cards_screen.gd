@@ -1,13 +1,17 @@
 extends Control
-## Cards between runs (D146), premium minimal: Gems along the top, a draw as
-## the hero (a card for Gems, by The Tower's odds), the equipped count and the
-## next slot, then every built card as a tile in a grid of three, as The
-## Tower lays them out (D147). A tap opens a card's details, where it is
-## equipped or taken off. A run takes the cards equipped when it starts.
-## The rules are Progression's and Cards'; this only shows and asks.
+## Cards between runs: a draw, the active slots, then the inventory.
+## A tap on either an active card or an inventory tile opens its details,
+## where it is equipped or taken off. A run takes the cards equipped when
+## it starts. The rules are Progression's and Cards'; this only shows and asks.
 
 const Cards = preload("res://src/tower/cards.gd")
 const Palette = preload("res://src/ui/palette.gd")
+const CARD_ART := {
+	"damage": preload("res://assets/cards/damage.svg"),
+	"health": preload("res://assets/cards/health.svg"),
+	"cash": preload("res://assets/cards/cash.svg"),
+}
+const MAXED_SHEEN = preload("res://src/ui/shaders/maxed_card_sheen.gdshader")
 const NavBar = preload("res://src/ui/nav_bar.gd")
 const Progression = preload("res://src/tower/progression.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
@@ -36,6 +40,8 @@ var _slot_line: Label
 var _slot_button: Button
 var _slot_price: Dictionary
 var _list: VBoxContainer
+var _active_grid: GridContainer
+var _inventory_heading: Label
 ## Cards across, in the grid.
 const GRID_COLUMNS := 3
 ## Refreshed after each change: [{id, button, refresh: Callable}].
@@ -67,11 +73,11 @@ func _ready() -> void:
 	var margin := MarginContainer.new()
 	margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	for side in ["left", "right", "top"]:
-		margin.add_theme_constant_override("margin_" + side, 20)
+		margin.add_theme_constant_override("margin_" + side, 16)
 	margin.add_theme_constant_override("margin_bottom", 12)
 	screen.add_child(margin)
 	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 14)
+	column.add_theme_constant_override("separation", 12)
 	margin.add_child(column)
 
 	# The top line, as the Workshop's: Gems, and the name small in the middle.
@@ -106,6 +112,19 @@ func _ready() -> void:
 	scroll.add_child(_list)
 	_list.add_child(_draw_card())
 	_list.add_child(_slots_line())
+	_active_grid = GridContainer.new()
+	_active_grid.columns = GRID_COLUMNS
+	_active_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_active_grid.add_theme_constant_override("h_separation", 8)
+	_active_grid.add_theme_constant_override("v_separation", 8)
+	_list.add_child(_active_grid)
+	var note := _small("Tap a card to equip or remove it for your next run", Palette.MUTED)
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	_list.add_child(note)
+	_inventory_heading = _small("", Palette.SOFT)
+	_inventory_heading.add_theme_font_size_override("font_size", 11)
+	_list.add_child(_inventory_heading)
 	var grid := GridContainer.new()
 	grid.columns = GRID_COLUMNS
 	grid.add_theme_constant_override("h_separation", 8)
@@ -138,7 +157,7 @@ func refresh() -> void:
 	_draw_price.label.text = "◆ %d" % Cards.price() if can_draw else "All found"
 	Palette.style_price_chip(_draw_price, affordable, Palette.ACCENT)
 	Palette.fill_progress(_draw_bar, toward(progression.gems, Cards.price()), affordable, Palette.ACCENT)
-	_slot_line.text = "EQUIPPED  %d / %d" % [cards.equipped.size(), cards.slots]
+	_slot_line.text = "ACTIVE  %d / %d" % [cards.equipped.size(), cards.slots]
 	var slot_price := cards.slot_price()
 	_slot_button.visible = slot_price >= 0
 	if slot_price >= 0:
@@ -146,16 +165,18 @@ func refresh() -> void:
 		_slot_price.label.text = "+ slot  ◆ %d" % slot_price
 		Palette.style_price_chip(_slot_price, can_slot, Palette.ACCENT)
 		_slot_button.disabled = not can_slot
+	_refresh_active()
+	var found := Cards.built_ids().filter(func(id): return cards.owned(id)).size()
+	_inventory_heading.text = "INVENTORY  ·  %d / %d found" % [found, Cards.built_ids().size()]
 	for row in rows:
 		row.refresh.call()
 
 
-## The draw as the hero, as the Workshop's next unlock: what it is, The
-## Tower's odds, its price chip and a bar filling towards it.
+## The compact draw control: its odds, price chip and affordability bar.
 func _draw_card() -> Button:
-	_draw_button = Palette.card_button(78)
+	_draw_button = Palette.card_button(64)
 	var column := _inside(_draw_button, 12)
-	var heading := _small("DRAW A CARD", Palette.MUTED)
+	var heading := _small("BUY NEW CARD", Palette.MUTED)
 	heading.add_theme_font_override("font", _spaced(Palette.weight(Palette.WORD_FONT, 500), 3))
 	heading.add_theme_font_size_override("font_size", 10)
 	column.add_child(heading)
@@ -224,47 +245,81 @@ func buy_slot() -> bool:
 	return true
 
 
-## One card as a tile in the grid, as The Tower lays its cards out: a thin
-## line in its rarity's colour along the top, its value at its level large,
-## its name, its level as seven dots and a bar of copies towards the next.
-## Lit with the accent's edge while equipped; dimmed, with a "?", until it is
-## found. A tap opens the card (show_card), where it is equipped.
+## Every bought slot is visible, including empty ones. Active cards open
+## the same details as their inventory tiles; this is no second loadout.
+func _refresh_active() -> void:
+	for child in _active_grid.get_children():
+		_active_grid.remove_child(child)
+		child.queue_free()
+	var cards := progression.cards
+	for index in range(cards.slots):
+		var button := Palette.card_button(64)
+		var column := _inside(button, 8)
+		column.offset_left = 8
+		column.offset_right = -8
+		column.add_theme_constant_override("separation", 3)
+		var title := _small("Empty slot", Palette.MUTED)
+		title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		title.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		title.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+		var value := _small("—", Palette.MUTED)
+		value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		column.add_child(title)
+		column.add_child(value)
+		if index < cards.equipped.size():
+			var id: String = cards.equipped[index]
+			title.text = String(Cards.card(id).name)
+			title.add_theme_color_override("font_color", Palette.TEXT)
+			value.text = describe(id, cards.level(id))
+			value.add_theme_color_override("font_color", Palette.ACCENT)
+			if CARD_ART.has(id):
+				var art := _art_region(id, 24)
+				art.set_anchors_and_offsets_preset(Control.PRESET_CENTER_LEFT)
+				art.offset_left = 6
+				art.offset_right = 34
+				art.offset_top = -12
+				art.offset_bottom = 12
+				button.add_child(art)
+				column.offset_left = 34
+			button.tooltip_text = "%s · tap for details or Remove" % title.text
+			button.pressed.connect(func(): show_card(id))
+			_style_row(button, true, cards.maxed(id))
+		else:
+			button.disabled = true
+			_style_row(button, false)
+		_active_grid.add_child(button)
+
+
+## Inventory: name first, the current effect, seven level dots, and the
+## exact copies towards the next level. Equipped cards carry a visible tick.
 func _card_tile(id: String) -> Button:
-	var button := Palette.card_button(118)
+	var button := Palette.card_button(176)
 	var card: Dictionary = Cards.card(id)
-	var inside := VBoxContainer.new()
-	inside.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	inside.offset_left = 10
-	inside.offset_right = -10
-	inside.offset_top = 0
-	inside.offset_bottom = -10
+	button.tooltip_text = String(card.name) + " · tap for details"
+	var inside := _inside(button, 8)
+	inside.offset_left = 8
+	inside.offset_right = -8
 	inside.add_theme_constant_override("separation", 4)
-	inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	button.add_child(inside)
-	var edge := ColorRect.new()
-	edge.custom_minimum_size = Vector2(0, 2)
-	edge.color = Color(RARITY_COLOURS[card.rarity], 0.7)
-	edge.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inside.add_child(edge)
-	# "Equipped", small in the accent, while it is.
-	var worn := _small("EQUIPPED", Palette.ACCENT)
-	worn.add_theme_font_override("font", _spaced(Palette.weight(Palette.WORD_FONT, 500), 2))
-	worn.add_theme_font_size_override("font_size", 8)
-	worn.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	worn.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	worn.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	inside.add_child(worn)
-	var value := _number(20, Palette.TEXT)
+	var heading := _small(String(card.name), RARITY_COLOURS[card.rarity])
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	heading.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	heading.custom_minimum_size = Vector2(0, 30)
+	heading.add_theme_font_size_override("font_size", 11)
+	inside.add_child(heading)
+	var art := _art_region(id, 56)
+	inside.add_child(art)
+	var value := _number(16 if id == "free_upgrades" else 20, Palette.TEXT)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	inside.add_child(value)
-	var name_label := _small(String(card.name), RARITY_COLOURS[card.rarity])
-	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_label.add_theme_font_size_override("font_size", 11)
-	inside.add_child(name_label)
 	var dots := _small("", Palette.ACCENT)
 	dots.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	dots.add_theme_font_size_override("font_size", 8)
 	inside.add_child(dots)
+	var copies := _small("", Palette.MUTED)
+	copies.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	copies.add_theme_font_size_override("font_size", 9)
+	inside.add_child(copies)
 	var bar := Palette.progress_bar()
 	inside.add_child(bar)
 	button.pressed.connect(func(): show_card(id))
@@ -272,14 +327,36 @@ func _card_tile(id: String) -> Button:
 		var cards := progression.cards
 		var found := cards.owned(id)
 		var on := cards.is_equipped(id)
-		button.modulate.a = 1.0 if found else 0.55
-		worn.modulate.a = 1.0 if on else 0.0
+		button.modulate.a = 1.0 if found else 0.7
+		for image in art.get_children():
+			image.visible = found
 		value.text = describe(id, cards.level(id)) if found else "?"
 		dots.text = level_dots(cards.level(id))
 		var toward_next := cards.progress(id)
-		_style_row(button, on)
-		Palette.fill_progress(bar, 1.0 if cards.maxed(id) else (float(toward_next[0]) / maxf(1.0, float(toward_next[1])) if found else 0.0), on, Palette.ACCENT)})
+		copies.text = ("✓  " if on else "") + ("MAX" if cards.maxed(id) else ("%d / %d" % toward_next if found else "Not found"))
+		var maxed := cards.maxed(id)
+		dots.add_theme_color_override("font_color", Palette.COIN if maxed else Palette.ACCENT)
+		copies.add_theme_color_override("font_color", Palette.COIN if maxed else Palette.MUTED)
+		_style_row(button, on, maxed)
+		Palette.fill_progress(bar, 1.0 if maxed else (float(toward_next[0]) / maxf(1.0, float(toward_next[1])) if found else 0.0), on or maxed, Palette.COIN if maxed else Palette.ACCENT)})
 	return button
+
+
+## Art is decorative and leaves button input to the existing card action.
+## Reserving the same space keeps names and values aligned across each row.
+func _art_region(id: String, height: float) -> Control:
+	var region := Control.new()
+	region.custom_minimum_size = Vector2(0, height)
+	region.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if CARD_ART.has(id):
+		var art := TextureRect.new()
+		art.texture = CARD_ART[id]
+		art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		region.add_child(art)
+	return region
 
 
 ## A card's level as seven dots, filled up to it: "●●○○○○○".
@@ -405,6 +482,8 @@ func _card_heading(column: VBoxContainer, id: String, level: int) -> void:
 	rarity.add_theme_font_override("font", _spaced(Palette.weight(Palette.WORD_FONT, 500), 3))
 	rarity.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(rarity)
+	if CARD_ART.has(id) and progression.cards.owned(id):
+		column.add_child(_art_region(id, 124))
 	var name_label := Label.new()
 	name_label.text = String(card.name)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -461,10 +540,28 @@ static func toward(have: float, target: float) -> float:
 	return clampf(have / target, 0.0, 1.0)
 
 
-func _style_row(button: Button, on: bool) -> void:
-	var edge := Color(Palette.ACCENT, 0.5) if on else Palette.TOP_EDGE
-	button.add_theme_stylebox_override("normal", Palette.card_box(Palette.SURFACE, edge))
-	button.add_theme_stylebox_override("disabled", Palette.card_box(Palette.SURFACE, edge))
+func _style_row(button: Button, on: bool, maxed: bool = false) -> void:
+	var edge := Color(Palette.COIN, 0.75 if on else 0.5) if maxed else (Color(Palette.ACCENT, 0.5) if on else Palette.HAIRLINE)
+	for state in ["normal", "disabled", "hover", "pressed"]:
+		var hover := Color(Palette.COIN if maxed else Palette.ACCENT, 0.9 if maxed else 0.7)
+		var box := Palette.card_box(Color("1c1911") if maxed else Palette.SURFACE, hover if state == "hover" else edge, 6)
+		box.set_border_width_all(1)
+		button.add_theme_stylebox_override(state, box)
+	var sheen := button.get_node_or_null("MaxedSheen") as ColorRect
+	if maxed and sheen == null:
+		sheen = ColorRect.new()
+		sheen.name = "MaxedSheen"
+		sheen.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		sheen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		var material := ShaderMaterial.new()
+		material.shader = MAXED_SHEEN
+		material.set_shader_parameter("card_size", button.size)
+		sheen.material = material
+		button.resized.connect(func(): material.set_shader_parameter("card_size", button.size))
+		button.add_child(sheen)
+		button.move_child(sheen, 0)
+	if sheen != null:
+		sheen.visible = maxed
 
 
 func _inside(button: Button, top: int) -> VBoxContainer:
