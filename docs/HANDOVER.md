@@ -1,65 +1,55 @@
 # Handover
 
 **Last updated:** 2 October 2026, by Claude.
-- `main` is at `b77f4d4`, which takes in everything through D147:
-  - Cards (D146, PR #134);
-  - the Cards grid with a card's details on tap (D147, PR #135).
-- [PR #136](https://github.com/paulhardie/NumberGOup/pull/136) (`claude/card-tests`) is the card test series: measure-only candidate cards, the measuring options and the results in [CARDS.md](CARDS.md). Nothing a player sees changes.
+- `main` is at `48a8241`, which takes in everything through the card test series (D146, D147, PR #136) and the shared Cards and Workshop helpers in Palette (PR #137).
+- The branch `claude/berserker-super-tower` (D148) builds Berserker and Super Tower as measure-only candidates, with the results in [CARDS.md](CARDS.md). Nothing a player sees changes.
 - It isn't in the owner's game until merged; the play folder follows `origin/main` through `com.paulhardie.ngu-sync`.
 - The pre-rebuild game is commit `f4f1e95`.
 
 ## Start here
 
-Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md). Fetch and inspect the checkout before editing. Accepted choices live in [DECISIONS.md](DECISIONS.md); grep it by ID. The next free ID is **D148**. The public version stays **0.9**.
+Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md). Fetch and inspect the checkout before editing. Accepted choices live in [DECISIONS.md](DECISIONS.md); grep it by ID. The next free ID is **D149**. The public version stays **0.9**.
 
 ## Where the game is
 
 Tier 1 and every Workshop group work.
 - **The Number is the tower.** Flat enemies subtract from it, Dividers divide it, and the Lock (from wave 35) holds its growth.
 - **Enemies:** the five base enemies read as ours (D145).
-- **Cards (D146):** they open at Tier 1 wave 20 (the dock shows them then, and the run pays 10 Gems). Eleven of The Tower's cards are built, and save version 3 holds the collection.
-- **Grid:** the cards are laid out as a grid, with a card's details on tap (D147).
+- **Cards (D146, D147):** they open at Tier 1 wave 20 (the dock shows them then, and the run pays 10 Gems). Eleven of The Tower's cards are built, laid out as a grid with a card's details on tap, and save version 3 holds the collection.
+- **Candidates:** nine measure-only cards (Slow Aura, Critical Coin, Compound, Remainder, Unequal, Interest, Factor, and now Berserker and Super Tower) can be equipped in `sim_runs.gd` and are never drawn.
 
-**The card test series (#136, CARDS.md)** measured:
-- the built cards on three builds, at levels 1 and 7;
-- pairs of cards;
-- careers with one card from wave 20;
-- seven measure-only candidates: Slow Aura, Critical Coin, Compound, Remainder, Unequal, Interest and Factor.
+**What the card tests have found** (CARDS.md has the numbers):
+- **Tier 1's walls are its boss waves, and they test killing power alone.** Cards that kill faster or buy killing power move them (Damage, Attack Speed, Cash, Fortress at level 7). Health, Regen, the defence cards and our Number cards don't, at any level.
+- **Super Tower works** (D148). At level 1 it is a Damage card between levels 1 and 2, and a 40-run career with it earns +87% Coins against Damage's +61%. At level 7 it is worth less than flat Damage of the same average, and it can't be lined up with a boss. It is a strong killing card, not a second strategy.
+- **Berserker does nothing at The Tower's numbers** (D148). A Tier 1 run absorbs a few hundred damage, so 0.8–1.4% of it is about 3 Damage.
+- **At about 30 times its share it works, and a tank build wins.** A build with no Defense Absolute, the worst alone (wave 19 at 4,000 Coins, against the turtle's 31), reaches wave 50 with it, past the turtle with the card (41). That is the second strategy the walls were missing. Runs are volatile (11–68).
 
-**The finding: Tier 1's walls are its boss waves, and they test killing power alone.**
-- **When runs die:** right after a boss wave. Traced, the Number goes from about 300 to 0 within about 8 seconds of the wave-30 boss reaching it, with wave 31 arriving.
-- **What moves the wall:** cards that kill faster or buy killing power (Damage, Attack Speed, Cash, Fortress at level 7).
-- **What doesn't, at any level:** Health, Regen, the defence cards and our Number cards.
-- **Damage dominates.** One level-1 Damage card from wave 20 takes a 40-run career from wave 24 to wave 31.
-- **Coin pace stays sane.** No card multiplies Coins beyond its own share; the rest earn more only by reaching further.
+## Checked, and not checked (D148)
 
-## Checked, and not checked (#136)
-
-- **Tests:** `bash run_tests.sh` passed after merging `main`, 4,709 tower checks and 223 foundation checks, exit 0. New tests cover:
-  - every candidate's rule, with and without its card;
-  - that the combat random stream moves only with Critical Coin;
-  - that candidates are never drawn and an equipped candidate never reaches a real run.
-- **Inert without the cards:** 20 fresh `--buy even` runs on this branch printed byte-identically to `main`'s, after the last rule change.
-- **Measurements:** the series is above and in CARDS.md, 10 seeds a line. One traced pair of turtle runs (a scratch script, not a tool) showed the boss-wave collapse.
-- **Review:** an independent review of the candidate code found ten points; six were fixed. Of the rest:
-  - the run-rules version stays put, because candidates never reach the game;
-  - Slow Aura's per-tick rule lookup is cheap at today's effect counts.
-  - Factor and the career change came after that review and have only my own read.
+- **Tests:** `bash run_tests.sh` passed, 4,730 tower checks and 231 foundation checks, exit 0. New ones cover:
+  - each rule with and without its card, Berserker's cap and Super Tower's 15-on, 15-off beat;
+  - neither drawing a random number;
+  - a battle saved mid-burst and off-burst continuing exactly, with Berserker's bonus carried.
+- **Inert without the cards:** 20 fresh `--buy even` runs on this branch printed byte-identically to `main`'s. A 40-run career with Berserker at The Tower's numbers matches the no-card career in every wave and Coin.
+- **Measurements:** 10 seeds a line, three builds at levels 1 and 7, flat-Damage comparisons, three 40-run careers and the scaled Berserker runs. The committed `--berserker-scale` and `tank` plan reproduced one of the scratch measurements they replaced, line for line.
 - **Not checked:**
-  - Interest (no build opens it);
+  - **an independent review of this diff** (the card test series had one);
   - Tier 2;
   - more than 10 seeds a line;
+  - a scale between ×10 and ×30 for Berserker;
+  - a tank career (a career buying as `--buy health` plateaus at wave 11 and never opens Cards);
+  - the card readings against the wiki, whose page wouldn't load for the session (what "round", "absorbed", the cap and the cooldown mean are ours, in `Guesses`);
   - owner play.
 
 ## Open decisions for the owner
 
-1. **Should Tier 1 stay a pure killing-power check at its boss waves?** Today it makes every non-damage card a dead slot. I'd keep the boss walls, which are The Tower's, but give defence a route into killing power. Berserker (damage from damage absorbed) is the card that does that, so the cheapest test of whether a second strategy can exist is to prototype it next. The other way, softening the pile-up at the Number, would move every benchmark.
-2. **Which cards to make drawable next?**
-   - **Factor** (ours, rare): a boss arrives with less health. It's the only candidate that moved a wall (+2 to +4 waves at level 7) and it's safe for Coins.
+1. **Which cards to make drawable next?**
+   - **Factor** (ours, rare): a boss arrives with less health. A modest card, safe for Coins.
+   - **Super Tower** (The Tower, epic): I'd make this drawable as The Tower has it. It needs no rescale and moves walls like Attack Speed does. Trade-off: at level 1 it beats the common Damage card, because its average is ×1.75 against ×1.5, so one epic at 3% odds becomes the best early card.
+   - **Berserker:** not at The Tower's numbers, which do nothing. If you want a tank strategy to exist, I'd make it **ours, rescaled** (shares in the tens of percent), after a finer sweep (×15, ×20, ×30) and a way to test a tank career. Trade-off: it is volatile, and a tank player has to reach wave 20 by some other build before Cards open for them.
    - **Park** the rest: Slow Aura, Critical Coin, Compound, Remainder, Unequal and Interest.
-   - **Prototype next:** Berserker and Super Tower.
-3. **Changing cards mid-run:** I'd still keep them fixed for the run.
-4. **Still open from before:**
+2. **Changing cards mid-run:** I'd still keep them fixed for the run.
+3. **Still open from before:**
    - play the D145 enemies and the Lock;
    - sign off 1.0;
    - the D131 digit rewards;
@@ -70,9 +60,9 @@ Tier 1 and every Workshop group work.
 
 ## Next steps, in order
 
-1. **Owner:** merge #136 (the test series; it's measuring only), then reach wave 20 on the fresh save to see Cards in their grid.
-2. **Owner:** answer decisions 1 and 2. A yes to Berserker means prototyping it and Super Tower as measure-only cards, sweeping them like the rest, and recording the pick as D148.
-3. **Agent, small:** move the Cards and Workshop screens' shared bar and card helpers into Palette.
+1. **Owner:** merge the Berserker and Super Tower PR (measuring only), then reach wave 20 on the fresh save to see Cards in their grid.
+2. **Owner:** answer decision 1. A yes to Super Tower means moving it into `Cards.EFFECTS` and deciding `RunConfig.RULES_VERSION` with a saved-battle fixture; a yes to Berserker means choosing its numbers and recording the pick as D149.
+3. **Agent:** an independent review of the D148 diff, then the finer Berserker sweep, whichever the owner wants first.
 
 ## Known issues and limits
 

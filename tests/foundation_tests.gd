@@ -283,6 +283,32 @@ func test_snapshot_continuation() -> void:
 		check(Snapshot.restore(corrupt) == null, "semantically broken state rejected: " + key)
 
 
+## Berserker and Super Tower (candidate cards) keep their state in what a saved
+## battle already carries (what the Number lost, the cooldowns), so a battle
+## saved mid-burst or off one continues exactly.
+func test_snapshot_keeps_berserker_and_super_tower() -> void:
+	var rules: Array = []
+	for id in ["berserker", "super_tower"]:
+		rules.append_array(Cards.effects_at(id, 7))
+	for stop_at in [300, 700]:
+		# A big Number with three enemies already at it, so it is hit.
+		var sim := BattleSim.new(3, {"health": 200}, BattleSim.START_GROUPS, 1, [], rules)
+		for i in range(3):
+			sim._place("basic", float(i))
+			sim.enemies[-1].distance = sim.enemies[-1].stop_at
+		for i in range(stop_at): sim.step()
+		check(sim.cooldowns.time_left("super_tower_wait") > 0.0, "Super Tower has started its cycle by tick %d" % stop_at)
+		var saved: Dictionary = json(Snapshot.capture(sim))
+		var again := Snapshot.restore(saved)
+		check(again != null, "a battle with the candidate rules restores at tick %d" % stop_at)
+		if again == null: continue
+		for i in range(900):
+			sim.step()
+			again.step()
+		check(sim.damage_absorbed() > 0.0, "the Number absorbed something, so Berserker had a bonus to carry")
+		check(Snapshot.capture(sim).digest == Snapshot.capture(again).digest, "exact continuation from tick %d: %s" % [stop_at, difference(json(Snapshot.capture(sim)), json(Snapshot.capture(again)))])
+
+
 ## D133, D134: a Lock holding the Number, one still to come, and a Divider's
 ## held bite all survive a snapshot and continue exactly.
 func test_snapshot_keeps_the_lock_and_a_held_bite() -> void:

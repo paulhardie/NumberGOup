@@ -2316,6 +2316,66 @@ func test_candidate_cards_act_only_when_equipped() -> void:
 	check(cards.effects().is_empty(), "an equipped candidate adds nothing to a run")
 
 
+## Berserker and Super Tower (candidate cards, docs/CARDS.md): each raises the
+## Damage of a shot only with its card, and rolls nothing.
+func test_berserker_and_super_tower_candidates() -> void:
+	check(CardsScreen.describe("berserker", 1) == "+0.8%" and CardsScreen.describe("super_tower", 7) == "×5.00",
+		"they read as cards do: %s, %s" % [CardsScreen.describe("berserker", 1), CardsScreen.describe("super_tower", 7)])
+	# Berserker: a share of what the Number has absorbed, added to each shot.
+	var plain := _quiet_sim()
+	var berserk := _quiet_sim()
+	berserk.rules.add(Cards.effects_at("berserker", 1)[0])
+	for sim in [plain, berserk]:
+		sim.lost_to = {"basic": 600.0, "ranged": 400.0, "divider": 5000.0}
+	check_near(berserk.damage_absorbed(), 1000.0, 1e-9, "a Divider's ÷ divides the Number; it isn't damage absorbed")
+	check_near(plain.berserker_bonus(), 0.0, 0.0, "no card, no bonus")
+	check_near(berserk.berserker_bonus(), 8.0, 1e-9, "level 1 adds 0.8%% of what was absorbed: %s" % berserk.berserker_bonus())
+	berserk.lost_to = {"basic": 1e9}
+	check_near(berserk.berserker_bonus(), 8.0 * berserk.stat("damage"), 1e-9, "the bonus stops at 8 times the tower's Damage")
+	berserk.lost_to = {"basic": 600.0}
+	for sim in [plain, berserk]:
+		sim._shot_charge = 1.0
+		_place(sim, "basic", 5.0)
+		sim._fire()
+		check(sim.shots.size() == 1, "the tower fires")
+		var shot: BattleSim.Shot = sim.shots[0]
+		var bonus := 4.8 if sim == berserk else 0.0
+		check_near(shot.damage, (sim.stat("damage") + bonus) * (sim.stat("critical_factor") if shot.critical else 1.0), 1e-9,
+			"a shot carries Berserker's bonus (%s) before a critical: %s" % [bonus, shot.damage])
+	# Super Tower: ×N for 15 s, off for 15, ready as the run begins; neither it
+	# nor Berserker touches the combat stream or, without a card, the cooldowns.
+	for level in [1, 7]:
+		var sim := _quiet_sim()
+		sim.rules.add(Cards.effects_at("super_tower", level)[0])
+		var stream: int = sim._combat_rng.state
+		var boosts: Array[float] = []
+		for tick in range(1800):
+			sim._tick_super_tower()
+			boosts.append(sim.super_tower_boost())
+		var want := 2.5 if level == 1 else 5.0
+		check(sim._combat_rng.state == stream, "Super Tower rolls nothing")
+		check(boosts.slice(0, 450).all(func(each): return each == want), "×%s from the first tick for 15 seconds" % want)
+		check(boosts.slice(450, 900).all(func(each): return each == 1.0), "then off for 15 more")
+		check(boosts.slice(900, 1350).all(func(each): return each == want) and boosts.slice(1350).all(func(each): return each == 1.0),
+			"and the same again from second 30: ×%s then off" % want)
+	var without := _quiet_sim()
+	for tick in range(100):
+		without._tick_super_tower()
+	check(without.cooldowns.remaining.is_empty() and without.super_tower_boost() == 1.0, "without the card there is no cooldown and no boost")
+	# Both together, in a shot: (Damage + bonus) × the burst, then a critical.
+	var both := _quiet_sim()
+	both.rules.add(Cards.effects_at("berserker", 7)[0])
+	both.rules.add(Cards.effects_at("super_tower", 7)[0])
+	both.lost_to = {"basic": 1000.0}
+	both._tick_super_tower()
+	both._shot_charge = 1.0
+	_place(both, "basic", 5.0)
+	both._fire()
+	var shot: BattleSim.Shot = both.shots[0]
+	check_near(shot.damage, (both.stat("damage") + 14.0) * 5.0 * (both.stat("critical_factor") if shot.critical else 1.0), 1e-9,
+		"the two stack: %s" % shot.damage)
+
+
 ## D133: the Lock comes on a fixed beat on top of The Tower's wave; with it
 ## every Tower enemy, and the Divider, is exactly as without it.
 func test_a_lock_comes_on_top_of_the_towers_wave() -> void:
