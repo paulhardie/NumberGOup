@@ -75,7 +75,8 @@ extends SceneTree
 ## built card alone at LEVEL, and prints each one's median wave, Cash and
 ## Coins beside the no-card line: what a card is worth to that build. Both
 ## work with --buy, --workshop and the other run options, and --cards with
-## --careers too (every run of the career has those cards). Both also take the
+## --careers too, where the cards come in only once a run has reached wave 20
+## and opened Cards, as in the game (never with --legacy-progression). Both also take the
 ## card test series' candidates (Cards.CANDIDATES, docs/CARDS.md), which the
 ## game never draws: name them in --cards, or add --with-candidates to a sweep.
 ## --sweep-cards ID,ID, with --card-sweep, sweeps only those cards (built or
@@ -272,7 +273,10 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 	var until := int(options.get("until-wave", "0"))
 	var seed_base := int(options.get("career-seed", "0")) * 1000
 	for run in range(runs):
-		var sim := BattleSim.new(seed_base + run + 1, workshop.levels, workshop.open_groups, int(options.get("tier", "1")), loadout.stat, loadout.rule)
+		# Cards open at wave 20 (D146): the career plays without them until then.
+		var carded := progression.unlocked("cards")
+		var sim := BattleSim.new(seed_base + run + 1, workshop.levels, workshop.open_groups, int(options.get("tier", "1")),
+			loadout.stat if carded else [], loadout.rule if carded else [])
 		if not _tune(sim, options):
 			quit(1)
 			return
