@@ -409,3 +409,35 @@ The owner has now said it twice: "literally just a swap of health" (26 September
 3. **Spent.** The player trades Number for a burst of power, a decision in place of a bar. It reopens 1.3 ("the Number isn't spent"), and The Tower has no tap, so the trigger would be a rule.
 
 The cheapest next step for any of them is the card test series' method: a measure-only candidate, swept against the three card builds, before any rule reaches a real run.
+
+### 9.1 Tested: the Number as the in-run currency (2 October 2026)
+
+The owner asked whether the Number could also be what run Upgrades are bought with, with the early game balanced so it wasn't brutal. D015 tried Number as the Rig's currency and D042 replaced it with Cash, because players could spend themselves to death and seven rows were locked out of the run. So the design tested **cannot hurt the tower**: only Number *above Health* is spendable.
+
+**What was built (a scratch patch, never committed):**
+- kills and wave ends pay the Number, `s` per Cash;
+- an upgrade costs `s` times its Cash price from the Number above Health, never from Health itself;
+- spent Number leaves for good, so regen can't refill it;
+- a standing Lock freezes the income, since the Number can't rise under it (D133);
+- a policy knob, ρ, keeps `Health × (1 + ρ)` unspent, which is how a bot "holds".
+
+**Results**, bots, Tier 1, 3 to 20 seeds a line. Cash game in brackets; `s` = 0.25 / 0.5 / 1:
+
+| | |
+|---|---|
+| Buys nothing / spread Cash / Damage and Attack Speed only (median wave) | 3, 6, 10 / 3, 6, 10 / 4, 6, 10 (3, 6, 10) |
+| Core 10K Coins | 38 / 35 / 31 (31) |
+| Turtle 10K | 45 / 41 / 41 (41) |
+| Core 100K | 55 / 51 / 51 (51) |
+| Turtle 100K | 82 / 79 / 77 (84) |
+| Core career: run that first reaches wave 31 | 34 / 46 / 47 (47) |
+| Core 10K, waves lost to Dividers (with against without) | 2 / 3 / 4 (0 in the Cash game); none at 100K |
+| Wave-21 build, level-7 card: Damage / Health / Health Regen | +25, 0, 0 / +29, +1, 0 / +26, 0, 0 |
+
+- **It doesn't break the early game.** Every fresh-run benchmark holds and builds land within a few waves of the Cash game's, so nothing needs rebalancing to make it safe. The reason is the same as its weakness: a bot spends each point the moment it is affordable, so the bank stays near zero and the Number stays near Health.
+- **It adds no decision.** Keeping a reserve is never better than spending: with ρ = 1 core 10K is 31 against 31–35 spending everything, and with ρ = 4 it is 21–26. The best play is always to turn Number into Damage at once, because killing power is what decides the walls.
+- **It makes no card matter,** and Dividers move a build by at most four waves, at 10K only.
+- **Adding the ammunition coupling (c = 0.15 and 0.3) doesn't change that.** Spending still wins (core 10K, ρ = 0 / 1 / 4: 40 / 35 / 21 at c = 0.15 and 41 / 40 / 28 at c = 0.3), Dividers still move at most a wave, and the level-7 Health card gains three waves at c = 0.15 and none at 0.3.
+- **What it would give is feel, which this can't measure:** one Number that jumps with every kill and drops with every purchase, health and wallet at once.
+- **Holding would have to pay more than spending** for a decision to exist. Two ways, both untested: Interest on the bank (The Tower's own saving mechanic, already a Workshop row), or a reward for a big Number much steeper than a log.
+- **The cost is large.** Cash becomes Number across `BattleSim`, the Upgrades panel, the Cash Bonus, Cash / Wave and Interest rows, battle snapshots and saves. That is high risk under QUALITY_GATES, and it overturns D042 and AGENTS.md's law 4 (run Upgrades spend Cash), which are the owner's to change.
