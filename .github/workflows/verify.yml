@@ -1,6 +1,13 @@
 name: Verify
 
 on:
+  workflow_dispatch:
+    inputs:
+      balance_suite:
+        description: Balance coverage (full adds careers and card floors)
+        type: choice
+        default: quick
+        options: [quick, full]
   pull_request:
     branches: [main]
   push:
@@ -17,7 +24,7 @@ jobs:
   verify:
     name: Economy tests and headless boot
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
     env:
       GODOT_VERSION: 4.7.2-stable
     steps:
@@ -52,3 +59,31 @@ jobs:
             echo "::error::Godot reported script or parse errors"
             exit 1
           fi
+
+      - name: Balance impact (quick)
+        run: python3 tools/balance_report.py compare --output /tmp/balance-quick.json --report /tmp/balance-quick.md
+
+      - name: Balance impact (full, requested)
+        if: github.event_name == 'workflow_dispatch' && inputs.balance_suite == 'full'
+        run: python3 tools/balance_report.py compare --suite full --output /tmp/balance-full.json --report /tmp/balance-full.md
+
+      - name: Show balance impact
+        if: always()
+        run: |
+          for report in /tmp/balance-quick.md /tmp/balance-full.md; do
+            if [ -f "$report" ]; then
+              cat "$report" >> "$GITHUB_STEP_SUMMARY"
+            fi
+          done
+
+      - name: Keep balance measurements
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: balance-impact
+          path: |
+            /tmp/balance-quick.json
+            /tmp/balance-quick.md
+            /tmp/balance-full.json
+            /tmp/balance-full.md
+          if-no-files-found: ignore

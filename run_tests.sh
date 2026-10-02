@@ -15,3 +15,6 @@ if printf '%s\n' "${output}" | grep -E 'SCRIPT ERROR|Parse Error|^ERROR:' >/dev/
 	exit 1
 fi
 done
+# The balance reporter has its own contracts (sample pairing, stopped runs and
+# explicit baseline replacement), without running the long measurement suite.
+python3 -m unittest discover -s "${ROOT}/tests" -p 'test_balance_report.py'

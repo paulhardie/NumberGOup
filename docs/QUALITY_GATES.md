@@ -39,10 +39,10 @@ bash run_godot.sh --path . -s res://tools/capture_battle.gd
 
 - Every Godot run goes through `run_godot.sh`, which keeps it away from the live save (see "Protect the real save" in [`AGENTS.md`](../AGENTS.md)).
 
-- `run_tests.sh` runs both headless suites (`tests/tower_tests.gd` and `tests/foundation_tests.gd`). A green count printed alongside errors is not a pass: every suite independently fails on any `SCRIPT ERROR`, parse error or `ERROR:` line. A stale `.godot` cache is refreshed with `bash run_godot.sh --headless --path . --import`.
+- `run_tests.sh` runs both headless suites (`tests/tower_tests.gd` and `tests/foundation_tests.gd`) and the Python balance-report contracts. A green count printed alongside errors is not a pass: every suite independently fails on any `SCRIPT ERROR`, parse error or `ERROR:` line. A stale `.godot` cache is refreshed with `bash run_godot.sh --headless --path . --import`.
 - The headless project run imports and parses every script and builds the main scene; it catches UI-script and scene errors the suite does not load.
 - **A new script is loaded by path where it is used** (`const Foo = preload("res://src/foo.gd")`), as every script in `src/` does, not by a global `class_name`. The owner's play folder keeps the editor's class cache across pulls, and a cache that predates the new script fails to parse whatever names it, so the game opens to a blank window (it did after D051 added `ArenaFx`). CI and the headless run import fresh, so they cannot catch this; the check is reading the diff for a new `class_name` used by name elsewhere.
-- `tools/sim_runs.gd` is a measurement tool, not a gate.
+- `tools/sim_runs.gd` is a measurement tool, not a gate. `python3 tools/balance_report.py compare` automates a valid quick comparison in CI; `--suite full` adds the card floors and broader careers. Balance movement is reported for owner review, not automatically approved. Execution/measurement errors fail. See [BALANCE_TESTS.md](BALANCE_TESTS.md) for explicit baseline updates and optional `--fail-on-change` checks.
 - The capture tool renders the home screen, the Workshop and a seeded run's battle at a few moments into `user://capture`. Inspect the PNGs; never assert pixel equality.
 - Documentation-only changes do not need the suite. They still need path, link, scope and contradiction checks against the current repository.
 

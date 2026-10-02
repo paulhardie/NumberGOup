@@ -2255,3 +2255,13 @@ Rules:
 - **Consequence for cards:** six of the eleven built cards fail the floor today, since they move no median wave at any level on any build: Health, Health Regen, Range, Critical Chance, Extra Defense and Free Upgrades (CARDS.md). Each is reworked, rescaled or left undrawn, which is for the owner to sequence. Of the candidates, Factor and Super Tower pass and Berserker fails at The Tower's numbers.
 - **Not decided here:** what the Number is (THE_NUMBER.md section 9), and which cards become drawable.
 - **Checked:** the medians above were run on this commit and are repeatable with `sim_runs.gd`. **Not checked:** players, Tier 2, and whether the floor's one-wave bar is the right size.
+
+
+## D150 — Repeatable balance impact reports before accepting changed pace
+
+- **Status:** Accepted (2026-10-02), owner: "Go for it", accepting the proposed balance comparison harness.
+- **Decision:** Build a contained tooling change around the existing `sim_runs.gd` and real `BattleSim`: structured per-run output, committed quick/full baselines, before/after distributions and per-seed comparisons, career milestone times, and explicit design findings. Quick runs on every PR; Full is manually requested. No gameplay, buying policy, save schema, combat contract or public version changes.
+- **Authority:** D149 still owns Tier 1 build shape and the card floor. A baseline records an observation; it does not accept current balance. The six documented card failures remain visible as failures, and quick coverage does not claim to measure their floor.
+- **Review behaviour:** Invalid measurements fail. Valid balance movement is highlighted for the owner, with optional `--fail-on-change` for work intended to preserve balance. No automatic baseline replacement; regeneration after an accepted change is explicit and committed with evidence.
+- **Limits:** Bots, not players. Uniform-level Tier 2/3 smoke cases do not prove the turtle-to-blender pivot. Card pairs, extra career seed sequences, Labs/weapons and runtime performance wait for their concrete consumers. Time/wave/data stops are labelled rather than counted as deaths.
+- **Contract and commands:** [BALANCE_TESTS.md](BALANCE_TESTS.md). Evidence and the current next step: [HANDOVER.md](HANDOVER.md).
