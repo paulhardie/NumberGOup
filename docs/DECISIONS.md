@@ -2211,3 +2211,23 @@ Rules:
 - **Checked:**
   - tests cover the tiles in a grid, a tap opening the card, Equip from it, and an unfound card refused;
   - the `cards` and new `cards_card` captures were inspected.
+
+## D148 — Berserker and Super Tower: built to measure, not drawn
+
+- **Status:** Accepted (2026-10-02) on owner direction: "yes, build Berserker and Super Tower", answering HANDOVER's first open decision. That keeps Tier 1's boss walls, which are The Tower's, and asks whether defence can reach killing power through a card.
+- **Decision:** both are measure-only candidates (`Cards.CANDIDATES`, D146's rules for them: never drawn, listed, equipped or saved), valued from The Tower's table. [CARDS.md](CARDS.md) owns the readings and results.
+  - **Super Tower:** Damage ×2.5 to ×5 for the first 15 s of every 30 s, ready as a run begins (`BattleSim._tick_super_tower`, rule `super_tower`). Its place in the cycle is two sim cooldowns, which a saved battle already carries.
+  - **Berserker:** each shot adds the card's share (0.8% to 1.4%) of the damage the Number has absorbed this run, up to 8 times the tower's Damage (`BattleSim.berserker_bonus`, rule `berserker`). "Absorbed" is the hits and a Vampire's drain after defences, read from `lost_to`; a Divider's ÷ and what the Wall took don't count.
+  - **The readings** (what "round", "absorbed", the cap and the cooldown mean) are ours, in `Guesses` and the code, because the card text is the only source we had.
+  - **Measuring:** `sim_runs.gd --berserker-scale N` multiplies Berserker's share, and `--workshop-plan tank` never opens Defense Absolute.
+  - **Neither is drawable.** Which becomes so, and at what values, is the owner's call (HANDOVER).
+- **Findings** (10 seeds a line; the detail is in CARDS.md):
+  - **Super Tower** is a Damage card between levels 1 and 2 at level 1 (31 against 29 and 31 at the wave-21 build), and worth less than flat Damage of the same average at level 7. Its career at level 1 beats the common Damage card's (runs 21–40 earn +87% Coins against +61%). It can't be lined up with a boss.
+  - **Berserker at The Tower's numbers does nothing:** +0 waves on every build at levels 1 and 7, and a career identical in waves and Coins. A Tier 1 run absorbs a few hundred damage, so its bonus is about 3 on a Damage of 48.
+  - **At about 30 times its share it works, and a tank build wins.** A build with no Defense Absolute, worst alone (wave 19 at 4,000 Coins, against the turtle's 31), reaches wave 50 with it, past the turtle with the card (41). Runs are volatile (11–68).
+- **Checked:**
+  - tests cover each rule with and without its card, the cap, the 15-on, 15-off beat, no random draws, neither card in a real run, and a saved battle mid-burst continuing exactly;
+  - twenty fresh runs with no cards are byte-identical to `main`'s;
+  - the committed `--berserker-scale` and `tank` plan reproduce the scratch measurements they replaced, line for line.
+- **Not checked:** an independent review of the diff; Tier 2; more than 10 seeds; a scale between ×10 and ×30; a tank career (a career buying as `--buy health` never reaches wave 20, so never has Cards); the readings against the wiki; owner play.
+- **If either is promoted:** its rule then reaches real runs, so whether `RunConfig.RULES_VERSION` has to rise is decided then, with a saved-battle fixture. It was left alone here because candidates never reach the game.

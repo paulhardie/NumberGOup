@@ -59,6 +59,12 @@ const CANDIDATES := {
 		"values": [0.7, 0.66, 0.62, 0.58, 0.54, 0.5, 0.46], "effects": [{"domain": "rule", "stat": "boss_health", "op": "multiply"}]},
 	"interest": {"name": "Interest", "rarity": "common", "unit": "count", "description": "Raises the interest cap by $[x] a wave",
 		"values": [25.0, 50.0, 75.0, 100.0, 150.0, 200.0, 250.0], "effects": [{"domain": "rule", "stat": "interest_cap", "op": "add"}]},
+	# The Tower's two epics that turn something into killing power, the cards
+	# the test series' finding asked for. Both keep their state in the sim's
+	# own record of the run (what it lost, its cooldowns), so a saved battle
+	# would carry them.
+	"berserker": {"effects": [{"domain": "rule", "stat": "berserker", "op": "add"}]},
+	"super_tower": {"effects": [{"domain": "rule", "stat": "super_tower", "op": "multiply"}]},
 }
 
 static var _data: Dictionary
