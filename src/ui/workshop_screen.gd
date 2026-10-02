@@ -172,7 +172,7 @@ func refresh() -> void:
 ## price chip lit when the multiplier's press can be paid, over a thin bar
 ## filling as the Coins come towards it. A buy makes the value pop.
 func _row_card(id: String) -> Button:
-	var button := _card_button()
+	var button := Palette.card_button(66)
 	var parts := _card_parts(button, Palette.row_title(id))
 	button.pressed.connect(func():
 		var coins_before := workshop.coins
@@ -191,7 +191,7 @@ func _row_card(id: String) -> Button:
 		parts.price.label.text = "MAX" if maxed else Palette.quote(workshop.plan(id, _amount), workshop.price(id), "● ")
 		Palette.style_price_chip(parts.price, affordable)
 		button.disabled = not affordable
-		_fill(parts.bar, 1.0 if maxed else toward(workshop.coins, _row_target(id)), affordable or maxed)})
+		Palette.fill_progress(parts.bar, 1.0 if maxed else toward(workshop.coins, _row_target(id)), affordable or maxed, Palette.COIN)})
 	return button
 
 
@@ -215,12 +215,7 @@ static func toward(coins: float, target: float) -> float:
 ## chip, and a bar filling towards it. The groups after it stay hidden until
 ## it is open, as in The Tower.
 func _unlock_card(group: String) -> Button:
-	var button := Button.new()
-	button.custom_minimum_size = Vector2(0, 78)
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.focus_mode = Control.FOCUS_NONE
-	Palette.style_card(button)
-	Palette.press(button)
+	var button := Palette.card_button(78)
 	var column := VBoxContainer.new()
 	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	column.offset_left = 16
@@ -255,7 +250,7 @@ func _unlock_card(group: String) -> Button:
 	var price := Palette.price_chip(_mono_bold, 14)
 	price.label.text = "Unlock  ● " + Palette.money(TowerData.group_price(group), true)
 	line.add_child(price.panel)
-	var bar := _bar()
+	var bar := Palette.progress_bar()
 	column.add_child(bar)
 	button.pressed.connect(func():
 		var coins_before := workshop.coins
@@ -268,7 +263,7 @@ func _unlock_card(group: String) -> Button:
 		var open := workshop.can_open(group)
 		button.disabled = not open
 		Palette.style_price_chip(price, open)
-		_fill(bar, toward(workshop.coins, TowerData.group_price(group)), open)})
+		Palette.fill_progress(bar, toward(workshop.coins, TowerData.group_price(group)), open, Palette.COIN)})
 	return button
 
 
@@ -315,16 +310,6 @@ func show_opened(group: String) -> void:
 	column.add_child(close)
 
 
-func _card_button() -> Button:
-	var button := Button.new()
-	button.custom_minimum_size = Vector2(0, 66)
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.focus_mode = Control.FOCUS_NONE
-	Palette.style_card(button)
-	Palette.press(button)
-	return button
-
-
 ## Lays out a row (D142): its name small over its value on the left, its
 ## level and price chip on the right, and a thin bar along the bottom.
 func _card_parts(button: Button, title: String) -> Dictionary:
@@ -363,32 +348,9 @@ func _card_parts(button: Button, title: String) -> Dictionary:
 	var price := Palette.price_chip(_mono_bold)
 	price.panel.custom_minimum_size = Vector2(76, 0)
 	line.add_child(price.panel)
-	var bar := _bar()
+	var bar := Palette.progress_bar()
 	inside.add_child(bar)
 	return {"value": value, "price": price, "level": level, "bar": bar}
-
-
-## A thin bar that fills towards a price (D142).
-func _bar() -> ProgressBar:
-	var bar := ProgressBar.new()
-	bar.show_percentage = false
-	bar.custom_minimum_size = Vector2(0, 2)
-	bar.max_value = 1.0
-	# Exact, not rounded to hundredths.
-	bar.step = 0.0
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var back := StyleBoxFlat.new()
-	back.bg_color = Color(1, 1, 1, 0.05)
-	bar.add_theme_stylebox_override("background", back)
-	return bar
-
-
-## Fills a bar to `share`, gold once the price can be paid.
-func _fill(bar: ProgressBar, share: float, lit: bool) -> void:
-	bar.value = share
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = Palette.COIN if lit else Color(Palette.COIN, 0.35)
-	bar.add_theme_stylebox_override("fill", fill)
 
 
 ## A value that just went up springs a little, so a buy is felt.
