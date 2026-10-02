@@ -2,7 +2,7 @@
 
 **Last updated:** 2 October 2026, by Codex.
 - Base `main` is `abbd5a8`, including D149 (PR #140), the Number-as-currency research (PR #141) and Tier research (PR #142). The two newer merges are documents only, so they do not change the measured baseline.
-- `codex/balance-comparisons` builds D150: repeatable quick/full measurements, explicit balance impact reports and CI integration. It changes no game behaviour or saves; public version remains 0.9.
+- [PR #143](https://github.com/paulhardie/NumberGOup/pull/143), `codex/balance-comparisons`, builds D150: repeatable quick/full measurements, explicit balance impact reports and CI integration. It changes no game behaviour or saves; public version remains 0.9.
 - The harness is not in the play folder until its PR is merged; the play folder follows `origin/main` through `com.paulhardie.ngu-sync`.
 - The pre-rebuild game is commit `f4f1e95`.
 
@@ -50,7 +50,7 @@ Risk: medium, tooling/reporting with broad verification adjacency. Gameplay, sim
 - Full meets the early no-buy benchmark and Tier 1 turtle ordering at 10K/100K Coins. The six D149 card failures remain FAIL; Coins and the four useful combat/economy cards meet the measured floor.
 - Actual original/current simulator console comparisons matched for fresh runs, careers and card sweeps, with JSON export on/off. Actual time-cap and wave-target labels, invalid tuning and failed output writes were exercised. Runtime cached/uncached parity includes progressed Free Upgrades and both health-dependent policies.
 - Independent review found shuffled-career milestone timing depended on array order; fixed with a regression. Final review and the bot-cache review found no remaining actionable issue. The source-change guard also refused a capture during reporter edits, leaving the baseline intact.
-- Not checked: player/visual experience, late-game runtime performance, cross-platform repetition, card pairs, extra career seed sequences or the Tier 2 strategy pivot. GitHub CI status is recorded at PR hand-off.
+- Not checked: player/visual experience, late-game runtime performance, cross-platform repetition, card pairs, extra career seed sequences or the Tier 2 strategy pivot. Current GitHub CI status is on [PR #143](https://github.com/paulhardie/NumberGOup/pull/143).
 
  D148's historical measurement and unverified wiki/card findings remain in CARDS.md and D148. This task does not provide an independent review of the D148 implementation.
 
