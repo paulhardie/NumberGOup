@@ -1,13 +1,8 @@
 extends Control
-## The Workshop between runs: Attack, Defense and Utility of permanent
-## levels bought with Coins. As in The Tower, a category shows only the next
-## group it opens, never the ones after it. The rules are the Workshop's; this
-## only shows and asks. Premium minimal, in our own layout (D142): the Coins
-## chip and the buy multiplier along the top as Home has them, a segmented
-## switch for the category, the next unlock as the hero at the top, then one
-## slim row per upgrade whose price lights up when it can be paid, over a bar
-## filling towards it; the dock along the bottom. Opening a group says what
-## its rows do, as The Tower's info popups do when an upgrade unlocks (D125).
+## Permanent upgrades between runs: a two-column category grid, followed
+## by the next group it opens. The category switch sits above the dock.
+## Values, levels, prices and affordability stay visible together; the
+## Workshop owns every rule and this screen only shows and asks.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
@@ -34,6 +29,7 @@ var _amount := 1
 var _amount_button: Button
 var _coins: Label
 var _list: VBoxContainer
+var _category_heading: Label
 ## Refreshed every frame: [{button, refresh: Callable}].
 var _cards: Array[Dictionary] = []
 ## What a group just opened does (D125), over the screen until closed.
@@ -56,7 +52,7 @@ func _ready() -> void:
 	var margin := MarginContainer.new()
 	margin.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	for side in ["left", "right", "top"]:
-		margin.add_theme_constant_override("margin_" + side, 20)
+		margin.add_theme_constant_override("margin_" + side, 16)
 	margin.add_theme_constant_override("margin_bottom", 12)
 	screen.add_child(margin)
 	var column := VBoxContainer.new()
@@ -94,7 +90,6 @@ func _ready() -> void:
 	track.content_margin_top = 3
 	track.content_margin_bottom = 3
 	switch.add_theme_stylebox_override("panel", track)
-	column.add_child(switch)
 	var tabs := HBoxContainer.new()
 	tabs.add_theme_constant_override("separation", 2)
 	switch.add_child(tabs)
@@ -106,6 +101,10 @@ func _ready() -> void:
 		tabs.add_child(button)
 		_tab_buttons[tab[1]] = button
 
+	_category_heading = Label.new()
+	_category_heading.add_theme_font_size_override("font_size", 12)
+	_category_heading.add_theme_color_override("font_color", Palette.SOFT)
+	column.add_child(_category_heading)
 	var scroll := ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -114,6 +113,7 @@ func _ready() -> void:
 	_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_list.add_theme_constant_override("separation", 10)
 	scroll.add_child(_list)
+	column.add_child(switch)
 
 	var nav := NavBar.new("workshop", workshop.runs, workshop.best_wave, progression)
 	nav.chosen.connect(func(id: String):
@@ -137,22 +137,23 @@ func show_tab(tab: String) -> void:
 	for child in _list.get_children():
 		child.queue_free()
 	_cards.clear()
-	var rows := VBoxContainer.new()
+	_category_heading.text = tab.to_upper() + " UPGRADES"
+	var rows := GridContainer.new()
+	rows.columns = 2
 	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	rows.add_theme_constant_override("separation", 8)
+	rows.add_theme_constant_override("h_separation", 8)
+	rows.add_theme_constant_override("v_separation", 8)
 	_list.add_child(rows)
 	for group in TowerData.groups():
 		var id := String(group.id)
 		if String(group.workshop_category) == tab and workshop.is_group_open(id):
 			for row in TowerData.group_rows(id):
 				rows.add_child(_row_card(row))
-	# The next unlock leads on screen, as what the Coins are heading for
-	# (D142); its card comes after the rows' in _cards.
+	# The next unlock follows the rows it expands, as in The Tower.
 	var next := workshop.next_group(tab)
 	if next != "":
 		var unlock := _unlock_card(next)
 		_list.add_child(unlock)
-		_list.move_child(unlock, 0)
 	refresh()
 
 
@@ -168,11 +169,10 @@ func refresh() -> void:
 		card.refresh.call()
 
 
-## One row, one line (D142): its name over its value, its level, and a
-## price chip lit when the multiplier's press can be paid, over a thin bar
-## filling as the Coins come towards it. A buy makes the value pop.
+## One upgrade tile: name, value and level, then the price and a bar
+## filling as Coins come towards it. A buy makes the value pop.
 func _row_card(id: String) -> Button:
-	var button := _card_button()
+	var button := Palette.card_button(108)
 	var parts := _card_parts(button, Palette.row_title(id))
 	button.pressed.connect(func():
 		var coins_before := workshop.coins
@@ -186,12 +186,12 @@ func _row_card(id: String) -> Button:
 	_cards.append({"id": id, "button": button, "price": parts.price, "bar": parts.bar, "refresh": func():
 		var maxed := workshop.level(id) >= TowerData.max_level(id)
 		var affordable := workshop.can_buy(id, _amount)
-		parts.value.text = Palette.row_value(id, TowerData.value(id, workshop.level(id)))
+		parts.value.text = Palette.row_value(id, TowerData.value(id, workshop.level(id)), true)
 		parts.level.text = "Lv %d" % workshop.level(id)
 		parts.price.label.text = "MAX" if maxed else Palette.quote(workshop.plan(id, _amount), workshop.price(id), "● ")
 		Palette.style_price_chip(parts.price, affordable)
 		button.disabled = not affordable
-		_fill(parts.bar, 1.0 if maxed else toward(workshop.coins, _row_target(id)), affordable or maxed)})
+		Palette.fill_progress(parts.bar, 1.0 if maxed else toward(workshop.coins, _row_target(id)), affordable or maxed, Palette.COIN)})
 	return button
 
 
@@ -211,16 +211,10 @@ static func toward(coins: float, target: float) -> float:
 	return clampf(coins / target, 0.0, 1.0)
 
 
-## The category's next group as the hero (D142): what it opens, its price
-## chip, and a bar filling towards it. The groups after it stay hidden until
-## it is open, as in The Tower.
+## The next group below the upgrades: what it opens, its price and a bar
+## filling towards it. Later groups stay hidden until it is open.
 func _unlock_card(group: String) -> Button:
-	var button := Button.new()
-	button.custom_minimum_size = Vector2(0, 78)
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.focus_mode = Control.FOCUS_NONE
-	Palette.style_card(button)
-	Palette.press(button)
+	var button := Palette.card_button(78)
 	var column := VBoxContainer.new()
 	column.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	column.offset_left = 16
@@ -234,7 +228,7 @@ func _unlock_card(group: String) -> Button:
 	for row in TowerData.group_rows(group):
 		names.append(Palette.row_title(row))
 	var next := Label.new()
-	next.text = "NEXT"
+	next.text = "UNLOCK NEXT UPGRADES"
 	next.add_theme_font_override("font", _spaced(Palette.weight(Palette.WORD_FONT, 500), 3))
 	next.add_theme_font_size_override("font_size", 10)
 	next.add_theme_color_override("font_color", Palette.MUTED)
@@ -245,17 +239,18 @@ func _unlock_card(group: String) -> Button:
 	column.add_child(line)
 	var opens := Label.new()
 	opens.text = " · ".join(names)
-	opens.add_theme_font_size_override("font_size", 16)
+	opens.add_theme_font_size_override("font_size", 12)
 	opens.add_theme_color_override("font_color", Palette.TEXT)
 	opens.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	opens.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	opens.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	opens.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	opens.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	opens.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	line.add_child(opens)
 	var price := Palette.price_chip(_mono_bold, 14)
 	price.label.text = "Unlock  ● " + Palette.money(TowerData.group_price(group), true)
 	line.add_child(price.panel)
-	var bar := _bar()
+	var bar := Palette.progress_bar()
 	column.add_child(bar)
 	button.pressed.connect(func():
 		var coins_before := workshop.coins
@@ -268,7 +263,7 @@ func _unlock_card(group: String) -> Button:
 		var open := workshop.can_open(group)
 		button.disabled = not open
 		Palette.style_price_chip(price, open)
-		_fill(bar, toward(workshop.coins, TowerData.group_price(group)), open)})
+		Palette.fill_progress(bar, toward(workshop.coins, TowerData.group_price(group)), open, Palette.COIN)})
 	return button
 
 
@@ -315,80 +310,46 @@ func show_opened(group: String) -> void:
 	column.add_child(close)
 
 
-func _card_button() -> Button:
-	var button := Button.new()
-	button.custom_minimum_size = Vector2(0, 66)
-	button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	button.focus_mode = Control.FOCUS_NONE
-	Palette.style_card(button)
-	Palette.press(button)
-	return button
-
-
-## Lays out a row (D142): its name small over its value on the left, its
-## level and price chip on the right, and a thin bar along the bottom.
+## Lays out a two-column upgrade tile. Names can wrap, so long unlocked
+## upgrades remain readable at the portrait viewport.
 func _card_parts(button: Button, title: String) -> Dictionary:
 	var inside := VBoxContainer.new()
 	inside.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	inside.offset_left = 16
-	inside.offset_right = -14
-	inside.offset_top = 10
+	inside.offset_left = 10
+	inside.offset_right = -10
+	inside.offset_top = 8
 	inside.offset_bottom = -8
-	inside.add_theme_constant_override("separation", 6)
+	inside.add_theme_constant_override("separation", 4)
 	inside.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(inside)
-	var line := HBoxContainer.new()
-	line.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	line.add_theme_constant_override("separation", 10)
-	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	inside.add_child(line)
-	var words := VBoxContainer.new()
-	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	words.add_theme_constant_override("separation", 0)
-	words.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	line.add_child(words)
 	var name_label := Label.new()
 	name_label.text = title
 	name_label.add_theme_font_size_override("font_size", 12)
 	name_label.add_theme_color_override("font_color", Palette.SOFT)
-	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	name_label.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
+	name_label.custom_minimum_size = Vector2(0, 28)
 	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	words.add_child(name_label)
-	var value := _number_label(19, Palette.TEXT)
+	inside.add_child(name_label)
+	var value := _number_label(18, Palette.TEXT)
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-	words.add_child(value)
-	var level := _number_label(11, Palette.MUTED)
+	value.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	value.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	inside.add_child(value)
+	var line := HBoxContainer.new()
+	line.add_theme_constant_override("separation", 4)
+	line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	inside.add_child(line)
+	var level := _number_label(10, Palette.MUTED)
 	level.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	level.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	level.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	line.add_child(level)
-	var price := Palette.price_chip(_mono_bold)
-	price.panel.custom_minimum_size = Vector2(76, 0)
+	var price := Palette.price_chip(_mono_bold, 11)
 	line.add_child(price.panel)
-	var bar := _bar()
+	var bar := Palette.progress_bar()
 	inside.add_child(bar)
 	return {"value": value, "price": price, "level": level, "bar": bar}
-
-
-## A thin bar that fills towards a price (D142).
-func _bar() -> ProgressBar:
-	var bar := ProgressBar.new()
-	bar.show_percentage = false
-	bar.custom_minimum_size = Vector2(0, 2)
-	bar.max_value = 1.0
-	# Exact, not rounded to hundredths.
-	bar.step = 0.0
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	var back := StyleBoxFlat.new()
-	back.bg_color = Color(1, 1, 1, 0.05)
-	bar.add_theme_stylebox_override("background", back)
-	return bar
-
-
-## Fills a bar to `share`, gold once the price can be paid.
-func _fill(bar: ProgressBar, share: float, lit: bool) -> void:
-	bar.value = share
-	var fill := StyleBoxFlat.new()
-	fill.bg_color = Palette.COIN if lit else Color(Palette.COIN, 0.35)
-	bar.add_theme_stylebox_override("fill", fill)
 
 
 ## A value that just went up springs a little, so a buy is felt.

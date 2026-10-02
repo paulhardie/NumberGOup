@@ -48,7 +48,7 @@ extends SceneTree
 ## Coins or less to unlock (15000: every group up to Orbs).
 ##
 ## --workshop-coins N builds each run's Workshop by spending N Coins from a
-## fresh one, as --workshop-plan says (core, turtle, blender or spread; see
+## fresh one, as --workshop-plan says (core, turtle, blender, tank or spread; see
 ## WORKSHOP_PLANS): groups open in The Tower's order, up to --workshop-unlock
 ## (1.5M by default: everything below Super Crit, the Wall, Enemy Level Skip
 ## and Rend Armor), then the rest buys the plan's rows, cheapest for its weight
@@ -82,6 +82,9 @@ extends SceneTree
 ## --sweep-cards ID,ID, with --card-sweep, sweeps only those cards (built or
 ## candidate), plus the candidates if --with-candidates is given too. --cards
 ## takes each card once, and no more than the game's slots.
+## --berserker-scale N multiplies Berserker's share in every run that has it
+## (1, The Tower's, is the default): a Tier 1 Number absorbs only a few hundred
+## damage in a run, so at The Tower's shares the card does nothing (docs/CARDS.md).
 ## --legacy-progression omits D126's wave rewards for a before/after career
 ## comparison; normal careers receive the same one-time rewards as the UI.
 
@@ -116,7 +119,12 @@ const WORKSHOP_PLANS := {
 	"blender": {"groups": ["defense", "thorns", "lifesteal", "knockback", "orbs"], "rows": {"damage": 1, "attack_speed": 1, "health": 2,
 		"health_regen": 1, "defense_absolute": 1, "lifesteal": 1, "knockback_chance": 1, "knockback_force": 1, "orbs": 1, "orb_speed": 1}},
 	"spread": {"groups": [], "rows": {}},
+	# Never opens Defense Absolute: Health and Regen with a little killing, the
+	# build Berserker (damage from damage absorbed) is meant for.
+	"tank": {"groups": [], "rows": {"damage": 1, "attack_speed": 1, "health": 2, "health_regen": 2}},
 }
+## --berserker-scale, read once in _init.
+var _berserker_scale := 1.0
 
 
 func _init() -> void:
@@ -126,6 +134,11 @@ func _init() -> void:
 	var strategy: String = options.get("buy", "none")
 	if strategy not in STRATEGIES:
 		printerr("--buy must be one of %s" % ", ".join(STRATEGIES))
+		quit(1)
+		return
+	_berserker_scale = float(options.get("berserker-scale", "1"))
+	if _berserker_scale <= 0.0:
+		printerr("--berserker-scale takes a number above 0")
 		quit(1)
 		return
 	var loadout := _card_effects(String(options.get("cards", "")))
@@ -216,7 +229,10 @@ func _card_effects(spec: String) -> Dictionary:
 				", ".join(Cards.built_ids()), ", ".join(Cards.CANDIDATES.keys())])
 			return {}
 		seen.append(id)
-		effects.append_array(Cards.effects_at(id, level))
+		for effect in Cards.effects_at(id, level):
+			if id == "berserker":
+				effect.value = float(effect.value) * _berserker_scale
+			effects.append(effect)
 	return {"stat": effects.filter(func(effect): return effect.domain == "stat"), "rule": effects.filter(func(effect): return effect.domain == "rule")}
 
 

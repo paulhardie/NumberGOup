@@ -77,6 +77,16 @@ const COINS_BY_TYPE := {"basic": 0.0, "fast": 2.0, "ranged": 2.0, "tank": 4.0, "
 const CRITICAL_COIN_COINS := 1.0
 ## The most Slow Aura slows an enemy, whatever adds to it.
 const SLOW_AURA_MOST := 0.9
+## Berserker (a candidate card): its bonus never passes this many times the
+## tower's Damage, from the card's text ("max of x8 tower damage"). We read the
+## cap as on the bonus, not the total; it rarely binds in Tier 1.
+const BERSERKER_MOST := 8.0
+## Super Tower (a candidate card): the tower is super for the first
+## SUPER_TOWER_ACTIVE seconds of every SUPER_TOWER_PERIOD, from the card's text
+## ("for 15 seconds ... 30 sec cooldown"). We read the cooldown as counted from
+## the start of the burst, and the card as ready when a run begins.
+const SUPER_TOWER_ACTIVE := 15.0
+const SUPER_TOWER_PERIOD := 30.0
 
 ## How much of Lifesteal still works once the Number is past Health: 0 would
 ## be a ceiling (D081); all of it is the owner's choice (D083), measured in

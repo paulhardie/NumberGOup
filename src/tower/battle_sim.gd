@@ -477,6 +477,7 @@ func step() -> void:
 		locked_seconds += TICK
 	if not alive:
 		return
+	_tick_super_tower()
 	_fire()
 	_move_shots()
 	defences.sweep_orbs()
@@ -699,7 +700,10 @@ func _fire() -> void:
 			return
 		_shot_charge -= 1.0
 		var critical := _combat_rng.randf() < stat("critical_chance")
-		var damage := stat("damage") * (stat("critical_factor") if critical else 1.0)
+		# Berserker and Super Tower (candidate cards) raise the tower's Damage
+		# before a critical multiplies it; both are neutral without their card.
+		var tower_damage := (stat("damage") + berserker_bonus()) * super_tower_boost()
+		var damage := tower_damage * (stat("critical_factor") if critical else 1.0)
 		# Super Crit: a critical shot may be super critical, multiplied again.
 		if critical and stat("super_crit_chance") > 0.0 and _combat_rng.randf() < stat("super_crit_chance"):
 			damage *= stat("super_crit_mult")
@@ -719,6 +723,48 @@ func _fire() -> void:
 				events.append({"type": "rapid_fire"})
 		# Land Mines: each volley may lay one somewhere in range.
 		defences.maybe_lay_mine()
+
+
+## What the Number has absorbed this run, as Berserker counts it: the hits
+## that took it off after defences, and a Vampire's drain. A Divider divides the
+## Number rather than damaging it, and what the Wall took never reached it, so
+## neither counts. Read from `lost_to`, which a saved battle already carries.
+func damage_absorbed() -> float:
+	var total := 0.0
+	for kind in lost_to:
+		if kind != "divider":
+			total += float(lost_to[kind])
+	return total
+
+
+## Berserker (a candidate card): its share of the damage absorbed so far, added
+## to each shot's Damage, up to BERSERKER_MOST times the Damage.
+func berserker_bonus() -> float:
+	var share := rules.value("berserker")
+	if share <= 0.0:
+		return 0.0
+	return minf(share * damage_absorbed(), Guesses.BERSERKER_MOST * stat("damage"))
+
+
+## Super Tower (a candidate card): the times Damage while its burst lasts, 1
+## otherwise and without the card.
+func super_tower_boost() -> float:
+	if cooldowns.time_left("super_tower") > SKIP_SLACK:
+		return rules.value("super_tower")
+	return 1.0
+
+
+## Super Tower runs on two cooldowns, so a saved battle carries its place in
+## the cycle: how long the burst has left, and how long until it is ready
+## again. It is ready as the run begins. Without the card it adds neither.
+func _tick_super_tower() -> void:
+	if rules.value("super_tower") <= 1.0:
+		return
+	cooldowns.set_time("super_tower", maxf(0.0, cooldowns.time_left("super_tower") - TICK))
+	cooldowns.set_time("super_tower_wait", maxf(0.0, cooldowns.time_left("super_tower_wait") - TICK))
+	if cooldowns.time_left("super_tower_wait") <= SKIP_SLACK:
+		cooldowns.set_time("super_tower", Guesses.SUPER_TOWER_ACTIVE)
+		cooldowns.set_time("super_tower_wait", Guesses.SUPER_TOWER_PERIOD)
 
 
 func _launch(target: Enemy, from: Vector2, damage: float, critical: bool) -> Shot:

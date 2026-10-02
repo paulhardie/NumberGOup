@@ -50,7 +50,8 @@ What each does in a run lives in `Cards.EFFECTS` (`src/tower/cards.gd`). Each ca
 | Plasma Cannon, Energy Net | Rare, Epic | A boss-only shot and a boss-only hold |
 | Critical Coin | Rare | Coins from basics killed by a critical shot |
 | Wave Skip, Intro Sprint | Rare | Skipping waves: their pay and the boss rule |
-| Super Tower, Second Wind, Demon Mode, Energy Shield, Death Ray, Berserker, Wave Accelerator | Epic | Timed powers and wave timing, on the stable cooldowns D126 built |
+| Second Wind, Demon Mode, Energy Shield, Death Ray, Wave Accelerator | Epic | Timed powers and wave timing, on the stable cooldowns D126 built |
+| Super Tower, Berserker | Epic | Built as candidates (D148), measured but never drawn: see [the second round](#berserker-and-super-tower-the-second-round) |
 | Land Mine Stun, Recovery Package Chance, Nuke, Ultimate Crit, Area of Effect, Cells | Rare, Epic | Later tiers' milestones, Ultimate Weapons or Cells; none is reachable in Tier 1 |
 
 ## Measuring
@@ -60,6 +61,8 @@ What each does in a run lives in `Cards.EFFECTS` (`src/tower/cards.gd`). Each ca
 - `--card-sweep LEVEL` plays the seeds with no card, then with each built card alone at that level, and prints the median wave, Cash and Coins of each.
 
 Both combine with `--buy`, `--workshop` and `--workshop-coins`, and `--cards` with `--careers`, where cards come in once a run has reached wave 20, as in the game. The test series' candidates (`Cards.CANDIDATES`) are measured the same way, by name in `--cards`, or with `--with-candidates` or `--sweep-cards ID,ID` on a sweep. The game never draws them. A build that has just reached wave 20, when Cards open, is about `--workshop-coins 2000 --workshop-plan core --buy core` (median wave 21).
+
+`--workshop-plan tank` never opens Defense Absolute (Health and Regen with a little killing), and `--berserker-scale N` multiplies Berserker's share in every run that has it, to try values for a Tier 1 Number (see below). Neither is the game's.
 
 **First sweep** (10 seeds, a wave-21 build bought as core, each card alone; D146):
 
@@ -151,17 +154,65 @@ Each was swept at all three builds at levels 1 and 7.
 | Remainder (ours) | A landed ÷ takes ×0.85–×0.5 of its share | +0 waves | Dividers take a share but never end a run (D132, D134). Park |
 | Unequal (ours) | Shots deal ×2–×5 to a Lock | +0 waves (at wave 42, past three Locks) | The Lock isn't the wall. Park |
 | Interest (ours) | Interest cap +$25–$250 | Not measurable | None of these builds open Interest. Untested |
-| **Factor (ours, after Plasma Cannon)** | A boss arrives with ×0.70–×0.46 of its health | **+4 waves at Lv 7** (21 → 25, 42 → 46); +2 on the turtle | The only candidate to move a wall, but a weak card: less than a level-1 Damage |
+| **Factor (ours, after Plasma Cannon)** | A boss arrives with ×0.70–×0.46 of its health | **+4 waves at Lv 7** (21 → 25, 42 → 46); +2 on the turtle | The only candidate of the first round to move a wall, but a weak card: less than a level-1 Damage |
+| **Super Tower (The Tower, epic)** | Damage ×2.5–×5 for 15 s of every 30 | **+5 to +10 waves at Lv 1, +10 to +13 at Lv 7** | A real killing card. Not a second strategy: see below |
+| **Berserker (The Tower, epic)** | Adds 0.8–1.4% of the damage absorbed this run to each shot (bonus at most ×8 Damage) | +0 waves at both levels, on all three builds | Inert at The Tower's numbers; works at about 30 times them, and a tank build then wins: see below |
 
 Absolute and Carry the One (both need state saved per wave), and Enemy Balance and Wave Accelerator (both move every benchmark), weren't built.
+
+### Berserker and Super Tower: the second round
+
+The test series found Tier 1's walls test killing power alone (above), and asked for a card that turns something else into it. D148 built The Tower's two epics that might. Both are measure-only candidates, as the others.
+
+**How they are read here** (the card text is the only source, so the readings are ours and are in `Guesses`; the wiki's Cards page wouldn't load for this session):
+- **Super Tower:** ready as the run begins, Damage ×N for the first 15 s of every 30 s, from the start of the burst. It applies to the tower's shots; Thorns, orbs and mines are unchanged. It keeps its place in a saved battle through the sim's cooldowns.
+- **Berserker:** each shot adds the card's share of the damage absorbed this run to the tower's Damage, before a critical, up to 8 times that Damage. "Absorbed" is what enemies' hits and a Vampire's drain took off the Number after defences. A Divider's ÷ divides the Number rather than damaging it, and what the Wall took never reached it, so neither counts. It reads `lost_to`, so a saved battle carries it.
+- Neither rolls a random number, and a run without them is byte-identical to `main`'s (20 fresh runs, `--buy even`).
+
+**Super Tower** (10 seeds, `--buy core`, median wave; the no-card median in the header):
+
+| | Wave 21 build | Turtle, 31 | Wave 42 |
+|---|---|---|---|
+| Super Tower, Lv 1 (average ×1.75) | 31 | 36 | 51 |
+| Damage, Lv 1 (×1.5) / Lv 2 (×2.0) | 29 / 31 | 35 / 39 | 51 / 51 |
+| Super Tower, Lv 7 (average ×3.0) | 31 | 41 | 55 |
+| Damage, Lv 4 (×2.8) / Lv 5 (×3.2) | 38 / 40 | 41 / 45 | 61 / 61 |
+| Coins at Lv 7 (Damage Lv 7) | +75% (+255%) | +46% (+120%) | +61% (+108%) |
+
+- **At level 1 it is a Damage card between levels 1 and 2,** and the same in a career: from wave 20 with a level-1 card, runs first pass wave 20 on run 17 and wave 30 on run 26, wave 31 on run 40, and runs 21–40 earn 3,595 Coins (+87%). Damage's line is 17 / 27 / 31 and 3,091 (+61%). **It is the first epic to beat the common Damage card at level 1,** because its average is higher (×1.75 against ×1.5). That is The Tower's own number.
+- **At level 7 it is worth less than the flat Damage with the same average** (×3.0, between Damage 4 and 5): 31 against 38–40 at the first build, 55 against 61 at the last. The likely reason, inferred and not traced, is that a wall wants sustained damage: the burst's 15 s off come at a fixed beat the player can't line up with a boss (the cycle is 30 s from the run's start and a wave is 35 s).
+- **Coin pace stays sane:** its Coins come from reaching further, as Damage's do.
+
+**Berserker, as The Tower has it, does nothing:** +0 waves and +0% Coins at levels 1 and 7 on all three builds, and a 40-run career with a level-1 card is wave for wave and Coin for Coin the no-card career. A Tier 1 run absorbs only a few hundred damage, mostly at the end (169 to 475 over six runs of the wave-21 build at level 7), so 1.4% of it is about 3 on a Damage of 48. The Tower's shares are presumably made for a tower that absorbs far more.
+
+**Scaled up, the mechanism works** (`--berserker-scale`, level 7, 10 seeds, median wave with the range, `--buy core` except the tank, which buys with `--buy health`):
+
+| Build | No card | ×1 | ×10 | ×30 |
+|---|---|---|---|---|
+| Core, 2,000 Coins | 21 | 21 | 21 | **41** (21–61) |
+| Tank, 2,000 Coins | 11 | 11 | 11 | **31** (11–60) |
+| Core, 4,000 Coins | 31 | – | – | 41 (30–76) |
+| Turtle, 4,000 Coins | 31 | – | – | 41 (30–75) |
+| **Tank, 4,000 Coins** | **19** | – | – | **50** (11–68) |
+
+- **A tank build can be the best build.** With no card it is the worst (wave 19 at 4,000 Coins, against the turtle's 31). With Berserker ×30 it reaches 50, past the turtle with the card (41) and level with the turtle with a level-7 Damage card (51). That is the second strategy the finding asked for: take the hits, turn them into killing.
+- **The effect needs a scale of about 30.** At ×10 it does nothing on the core build and little on the tank (+0 waves, +14% Coins). Where between 10 and 30 it starts is not measured; ×30 is a probe, not a proposal.
+- **It pulls against the turtle,** as it should: Defense Absolute takes hits to nothing, so the turtle absorbs little, and gains 10 waves against the tank's 31.
+- **It is volatile.** The ranges are wide (11–68 for the tank): it snowballs when the Number survives long enough to absorb, and does nothing when it dies early. In a 40-run career with a level-1 card at ×30 the first run past wave 30 is run 30, past 40 run 31, and runs 31–40 reach 41, 31, 30, 33, 31, 21, 21, 31, 26 and 61; runs 21–40 earn 3,148 Coins (+64%, Damage's +61%).
+- **The cap rarely binds,** but at ×30 the best runs reach it (a bonus of 916 on a Damage of 115).
+- **Not measured: a tank career.** A career whose in-run Cash goes 60% to Health (`--buy health`, its Workshop bought as core) plateaus at wave 11 and never opens Cards, so the card never reaches the build it is for. A player who wants it has to reach wave 20 some other way first.
+
+**Checked with:** 10 seeds a line; the sweeps, a career per card, and the scaled runs above. Not checked: Tier 2, more than 10 seeds, a finer scale than ×10 and ×30, pairs with Berserker, or the cards' text against the wiki.
 
 ### What it means for which cards to add
 
 - **Today, any card that isn't killing power is a dead slot in Tier 1.** That isn't the cards' fault; it's the wall. A strategy that isn't "more Damage" needs a reason to exist, and none of the defence, Number or economy cards gives one, The Tower's or ours.
 - **The cards most likely to open a second strategy turn one thing into killing power:**
-  - **Berserker** (The Tower, epic): damage grows with the damage the Number absorbs. It makes Health and defence feed killing power, which is the bridge a tanky build needs.
-  - **Super Tower** (The Tower, epic): Damage ×2.5 for 15 s of every 30. A timed burst that could be lined up with boss waves.
-  - Both need a timed or per-run state, so they are the next prototypes rather than quick rules.
-- **Of the candidates, only Factor earns a place,** as a modest rare against the boss. It's safe for Coins (+9% over a career).
+  - **Berserker** (The Tower, epic): damage grows with the damage the Number absorbs. Built and measured (D148): at The Tower's shares it does nothing, at about 30 times them it makes a tank build the best one.
+  - **Super Tower** (The Tower, epic): Damage ×2.5 for 15 s of every 30. Built and measured (D148): a good killing card, but not a second strategy, and it can't be lined up with a boss.
+- **Of the first round's candidates, only Factor earns a place,** as a modest rare against the boss. It's safe for Coins (+9% over a career).
+- **Of the second, Super Tower earns a place as The Tower has it,** and Berserker only rescaled for a Tier 1 Number, with a finer sweep and a tank career first. Whether either becomes drawable is the owner's call (HANDOVER).
+
+**The floor (D149).** Cards are held to a floor: at level 7 on at least one of the three builds a drawable card moves the median wave by at least one, or, for Coins, pays its Coins. **Six of the eleven built cards fail it today:** Health, Health Regen, Range, Critical Chance, Extra Defense and Free Upgrades, which move no median wave at either level on any build. Making the Number matter at the walls (THE_NUMBER.md section 9) is the one change that might lift several of them; a Number that powers the shots lifted the Health card by two waves at best.
 
 The owner's decisions from this are in HANDOVER.

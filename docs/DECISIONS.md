@@ -2211,3 +2211,47 @@ Rules:
 - **Checked:**
   - tests cover the tiles in a grid, a tap opening the card, Equip from it, and an unfound card refused;
   - the `cards` and new `cards_card` captures were inspected.
+
+## D148 — Berserker and Super Tower: built to measure, not drawn
+
+- **Status:** Accepted (2026-10-02) on owner direction: "yes, build Berserker and Super Tower", answering HANDOVER's first open decision. That keeps Tier 1's boss walls, which are The Tower's, and asks whether defence can reach killing power through a card.
+- **Decision:** both are measure-only candidates (`Cards.CANDIDATES`, D146's rules for them: never drawn, listed, equipped or saved), valued from The Tower's table. [CARDS.md](CARDS.md) owns the readings and results.
+  - **Super Tower:** Damage ×2.5 to ×5 for the first 15 s of every 30 s, ready as a run begins (`BattleSim._tick_super_tower`, rule `super_tower`). Its place in the cycle is two sim cooldowns, which a saved battle already carries.
+  - **Berserker:** each shot adds the card's share (0.8% to 1.4%) of the damage the Number has absorbed this run, up to 8 times the tower's Damage (`BattleSim.berserker_bonus`, rule `berserker`). "Absorbed" is the hits and a Vampire's drain after defences, read from `lost_to`; a Divider's ÷ and what the Wall took don't count.
+  - **The readings** (what "round", "absorbed", the cap and the cooldown mean) are ours, in `Guesses` and the code, because the card text is the only source we had.
+  - **Measuring:** `sim_runs.gd --berserker-scale N` multiplies Berserker's share, and `--workshop-plan tank` never opens Defense Absolute.
+  - **Neither is drawable.** Which becomes so, and at what values, is the owner's call (HANDOVER).
+- **Findings** (10 seeds a line; the detail is in CARDS.md):
+  - **Super Tower** is a Damage card between levels 1 and 2 at level 1 (31 against 29 and 31 at the wave-21 build), and worth less than flat Damage of the same average at level 7. Its career at level 1 beats the common Damage card's (runs 21–40 earn +87% Coins against +61%). It can't be lined up with a boss.
+  - **Berserker at The Tower's numbers does nothing:** +0 waves on every build at levels 1 and 7, and a career identical in waves and Coins. A Tier 1 run absorbs a few hundred damage, so its bonus is about 3 on a Damage of 48.
+  - **At about 30 times its share it works, and a tank build wins.** A build with no Defense Absolute, worst alone (wave 19 at 4,000 Coins, against the turtle's 31), reaches wave 50 with it, past the turtle with the card (41). Runs are volatile (11–68).
+- **Checked:**
+  - tests cover each rule with and without its card, the cap, the 15-on, 15-off beat, no random draws, neither card in a real run, and a saved battle mid-burst continuing exactly;
+  - twenty fresh runs with no cards are byte-identical to `main`'s;
+  - the committed `--berserker-scale` and `tank` plan reproduce the scratch measurements they replaced, line for line.
+- **Not checked:** an independent review of the diff; Tier 2; more than 10 seeds; a scale between ×10 and ×30; a tank career (a career buying as `--buy health` never reaches wave 20, so never has Cards); the readings against the wiki; owner play.
+- **If either is promoted:** its rule then reaches real runs, so whether `RunConfig.RULES_VERSION` has to rise is decided then, with a saved-battle fixture. It was left alone here because candidates never reach the game.
+
+## D149 — What "balanced" means: The Tower's shape for tiers, a floor for cards
+
+- **Status:** Accepted (2026-10-02) on owner direction: "Option A for tiers, B for cards", answering the question "is our game balanced?".
+- **Decision:**
+  - **Tiers keep The Tower's shape (A).** Killing power decides Tier 1's boss walls, a Tier 1 turtle (Defense Absolute, Thorns) beats every other build, and a pivot (the blender) is for Tier 2. Builds are not tuned to match one another.
+  - **Cards meet a floor (B).** A drawable card has to be worth something at the walls: at its level 7 on at least one of the three card builds ([CARDS.md](CARDS.md)) it moves the median wave by at least one, or, for the Coins card, it is judged on the Coins it pays. A card that doesn't is rescaled, reworked, or left undrawn. The agent proposed this bar and the owner accepted B; the exact bar is open to the owner's change.
+- **Baseline** (measured 2 October 2026 on `main` at `0cb286d`; bots, not players; Tier 1 only; 4 to 20 seeds a line):
+  - **The Tower's early targets hold.** Buying nothing dies on wave 3 (2–3, 20 seeds). The wave-10 boss falls on run 11 of a core career and run 13 of a Coin-growing one. The owner's own wave-20 and wave-21 runs earned 117–165 Coins against The Tower's about 162 (REBUILD_SPEC Benchmarks, 26–27 September).
+  - **Two readings are harsher than The Tower's:**
+    - spreading Cash dies on wave 6 (4–7) against The Tower's 8, though our run starts with $0 and that benchmark had the owner's $93;
+    - the core bot's wave-21 runs earn 81–101 Coins against The Tower's about 162. A bot's Workshop is weaker than the owner's after 37 purchases, so this is a floor, not a miss, but it is not within 20% and nothing here proves the pace.
+  - **Equal Coins, median wave:**
+
+    | Coins | Core | Turtle | Blender | Spread |
+    |---|---|---|---|---|
+    | 10K | 31 | **41** | 31 | 31 |
+    | 100K | 51 | **84** | 48 | 66 |
+
+    The turtle is best at both, as A intends. Its 100K wave was 93 under D133; D135 and D144 changed spawns since, and the drop is not attributed.
+  - **Career pace** (no cards): the core career passes wave 10 on run 11, wave 20 on run 21 and first reaches wave 31 on run 47 (7.3 game hours), with a plateau on waves 21–25 between. The Coin-growing career reaches wave 31 on run 47, the evenly-buying one on run 68.
+- **Consequence for cards:** six of the eleven built cards fail the floor today, since they move no median wave at any level on any build: Health, Health Regen, Range, Critical Chance, Extra Defense and Free Upgrades (CARDS.md). Each is reworked, rescaled or left undrawn, which is for the owner to sequence. Of the candidates, Factor and Super Tower pass and Berserker fails at The Tower's numbers.
+- **Not decided here:** what the Number is (THE_NUMBER.md section 9), and which cards become drawable.
+- **Checked:** the medians above were run on this commit and are repeatable with `sim_runs.gd`. **Not checked:** players, Tier 2, and whether the floor's one-wave bar is the right size.

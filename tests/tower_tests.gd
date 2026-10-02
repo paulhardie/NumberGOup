@@ -491,9 +491,8 @@ func test_the_workshop_shows_only_each_tabs_next_group() -> void:
 	shop.free()
 
 
-## D142: the Workshop in our own layout. The next unlock leads, rows are one
-## per line, a price lights when it can be paid, and each row's bar fills
-## towards its price.
+## The Workshop's two-column layout preserves affordability and progress,
+## with the next unlock following the upgrades it expands.
 func test_the_workshop_lights_what_can_be_bought() -> void:
 	var workshop := Workshop.new()
 	workshop.coins = 60.0
@@ -501,9 +500,12 @@ func test_the_workshop_lights_what_can_be_bought() -> void:
 	shop.workshop = workshop
 	root.add_child(shop)
 	await process_frame
-	check(shop._list.get_child(0) is Button and shop._list.get_child(0) == _unlock_cards(shop)[0], "the next unlock leads the list")
-	check(shop.find_children("*", "GridContainer", true, false).is_empty(), "rows are one per line, not a grid")
+	check(shop._list.get_child(0) is GridContainer and shop._list.get_child(0).columns == 2, "upgrades sit in two columns")
+	check(shop._list.get_child(1) == _unlock_cards(shop)[0], "the next unlock follows the upgrade grid")
 	check(shop._tab_buttons["attack"].button_pressed and not shop._tab_buttons["defense"].button_pressed, "the switch marks only the chosen category")
+	check(Palette.row_value("health_regen", 1000000.0, true) == "1.00M/s" and Palette.row_value("health_regen", 0.0, true) == "0.00/s",
+		"Workshop rates stay readable at large values without losing the unit")
+	check(Palette.row_value("health_regen", 1000000.0) == "1000000.00/s", "other screens retain their existing rate format")
 	var rows: Array = shop._cards.filter(func(card): return card.has("id"))
 	check(rows.size() == 4, "the Attack category's four starting rows: %d" % rows.size())
 	for card in rows:
@@ -2312,6 +2314,66 @@ func test_candidate_cards_act_only_when_equipped() -> void:
 	cards.copies = {"slow_aura": 1}
 	cards.equipped.assign(["slow_aura"])
 	check(cards.effects().is_empty(), "an equipped candidate adds nothing to a run")
+
+
+## Berserker and Super Tower (candidate cards, docs/CARDS.md): each raises the
+## Damage of a shot only with its card, and rolls nothing.
+func test_berserker_and_super_tower_candidates() -> void:
+	check(CardsScreen.describe("berserker", 1) == "+0.8%" and CardsScreen.describe("super_tower", 7) == "×5.00",
+		"they read as cards do: %s, %s" % [CardsScreen.describe("berserker", 1), CardsScreen.describe("super_tower", 7)])
+	# Berserker: a share of what the Number has absorbed, added to each shot.
+	var plain := _quiet_sim()
+	var berserk := _quiet_sim()
+	berserk.rules.add(Cards.effects_at("berserker", 1)[0])
+	for sim in [plain, berserk]:
+		sim.lost_to = {"basic": 600.0, "ranged": 400.0, "divider": 5000.0}
+	check_near(berserk.damage_absorbed(), 1000.0, 1e-9, "a Divider's ÷ divides the Number; it isn't damage absorbed")
+	check_near(plain.berserker_bonus(), 0.0, 0.0, "no card, no bonus")
+	check_near(berserk.berserker_bonus(), 8.0, 1e-9, "level 1 adds 0.8%% of what was absorbed: %s" % berserk.berserker_bonus())
+	berserk.lost_to = {"basic": 1e9}
+	check_near(berserk.berserker_bonus(), 8.0 * berserk.stat("damage"), 1e-9, "the bonus stops at 8 times the tower's Damage")
+	berserk.lost_to = {"basic": 600.0}
+	for sim in [plain, berserk]:
+		sim._shot_charge = 1.0
+		_place(sim, "basic", 5.0)
+		sim._fire()
+		check(sim.shots.size() == 1, "the tower fires")
+		var shot: BattleSim.Shot = sim.shots[0]
+		var bonus := 4.8 if sim == berserk else 0.0
+		check_near(shot.damage, (sim.stat("damage") + bonus) * (sim.stat("critical_factor") if shot.critical else 1.0), 1e-9,
+			"a shot carries Berserker's bonus (%s) before a critical: %s" % [bonus, shot.damage])
+	# Super Tower: ×N for 15 s, off for 15, ready as the run begins; neither it
+	# nor Berserker touches the combat stream or, without a card, the cooldowns.
+	for level in [1, 7]:
+		var sim := _quiet_sim()
+		sim.rules.add(Cards.effects_at("super_tower", level)[0])
+		var stream: int = sim._combat_rng.state
+		var boosts: Array[float] = []
+		for tick in range(1800):
+			sim._tick_super_tower()
+			boosts.append(sim.super_tower_boost())
+		var want := 2.5 if level == 1 else 5.0
+		check(sim._combat_rng.state == stream, "Super Tower rolls nothing")
+		check(boosts.slice(0, 450).all(func(each): return each == want), "×%s from the first tick for 15 seconds" % want)
+		check(boosts.slice(450, 900).all(func(each): return each == 1.0), "then off for 15 more")
+		check(boosts.slice(900, 1350).all(func(each): return each == want) and boosts.slice(1350).all(func(each): return each == 1.0),
+			"and the same again from second 30: ×%s then off" % want)
+	var without := _quiet_sim()
+	for tick in range(100):
+		without._tick_super_tower()
+	check(without.cooldowns.remaining.is_empty() and without.super_tower_boost() == 1.0, "without the card there is no cooldown and no boost")
+	# Both together, in a shot: (Damage + bonus) × the burst, then a critical.
+	var both := _quiet_sim()
+	both.rules.add(Cards.effects_at("berserker", 7)[0])
+	both.rules.add(Cards.effects_at("super_tower", 7)[0])
+	both.lost_to = {"basic": 1000.0}
+	both._tick_super_tower()
+	both._shot_charge = 1.0
+	_place(both, "basic", 5.0)
+	both._fire()
+	var shot: BattleSim.Shot = both.shots[0]
+	check_near(shot.damage, (both.stat("damage") + 14.0) * 5.0 * (both.stat("critical_factor") if shot.critical else 1.0), 1e-9,
+		"the two stack: %s" % shot.damage)
 
 
 ## D133: the Lock comes on a fixed beat on top of The Tower's wave; with it

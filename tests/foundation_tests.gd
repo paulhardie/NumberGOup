@@ -283,6 +283,32 @@ func test_snapshot_continuation() -> void:
 		check(Snapshot.restore(corrupt) == null, "semantically broken state rejected: " + key)
 
 
+## Berserker and Super Tower (candidate cards) keep their state in what a saved
+## battle already carries (what the Number lost, the cooldowns), so a battle
+## saved mid-burst or off one continues exactly.
+func test_snapshot_keeps_berserker_and_super_tower() -> void:
+	var rules: Array = []
+	for id in ["berserker", "super_tower"]:
+		rules.append_array(Cards.effects_at(id, 7))
+	for stop_at in [300, 700]:
+		# A big Number with three enemies already at it, so it is hit.
+		var sim := BattleSim.new(3, {"health": 200}, BattleSim.START_GROUPS, 1, [], rules)
+		for i in range(3):
+			sim._place("basic", float(i))
+			sim.enemies[-1].distance = sim.enemies[-1].stop_at
+		for i in range(stop_at): sim.step()
+		check(sim.cooldowns.time_left("super_tower_wait") > 0.0, "Super Tower has started its cycle by tick %d" % stop_at)
+		var saved: Dictionary = json(Snapshot.capture(sim))
+		var again := Snapshot.restore(saved)
+		check(again != null, "a battle with the candidate rules restores at tick %d" % stop_at)
+		if again == null: continue
+		for i in range(900):
+			sim.step()
+			again.step()
+		check(sim.damage_absorbed() > 0.0, "the Number absorbed something, so Berserker had a bonus to carry")
+		check(Snapshot.capture(sim).digest == Snapshot.capture(again).digest, "exact continuation from tick %d: %s" % [stop_at, difference(json(Snapshot.capture(sim)), json(Snapshot.capture(again)))])
+
+
 ## D133, D134: a Lock holding the Number, one still to come, and a Divider's
 ## held bite all survive a snapshot and continue exactly.
 func test_snapshot_keeps_the_lock_and_a_held_bite() -> void:
@@ -506,6 +532,7 @@ func test_the_cards_screen() -> void:
 	screen.activity.connect(func(entry): said.append(entry))
 	screen.changed.connect(func(): saves[0] += 1)
 	check(screen.rows.size() == Cards.built_ids().size(), "a row for every built card")
+	check(screen._active_grid.get_child_count() == 1 and screen._active_grid.get_child(0).disabled, "a fresh collection shows its empty active slot")
 	var id := screen.draw()
 	check(id != "" and p.gems == 80 and screen.drawn_panel != null and said[-1].kind == "card_draw" and saves[0] == 1, "a draw shows the card and saves")
 	check(screen.rows.size() == Cards.built_ids().size() and screen.rows.all(func(row): return row.button.get_parent() is GridContainer), "the cards sit in a grid (D147)")
@@ -522,10 +549,51 @@ func test_the_cards_screen() -> void:
 	check(screen.toggle(id) and not p.cards.is_equipped(id), "toggling takes it off")
 	check(screen.toggle(id) and p.cards.is_equipped(id), "and back on")
 	check(screen.buy_slot() and p.cards.slots == 2 and p.gems == 30 and said[-1].kind == "card_slot", "a slot is bought")
+	check(screen._active_grid.get_child_count() == 2 and not screen._active_grid.get_child(0).disabled and screen._active_grid.get_child(1).disabled,
+		"the active grid shows the equipped card and the bought empty slot")
+	screen._active_grid.get_child(0).pressed.emit()
+	check(screen.info_panel != null and screen.info_equip.text == "Remove", "an active card opens the same removable details")
+	screen._close_overlay()
 	check(screen.toggle(id) and not p.cards.is_equipped(id), "and a second tap takes it off")
+	check(screen._active_grid.get_children().all(func(slot): return slot.disabled), "removing the card clears the active slots")
+	check(Save.save_progress(p, PATH), "screen actions save through the existing contract")
+	var loaded := Save.load_progress(PATH)
+	check(loaded.to_dict() == p.to_dict(), "draw, slot and equip changes survive save/reload")
+	for suffix in ["", ".bak"]:
+		DirAccess.remove_absolute(PATH + suffix)
 	check(CardsScreen.describe("damage", 1) == "×1.50" and CardsScreen.describe("critical_chance", 1) == "+5%" and CardsScreen.describe("free_upgrades", 7) == "+10% each",
 		"values read as The Tower writes them: %s" % CardsScreen.describe("damage", 1))
 	screen.free()
+
+
+func test_the_cards_screen_with_a_complete_collection() -> void:
+	var p := Progression.new()
+	p.observe(1, 30, 29)
+	p.gems = 0
+	p.cards.slots = Cards.built_ids().size()
+	for id in Cards.built_ids():
+		p.cards.copies[id] = int(Cards.data().copies_to_level[-1])
+	p.cards.equipped.assign(Cards.built_ids())
+	var screen := CardsScreen.new()
+	screen.workshop = p.workshop
+	screen.progression = p
+	root.add_child(screen)
+	await process_frame
+	check(screen._draw_button.disabled and not screen._slot_button.visible, "a complete collection cannot draw or buy unused slots")
+	check(screen._active_grid.get_child_count() == Cards.built_ids().size(), "every equipped card has an active slot")
+	for index in [0, 1, Cards.built_ids().size() - 1]:
+		screen._active_grid.get_child(index).pressed.emit()
+		var expected := String(Cards.card(Cards.built_ids()[index]).name)
+		check(screen.info_equip.text == "Remove" and screen.info_panel.find_children("*", "Label", true, false).any(func(label): return label.text == expected),
+			"active slot %d opens its own card: %s" % [index, expected])
+		screen._close_overlay()
+	screen._active_grid.get_child(1).pressed.emit()
+	screen.info_equip.pressed.emit()
+	check(not p.cards.is_equipped(Cards.built_ids()[1]) and p.cards.is_equipped(Cards.built_ids()[0])
+		and p.cards.equipped.size() == Cards.built_ids().size() - 1 and screen._active_grid.get_child(-1).disabled,
+		"removing the chosen card from a full collection leaves a visible empty slot")
+	screen.queue_free()
+	await process_frame
 
 
 func write(value) -> void:
