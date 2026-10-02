@@ -89,6 +89,10 @@ func _print_run(runs: Array, number: int) -> void:
 func _print_workshop(entries: Array) -> void:
 	var spent := {}
 	var opened: Array[String] = []
+	# Cards (D146): Gems spent on draws and slots, what came, the last loadout.
+	var gems_spent := 0
+	var drawn := {}
+	var loadout = null
 	for entry in entries:
 		match entry.get("kind"):
 			"workshop_buy":
@@ -99,12 +103,25 @@ func _print_workshop(entries: Array) -> void:
 				print("First run's gift: %s Coins (%s)" % [_n(entry.coins), entry.get("at", "?")])
 			"test_coins":
 				print("Test Coins given: %s (%s)" % [_n(entry.amount), entry.get("at", "?")])
+			"test_gems":
+				print("Test Gems given: %d (%s)" % [int(entry.amount), entry.get("at", "?")])
+			"card_draw":
+				gems_spent += int(entry.gems)
+				drawn[entry.id] = int(drawn.get(entry.id, 0)) + 1
+			"card_slot":
+				gems_spent += int(entry.gems)
+				print("Card slot %d bought for %d Gems (%s)" % [int(entry.slots), int(entry.gems), entry.get("at", "?")])
+			"card_equip":
+				loadout = entry.get("loadout", [])
 			"progress_reset":
 				print("Progress reset (%s): the Workshop had %s Coins and %d runs" % [entry.get("at", "?"), _n(entry.workshop.get("coins", 0)), int(entry.workshop.get("runs", 0))])
 	print("\nGroups opened: %s" % (", ".join(opened) if not opened.is_empty() else "none"))
 	var rows := spent.keys()
 	rows.sort_custom(func(a, b): return spent[a] > spent[b])
 	print("Coins spent by row: %s" % (", ".join(rows.map(func(id): return "%s %s" % [id, _n(spent[id])])) if not rows.is_empty() else "none"))
+	if gems_spent > 0 or loadout != null:
+		print("Cards: %d Gems spent; drawn %s; last equipped %s" % [gems_spent, ", ".join(drawn.keys().map(func(id): return "%s ×%d" % [id, drawn[id]])) if not drawn.is_empty() else "none",
+			", ".join(loadout) if loadout is Array and not loadout.is_empty() else "none"])
 
 
 func _levels(bought: Dictionary) -> String:

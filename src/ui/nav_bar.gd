@@ -4,14 +4,14 @@ extends HBoxContainer
 ## shown locked with the version that brings them until they exist (D096).
 ## Each appears only when The Tower would show it (D125), so a new player
 ## isn't met with screens they can't use: the Workshop once the first run has
-## ended, Cards once a run reaches wave 20 and Labs wave 30 (The Tower's
-## milestones). When The Tower shows Weapons isn't known, so they wait until
+## ended, Cards once a run reaches wave 20 (built, D146) and Labs wave 30
+## (The Tower's milestones). When The Tower shows Weapons isn't known, so they wait until
 ## they're built. The battle itself has no bar; a run fills the screen.
 
 const Palette = preload("res://src/ui/palette.gd")
 const Progression = preload("res://src/tower/progression.gd")
 
-## A screen that exists was chosen: "battle" (Home) or "workshop".
+## A screen that exists was chosen: "battle" (Home), "workshop" or "cards".
 signal chosen(id: String)
 
 ## [id, name, the roadmap version that brings it, or "" for a screen that
@@ -19,7 +19,7 @@ signal chosen(id: String)
 const ITEMS := [
 	["battle", "Battle", ""],
 	["workshop", "Workshop", ""],
-	["cards", "Cards", "1.1"],
+	["cards", "Cards", ""],
 	["labs", "Labs", "1.2"],
 	["weapons", "Weapons", "1.3"],
 ]

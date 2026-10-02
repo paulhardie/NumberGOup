@@ -69,6 +69,13 @@ extends SceneTree
 ## the Coins between runs: it opens the cheapest group it can, otherwise buys
 ## the open Workshop row with the fewest levels, until nothing is affordable.
 ## Each run buys with --buy (use even). Each row printed is one run.
+## --cards ID:LEVEL,ID:LEVEL plays every run with those Cards equipped at
+## those levels (D146; ids from data/cards/cards.json, built ones only), and
+## --card-sweep LEVEL plays the seeds once with no card, then once with each
+## built card alone at LEVEL, and prints each one's median wave, Cash and
+## Coins beside the no-card line: what a card is worth to that build. Both
+## work with --buy, --workshop and the other run options, and --cards with
+## --careers too (every run of the career has those cards).
 ## --legacy-progression omits D126's wave rewards for a before/after career
 ## comparison; normal careers receive the same one-time rewards as the UI.
 
@@ -76,6 +83,7 @@ const BattleSim = preload("res://src/tower/battle_sim.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 const Progression = preload("res://src/tower/progression.gd")
+const Cards = preload("res://src/tower/cards.gd")
 
 const STRATEGIES := ["none", "cheapest", "even", "attack", "core", "grow", "health", "survival"]
 ## With --buy health, this share of the Cash earned goes to Health.
@@ -114,8 +122,16 @@ func _init() -> void:
 		printerr("--buy must be one of %s" % ", ".join(STRATEGIES))
 		quit(1)
 		return
+	var loadout := _card_effects(String(options.get("cards", "")))
+	if loadout.is_empty():
+		quit(1)
+		return
 	if options.has("careers"):
-		_career(int(options.careers), strategy, cap_seconds, options)
+		if options.has("card-sweep"):
+			printerr("--card-sweep plays single runs, not --careers")
+			quit(1)
+			return
+		_career(int(options.careers), strategy, cap_seconds, options, loadout)
 		quit()
 		return
 	var workshop: String = options.get("workshop", "")
@@ -143,11 +159,19 @@ func _init() -> void:
 			for id in TowerData.rows():
 				if TowerData.group(id) in groups:
 					levels[id] = TowerData.max_level(id) if workshop == "max" else mini(int(workshop), TowerData.max_level(id))
+	if options.has("card-sweep"):
+		var level := int(options["card-sweep"])
+		if level < 1 or level > Cards.max_level():
+			printerr("--card-sweep takes a level from 1 to %d" % Cards.max_level())
+			quit(1)
+			return
+		quit(0 if _card_sweep(level, seeds, levels, groups, strategy, cap_seconds, options) else 1)
+		return
 	var waves: Array[int] = []
-	print("buying: %s%s" % [strategy, ", Workshop " + workshop if workshop != "" else ""])
+	print("buying: %s%s%s" % [strategy, ", Workshop " + workshop if workshop != "" else "", ", Cards " + options.cards if options.has("cards") else ""])
 	print("seed  wave  game time  kills  cash earned  coins  peak Number  ÷ came/landed  ÷ took  killed by  levels bought")
 	for index in range(seeds):
-		var sim := BattleSim.new(index + 1, levels, groups, int(options.get("tier", "1")))
+		var sim := BattleSim.new(index + 1, levels, groups, int(options.get("tier", "1")), loadout.stat, loadout.rule)
 		if not _tune(sim, options):
 			quit(1)
 			return
@@ -164,16 +188,72 @@ func _init() -> void:
 	quit()
 
 
-func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionary) -> void:
+## The effects of Cards given as "id:level,id:level", split by domain:
+## {stat, rule}; empty, having said why, if a card isn't built or a level
+## isn't 1 to 7.
+func _card_effects(spec: String) -> Dictionary:
+	var cards := Cards.new()
+	for part in spec.split(",", false):
+		var pieces := part.split(":")
+		var id := pieces[0].strip_edges()
+		var level := int(pieces[1]) if pieces.size() > 1 else 1
+		if not Cards.built(id) or level < 1 or level > Cards.max_level():
+			printerr("--cards takes built cards at levels 1 to %d: %s (built: %s)" % [Cards.max_level(), part, ", ".join(Cards.built_ids())])
+			return {}
+		cards.copies[id] = int(Cards.data().copies_to_level[level - 1])
+		cards.slots = mini(Cards.max_slots(), cards.slots + 1)
+		cards.equip(id)
+	var effects := cards.effects()
+	return {"stat": effects.filter(func(effect): return effect.domain == "stat"), "rule": effects.filter(func(effect): return effect.domain == "rule")}
+
+
+## --card-sweep: the seeds with no card, then with each built card alone at
+## `level`, as one line each of medians.
+func _card_sweep(level: int, seeds: int, levels: Dictionary, groups: Array, strategy: String, cap_seconds: float, options: Dictionary) -> bool:
+	print("card sweep at level %d, %d seeds, buying %s%s" % [level, seeds, strategy, ", Workshop " + options.workshop if options.has("workshop") else ""])
+	print("card                     value   median wave   range      median Cash   median Coins")
+	var cases: Array = [""]
+	cases.append_array(Cards.built_ids())
+	var base_coins := 0.0
+	for id in cases:
+		var loadout := _card_effects("" if id == "" else "%s:%d" % [id, level])
+		var waves: Array[int] = []
+		var cash: Array[float] = []
+		var coins: Array[float] = []
+		for index in range(seeds):
+			var sim := BattleSim.new(index + 1, levels, groups, int(options.get("tier", "1")), loadout.stat, loadout.rule)
+			if not _tune(sim, options):
+				return false
+			var last_wave := int(options.get("until-wave", "0"))
+			while sim.alive and sim.time < cap_seconds and (last_wave <= 0 or sim.wave < last_wave):
+				_spend(sim, strategy)
+				sim.step()
+			waves.append(sim.wave)
+			cash.append(sim.cash_earned)
+			coins.append(sim.coins)
+		waves.sort()
+		cash.sort()
+		coins.sort()
+		var median_coins := coins[coins.size() / 2]
+		if id == "":
+			base_coins = median_coins
+		var shown := "(no card)" if id == "" else String(Cards.card(id).name)
+		var value := "" if id == "" else preload("res://src/ui/cards_screen.gd").describe(id, level)
+		print("%-24s %6s   %11d   %3d–%-4d   %11.0f   %12.0f%s" % [shown, value, waves[waves.size() / 2], waves[0], waves[-1], cash[cash.size() / 2], median_coins,
+			"  (%+.0f%%)" % (100.0 * (median_coins / base_coins - 1.0)) if id != "" and base_coins > 0.0 else ""])
+	return true
+
+
+func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionary, loadout: Dictionary) -> void:
 	var workshop := Workshop.new()
 	var progression := Progression.new(workshop)
 	var hours := 0.0
-	print("career, buying %s in each run, %d-minute cap" % [strategy, int(cap_seconds / 60.0)])
+	print("career, buying %s in each run, %d-minute cap%s" % [strategy, int(cap_seconds / 60.0), ", Cards " + options.cards if options.has("cards") else ""])
 	print("run  wave  game time  hours  coins earned  coins left  peak Number  start Number  last wave's Number  ÷ came/landed  killed by  Workshop")
 	var until := int(options.get("until-wave", "0"))
 	var seed_base := int(options.get("career-seed", "0")) * 1000
 	for run in range(runs):
-		var sim := BattleSim.new(seed_base + run + 1, workshop.levels, workshop.open_groups, int(options.get("tier", "1")))
+		var sim := BattleSim.new(seed_base + run + 1, workshop.levels, workshop.open_groups, int(options.get("tier", "1")), loadout.stat, loadout.rule)
 		if not _tune(sim, options):
 			quit(1)
 			return

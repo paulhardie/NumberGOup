@@ -20,6 +20,7 @@ signal changed
 ## What was bought or opened, for the activity log (D077).
 signal activity(entry: Dictionary)
 signal home_pressed
+signal cards_pressed
 
 const TABS := [["Attack", "attack"], ["Defense", "defense"], ["Utility", "utility"]]
 ## The buy multiplier's steps; 0 is Max. Presentation only, never saved (D018).
@@ -117,7 +118,9 @@ func _ready() -> void:
 	var nav := NavBar.new("workshop", workshop.runs, workshop.best_wave, progression)
 	nav.chosen.connect(func(id: String):
 		if id == "battle":
-			home_pressed.emit())
+			home_pressed.emit()
+		elif id == "cards":
+			cards_pressed.emit())
 	screen.add_child(Palette.hairline())
 	screen.add_child(nav)
 	show_tab(_tab)

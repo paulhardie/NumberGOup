@@ -15,6 +15,7 @@ const Workshop = preload("res://src/tower/workshop.gd")
 const HomeScreen = preload("res://src/ui/home_screen.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
 const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
+const CardsScreen = preload("res://src/ui/cards_screen.gd")
 const Settings = preload("res://src/settings.gd")
 const AmbientMusic = preload("res://src/ui/ambient_music.gd")
 const Progression = preload("res://src/tower/progression.gd")
@@ -105,6 +106,12 @@ func _show_home() -> HomeScreen:
 		workshop.gift_waiting = 0.0
 	home.battle_pressed.connect(_show_battle)
 	home.workshop_pressed.connect(_show_workshop)
+	home.cards_pressed.connect(_show_cards)
+	home.test_gems_pressed.connect(func(amount: int):
+		if not progression.writable: return
+		progression.gems += amount
+		ActivityLog.append({"kind": "test_gems", "amount": amount, "gems_left": progression.gems}, log_path)
+		_save())
 	home.export_pressed.connect(func():
 		var result := ActivityLog.export_report(workshop.to_dict(), log_path, ActivityLog.REPORTS, progression.to_dict())
 		home.show_exported(result)
@@ -167,7 +174,22 @@ func _show_workshop() -> void:
 	shop.changed.connect(_save)
 	shop.activity.connect(func(entry): ActivityLog.append(entry, log_path))
 	shop.home_pressed.connect(_show_home)
+	shop.cards_pressed.connect(_show_cards)
 	_swap(shop)
+
+
+## Cards between runs (D146): draws, slots and what's equipped, saved as they
+## change.
+func _show_cards() -> void:
+	if not progression.writable: return
+	var cards := CardsScreen.new()
+	cards.workshop = workshop
+	cards.progression = progression
+	cards.changed.connect(_save)
+	cards.activity.connect(func(entry): ActivityLog.append(entry, log_path))
+	cards.home_pressed.connect(_show_home)
+	cards.workshop_pressed.connect(_show_workshop)
+	_swap(cards)
 
 
 ## A saved run that can't be brought back, because the game updated since or

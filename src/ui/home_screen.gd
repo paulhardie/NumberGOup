@@ -17,17 +17,21 @@ const Progression = preload("res://src/tower/progression.gd")
 
 signal battle_pressed
 signal workshop_pressed
+signal cards_pressed
 ## The owner wants the activity log as a report file (D077).
 signal export_pressed
 ## A setting was changed here, to be written.
 signal settings_changed
 ## Testing (D097): free Coins for the Workshop, and a fresh start.
 signal test_coins_pressed(amount: float)
+signal test_gems_pressed(amount: int)
 signal reset_pressed
 signal daily_pressed
 
 ## The free Coins the testing buttons give.
 const TEST_COINS := [1000.0, 100000.0]
+## Testing's free Gems, for trying Cards (D146).
+const TEST_GEMS := 500
 
 ## The best Number, large and thin in the light, as the battle draws the Number.
 const EMBLEM_HEIGHT := 250
@@ -222,7 +226,9 @@ func _ready() -> void:
 	var nav := NavBar.new("battle", workshop.runs, workshop.best_wave, progression)
 	nav.chosen.connect(func(id: String):
 		if id == "workshop":
-			workshop_pressed.emit())
+			workshop_pressed.emit()
+		elif id == "cards":
+			cards_pressed.emit())
 	screen.add_child(Palette.hairline())
 	screen.add_child(nav)
 
@@ -521,7 +527,7 @@ func _build_settings() -> void:
 
 
 ## Testing, for the owner and the agents while the game is built (D097): free
-## Coins and a reset to a fresh Workshop. None of it is meant to ship as it is.
+## Coins and Gems (D146) and a reset to a fresh Workshop. None of it is meant to ship as it is.
 func _build_testing(column: VBoxContainer) -> void:
 	column.add_child(Palette.hairline())
 	var heading := Label.new()
@@ -539,6 +545,13 @@ func _build_testing(column: VBoxContainer) -> void:
 			test_coins_pressed.emit(amount)
 			refresh())
 		gifts.add_child(gift)
+	if progression != null:
+		var gems := Palette.pill("+◆ %d" % TEST_GEMS, Palette.ACCENT, _mono, 32)
+		gems.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		gems.pressed.connect(func():
+			test_gems_pressed.emit(TEST_GEMS)
+			refresh())
+		gifts.add_child(gems)
 	_reset = Palette.pill("Reset progress", Palette.WARNING, null, 32)
 	_reset.pressed.connect(_press_reset)
 	column.add_child(_reset)
