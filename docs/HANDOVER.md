@@ -1,15 +1,16 @@
 # Handover
 
 **Last updated:** 2 October 2026, by Claude.
-- `main` is at `848e44b`, which takes in everything through D146 (Cards, PR #134).
-- [PR #135](https://github.com/paulhardie/NumberGOup/pull/135) (`claude/cards-grid`, D147) lays Cards out as a grid with a card's details on tap.
+- `main` is at `b77f4d4`, which takes in everything through D147:
+  - Cards (D146, PR #134);
+  - the Cards grid with a card's details on tap (D147, PR #135).
 - [PR #136](https://github.com/paulhardie/NumberGOup/pull/136) (`claude/card-tests`) is the card test series: measure-only candidate cards, the measuring options and the results in [CARDS.md](CARDS.md). Nothing a player sees changes.
-- Neither is in the owner's game until merged; the play folder follows `origin/main` through `com.paulhardie.ngu-sync`.
+- It isn't in the owner's game until merged; the play folder follows `origin/main` through `com.paulhardie.ngu-sync`.
 - The pre-rebuild game is commit `f4f1e95`.
 
 ## Start here
 
-Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md). Fetch and inspect the checkout before editing. Accepted choices live in [DECISIONS.md](DECISIONS.md); grep it by ID. D147 is on #135, so the next free ID is **D148**. The public version stays **0.9**.
+Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md). Fetch and inspect the checkout before editing. Accepted choices live in [DECISIONS.md](DECISIONS.md); grep it by ID. The next free ID is **D148**. The public version stays **0.9**.
 
 ## Where the game is
 
@@ -17,7 +18,7 @@ Tier 1 and every Workshop group work.
 - **The Number is the tower.** Flat enemies subtract from it, Dividers divide it, and the Lock (from wave 35) holds its growth.
 - **Enemies:** the five base enemies read as ours (D145).
 - **Cards (D146):** they open at Tier 1 wave 20 (the dock shows them then, and the run pays 10 Gems). Eleven of The Tower's cards are built, and save version 3 holds the collection.
-- **Grid:** #135 lays the cards out as a grid.
+- **Grid:** the cards are laid out as a grid, with a card's details on tap (D147).
 
 **The card test series (#136, CARDS.md)** measured:
 - the built cards on three builds, at levels 1 and 7;
@@ -34,7 +35,7 @@ Tier 1 and every Workshop group work.
 
 ## Checked, and not checked (#136)
 
-- **Tests:** `bash run_tests.sh` passed, 4,709 tower checks and 217 foundation checks, exit 0. New tests cover:
+- **Tests:** `bash run_tests.sh` passed after merging `main`, 4,709 tower checks and 223 foundation checks, exit 0. New tests cover:
   - every candidate's rule, with and without its card;
   - that the combat random stream moves only with Critical Coin;
   - that candidates are never drawn and an equipped candidate never reaches a real run.
@@ -69,7 +70,7 @@ Tier 1 and every Workshop group work.
 
 ## Next steps, in order
 
-1. **Owner:** merge #135 (the grid) and #136 (the test series; it's measuring only), then reach wave 20 on the fresh save to see Cards.
+1. **Owner:** merge #136 (the test series; it's measuring only), then reach wave 20 on the fresh save to see Cards in their grid.
 2. **Owner:** answer decisions 1 and 2. A yes to Berserker means prototyping it and Super Tower as measure-only cards, sweeping them like the rest, and recording the pick as D148.
 3. **Agent, small:** move the Cards and Workshop screens' shared bar and card helpers into Palette.
 
