@@ -6,6 +6,7 @@ extends Control
 
 const Cards = preload("res://src/tower/cards.gd")
 const Palette = preload("res://src/ui/palette.gd")
+const MAXED_SHEEN = preload("res://src/ui/shaders/maxed_card_sheen.gdshader")
 const NavBar = preload("res://src/ui/nav_bar.gd")
 const Progression = preload("res://src/tower/progression.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
@@ -268,7 +269,7 @@ func _refresh_active() -> void:
 			value.add_theme_color_override("font_color", Palette.ACCENT)
 			button.tooltip_text = "%s · tap for details or Remove" % title.text
 			button.pressed.connect(func(): show_card(id))
-			_style_row(button, true)
+			_style_row(button, true, cards.maxed(id))
 		else:
 			button.disabled = true
 			_style_row(button, false)
@@ -315,8 +316,11 @@ func _card_tile(id: String) -> Button:
 		dots.text = level_dots(cards.level(id))
 		var toward_next := cards.progress(id)
 		copies.text = ("✓  " if on else "") + ("MAX" if cards.maxed(id) else ("%d / %d" % toward_next if found else "Not found"))
-		_style_row(button, on)
-		Palette.fill_progress(bar, 1.0 if cards.maxed(id) else (float(toward_next[0]) / maxf(1.0, float(toward_next[1])) if found else 0.0), on, Palette.ACCENT)})
+		var maxed := cards.maxed(id)
+		dots.add_theme_color_override("font_color", Palette.COIN if maxed else Palette.ACCENT)
+		copies.add_theme_color_override("font_color", Palette.COIN if maxed else Palette.MUTED)
+		_style_row(button, on, maxed)
+		Palette.fill_progress(bar, 1.0 if maxed else (float(toward_next[0]) / maxf(1.0, float(toward_next[1])) if found else 0.0), on or maxed, Palette.COIN if maxed else Palette.ACCENT)})
 	return button
 
 
@@ -499,12 +503,28 @@ static func toward(have: float, target: float) -> float:
 	return clampf(have / target, 0.0, 1.0)
 
 
-func _style_row(button: Button, on: bool) -> void:
-	var edge := Color(Palette.ACCENT, 0.5) if on else Palette.HAIRLINE
+func _style_row(button: Button, on: bool, maxed: bool = false) -> void:
+	var edge := Color(Palette.COIN, 0.75 if on else 0.5) if maxed else (Color(Palette.ACCENT, 0.5) if on else Palette.HAIRLINE)
 	for state in ["normal", "disabled", "hover", "pressed"]:
-		var box := Palette.card_box(Palette.SURFACE, Color(Palette.ACCENT, 0.7) if state == "hover" else edge, 6)
+		var hover := Color(Palette.COIN if maxed else Palette.ACCENT, 0.9 if maxed else 0.7)
+		var box := Palette.card_box(Color("1c1911") if maxed else Palette.SURFACE, hover if state == "hover" else edge, 6)
 		box.set_border_width_all(1)
 		button.add_theme_stylebox_override(state, box)
+	var sheen := button.get_node_or_null("MaxedSheen") as ColorRect
+	if maxed and sheen == null:
+		sheen = ColorRect.new()
+		sheen.name = "MaxedSheen"
+		sheen.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		sheen.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		var material := ShaderMaterial.new()
+		material.shader = MAXED_SHEEN
+		material.set_shader_parameter("card_size", button.size)
+		sheen.material = material
+		button.resized.connect(func(): material.set_shader_parameter("card_size", button.size))
+		button.add_child(sheen)
+		button.move_child(sheen, 0)
+	if sheen != null:
+		sheen.visible = maxed
 
 
 func _inside(button: Button, top: int) -> VBoxContainer:

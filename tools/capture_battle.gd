@@ -90,6 +90,24 @@ func _capture() -> void:
 	cards.ready.connect(func(): cards.show_card("damage"))
 	await _shoot(cards, "cards_card")
 
+	# One maxed card beside ordinary cards, both equipped and unequipped.
+	var gilded := Progression.new(progress)
+	gilded.observe(1, 25, 24)
+	gilded.gems = 140
+	gilded.cards.copies = collected.cards.copies.duplicate()
+	gilded.cards.copies["damage"] = int(Cards.data().copies_to_level[-1])
+	gilded.cards.slots = 2
+	gilded.cards.equipped.assign(["damage", "health"])
+	cards = CardsScreen.new()
+	cards.workshop = progress
+	cards.progression = gilded
+	await _shoot(cards, "cards_gold")
+	gilded.cards.unequip("damage")
+	cards = CardsScreen.new()
+	cards.workshop = progress
+	cards.progression = gilded
+	await _shoot(cards, "cards_gold_unequipped")
+
 	# Layout boundaries: a newly opened Cards screen, an unused bought slot,
 	# and a fully collected loadout whose inventory needs scrolling.
 	var fresh_cards := Progression.new()
