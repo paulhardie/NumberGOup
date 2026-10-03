@@ -527,7 +527,7 @@ All on the fixed candidate (after the clarifications in 10.4), against `data/bal
 What was run, all of it reported here:
 - **8 of the grid's 96 configurations**, the centre and each single variation, build phase (criteria 1, 2 and 6, and the peak half of 4). All fail 1, 2 and 6.
 - **The slow phase (criteria 3, 4 and 5) for the centre and the lowest power.** Both pass 3 and 5 and fail 4.
-- **All 16 combinations of speed, fade, priority and `r_base` at the lowest power, on the core build at 10K Coins.** The cost of thieves is 0 waves in every one, with 2 thefts a run.
+- **All 48 combinations of power, speed, fade, priority and `r_base` on the core build at 10K Coins.** `r_max` only acts at 100K, so these decide criteria 2 and 6 for all 96 configurations. Thieves cost 0 waves in every one, and the most thefts a run is 2 at power 0.1, 1 at 0.2 and 0 at 0.3.
 - **Three exploratory runs with more Dividers** (outside the grid, so they can't count as a pass).
 
 **The declared grid, build phase.** C1 is judged for each lever in each build at each budget; C2 needs thieves to cost 2 or more waves at 10K and 1 or less at 100K for both builds; C6 needs at least 3 thefts a run.
@@ -545,7 +545,7 @@ What was run, all of it reported here:
 
 Every row fails C1 (recovery matters in one cell of four), C2 (the core build loses nothing to thieves at 10K) and C6 (the core build is robbed at most twice a run, and the criterion needs 3). A negative C2 figure means the run with thieves went further than the run with no Dividers at all.
 
-**Why no configuration on the grid can pass.** C6 needs at least 3 thefts a run on the core build. How many Dividers land depends mainly on how fast the tower kills them, which on this grid `number_power` sets (the other options act only after a Divider has landed), and a stronger power means fewer land. The lowest power gives the most, 2, and the single variations at 0.2 and 0.3 gave 1 and 0. Recovery, speed, fade and priority don't change it, which the 16-combination check at the lowest power confirms: 2 thefts and 0 waves lost in all of them. The higher powers were measured only as single variations, so "fewer thefts there" is the single variations plus that reasoning, not 96 runs.
+**Why no configuration on the grid can pass.** Criterion 2 needs thieves to cost the core build 2 waves at 10K, and criterion 6 needs at least 3 thefts a run on it. Both depend only on the core build at 10K, and on the five options that can change it (`r_max` acts at 100K). All 48 combinations of those were measured: the cost is 0 waves in every one, and the most thefts a run is 2 (at power 0.1; 1 at 0.2, 0 at 0.3). So criteria 2 and 6 fail in all 96 configurations, measured rather than inferred. The mechanism is under "What it shows" below: a stronger power means fewer Dividers land, and recovery, speed, fade and priority act only after one has.
 
 **The slow phase.**
 
