@@ -13,6 +13,7 @@ const ActivityLog = preload("res://src/tower/activity_log.gd")
 const Palette = preload("res://src/ui/palette.gd")
 const Settings = preload("res://src/settings.gd")
 const NavBar = preload("res://src/ui/nav_bar.gd")
+const Overlay = preload("res://src/ui/overlay.gd")
 const Progression = preload("res://src/tower/progression.gd")
 
 signal battle_pressed
@@ -61,11 +62,11 @@ var _battle: Button
 ## The Battle button's box, whose glow breathes with the Number's light.
 var _battle_box: StyleBoxFlat
 var _best_wave: Label
-var _settings_panel: PanelContainer
-var _milestones_panel: PanelContainer
+## The milestones sheet while it's up, and the list inside it.
+var _milestones_panel: Overlay
 var _milestones_list: VBoxContainer
 ## The Workshop's welcome after a first run (D125), and the Coins it announces.
-var _gift_panel: PanelContainer
+var _gift_panel: Overlay
 var _gift := 0.0
 var _reset: Button
 ## Reset asks twice: the first press arms it, the second resets.
@@ -116,7 +117,7 @@ func _ready() -> void:
 	var open_settings := Palette.pill("•••", Palette.SOFT, null, 36)
 	open_settings.tooltip_text = "Settings"
 	open_settings.custom_minimum_size = Vector2(44, 36)
-	open_settings.pressed.connect(func(): _settings_panel.visible = true)
+	open_settings.pressed.connect(_open_settings)
 	top.add_child(open_settings)
 
 	var body := VBoxContainer.new()
@@ -232,8 +233,6 @@ func _ready() -> void:
 	screen.add_child(Palette.hairline())
 	screen.add_child(nav)
 
-	_build_settings()
-	_build_milestones()
 	if _gift > 0.0:
 		_build_gift()
 	refresh()
@@ -290,33 +289,17 @@ func show_gift(coins: float) -> void:
 
 
 func _build_gift() -> void:
-	_gift_panel = _overlay()
-	var column: VBoxContainer = _gift_panel.get_meta("column")
-	var heading := Label.new()
-	heading.text = "The Workshop"
-	heading.add_theme_font_size_override("font_size", 16)
-	column.add_child(heading)
-	var about := Label.new()
-	about.text = "Coins you earn in battle stay between runs. Spend them in the Workshop on upgrades every run starts with."
-	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	about.custom_minimum_size = Vector2(260, 0)
-	about.add_theme_font_size_override("font_size", 13)
-	about.add_theme_color_override("font_color", Palette.SOFT)
-	column.add_child(about)
+	# Answered, not dismissed: it's the way into the Workshop.
+	var sheet := Overlay.new(Overlay.Kind.SHEET, false)
+	_gift_panel = sheet
+	sheet.closed.connect(func(): if _gift_panel == sheet: _gift_panel = null)
+	sheet.heading("The Workshop")
+	sheet.text("Coins you earn in battle stay between runs. Spend them in the Workshop on upgrades every run starts with.", Palette.SOFT, 13)
 	var given := _figure(20, Palette.COIN)
 	given.text = "+● %s to get you started" % Palette.money(_gift)
-	column.add_child(given)
-	var go := Palette.pill("Open the Workshop", Palette.ACCENT, null, 40)
-	go.pressed.connect(func():
-		_gift_panel.visible = false
-		workshop_pressed.emit())
-	column.add_child(go)
-	_gift_panel.visible = true
-
-
-func _open_milestones() -> void:
-	_fill_milestones()
-	_milestones_panel.visible = true
+	sheet.column.add_child(given)
+	sheet.action("Open the Workshop", Palette.ACCENT, func(): workshop_pressed.emit(), true, 40)
+	sheet.show_over(self)
 
 
 ## The Battle button's box: filled in the accent, rounded, glowing.
@@ -361,25 +344,13 @@ func show_note(text: String) -> void:
 ## Milestones, over the screen (D107): each new digit the best Number reaches
 ## for the first time pays its Coins once. Reached ones are ticked, and the
 ## next shows how far the best Number has come towards it.
-func _build_milestones() -> void:
-	_milestones_panel = _overlay()
-	var column: VBoxContainer = _milestones_panel.get_meta("column")
-	var head := HBoxContainer.new()
-	column.add_child(head)
-	var heading := Label.new()
-	heading.text = "Milestones"
-	heading.add_theme_font_size_override("font_size", 16)
-	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(heading)
-	var close := Palette.pill("Close", Palette.SOFT, null, 30)
-	close.pressed.connect(func(): _milestones_panel.visible = false)
-	head.add_child(close)
-	var about := Label.new()
-	about.text = "Number and wave rewards pay once." if progression != null else "Your best Number's first new digit pays once."
-	about.add_theme_font_size_override("font_size", 12)
-	about.add_theme_color_override("font_color", Palette.MUTED)
-	column.add_child(about)
-	column.add_child(Palette.hairline())
+func _open_milestones() -> void:
+	var sheet := Overlay.new()
+	_milestones_panel = sheet
+	sheet.closed.connect(func(): if _milestones_panel == sheet: _milestones_panel = null)
+	sheet.heading("Milestones", true)
+	sheet.text("Number and wave rewards pay once." if progression != null else "Your best Number's first new digit pays once.", Palette.MUTED)
+	sheet.rule()
 	_milestones_list = VBoxContainer.new()
 	_milestones_list.add_theme_constant_override("separation", 10)
 	if progression != null:
@@ -387,10 +358,11 @@ func _build_milestones() -> void:
 		scroll.custom_minimum_size = Vector2(300, 350)
 		_milestones_list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		scroll.add_child(_milestones_list)
-		column.add_child(scroll)
+		sheet.column.add_child(scroll)
 	else:
-		column.add_child(_milestones_list)
+		sheet.column.add_child(_milestones_list)
 	_fill_milestones()
+	sheet.show_over(self)
 
 
 func _fill_milestones() -> void:
@@ -442,61 +414,13 @@ func _fill_milestones() -> void:
 			_milestones_list.add_child(progress)
 
 
-## A panel over the whole screen, shaded, with a card in the middle; its
-## column is kept as the panel's "column" meta.
-func _overlay() -> PanelContainer:
-	var panel := PanelContainer.new()
-	panel.visible = false
-	var shade := StyleBoxFlat.new()
-	shade.bg_color = Color(0, 0, 0, 0.6)
-	panel.add_theme_stylebox_override("panel", shade)
-	panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(panel)
-	var centre := CenterContainer.new()
-	panel.add_child(centre)
-	var card := PanelContainer.new()
-	card.add_theme_stylebox_override("panel", Palette.panel_box())
-	card.custom_minimum_size = Vector2(300, 0)
-	centre.add_child(card)
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 12)
-	card.add_child(column)
-	panel.set_meta("column", column)
-	return panel
-
-
 ## Settings, over the screen: the music, the report, and which build this is.
-func _build_settings() -> void:
-	_settings_panel = PanelContainer.new()
-	_settings_panel.visible = false
-	var shade := StyleBoxFlat.new()
-	shade.bg_color = Color(0, 0, 0, 0.6)
-	_settings_panel.add_theme_stylebox_override("panel", shade)
-	_settings_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(_settings_panel)
-	var centre := CenterContainer.new()
-	_settings_panel.add_child(centre)
-	var card := PanelContainer.new()
-	card.add_theme_stylebox_override("panel", Palette.panel_box())
-	card.custom_minimum_size = Vector2(300, 0)
-	centre.add_child(card)
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 12)
-	card.add_child(column)
-	var head := HBoxContainer.new()
-	column.add_child(head)
-	var heading := Label.new()
-	heading.text = "Settings"
-	heading.add_theme_font_size_override("font_size", 16)
-	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(heading)
-	var close := Palette.pill("Close", Palette.SOFT, null, 30)
-	close.pressed.connect(func():
-		_settings_panel.visible = false
-		_reset_armed = false
-		_reset.text = "Reset progress")
-	head.add_child(close)
-	column.add_child(Palette.hairline())
+func _open_settings() -> void:
+	var sheet := Overlay.new()
+	# Reset asks twice, and asks again from scratch the next time Settings opens.
+	sheet.closed.connect(func(): _reset_armed = false)
+	sheet.heading("Settings", true)
+	sheet.rule()
 	var music_toggle := CheckButton.new()
 	music_toggle.text = "Music"
 	music_toggle.button_pressed = settings.music
@@ -506,15 +430,15 @@ func _build_settings() -> void:
 	music_toggle.toggled.connect(func(on: bool):
 		settings.music = on
 		settings_changed.emit())
-	column.add_child(music_toggle)
+	sheet.column.add_child(music_toggle)
 	var export := Button.new()
 	export.text = "Export report"
 	export.custom_minimum_size = Vector2(0, 44)
 	export.pressed.connect(func():
-		_settings_panel.visible = false
+		sheet.dismiss()
 		export_pressed.emit())
-	column.add_child(export)
-	_build_testing(column)
+	sheet.column.add_child(export)
+	_build_testing(sheet)
 	# The roadmap version and the commit (D079), so a screenshot or a report
 	# says which build it came from.
 	var build := Label.new()
@@ -523,21 +447,18 @@ func _build_settings() -> void:
 	build.add_theme_font_size_override("font_size", 11)
 	build.add_theme_color_override("font_color", Palette.MUTED)
 	build.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(build)
+	sheet.column.add_child(build)
+	sheet.show_over(self)
 
 
 ## Testing, for the owner and the agents while the game is built (D097): free
 ## Coins and Gems (D146) and a reset to a fresh Workshop. None of it is meant to ship as it is.
-func _build_testing(column: VBoxContainer) -> void:
-	column.add_child(Palette.hairline())
-	var heading := Label.new()
-	heading.text = "Testing"
-	heading.add_theme_font_size_override("font_size", 12)
-	heading.add_theme_color_override("font_color", Palette.MUTED)
-	column.add_child(heading)
+func _build_testing(sheet: Overlay) -> void:
+	sheet.rule()
+	sheet.text("Testing", Palette.MUTED)
 	var gifts := HBoxContainer.new()
 	gifts.add_theme_constant_override("separation", 8)
-	column.add_child(gifts)
+	sheet.column.add_child(gifts)
 	for amount in TEST_COINS:
 		var gift := Palette.pill("+● " + Palette.money(amount), Palette.COIN, _mono, 32)
 		gift.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -554,7 +475,7 @@ func _build_testing(column: VBoxContainer) -> void:
 		gifts.add_child(gems)
 	_reset = Palette.pill("Reset progress", Palette.WARNING, null, 32)
 	_reset.pressed.connect(_press_reset)
-	column.add_child(_reset)
+	sheet.column.add_child(_reset)
 
 
 ## The first press asks; the second, while it's asking, resets.
@@ -565,7 +486,7 @@ func _press_reset() -> void:
 		return
 	_reset_armed = false
 	_reset.text = "Reset progress"
-	_settings_panel.visible = false
+	Overlay.close_current(self)
 	reset_pressed.emit()
 
 

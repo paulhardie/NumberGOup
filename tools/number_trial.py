@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure the Number-as-capital candidate (D151) against the pass criteria
+"""Measure the Number-as-capital candidate (D152) against the pass criteria
 written down first in docs/THE_NUMBER.md section 10.4.
 
 One configuration per run: the candidate's options, with the Lab stand-ins

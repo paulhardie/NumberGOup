@@ -2267,7 +2267,25 @@ Rules:
 - **Contract and commands:** [BALANCE_TESTS.md](BALANCE_TESTS.md). Evidence and the current next step: [HANDOVER.md](HANDOVER.md).
 
 
-## D151 — The Number is the player's capital: try thieves, durable loss and a power coupling, measure-only
+## D151 — Menus and pop-ups come from one framework, and holding reads
+
+- **Status:** Built (2026-10-03) on owner direction: "do a sweep and see where the tower does it, and where we should. Build a framework for menus and pop ups", after "tap and hold on an element to go in and see further info". The framework is the owner's ask; the specifics below (a 0.45 s hold, banners that don't pause the run, what moved onto it) are the agent's and open to the owner's change.
+- **Context:** Cards, Home (three sheets) and the Workshop each built their own shaded card by hand, Wave Info and the first-sight card were separate panels that could sit on top of each other, and the rebuild had dropped the old game's hold-to-read (D049). So an upgrade's description showed once, when its group opened, and never again, though every Workshop row has one in the data.
+- **Decision:**
+  1. **`Overlay`** (`src/ui/overlay.gd`) is the one card. A **SHEET** is centred over a shade that blocks the screen; a **BANNER** sits under the top bar and blocks nothing, so a run goes on beneath it. A screen shows one of each at a time; a new card replaces the old of its kind; a SHEET sits above a BANNER. Nothing pauses the run. [UI_POPUPS.md](UI_POPUPS.md) has the rules.
+  2. **`HoldToRead`** (`src/ui/hold_to_read.gd`) gives a control a tap and a hold (0.45 s, under 10 canvas points of drift). A hold reads; the lift after it does nothing, so reading never buys. It listens to raw mouse input, so a disabled (unaffordable) tile can be read.
+  3. **On it now:** Settings, Milestones, the Workshop's welcome, Cards' details and draw, what a group opened, Wave Info and the first-sight card. **New:** hold a Workshop row (its description, level, value now and a level on, price), hold the next unlock (what it opens), hold a run's upgrade tile (the same card, a banner, kept current as the run buys).
+  4. **`BattleSim.stat_with(id, extra)`** is a read-only look at a stat a level on, so a run's card doesn't redo the sim's maths in a screen (law 2).
+- **Consequences:**
+  - **A new enemy's card now waits while Wave Info or a held upgrade is open;** before, they overlapped.
+  - **Small look changes:** banners start 68 points down (Wave Info was 72, first-sight 64), sheets space their content 12 apart (Cards used 10), and Wave Info's heading is 16 (was 18).
+  - Settings and Milestones are built when opened, not up front; the capture tool and three tests that read their controls now open them first.
+  - No save, economy, ticking or combat change. `stat_with` is used only by the card.
+- **Not built, for the owner:** a hint that holding reads, a confirm on End run, holding Wave Info's enemy rows, the locked dock items and the daily pill, and moving the run-over panel onto a SHEET (UI_POPUPS.md section 3). Nothing in the repository proves The Tower itself has a hold gesture; this is our design.
+- **Checked:** the baseline suites, new input tests through the window's real GUI routing (mouse and touch), mutation checks that the tests fail when the hold stops suppressing a tap or a sheet stops blocking, and screenshots of each pop-up. **Not checked:** a phone, whether 0.45 s and 10 points feel right, and whether a held card over the top of a run gets in the way.
+
+
+## D152 — The Number is the player's capital: try thieves, durable loss and a power coupling, measure-only
 
 - **Status:** Accepted (2026-10-03) on owner direction, after the agent said plainly that the approach is a bet and not demonstrably better. The owner's words:
   - "I think we pick the best solution that makes the player feel/see themselves getting stronger via the number going up. If we need to rework some fundamental stats then that's fine. The tower was always the base inspiration, but eventually this needs to grow into its own thing."

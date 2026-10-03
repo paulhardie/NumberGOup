@@ -35,7 +35,7 @@ extends SceneTree
 ## --peak-drift N and --kill-share N try other numbers for how the Number
 ## grows (D111): regen's share past the run's best, and a clean kill's share
 ## of its Attack.
-## The Number-as-capital trial (D151, docs/THE_NUMBER.md section 10): --thieves
+## The Number-as-capital trial (D152, docs/THE_NUMBER.md section 10): --thieves
 ## has a Divider that reaches the Number carry its bite away instead of being
 ## used up, --thief-recovery R the share of that bite the damage dealt to it
 ## pays back (1 all of it, more is the Lab's bonus), --thief-speed S its flight
@@ -569,7 +569,7 @@ func _choose(sim: BattleSim, strategy: String) -> String:
 	return best if sim.can_buy(best) else ""
 
 
-## With the trial's thieves on (D151), the ledger: " | thefts 7, taken 412,
+## With the trial's thieves on (D152), the ledger: " | thefts 7, taken 412,
 ## back 96, walked off 210 (3 got away)".
 func _thieves(sim: BattleSim) -> String:
 	if not sim.thieves:
@@ -641,7 +641,7 @@ func _tune(sim: BattleSim, options: Dictionary) -> bool:
 		sim.divider.refill_seconds = float(options["divider-refill"])
 	if options.has("tank-intro"):
 		sim.tank_intro = int(options["tank-intro"])
-	# The Number-as-capital trial (D151), off unless asked for.
+	# The Number-as-capital trial (D152), off unless asked for.
 	sim.thieves = options.has("thieves")
 	sim.thief_priority = options.has("thief-priority")
 	if options.has("thief-recovery"):

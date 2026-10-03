@@ -16,7 +16,7 @@ static func default_tuning() -> Dictionary:
 		"sure_from": 0, "sure_every": 5, "sure_divisor": 1.1}
 
 
-## The Number-as-capital trial's measuring options (D151) and what each is
+## The Number-as-capital trial's measuring options (D152) and what each is
 ## when off. A run records one only while it is on, so every run and save made
 ## without them is byte for byte what it was.
 static func trial_tuning() -> Dictionary:

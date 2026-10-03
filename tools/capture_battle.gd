@@ -43,16 +43,34 @@ func _capture() -> void:
 	home = HomeScreen.new()
 	home.workshop = progress
 	home.progression = earned
-	home.ready.connect(func(): home._milestones_panel.visible = true)
+	home.ready.connect(home._open_milestones)
 	await _shoot(home, "home_wave_milestones")
 	earned.claim_daily()
 	home = HomeScreen.new()
 	home.workshop = progress
 	home.progression = earned
 	await _shoot(home, "home_daily_claimed")
+	home = HomeScreen.new()
+	home.workshop = progress
+	home.progression = earned
+	home.ready.connect(home._open_settings)
+	await _shoot(home, "home_settings")
+	home = HomeScreen.new()
+	home.workshop = progress
+	home.progression = earned
+	home.show_gift(57.0)
+	await _shoot(home, "home_welcome")
 	var shop := WorkshopScreen.new()
 	shop.workshop = progress
 	await _shoot(shop, "workshop_attack")
+	shop = WorkshopScreen.new()
+	shop.workshop = progress
+	shop.ready.connect(func(): shop.show_upgrade("damage"))
+	await _shoot(shop, "workshop_row_held")
+	shop = WorkshopScreen.new()
+	shop.workshop = progress
+	shop.ready.connect(func(): shop.show_group(shop.workshop.next_group("attack"), "Unlocks"))
+	await _shoot(shop, "workshop_unlock_held")
 	shop = WorkshopScreen.new()
 	shop.workshop = progress
 	shop.ready.connect(func(): shop.show_tab("utility"))
@@ -370,7 +388,7 @@ func _capture() -> void:
 	invaded._arena.queue_redraw()
 	await _frames()
 	_save_png("battle_invaders")
-	invaded._wave_info.visible = true
+	invaded._wave_info.show_over(invaded)
 	invaded._refresh()
 	await _frames()
 	_save_png("battle_wave_info")
@@ -411,6 +429,11 @@ func _capture() -> void:
 	held._arena.queue_redraw()
 	await _frames()
 	_save_png("battle_lock")
+	held._first_sight(BattleScreen.FIRST_SIGHT_SECONDS + 0.1)
+	held._show_held("damage")
+	held._refresh()
+	await _frames()
+	_save_png("battle_upgrade_held")
 	held.queue_free()
 	await process_frame
 

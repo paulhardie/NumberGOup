@@ -1,6 +1,6 @@
 # The Number: design considerations
 
-**Status:** the direction is decided (D080), its four decisions are answered (D081, section 6), and the enemy design is answered and built (D082, section 7): the Number in the centre, and the Divider. Since then the owner removed the Number's ceiling and made Tier 1's Divider gentle (D083: ÷1.25, then ÷1.5). What's left for 1.0 is the owner playing it. Section 9 (2 October 2026) reopens what the Number *is*: it is measurably a health pool. Section 10 (3 October 2026) is the owner's answer (D151): the Number is the player's capital, tried as a measure-only candidate against criteria written down first. This page is the working list of everything that changes now that the tower *is* a number; the owner's answers go into [`DECISIONS.md`](DECISIONS.md), and this page is updated to match.
+**Status:** the direction is decided (D080), its four decisions are answered (D081, section 6), and the enemy design is answered and built (D082, section 7): the Number in the centre, and the Divider. Since then the owner removed the Number's ceiling and made Tier 1's Divider gentle (D083: ÷1.25, then ÷1.5). What's left for 1.0 is the owner playing it. Section 9 (2 October 2026) reopens what the Number *is*: it is measurably a health pool. Section 10 (3 October 2026) is the owner's answer (D152): the Number is the player's capital, tried as a measure-only candidate against criteria written down first. This page is the working list of everything that changes now that the tower *is* a number; the owner's answers go into [`DECISIONS.md`](DECISIONS.md), and this page is updated to match.
 
 ## The direction, in the owner's words
 
@@ -444,13 +444,13 @@ The owner asked whether the Number could also be what run Upgrades are bought wi
 
 ---
 
-## 10. The Number as the player's capital (3 October 2026, D151)
+## 10. The Number as the player's capital (3 October 2026, D152)
 
 **Status:** the owner's direction, being tried. Nothing here is in the game. The candidate in 10.3 is a set of measuring options, off by default, and 10.4 was written before the candidate existed, so the results can't be graded afterwards.
 
 ### 10.1 What the owner decided
 
-The Number should give the player two feelings: the hit of watching it go up, and being protective of it. The Tower's shape no longer binds this, and fundamental stats may change. Recovery is behind Labs, weak at the start. The goal is "I can't wait to invest enough into stats so this problem is solved". D151 has the owner's words.
+The Number should give the player two feelings: the hit of watching it go up, and being protective of it. The Tower's shape no longer binds this, and fundamental stats may change. Recovery is behind Labs, weak at the start. The goal is "I can't wait to invest enough into stats so this problem is solved". D152 has the owner's words.
 
 ### 10.2 The design
 
@@ -516,17 +516,25 @@ A configuration is one value for each option. For the Coins builds, **10K Coins 
 
 **Interim, 3 October 2026: the trial is under way, so this is partial and not a verdict.** Only the build phase has run so far (criteria 1, 2 and 6, and the peak half of 4). The career, the fresh runs and the card sweeps (3, the rest of 4, and 5) have not.
 
-Centre of the grid (`number_power` 0.2, speed 1, fade 0, priority on, `r_base` 0.5, `r_max` 1.5), and the first variation:
+The centre of the grid (`number_power` 0.2, speed 1, fade 0, priority on, `r_base` 0.5, `r_max` 1.5) and each single variation of it, build phase only. That is 8 of the grid's 96 configurations, all of which fail criteria 2 and 6.
 
-| Configuration | C1 (the Number decides) | C2 (real, then solved) | C6 (the ledger) |
+| Configuration | C1 (the Number decides) | C2 (waves thieves cost: core 10K, turtle 10K; core 100K, turtle 100K) | C6 (median thefts a run: core, turtle) |
 |---|---|---|---|
-| Centre | **pass.** Without the power, waves lost: core 10K 20, turtle 10K 10, core 100K 30, turtle 100K 19. Without recovery: 0, 0, 0, 15 | **fail.** Thieves cost core 0 waves at 10K (need 2), turtle 4. At 100K: core 0, turtle −4 | **fail.** Median thefts a run: core 1, turtle 2 (need 3). Share recovered at 10K 0.5 and 0.5 (need at most 0.5); at 100K 1.5 and 1.5 |
-| `number_power` 0.1 | **pass.** Power: 10, 5, 14, 10. Recovery: 0, 1, 1, 12 | **fail.** Core 10K 0, turtle 4; at 100K core 3, turtle −6 | **fail.** Thefts: core 2, turtle 5 (core needs 3). Recovered at 100K: 1.5 and 1.28 |
+| Centre | pass | **fail:** 0, 4; 0, −4 | **fail:** 1, 2 |
+| `number_power` 0.1 | pass | **fail:** 0, 4; 3, −6 | **fail:** 2, 5 |
+| `number_power` 0.3 | pass | **fail:** 0, 1; 0, 0 | **fail:** 0, 0 |
+| speed 2 | pass | **fail:** 0, 4; 0, −4 | **fail:** 1, 2 |
+| fade 600 s | pass | **fail:** 0, 4; 0, −5 | **fail:** 1, 2 |
+| priority off | pass | **fail:** 0, 4; 0, 1 | **fail:** 1, 2, and 0.87 recovered on the turtle at 100K (needs 0.9) |
+| `r_base` 0.25 | pass | **fail:** 0, 4; 0, −4 | **fail:** 1, 2 |
+| `r_max` 1.0 | pass | **fail:** 0, 4; 0, 0 | **fail:** 1, 2 |
+
+C2 needs 2 or more at 10K and 1 or less at 100K, for both builds. C6 needs at least 3 thefts. Criterion 1 passes everywhere because of the power coupling: removing it costs the four builds 20, 10, 30 and 19 waves at 0.2 (10, 5, 14 and 10 at 0.1, and 40, 22, 50 and 36 at 0.3). Removing recovery costs only the turtle at 100K, 10 to 15 waves, and nothing elsewhere.
 
 What it shows so far:
-- **The power coupling is a very strong lever, even at the smallest value on the grid.** At 0.2 the core build at 10K Coins goes from wave 31 to wave 51. Whether that is too much is criterion 4, not yet measured.
-- **Thieves are rare for a competent build.** The core build sees about one to two a run, because nearly every Divider is killed before it lands (about 20 come, 0 to 2 land). A problem that rarely happens can't make the player protective, and nothing on the declared grid changes how often Dividers land.
-- **A recovery over 1 turns a thief into a gift.** On the turtle at 100K, the run with thieves reaches 4 to 6 more waves than the run with no Dividers at all. That is the intended hit, but it also means the player wants to be robbed.
-- **Recovery only matters on the turtle at 100K,** where taking it away costs 12 to 15 waves. At the other three builds it costs 0 to 1.
+- **The power coupling is a very strong lever, even at the smallest value on the grid.** At 0.2 the core build at 10K Coins goes from wave 31 to wave 51. Whether that is too much is criterion 4, not yet reported.
+- **Thieves are rare for a competent build, and that is why criteria 2 and 6 fail.** The core build sees at most 2 a run (at the lowest power), because nearly every Divider is killed before it lands (about 20 come, 0 to 2 land). Theft count depends on how fast the tower kills Dividers, which only the power changes, and a stronger power means fewer thefts. Nothing else on the grid (recovery, speed, fade, priority) should change how many land, so by that reasoning no combination of them reaches 3; the combination check below tests it.
+- **A recovery over 1 turns a thief into a gift.** On the turtle at 100K, the run with thieves reaches up to 6 more waves than the run with no Dividers at all. That is the intended hit, but it also means the player wants to be robbed.
+- **Recovery only matters on the turtle at 100K.** There the carriers are caught, and taking recovery away costs 10 to 15 waves.
 
-Still to run before a verdict: the other six single variations (`number_power` 0.3, speed, fade, priority, `r_base` and `r_max`), then the career, fresh runs and cards for the centre and the best of them. Anything run outside the declared grid, such as more Dividers, will be labelled exploratory and can't count as a pass.
+Still to report before a verdict: the career, fresh runs and card sweeps for the centre and the lowest power, a check of every combination at the lowest power on the core build, and exploratory runs with more Dividers. Anything outside the declared grid will be labelled exploratory and can't count as a pass.

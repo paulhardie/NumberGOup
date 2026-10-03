@@ -46,7 +46,7 @@ class Enemy:
 	var mass := 1.0
 	## A Scatter's splits behind it: 0 as it spawns, one more each split.
 	var generation := 0
-	## A thief's flight (the trial's `thieves`, D151): set once a Divider has
+	## A thief's flight (the trial's `thieves`, D152): set once a Divider has
 	## carried a bite of the Number off, which stays out until it is killed.
 	var fleeing := false
 	var carried := 0.0
@@ -176,7 +176,7 @@ var sure_every := 5
 var sure_divisor := 1.1
 const SURE_LANDS_AT := 10.0
 var _sure_landed := 0
-## The Number-as-capital trial's measuring options (D151, THE_NUMBER.md
+## The Number-as-capital trial's measuring options (D152, THE_NUMBER.md
 ## section 10): off in the game, so every run and replay is as before, and kept
 ## out of a run's recorded tuning while they are off. `thieves`: a Divider that
 ## reaches the Number carries its bite away instead of being used up, the
@@ -365,6 +365,12 @@ func level(id: String) -> int:
 ## effects on it and held to its hard cap (StatStack).
 func stat(id: String) -> float:
 	return stats.value(id, TowerData.value(id, level(id)))
+
+
+## What `stat` would read with `extra` more levels, through the same effects:
+## what a buy would give, for the screens to show before it's made.
+func stat_with(id: String, extra: int) -> float:
+	return stats.value(id, TowerData.value(id, level(id) + extra))
 
 
 func is_open(id: String) -> bool:
@@ -703,7 +709,7 @@ func _divide(enemy: Enemy) -> void:
 			_held_release = divider_held / float(divider.refill_seconds)
 		lost_to["divider"] = float(lost_to.get("divider", 0.0)) + loss
 	dividers_landed += 1
-	# A thief keeps its bite and walks it out (D151). Only a bite that reached
+	# A thief keeps its bite and walks it out (D152). Only a bite that reached
 	# the Number can be carried, not one the Wall took, and the measuring
 	# Divider (`sure_from`) was never on the field to carry anything.
 	if thieves and not at_wall and loss > 0.0 and enemy in enemies:
@@ -716,7 +722,7 @@ func _divide(enemy: Enemy) -> void:
 		events.append({"type": "divided", "enemy": enemy, "damage": loss, "at_wall": at_wall, "divisor": divisor, "before": health + (0.0 if at_wall else loss)})
 
 
-## A thief grabs `bite` of the Number and starts walking it out (D151). The
+## A thief grabs `bite` of the Number and starts walking it out (D152). The
 ## bite stays out of Regen's reach while the thief lives, and fades from there
 ## only if `thief_fade` says so.
 func _carry_off(thief: Enemy, bite: float) -> void:
@@ -863,7 +869,7 @@ func super_tower_boost() -> float:
 	return 1.0
 
 
-## The Number as ammunition (D151, a measuring option): the tower's shots are
+## The Number as ammunition (D152, a measuring option): the tower's shots are
 ## multiplied by the Number over The Tower's starting Health, to the power
 ## `number_power`, never under 1. Mines, Thorns and Orbs don't use it. Neutral
 ## at 0, the game's.
@@ -918,7 +924,7 @@ func _in_range_nearest_first() -> Array[Enemy]:
 
 
 ## Which of two enemies in range the tower shoots first: the nearer, or with
-## `thief_priority` a carrier before anything else (D151).
+## `thief_priority` a carrier before anything else (D152).
 func _comes_first(a: Enemy, b: Enemy) -> bool:
 	if thief_priority and a.fleeing != b.fleeing:
 		return a.fleeing

@@ -1,11 +1,11 @@
-extends PanelContainer
+extends "res://src/ui/overlay.gd"
 ## Wave Info (D115), as The Tower's: opened from the wave readout, it shows
 ## the wave's spawn rate, what it has sent against what it rolled, the field
 ## against its caps, and each kind's health, attack, speed and chance to
-## spawn. BattleSim.wave_info has the numbers; this only lays them out.
+## spawn. BattleSim.wave_info has the numbers; this only lays them out. It is
+## a BANNER (D151), kept between openings, so the run goes on beneath it.
 
 const BattleSim = preload("res://src/tower/battle_sim.gd")
-const Palette = preload("res://src/ui/palette.gd")
 const ArenaView = preload("res://src/ui/arena_view.gd")
 
 const NAMES := {"basic": "Basic", "fast": "Fast", "tank": "Tank", "ranged": "Ranged", "protector": "Protector", "boss": "Boss",
@@ -20,33 +20,15 @@ var _mono := Palette.weight(Palette.NUMBER_FONT, 400)
 
 
 func _init() -> void:
-	add_theme_stylebox_override("panel", Palette.panel_box())
-	# Across the screen under the top bar, 16 points in from each side, so it
-	# fits a phone.
-	set_anchors_preset(Control.PRESET_TOP_WIDE)
-	offset_left = 16
-	offset_right = -16
-	offset_top = 72
-	visible = false
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 10)
-	add_child(column)
-	var head := HBoxContainer.new()
-	column.add_child(head)
-	_title = Label.new()
-	_title.add_theme_font_size_override("font_size", 18)
-	_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	head.add_child(_title)
-	var close := Palette.pill("Close", Palette.SOFT, null, 30)
-	close.pressed.connect(func(): visible = false)
-	head.add_child(close)
+	super(Kind.BANNER, false, true)
+	_title = heading("", true)
 	_spawns = _label(12, Palette.TEXT)
 	_spawns.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(_spawns)
 	_field = _label(11, Palette.MUTED)
 	_field.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	column.add_child(_field)
-	column.add_child(Palette.hairline())
+	rule()
 	_grid = GridContainer.new()
 	_grid.columns = COLUMNS.size()
 	_grid.add_theme_constant_override("h_separation", 12)

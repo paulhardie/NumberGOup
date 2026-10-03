@@ -21,7 +21,7 @@ const SPAWN_INTS := ["next_spawn", "wave_spawned", "wave_missed", "protector_gat
 ## Our enemies, which The Tower's generated data doesn't list (D082, D133).
 const OUR_KINDS := ["divider", "lock"]
 ## The Number-as-capital trial's state, and a carrier's, written only while
-## the trial is in play (D151), so every other snapshot is byte for byte what
+## the trial is in play (D152), so every other snapshot is byte for byte what
 ## it was and older ones stay valid.
 const TRIAL_FLOATS := ["thief_held", "_thief_release", "thief_taken", "thief_recovered", "thief_escaped"]
 const TRIAL_INTS := ["thefts", "thieves_escaped"]

@@ -6,11 +6,16 @@ extends VBoxContainer
 ## switch picks the category. It asks BattleSim what can be bought and what it
 ## costs; it decides nothing. As The Tower's, tapping the chosen category again
 ## folds the tiles away, so the battle takes the screen, and tapping any
-## category brings them back (D129).
+## category brings them back (D129). Holding a tile asks the screen to read
+## it (D151) instead of buying it.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 const BattleSim = preload("res://src/tower/battle_sim.gd")
 const Palette = preload("res://src/ui/palette.gd")
+const HoldToRead = preload("res://src/ui/hold_to_read.gd")
+
+## A tile was held: show what `id` does.
+signal info_requested(id: String)
 
 const TABS := [["Attack", "attack"], ["Defense", "defense"], ["Utility", "utility"]]
 const CARD_HEIGHT := 74
@@ -204,7 +209,7 @@ func _card(id: String) -> Button:
 	bar.add_theme_stylebox_override("background", back)
 	bar.add_theme_stylebox_override("fill", StyleBoxFlat.new())
 	inside.add_child(bar)
-	button.pressed.connect(func():
+	HoldToRead.attach(button, func(): info_requested.emit(id), func():
 		if sim.buy(id, _amount):
 			_pop(value)
 		refresh())
