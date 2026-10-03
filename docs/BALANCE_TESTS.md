@@ -28,7 +28,7 @@ Median means the **upper middle sample** for an even cohort, matching `sim_runs.
 
 Death, time cap, wave target and data horizon are separate outcomes. A stopped run is a lower-bound observation of survival, never a death. Aggregate tables include stopped runs with outcome counts shown; do not interpret those medians as death waves. Card-floor and build-order checks are inconclusive when their needed samples are censored.
 
-Tier smoke scenarios do not prove D149's turtle-to-blender pivot. A first Tier 2 build comparison (TOWER_TIERS.md, "The Tier 2 pivot test") found the turtle still ahead, with `sim_runs.gd`'s `blender_thorns` plan and kill sources; it isn't part of these suites. Extra career seed sequences, card pairs, Labs, weapons, player checks and late-game performance measurements remain additions when their features/decisions need them. Full measurements can take several minutes; each scenario has a 15-real-minute timeout. There is no automatic periodic run.
+Tier smoke scenarios do not prove D149's turtle-to-blender pivot. A Tier 2 build comparison (TOWER_TIERS.md, "The Tier 2 pivot test") found the turtle ahead until a blender buys all four orbs and Range to the orb line (`blender_orbline`). That blender passes the turtle from about 5M Coins. It isn't part of these suites. Extra career seed sequences, card pairs, Labs, weapons, player checks and late-game performance measurements remain additions when their features/decisions need them. Full measurements can take several minutes; each scenario has a 15-real-minute timeout. There is no automatic periodic run.
 
 ## Three separate outcomes
 

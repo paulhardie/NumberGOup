@@ -125,6 +125,34 @@ Median wave (range):
 
 Plasma Cannon or Factor is not a lever while Thorns already handles bosses.
 
+### At the orb line, with every orb (3 October 2026)
+
+The owner asked to test the blender "at the orb line": Range raised so the orbs, which circle at 60 m, sit on the Range edge where Knockback holds enemies. That is The Tower's Range-lab blender.
+- Our Range upgrade reaches 60 m at level 60 (about 597K Coins in the Workshop), and the orbs stay at 60 m while Range is 60 m or less. So it's buildable today, with no rule change.
+- **A second flaw in the measuring plans turned up:** they buy whichever level is cheapest for its weight, so the third orb (120K) never came up, and every blender above reached 10M Coins with only one or two of the four orbs.
+
+**The two new plans** (Tier 2, 5 seeds, `--buy core`):
+- `blender_orbs` is Blender Thorns with all four orbs bought first.
+- `blender_orbline` is that, plus Range bought to 60 m first.
+
+Median wave (range), and orbs' share of kills:
+
+| Coins | Turtle | Blender Thorns | Blender, all orbs | **Blender, all orbs, at the orb line** |
+|---|---|---|---|---|
+| 1M | **36** | 25 | 19, orbs 21% | 2: orbs and Range take the whole budget |
+| 3M | **52** | 39 | 40, orbs 31% | 40, orbs 35% |
+| 5M | **63** (62–63) | — | — | 61 (56–65), orbs 53%: about level with the turtle |
+| 10M | 80 (80–81) | 58 | 66, orbs 48% | **83 (82–91), orbs 59%, 13% more Coins than the turtle** |
+| 20M | 106 (106) | — | — | **110 (101–123), orbs 67%**. Both builds clear Tier 2's wave 100, the way to Tier 3 |
+
+
+**What it shows:**
+- **The pivot exists in our Tier 2, with today's upgrades.** Once a Workshop can afford all four orbs and Range at the orb line and still buy its stats, the blender passes the turtle.
+- **The geometry matters as much as the orbs.** With every orb, Range at the orb line is worth 17 more waves at 10M (66 → 83). The orbs' share of kills climbs from 24% to 59% over the steps.
+- **The crossover is around 5M Coins.** Below it the turtle is right. That matches The Tower's account: the turtle first, then the blender once you can afford it.
+- **Bosses still aren't the lever** (Factor, above). The levers were orb count and Range at the orb line.
+- **Measuring plans need care.** Cheapest-per-weight buying can't express "buy all the orbs", which made the blender look broken twice. `max_first` and `range_m` now let a plan say it.
+
 ## What it means for our roadmap
 
 - **Tier 2 (1.4) needs a reason to change build, not just bigger numbers.** In The Tower that reason is the Turtle breaking:
