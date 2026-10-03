@@ -118,7 +118,11 @@ const GROW_ROWS := ["coins_per_kill", "coins_per_wave"]
 ## pivot (Health, Lifesteal, Knockback, Orbs); "blender_thorns" that with
 ## Thorns bought too, as the wiki's Tier 2 "Blender Thorns" build has it (the
 ## plain blender opens Thorns but buys none, and stays as the balance
-## baseline measured it); "spread" everything evenly.
+## baseline measured it); "blender_orbline" that with Range bought first to
+## the orbs' circle (range_m, 60 m: where the orbs sit while Range is 60 m or
+## less), as The Tower's blender sets its Range lab to the orbs, so enemies
+## Knockback holds at the Range's edge sit on the orbs; "spread" everything
+## evenly.
 const WORKSHOP_PLANS := {
 	"core": {"groups": ["defense"], "rows": {"damage": 1, "attack_speed": 1, "health": 1, "health_regen": 1, "defense_absolute": 1}},
 	"turtle": {"groups": ["cash", "defense", "thorns"], "rows": {"defense_absolute": 3, "thorns": 2, "defense_percent": 1, "health": 1,
@@ -127,6 +131,9 @@ const WORKSHOP_PLANS := {
 		"health_regen": 1, "defense_absolute": 1, "lifesteal": 1, "knockback_chance": 1, "knockback_force": 1, "orbs": 1, "orb_speed": 1}},
 	"blender_thorns": {"groups": ["defense", "thorns", "lifesteal", "knockback", "orbs"], "rows": {"damage": 1, "attack_speed": 1, "health": 2,
 		"health_regen": 1, "defense_absolute": 1, "lifesteal": 1, "knockback_chance": 1, "knockback_force": 1, "orbs": 1, "orb_speed": 1, "thorns": 2}},
+	"blender_orbline": {"groups": ["range", "defense", "thorns", "lifesteal", "knockback", "orbs"], "range_m": 60.0,
+		"rows": {"damage": 1, "attack_speed": 1, "health": 2, "health_regen": 1, "defense_absolute": 1, "lifesteal": 1, "knockback_chance": 1,
+		"knockback_force": 1, "orbs": 1, "orb_speed": 1, "thorns": 2}},
 	"spread": {"groups": [], "rows": {}},
 	# Never opens Defense Absolute: Health and Regen with a little killing, the
 	# build Berserker (damage from damage absorbed) is meant for.
@@ -397,6 +404,12 @@ func _budget_workshop(coins: float, plan: String, unlock_cap: float) -> Workshop
 					needed = true
 			if needed and workshop.open_group(next):
 				opening = true
+	# A plan with range_m buys Range first, to the first level reaching it,
+	# and no further (its weights leave Range out).
+	var range_m := float(WORKSHOP_PLANS[plan].get("range_m", 0.0))
+	while range_m > 0.0 and workshop.is_group_open(TowerData.group("range")) and TowerData.value("range", workshop.level("range")) < range_m:
+		if not workshop.buy("range"):
+			break
 	while true:
 		var best := ""
 		var best_cost := INF
