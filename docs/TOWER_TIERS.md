@@ -88,6 +88,43 @@ All `sim_runs.gd`, seeds as stated, `--buy core` unless "none". Our Tier 2 is Th
   - At this budget the Blender buys a single slow orb. The Tower's Blender leans on several orbs, the Range lab set to Orb range, and the Plasma Cannon card for bosses, none of which we have.
   - Our Thorns and Defense % carry the Turtle further than The Tower's would.
 
+## The Tier 2 pivot test (3 October 2026)
+
+Can a blender beat the turtle in our Tier 2, the shape D149 asks for? And is the boss what holds the blender back? Every line is Tier 2, 5 seeds, `--buy core`, `--cap-minutes 240`, Workshop built by `--workshop-coins N --workshop-plan P`.
+
+**The builds:**
+- `blender_thorns`, added for this test, is the wiki's "Blender Thorns" build. The plain `blender` plan opens Thorns but buys none.
+- Factor (a boss arrives with ×0.70, or at level 7 ×0.46, of its health) stands in for The Tower's Plasma Cannon.
+
+Median wave (range):
+
+| Plan | Coins | No card | Factor 1 | Factor 7 | Kills by shots / Thorns / orbs |
+|---|---|---|---|---|---|
+| **Turtle** | 1M | **36** (35–36) | 36 | 36 | 76% / 24% / — |
+| Blender | 1M | 21 (20–21) | 21 | 21 | 94% / — / 6% |
+| Blender Thorns | 1M | 25 (23–27) | 26 | 25 | 84% / 11% / 5% |
+| **Turtle** | 10M | **80** (80–81) | 80 | 80 | 58% / 42% / — |
+| Blender | 10M | 42 (42–51) | 48 | 48 | 75% / — / 25% |
+| Blender Thorns | 10M | 58 (52–59) | 58 | 61 | 65% / 11% / 24% |
+
+**What the 10M Coins bought:**
+- **Turtle:** Defense Absolute 111 (1,331 off every hit), Defense % 33%, Thorns 96%, Damage 70, Attack Speed 59, Health and Regen 72.
+- **Blender Thorns:** Thorns 99%, Health 99, Damage 72, Defense Absolute 73 (466), Lifesteal 65, Knockback 63/40, **2 orbs**, Orb Speed 38, and no Defense %.
+
+**What it shows:**
+- **The turtle wins at both budgets, by a wide margin.** The blender never catches it.
+- **Bosses aren't the missing piece.** Factor doesn't move the turtle at all and moves the blenders 0–6 waves. The turtle already kills bosses with Thorns, a share of the attacker's own health that doesn't care how big Tier 2 makes enemies. That's the job Plasma Cannon and Thorns do for The Tower's blender.
+- **Defense Absolute doesn't hold Tier 2 either.** Basic attack at wave 80 is 4,599 in Tier 2. After 33% Defense and 1,331 Absolute, about 1,750 still lands. The turtle wins on Thorns plus taking less of each hit, not on blocking.
+- **The blender's own pieces underperform.** Orbs make 5–6% of kills at 1M (one orb) and about a quarter at 10M (two orbs).
+- **Likely cause** (inferred, not traced): our orbs circle at least 60 m out (`Guesses.ORB_MIN_RADIUS_M`, our guess, not The Tower's), while Range is about 30 m and Knockback holds enemies near it. The Tower's blender sets Range to the orb circle so held enemies sit in it. Ours are held well inside the orbs.
+
+**The levers for D149's pivot, in the order to test them:**
+1. **Orb placement:** orbs at the range's edge, as The Tower's Range-lab blender has them. This is a change to our guess, so it's the owner's call to test.
+2. **Orb count** within Tier 2 budgets.
+3. **Defense %**, if The Tower's is weaker early than ours.
+
+Plasma Cannon or Factor is not a lever while Thorns already handles bosses.
+
 ## What it means for our roadmap
 
 - **Tier 2 (1.4) needs a reason to change build, not just bigger numbers.** In The Tower that reason is the Turtle breaking:

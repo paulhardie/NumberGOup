@@ -115,13 +115,18 @@ const GROW_ROWS := ["coins_per_kill", "coins_per_wave"]
 ## what's left), and each row's weight when choosing the next level to buy.
 ## "turtle" is The Tower's Tier 1 meta from its wiki's beginner guide (Defense
 ## Absolute first, Thorns for damage, Defense % after); "blender" its Tier 2
-## pivot (Health, Lifesteal, Knockback, Orbs); "spread" everything evenly.
+## pivot (Health, Lifesteal, Knockback, Orbs); "blender_thorns" that with
+## Thorns bought too, as the wiki's Tier 2 "Blender Thorns" build has it (the
+## plain blender opens Thorns but buys none, and stays as the balance
+## baseline measured it); "spread" everything evenly.
 const WORKSHOP_PLANS := {
 	"core": {"groups": ["defense"], "rows": {"damage": 1, "attack_speed": 1, "health": 1, "health_regen": 1, "defense_absolute": 1}},
 	"turtle": {"groups": ["cash", "defense", "thorns"], "rows": {"defense_absolute": 3, "thorns": 2, "defense_percent": 1, "health": 1,
 		"health_regen": 1, "damage": 1, "attack_speed": 1, "cash_per_wave": 1}},
 	"blender": {"groups": ["defense", "thorns", "lifesteal", "knockback", "orbs"], "rows": {"damage": 1, "attack_speed": 1, "health": 2,
 		"health_regen": 1, "defense_absolute": 1, "lifesteal": 1, "knockback_chance": 1, "knockback_force": 1, "orbs": 1, "orb_speed": 1}},
+	"blender_thorns": {"groups": ["defense", "thorns", "lifesteal", "knockback", "orbs"], "rows": {"damage": 1, "attack_speed": 1, "health": 2,
+		"health_regen": 1, "defense_absolute": 1, "lifesteal": 1, "knockback_chance": 1, "knockback_force": 1, "orbs": 1, "orb_speed": 1, "thorns": 2}},
 	"spread": {"groups": [], "rows": {}},
 	# Never opens Defense Absolute: Health and Regen with a little killing, the
 	# build Berserker (damage from damage absorbed) is meant for.
@@ -416,7 +421,8 @@ func _levels_text(levels: Dictionary) -> String:
 
 
 ## With --workshop-coins, what took the Number, as each kind's share of all
-## it lost: " | lost: basic 40%, ranged 35%, …".
+## it lost: " | lost: basic 40%, ranged 35%, …", then what made the kills, as
+## each source's share: " | kills: shot 80%, orb 15%, …".
 func _losses(sim: BattleSim, options: Dictionary) -> String:
 	if not options.has("workshop-coins"):
 		return ""
@@ -429,7 +435,15 @@ func _losses(sim: BattleSim, options: Dictionary) -> String:
 		return held + " | lost: nothing"
 	var kinds := sim.lost_to.keys()
 	kinds.sort_custom(func(a, b): return sim.lost_to[a] > sim.lost_to[b])
-	return held + " | lost: " + ", ".join(kinds.map(func(kind): return "%s %.0f%%" % [kind, 100.0 * float(sim.lost_to[kind]) / total]))
+	return held + " | lost: " + ", ".join(kinds.map(func(kind): return "%s %.0f%%" % [kind, 100.0 * float(sim.lost_to[kind]) / total])) + _kill_sources(sim)
+
+
+func _kill_sources(sim: BattleSim) -> String:
+	if sim.kills <= 0:
+		return ""
+	var sources := sim.kills_by.keys()
+	sources.sort_custom(func(a, b): return sim.kills_by[a] > sim.kills_by[b])
+	return " | kills: " + ", ".join(sources.map(func(source): return "%s %.0f%%" % [source, 100.0 * float(sim.kills_by[source]) / sim.kills]))
 
 
 func _workshop_summary(workshop: Workshop) -> String:
