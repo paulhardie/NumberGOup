@@ -2,12 +2,16 @@ extends Control
 ## Permanent upgrades between runs: a two-column category grid, followed
 ## by the next group it opens. The category switch sits above the dock.
 ## Values, levels, prices and affordability stay visible together; the
-## Workshop owns every rule and this screen only shows and asks.
+## Workshop owns every rule and this screen only shows and asks. A tap on a
+## tile buys; holding one reads it instead (D151), whether or not it can be paid.
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 const Palette = preload("res://src/ui/palette.gd")
 const NavBar = preload("res://src/ui/nav_bar.gd")
+const Overlay = preload("res://src/ui/overlay.gd")
+const HoldToRead = preload("res://src/ui/hold_to_read.gd")
+const UpgradeInfo = preload("res://src/ui/upgrade_info.gd")
 const Progression = preload("res://src/tower/progression.gd")
 
 ## A purchase or an opened group, so the game can save.
@@ -33,7 +37,7 @@ var _category_heading: Label
 ## Refreshed every frame: [{button, refresh: Callable}].
 var _cards: Array[Dictionary] = []
 ## What a group just opened does (D125), over the screen until closed.
-var _opened_panel: PanelContainer
+var _opened_panel: Overlay
 var _mono := Palette.weight(Palette.NUMBER_FONT, 400)
 var _mono_bold := Palette.weight(Palette.NUMBER_FONT, 500)
 
@@ -174,7 +178,7 @@ func refresh() -> void:
 func _row_card(id: String) -> Button:
 	var button := Palette.card_button(108)
 	var parts := _card_parts(button, Palette.row_title(id))
-	button.pressed.connect(func():
+	HoldToRead.attach(button, show_upgrade.bind(id), func():
 		var coins_before := workshop.coins
 		var from := workshop.level(id)
 		if workshop.buy(id, _amount):
@@ -252,7 +256,7 @@ func _unlock_card(group: String) -> Button:
 	line.add_child(price.panel)
 	var bar := Palette.progress_bar()
 	column.add_child(bar)
-	button.pressed.connect(func():
+	HoldToRead.attach(button, show_group.bind(group, "Unlocks"), func():
 		var coins_before := workshop.coins
 		if workshop.open_group(group):
 			activity.emit({"kind": "workshop_open", "group": group, "cost": coins_before - workshop.coins, "coins_left": workshop.coins})
@@ -270,44 +274,38 @@ func _unlock_card(group: String) -> Button:
 ## Over the screen: the rows a group just opened, each with what it does, as
 ## The Tower explains an upgrade the first time it unlocks (D125).
 func show_opened(group: String) -> void:
-	if _opened_panel != null:
-		_opened_panel.queue_free()
-	_opened_panel = PanelContainer.new()
-	var shade := StyleBoxFlat.new()
-	shade.bg_color = Color(0, 0, 0, 0.6)
-	_opened_panel.add_theme_stylebox_override("panel", shade)
-	_opened_panel.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(_opened_panel)
-	var centre := CenterContainer.new()
-	_opened_panel.add_child(centre)
-	var card := PanelContainer.new()
-	card.add_theme_stylebox_override("panel", Palette.panel_box())
-	card.custom_minimum_size = Vector2(300, 0)
-	centre.add_child(card)
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 12)
-	card.add_child(column)
-	var heading := Label.new()
-	heading.text = "Unlocked"
-	heading.add_theme_font_size_override("font_size", 16)
-	column.add_child(heading)
+	_opened_panel = show_group(group, "Unlocked")
+
+
+## What a group's rows do, each with its description: after it opens, and
+## while it's held, so a player can read what Coins will buy before spending them.
+func show_group(group: String, heading: String) -> Overlay:
+	var sheet := Overlay.new()
+	sheet.heading(heading)
 	for row in TowerData.group_rows(group):
 		var name_label := Label.new()
 		name_label.text = Palette.row_title(row)
 		name_label.add_theme_font_size_override("font_size", 14)
-		column.add_child(name_label)
-		var about := Label.new()
-		about.text = String(TowerData.upgrade(row).description)
-		about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		about.custom_minimum_size = Vector2(260, 0)
-		about.add_theme_font_size_override("font_size", 12)
-		about.add_theme_color_override("font_color", Palette.SOFT)
-		column.add_child(about)
-	var close := Palette.pill("Got it", Palette.SOFT, null, 36)
-	close.pressed.connect(func():
-		_opened_panel.queue_free()
-		_opened_panel = null)
-	column.add_child(close)
+		sheet.column.add_child(name_label)
+		sheet.text(String(TowerData.upgrade(row).description), Palette.SOFT, 12)
+	sheet.done("Got it")
+	sheet.closed.connect(func(): if _opened_panel == sheet: _opened_panel = null)
+	sheet.show_over(self)
+	return sheet
+
+
+## Over the screen: one row held (D151). The numbers come from the Workshop's
+## own table, as the tile's do.
+func show_upgrade(id: String) -> void:
+	var sheet := Overlay.new()
+	var info := UpgradeInfo.new(sheet, id, Palette.COIN)
+	var level := workshop.level(id)
+	var top := TowerData.max_level(id)
+	var maxed := level >= top
+	info.update(level, top, Palette.row_value(id, TowerData.value(id, level), true),
+		"" if maxed else Palette.row_value(id, TowerData.value(id, level + 1), true),
+		"" if maxed else "● " + Palette.money(workshop.price(id), true))
+	sheet.show_over(self)
 
 
 ## Lays out a two-column upgrade tile. Names can wrap, so long unlocked

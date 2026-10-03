@@ -13,6 +13,7 @@ const CARD_ART := {
 }
 const MAXED_SHEEN = preload("res://src/ui/shaders/maxed_card_sheen.gdshader")
 const NavBar = preload("res://src/ui/nav_bar.gd")
+const Overlay = preload("res://src/ui/overlay.gd")
 const Progression = preload("res://src/tower/progression.gd")
 const Workshop = preload("res://src/tower/workshop.gd")
 
@@ -47,13 +48,11 @@ const GRID_COLUMNS := 3
 ## Refreshed after each change: [{id, button, refresh: Callable}].
 var rows: Array[Dictionary] = []
 ## The card just drawn, over the screen until closed.
-var drawn_panel: PanelContainer
-## A card's details, over the screen until closed, and its Equip button.
-var info_panel: PanelContainer
+var drawn_panel: Overlay
+## A card's details, over the screen until closed, and its Equip button. Only
+## one sheet is up at a time, so one replaces the other.
+var info_panel: Overlay
 var info_equip: Button
-## Whichever of the two is up, and what closing it clears.
-var _shade: PanelContainer
-var _on_close: Callable
 var _mono := Palette.weight(Palette.NUMBER_FONT, 400)
 var _mono_bold := Palette.weight(Palette.NUMBER_FONT, 500)
 
@@ -369,8 +368,10 @@ static func level_dots(level: int) -> String:
 ## level's value with this one lit, and Equip or Remove. Unfound, it says so
 ## and can't be equipped.
 func show_card(id: String) -> void:
-	var column := _overlay(func(): info_panel = null)
-	info_panel = _shade
+	var sheet := Overlay.new()
+	info_panel = sheet
+	sheet.closed.connect(func(): if info_panel == sheet: info_panel = null)
+	var column := sheet.column
 	var card: Dictionary = Cards.card(id)
 	var cards := progression.cards
 	var found := cards.owned(id)
@@ -406,15 +407,10 @@ func show_card(id: String) -> void:
 	column.add_child(ladder)
 	var on := cards.is_equipped(id)
 	var label := "Remove" if on else ("Equip" if cards.can_equip(id) else ("Not found" if not found else "No free slot"))
-	info_equip = Palette.pill(label, Palette.ACCENT, null, 38)
+	info_equip = sheet.action(label, Palette.ACCENT, func(): toggle(id))
 	info_equip.disabled = not (on or cards.can_equip(id))
-	info_equip.pressed.connect(func():
-		toggle(id)
-		_close_overlay())
-	column.add_child(info_equip)
-	var close := Palette.pill("Close", Palette.SOFT, null, 36)
-	close.pressed.connect(_close_overlay)
-	column.add_child(close)
+	sheet.done()
+	sheet.show_over(self)
 
 
 ## Equips `id`, or takes it off if it is equipped.
@@ -457,10 +453,11 @@ static func describe(id: String, level: int) -> String:
 ## Over the screen: the card just drawn, its rarity, and whether it is new or
 ## a copy towards its next level.
 func show_drawn(id: String) -> void:
-	var column := _overlay(func(): drawn_panel = null)
-	drawn_panel = _shade
+	var sheet := Overlay.new()
+	drawn_panel = sheet
+	sheet.closed.connect(func(): if drawn_panel == sheet: drawn_panel = null)
 	var cards := progression.cards
-	_card_heading(column, id, cards.level(id))
+	_card_heading(sheet.column, id, cards.level(id))
 	var count := int(cards.copies[id])
 	var note := "A copy: %d/%d to level %d" % [cards.progress(id)[0], cards.progress(id)[1], cards.level(id) + 1]
 	if count == 1:
@@ -469,10 +466,9 @@ func show_drawn(id: String) -> void:
 		note = "Up to level %d" % cards.level(id)
 	var status := _small(note, Palette.ACCENT)
 	status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	column.add_child(status)
-	var close := Palette.pill("Got it", Palette.SOFT, null, 36)
-	close.pressed.connect(_close_overlay)
-	column.add_child(close)
+	sheet.column.add_child(status)
+	sheet.done("Got it")
+	sheet.show_over(self)
 
 
 ## A card's rarity, name, value at `level` and what it does, centred.
@@ -499,38 +495,6 @@ func _card_heading(column: VBoxContainer, id: String, level: int) -> void:
 	about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	about.custom_minimum_size = Vector2(240, 0)
 	column.add_child(about)
-
-
-## A panel over a darkened screen, replacing any other; returns its column.
-## `on_close` runs when it closes.
-func _overlay(on_close: Callable) -> VBoxContainer:
-	_close_overlay()
-	_shade = PanelContainer.new()
-	_on_close = on_close
-	var shade := StyleBoxFlat.new()
-	shade.bg_color = Color(0, 0, 0, 0.6)
-	_shade.add_theme_stylebox_override("panel", shade)
-	_shade.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	add_child(_shade)
-	var centre := CenterContainer.new()
-	_shade.add_child(centre)
-	var panel := PanelContainer.new()
-	panel.add_theme_stylebox_override("panel", Palette.panel_box())
-	panel.custom_minimum_size = Vector2(300, 0)
-	centre.add_child(panel)
-	var column := VBoxContainer.new()
-	column.add_theme_constant_override("separation", 10)
-	panel.add_child(column)
-	return column
-
-
-func _close_overlay() -> void:
-	if _shade == null:
-		return
-	_shade.queue_free()
-	_shade = null
-	if _on_close.is_valid():
-		_on_close.call()
 
 
 ## How far `have` has come towards `target`, 0 to 1.

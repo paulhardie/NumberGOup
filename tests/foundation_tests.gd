@@ -18,6 +18,10 @@ const WorkshopScreen = preload("res://src/ui/workshop_screen.gd")
 const ActivityLog = preload("res://src/tower/activity_log.gd")
 const Cards = preload("res://src/tower/cards.gd")
 const CardsScreen = preload("res://src/ui/cards_screen.gd")
+const Overlay = preload("res://src/ui/overlay.gd")
+const HoldToRead = preload("res://src/ui/hold_to_read.gd")
+const UpgradeInfo = preload("res://src/ui/upgrade_info.gd")
+const Palette = preload("res://src/ui/palette.gd")
 const PATH := "user://foundation_save.json"
 var failures: Array[String] = []
 var checks := 0
@@ -37,8 +41,12 @@ func json(value):
 
 
 func run() -> void:
+	var window := root.size
 	for method in get_method_list():
-		if String(method.name).begins_with("test_"): await call(method.name)
+		if String(method.name).begins_with("test_"):
+			await call(method.name)
+			# Tests of real input size the window like a phone; the rest don't care.
+			root.size = window
 	for failure in failures: printerr("FAIL: ", failure)
 	print("%s: foundation tests (%d checks)" % ["PASS" if failures.is_empty() else "FAIL", checks])
 	quit(0 if failures.is_empty() else 1)
@@ -544,7 +552,7 @@ func test_the_cards_screen() -> void:
 	var other: String = Cards.built_ids().filter(func(each): return each != id)[0]
 	screen.rows.filter(func(row): return row.id == other)[0].button.pressed.emit()
 	check(screen.info_equip.disabled and screen.info_equip.text in ["Not found", "No free slot"], "an unfound card can't be equipped: %s" % screen.info_equip.text)
-	screen._close_overlay()
+	Overlay.close_current(screen)
 	check(screen.info_panel == null, "and closes")
 	check(screen.toggle(id) and not p.cards.is_equipped(id), "toggling takes it off")
 	check(screen.toggle(id) and p.cards.is_equipped(id), "and back on")
@@ -553,7 +561,7 @@ func test_the_cards_screen() -> void:
 		"the active grid shows the equipped card and the bought empty slot")
 	screen._active_grid.get_child(0).pressed.emit()
 	check(screen.info_panel != null and screen.info_equip.text == "Remove", "an active card opens the same removable details")
-	screen._close_overlay()
+	Overlay.close_current(screen)
 	check(screen.toggle(id) and not p.cards.is_equipped(id), "and a second tap takes it off")
 	check(screen._active_grid.get_children().all(func(slot): return slot.disabled), "removing the card clears the active slots")
 	check(Save.save_progress(p, PATH), "screen actions save through the existing contract")
@@ -586,13 +594,475 @@ func test_the_cards_screen_with_a_complete_collection() -> void:
 		var expected := String(Cards.card(Cards.built_ids()[index]).name)
 		check(screen.info_equip.text == "Remove" and screen.info_panel.find_children("*", "Label", true, false).any(func(label): return label.text == expected),
 			"active slot %d opens its own card: %s" % [index, expected])
-		screen._close_overlay()
+		Overlay.close_current(screen)
 	screen._active_grid.get_child(1).pressed.emit()
 	screen.info_equip.pressed.emit()
 	check(not p.cards.is_equipped(Cards.built_ids()[1]) and p.cards.is_equipped(Cards.built_ids()[0])
 		and p.cards.equipped.size() == Cards.built_ids().size() - 1 and screen._active_grid.get_child(-1).disabled,
 		"removing the chosen card from a full collection leaves a visible empty slot")
 	screen.queue_free()
+	await process_frame
+
+
+## What a screen's menus and pop-ups are built from (D151). Input here is real:
+## it goes through the window's own GUI routing, as a mouse or a touch does.
+func _mouse(at: Vector2, pressed: bool) -> void:
+	var event := InputEventMouseButton.new()
+	event.button_index = MOUSE_BUTTON_LEFT
+	event.pressed = pressed
+	event.position = at
+	event.global_position = at
+	event.button_mask = MOUSE_BUTTON_MASK_LEFT if pressed else 0
+	root.push_input(event)
+
+
+func _drag(at: Vector2) -> void:
+	var event := InputEventMouseMotion.new()
+	event.position = at
+	event.global_position = at
+	event.button_mask = MOUSE_BUTTON_MASK_LEFT
+	root.push_input(event)
+
+
+func _touch(at: Vector2, pressed: bool) -> void:
+	var event := InputEventScreenTouch.new()
+	event.index = 0
+	event.position = at
+	event.pressed = pressed
+	Input.parse_input_event(event)
+
+
+func _centre(control: Control) -> Vector2:
+	return control.get_global_rect().get_center()
+
+
+func _tap(control: Control) -> void:
+	_mouse(_centre(control), true)
+	_mouse(_centre(control), false)
+
+
+func _gesture_of(control: Control) -> Node:
+	for child in control.get_children():
+		if child.get_script() == HoldToRead:
+			return child
+	return null
+
+
+## Presses `control` and keeps it down long enough to be a hold.
+func _hold(control: Control) -> void:
+	_mouse(_centre(control), true)
+	_gesture_of(control)._process(HoldToRead.HOLD_SECONDS)
+
+
+func _texts(node: Node) -> Array:
+	return node.find_children("*", "Label", true, false).filter(func(label): return label.is_visible_in_tree()).map(func(label): return label.text)
+
+
+## A headless window is 64 points square, too small to be pressed anywhere:
+## input tests size it as the game's phone canvas.
+func _phone() -> void:
+	root.size = Vector2i(390, 844)
+
+
+## A host with a button beneath, for tests of what an overlay blocks.
+func _stage() -> Dictionary:
+	_phone()
+	var host := Control.new()
+	host.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	root.add_child(host)
+	var under := Button.new()
+	under.position = Vector2(20, 400)
+	under.size = Vector2(200, 80)
+	host.add_child(under)
+	var presses := [0]
+	under.pressed.connect(func(): presses[0] += 1)
+	return {"host": host, "under": under, "presses": presses}
+
+
+func test_a_tap_acts_and_a_hold_reads() -> void:
+	var stage := _stage()
+	var host: Control = stage.host
+	var button := Button.new()
+	button.position = Vector2(20, 100)
+	button.size = Vector2(200, 80)
+	host.add_child(button)
+	var taps := [0]
+	var holds := [0]
+	HoldToRead.attach(button, func(): holds[0] += 1, func(): taps[0] += 1)
+	await process_frame
+	_tap(button)
+	check(taps[0] == 1 and holds[0] == 0, "a quick press is a tap")
+	_hold(button)
+	check(holds[0] == 1 and taps[0] == 1, "kept down, it reads")
+	_gesture_of(button)._process(5.0)
+	check(holds[0] == 1, "and reads once however long it's held")
+	_mouse(_centre(button), false)
+	await process_frame
+	check(taps[0] == 1, "the lift after a hold taps nothing")
+	button.pressed.emit()
+	check(taps[0] == 2, "yet the next press, however it comes, is a tap again")
+	_mouse(_centre(button), true)
+	_gesture_of(button)._process(HoldToRead.HOLD_SECONDS - 0.05)
+	_mouse(_centre(button), false)
+	await process_frame
+	check(taps[0] == 3 and holds[0] == 1, "a press just short of a hold is a tap")
+	_mouse(_centre(button), true)
+	_drag(_centre(button) + Vector2(HoldToRead.SLOP - 2.0, 0.0))
+	_gesture_of(button)._process(HoldToRead.HOLD_SECONDS)
+	_mouse(_centre(button) + Vector2(HoldToRead.SLOP - 2.0, 0.0), false)
+	await process_frame
+	check(holds[0] == 2 and taps[0] == 3, "a little jitter still holds")
+	_mouse(_centre(button), true)
+	_drag(_centre(button) + Vector2(0.0, HoldToRead.SLOP + 6.0))
+	_gesture_of(button)._process(HoldToRead.HOLD_SECONDS)
+	_mouse(_centre(button) + Vector2(0.0, HoldToRead.SLOP + 6.0), false)
+	await process_frame
+	check(holds[0] == 2 and taps[0] == 4, "a drag is no hold, and a button still takes it as the press it always did")
+	host.free()
+
+
+func test_a_disabled_button_can_still_be_held() -> void:
+	var stage := _stage()
+	var host: Control = stage.host
+	var button := Button.new()
+	button.position = Vector2(20, 100)
+	button.size = Vector2(200, 80)
+	button.disabled = true
+	host.add_child(button)
+	var taps := [0]
+	var holds := [0]
+	HoldToRead.attach(button, func(): holds[0] += 1, func(): taps[0] += 1)
+	await process_frame
+	_tap(button)
+	check(taps[0] == 0, "a disabled button isn't tapped")
+	_hold(button)
+	_mouse(_centre(button), false)
+	await process_frame
+	check(holds[0] == 1 and taps[0] == 0, "but it can be read, which is when a player most wants to")
+	host.free()
+
+
+func test_a_touch_taps_and_holds_once() -> void:
+	var stage := _stage()
+	var host: Control = stage.host
+	var button := Button.new()
+	button.position = Vector2(20, 100)
+	button.size = Vector2(200, 80)
+	host.add_child(button)
+	var taps := [0]
+	var holds := [0]
+	HoldToRead.attach(button, func(): holds[0] += 1, func(): taps[0] += 1)
+	await process_frame
+	# Touches come through the input singleton, which delivers them a frame on.
+	_touch(_centre(button), true)
+	await process_frame
+	_touch(_centre(button), false)
+	await process_frame
+	check(taps[0] == 1 and holds[0] == 0, "a touch is one tap, though it arrives as a touch and a mouse press")
+	_touch(_centre(button), true)
+	await process_frame
+	_gesture_of(button)._process(HoldToRead.HOLD_SECONDS)
+	_touch(_centre(button), false)
+	await process_frame
+	check(taps[0] == 1 and holds[0] == 1, "and a held touch reads once and taps nothing")
+	host.free()
+
+
+func test_a_plain_control_can_be_tapped_and_held() -> void:
+	var stage := _stage()
+	var host: Control = stage.host
+	var panel := PanelContainer.new()
+	panel.position = Vector2(20, 100)
+	panel.size = Vector2(200, 80)
+	host.add_child(panel)
+	var taps := [0]
+	var holds := [0]
+	HoldToRead.attach(panel, func(): holds[0] += 1, func(): taps[0] += 1)
+	await process_frame
+	_tap(panel)
+	check(taps[0] == 1 and holds[0] == 0, "a panel taps when a press lifts on it")
+	_hold(panel)
+	_mouse(_centre(panel), false)
+	await process_frame
+	check(taps[0] == 1 and holds[0] == 1, "and holds, its lift tapping nothing")
+	_mouse(_centre(panel), true)
+	_mouse(_centre(panel) + Vector2(400, 0), false)
+	await process_frame
+	check(taps[0] == 1, "a press that lifts off it isn't a tap")
+	_mouse(_centre(panel), true)
+	_drag(_centre(panel) + Vector2(HoldToRead.SLOP + 6.0, 0.0))
+	_gesture_of(panel)._process(HoldToRead.HOLD_SECONDS)
+	_mouse(_centre(panel) + Vector2(HoldToRead.SLOP + 6.0, 0.0), false)
+	await process_frame
+	check(taps[0] == 1 and holds[0] == 1, "and a drag across it is neither a tap nor a hold")
+	host.free()
+
+
+func test_overlays_block_replace_and_close() -> void:
+	var stage := _stage()
+	var host: Control = stage.host
+	var under: Button = stage.under
+	var presses: Array = stage.presses
+	await process_frame
+	var first := Overlay.new()
+	first.text("First")
+	var closed := [0]
+	first.closed.connect(func(): closed[0] += 1)
+	check(Overlay.current(host) == null, "nothing is up before one is shown")
+	first.show_over(host)
+	check(Overlay.current(host) == first and first.visible, "a shown sheet is the host's current one")
+	_tap(under)
+	check(presses[0] == 0, "a sheet blocks what's beneath it")
+	_mouse(Vector2(2, 2), true)
+	_mouse(Vector2(2, 2), false)
+	check(Overlay.current(host) == null and closed[0] == 1, "a tap on its shade closes it, once")
+	await process_frame
+	check(not is_instance_valid(first), "and a sheet that isn't kept is freed")
+	var must_answer := Overlay.new(Overlay.Kind.SHEET, false)
+	must_answer.text("Answer me")
+	must_answer.show_over(host)
+	_mouse(Vector2(2, 2), true)
+	_mouse(Vector2(2, 2), false)
+	check(Overlay.current(host) == must_answer, "a sheet that must be answered ignores its shade")
+	var escape := InputEventKey.new()
+	escape.keycode = KEY_ESCAPE
+	escape.pressed = true
+	root.push_input(escape)
+	check(Overlay.current(host) == must_answer, "and Escape")
+	Overlay.close_current(host)
+	var one := Overlay.new()
+	one.text("One")
+	one.show_over(host)
+	var card_at := _centre(one.column.get_parent())
+	_mouse(card_at, true)
+	_mouse(card_at, false)
+	check(Overlay.current(host) == one, "a tap on the card itself leaves it")
+	var two := Overlay.new()
+	var one_closed := [0]
+	one.closed.connect(func(): one_closed[0] += 1)
+	two.show_over(host)
+	check(Overlay.current(host) == two and one_closed[0] == 1 and not one.visible, "a second sheet replaces the first")
+	root.push_input(escape)
+	check(Overlay.current(host) == null, "Escape closes a sheet that can be dismissed")
+	host.free()
+	await process_frame
+
+
+func test_a_banner_blocks_nothing_and_sits_beneath_a_sheet() -> void:
+	var stage := _stage()
+	var host: Control = stage.host
+	var under: Button = stage.under
+	var presses: Array = stage.presses
+	await process_frame
+	var banner := Overlay.new(Overlay.Kind.BANNER, false, true)
+	banner.text("Banner")
+	banner.show_over(host)
+	_tap(under)
+	check(presses[0] == 1, "a banner leaves the screen beneath it live")
+	var sheet := Overlay.new()
+	sheet.show_over(host)
+	check(Overlay.current(host, Overlay.Kind.BANNER) == banner and Overlay.current(host) == sheet, "a sheet and a banner can both be up")
+	check(sheet.get_index() > banner.get_index(), "with the sheet above")
+	var later := Overlay.new(Overlay.Kind.BANNER, false, true)
+	later.show_over(host)
+	check(sheet.get_index() > later.get_index() and not banner.visible, "a newer banner replaces the older and still sits under the sheet")
+	banner.show_over(host)
+	check(banner.visible and not later.visible and banner.get_parent() == host, "a kept banner shows again")
+	banner.dismiss()
+	check(not banner.visible and is_instance_valid(banner), "and closes without being freed")
+	sheet.dismiss()
+	host.free()
+	await process_frame
+
+
+func test_a_card_action_closes_first_and_then_acts() -> void:
+	var stage := _stage()
+	var host: Control = stage.host
+	await process_frame
+	var sheet := Overlay.new()
+	var seen := []
+	var act := sheet.action("Go", Palette.ACCENT, func(): seen.append(Overlay.current(host)))
+	var stay := sheet.action("Stay", Palette.ACCENT, func(): seen.append("stayed"), false)
+	sheet.show_over(host)
+	stay.pressed.emit()
+	check(seen == ["stayed"] and Overlay.current(host) == sheet, "an action that keeps the card leaves it up")
+	act.pressed.emit()
+	check(seen == ["stayed", null], "an action closes the card, then runs, so it meets a screen with nothing over it")
+	host.free()
+	await process_frame
+
+
+func test_every_workshop_row_says_what_it_does() -> void:
+	var blank: Array[String] = []
+	for id in TowerData.rows():
+		if String(TowerData.upgrade(id).description).strip_edges().is_empty():
+			blank.append(id)
+	check(blank.is_empty(), "a held row has something to read: %s" % [blank])
+
+
+func test_the_upgrade_card_lays_out_a_row_and_hides_what_a_maxed_row_lacks() -> void:
+	var sheet := Overlay.new()
+	var info := UpgradeInfo.new(sheet, "damage", Palette.COIN)
+	info.update(3, 10, "12", "14", "● 120")
+	var texts := _texts_unshown(sheet)
+	check("Damage" in texts and String(TowerData.upgrade("damage").description) in texts, "it names the row and says what it does: %s" % [texts])
+	check("3 / 10" in texts and "12" in texts and "14" in texts and "● 120" in texts, "with its level, now, next and price")
+	info.update(10, 10, "20", "", "")
+	var visible_texts := sheet.find_children("*", "Label", true, false).filter(func(label): return label.visible).map(func(label): return label.text)
+	check("10 / 10  ·  max" in visible_texts and not ("Next level" in visible_texts) and not ("Price" in visible_texts), "a maxed row has no next level or price: %s" % [visible_texts])
+	sheet.free()
+
+
+func _texts_unshown(node: Node) -> Array:
+	return node.find_children("*", "Label", true, false).map(func(label): return label.text)
+
+
+func test_holding_a_workshop_row_reads_it_and_never_buys_it() -> void:
+	_phone()
+	var shop := WorkshopScreen.new()
+	shop.workshop = Workshop.new()
+	shop.workshop.coins = 1.0e6
+	shop.progression = Progression.new(shop.workshop)
+	var said: Array[Dictionary] = []
+	var saves := [0]
+	shop.activity.connect(func(entry): said.append(entry))
+	shop.changed.connect(func(): saves[0] += 1)
+	root.add_child(shop)
+	await process_frame
+	await process_frame
+	var row: Dictionary = shop._cards.filter(func(card): return card.has("id"))[0]
+	var id: String = row.id
+	check(not row.button.disabled, "the row can be paid")
+	_hold(row.button)
+	var card := Overlay.current(shop)
+	check(card != null, "holding a row opens its card")
+	var texts := _texts(card)
+	check(Palette.row_title(id) in texts and String(TowerData.upgrade(id).description) in texts, "naming it and saying what it does: %s" % [texts])
+	check("0 / %s" % Palette.full(TowerData.max_level(id)) in texts, "and what level it's at: %s" % [texts])
+	_mouse(_centre(row.button), false)
+	await process_frame
+	check(shop.workshop.level(id) == 0 and shop.workshop.coins == 1.0e6 and said.is_empty() and saves[0] == 0, "the lift buys nothing")
+	check(Overlay.current(shop) == card, "and leaves the card up")
+	Overlay.close_current(shop)
+	await process_frame
+	_tap(row.button)
+	check(shop.workshop.level(id) == 1 and said[-1].kind == "workshop_buy" and saves[0] == 1, "a tap still buys")
+	shop.workshop.coins = 0.0
+	shop.refresh()
+	var broke: Dictionary = shop._cards.filter(func(card): return card.has("id"))[1]
+	check(broke.button.disabled, "a row that can't be paid is dimmed")
+	_hold(broke.button)
+	_mouse(_centre(broke.button), false)
+	await process_frame
+	check(Overlay.current(shop) != null and shop.workshop.level(broke.id) == 0, "and can still be read")
+	Overlay.close_current(shop)
+	var unlock: Dictionary = shop._cards.filter(func(card): return card.has("group"))[0]
+	shop.workshop.coins = TowerData.group_price(unlock.group)
+	shop.refresh()
+	_hold(unlock.button)
+	_mouse(_centre(unlock.button), false)
+	await process_frame
+	var preview := Overlay.current(shop)
+	var names := _texts(preview)
+	check(preview != null and "Unlocks" in names and TowerData.group_rows(unlock.group).all(func(each): return Palette.row_title(each) in names),
+		"holding the next unlock says what it opens: %s" % [names])
+	check(not shop.workshop.is_group_open(unlock.group) and shop.workshop.coins == TowerData.group_price(unlock.group), "without opening it")
+	Overlay.close_current(shop)
+	shop.free()
+	await process_frame
+
+
+func test_holding_a_run_upgrade_reads_it_while_the_run_goes_on() -> void:
+	_phone()
+	var battle := BattleScreen.new()
+	battle.workshop = Workshop.new()
+	root.add_child(battle)
+	battle.set_process(false)
+	await process_frame
+	await process_frame
+	var sim: BattleSim = battle.sim
+	sim.cash = 1.0e6
+	battle._upgrades.refresh()
+	var id: String = battle._upgrades._cards.keys()[0]
+	var tile: Button = battle._upgrades._cards[id].button
+	_hold(tile)
+	var card := Overlay.current(battle, Overlay.Kind.BANNER)
+	check(card != null and card != battle._wave_info, "holding a tile opens its card, a banner")
+	_mouse(_centre(tile), false)
+	await process_frame
+	check(sim.level(id) == 0 and sim.cash == 1.0e6, "the lift buys nothing")
+	check(Overlay.current(battle, Overlay.Kind.SHEET) == null, "and nothing shades the battle")
+	var level_before := sim.level(id)
+	var texts := _texts(card)
+	check("%d / %s" % [level_before, Palette.full(TowerData.max_level(id))] in texts and Palette.row_value(id, sim.stat(id)) in texts and Palette.row_value(id, sim.stat_with(id, 1)) in texts,
+		"it reads the level, the value and what a level more gives: %s" % [texts])
+	_tap(tile)
+	battle._process(0.0)
+	check(sim.level(id) == level_before + 1 and "%d / %s" % [level_before + 1, Palette.full(TowerData.max_level(id))] in _texts(card), "a buy beneath it updates it")
+	battle._wave_info.show_for(sim)
+	battle._wave_info.show_over(battle)
+	check(Overlay.current(battle, Overlay.Kind.BANNER) == battle._wave_info and not card.visible, "Wave Info takes the banner's place")
+	battle._wave_info.dismiss()
+	_hold(tile)
+	_mouse(_centre(tile), false)
+	await process_frame
+	var again := Overlay.current(battle, Overlay.Kind.BANNER)
+	check(again != null and again != battle._wave_info, "and a held tile takes it back")
+	battle.sim.wave = 40
+	var met := BattleSim.Enemy.new()
+	met.kind = "lock"
+	battle.sim.enemies.append(met)
+	battle._first_sight(0.0)
+	check(not battle._sight.visible, "a new enemy's card waits while the player's own is up")
+	again.dismiss()
+	battle._first_sight(0.0)
+	check(battle._sight.visible, "and shows once it's gone")
+	battle.start_run(7)
+	check(not battle._sight.visible and Overlay.current(battle, Overlay.Kind.BANNER) == null, "a new run clears what was up")
+	battle.free()
+	await process_frame
+
+
+func test_a_stat_can_be_read_a_level_on() -> void:
+	var sim := BattleSim.new(3, {"damage": 4}, BattleSim.START_GROUPS)
+	check(sim.stat_with("damage", 0) == sim.stat("damage"), "no levels on is the stat as it stands")
+	var promised := sim.stat_with("damage", 1)
+	sim.cash = 1.0e9
+	check(sim.buy("damage") and sim.stat("damage") == promised and promised > TowerData.value("damage", 0), "one on is what a buy then gives")
+	var pass_through := BattleSim.new(3, {}, BattleSim.START_GROUPS, 1, [{"stat": "damage", "op": "multiply", "value": 2.0, "source": "card:damage"}])
+	check(pass_through.stat_with("damage", 1) == TowerData.value("damage", 1) * 2.0, "and goes through the run's effects as the stat does")
+
+
+func test_home_sheets_open_answer_and_close() -> void:
+	_phone()
+	var p := Progression.new()
+	p.workshop.runs = 1
+	var home := Home.new()
+	home.workshop = p.workshop
+	home.progression = p
+	home.show_gift(57.0)
+	root.add_child(home)
+	await process_frame
+	var gift := Overlay.current(home)
+	check(gift != null and home._gift_panel == gift and not gift.dismissable, "the Workshop's welcome opens with Home")
+	_mouse(Vector2(2, 2), true)
+	_mouse(Vector2(2, 2), false)
+	check(Overlay.current(home) == gift, "and isn't dismissed from its shade")
+	var opened := [0]
+	home.workshop_pressed.connect(func(): opened[0] += 1)
+	var go: Button = gift.find_children("*", "Button", true, false).filter(func(button): return button.text == "Open the Workshop")[0]
+	go.pressed.emit()
+	check(opened[0] == 1 and Overlay.current(home) == null and home._gift_panel == null, "answering it opens the Workshop and puts it away")
+	home._open_milestones()
+	var milestones := Overlay.current(home)
+	check(milestones != null and milestones == home._milestones_panel, "Milestones opens as the sheet")
+	home._open_settings()
+	check(Overlay.current(home) != milestones and not milestones.visible and home._milestones_panel == null, "and Settings replaces it")
+	home._press_reset()
+	check(home._reset_armed, "Reset asks first")
+	Overlay.close_current(home)
+	check(not home._reset_armed, "and asks again from the start the next time Settings opens")
+	home.free()
 	await process_frame
 
 
@@ -646,6 +1116,7 @@ func test_direct_screen_resume_and_home() -> void:
 	check(home._gems.text == "◆ 10" and not home._daily.disabled, "Home shows Gems and claim")
 	p.claim_daily()
 	home.refresh()
+	home._open_milestones()
 	check(home._daily.disabled and home._milestones_list.get_child_count() > 10, "claimed state and wave milestones visible")
 	home.free()
 

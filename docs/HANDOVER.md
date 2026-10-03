@@ -1,14 +1,13 @@
 # Handover
 
-**Last updated:** 2 October 2026, by Codex.
-- Base `main` is `abbd5a8`, including D149 (PR #140), the Number-as-currency research (PR #141) and Tier research (PR #142). The two newer merges are documents only, so they do not change the measured baseline.
-- [PR #143](https://github.com/paulhardie/NumberGOup/pull/143), `codex/balance-comparisons`, builds D150: repeatable quick/full measurements, explicit balance impact reports and CI integration. It changes no game behaviour or saves; public version remains 0.9.
-- The harness is not in the play folder until its PR is merged; the play folder follows `origin/main` through `com.paulhardie.ngu-sync`.
+**Last updated:** 3 October 2026, by Claude.
+- Base `main` is `a923f06`, including D150's balance harness (PR #143) and the Tier research follow-up (PR #144).
+- [PR #147](https://github.com/paulhardie/NumberGOup/pull/147), `claude/popup-framework`, builds D151, menus and pop-ups. It changes no game rule or save; public version remains 0.9. It isn't in the play folder until the PR is merged; the play folder follows `origin/main` through `com.paulhardie.ngu-sync`.
 - The pre-rebuild game is commit `f4f1e95`.
 
 ## Start here
 
-Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md). Fetch and inspect the checkout before editing. Accepted choices live in [DECISIONS.md](DECISIONS.md); grep it by ID. The next free ID is **D151**. The public version stays **0.9**.
+Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md). Fetch and inspect the checkout before editing. Accepted choices live in [DECISIONS.md](DECISIONS.md); grep it by ID. The next free ID is **D152**. The public version stays **0.9**.
 
 ## Where the game is
 
@@ -16,6 +15,7 @@ Tier 1 and every Workshop group work.
 - **The Number is the tower.** Flat enemies subtract from it, Dividers divide it, and the Lock (from wave 35) holds its growth.
 - **Enemies:** the five base enemies read as ours (D145).
 - **Cards (D146, D147):** they open at Tier 1 wave 20 (the dock shows them then, and the run pays 10 Gems). Eleven of The Tower's cards are built, laid out as a grid with a card's details on tap, and save version 3 holds the collection.
+- **Menus and pop-ups (D151):** every pop-up is one `Overlay` (a SHEET over a shade, or a BANNER under the top bar), and holding a Workshop row, the next unlock or a run's upgrade tile reads it while a tap still buys. [UI_POPUPS.md](UI_POPUPS.md) has the rules, what exists and where else we should.
 - **Candidates:** nine measure-only cards (Slow Aura, Critical Coin, Compound, Remainder, Unequal, Interest, Factor, and now Berserker and Super Tower) can be equipped in `sim_runs.gd` and are never drawn.
 
 **What the card tests have found** (CARDS.md has the numbers):
@@ -43,17 +43,12 @@ Bot-only purchase checks skip redundant work while Cash/wave/policy are unchange
 
 Risk: medium, tooling/reporting with broad verification adjacency. Gameplay, simulator buying policies, generated game data, combat version and save schema must remain unchanged. Source changes during capture are refused. Exact numeric comparisons tolerate only 1e-9 relative / 1e-8 absolute noise.
 
-## Checked, and not checked (D150)
+## Checked, and not checked (D151)
 
-- `bash run_tests.sh` passed: 4,732 tower checks, 243 foundation checks and 15 Python reporting tests; exit 0. Headless boot passed. Godot still prints ObjectDB leak warnings, which this tooling task does not investigate.
-- Two quick captures match all 130 paired samples, including after the bot-only optimisation. Two full captures match all 646 samples. Verified generated artifacts were promoted byte-for-byte to the initial baselines; provenance records the dirty reporting worktree based on `4989a44`.
-- Full meets the early no-buy benchmark and Tier 1 turtle ordering at 10K/100K Coins. The six D149 card failures remain FAIL; Coins and the four useful combat/economy cards meet the measured floor.
-- Actual original/current simulator console comparisons matched for fresh runs, careers and card sweeps, with JSON export on/off. Actual time-cap and wave-target labels, invalid tuning and failed output writes were exercised. Runtime cached/uncached parity includes progressed Free Upgrades and both health-dependent policies.
-- Independent review found shuffled-career milestone timing depended on array order; fixed with a regression. Final review and the bot-cache review found no remaining actionable issue. The source-change guard also refused a capture during reporter edits, leaving the baseline intact.
-- GitHub Linux verification passed on `6c122d8`: tests, headless boot, Quick comparison, summary and artifact upload. The downloaded Quick report shows zero changes across all 130 samples against the Mac baseline ([run](https://github.com/paulhardie/NumberGOup/actions/runs/37037666778)). Current status remains on [PR #143](https://github.com/paulhardie/NumberGOup/pull/143).
-- Not checked: player/visual experience, late-game runtime performance, Full across platforms, card pairs, extra career seed sequences or the Tier 2 strategy pivot.
-
- D148's historical measurement and unverified wiki/card findings remain in CARDS.md and D148. This task does not provide an independent review of the D148 implementation.
+- **Ran:** `bash run_tests.sh` passes: 4,732 tower checks (as on `main`), 312 foundation checks (243 before; 69 new, for the gesture, the overlay rules, the Workshop and run cards, `stat_with` and Home's sheets) and 15 Python reporting tests. The headless boot is clean. The new input tests go through the window's own GUI routing, with mouse and touch events. Breaking the hold's tap suppression, a sheet's blocking and a banner's pass-through each failed the tests, as they should.
+- **Looked at:** screenshots from `capture_battle.gd` (Linux, xvfb, 390 × 844 canvas) of Settings, the welcome, a held Workshop row, a held unlock, a held run upgrade, Wave Info, the new-enemy card and Cards' details.
+- **Not checked:** a phone, or a real finger. The 0.45 s hold and 10-point drift are guesses from platform defaults. Whether a held card over the top of a run gets in the way. Whether a drag that starts on a tile in the Workshop scrolls it or buys it on touch (the tap path is as before; I couldn't tell). The change was not independently reviewed by a separate agent, only re-read against the diff.
+- **D150 (PR #143):** merged. Its evidence is in the PR and [BALANCE_TESTS.md](BALANCE_TESTS.md).
 
 ## Open decisions for the owner
 
@@ -64,7 +59,8 @@ Risk: medium, tooling/reporting with broad verification adjacency. Gameplay, sim
    - **Berserker:** not at The Tower's numbers, which do nothing. If you want a tank strategy to exist, I'd make it **ours, rescaled** (shares in the tens of percent), after a finer sweep (×15, ×20, ×30) and a way to test a tank career. Trade-off: it is volatile, and a tank player has to reach wave 20 by some other build before Cards open for them.
    - **Park** the rest: Slow Aura, Critical Coin, Compound, Remainder, Unequal and Interest.
 3. **Changing cards mid-run:** I'd still keep them fixed for the run.
-4. **Still open from before:**
+4. **Pop-ups (D151):** does holding stay, and what next? I'd keep it and add **a one-line hint that holding reads** (nothing tells a player today), then **hold the daily Gems pill** (its tooltip never shows on a phone). Two are yours: **a confirm on End run** (it ends a run on one tap; a confirm adds a tap at ×5) and **moving the run-over panel onto a sheet** (it shades the arena). UI_POPUPS.md section 3 has the rest.
+5. **Still open from before:**
    - play the D145 enemies and the Lock;
    - sign off 1.0;
    - the D131 digit rewards;
@@ -75,15 +71,17 @@ Risk: medium, tooling/reporting with broad verification adjacency. Gameplay, sim
 
 ## Next steps, in order
 
-1. **Owner:** review/merge the D150 tooling PR; this brings repeatable balance impact into future changes.
+1. **Owner:** review and merge the D151 PR, then **play a run holding tiles on a phone**: it is the one check I couldn't make, and it settles the hold's timing and whether a card over the arena gets in the way.
 2. **Owner:** decide what the Number should do at the walls (open decision 1). A measure-only candidate can now show its impact against the baseline before approval.
 3. **Owner:** sequence the six drawable-card failures and choose the next drawable candidates (open decision 2). Full reports measure their D149 floor; this harness does not rescale, rework or remove cards.
-4. **Agent, when requested:** the independent D148 review, finer Berserker sweep, and later Tier 2 strategy comparison. Runtime stress remains separate from balance bots.
+4. **Agent, when requested:** the hold hint and the daily pill (small), the independent D148 review, finer Berserker sweep, and later Tier 2 strategy comparison. Runtime stress remains separate from balance bots.
 
 ## Known issues and limits
 
 - **A first-sight card only shows past the player's best wave.**
 - **Unbuilt cards are hidden, not shown locked.**
+- **Nothing tells a player that holding reads** (D151), and the daily pill's explanation is a hover tooltip, which a phone never shows.
+- **The run-over panel isn't on `Overlay`:** it doesn't shade the arena like every other panel.
 - **The Cards screen refreshes only on its own changes.**
 - **Wave 10 pays 10 Coins against the SDK's 25,** pending a reading.
 - **Settings → Testing can grant Coins and Gems and wipe progress.** It must go before a public release.

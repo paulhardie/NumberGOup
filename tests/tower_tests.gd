@@ -2702,8 +2702,9 @@ func test_the_number_grows_by_fighting_not_waiting() -> void:
 	home.settings = settings
 	root.add_child(home)
 	await process_frame
+	home._open_settings()
 	var names := home.find_children("*", "CheckButton", true, false).map(func(toggle): return toggle.text)
-	check(not names.has("Multiplier enemies") and not names.has("Kills grow the Number"), "Home's Testing has no switches: %s" % [names])
+	check(names == ["Music"], "Home's Settings has the music switch and no Testing switches: %s" % [names])
 	home.queue_free()
 	await process_frame
 
@@ -2723,6 +2724,7 @@ func test_free_coins_and_reset_for_testing() -> void:
 	var entries := ActivityLog.read(TEST_LOG)
 	check(entries.size() == 1 and entries[0].kind == "test_coins", "and logged as test Coins, never earned")
 	game.workshop.buy("damage")
+	home._open_settings()
 	home._press_reset()
 	check(game.workshop.level("damage") == 1, "one press of Reset only asks")
 	home._press_reset()
@@ -3341,6 +3343,7 @@ func test_the_music_plays_unless_the_player_turns_it_off() -> void:
 	home.settings = chosen
 	root.add_child(home)
 	await process_frame
+	home._open_settings()
 	var toggles := home.find_children("*", "CheckButton", true, false).filter(func(toggle): return toggle.text == "Music")
 	check(toggles.size() == 1 and (toggles[0] as CheckButton).button_pressed, "Home has the music switch, on")
 	(toggles[0] as CheckButton).button_pressed = false
