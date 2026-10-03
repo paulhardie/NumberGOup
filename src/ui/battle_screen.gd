@@ -17,6 +17,8 @@ const Workshop = preload("res://src/tower/workshop.gd")
 const RunReport = preload("res://src/tower/run_report.gd")
 const ActivityLog = preload("res://src/tower/activity_log.gd")
 const WaveInfo = preload("res://src/ui/wave_info.gd")
+const Overlay = preload("res://src/ui/overlay.gd")
+const UpgradeInfo = preload("res://src/ui/upgrade_info.gd")
 const Progression = preload("res://src/tower/progression.gd")
 const BattleSnapshot = preload("res://src/tower/battle_snapshot.gd")
 
@@ -96,11 +98,16 @@ var _wave_info: WaveInfo
 var _over_title: Label
 var _over_text: Label
 ## The first-sight card, the kinds it has told of this run, and how long it has left.
-var _sight: PanelContainer
+var _sight: Overlay
 var _sight_sign: Label
 var _sight_text: Label
 var _sight_left := 0.0
 var _sighted: Array[String] = []
+## An upgrade held in battle (D151): its card, the row it reads and what it
+## lays out, kept up to date while the run goes on beneath it.
+var _held_card: Overlay
+var _held_id := ""
+var _held_info: UpgradeInfo
 
 
 func _ready() -> void:
@@ -183,7 +190,9 @@ func _adopt(run_sim: BattleSim) -> void:
 	_seconds_at_speed = {}
 	_over.visible = false
 	_sighted.clear()
-	_sight.visible = false
+	_sight.dismiss()
+	if _held_card != null:
+		_held_card.dismiss()
 
 
 func _process(delta: float) -> void:
@@ -283,6 +292,8 @@ func _refresh() -> void:
 	if _wave_info.visible:
 		_wave_info.show_for(sim)
 	_upgrades.refresh()
+	if _held_card != null:
+		_update_held()
 
 
 func _show_run_over() -> void:
@@ -366,10 +377,13 @@ func _build() -> void:
 	column.add_child(wave_margin)
 
 	_upgrades = UpgradePanel.new()
+	_upgrades.info_requested.connect(_show_held)
 	var upgrades_margin := _margined(_upgrades, 24)
 	upgrades_margin.add_theme_constant_override("margin_top", 4)
 	column.add_child(upgrades_margin)
 
+	# Both banners live under the screen from the start, hidden, so they go
+	# with it whether or not they were ever shown.
 	_wave_info = WaveInfo.new()
 	add_child(_wave_info)
 	_build_first_sight()
@@ -404,22 +418,12 @@ func _build() -> void:
 
 
 ## The card that tells a player what a new enemy does, under the top line.
-## Tapping it puts it away.
+## Tapping it puts it away. A banner like Wave Info, kept between uses.
 func _build_first_sight() -> void:
-	_sight = PanelContainer.new()
-	_sight.add_theme_stylebox_override("panel", Palette.panel_box())
-	_sight.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	_sight.offset_left = 16
-	_sight.offset_right = -16
-	_sight.offset_top = 64
-	_sight.visible = false
-	_sight.gui_input.connect(func(event: InputEvent):
-		if event is InputEventMouseButton and event.pressed:
-			_sight.visible = false)
-	add_child(_sight)
+	_sight = Overlay.new(Overlay.Kind.BANNER, true, true)
 	var line := HBoxContainer.new()
 	line.add_theme_constant_override("separation", 12)
-	_sight.add_child(line)
+	_sight.column.add_child(line)
 	_sight_sign = Label.new()
 	_sight_sign.add_theme_font_override("font", Palette.weight(Palette.NUMBER_FONT, 700))
 	_sight_sign.add_theme_font_size_override("font_size", 26)
@@ -430,6 +434,7 @@ func _build_first_sight() -> void:
 	_sight_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_sight_text.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	line.add_child(_sight_text)
+	add_child(_sight)
 
 
 ## Shows the card when one of ours first comes on a wave past the player's
@@ -438,10 +443,12 @@ func _first_sight(delta: float) -> void:
 	if _sight.visible:
 		_sight_left -= delta
 		if _sight_left <= 0.0:
-			_sight.visible = false
+			_sight.dismiss()
 	# One card at a time: two new kinds meeting the player at once each get
-	# theirs, the second once the first has gone.
-	if sim.wave <= workshop.best_wave or _sight.visible:
+	# theirs, the second once the first has gone. The banner is shared with
+	# Wave Info and a held upgrade, which the player opened, so they are
+	# never pushed off by a card they didn't ask for.
+	if sim.wave <= workshop.best_wave or Overlay.current(self, Overlay.Kind.BANNER) != null:
 		return
 	for kind in FIRST_SIGHT:
 		if kind in _sighted or not sim.enemies.any(func(enemy): return enemy.kind == kind):
@@ -451,7 +458,7 @@ func _first_sight(delta: float) -> void:
 		_sight_sign.add_theme_color_override("font_color", ArenaView.LOOKS[kind].colour)
 		_sight_text.text = FIRST_SIGHT[kind].text
 		_sight_left = FIRST_SIGHT_SECONDS
-		_sight.visible = true
+		_sight.show_over(self)
 		return
 
 
@@ -478,10 +485,37 @@ func _wave_line() -> HBoxContainer:
 	line.add_child(_wave_bar)
 	line.gui_input.connect(func(event: InputEvent):
 		if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT and sim != null:
-			_wave_info.visible = not _wave_info.visible
 			if _wave_info.visible:
-				_wave_info.show_for(sim))
+				_wave_info.dismiss()
+			else:
+				_wave_info.show_for(sim)
+				_wave_info.show_over(self))
 	return line
+
+
+## An upgrade tile held in battle: its card, a banner so the run goes on
+## beneath it, with the same numbers the tile shows and what one more level
+## would give.
+func _show_held(id: String) -> void:
+	if sim == null:
+		return
+	var card := Overlay.new(Overlay.Kind.BANNER)
+	_held_card = card
+	_held_id = id
+	_held_info = UpgradeInfo.new(card, id, Palette.ACCENT)
+	card.closed.connect(func():
+		if _held_card == card:
+			_held_card = null
+			_held_info = null)
+	_update_held()
+	card.show_over(self)
+
+
+func _update_held() -> void:
+	var maxed := sim.at_max(_held_id)
+	_held_info.update(sim.level(_held_id), TowerData.max_level(_held_id), Palette.row_value(_held_id, sim.stat(_held_id)),
+		"" if maxed else Palette.row_value(_held_id, sim.stat_with(_held_id, 1)),
+		"" if maxed else "$" + Palette.money(sim.price(_held_id), true))
 
 
 func _bar(colour: Color) -> ProgressBar:

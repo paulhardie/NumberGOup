@@ -321,6 +321,12 @@ func stat(id: String) -> float:
 	return stats.value(id, TowerData.value(id, level(id)))
 
 
+## What `stat` would read with `extra` more levels, through the same effects:
+## what a buy would give, for the screens to show before it's made.
+func stat_with(id: String, extra: int) -> float:
+	return stats.value(id, TowerData.value(id, level(id) + extra))
+
+
 func is_open(id: String) -> bool:
 	return TowerData.group(id) in open_groups
 
