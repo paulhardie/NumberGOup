@@ -35,6 +35,14 @@ extends SceneTree
 ## --peak-drift N and --kill-share N try other numbers for how the Number
 ## grows (D111): regen's share past the run's best, and a clean kill's share
 ## of its Attack.
+## The Number-as-capital trial (D151, docs/THE_NUMBER.md section 10): --thieves
+## has a Divider that reaches the Number carry its bite away instead of being
+## used up, --thief-recovery R the share of that bite the damage dealt to it
+## pays back (1 all of it, more is the Lab's bonus), --thief-speed S its flight
+## against its walking speed, --thief-fade SECONDS how long an unreturned bite
+## stays out of Regen's reach (0 for ever), --thief-priority has the tower shoot
+## carriers first, and --number-power K multiplies the tower's shots by the
+## Number over 5 to the power K. Each run prints the thieves' ledger.
 ## --gains adds where the Number's gains came from: each source's share of
 ## all it gained, and after the slash its share of the new highs, the gains
 ## that lifted the Number past its best so far rather than refilling it.
@@ -235,7 +243,7 @@ func _init() -> void:
 		_record_run(sim, "run", 0, cap_seconds)
 		print("%4d  %4d  %9s  %5d  %11.0f  %5.0f  %11.1f  %13s  %5.0f%%  %-9s  %s" % [index + 1, sim.wave, _clock(sim.time), sim.kills, sim.cash_earned, sim.coins,
 			sim.peak_number, "%d/%d" % [sim.dividers_spawned, sim.dividers_landed], _divider_share_of_loss(sim),
-			sim.killed_by if not sim.alive else "(alive)", _bought(sim)] + _curve(sim, options) + _gains(sim, options) + _losses(sim, options))
+			sim.killed_by if not sim.alive else "(alive)", _bought(sim)] + _curve(sim, options) + _gains(sim, options) + _losses(sim, options) + _thieves(sim))
 	waves.sort()
 	print("median wave %d, range %d to %d" % [waves[waves.size() / 2], waves[0], waves[-1]])
 	quit(0 if _write_measurements(options) else 1)
@@ -345,7 +353,7 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 		# The Number as the wave it ended on began (at death it reads 0).
 		var entering: float = float(sim.wave_log[-1].health) if not sim.wave_log.is_empty() else start_number
 		print("%3d  %4d  %9s  %5.1f  %12.0f  %10.0f  %11.0f  %12.0f  %18.0f  %13s  %-9s  %s" % [run + 1, sim.wave, _clock(sim.time), hours, sim.coins, workshop.coins,
-			sim.peak_number, start_number, entering, "%d/%d" % [sim.dividers_spawned, sim.dividers_landed], sim.killed_by if not sim.alive else "(alive)", _workshop_summary(workshop)] + _curve(sim, options) + _gains(sim, options))
+			sim.peak_number, start_number, entering, "%d/%d" % [sim.dividers_spawned, sim.dividers_landed], sim.killed_by if not sim.alive else "(alive)", _workshop_summary(workshop)] + _curve(sim, options) + _gains(sim, options) + _thieves(sim))
 		if until > 0 and sim.wave >= until:
 			print("reached wave %d on run %d, after %.1f hours of game time" % [until, run + 1, hours])
 			return true
@@ -561,6 +569,14 @@ func _choose(sim: BattleSim, strategy: String) -> String:
 	return best if sim.can_buy(best) else ""
 
 
+## With the trial's thieves on (D151), the ledger: " | thefts 7, taken 412,
+## back 96, walked off 210 (3 got away)".
+func _thieves(sim: BattleSim) -> String:
+	if not sim.thieves:
+		return ""
+	return "  | thefts %d, taken %.0f, back %.0f, walked off %.0f (%d got away)" % [sim.thefts, sim.thief_taken, sim.thief_recovered, sim.thief_escaped, sim.thieves_escaped]
+
+
 ## With --curve, the Number at the end of every fifth wave, as " | 5:12 10:40 …".
 func _curve(sim: BattleSim, options: Dictionary) -> String:
 	if not options.has("curve"):
@@ -584,7 +600,7 @@ func _gains(sim: BattleSim, options: Dictionary) -> String:
 	for source in sim.raised_by:
 		highs += float(sim.raised_by[source])
 	var parts: Array[String] = []
-	for source in ["regen", "health", "lifesteal", "package", "kills"]:
+	for source in ["regen", "health", "lifesteal", "package", "kills", "recovery"]:
 		if sim.gained_from.has(source):
 			parts.append("%s %.0f%%/%.0f%%" % [source, 100.0 * float(sim.gained_from[source]) / total,
 				100.0 * float(sim.raised_by.get(source, 0.0)) / highs if highs > 0.0 else 0.0])
@@ -625,6 +641,17 @@ func _tune(sim: BattleSim, options: Dictionary) -> bool:
 		sim.divider.refill_seconds = float(options["divider-refill"])
 	if options.has("tank-intro"):
 		sim.tank_intro = int(options["tank-intro"])
+	# The Number-as-capital trial (D151), off unless asked for.
+	sim.thieves = options.has("thieves")
+	sim.thief_priority = options.has("thief-priority")
+	if options.has("thief-recovery"):
+		sim.thief_recovery = float(options["thief-recovery"])
+	if options.has("thief-speed"):
+		sim.thief_speed = float(options["thief-speed"])
+	if options.has("thief-fade"):
+		sim.thief_fade = float(options["thief-fade"])
+	if options.has("number-power"):
+		sim.number_power = float(options["number-power"])
 	if options.get("lock", "") == "off":
 		sim.lock.from_wave = 0
 	if options.has("lock-from"):
@@ -686,6 +713,10 @@ func _record_run(sim: BattleSim, case_id: String, run: int, cap_seconds: float) 
 				if int(point.wave) == target - 1:
 					reached[str(target)] = float(point.time)
 					break
+	var ledger := {}
+	if sim.thieves:
+		ledger = {"thefts": sim.thefts, "thief_taken": sim.thief_taken, "thief_recovered": sim.thief_recovered,
+			"thief_escaped": sim.thief_escaped, "thieves_escaped": sim.thieves_escaped}
 	_measurements.append({"case": case_id, "seed": sim.run_seed, "run": run,
 		"wave": sim.wave, "game_seconds": sim.time, "kills": sim.kills,
 		"cash": sim.cash_earned, "coins": sim.coins, "peak_number": sim.peak_number,
@@ -694,6 +725,7 @@ func _record_run(sim: BattleSim, case_id: String, run: int, cap_seconds: float) 
 		"dividers_spawned": sim.dividers_spawned, "dividers_landed": sim.dividers_landed,
 		"lost_to": sim.lost_to.duplicate(), "damage_by": sim.damage_by.duplicate(),
 		"start": sim.start_config()})
+	_measurements[-1].merge(ledger)
 
 
 func _write_measurements(options: Dictionary) -> bool:

@@ -706,6 +706,49 @@ func test_malformed_optional_replay_fields_recover_safely() -> void:
 		check(not RunReport.valid_record(broken), "malformed peak cannot grant a milestone during recovery")
 
 
+## D151: the Number-as-capital trial's options validate, are recorded only
+## while they are on (so every other run and snapshot is as it was), and a
+## battle with a thief mid-flight restores and replays exactly.
+func test_the_number_capital_trial_validates_records_and_continues() -> void:
+	var on := {"thieves": true, "thief_recovery": 1.5, "thief_speed": 2.0, "thief_fade": 600.0, "thief_priority": true, "number_power": 0.3}
+	check(RunConfig.valid_tuning({}) and RunConfig.valid_tuning(on), "the trial's options are valid tuning, on or absent")
+	for bad in [{"thieves": 1}, {"thief_priority": "yes"}, {"thief_recovery": -0.1}, {"thief_speed": 0.0}, {"thief_fade": -1.0},
+			{"number_power": 5.0}, {"number_power": INF}, {"thief_recovery": NAN}, {"thief_unknown": 1}]:
+		check(not RunConfig.valid_tuning(bad), "rejected: %s" % [bad])
+	var plain: Dictionary = RunConfig.unpack(Snapshot.capture(BattleSim.new(3, {"health": 500})))
+	check(plain.start.tuning.size() == RunConfig.default_tuning().size() and not plain.state.has("trial"), "a run without the trial records none of it")
+	var tuning := RunConfig.default_tuning()
+	tuning.divider.from_wave = 1
+	tuning.divider.rate_first = 1.0
+	tuning.divider.rate_full = 1.0
+	# Tough enough that the tower can't kill one before it lands.
+	tuning.divider.health_first = 1e4
+	tuning.divider.health_full = 1e4
+	tuning.merge({"thieves": true, "thief_recovery": 0.5, "thief_speed": 1.5, "thief_fade": 120.0, "thief_priority": true, "number_power": 0.2})
+	var sim := BattleSim.new(7, {"health": 500})
+	check(sim.configure_tuning(tuning) and sim.start_config().tuning.thieves == true, "the options freeze before the first wave and are recorded")
+	while sim.alive and sim.ticks < 3 * 3600 and not sim.enemies.any(func(enemy): return enemy.fleeing):
+		sim.step()
+	check(sim.alive and sim.thefts > 0, "a Divider reached the Number and is carrying its bite off")
+	var saved: Dictionary = json(Snapshot.capture(sim))
+	var again := Snapshot.restore(saved)
+	check(again != null and Snapshot.capture(again).digest == saved.digest, "a battle with a thief mid-flight round trips exactly")
+	if again != null:
+		check(again.thief_held == sim.thief_held and again.thefts == sim.thefts and again.enemies.filter(func(enemy): return enemy.fleeing).size() == sim.enemies.filter(func(enemy): return enemy.fleeing).size(), "the hold, the ledger and the carrier come back")
+		for i in range(900):
+			sim.step()
+			again.step()
+		check(Snapshot.capture(sim).digest == Snapshot.capture(again).digest, "and continues exactly: %s" % difference(json(Snapshot.capture(sim)), json(Snapshot.capture(again))))
+	var report: Dictionary = json(RunReport.build(sim))
+	check(RunReport.is_replayable(report) and RunReport.matches(report, RunReport.replay(report)), "a run with the trial replays from its seed")
+	for key in ["thief_held", "thefts"]:
+		var state: Dictionary = RunConfig.unpack(saved)
+		state.state.trial[key] = -1
+		var corrupt := RunConfig.pack(state)
+		corrupt.version = Snapshot.VERSION
+		check(Snapshot.restore(corrupt) == null, "a negative %s in the trial's state is rejected" % key)
+
+
 func test_starting_tuning_replays_and_freezes_before_wave_one() -> void:
 	var tuning := RunConfig.default_tuning()
 	tuning.lock.from_wave = 1

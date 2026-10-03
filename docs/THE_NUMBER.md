@@ -477,7 +477,9 @@ Six new measuring options, all off by default so every run and replay is as befo
 | `thief_priority` (`--thief-priority`) | The tower shoots carriers before anything else in range. | off |
 | `number_power` (`--number-power K`) | The tower's shots × (Number ÷ 5) to the power K. Mines, Thorns and Orbs are unchanged. | 0 |
 
-Taken, recovered and escaped are counted for the ledger. Not part of the candidate: the Lifesteal rework (Lifesteal stays as it is), a Labs catalogue, any screen, and Tier 2 and 3.
+Taken, recovered and escaped are counted for the ledger. A carrier that is killed pays like any killed enemy, its recovery ignores a standing Lock and a Vampire's drain (they stop Regen, not a payback), and Knockback and Shockwaves skip it, since they would only help it escape. Not part of the candidate: the Lifesteal rework (Lifesteal stays as it is), a Labs catalogue, any screen, and Tier 2 and 3.
+
+`python3 tools/number_trial.py` measures one configuration against the six criteria below, through the harness's own scenarios, and a cache keeps repeat runs free. Its criteria logic has its own tests (`tests/test_number_trial.py`).
 
 ### 10.4 The pass criteria (written 3 October 2026, before the candidate was built)
 
@@ -512,4 +514,19 @@ A configuration is one value for each option. For the Coins builds, **10K Coins 
 
 ### 10.5 Results
 
-Not yet measured.
+**Interim, 3 October 2026: the trial is under way, so this is partial and not a verdict.** Only the build phase has run so far (criteria 1, 2 and 6, and the peak half of 4). The career, the fresh runs and the card sweeps (3, the rest of 4, and 5) have not.
+
+Centre of the grid (`number_power` 0.2, speed 1, fade 0, priority on, `r_base` 0.5, `r_max` 1.5), and the first variation:
+
+| Configuration | C1 (the Number decides) | C2 (real, then solved) | C6 (the ledger) |
+|---|---|---|---|
+| Centre | **pass.** Without the power, waves lost: core 10K 20, turtle 10K 10, core 100K 30, turtle 100K 19. Without recovery: 0, 0, 0, 15 | **fail.** Thieves cost core 0 waves at 10K (need 2), turtle 4. At 100K: core 0, turtle −4 | **fail.** Median thefts a run: core 1, turtle 2 (need 3). Share recovered at 10K 0.5 and 0.5 (need at most 0.5); at 100K 1.5 and 1.5 |
+| `number_power` 0.1 | **pass.** Power: 10, 5, 14, 10. Recovery: 0, 1, 1, 12 | **fail.** Core 10K 0, turtle 4; at 100K core 3, turtle −6 | **fail.** Thefts: core 2, turtle 5 (core needs 3). Recovered at 100K: 1.5 and 1.28 |
+
+What it shows so far:
+- **The power coupling is a very strong lever, even at the smallest value on the grid.** At 0.2 the core build at 10K Coins goes from wave 31 to wave 51. Whether that is too much is criterion 4, not yet measured.
+- **Thieves are rare for a competent build.** The core build sees about one to two a run, because nearly every Divider is killed before it lands (about 20 come, 0 to 2 land). A problem that rarely happens can't make the player protective, and nothing on the declared grid changes how often Dividers land.
+- **A recovery over 1 turns a thief into a gift.** On the turtle at 100K, the run with thieves reaches 4 to 6 more waves than the run with no Dividers at all. That is the intended hit, but it also means the player wants to be robbed.
+- **Recovery only matters on the turtle at 100K,** where taking it away costs 12 to 15 waves. At the other three builds it costs 0 to 1.
+
+Still to run before a verdict: the other six single variations (`number_power` 0.3, speed, fade, priority, `r_base` and `r_max`), then the career, fresh runs and cards for the centre and the best of them. Anything run outside the declared grid, such as more Dividers, will be labelled exploratory and can't count as a pass.

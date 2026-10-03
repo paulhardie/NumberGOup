@@ -92,7 +92,8 @@ func tick_shockwave() -> void:
 		return
 	shockwave_in += sim.stat("shockwave_frequency")
 	for enemy in sim.enemies:
-		if EnemyKinds.shockwave_moves(enemy.kind) and enemy.distance <= sim.stat("range"):
+		# A thief walking its bite out would only be helped on its way (D151).
+		if EnemyKinds.shockwave_moves(enemy.kind) and enemy.distance <= sim.stat("range") and not enemy.fleeing:
 			enemy.distance = minf(Guesses.SPAWN_DISTANCE_M, enemy.distance + sim.stat("shockwave_size"))
 	if sim.record_events:
 		sim.events.append({"type": "shockwave"})

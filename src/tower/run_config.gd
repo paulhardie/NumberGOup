@@ -16,13 +16,22 @@ static func default_tuning() -> Dictionary:
 		"sure_from": 0, "sure_every": 5, "sure_divisor": 1.1}
 
 
+## The Number-as-capital trial's measuring options (D151) and what each is
+## when off. A run records one only while it is on, so every run and save made
+## without them is byte for byte what it was.
+static func trial_tuning() -> Dictionary:
+	return {"thieves": false, "thief_recovery": 0.0, "thief_speed": 1.0, "thief_fade": 0.0,
+		"thief_priority": false, "number_power": 0.0}
+
+
 ## The measuring tool is a real consumer: its starting switches must replay
 ## before the first wave is rolled, just like the normal game's build.
 static func valid_tuning(tuning) -> bool:
 	if not tuning is Dictionary: return false
 	var defaults := default_tuning()
+	var trial := trial_tuning()
 	for key in tuning:
-		if key not in defaults: return false
+		if key not in defaults and key not in trial: return false
 	var full := defaults.duplicate(true)
 	full.merge(tuning, true)
 	if not full.packages_to_best is bool: return false
@@ -45,7 +54,15 @@ static func valid_tuning(tuning) -> bool:
 	var lock: Dictionary = full.lock
 	for key in ["from_wave", "full_wave", "every_first", "every_full"]:
 		if not _integer(lock[key], 0 if key == "from_wave" else 1): return false
-	return lock.full_wave >= lock.from_wave and lock.health > 0.0
+	if not (lock.full_wave >= lock.from_wave and lock.health > 0.0): return false
+	var options := {}
+	for key in trial: options[key] = tuning.get(key, trial[key])
+	for key in ["thieves", "thief_priority"]:
+		if not options[key] is bool: return false
+	for key in ["thief_recovery", "thief_fade"]:
+		if not number(options[key]) or float(options[key]) < 0.0 or float(options[key]) > 1e6: return false
+	if not number(options.thief_speed) or float(options.thief_speed) <= 0.0 or float(options.thief_speed) > 1e3: return false
+	return number(options.number_power) and float(options.number_power) >= 0.0 and float(options.number_power) <= 4.0
 
 
 static func _integer(value, minimum: int) -> bool:
