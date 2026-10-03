@@ -510,31 +510,16 @@ A configuration is one value for each option. For the Coins builds, **10K Coins 
 - The coupling is judged one build at a time, so a pass on the turtle alone doesn't count for the core.
 - A pass means the numbers hold, not that it's fun. The owner's play is the next gate.
 
+**Clarifications, 3 October 2026, after a review of the pull request and after the first results.** The text above stays as written. Each change makes the trial harder to pass or fixes the candidate, none makes it easier, and no configuration had passed:
+- **Criterion 1 is judged for each lever in each build at each budget:** all four cells need 2 or more. The wording "at least one of core and turtle at 10K and 100K" was ambiguous, and the rule that builds are judged one at a time points the stricter way. The tool first graded the loosest reading (one build at 2 or more), and now reports that reading beside the verdict.
+- **The Damage card's gain is reported in criterion 3** as the yardstick for the Health and Health Regen cards' gains, as 10.4 said, and is never judged.
+- **An exploratory run reports EXPLORATORY, never a pass,** whatever it measures.
+- **A thief takes Thorns as it grabs,** as any enemy does on contact. The first build skipped it, so Thorns could never kill or recover a thief, against the design in 10.2. The results run before the fix are void for builds with Thorns and are not kept here.
+
 **Limits known now:** bots, not players. The budget scenarios have 4 seeds, so a 2-wave bar is above most of their noise but not all. The Lab's cost isn't modelled: `r_max` at 100K assumes the Lab is already paid for. Lifesteal, Tier 2 and Tier 3, and the screen (the thief drawn carrying its bite, the Taken / Recovered line) are not measured.
 
 ### 10.5 Results
 
-**Interim, 3 October 2026: the trial is under way, so this is partial and not a verdict.** Only the build phase has run so far (criteria 1, 2 and 6, and the peak half of 4). The career, the fresh runs and the card sweeps (3, the rest of 4, and 5) have not.
+**Being re-run on the fixed candidate (3 October 2026); nothing is reported yet.** The first round ran before a review found that a thief never took Thorns as it grabbed (see the clarifications in 10.4), so its numbers are void for the turtle builds and are not kept here. What stays true from reading the code is only this: a Divider that a competent build kills before it lands can't rob it, and the core build has no Thorns. Whether that makes thefts too rare is what the re-run will say.
 
-The centre of the grid (`number_power` 0.2, speed 1, fade 0, priority on, `r_base` 0.5, `r_max` 1.5) and each single variation of it, build phase only. That is 8 of the grid's 96 configurations, all of which fail criteria 2 and 6.
-
-| Configuration | C1 (the Number decides) | C2 (waves thieves cost: core 10K, turtle 10K; core 100K, turtle 100K) | C6 (median thefts a run: core, turtle) |
-|---|---|---|---|
-| Centre | pass | **fail:** 0, 4; 0, −4 | **fail:** 1, 2 |
-| `number_power` 0.1 | pass | **fail:** 0, 4; 3, −6 | **fail:** 2, 5 |
-| `number_power` 0.3 | pass | **fail:** 0, 1; 0, 0 | **fail:** 0, 0 |
-| speed 2 | pass | **fail:** 0, 4; 0, −4 | **fail:** 1, 2 |
-| fade 600 s | pass | **fail:** 0, 4; 0, −5 | **fail:** 1, 2 |
-| priority off | pass | **fail:** 0, 4; 0, 1 | **fail:** 1, 2, and 0.87 recovered on the turtle at 100K (needs 0.9) |
-| `r_base` 0.25 | pass | **fail:** 0, 4; 0, −4 | **fail:** 1, 2 |
-| `r_max` 1.0 | pass | **fail:** 0, 4; 0, 0 | **fail:** 1, 2 |
-
-C2 needs 2 or more at 10K and 1 or less at 100K, for both builds. C6 needs at least 3 thefts. Criterion 1 passes everywhere because of the power coupling: removing it costs the four builds 20, 10, 30 and 19 waves at 0.2 (10, 5, 14 and 10 at 0.1, and 40, 22, 50 and 36 at 0.3). Removing recovery costs only the turtle at 100K, 10 to 15 waves, and nothing elsewhere.
-
-What it shows so far:
-- **The power coupling is a very strong lever, even at the smallest value on the grid.** At 0.2 the core build at 10K Coins goes from wave 31 to wave 51. Whether that is too much is criterion 4, not yet reported.
-- **Thieves are rare for a competent build, and that is why criteria 2 and 6 fail.** The core build sees at most 2 a run (at the lowest power), because nearly every Divider is killed before it lands (about 20 come, 0 to 2 land). Theft count depends on how fast the tower kills Dividers, which only the power changes, and a stronger power means fewer thefts. Nothing else on the grid (recovery, speed, fade, priority) should change how many land, so by that reasoning no combination of them reaches 3; the combination check below tests it.
-- **A recovery over 1 turns a thief into a gift.** On the turtle at 100K, the run with thieves reaches up to 6 more waves than the run with no Dividers at all. That is the intended hit, but it also means the player wants to be robbed.
-- **Recovery only matters on the turtle at 100K.** There the carriers are caught, and taking recovery away costs 10 to 15 waves.
-
-Still to report before a verdict: the career, fresh runs and card sweeps for the centre and the lowest power, a check of every combination at the lowest power on the core build, and exploratory runs with more Dividers. Anything outside the declared grid will be labelled exploratory and can't count as a pass.
+The plan is unchanged: the centre of the grid and each single variation (8 of the 96 configurations), the slow phase for the centre and the lowest power, a check of every combination at the lowest power on the core build, and exploratory runs with more Dividers. Each is reported, passing or not, and anything outside the declared grid is labelled exploratory and can't count as a pass.

@@ -153,8 +153,12 @@ def evaluate(results, baseline):
     if have(*names):
         power = {f'{b}/{k}': wave(f'on_{b}_{k}') - wave(f'nopower_{b}_{k}') for b, k in cells}
         recovery = {f'{b}/{k}': wave(f'on_{b}_{k}') - wave(f'norecovery_{b}_{k}') for b, k in cells}
-        out[1] = verdict(max(power.values()) >= 2 and max(recovery.values()) >= 2,
-                         f'waves lost without the power {power}; without recovery {recovery}; each needs a build at 2 or more')
+        # Judged for every build at both budgets (the rules say builds are judged
+        # one at a time), so a lever that matters in one cell doesn't pass for all.
+        loose = max(power.values()) >= 2 and max(recovery.values()) >= 2
+        out[1] = verdict(min(power.values()) >= 2 and min(recovery.values()) >= 2,
+                         f'waves lost without the power {power}; without recovery {recovery}; each needs 2 or more in every build at both budgets '
+                         f'(the looser reading, one build at 2 or more, would be {"a pass" if loose else "a fail"})')
     names = [f'{kind}_{budget}_{build}' for kind in ('on', 'nodividers') for budget, build in cells]
     if have(*names):
         small = {k: wave(f'nodividers_{BUDGETS[0]}_{k}') - wave(f'on_{BUDGETS[0]}_{k}') for k in BUILDS}
@@ -164,9 +168,13 @@ def evaluate(results, baseline):
     cards = [f'cards_{name}' for name, _, _ in CARD_BUILDS]
     if have(*cards):
         gains = {card: {name: wave(f'cards_{name}', card) - wave(f'cards_{name}', 'no_card') for name, _, _ in CARD_BUILDS}
-                 for card in ('health', 'health_regen')}
-        out[3] = verdict(all(max(g.values()) >= 1 for g in gains.values()),
-                         f'level-7 card gains by build {gains}; each card needs a build at 1 or more')
+                 for card in ('health', 'health_regen', 'damage')}
+        # The Damage card is only the yardstick: reported as a ratio, never judged.
+        share = {card: {name: round(gain / gains['damage'][name], 2) if gains['damage'][name] > 0 else None
+                        for name, gain in gains[card].items()} for card in ('health', 'health_regen')}
+        out[3] = verdict(all(max(gains[card].values()) >= 1 for card in ('health', 'health_regen')),
+                         f'level-7 card gains by build {gains}; Health and Health Regen each need a build at 1 or more; '
+                         f'their share of the Damage card\'s gain {share}')
     peak_ok = None
     if 'on_100000_turtle' in results:
         peak = balance.upper_median([row['peak_number'] for row in rows(results['on_100000_turtle'])])
@@ -200,6 +208,9 @@ def render(config, out):
         lines.append(f'C{number} {state}' + ('' if found is None else ': ' + found['detail']))
     run = [v for v in out.values()]
     overall = 'NOT COMPLETE' if len(run) < 6 else 'PASS' if all(v['pass'] for v in run) else 'FAIL'
+    if config.get('extra'):
+        # Outside the declared grid: the criteria are shown, but it is never a pass.
+        overall = 'EXPLORATORY'
     lines.append('')
     lines.append('Overall: ' + overall)
     return '\n'.join(lines), overall

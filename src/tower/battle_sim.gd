@@ -675,9 +675,7 @@ func _enemies_hit() -> void:
 			alive = false
 			killed_by = enemy.kind
 			return
-		var thorns := stat("thorns") * EnemyKinds.thorns_share(enemy.kind)
-		if shielded(enemy):
-			thorns *= float(TowerData.enemies().protector.thorns_taken)
+		var thorns := _thorns_on_contact(enemy)
 		if thorns > 0.0:
 			deal_damage(enemy, enemy.max_health * thorns, "thorns", false)
 			if enemy.health <= 0.0:
@@ -685,8 +683,25 @@ func _enemies_hit() -> void:
 	# Removed after the loop, which mustn't lose enemies from under it.
 	for enemy in spent:
 		_divide(enemy)
+		# A thief takes Thorns as it grabs, as any enemy does on contact (D152): a
+		# Thorns build kills it on the spot and has the bite back.
+		if enemy.fleeing:
+			var thorns := _thorns_on_contact(enemy)
+			if thorns > 0.0:
+				deal_damage(enemy, enemy.max_health * thorns, "thorns", false)
+				if enemy.health <= 0.0:
+					thorned.append(enemy)
 	for enemy in thorned:
 		_kill(enemy, "thorns")
+
+
+## The share of its own maximum health Thorns deals `enemy` when it makes
+## contact: Thorns times what its kind takes, and less under a Protector.
+func _thorns_on_contact(enemy: Enemy) -> float:
+	var thorns := stat("thorns") * EnemyKinds.thorns_share(enemy.kind)
+	if shielded(enemy):
+		thorns *= float(TowerData.enemies().protector.thorns_taken)
+	return thorns
 
 
 ## A Divider reaches the Number, or the Wall in front of it, and takes

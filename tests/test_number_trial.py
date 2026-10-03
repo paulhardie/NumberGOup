@@ -44,14 +44,16 @@ class TrialCriteriaTests(unittest.TestCase):
         self.assertIn('C1 NOT RUN', text)
         self.assertEqual(overall, 'NOT COMPLETE')
 
-    def test_the_number_has_to_decide_something_by_two_waves(self):
+    def test_the_number_has_to_decide_something_in_every_build_at_both_budgets(self):
         # The candidate is ahead of its variants, so the variants have fewer waves.
-        base = {('nopower', 10000, 'core'): -2, ('norecovery', 100000, 'turtle'): -2}
-        self.assertTrue(trial.evaluate(build_results(base), BASELINE)[1]['pass'])
-        weak = {('nopower', 10000, 'core'): -1, ('norecovery', 100000, 'turtle'): -2}
-        self.assertFalse(trial.evaluate(build_results(weak), BASELINE)[1]['pass'])
-        one_sided = {('nopower', 10000, 'core'): -3}
-        self.assertFalse(trial.evaluate(build_results(one_sided), BASELINE)[1]['pass'])
+        every = {(kind, budget, build): -2 for kind in ('nopower', 'norecovery') for budget, build in CELLS}
+        self.assertTrue(trial.evaluate(build_results(every), BASELINE)[1]['pass'])
+        short = {**every, ('nopower', 10000, 'core'): -1}
+        self.assertFalse(trial.evaluate(build_results(short), BASELINE)[1]['pass'], 'a lever one wave short in one cell')
+        one_cell = {**{('nopower', budget, build): -2 for budget, build in CELLS}, ('norecovery', 100000, 'turtle'): -2}
+        found = trial.evaluate(build_results(one_cell), BASELINE)[1]
+        self.assertFalse(found['pass'], 'recovery that matters in one cell does not pass for all four')
+        self.assertIn('a pass', found['detail'], 'though the looser one-build reading would have passed, and the report says so')
 
     def test_the_problem_is_real_at_10k_and_solved_at_100k_for_both_builds(self):
         good = {('nodividers', 10000, 'core'): 2, ('nodividers', 10000, 'turtle'): 3,
@@ -63,15 +65,20 @@ class TrialCriteriaTests(unittest.TestCase):
         self.assertFalse(trial.evaluate(build_results(never_solved), BASELINE)[2]['pass'])
 
     def test_the_dead_cards_have_to_gain_a_wave_each(self):
-        def sweep(gain_health, gain_regen):
+        def sweep(gain_health, gain_regen, gain_damage=10):
             rows = result([20] * 10, case='no_card')['runs'] + result([20 + gain_health] * 10, case='health')['runs'] \
-                + result([20 + gain_regen] * 10, case='health_regen')['runs']
+                + result([20 + gain_regen] * 10, case='health_regen')['runs'] + result([20 + gain_damage] * 10, case='damage')['runs']
             return {'runs': rows}
         good = {f'cards_{name}': sweep(0, 0) for name, _, _ in trial.CARD_BUILDS}
         good['cards_turtle'] = sweep(1, 1)
-        self.assertTrue(trial.evaluate(good, BASELINE)[3]['pass'])
+        found = trial.evaluate(good, BASELINE)[3]
+        self.assertTrue(found['pass'])
+        self.assertIn("share of the Damage card's gain", found['detail'])
+        self.assertIn("'health': {'early': 0.0, 'turtle': 0.1, 'later': 0.0}", found['detail'], 'the ratio to the Damage card is reported')
         good['cards_turtle'] = sweep(1, 0)
         self.assertFalse(trial.evaluate(good, BASELINE)[3]['pass'])
+        good['cards_turtle'] = sweep(0, 0, gain_damage=30)
+        self.assertFalse(trial.evaluate(good, BASELINE)[3]['pass'], 'the Damage card is the yardstick, not what passes')
 
     def test_no_runaway_means_a_career_window_and_a_capped_number(self):
         def run_for(first, peak):
@@ -117,6 +124,14 @@ class TrialCriteriaTests(unittest.TestCase):
         self.assertEqual(slow['fresh_none']['seeds'], 20)
         self.assertEqual(slow['cards_later']['workshop-coins'], 40000)
         self.assertTrue(all(spec['thief-recovery'] == 0.25 for spec in slow.values()))
+
+    def test_an_exploratory_run_is_never_a_pass(self):
+        every_criterion = {number: trial.verdict(True, 'ok') for number in range(1, 7)}
+        text, overall = trial.render(trial.CENTRE, every_criterion)
+        self.assertEqual(overall, 'PASS')
+        text, overall = trial.render(dict(trial.CENTRE, extra={'divider-share': '3'}), every_criterion)
+        self.assertEqual(overall, 'EXPLORATORY')
+        self.assertIn('cannot count as a pass', text)
 
     def test_extra_options_reach_every_run_but_a_runs_own_win(self):
         config = dict(trial.CENTRE, extra={'divider-share': '3', 'divider-health': '2'})

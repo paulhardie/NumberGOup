@@ -2609,6 +2609,32 @@ func test_a_bite_the_wall_took_is_not_carried() -> void:
 	check(sure.dividers_landed == 1 and sure.thefts == 0 and sure.enemies.is_empty(), "nor is the measuring Divider's, which was never on the field")
 
 
+## Thorns is the blender's answer to a thief: it hurts the carrier as it grabs,
+## as it does any enemy on contact, and the damage pays the bite back.
+func test_a_thief_takes_thorns_as_it_grabs() -> void:
+	var sim := _thief_sim(1.0)
+	sim.levels = {"health": 400, "thorns": 50}
+	var best := sim.health
+	var bite := best * 0.2
+	var share := TowerData.value("thorns", 50)
+	var thief := _steal(sim, 1e12)
+	check_near(thief.health, 1e12 * (1.0 - share), 1e3, "Thorns hurts a thief as it grabs, by its share of the thief's own health")
+	check_near(sim.health, best - bite + bite * share, 0.001, "and that share of the bite comes straight back")
+	var weak := _thief_sim(1.0)
+	weak.levels = {"health": 400, "thorns": 50}
+	var frail := _place(weak, "divider", Guesses.CONTACT_DISTANCE_M)
+	frail.max_health = 100.0
+	frail.health = 1.0
+	weak.step()
+	check(not weak.enemies.has(frail) and weak.kills == 1 and weak.thefts == 1, "a thief Thorns can finish dies on the spot")
+	check_near(weak.health, best, 0.001, "and the whole bite is back")
+	var plain := _quiet_sim({"health": 400})
+	plain.levels = {"health": 400, "thorns": 50}
+	_place(plain, "divider", Guesses.CONTACT_DISTANCE_M)
+	plain.step()
+	check(not plain.damage_by.has("thorns") and plain.thefts == 0, "without the trial a landing Divider is used up and takes no Thorns, as before")
+
+
 func test_the_tower_shoots_carriers_first_when_told_to() -> void:
 	var sim := _thief_sim(1.0)
 	var carrier := _steal(sim, 1e12)
