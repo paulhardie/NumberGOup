@@ -2,7 +2,7 @@
 
 **Last updated:** 3 October 2026, by Claude.
 - Base `main` is `a923f06`, including D150's balance harness (PR #143) and the Tier research follow-up (PR #144).
-- Branch `claude/popup-framework` builds D151, menus and pop-ups, with a pull request to `main`. It changes no game rule or save; public version remains 0.9. It isn't in the play folder until the PR is merged; the play folder follows `origin/main` through `com.paulhardie.ngu-sync`.
+- [PR #147](https://github.com/paulhardie/NumberGOup/pull/147), `claude/popup-framework`, builds D151, menus and pop-ups. It changes no game rule or save; public version remains 0.9. It isn't in the play folder until the PR is merged; the play folder follows `origin/main` through `com.paulhardie.ngu-sync`.
 - The pre-rebuild game is commit `f4f1e95`.
 
 ## Start here
