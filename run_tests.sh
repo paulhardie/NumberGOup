@@ -17,4 +17,4 @@ fi
 done
 # The balance reporter has its own contracts (sample pairing, stopped runs and
 # explicit baseline replacement), without running the long measurement suite.
-python3 -m unittest discover -s "${ROOT}/tests" -p 'test_balance_report.py'
+python3 -m unittest discover -s "${ROOT}/tests" -p 'test_*.py'

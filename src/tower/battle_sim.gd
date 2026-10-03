@@ -46,6 +46,15 @@ class Enemy:
 	var mass := 1.0
 	## A Scatter's splits behind it: 0 as it spawns, one more each split.
 	var generation := 0
+	## A thief's flight (the trial's `thieves`, D152): set once a Divider has
+	## carried a bite of the Number off, which stays out until it is killed.
+	var fleeing := false
+	var carried := 0.0
+	## Its health when it grabbed the bite: the damage dealt to it pays the bite
+	## back against this.
+	var carry_health := 0.0
+	## The share of the bite already paid back, 0 to 1.
+	var carry_paid := 0.0
 
 	func position() -> Vector2:
 		return Vector2.from_angle(angle) * distance
@@ -167,6 +176,32 @@ var sure_every := 5
 var sure_divisor := 1.1
 const SURE_LANDS_AT := 10.0
 var _sure_landed := 0
+## The Number-as-capital trial's measuring options (D152, THE_NUMBER.md
+## section 10): off in the game, so every run and replay is as before, and kept
+## out of a run's recorded tuning while they are off. `thieves`: a Divider that
+## reaches the Number carries its bite away instead of being used up, the
+## damage dealt to it pays `thief_recovery` times that bite back, and one that
+## walks out to where enemies set off keeps it. `thief_speed` is its flight
+## against its walking speed, `thief_fade` the seconds an unreturned bite stays
+## out of Regen's reach (0: for ever), and `thief_priority` has the tower shoot
+## carriers first. `number_power` multiplies the tower's shots by the Number
+## over The Tower's starting Health, to that power.
+var thieves := false
+var thief_recovery := 0.0
+var thief_speed := 1.0
+var thief_fade := 0.0
+var thief_priority := false
+var number_power := 0.0
+## What thieves are holding out of Regen's reach now, and since the start the
+## thefts, the bite they took, what came back (more than was taken once the
+## recovery passes 1) and what walked away unreturned.
+var thief_held := 0.0
+var _thief_release := 0.0
+var thefts := 0
+var thief_taken := 0.0
+var thief_recovered := 0.0
+var thief_escaped := 0.0
+var thieves_escaped := 0
 
 ## The highest the Number has stood this run: the run's record (D081).
 var peak_number := 0.0
@@ -265,7 +300,18 @@ func tuning_config() -> Dictionary:
 	for key in RunConfig.default_tuning():
 		var value = get(key)
 		result[key] = value.duplicate(true) if value is Dictionary else value
+	# The trial's options are recorded only while they are on, so a run made
+	# without them is byte for byte what it was.
+	var trial := RunConfig.trial_tuning()
+	for key in trial:
+		if get(key) != trial[key]:
+			result[key] = get(key)
 	return result
+
+
+## Whether any of the Number-as-capital trial's options is in play.
+func trial_active() -> bool:
+	return thieves or number_power > 0.0
 
 
 ## Measuring switches are fixed before the first step. Re-roll wave 1 from
@@ -391,10 +437,11 @@ func _heal(amount: float, source: String) -> void:
 	if (draining or locked) and (source == "regen" or source == "lifesteal"):
 		return
 	var before := health
-	if source == "regen" and divider_held > 0.0:
+	var held := divider_held + thief_held
+	if source == "regen" and held > 0.0:
 		# No drift past the best while any of a bite is held: the ceiling is
 		# below the best.
-		health += minf(amount, maxf(0.0, maxf(max_health(), peak_number) - divider_held - health))
+		health += minf(amount, maxf(0.0, maxf(max_health(), peak_number) - held - health))
 	elif source == "regen":
 		# Regen restores what enemies took, up to the best this run.
 		var to_best := maxf(0.0, maxf(max_health(), peak_number) - health)
@@ -473,6 +520,8 @@ func step() -> void:
 	if sure_from > 0 and wave >= sure_from and (wave - sure_from) % sure_every == 0 and _sure_landed != wave and wave_clock >= SURE_LANDS_AT:
 		_land_sure_divider()
 	divider_held = maxf(0.0, divider_held - _held_release * TICK)
+	if thief_held > 0.0:
+		thief_held = maxf(0.0, thief_held - _thief_release * TICK)
 	_heal(stat("health_regen") * TICK, "regen")
 	peak_number = maxf(peak_number, health)
 	defences.tick_wall()
@@ -539,7 +588,14 @@ func _move_enemies() -> void:
 	# Slow Aura (a candidate card): enemies inside Range walk slower.
 	var slow := clampf(rules.value("slow_aura"), 0.0, Guesses.SLOW_AURA_MOST)
 	var reach := stat("range") if slow > 0.0 else 0.0
+	var escaped: Array[Enemy] = []
 	for enemy in enemies:
+		# A thief walks its bite back out, and is gone where enemies set off.
+		if enemy.fleeing:
+			enemy.distance += enemy.speed * thief_speed * TICK
+			if enemy.distance >= Guesses.SPAWN_DISTANCE_M:
+				escaped.append(enemy)
+			continue
 		# Ranged enemies stop on the edge of the tower's Range, wherever it is
 		# now: more Range and the ones still walking stop further out.
 		if EnemyKinds.stops_at_range(enemy.kind) and not enemy.arrived():
@@ -551,6 +607,8 @@ func _move_enemies() -> void:
 		if not enemy.arrived():
 			var speed := enemy.speed * (1.0 - slow) if slow > 0.0 and enemy.distance <= reach else enemy.speed
 			enemy.distance = maxf(enemy.stop_at, enemy.distance - speed * TICK)
+	for enemy in escaped:
+		_escape(enemy)
 
 
 ## Every enemy in place hits when its time comes: Defense % comes off first,
@@ -563,7 +621,7 @@ func _enemies_hit() -> void:
 	draining = false
 	locked = false
 	for enemy in enemies:
-		if not enemy.arrived():
+		if enemy.fleeing or not enemy.arrived():
 			continue
 		var style := EnemyKinds.attack_style(enemy.kind)
 		if style == "divide":
@@ -617,9 +675,7 @@ func _enemies_hit() -> void:
 			alive = false
 			killed_by = enemy.kind
 			return
-		var thorns := stat("thorns") * EnemyKinds.thorns_share(enemy.kind)
-		if shielded(enemy):
-			thorns *= float(TowerData.enemies().protector.thorns_taken)
+		var thorns := _thorns_on_contact(enemy)
 		if thorns > 0.0:
 			deal_damage(enemy, enemy.max_health * thorns, "thorns", false)
 			if enemy.health <= 0.0:
@@ -627,8 +683,25 @@ func _enemies_hit() -> void:
 	# Removed after the loop, which mustn't lose enemies from under it.
 	for enemy in spent:
 		_divide(enemy)
+		# A thief takes Thorns as it grabs, as any enemy does on contact (D152): a
+		# Thorns build kills it on the spot and has the bite back.
+		if enemy.fleeing:
+			var thorns := _thorns_on_contact(enemy)
+			if thorns > 0.0:
+				deal_damage(enemy, enemy.max_health * thorns, "thorns", false)
+				if enemy.health <= 0.0:
+					thorned.append(enemy)
 	for enemy in thorned:
 		_kill(enemy, "thorns")
+
+
+## The share of its own maximum health Thorns deals `enemy` when it makes
+## contact: Thorns times what its kind takes, and less under a Protector.
+func _thorns_on_contact(enemy: Enemy) -> float:
+	var thorns := stat("thorns") * EnemyKinds.thorns_share(enemy.kind)
+	if shielded(enemy):
+		thorns *= float(TowerData.enemies().protector.thorns_taken)
+	return thorns
 
 
 ## A Divider reaches the Number, or the Wall in front of it, and takes
@@ -651,11 +724,62 @@ func _divide(enemy: Enemy) -> void:
 			_held_release = divider_held / float(divider.refill_seconds)
 		lost_to["divider"] = float(lost_to.get("divider", 0.0)) + loss
 	dividers_landed += 1
-	enemy.health = 0.0
-	enemies.erase(enemy)
+	# A thief keeps its bite and walks it out (D152). Only a bite that reached
+	# the Number can be carried, not one the Wall took, and the measuring
+	# Divider (`sure_from`) was never on the field to carry anything.
+	if thieves and not at_wall and loss > 0.0 and enemy in enemies:
+		_carry_off(enemy, loss)
+	else:
+		enemy.health = 0.0
+		enemies.erase(enemy)
 	if record_events:
 		# The Number as it stood, for the screen's peel (D145).
 		events.append({"type": "divided", "enemy": enemy, "damage": loss, "at_wall": at_wall, "divisor": divisor, "before": health + (0.0 if at_wall else loss)})
+
+
+## A thief grabs `bite` of the Number and starts walking it out (D152). The
+## bite stays out of Regen's reach while the thief lives, and fades from there
+## only if `thief_fade` says so.
+func _carry_off(thief: Enemy, bite: float) -> void:
+	thief.fleeing = true
+	thief.carried = bite
+	thief.carry_health = thief.health
+	thief.carry_paid = 0.0
+	# It has hit once, so killing it later isn't a clean kill that grows the Number.
+	thief.hits = maxi(thief.hits, 1)
+	thefts += 1
+	thief_taken += bite
+	thief_held += bite
+	_thief_release = thief_held / thief_fade if thief_fade > 0.0 else 0.0
+
+
+## Damage dealt to a carrier pays its bite back in proportion: `dealt` of the
+## health it had when it grabbed it. The share comes back times
+## `thief_recovery`, so a recovery past 1 returns more than was taken, and the
+## held bite is released by what came back, so Regen can't refill the rest.
+func _pay_back(thief: Enemy, dealt: float) -> void:
+	if thief.carry_health <= 0.0:
+		return
+	var share := minf(dealt / thief.carry_health, 1.0 - thief.carry_paid)
+	if share <= 0.0:
+		return
+	thief.carry_paid += share
+	var returned := thief.carried * share * thief_recovery
+	var before := health
+	health += returned
+	thief_held = maxf(0.0, thief_held - returned)
+	thief_recovered += returned
+	_count_gain("recovery", before)
+
+
+## A thief reaches where enemies set off and takes what it still holds with it.
+func _escape(thief: Enemy) -> void:
+	thieves_escaped += 1
+	thief_escaped += thief.carried * (1.0 - thief.carry_paid)
+	thief.health = 0.0
+	enemies.erase(thief)
+	if record_events:
+		events.append({"type": "escaped", "enemy": thief})
 
 
 ## The most a Recovery Package may heal the Number to: Max Recovery times
@@ -708,7 +832,7 @@ func _fire() -> void:
 		var critical := _combat_rng.randf() < stat("critical_chance")
 		# Berserker and Super Tower (candidate cards) raise the tower's Damage
 		# before a critical multiplies it; both are neutral without their card.
-		var tower_damage := (stat("damage") + berserker_bonus()) * super_tower_boost()
+		var tower_damage := (stat("damage") + berserker_bonus()) * super_tower_boost() * number_boost()
 		var damage := tower_damage * (stat("critical_factor") if critical else 1.0)
 		# Super Crit: a critical shot may be super critical, multiplied again.
 		if critical and stat("super_crit_chance") > 0.0 and _combat_rng.randf() < stat("super_crit_chance"):
@@ -760,6 +884,17 @@ func super_tower_boost() -> float:
 	return 1.0
 
 
+## The Number as ammunition (D152, a measuring option): the tower's shots are
+## multiplied by the Number over The Tower's starting Health, to the power
+## `number_power`, never under 1. Mines, Thorns and Orbs don't use it. Neutral
+## at 0, the game's.
+func number_boost() -> float:
+	if number_power <= 0.0:
+		return 1.0
+	var start := TowerData.value("health", 0)
+	return pow(maxf(health, start) / start, number_power)
+
+
 ## Super Tower runs on two cooldowns, so a saved battle carries its place in
 ## the cycle: how long the burst has left, and how long until it is ready
 ## again. It is ready as the run begins. Without the card it adds neither.
@@ -788,7 +923,7 @@ func _nearest_in_range() -> Enemy:
 	var reach := stat("range")
 	var nearest: Enemy = null
 	for enemy in enemies:
-		if enemy.distance <= reach and (nearest == null or enemy.distance < nearest.distance):
+		if enemy.distance <= reach and (nearest == null or _comes_first(enemy, nearest)):
 			nearest = enemy
 	return nearest
 
@@ -799,8 +934,16 @@ func _in_range_nearest_first() -> Array[Enemy]:
 	for enemy in enemies:
 		if enemy.distance <= reach:
 			found.append(enemy)
-	found.sort_custom(func(a, b): return a.distance < b.distance)
+	found.sort_custom(_comes_first)
 	return found
+
+
+## Which of two enemies in range the tower shoots first: the nearer, or with
+## `thief_priority` a carrier before anything else (D152).
+func _comes_first(a: Enemy, b: Enemy) -> bool:
+	if thief_priority and a.fleeing != b.fleeing:
+		return a.fleeing
+	return a.distance < b.distance
 
 
 func _move_shots() -> void:
@@ -868,7 +1011,8 @@ func _strike(enemy: Enemy, shot_damage: float, critical: bool) -> void:
 	# The roll is made for every kind, so an immune one never shifts the
 	# stream the rest of the run draws from.
 	var knocked := enemy.health > damage and stat("knockback_chance") > 0.0 and _combat_rng.randf() < stat("knockback_chance")
-	if knocked and EnemyKinds.knockback_moves(enemy.kind):
+	# A thief is already walking out, so a push would only help it escape.
+	if knocked and EnemyKinds.knockback_moves(enemy.kind) and not enemy.fleeing:
 		var push := stat("knockback_force") * Guesses.KNOCKBACK_METRES_PER_FORCE / EnemyKinds.mass_now(enemy, wave)
 		enemy.distance = minf(Guesses.SPAWN_DISTANCE_M, enemy.distance + push)
 	deal_damage(enemy, damage, "shot", false)
@@ -893,7 +1037,10 @@ func _strike(enemy: Enemy, shot_damage: float, critical: bool) -> void:
 func deal_damage(enemy: Enemy, amount: float, source: String, finish := true) -> bool:
 	if enemy not in enemies or enemy.health <= 0.0 or not is_finite(amount) or amount < 0.0 or source.is_empty():
 		return false
-	damage_by[source] = float(damage_by.get(source, 0.0)) + minf(amount, enemy.health)
+	var dealt := minf(amount, enemy.health)
+	damage_by[source] = float(damage_by.get(source, 0.0)) + dealt
+	if enemy.fleeing:
+		_pay_back(enemy, dealt)
 	enemy.health -= amount
 	if finish and enemy.health <= 0.0:
 		_kill(enemy, source)

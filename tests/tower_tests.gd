@@ -2509,6 +2509,198 @@ func test_a_dividers_bite_comes_back_slowly() -> void:
 	check(old.divider_held == 0.0 and is_equal_approx(old.health, old.max_health()), "a refill of 0 is the old rule: Regen puts it straight back")
 
 
+## The Number-as-capital trial (D152, THE_NUMBER.md section 10): measuring
+## options, off in the game.
+func test_the_trial_is_off_and_leaves_no_trace() -> void:
+	var sim := BattleSim.new(1)
+	check(not sim.thieves and not sim.thief_priority and sim.thief_recovery == 0.0 and sim.thief_speed == 1.0 \
+			and sim.thief_fade == 0.0 and sim.number_power == 0.0, "the game plays none of the trial")
+	check(not sim.trial_active() and sim.number_boost() == 1.0, "and its power on the shots is neutral")
+	check(not sim.tuning_config().has("thieves") and not sim.tuning_config().has("number_power"), "a run records none of its options while they are off")
+	sim.thieves = true
+	sim.number_power = 0.2
+	var recorded := sim.tuning_config()
+	check(recorded.thieves == true and recorded.number_power == 0.2 and not recorded.has("thief_speed"), "and only the ones that are on")
+
+
+func test_a_thief_carries_its_bite_and_damage_pays_it_back() -> void:
+	var sim := _thief_sim(1.0)
+	var best := sim.health
+	var thief := _steal(sim)
+	var bite := best * 0.2
+	check(sim.enemies.has(thief) and thief.fleeing and thief.health > 0.0, "a Divider that lands isn't used up: it flees with its bite")
+	check_near(thief.carried, bite, 0.0001, "carrying the fifth it took")
+	check(sim.thefts == 1 and is_equal_approx(sim.thief_taken, bite) and sim.dividers_landed == 1, "and the ledger has the theft")
+	check_near(sim.health, best - bite, 0.0001, "the Number is down by it")
+	sim._heal(1e9, "regen")
+	check_near(sim.health, best - bite, 0.0001, "and Regen can't refill what a thief is carrying")
+	sim.deal_damage(thief, thief.health * 0.5, "shot")
+	check_near(sim.health, best - bite * 0.5, 0.0001, "half its health in damage pays half the bite back")
+	check_near(sim.thief_held, bite * 0.5, 0.0001, "and frees that half of the hold")
+	var kills := sim.kills
+	sim.deal_damage(thief, 1e9, "shot")
+	check(sim.kills == kills + 1 and not sim.enemies.has(thief), "killing it ends the flight, paid like any kill")
+	check_near(sim.health, best, 0.0001, "the rest comes back, and overkill pays nothing more")
+	check(sim.thief_held == 0.0 and is_equal_approx(sim.thief_recovered, bite), "with nothing held and the ledger square")
+	check(sim.thieves_escaped == 0 and sim.thief_escaped == 0.0, "and no one got away")
+
+
+## Recovery is what Labs raise: weak, it leaves a scar Regen can't fill; past
+## 1, the Number lands above where it was.
+func test_recovery_starts_weak_and_labs_can_take_it_past_whole() -> void:
+	var weak := _thief_sim(0.5)
+	var best := weak.health
+	var bite := best * 0.2
+	weak.deal_damage(_steal(weak), 1e9, "shot")
+	check_near(weak.health, best - bite * 0.5, 0.0001, "a recovery of 0.5 returns half the bite on a kill")
+	weak._heal(1e9, "regen")
+	check_near(weak.health, best - bite * 0.5, 0.0001, "and Regen can't refill the other half: it stays held")
+	check_near(weak.thief_held, bite * 0.5, 0.0001, "held, not gone")
+	var rich := _thief_sim(1.5)
+	rich.deal_damage(_steal(rich), 1e9, "shot")
+	check_near(rich.health, best + bite * 0.5, 0.0001, "a recovery of 1.5 puts the Number above where it was")
+	check(rich.thief_held == 0.0 and rich.raised_by.get("recovery", 0.0) > 0.0, "the extra counts as a new high from recovery")
+	var none := _thief_sim(0.0)
+	none.deal_damage(_steal(none), 1e9, "shot")
+	check_near(none.health, best - bite, 0.0001, "and a recovery of 0 returns nothing")
+
+
+func test_a_thief_that_gets_away_keeps_the_bite() -> void:
+	var sim := _thief_sim(1.0)
+	var best := sim.health
+	var thief := _steal(sim, 1e12)
+	thief.speed = 40.0
+	var bite := thief.carried
+	sim.deal_damage(thief, 4e11, "shot")
+	check_near(sim.health, best - bite * 0.6, 0.001, "damage before it leaves pays its share back")
+	var kills := sim.kills
+	for _i in range(roundi(5.0 / BattleSim.TICK)):
+		sim.step()
+	check(not sim.enemies.has(thief) and sim.thieves_escaped == 1, "it walks out to where enemies set off and is gone")
+	check_near(sim.thief_escaped, bite * 0.6, 0.001, "with the 60% it still held")
+	check(sim.kills == kills and thief.health == 0.0, "unpaid, and no longer a target for shots already flying")
+	check_near(sim.thief_held, bite * 0.6, 0.001, "and with no fade the loss stays out of Regen's reach")
+	var fading := _thief_sim(1.0)
+	fading.thief_fade = 10.0
+	var holder := _steal(fading, 1e12)
+	var held := holder.carried
+	for _i in range(roundi(5.0 / BattleSim.TICK)):
+		fading.step()
+	check_near(fading.thief_held, held * 0.5, held * 0.02, "with a fade it is released evenly: half after half the time")
+	for _i in range(roundi(5.5 / BattleSim.TICK)):
+		fading.step()
+	check(fading.thief_held == 0.0, "and all of it after the fade")
+	fading._heal(1e9, "regen")
+	check_near(fading.health, best, 0.0001, "so Regen can refill it")
+
+
+func test_a_bite_the_wall_took_is_not_carried() -> void:
+	var sim := _thief_sim(1.0, BattleSim.START_GROUPS + ["wall"])
+	var wall := sim.defences.wall_health
+	var divider := _place(sim, "divider", Guesses.WALL_DISTANCE_M)
+	sim.step()
+	check_near(sim.defences.wall_health, wall / 1.25, 0.0001, "the Wall loses what the Number would")
+	check(not divider.fleeing and not sim.enemies.has(divider) and sim.thefts == 0, "and the Divider is used up as before: nothing was taken to carry")
+	var sure := _thief_sim(1.0)
+	sure.sure_from = 1
+	sure.sure_every = 1
+	sure.wave_clock = BattleSim.SURE_LANDS_AT
+	sure.step()
+	check(sure.dividers_landed == 1 and sure.thefts == 0 and sure.enemies.is_empty(), "nor is the measuring Divider's, which was never on the field")
+
+
+## Thorns is the blender's answer to a thief: it hurts the carrier as it grabs,
+## as it does any enemy on contact, and the damage pays the bite back.
+func test_a_thief_takes_thorns_as_it_grabs() -> void:
+	var sim := _thief_sim(1.0)
+	sim.levels = {"health": 400, "thorns": 50}
+	var best := sim.health
+	var bite := best * 0.2
+	var share := TowerData.value("thorns", 50)
+	var thief := _steal(sim, 1e12)
+	check_near(thief.health, 1e12 * (1.0 - share), 1e3, "Thorns hurts a thief as it grabs, by its share of the thief's own health")
+	check_near(sim.health, best - bite + bite * share, 0.001, "and that share of the bite comes straight back")
+	var weak := _thief_sim(1.0)
+	weak.levels = {"health": 400, "thorns": 50}
+	var frail := _place(weak, "divider", Guesses.CONTACT_DISTANCE_M)
+	frail.max_health = 100.0
+	frail.health = 1.0
+	weak.step()
+	check(not weak.enemies.has(frail) and weak.kills == 1 and weak.thefts == 1, "a thief Thorns can finish dies on the spot")
+	check_near(weak.health, best, 0.001, "and the whole bite is back")
+	var plain := _quiet_sim({"health": 400})
+	plain.levels = {"health": 400, "thorns": 50}
+	_place(plain, "divider", Guesses.CONTACT_DISTANCE_M)
+	plain.step()
+	check(not plain.damage_by.has("thorns") and plain.thefts == 0, "without the trial a landing Divider is used up and takes no Thorns, as before")
+
+
+func test_the_tower_shoots_carriers_first_when_told_to() -> void:
+	var sim := _thief_sim(1.0)
+	var carrier := _steal(sim, 1e12)
+	carrier.distance = 20.0
+	var basic := _place(sim, "basic", 8.0)
+	check(sim._nearest_in_range() == basic and sim._in_range_nearest_first()[0] == basic, "by default the nearest comes first")
+	sim.thief_priority = true
+	check(sim._nearest_in_range() == carrier and sim._in_range_nearest_first()[0] == carrier, "with priority a carrier does, though it is farther")
+
+
+func test_nothing_pushes_a_thief_further_out() -> void:
+	var sim := _thief_sim(1.0, BattleSim.START_GROUPS + ["knockback", "shockwave"])
+	sim.levels = {"health": 400, "knockback_chance": TowerData.max_level("knockback_chance"), "knockback_force": 10}
+	sim.record_events = true
+	var thief := _steal(sim, 1e12)
+	var start := thief.distance
+	var control := _place(sim, "basic", 20.0)
+	control.max_health = 1e12
+	control.health = 1e12
+	while sim.events.filter(func(event): return event.type == "shockwave").is_empty():
+		sim.step()
+	check(thief.health < thief.max_health, "the tower shoots the thief")
+	check_near(thief.distance, start, 0.0, "yet neither Knockback nor a Shockwave moves it: they would only help it escape")
+	check(control.distance > 20.0, "while the same shocks do push an ordinary enemy")
+
+
+func test_the_number_powers_the_towers_shots() -> void:
+	var sim := _quiet_sim({"health": 400})
+	sim.number_power = 0.5
+	sim.health = 500.0
+	check_near(sim.number_boost(), 10.0, 1e-9, "a Number of 500 over The Tower's 5, to the power one half, is ×10")
+	sim.health = 2.0
+	check(sim.number_boost() == 1.0, "never under 1")
+	sim.health = 500.0
+	var target := _place(sim, "basic", 20.0)
+	target.max_health = 1e12
+	target.health = 1e12
+	sim._shot_charge = 1.0
+	sim._fire()
+	var shot: BattleSim.Shot = sim.shots[0]
+	var want := sim.stat("damage") * 10.0 * (sim.stat("critical_factor") if shot.critical else 1.0)
+	check_near(shot.damage, want, 1e-6, "a shot leaves ten times as strong")
+	sim.number_power = 0.0
+	check(sim.number_boost() == 1.0, "and nothing changes at 0, the game's")
+
+
+## A quiet sim with the trial's thieves on at `recovery` and its Number full.
+func _thief_sim(recovery: float, groups: Array = BattleSim.START_GROUPS) -> BattleSim:
+	var sim := _quiet_sim({"health": 400}, groups)
+	sim.thieves = true
+	sim.thief_recovery = recovery
+	sim.health = sim.max_health()
+	return sim
+
+
+## A Divider lands on `sim`'s Number and becomes a carrier, in one step. With a
+## `health`, it has that much when it grabs the bite.
+func _steal(sim: BattleSim, health := -1.0) -> BattleSim.Enemy:
+	var thief := _place(sim, "divider", Guesses.CONTACT_DISTANCE_M)
+	if health > 0.0:
+		thief.max_health = health
+		thief.health = health
+	sim.step()
+	return thief
+
+
 ## A Ray charges 30 seconds, then fires its attack, twice a basic's, and
 ## charges again.
 func test_ray_charges_between_shots() -> void:

@@ -20,6 +20,12 @@ const ENEMY_INTS := ["id", "wave", "hits", "generation"]
 const SPAWN_INTS := ["next_spawn", "wave_spawned", "wave_missed", "protector_gate"]
 ## Our enemies, which The Tower's generated data doesn't list (D082, D133).
 const OUR_KINDS := ["divider", "lock"]
+## The Number-as-capital trial's state, and a carrier's, written only while
+## the trial is in play (D152), so every other snapshot is byte for byte what
+## it was and older ones stay valid.
+const TRIAL_FLOATS := ["thief_held", "_thief_release", "thief_taken", "thief_recovered", "thief_escaped"]
+const TRIAL_INTS := ["thefts", "thieves_escaped"]
+const ENEMY_FLIGHT := ["carried", "carry_health", "carry_paid"]
 ## Guesses.DIVIDER's numbers that may be 0: the slow refill, off (D134).
 
 
@@ -32,6 +38,11 @@ static func capture(sim: BattleSim) -> Dictionary:
 	state.divider = sim.divider.duplicate()
 	state.lock = sim.lock.duplicate()
 	state.cooldowns = sim.cooldowns.remaining.duplicate()
+	if sim.trial_active():
+		var trial := {}
+		for key in TRIAL_FLOATS + TRIAL_INTS:
+			trial[key] = sim.get(key)
+		state.trial = trial
 	var targets := {}
 	var field: Array = []
 	for enemy in sim.enemies:
@@ -66,6 +77,10 @@ static func _enemy(enemy) -> Dictionary:
 	var result := {"kind": enemy.kind}
 	for key in ENEMY_FLOATS + ENEMY_INTS:
 		result[key] = enemy.get(key)
+	if enemy.fleeing:
+		result.fleeing = true
+		for key in ENEMY_FLIGHT:
+			result[key] = enemy.get(key)
 	return result
 
 
@@ -119,6 +134,13 @@ static func _valid_state(data) -> bool:
 	var tuning := {}
 	for key in RunConfig.default_tuning(): tuning[key] = state.get(key)
 	if not RunConfig.valid_tuning(tuning): return false
+	if state.has("trial"):
+		var trial = state.trial
+		if not trial is Dictionary: return false
+		for key in TRIAL_FLOATS:
+			if not RunConfig.number(trial.get(key)) or float(trial[key]) < 0.0: return false
+		for key in TRIAL_INTS:
+			if not _integer(trial.get(key)) or int(trial[key]) < 0: return false
 	for id in state.run_levels:
 		if id not in TowerData.rows() or not _integer(state.run_levels[id]) or int(state.run_levels[id]) < 0 \
 				or int(state.run_levels[id]) + int(data.start.levels.get(id, 0)) > TowerData.max_level(id): return false
@@ -141,6 +163,11 @@ static func _valid_state(data) -> bool:
 			return false
 		if int(enemy.wave) < 1 or int(enemy.wave) > int(state.wave) or float(enemy.mass) <= 0.0 or float(enemy.speed) < 0.0 or float(enemy.distance) < 0.0:
 			return false
+		if enemy.has("fleeing"):
+			if not enemy.fleeing is bool or not enemy.fleeing: return false
+			for key in ENEMY_FLIGHT:
+				if not RunConfig.number(enemy.get(key)) or float(enemy[key]) < 0.0: return false
+			if float(enemy.carry_health) <= 0.0 or float(enemy.carry_paid) > 1.0: return false
 	var seen := {}
 	for id in data.field:
 		if not _integer(id) or not data.targets.has(str(int(id))) or seen.has(str(int(id))):
@@ -207,6 +234,11 @@ static func restore(data) -> BattleSim:
 	sim.divider = data.state.divider.duplicate()
 	sim.lock = data.state.lock.duplicate()
 	sim.cooldowns.remaining = data.state.cooldowns.duplicate()
+	if data.state.has("trial"):
+		for key in TRIAL_FLOATS:
+			sim.set(key, float(data.state.trial[key]))
+		for key in TRIAL_INTS:
+			sim.set(key, int(data.state.trial[key]))
 	# Mid-run effects are state, not the frozen starting build.
 	sim.stats = preload("res://src/tower/stat_stack.gd").new()
 	for effect in data.get("current_effects", start.get("effects", [])):
@@ -222,6 +254,10 @@ static func restore(data) -> BattleSim:
 			enemy.set(key, float(data.targets[id][key]))
 		for key in ENEMY_INTS:
 			enemy.set(key, int(data.targets[id][key]))
+		if data.targets[id].has("fleeing"):
+			enemy.fleeing = true
+			for key in ENEMY_FLIGHT:
+				enemy.set(key, float(data.targets[id][key]))
 		targets[id] = enemy
 	sim.enemies.clear()
 	sim._protectors.clear()
