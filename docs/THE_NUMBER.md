@@ -1,6 +1,6 @@
 # The Number: design considerations
 
-**Status:** the direction is decided (D080), its four decisions are answered (D081, section 6), and the enemy design is answered and built (D082, section 7): the Number in the centre, and the Divider. Since then the owner removed the Number's ceiling and made Tier 1's Divider gentle (D083: ÷1.25, then ÷1.5). What's left for 1.0 is the owner playing it. Section 9 (2 October 2026) reopens what the Number *is*: it is measurably a health pool, and that is open. This page is the working list of everything that changes now that the tower *is* a number; the owner's answers go into [`DECISIONS.md`](DECISIONS.md), and this page is updated to match.
+**Status:** the direction is decided (D080), its four decisions are answered (D081, section 6), and the enemy design is answered and built (D082, section 7): the Number in the centre, and the Divider. Since then the owner removed the Number's ceiling and made Tier 1's Divider gentle (D083: ÷1.25, then ÷1.5). What's left for 1.0 is the owner playing it. Section 9 (2 October 2026) reopens what the Number *is*: it is measurably a health pool. Section 10 (3 October 2026) is the owner's answer (D151): the Number is the player's capital, tried as a measure-only candidate against criteria written down first. This page is the working list of everything that changes now that the tower *is* a number; the owner's answers go into [`DECISIONS.md`](DECISIONS.md), and this page is updated to match.
 
 ## The direction, in the owner's words
 
@@ -441,3 +441,75 @@ The owner asked whether the Number could also be what run Upgrades are bought wi
 - **What it would give is feel, which this can't measure:** one Number that jumps with every kill and drops with every purchase, health and wallet at once.
 - **Holding would have to pay more than spending** for a decision to exist. Two ways, both untested: Interest on the bank (The Tower's own saving mechanic, already a Workshop row), or a reward for a big Number much steeper than a log.
 - **The cost is large.** Cash becomes Number across `BattleSim`, the Upgrades panel, the Cash Bonus, Cash / Wave and Interest rows, battle snapshots and saves. That is high risk under QUALITY_GATES, and it overturns D042 and AGENTS.md's law 4 (run Upgrades spend Cash), which are the owner's to change.
+
+---
+
+## 10. The Number as the player's capital (3 October 2026, D151)
+
+**Status:** the owner's direction, being tried. Nothing here is in the game. The candidate in 10.3 is a set of measuring options, off by default, and 10.4 was written before the candidate existed, so the results can't be graded afterwards.
+
+### 10.1 What the owner decided
+
+The Number should give the player two feelings: the hit of watching it go up, and being protective of it. The Tower's shape no longer binds this, and fundamental stats may change. Recovery is behind Labs, weak at the start. The goal is "I can't wait to invest enough into stats so this problem is solved". D151 has the owner's words.
+
+### 10.2 The design
+
+| Part | What it does | Why |
+|---|---|---|
+| **Every rise and fall has an author** (agent's proposal) | A rise comes from something the player did; a fall only from something an enemy did. No spending the Number, no decay. | A loss only feels worth protecting against if someone took it. |
+| **Thieves** | A Divider still divides on contact, but is no longer used up: it carries the bite away. | Makes the loss visible and personal. |
+| **Recovery by damage dealt** (agent's proposal) | Each hit on the carrier returns its share of what it holds, in proportion to the damage. Escaping (reaching where enemies set off) keeps the rest taken. | No cliff where a thief escapes on 1 HP with everything, and killing power protects the Number without a formula. |
+| **Recovery strength is the Lab's** (owner) | The share returned starts small. Labs raise it to all of it and past it (over 100% is the hit: the Number lands above where it was). In the trial, `thief_recovery` stands in for the Lab. | The weak start is what makes the Lab worth wanting. |
+| **Durable loss** (agent's proposal) | What a thief carries off stays out of Regen's reach, for ever or for a set time. Without it, Regen fills the gap and recovery does nothing. | D134 already has the held-bite mechanism: `divider_held`. |
+| **A power coupling** (agent's proposal) | The tower's shots are multiplied by (Number ÷ 5) to the power `number_power`. A log left ÷ harmless (section 9). | Gives the Number's size and its losses a cost at the walls. |
+| **Solved with stats** (owner) | Thorns and Orbs kill a thief as it grabs. Range, Damage and Knockback catch one fleeing. | Each threat gets an answer stat, a crossing the player can read, and a solved moment. |
+
+### 10.3 The candidate (measure-only)
+
+Six new measuring options, all off by default so every run and replay is as before, in `Guesses`-style tuning with `RunConfig` validation:
+
+| Option (`sim_runs.gd` flag) | Meaning | Off |
+|---|---|---|
+| `thieves` (`--thieves`) | Dividers carry the bite away instead of being used up (only when they reach the Number, not the Wall). | off |
+| `thief_recovery` (`--thief-recovery R`) | The share of the carried bite returned if the carrier is killed (R = 1 returns all of it; more than 1 is the Lab bonus). | 0 |
+| `thief_speed` (`--thief-speed S`) | The carrier's flight speed, times the Divider's walking speed. | 1 |
+| `thief_fade` (`--thief-fade SECONDS`) | How long the unreturned bite stays out of Regen's reach, evenly released from the theft. 0: for ever. | 0 |
+| `thief_priority` (`--thief-priority`) | The tower shoots carriers before anything else in range. | off |
+| `number_power` (`--number-power K`) | The tower's shots × (Number ÷ 5) to the power K. Mines, Thorns and Orbs are unchanged. | 0 |
+
+Taken, recovered and escaped are counted for the ledger. Not part of the candidate: the Lifesteal rework (Lifesteal stays as it is), a Labs catalogue, any screen, and Tier 2 and 3.
+
+### 10.4 The pass criteria (written 3 October 2026, before the candidate was built)
+
+Measured with the balance harness's own scenarios and seeds (`tools/balance_report.py`, BALANCE_TESTS.md), Tier 1, bots. **Baseline** (`data/balance/full.json`, unchanged code):
+
+| Scenario | Median wave | Other |
+|---|---|---|
+| `fresh_none` / `fresh_even` / `fresh_core` (20 seeds) | 3 / 6 / 3 | |
+| `budget_10000_core` / `_turtle` (4 seeds) | 31 / 41 | |
+| `budget_100000_core` / `_turtle` (4 seeds) | 51 / 84 | turtle's median peak Number 2,820 |
+| `career_core` (50 runs) | first run reaching wave 31: **47** | |
+
+A configuration is one value for each option. For the Coins builds, **10K Coins uses the weak recovery** (`r_base`) and **100K uses the Lab-maxed recovery** (`r_max`), as a stand-in for what Labs add. It passes if **all six** hold:
+
+1. **The Number decides something.** With the candidate on, switching off the coupling (K = 0) costs at least 2 median waves on at least one of core and turtle at 10K and 100K, and so does setting recovery to 0 (thieves on). Today neither moves any wave.
+2. **The problem is real, then solved.** For **both** the core and the turtle builds, thieves cost at least 2 median waves against the same build with no Dividers at 10K Coins (`--divider-share 0`), and at most 1 at 100K.
+3. **The dead cards come alive.** With the candidate on at `r_base`, the level-7 Health card and the level-7 Health Regen card each gain at least 1 median wave on at least one of CARDS.md's three card builds (2K core, 4K turtle, 40K core). This is D149's floor. The ratio to the Damage card's gain is reported, not judged.
+4. **No runaway.** The core career first reaches wave 31 between run 35 and run 60 (baseline 47), and the turtle's median peak Number at 100K is at most 3 times the baseline's (8,460).
+5. **The early game holds.** `fresh_none`, `fresh_even` and `fresh_core` each keep their median wave within 1 of the baseline.
+6. **The ledger has the intended shape.** At 10K Coins on the core and turtle builds, a run recovers at most half of what thieves take, with at least 3 thefts in the median run. At 100K Coins with `r_max`, it recovers at least 90%.
+
+**The grid** (fixed now): `number_power` 0.1, 0.2, 0.3; `thief_speed` 1, 2; `thief_fade` 0 and 600 seconds; `thief_priority` off and on; `r_base` 0.25 and 0.5; `r_max` 1.0 and 1.5.
+
+**Rules of the trial:**
+- Every configuration run is reported, passing or not.
+- No seed is chosen; the harness's seeds are used as they are.
+- The criteria above are not changed after results are seen. If none passes, that is the finding, and any change goes to the owner as a proposal.
+- The coupling is judged one build at a time, so a pass on the turtle alone doesn't count for the core.
+- A pass means the numbers hold, not that it's fun. The owner's play is the next gate.
+
+**Limits known now:** bots, not players. The budget scenarios have 4 seeds, so a 2-wave bar is above most of their noise but not all. The Lab's cost isn't modelled: `r_max` at 100K assumes the Lab is already paid for. Lifesteal, Tier 2 and Tier 3, and the screen (the thief drawn carrying its bite, the Taken / Recovered line) are not measured.
+
+### 10.5 Results
+
+Not yet measured.

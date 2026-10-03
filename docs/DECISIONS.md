@@ -2265,3 +2265,26 @@ Rules:
 - **Review behaviour:** Invalid measurements fail. Valid balance movement is highlighted for the owner, with optional `--fail-on-change` for work intended to preserve balance. No automatic baseline replacement; regeneration after an accepted change is explicit and committed with evidence.
 - **Limits:** Bots, not players. Uniform-level Tier 2/3 smoke cases do not prove the turtle-to-blender pivot. Card pairs, extra career seed sequences, Labs/weapons and runtime performance wait for their concrete consumers. Time/wave/data stops are labelled rather than counted as deaths.
 - **Contract and commands:** [BALANCE_TESTS.md](BALANCE_TESTS.md). Evidence and the current next step: [HANDOVER.md](HANDOVER.md).
+
+
+## D151 — The Number is the player's capital: try thieves, durable loss and a power coupling, measure-only
+
+- **Status:** Accepted (2026-10-03) on owner direction, after the agent said plainly that the approach is a bet and not demonstrably better. The owner's words:
+  - "I think we pick the best solution that makes the player feel/see themselves getting stronger via the number going up. If we need to rework some fundamental stats then that's fine. The tower was always the base inspiration, but eventually this needs to grow into its own thing."
+  - "The most important thing is that dopamine hit of the number going up, but the player getting protective of said number."
+  - On thieves: "I think recoverable is good, but behind labs though, so starts out weak, labs make it better. Could rework lifesteal etc, but yeah fan of the idea." And: "The goal should always be 'I can't wait to invest enough into stats so this problem is \"solved\" in a sense'".
+  - "Let's try our new direction."
+- **Decision (the owner's):**
+  1. **The Number's purpose is the player's strength and the thing they protect.** It answers D149's open question and THE_NUMBER.md section 9: a health pool is not enough.
+  2. **The Tower's shape no longer binds this work.** Fundamental stats may be reworked, and the game is to grow into its own thing. D149's option A (Tier 1 keeps The Tower's shape) stands until the owner adopts a candidate; adopting one amends it.
+  3. **Thieves, with recovery behind Labs.** A Divider's bite is taken by an enemy that carries it off. Killing it gives the share back. At the start little comes back, and Labs raise it. Lifesteal may be reworked to fit.
+  4. **Every threat to the Number is built to be solved with stats:** a stat that answers it, a point the player can read off the screen where the answer works, and a solved moment. The next tier breaks the answer (D110, D112).
+  5. **Try it as a measure-only candidate** against the criteria written down first (THE_NUMBER.md section 10). Nothing in the game, a save or the combat contract changes until the owner has read the results and adopts it.
+- **The agent's proposals, carried into the trial and not separately accepted:**
+  - the rules that a rise always has an author (something the player did) and a fall only comes from an enemy (no spending, no decay);
+  - a coupling between the Number and the tower's Damage steeper than a log, since a log left ÷ harmless in the section 9 tests;
+  - the shape of recovery: it comes from damage dealt to the carrier, in proportion;
+  - thieves from the first Divider (wave 7), so the loss is felt before the Lab.
+- **Would revisit if adopted:** D082 and D083 (the Divider), D110 and D111 (how the Number grows), D149 A, the Labs entries in REBUILD_SPEC (1.2), and Lifesteal's meaning. AGENTS.md law 4 (run Upgrades spend Cash) is not touched.
+- **Not decided:** the values, which Labs, whether to adopt, and the Lifesteal rework.
+- **Checked / not checked:** the trial is bots, not players. The feel the owner asked for, the dopamine of a rise and the protectiveness, is not something a bot can read, so it needs the owner's play after any pass.
