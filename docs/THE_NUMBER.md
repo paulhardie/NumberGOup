@@ -446,7 +446,7 @@ The owner asked whether the Number could also be what run Upgrades are bought wi
 
 ## 10. The Number as the player's capital (3 October 2026, D152)
 
-**Status:** the owner's direction, being tried. Nothing here is in the game. The candidate in 10.3 is a set of measuring options, off by default, and 10.4 was written before the candidate existed, so the results can't be graded afterwards.
+**Status:** the owner's direction, tried; **the declared candidate failed (10.5)**. Nothing here is in the game. The candidate in 10.3 is a set of measuring options, off by default, and 10.4 was written before the candidate existed, so the results can't be graded afterwards.
 
 ### 10.1 What the owner decided
 
@@ -520,6 +520,62 @@ A configuration is one value for each option. For the Coins builds, **10K Coins 
 
 ### 10.5 Results
 
-**Being re-run on the fixed candidate (3 October 2026); nothing is reported yet.** The first round ran before a review found that a thief never took Thorns as it grabbed (see the clarifications in 10.4), so its numbers are void for the turtle builds and are not kept here. What stays true from reading the code is only this: a Divider that a competent build kills before it lands can't rob it, and the core build has no Thorns. Whether that makes thefts too rare is what the re-run will say.
+All on the fixed candidate (after the clarifications in 10.4), against `data/balance/full.json`'s baseline, bots, Tier 1. Reproduce a configuration with `python3 tools/number_trial.py`.
 
-The plan is unchanged: the centre of the grid and each single variation (8 of the 96 configurations), the slow phase for the centre and the lowest power, a check of every combination at the lowest power on the core build, and exploratory runs with more Dividers. Each is reported, passing or not, and anything outside the declared grid is labelled exploratory and can't count as a pass.
+**Verdict: the declared candidate fails, and no configuration on the declared grid can pass.**
+
+What was run, all of it reported here:
+- **8 of the grid's 96 configurations**, the centre and each single variation, build phase (criteria 1, 2 and 6, and the peak half of 4). All fail 1, 2 and 6.
+- **The slow phase (criteria 3, 4 and 5) for the centre and the lowest power.** Both pass 3 and 5 and fail 4.
+- **All 16 combinations of speed, fade, priority and `r_base` at the lowest power, on the core build at 10K Coins.** The cost of thieves is 0 waves in every one, with 2 thefts a run.
+- **Three exploratory runs with more Dividers** (outside the grid, so they can't count as a pass).
+
+**The declared grid, build phase.** C1 is judged for each lever in each build at each budget; C2 needs thieves to cost 2 or more waves at 10K and 1 or less at 100K for both builds; C6 needs at least 3 thefts a run.
+
+| Configuration | Waves lost without the power (core 10K, turtle 10K; core 100K, turtle 100K) | Waves lost without recovery | C2: waves thieves cost (core, turtle at 10K; core, turtle at 100K) | C6: thefts a run (core, turtle) |
+|---|---|---|---|---|
+| Centre (`number_power` 0.2) | 20, 10; 30, 18 | 0, 0; 0, 17 | 0, 4; 0, −6 | 1, 2 |
+| `number_power` 0.1 | 10, 5; 14, 11 | 0, 1; 1, 16 | 0, 4; 3, −10 | 2, 5 |
+| `number_power` 0.3 | 40, 22; 50, 33 | 0, 0; 0, 11 | 0, 1; 0, 0 | 0, 0 |
+| speed 2 | 20, 10; 30, 20 | 0, 0; 0, 16 | 0, 4; 0, −5 | 1, 2 |
+| fade 600 s | 20, 10; 30, 18 | 0, 0; 0, 16 | 0, 4; 0, −6 | 1, 2 |
+| priority off | 20, 10; 30, 19 | 0, 0; 0, 13 | 0, 4; 0, −2 | 1, 2 |
+| `r_base` 0.25 | 20, 10; 30, 18 | 0, 0; 0, 17 | 0, 4; 0, −6 | 1, 2 |
+| `r_max` 1.0 | 20, 10; 30, 17 | 0, 0; 0, 11 | 0, 4; 0, 0 | 1, 2 |
+
+Every row fails C1 (recovery matters in one cell of four), C2 (the core build loses nothing to thieves at 10K) and C6 (the core build is robbed at most twice a run, and the criterion needs 3). A negative C2 figure means the run with thieves went further than the run with no Dividers at all.
+
+**Why no configuration on the grid can pass.** C6 needs at least 3 thefts a run on the core build. How many Dividers land depends mainly on how fast the tower kills them, which on this grid `number_power` sets (the other options act only after a Divider has landed), and a stronger power means fewer land. The lowest power gives the most, 2, and the single variations at 0.2 and 0.3 gave 1 and 0. Recovery, speed, fade and priority don't change it, which the 16-combination check at the lowest power confirms: 2 thefts and 0 waves lost in all of them. The higher powers were measured only as single variations, so "fewer thefts there" is the single variations plus that reasoning, not 96 runs.
+
+**The slow phase.**
+
+| | C3: level-7 Health card's gain (early, turtle, later builds) | Health Regen's gain | Damage card's gain | C4: career's first wave-31 run (window 35 to 60, baseline 47); turtle 100K peak Number (at most 8,461) | C5: fresh runs against the baseline |
+|---|---|---|---|---|---|
+| Centre (0.2) | **pass:** 10, 1, 10 | 2, 0, 0 | 47, 40, 51 | **fail:** run 16; 20,830 | pass: 0, 1, 0 |
+| `number_power` 0.1 | **pass:** 3, 6, 1 | 0, 3, 0 | 32, 28, 36 | **fail:** run 29; 24,849 | pass: 0, 1, 0 |
+
+At 0.2 the Health card's gain is 21% and 20% of the Damage card's on the early and later builds and 3% on the turtle; at 0.1 it is 21% on the turtle and 9% and 3% elsewhere. Without the trial the Health and Health Regen cards gain 0 at every level on every build (D149).
+
+**Exploratory, outside the grid (never a pass).** The same build-phase runs with a harsher Divider, so the problem might actually occur:
+
+| Run (centre otherwise) | Thefts a run (core, turtle) | C2: waves thieves cost at 10K (core, turtle) | At 100K (core, turtle) |
+|---|---|---|---|
+| 3 times as many Dividers | 2, 7 | 0, 5 | 0, −208 |
+| and ÷2 | 2, 6 | 1, 7 | 0, −208 |
+| and 8 times a basic's health | 3, 9 | **8, 14** | −228, −208 |
+
+**What it shows**
+- **The power coupling does what the owner asked of the Number, and too much of it.** The Number now decides waves (removing the power costs the four builds 5 to 50 waves), the early game holds (C5), and the Health card finally earns its place (C3). But even the smallest power on the grid breaks the pace: the core career first reaches wave 31 on run 29 at 0.1 and run 16 at 0.2, against 47, and the turtle's Number ends at 7 to 9 times the baseline's. The grid's lowest value is already too strong.
+- **Thieves aren't a problem at Tier 1's Divider.** A competent build kills nearly every Divider before it lands, so the core build is robbed once or twice a run and loses nothing. The answer is in place before the first Coin, so there is nothing to wait for and nothing to protect. Nothing on the grid changes this.
+- **A harsher Divider does make the problem real, and the stats do solve it.** With 3 times as many, ÷2 and 8 times the health, thieves cost the core build 8 waves and the turtle 14 at 10K, and are answered by 100K. That is the shape the owner described. It overturns D083's deliberately gentle Tier 1 Divider, which is the owner's to change.
+- **A recovery over 1 with the coupling is a Number printer.** In the exploratory runs the turtle at 100K never dies: it reaches the 3-hour cap at wave 309, with a peak Number of 2 to 4 trillion, against a death at wave 87 without recovery and 101 with no Dividers. It is robbed about 150 times and gets back 150% of every bite, so each theft makes it stronger, and a stronger Number kills carriers more surely. That is D037's loop returning through recovery. In the declared grid, with 1 times the Dividers, the same mechanism shows as thieves *helping* the turtle at 100K by up to 10 waves.
+- **A flaw in C2's wording.** It says thieves cost "1 or less" at 100K, which a negative number satisfies, so a runaway counts as "solved" (the exploratory 8-times-health run passes C2 and C6 for that reason). Solved should mean close to 0, not far below it. The criteria are unchanged here, as the rules require, and the next round should bound C2 from below.
+
+**What this does not show.** Players, whether any of this is fun, Tier 2 and 3, Lifesteal, and the Labs' cost (`r_max` assumes the Lab is paid for). The budget scenarios have 4 seeds.
+
+**What I'd propose next, for the owner to decide (nothing is built):**
+1. **Change it, don't drop it.** The coupling works but is far too strong, the threat is far too weak, and recovery needs a ceiling.
+2. **A new Number-taking enemy rather than a rougher Divider,** tuned near the exploratory shape (frequent, ÷2 or so, tough), so D083's gentle Divider stays. Arriving at Tier 1 wave 30, when Labs open, would put the problem and its first Lab together. The cost is a Number that is only a health pool for the first 30 waves.
+3. **Recovery capped at 1** (Labs raising it from a quarter to the whole bite), with any over-100% hit a bounded bonus, never a share of the bite each time.
+4. **A coupling weaker than the grid's 0.1, or bounded** (a ceiling on the multiplier), tested against the same career window.
+5. **Criteria for the second round written first, again,** with C2 bounded from below.
