@@ -2,3 +2,4 @@
 build/
 *.tmp
 .number_go_up_test_save*
+__pycache__/
