@@ -2305,4 +2305,5 @@ Rules:
   - thieves from the first Divider (wave 7), so the loss is felt before the Lab.
 - **Would revisit if adopted:** D082 and D083 (the Divider), D110 and D111 (how the Number grows), D149 A, the Labs entries in REBUILD_SPEC (1.2), and Lifesteal's meaning. AGENTS.md law 4 (run Upgrades spend Cash) is not touched.
 - **Not decided:** the values, which Labs, whether to adopt, and the Lifesteal rework.
+- **Outcome (2026-10-03):** the declared candidate failed its pass criteria, and no configuration on its grid can pass: thieves were too rare at Tier 1's Divider, the power coupling was far too strong even at its lowest value, and a recovery over 1 made the Number run away. [THE_NUMBER.md section 10.5](THE_NUMBER.md#105-results) has every run and what to change. Whether to change it, drop it or adopt anything is still the owner's, and no rule in the game has changed.
 - **Checked / not checked:** the trial is bots, not players. The feel the owner asked for, the dopamine of a rise and the protectiveness, is not something a bot can read, so it needs the owner's play after any pass.

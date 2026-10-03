@@ -1,8 +1,8 @@
 # Handover
 
 **Last updated:** 3 October 2026, by Claude Code.
-- Base `main` is `b5c7c8c`, including D150's balance harness (PR #143), the Tier research (PRs #144 to #146) and D151, menus and pop-ups (PR #147).
-- [PR #148](https://github.com/paulhardie/NumberGOup/pull/148), `claude/number-capital-candidate`, carries D152, the Number-as-capital candidate (measuring options, off by default) and its trial tool. It changes no game behaviour or save format, and the public version stays 0.9. It isn't in the play folder until the PR is merged; the play folder follows `origin/main` through `com.paulhardie.ngu-sync`.
+- Base `main` is `d1fa94d`, including D150's balance harness (PR #143), the Tier research (PRs #144 to #146), D151, menus and pop-ups (PR #147), and [PR #148](https://github.com/paulhardie/NumberGOup/pull/148): D152, the Number-as-capital candidate (measuring options, off by default) and its trial tool. None of it changes game behaviour or a save format, and the public version stays 0.9.
+- The trial's results (THE_NUMBER.md 10.5, D152's outcome) are on `claude/number-capital-candidate`, restarted from that `main`, in a follow-up pull request. They are documents only. The play folder follows `origin/main` through `com.paulhardie.ngu-sync`, so it has them once that PR is merged.
 - The pre-rebuild game is commit `f4f1e95`.
 
 ## Start here
@@ -19,13 +19,18 @@ Tier 1 and every Workshop group work.
 - **Candidates:** nine measure-only cards (Slow Aura, Critical Coin, Compound, Remainder, Unequal, Interest, Factor, Berserker and Super Tower) can be equipped in `sim_runs.gd` and are never drawn.
 - **What the card tests found** (CARDS.md): Tier 1's walls are its boss waves and only killing power moves them. Super Tower works (D148). Berserker does nothing at The Tower's numbers, and at about 30 times its share a tank build wins.
 
-## The Number (D152, 3 October 2026): being tried
+## The Number (D152, 3 October 2026): tried, and the declared candidate failed
 
 The owner chose to try the Number as the player's capital: the hit of watching it rise and being protective of it. The Tower's shape no longer binds the work, recovery is behind Labs and weak at the start, and every threat is meant to be solved with stats. D152 has the owner's words, and THE_NUMBER.md section 10 has the design, the options, **the six pass criteria written before the candidate existed**, and the results.
 
 - **Built (measure-only):** `--thieves` (a Divider carries its bite away instead of being used up), `--thief-recovery` (damage dealt to it pays the bite back, standing in for Labs), `--thief-speed`, `--thief-fade`, `--thief-priority` and `--number-power` (the Number multiplies the tower's shots). Off by default and recorded only while on, so every run, report and snapshot made without them is byte for byte what it was. `tools/number_trial.py` measures one configuration against the criteria.
-- **Results: being re-run, nothing reported yet.** A review of PR #148 found that a thief never took Thorns as it grabbed, so the first round's numbers are void for the turtle builds (THE_NUMBER.md 10.4 has the dated clarifications, 10.5 the plan). The review also made criterion 1 stricter (each lever in each build at each budget), added the Damage card's ratio to criterion 3, and made an exploratory run report EXPLORATORY instead of a pass. All three changes make the trial harder to pass, and nothing had passed.
-- **Still to run and report:** the declared grid's centre and single variations, the slow phase (criteria 3, 4 and 5), a check of every combination at the lowest power, and labelled exploratory runs with more Dividers (outside the grid, so they can't count as a pass).
+- **Verdict: the declared candidate fails, and no configuration on its grid can pass** (THE_NUMBER.md 10.5, with every run reported; criteria 2 and 6 are measured across all 96 configurations, through the 48 that can change the core build at 10K):
+  - **The coupling works and is far too strong.** The Number decides waves (removing the power costs 5 to 50), the early game holds, and the Health card finally earns its place (up to 10 waves). But even the grid's lowest power breaks the pace: the career first reaches wave 31 on run 29 (0.1) or 16 (0.2), against 47 and a window of 35 to 60.
+  - **Thieves aren't a problem at Tier 1's Divider.** The core build is robbed at most twice a run and loses nothing, because nearly every Divider dies before it lands. Nothing on the grid changes that.
+  - **A harsher Divider (exploratory, outside the grid) makes the problem real and solvable:** with 3 times as many, ÷2 and 8 times the health, thieves cost the core build 8 waves and the turtle 14 at 10K Coins.
+  - **A recovery over 1 with the coupling is a Number printer** (D037's loop through recovery): the turtle at 100K never dies, hitting the 3-hour cap at wave 309 with a Number in the trillions.
+  - **C2's wording lets a runaway count as "solved"** (a negative cost passes). The rules stopped me changing it after the results; the next round should bound it from below.
+- **Four review findings were fixed on the way** (a thief didn't take Thorns on its grab; criterion 1 judged too loosely; the Damage card's ratio wasn't reported; an exploratory run could report a pass). The first round's numbers were void and the results above are from the re-run.
 
 ## Balance and the baseline (D149, D150)
 
@@ -34,13 +39,13 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 
 ## Checked, and not checked
 
-- **Checked, PR #148 merged with `main` at `b5c7c8c`:** `bash run_tests.sh` passes: 4,778 tower checks (46 new), 331 foundation checks (19 new, on top of D151's 312) and 26 Python tests (the criteria's own 11 included), exit 0. The headless boot is clean. The new checks cover the carry-off, Thorns on the grab, proportional payback, recoveries of 0, 0.5 and 1.5, escape and fade, the Wall, targeting priority, no push on a thief, the power coupling, option validation, and a snapshot and replay with a thief mid-flight.
+- **Checked, on the code now in `main` (`d1fa94d`):** `bash run_tests.sh` passes: 4,778 tower checks (46 new in PR #148), 331 foundation checks (19 new, on top of D151's 312) and 26 Python tests (the criteria's own 11 included), exit 0. GitHub's CI passed on the PR. The trial's results were measured on that exact code, and this follow-up changes documents only. The headless boot is clean. The checks cover the carry-off, Thorns on the grab, proportional payback, recoveries of 0, 0.5 and 1.5, escape and fade, the Wall, targeting priority, no push on a thief, the power coupling, option validation, and a snapshot and replay with a thief mid-flight.
 - **Checked, D151 (PR #147):** merged. Its evidence is in the PR, and its checks are in the suites above.
-- **Not checked:** a phone, or a real finger, for the pop-ups. Players, Tier 2 and 3, Lifesteal, and any screen for thieves.
+- **Not checked:** a phone, or a real finger, for the pop-ups. Players, whether any of the Number's design is fun, Tier 2 and 3, Lifesteal, the Labs' cost, and any screen for thieves. The budget scenarios have 4 seeds.
 
 ## Open decisions for the owner
 
-1. **Once the trial's verdict is in: adopt, change or drop the candidate.** It will come with a recommendation. The interim finding is that Dividers rarely land, so a thief problem needs a stronger or more frequent threat than D083's gentle Divider, which the owner would have to change.
+1. **The Number: adopt, change or drop the candidate?** I'd **change it, not drop it**, because the coupling does what you asked of the Number but is far too strong, the threat is far too weak, and recovery needs a ceiling. THE_NUMBER.md 10.5 has the five proposals; the one that is yours is **a new Number-taking enemy** (so D083's gentle Divider stays), tuned near the exploratory shape and **arriving at wave 30, when Labs open**. Trade-off: the Number stays only a health pool for the first 30 waves. Nothing is built for it.
 2. **Pop-ups (D151):** does holding stay, and what next? I'd keep it and add **a one-line hint that holding reads** (nothing tells a player today), then **hold the daily Gems pill** (its tooltip never shows on a phone). Two are yours: **a confirm on End run** (it ends a run on one tap; a confirm adds a tap at ×5) and **moving the run-over panel onto a sheet** (it shades the arena). UI_POPUPS.md section 3 has the rest.
 3. **Which cards to make drawable next?** Factor, Super Tower and a rescaled Berserker are the candidates in CARDS.md. Park the rest.
 4. **Changing cards mid-run:** I'd still keep them fixed for the run.
@@ -48,10 +53,9 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 
 ## Next steps, in order
 
-1. **Agent:** re-run the trial on the fixed candidate and report every configuration, the slow phase and the labelled exploratory runs, then give the verdict against the written criteria.
-2. **Owner:** review and merge the D151 and D152 PRs, then **play a run holding tiles on a phone**: it is the one check on the pop-ups that couldn't be made, and it settles the hold's timing.
-3. **Owner:** read the Number verdict and decide (open decision 1). If the idea stands, Labs (1.2) get their first entries from it.
-4. **Owner:** sequence the six drawable-card failures and choose the next drawable candidates (open decision 3).
+1. **Owner:** read the Number verdict and decide (open decision 1). A yes to "change it" starts a second round: its criteria written first (with C2 bounded from below), then a candidate with a weaker, bounded coupling, a capped recovery and the new enemy.
+2. **Owner:** merge the results PR, and **play a run holding tiles on a phone**: it is the one check on the pop-ups that couldn't be made, and it settles the hold's timing.
+3. **Owner:** sequence the six drawable-card failures and choose the next drawable candidates (open decision 3). The coupling already makes the Health card matter, so the Number's answer changes that list.
 
 ## Known issues and limits
 
