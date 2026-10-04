@@ -2347,3 +2347,17 @@ Rules:
 - **Outcome (2026-10-04): every configuration fails** (THE_NUMBER.md 12.6). At a price of 1, shots decide no run once the Workshop's Health row has started the Number in the hundreds; a higher price kills fresh towers on wave 1 before it bites the middle. Runs end at a wall of hits rather than a drain, so the arc doesn't form. No runaway, and Regen, Starting Number and Bounty each lift the peak. The criteria stand unchanged.
 - **The agent's proposal, not accepted:** set the shot price per wave as a share of that wave's enemy Attack, so the barrier is Damage against the wave and doesn't fade as the Number grows; measure it against the same criteria, written down again first. The owner decides.
 - **Checked / not checked:** the tests (fuel options off by default, the price, the broke rule, bounties, holding fire, the ledger, validation, a snapshot round trip and replay with the ledger) and the quick balance comparison showing the game unchanged; see HANDOVER.md and the pull request. Not checked: players, Tier 2 and 3, and any screen for the fuel economy.
+
+## D156 — The Number is Cash too: run upgrades are bought with it
+
+- **Status:** Accepted (2026-10-04) on owner direction, after stage 1 (D155) found a fixed shot price can't fit Tier 1. The owner's words: "Let's also make it the cash as well, with the players aim that when they get strong enough they don't need to buy upgrades … We could also give the player the option to complete switch them off before a run, but not during", "Coins can still exist, and will be the way of upgrading the workshop permanently, so the player is stronger without sacrificing as much number to grow", and, to the agent's four rules, "Happy with all of these".
+- **Decision:**
+  1. **The Number is the run's Cash as well as its life.** Every Cash payment goes into it, and run upgrades are bought with it, never below 1.
+  2. **Regen and Lifesteal restore only what enemies took;** spending lowers their ceiling.
+  3. **Health is Workshop-only** (the Starting Number), out of the run shop and skipped by Free Upgrades.
+  4. **Interest is paid on the Number, capped per wave as now.**
+  5. **Free levels don't raise a row's run price.**
+  6. **A switch before a run turns run upgrades off for the whole run.**
+  7. **Coins and the Workshop are unchanged.**
+- **Built first as measuring options and Testing switches, off by default** (THE_NUMBER.md section 13), measured against criteria written before the code, then played by the owner. Nothing changes for a run without the switch. Adopting it for real changes AGENTS.md architectural law 4 ("run Upgrades … spend Cash"), Cash's screens, the Cash and Health cards' wording and the activity report, and supersedes D111's clean-kill growth while it is on.
+- **Checked / not checked:** see THE_NUMBER.md section 13's results, HANDOVER.md and the pull request.
