@@ -53,7 +53,8 @@ extends SceneTree
 ## peak came and the first wave whose net was negative.
 ## The Number is Cash (D156, docs/THE_NUMBER.md section 13): --number-cash pays
 ## every Cash payment into the Number and buys run upgrades with it,
-## --upgrades-off shuts the run shop for the run, and --reserve R keeps the bot
+## --lock-holds-cash (D157) keeps the Cash a standing Lock blocks and pays it all
+## in when the Lock dies, --upgrades-off shuts the run shop for the run, and --reserve R keeps the bot
 ## from spending below R times the run's best Number (0 to below 1; 0 spends
 ## down to 1). Each run prints where the Number's income came from.
 ## --knockback off zeroes the Workshop's Knockback rows and closes its group,
@@ -681,6 +682,7 @@ func _tune(sim: BattleSim, options: Dictionary) -> bool:
 	# The Number as Cash (D156), off unless asked for.
 	sim.number_cash = options.has("number-cash")
 	sim.upgrades_off = options.has("upgrades-off")
+	sim.lock_holds_cash = options.has("lock-holds-cash")
 	if options.has("reserve"):
 		sim.reserve_share = float(options.reserve)
 	# The fuel economy (D155), off unless asked for.
@@ -820,7 +822,7 @@ func _record_run(sim: BattleSim, case_id: String, run: int, cap_seconds: float) 
 	if sim.number_cash:
 		_measurements[-1].merge({"gained_from": sim.gained_from.duplicate(), "raised_by": sim.raised_by.duplicate(),
 			"free_levels": sim.free_levels.duplicate(), "paid_by": sim.paid_by.duplicate(), "locked_out": sim.locked_out,
-			"locked_seconds": sim.locked_seconds})
+			"locked_seconds": sim.locked_seconds, "lock_held": sim.lock_held})
 	if sim.fuel_active():
 		_measurements[-1].merge({"shots_paid": sim.shots_paid, "fuel_spent": sim.fuel_spent, "peak_wave": sim.peak_wave,
 			"crossing": _crossing(sim), "gained_from": sim.gained_from.duplicate(), "raised_by": sim.raised_by.duplicate()})

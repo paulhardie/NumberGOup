@@ -55,7 +55,7 @@ static func capture(sim: BattleSim) -> Dictionary:
 		state.fuel = fuel
 	if sim.number_cash:
 		state.number_cash = {"ceiling": sim._ceiling, "free_levels": sim.free_levels.duplicate(),
-			"paid_by": sim.paid_by.duplicate(), "locked_out": sim.locked_out}
+			"paid_by": sim.paid_by.duplicate(), "locked_out": sim.locked_out, "lock_held": sim.lock_held}
 	var targets := {}
 	var field: Array = []
 	for enemy in sim.enemies:
@@ -158,7 +158,8 @@ static func _valid_state(data) -> bool:
 		var held = state.number_cash
 		if not held is Dictionary or not RunConfig.number(held.get("ceiling")) or float(held.ceiling) < 0.0 \
 				or not held.get("free_levels") is Dictionary or not held.get("paid_by", {}) is Dictionary \
-				or not RunConfig.number(held.get("locked_out", 0.0)) or float(held.get("locked_out", 0.0)) < 0.0: return false
+				or not RunConfig.number(held.get("locked_out", 0.0)) or float(held.get("locked_out", 0.0)) < 0.0 \
+				or not RunConfig.number(held.get("lock_held", 0.0)) or float(held.get("lock_held", 0.0)) < 0.0: return false
 		for kind in held.get("paid_by", {}):
 			if not RunConfig.number(held.paid_by[kind]) or float(held.paid_by[kind]) < 0.0: return false
 		for id in held.free_levels:
@@ -284,6 +285,7 @@ static func restore(data) -> BattleSim:
 		for kind in data.state.number_cash.get("paid_by", {}):
 			sim.paid_by[kind] = float(data.state.number_cash.paid_by[kind])
 		sim.locked_out = float(data.state.number_cash.get("locked_out", 0.0))
+		sim.lock_held = float(data.state.number_cash.get("lock_held", 0.0))
 	if data.state.has("fuel"):
 		for key in FUEL_FLOATS:
 			sim.set(key, float(data.state.fuel[key]))
