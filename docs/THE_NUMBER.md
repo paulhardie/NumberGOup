@@ -355,7 +355,7 @@ Dropped: a digit Reverser (random, not skill), Modulo (swingy and opaque), a ÷1
 |---|---|---|
 | Basic | A square | A bare number in the plain cut. **Left plain on purpose:** it's the unit every other enemy is read against, and anything added to it repeats across every crowd |
 | Fast | A triangle | Narrow and slanted, trailing two faint copies of its number while it walks in |
-| Tank | A big square | Wide, heavy and glowing (D144), and it **loses weight as it's shot**: its cut thins from the heaviest weight towards a light one, and its mass falls with its health, never below a basic's, so Knockback moves a worn tank further |
+| Tank | A big square | Wide, heavy and glowing (D144), and its cut **thins as it's shot**, from the heaviest weight towards a light one. It keeps its weight however hurt (D154, reversing D145's mass loss), so Knockback never throws a worn tank like a basic |
 | Boss | A big shape | **A rival Number**, in the Number's own Inter. While it lives the wave line reads "Wave 10 · Boss" and fills in its glow, and a first-sight card says orbs and shockwaves can't touch it |
 | Divider | (ours) | When a ÷ lands, the Number as it stood peels away in the Divider's colour behind the Number that's left |
 
@@ -688,7 +688,7 @@ There is **no new stat**: under A, Damage and the rows that multiply a shot are 
 - **Growth compounds where it is earned:** bigger waves pay bigger bounties, so a build whose Damage keeps up sees the Number accelerate. Enemy health outgrows attack, so a build that stops keeping up loses money on each kill and the run peaks.
 - **D110's rule that nothing grows by a share of itself stays:** no interest on the Number. That is what keeps D037's loop shut.
 - **D110's pace target (a digit every 50 waves) goes,** replaced by a target the owner sets in play time. My proposal: a new best digit roughly every 30 to 60 minutes early, slowing later, so numbers get big but not "absurdly high too quickly" (the owner, D110).
-- **Showing it:** whole numbers to 999,999, then 1.23M, 4.56B, and scientific notation once the names run out. The old game's `scientific_number.gd` (commit `f4f1e95`) is the starting point.
+- **Showing it (the owner, D154):** in full, with commas, all the way to 999,999,999,999, so the digits keep ticking as it grows (built: `Palette.FULL_BELOW` is a trillion). Past that, which Tier 1 rarely reaches (11.15), it shortens; later tiers' format is decided when they come.
 
 ### 11.10 What we keep from The Tower, and what we let go
 
@@ -768,7 +768,43 @@ So the bar roughly doubles by wave 20, again by 100, then climbs steeply: **the 
 
 **Knockback: probably broken today, and in the way of measuring this** (the owner, 4 October: it "pushes tanks and bosses back way more than it should, which is likely why runs just last forever"). From the code, not yet measured:
 - A push is Knockback Force × `KNOCKBACK_METRES_PER_FORCE` ÷ the enemy's mass over a basic's. That 5 metres per unit of force is **our guess**; The Tower gives no units (`guesses.gd`).
-- At Force level 25 (4.15) a basic goes back 21 m a knock, a tank 4.3 m and a boss 1.7 m; at the last level (6.08), 30 m, 6.3 m and 2.5 m. **A worn tank sheds mass down to a basic's (D145, ours), so a nearly dead one flies the full 21 to 30 m.**
+- At Force level 25 (4.15) a basic goes back 21 m a knock, a tank 4.3 m and a boss 1.7 m; at the last level (6.08), 30 m, 6.3 m and 2.5 m. **A worn tank shed mass down to a basic's (D145, ours), so a nearly dead one flew the full 21 to 30 m; D154 removed that on the owner's word**: tanks keep their weight, can still be killed outright by Orbs, but don't fly like fast enemies.
 - The chance (up to 80%) rolls on every strike, including Multishot copies and bounces. A boss walks about 3 m a second (0.4 of a basic's 7.66). At the last levels, with about five strikes a second, it is pushed back about 10 m a second, so **it never arrives.** That would explain runs that never end once Knockback is high.
 - **The fix is for later, as the owner asked.** But it confounds the Number's measurements (a run that can't end trips the runaway check for the wrong reason), so stage 1 should run with Knockback both as it is and switched off, and report both.
+
+### 11.15 Pacing Tier 1, and the very early game (4 October 2026)
+
+**The owner's direction:** "I want to pace the number, so you don't end up in the trillions on tier 1 unless you get really deep into the run", and "later tiers are where you will have all the multipliers so the number will start running away with it". Starting with 1 Regen is accepted (D153, amended).
+
+**The Tower's own curve does most of the pacing.** A kill's bounty follows the enemy's attack, which grows slowly enough that the Number can't explode in Tier 1. A rough upper bound from the generated data: a strong build that kills everything with one shot, a bounty of a quarter of the Attack, nothing lost to hits, and no Bounty bought. The wave by which a run would first hold each amount:
+
+| Bounty share | 1,000 | 10,000 | 100,000 | 1,000,000 | 1,000,000,000 | 1,000,000,000,000 |
+|---|---|---|---|---|---|---|
+| a quarter | 32 | 62 | 116 | 213 | about 1,025 | not within 3,000 waves |
+| a half | 24 | 50 | 96 | 178 | about 890 | not within 3,000 |
+| all of it | 18 | 40 | 79 | 149 | about 770 | about 2,730 |
+
+Real runs lose Number to hits and shots and gain from bought Bounty, Cards and Labs, so this is a ceiling to calibrate against, not a forecast. What it says is that **with a modest bounty, Tier 1 reaches the billions only in very deep runs and the trillions practically never**, which is the owner's pacing. A tier's attack multiplier (×20 in Tier 2, ×60 in Tier 3) multiplies every bounty, so the Number starts running away there, as the owner wants.
+
+**The Number to beat Tier 1: 1,000,000** (proposed). The first million is the most recognisable number there is, seven digits is a moment, and in the model a strong build reaches it a little after wave 200 on base bounty. Bought Bounty would bring it nearer wave 100 to 150, about where The Tower opens Tier 2 (clearing wave 100). The digits before it would open the rest:
+
+| Digit | Opens | Model wave (a quarter share, no Bounty bought) | The Tower's equivalent |
+|---|---|---|---|
+| — | The Workshop, after the first run (as now) | — | after the first run |
+| 1,000 | Cards | about 32 | wave 20 |
+| 10,000 | Labs | about 62 | wave 30 |
+| 1,000,000 | Tier 2 | about 213 | clearing wave 100 |
+
+The model's waves run later than The Tower's because it buys no Bounty; stage 1 calibrates the bounty share and the first Bounty levels so the play time to each digit lands near The Tower's. The values here are the target ladder, which is the owner's to change.
+
+**The very early game, item by item:**
+1. **Start: Number 5, Regen 1 a second, shots 1 each** (accepted). Shooting is free at the start, and the first Attack Speed purchase tips you into spending more than Regen gives.
+2. **Regen sustains, kills grow.** Keep D111's rule that Regen refills only up to the run's best, so the Number climbs from kills (bounties), never from waiting. Regen pays for shooting; bounties are growth.
+3. **The Regen row needs rescaling.** The Tower's first Regen levels add hundredths of a point a second, invisible beside a base of 1. Its values should scale so a first level is a step the player notices (for example ten times as large); measured in stage 1.
+4. **Fractions early.** A wave-1 bounty is about 0.3. The kill pops should show one decimal while they're under 10, and the Number tenths while it's under 100 (as it already does under 1,000 in `Palette.number`'s style), so the opening moves visibly.
+5. **No paying for doomed shots.** Under a fixed price, a shot still flying at an enemy that an earlier shot kills is Number spent for nothing. The tower should hold fire on an enemy that shots already in flight will kill. The Tower doesn't do this, but it removes a cost the player can't see or control.
+6. **Any kill by a shot pays.** D111 paid only for clean kills (the enemy hadn't hit yet); with hits already costing Number, a simpler rule reads better.
+7. **The first run's Coins.** Coins come from the peak (11.6), so the formula has to give a first run of a few dozen Number about what a first run earns now, on top of the welcome's 57 (D137).
+8. **Fresh runs still end early** (C5): one that buys nothing by about wave 5, one that spreads its Cash by about wave 10.
+9. **Cash is unchanged**, so the first Damage purchase stays affordable in the first waves; it is now also the first economy purchase (11.4).
 

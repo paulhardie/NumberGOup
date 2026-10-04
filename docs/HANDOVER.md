@@ -1,17 +1,19 @@
 # Handover
 
 **Last updated:** 4 October 2026, by Claude Code.
-- Base `main` is `5667bd6`, including D150's balance harness (PR #143), the Tier research (PRs #144 to #146), D151, menus and pop-ups (PR #147), [PR #148](https://github.com/paulhardie/NumberGOup/pull/148) (D152, the Number-as-capital candidate: measuring options, off by default, and its trial tool) [PR #149](https://github.com/paulhardie/NumberGOup/pull/149) (the trial's results, THE_NUMBER.md 10.5, and D152's outcome) PR #150 (a handover fix) and PR #151 (D153 and its design note). None of it changes game behaviour or a save format, and the public version stays 0.9.
-- Branch `claude/number-first-design` carries the owner's choices on that note (a fixed price per shot, set per tier), documents only, in its own pull request. The play folder follows `origin/main` through `com.paulhardie.ngu-sync`; none of this changes what you play.
+- Base `main` is `2c08a39`, including D150's balance harness (PR #143), the Tier research (PRs #144 to #146), D151's menus and pop-ups (PR #147), D152's Number-as-capital trial (PRs #148 and #149, measuring options off by default), and D153's design note with the owner's choices (PRs #151 to #153: a fixed price per shot, set per tier, and the mechanics in numbers). None of that changes game behaviour or a save format, and the public version stays 0.9.
+- Branch `claude/number-pacing` carries **D154, which does change the game**: tanks keep their weight as they're hurt, and the Number is written in full up to 999,999,999,999. It also adds THE_NUMBER.md 11.15 (pacing Tier 1 and the very early game). The play folder follows `origin/main` through `com.paulhardie.ngu-sync`, so none of it is in the game until that pull request merges.
 - The pre-rebuild game is commit `f4f1e95`.
 
 ## Start here
 
-Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md). Fetch and inspect the checkout before editing. Accepted choices live in [DECISIONS.md](DECISIONS.md); grep it by ID. The next free ID is **D154**. The public version stays **0.9**.
+Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md). Fetch and inspect the checkout before editing. Accepted choices live in [DECISIONS.md](DECISIONS.md); grep it by ID. The next free ID is **D155**. The public version stays **0.9**.
 
 ## Where the game is
 
 Tier 1 and every Workshop group work.
+- **Tanks keep their weight (D154, on the branch):** a hurt tank weighs what a fresh one does, so Knockback barely moves it at any health. One strong enough hit still kills it outright. Before, a worn tank shed mass to a basic's and flew.
+- **The Number is written in full to a trillion (D154, on the branch):** 1,000,000 and beyond keep every digit ticking; it shortens to 1.00T only at a trillion. Not yet seen on a phone, where twelve digits may crowd the top bar.
 - **The Number is the tower.** Flat enemies subtract from it, Dividers divide it, and the Lock (from wave 35) holds its growth. It is still only a health pool in the game (THE_NUMBER.md section 9). Section 10 tried a fix; section 11 is the new direction (D153).
 - **Enemies:** the five base enemies read as ours (D145).
 - **Cards (D146, D147):** they open at Tier 1 wave 20 (the dock shows them then, and the run pays 10 Gems). Eleven of The Tower's cards are built, laid out as a grid with a card's details on tap, and save version 3 holds the collection.
@@ -27,7 +29,9 @@ The owner decided the Number is what the player plays for and waves are the test
 - **The run's arc:** survive, sustain (a net-rate readout under the Number), grow, then hit the wall where prices outgrow income. The peak is the score.
 - **The best Number is the record, Coins come from the run's peak, and digits open systems**, set by measurement so play time to Cards, Labs and Tier 2 stays about where it is.
 - **The Workshop's rows each get a job:** Health becomes Starting Number, Coins / Kill becomes Bounty, Damage and the shot-multiplying rows are the efficiency (no new stat), and kills by Orbs, Thorns and Mines pay no bounty.
-- **Pacing:** growth compounds where it's earned and every run peaks; no interest on the Number (D110's guard stays), and a new digit pace in play time for the owner to set.
+- **Pacing (11.15):** the owner wants Tier 1 in the billions only deep into a run and the trillions practically never, with later tiers' multipliers making it run away. A one-shot-everything model puts a quarter-share bounty at 1,000 by wave 32, 1,000,000 by 213, a billion about 1,025 and no trillion within 3,000 waves, so The Tower's own curve does the pacing.
+- **The Number to beat Tier 1: 1,000,000** (proposed), with Cards at 1,000 and Labs at 10,000; stage 1 calibrates the bounty so the play time to each lands near The Tower's (waves 20, 30 and 100).
+- **Starting Regen 1 a second is accepted** (shots free at the start). 11.15 lists the rest of the very early game: rescale the Regen row, show tenths early, hold fire on enemies already doomed by shots in flight, pay for any shot kill, and calibrate first-run Coins.
 - **Proof in stages, measure-only first,** with draft criteria to agree before anything is built (11.13).
 
 ## The Number as capital (D152, 3 October 2026): tried, and the declared candidate failed
@@ -50,7 +54,9 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 
 ## Checked, and not checked
 
-- **Checked, on the code now in `main`:** `bash run_tests.sh` passes: 4,778 tower checks (46 new in PR #148), 331 foundation checks (19 new, on top of D151's 312) and 26 Python tests (the criteria's own 11 included), exit 0. GitHub's CI passed on the PR. The trial's results were measured on that exact code, and PR #149 changed documents only. The headless boot is clean. The checks cover the carry-off, Thorns on the grab, proportional payback, recoveries of 0, 0.5 and 1.5, escape and fade, the Wall, targeting priority, no push on a thief, the power coupling, option validation, and a snapshot and replay with a thief mid-flight.
+- **Checked, D154 (PR #154):** `bash run_tests.sh` passes: 4,780 tower checks (a nearly dead tank weighs a fresh one's and Knockback moves it no further; the Number in full to 999,999,999,999 and 1.00T at a trillion; a twelve-digit best fits the home emblem), 331 foundation checks and 26 Python tests, exit 0. The headless boot is clean. The full balance comparison moved three of nineteen scenarios, all slightly: the 100K spread build's median wave fell 66 to 63 (one seed −3, one +1, four seeds), the 100K blender's and Tier 3's peak Numbers by under 2. Every design expectation reads as before, and the quick and full baselines are re-recorded on this code, so merging accepts them.
+- **Not checked, D154:** a twelve-digit Number on a phone, in the ring or shrunk in the home emblem.
+- **Checked, on the code in `main` before D154:** `bash run_tests.sh` passes: 4,778 tower checks (46 new in PR #148), 331 foundation checks (19 new, on top of D151's 312) and 26 Python tests (the criteria's own 11 included), exit 0. GitHub's CI passed on the PR. The trial's results were measured on that exact code, and PR #149 changed documents only. The headless boot is clean. The checks cover the carry-off, Thorns on the grab, proportional payback, recoveries of 0, 0.5 and 1.5, escape and fade, the Wall, targeting priority, no push on a thief, the power coupling, option validation, and a snapshot and replay with a thief mid-flight.
 - **Checked, D151 (PR #147):** merged. Its evidence is in the PR, and its checks are in the suites above.
 - **D153's design note** is documents only: nothing ran for it. Its worked example (11.4) uses the owner's screens' enemy stats and guessed prices, not measurements.
 - **Not checked:** a phone, or a real finger, for the pop-ups. Players, whether any of the Number's design is fun, Tier 2 and 3, Lifesteal, the Labs' cost, and any screen for thieves. The budget scenarios have 4 seeds.
@@ -60,7 +66,8 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 1. **The Number-first design (THE_NUMBER.md 11.12):** shot pricing is settled (a fixed price per shot, set per tier). What's left before stage 1:
    - **When broke: the tower goes quiet, or fires a free weak shot?** I'd go quiet, never below 1.
    - **Orbs, Thorns and Mines:** their kills pay no bounty until a Lab for each gives them a share, capped at half (the owner's idea; 11.14).
-   - **A starting Regen equal to the fresh fire rate,** so shooting is free at the start and the first Attack Speed purchase is the first decision? I'd say yes (11.14).
+   - **The digit ladder (11.15):** Tier 2 at 1,000,000, Cards at 1,000, Labs at 10,000? I'd take it as the target to calibrate to.
+   - **The early-game items in 11.15:** a Regen row ten times as large, holding fire on doomed targets, and any shot kill paying. I'd build each as a stage-1 switch.
    - **A bounty of about a quarter of the enemy's Attack,** so the shooting barrier isn't solved by one cheap Damage purchase? A guess to measure (11.14).
    - **Keep Cash for run upgrades in v1?** I'd keep it; one big change at a time.
    - **The pace of new digits,** early and late (proposal in 11.9).
@@ -72,13 +79,13 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 
 ## Next steps, in order
 
-1. **Owner:** merge the note's update, and answer what you can of open decision 1; none of it blocks stage 1.
+1. **Owner:** merge PR #154 (D154 and the pacing note), and answer what you can of open decision 1; none of it blocks stage 1.
 2. **Agent, on a go:** write the stage-1 criteria into THE_NUMBER.md first (from the draft in 11.13), then build the fuel economy as off-by-default measuring options with `sim_runs.gd` and `number_trial.py` support, and report every run.
 3. **Owner:** **play a run holding tiles on a phone**: it is the one check on the pop-ups that couldn't be made, and it settles the hold's timing.
 
 ## Known issues and limits
 
-- **Knockback is probably too strong** (the owner, 4 October): at high levels it pushes tanks and bosses back faster than they walk, so they never arrive and runs never end. Our 5 metres per unit of force is a guess, and worn tanks shed mass to a basic's. The diagnosis is in THE_NUMBER.md 11.14; the fix waits until the Number's role is settled, but stage 1 measures with it on and off.
+- **Knockback is probably still too strong** (the owner, 4 October): at high levels it pushes tanks and bosses back faster than they walk, so they never arrive and runs never end. D154 removed the worn-tank mass loss; what's left is our guessed 5 metres per unit of force and a chance that rolls on every strike. The diagnosis is in THE_NUMBER.md 11.14; the rest of the fix waits until the Number's role is settled, but stage 1 measures with it on and off.
 - **A first-sight card only shows past the player's best wave.**
 - **Unbuilt cards are hidden, not shown locked.**
 - **Nothing tells a player that holding reads** (D151), and the daily pill's explanation is a hover tooltip, which a phone never shows.
