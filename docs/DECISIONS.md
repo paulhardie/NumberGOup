@@ -2307,3 +2307,15 @@ Rules:
 - **Not decided:** the values, which Labs, whether to adopt, and the Lifesteal rework.
 - **Outcome (2026-10-03):** the declared candidate failed its pass criteria, and no configuration on its grid can pass: thieves were too rare at Tier 1's Divider, the power coupling was far too strong even at its lowest value, and a recovery over 1 made the Number run away. [THE_NUMBER.md section 10.5](THE_NUMBER.md#105-results) has every run and what to change. Whether to change it, drop it or adopt anything is still the owner's, and no rule in the game has changed.
 - **Checked / not checked:** the trial is bots, not players. The feel the owner asked for, the dopamine of a rise and the protectiveness, is not something a bot can read, so it needs the owner's play after any pass.
+
+
+## D153 — The Number is the goal; waves are the test
+
+- **Status:** Accepted (2026-10-04) on owner direction: "Number is the goal, write the design note." The agent had laid out the fork (waves as the goal with the Number as the means, or the reverse) and recommended this one. With it, the owner's own sketch: "I already can see in my head that 1 basic shot costs 1 number, number regen is giving us extra number to compensate, but then we have a barrier as a player to overcome of 'Okay I'm now regenning more than I am losing on shooting now etc'".
+- **Decision (the owner's):**
+  1. **The Number is what the player plays for;** waves are the obstacle course that tests it. The game is to grow into its own thing (D152), and anything kept from The Tower that pulls against this goal can go.
+  2. **Shots are paid for out of the Number,** Regen and kills earn it back, and the first barrier a player clears is spending no more than they earn.
+- **Proposed, not accepted:** the design note in [THE_NUMBER.md section 11](THE_NUMBER.md#11-the-number-is-the-goal-4-october-2026-d153-design-note): pricing shots per damage (B) rather than per shot (A), the best Number as the record, Coins from the run's peak, digits opening systems, the Workshop's rows given Number jobs, the pacing target, and the staged proof with draft criteria. Its open questions (11.11) are the owner's.
+- **Would revisit when the design is accepted:** D149 A (The Tower's shape and benchmarks), D110 (the digit pace; its rule against growth by a share of itself stays), D111, D125 and D136 (systems revealed by waves), D131 (digits open identity only), D074 (Coins per kill), and D152's power coupling. AGENTS.md law 4 (run Upgrades spend Cash) stands for v1.
+- **Nothing is built,** and nothing in the game changes.
+

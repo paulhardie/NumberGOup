@@ -1,6 +1,6 @@
 # The Number: design considerations
 
-**Status:** the direction is decided (D080), its four decisions are answered (D081, section 6), and the enemy design is answered and built (D082, section 7): the Number in the centre, and the Divider. Since then the owner removed the Number's ceiling and made Tier 1's Divider gentle (D083: ÷1.25, then ÷1.5). What's left for 1.0 is the owner playing it. Section 9 (2 October 2026) reopens what the Number *is*: it is measurably a health pool. Section 10 (3 October 2026) is the owner's answer (D152): the Number is the player's capital, tried as a measure-only candidate against criteria written down first. This page is the working list of everything that changes now that the tower *is* a number; the owner's answers go into [`DECISIONS.md`](DECISIONS.md), and this page is updated to match.
+**Status:** the direction is decided (D080), its four decisions are answered (D081, section 6), and the enemy design is answered and built (D082, section 7): the Number in the centre, and the Divider. Since then the owner removed the Number's ceiling and made Tier 1's Divider gentle (D083: ÷1.25, then ÷1.5). What's left for 1.0 is the owner playing it. Section 9 (2 October 2026) reopens what the Number *is*: it is measurably a health pool. Section 10 (3 October 2026) is the owner's answer (D152): the Number is the player's capital, tried as a measure-only candidate against criteria written down first. Section 11 (4 October 2026) is the owner's next step (D153): **the Number is the goal and waves are the test**, with a design note proposing shots paid for out of the Number. This page is the working list of everything that changes now that the tower *is* a number; the owner's answers go into [`DECISIONS.md`](DECISIONS.md), and this page is updated to match.
 
 ## The direction, in the owner's words
 
@@ -579,3 +579,147 @@ At 0.2 the Health card's gain is 21% and 20% of the Damage card's on the early a
 3. **Recovery capped at 1** (Labs raising it from a quarter to the whole bite), with any over-100% hit a bounded bonus, never a share of the bite each time.
 4. **A coupling weaker than the grid's 0.1, or bounded** (a ceiling on the multiplier), tested against the same career window.
 5. **Criteria for the second round written first, again,** with C2 bounded from below.
+
+---
+
+## 11. The Number is the goal (4 October 2026, D153): design note
+
+**Status:** the owner decided the goal (D153): the Number is what the player plays for, and waves are the test it faces. Everything below is a **proposal for the owner to accept or change; nothing is built**. It supersedes section 10's next round: the trial (10.5) showed a coupling makes the Number matter, and this turns that into the game's spine.
+
+### 11.1 The decision, and the owner's sketch
+
+The owner chose the Number over waves as the goal, then sketched the core of it: "1 basic shot costs 1 number, number regen is giving us extra number to compensate, but then we have a barrier as a player to overcome of 'Okay I'm now regenning more than I am losing on shooting now'".
+
+That sketch solves what section 9 found missing. Today the Number is a health pool: nothing at the walls depends on its size or state. If every shot is paid for out of the Number, then the Number is the tower's fuel as well as its health, and running low means you can't fight.
+
+### 11.2 The one rule: the Number is fuel, health and score
+
+| The Number goes up from | The Number goes down from |
+|---|---|
+| Regen, every second | Every shot the tower fires (11.3) |
+| Kills: each pays a bounty | Enemies' hits, as now, through the defences |
+| Buying Starting Number (today's Health row) before a run | Dividers' ÷, and later thieves (D152) |
+
+Nothing else moves it: no spending it on upgrades in v1 (Cash stays the run's currency, AGENTS.md law 4), and no decay. A rise has an author (the player's build) and a fall has an author (an enemy, or the tower's own shots), the rule section 10 proposed.
+
+### 11.3 How shots are priced: the decision that shapes everything
+
+Two ways to read "1 basic shot costs 1 Number". Both start exactly there (a fresh tower's 3-damage shot costs 1).
+
+| | **A. A fixed price per shot** (the sketch as written) | **B. A price per damage dealt** |
+|---|---|---|
+| The rule | Every shot costs 1, whatever its damage | Each point of damage that lands costs 1 ÷ Efficiency (3 at the start, so a fresh shot costs 1). Overkill isn't charged |
+| Damage | Makes every Number go further | Kills faster; costs the same per kill |
+| Attack Speed | Spends faster: the sustain barrier is Regen against shots a second | Spends faster, kills faster; same price per kill |
+| What a kill costs | Falls as you upgrade Damage | Its health ÷ Efficiency, whatever your build: **every enemy and every boss has a price in Number** |
+| The boss wall | Still about killing speed | **About whether you can afford the boss.** A wave-30 boss that costs more than you hold can't be finished |
+| Late game | Once the Number is in the thousands, 1 a shot is noise: the economy solves itself for good and the Number is a health pool again | The price grows with the enemies, so the economy never solves itself; Efficiency has to keep up |
+| New stat | None | Efficiency (a new row; crits count as free damage, so the crit rows become efficiency too) |
+
+**I'd recommend B**, because it is the only version where the Number's size decides the wall, which is what section 9 says has to be true, and it never quietly turns back into a health pool. Every Number lost to an enemy is boss budget lost, which is exactly the protectiveness the owner asked for (D152). Trade-off: one more stat to explain, and the satisfying "Damage makes each Number go further" of A becomes Efficiency's job.
+
+**When the Number can't pay:** a shot never takes the Number below 1, so the tower can't shoot itself dead; when it's broke it goes quiet and the enemies close in. That is the end of a run, and it is legible: you ran out. (The gentler alternative, a free weak "pilot" shot, is open in 11.11.)
+
+### 11.4 The run's arc: the barriers a player clears
+
+1. **Survive.** The Starting Number carries the first waves, and early kills pay more than they cost.
+2. **Sustain.** The owner's barrier: income (Regen and bounties) at least matches spending (shots and hits). The screen shows it as a net rate under the Number ("+3.2/s" in green, "−1.4/s" in red), so crossing it is a moment the player sees.
+3. **Grow.** The surplus banks, the Number climbs, and kills pop. This is the dopamine.
+4. **The wall.** Enemies' prices outgrow income, the net rate turns red, the Number peaks and drains, and the boss you can't afford ends it. **The peak is the run's score.**
+
+Between runs the Workshop pushes each crossing later, which is D152's test ("I can't wait to invest enough into stats so this problem is solved"): every barrier is a crossing of two numbers the player can read.
+
+Illustrative, with B, Efficiency 3 and a kill paying its enemy's Attack (today a clean kill pays 5% of it, D111), on the owner's screens' basic enemy:
+
+| Wave | Basic's health | Bounty (its Attack) | Price to kill (health ÷ 3) | Net per kill |
+|---|---|---|---|---|
+| 1 | 2.35 | 1.18 | 0.78 | +0.40 |
+| 2 | 3.31 | 1.39 | 1.10 | +0.29 |
+| 5 | 7.20 | 2.30 | 2.40 | −0.10 |
+| 8 | 12.15 | 3.56 | 4.05 | −0.49 |
+| 22 | 63.11 | 15.90 | 21.04 | −5.14 |
+
+A fresh tower profits on its first kills and turns net-negative around wave 5, close to where a fresh Tower run dies (waves 3 to 8). It works because The Tower's enemy health outgrows its attack, so a kill's profit shrinks wave by wave unless Efficiency and Bounty keep up. That shrinking is also what bounds the economy (11.10). The numbers are guesses to be measured, not a tuning.
+
+### 11.5 What the player chases
+
+- **The record is the best Number,** by tier. Best wave is still shown, beneath it.
+- **Coins come from the run's peak Number,** not from kills and waves, so pushing the Number is what pays. Proposal: Coins grow with the peak as a power below 1, calibrated so today's typical runs earn about what they do now. The Coins / Kill and Coins / Wave rows go (11.6).
+- **Digits open systems.** The Workshop still opens after the first run; Cards, Labs and Tier 2 open at Number digits, set by measurement so they arrive at about the same play time as The Tower's waves 20, 30 and 100. D131's typefaces stay as the identity reward for each digit, on top.
+- **Tiers still pose a new problem each** (D112), and open by Number.
+
+### 11.6 The Workshop, reworked
+
+The rows stay The Tower's, with its Coin prices, but each has a job in the Number's economy:
+
+| Job | Rows | Change |
+|---|---|---|
+| **Budget** | Health | Becomes Starting Number: the fuel a run opens with |
+| **Income** | Health Regen; Coins / Kill Bonus; Lifesteal | Regen stays. Coins / Kill Bonus becomes **Bounty** (Number per kill). Lifesteal becomes a share of each kill's price refunded |
+| **Efficiency** (with B) | Critical Chance and Factor, Super Crit; a new **Efficiency** row | Crits are free damage, so they make each Number go further |
+| **Speed** | Damage, Attack Speed, Range, Damage / Meter, Multishot, Bounce Shot, Rapid Fire, Rend Armor, Knockback, Shockwave | Unchanged: they kill before enemies arrive. With B they spend faster too |
+| **Guard** | Defense % and Absolute, the Wall, Thorns, Death Defy, Recovery Packages | Unchanged: they keep the Number from enemies |
+| **Free killers** | Orbs, Thorns' damage, Land Mines | **Pay for their damage like shots** (open, 11.11): otherwise they print Number for free |
+| **Run economy** | Cash Bonus, Cash / Wave, Interest, Free Upgrades | Unchanged while Cash stays the run's currency |
+| **Meta** | Coins / Wave | Goes: Coins come from the peak |
+| **Enemy Level Skip** | Health and Attack skip | Unchanged; with Bounty tied to Attack, skipping Attack also lowers bounties, a real trade |
+
+Cards follow the rows: the Health card becomes a Starting Number card and Health Regen an income card, so D149's dead cards get a job. Labs get their first entries here (Efficiency, Regen, Bounty), on the research engine D126 built.
+
+### 11.7 The threats to the Number
+
+- **Flat hits** (The Tower's enemies) subtract as now, but now they also cost fuel.
+- **Bosses** are price tags: a boss's health ÷ Efficiency. The screen can show it ("Boss: 4.2K"), which keeps the vision's honesty test: every number that ends a run was visible before it did.
+- **Dividers** take a share of the war chest. They stay gentle in Tier 1 (D083); a share-based hit is a tax, not the main threat (D001's lesson).
+- **The Lock** holds the Number's growth, as now.
+- **Thieves** (D152) can return later as a separate enemy, with recovery capped at 1 so they can't become a Number printer (10.5).
+
+### 11.8 Pacing: how big, how fast
+
+- **Growth compounds where it is earned:** bigger waves pay bigger bounties, so the Number accelerates while the build keeps up. Prices grow faster (health outgrows attack), so every run peaks, and the Workshop pushes the peak.
+- **D110's rule that nothing grows by a share of itself stays:** no interest on the Number. That is what keeps D037's loop shut.
+- **D110's pace target (a digit every 50 waves) goes,** replaced by a target the owner sets in play time. My proposal: a new best digit roughly every 30 to 60 minutes early, slowing later, so numbers get big but not "absurdly high too quickly" (the owner, D110).
+- **Showing it:** whole numbers to 999,999, then 1.23M, 4.56B, and scientific notation once the names run out. The old game's `scientific_number.gd` (commit `f4f1e95`) is the starting point.
+
+### 11.9 What we keep from The Tower, and what we let go
+
+| Keep | Let go |
+|---|---|
+| The battle: the tower in the middle, enemies walking in, shots, defences | Waves as the goal, and wave milestones as the gates (D125, D136) |
+| The Tower's enemies, their stats and spawns (generated data) | Best wave as the headline record |
+| The 26 s + 9 s wave rhythm | Coins per kill and per wave (D074) |
+| The Workshop's structure and Coin prices | Health as its own stat, apart from the Number |
+| Tiers that break the last answer, Cards, Labs, Cash for run upgrades (for now) | The Tower's benchmarks as pass or fail (D149 A): kept as a sanity reference only |
+| | D152's power coupling, replaced by fuel |
+
+### 11.10 Risks
+
+- **D037's loop.** Kills pay the Number that pays for the shots that make kills. It is bounded only because a kill's profit shrinks with the wave, and that has to be measured; the criteria include a runaway check (10.5 showed how fast an unbounded loop runs away).
+- **Losing The Tower as proof of fun.** Its benchmarks were the only outside check that the pace felt right. The owner's play becomes the real gate, so a playable build should come early, behind a switch.
+- **A death spiral that feels unfair.** When broke, the tower goes quiet. That is dramatic, but if it comes without warning it is frustrating; the net-rate readout and boss price are what make it fair.
+- **A busy Number.** It moves constantly (down a little each shot, up with each kill). The screen has to make the trend readable, not just the value.
+- **Size.** This touches `BattleSim`, the economy, Coins, milestones, saves and screens: high risk under QUALITY_GATES. It goes in stages, measure-only first (11.12). Workshop ranks and Coins carry over; milestone claims change, so saves need a migration.
+
+### 11.11 Open questions for the owner
+
+1. **Shots: a fixed price (A) or a price per damage (B)?** I'd choose B (11.3).
+2. **When broke: the tower goes quiet, or fires a free weak "pilot" shot?** I'd go quiet (dramatic and legible), never below 1.
+3. **Free killers (Orbs, Thorns, Mines): pay for their damage like shots?** I'd say yes: one rule, no free printer. Trade-off: they lose their "free" appeal.
+4. **Cash: keep it for run upgrades, or buy upgrades with the Number?** I'd keep Cash for v1 and revisit once the fuel economy is measured. One big change at a time.
+5. **The pacing target:** how often a new best digit, early and late. Proposed in 11.8.
+6. **Digit unlocks and the Coins formula:** I'd set them by measurement so play time to Cards, Labs and Tier 2 stays about where it is.
+
+### 11.12 How we'd prove it
+
+In stages, each played by the owner before the next (REBUILD_SPEC rule 5):
+
+1. **The fuel economy, measure-only:** shot prices, Efficiency and Bounty as off-by-default options in `BattleSim`, with `sim_runs.gd` and `number_trial.py` reporting peak Number, the sustain crossing and the net rate. Criteria written and agreed first. A draft:
+   - **C1. The Number decides the wall:** making shots free moves the median wave by 2 or more in every build at both budgets.
+   - **C2. The sustain barrier exists, and the Workshop moves it:** a fresh tower turns net-negative between waves 3 and 10, and a 10K-Coin build at least 10 waves later.
+   - **C3. Runs have an arc:** the median run's peak Number comes before its last 3 waves.
+   - **C4. No runaway:** no build reaches the 3-hour cap at 100K Coins, and no single source supplies most of the Number.
+   - **C5. The early game holds:** fresh runs end by wave 10.
+   - **C6. The stats that should matter do:** Regen, Starting Number and Efficiency each raise the median peak Number by at least 10% at Workshop level 25 against level 0.
+2. **Coins from the peak and digit unlocks:** economy and saves, high risk, with migration fixtures.
+3. **The screen:** the net rate, boss prices, the drain and the pops.
+4. **The owner plays it,** and decides whether The Tower's shape goes for good.
