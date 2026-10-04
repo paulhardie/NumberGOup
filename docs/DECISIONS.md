@@ -2335,3 +2335,13 @@ Rules:
 - **Not touched:** the rest of Knockback's suspected strength (our 5 m per unit of force, and the knock rolling on every strike; THE_NUMBER.md 11.14) waits until the Number's role is settled, as the owner asked.
 - **Checked:** the tests and the full balance comparison; see the pull request and HANDOVER.md. **Not checked:** how a twelve-digit Number looks inside the range's ring, or shrunk in the home emblem, on a phone; a test checks only that it fits.
 
+
+## D155 — Stage 1 of the Number-first design: the fuel economy, measure-only
+
+- **Status:** Accepted (2026-10-04) on the owner's "go" to stage 1 of THE_NUMBER.md 11.13, with its six draft criteria and a Multishot build added to the runaway check (the agent's suggestion, which the owner's "go" answered).
+- **Decision:**
+  1. **Build the fuel economy as measuring options**, off by default and recorded in a run only while on: a price per shot, a bounty per kill as a share of the enemy's Attack, a share of that for Orbs, Thorns and Mines, a starting Regen, a Regen row scale, and holding fire on enemies already doomed by shots in flight (THE_NUMBER.md 12.1).
+  2. **The criteria, configurations and rules are fixed in THE_NUMBER.md section 12 before the options exist**, and are not changed after results are seen.
+  3. **Nothing in the game, a save or the combat contract changes** until the owner has read the results and chosen what to build.
+- **The agent's choices inside the options, not separately accepted:** Coins / Kill stands in for the Bounty row; Dividers and Locks pay a basic's bounty (they have no Attack, and killing them shouldn't be pure cost); Multishot copies and Bounce Shot bounces are free and their kills pay; the tower never fires below a Number of 1.
+- **Checked / not checked:** see THE_NUMBER.md section 12's results, HANDOVER.md and the pull request.

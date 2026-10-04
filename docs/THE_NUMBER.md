@@ -808,3 +808,52 @@ The model's waves run later than The Tower's because it buys no Bounty; stage 1 
 8. **Fresh runs still end early** (C5): one that buys nothing by about wave 5, one that spreads its Cash by about wave 10.
 9. **Cash is unchanged**, so the first Damage purchase stays affordable in the first waves; it is now also the first economy purchase (11.4).
 
+
+## 12. Stage 1: the fuel economy, measured (4 October 2026, D155)
+
+The owner said "go" to stage 1 (11.13) with its six draft criteria, plus a Multishot build in the runaway check. This section fixes the criteria, the configurations and the rules **before the options exist**, as section 10 did. Nothing here changes the game: every option is off by default, recorded in a run only while it is on, and played only by `tools/sim_runs.gd` and `tools/fuel_trial.py`.
+
+### 12.1 What stage 1 builds
+
+`BattleSim` measuring options, each off by default:
+
+| Option | What it does | Off |
+|---|---|---|
+| `shot_price` | Every volley the tower fires costs this much Number; Multishot's copies and Bounce Shot's bounces are free (11.3). A shot is never fired if it would leave the Number below 1: the tower goes quiet until Regen or a kill pays for it | 0 |
+| `bounty_share` | A kill by a shot (a bounce's too) pays this share of the enemy's Attack, times Coins / Kill (standing in for the Bounty row, 11.7), through the same Lock rule as today (none while a Lock stands). It replaces D111's clean-kill growth while the fuel economy is on, so any shot kill pays (11.15, item 6). Dividers and Locks, which have no Attack, pay a basic's | 0 |
+| `free_bounty_share` | Kills by Orbs, Thorns and Mines pay this share of a shot kill's bounty, at most 0.5: the Labs that wake the free killers (11.14) | 0 |
+| `base_regen` | Regen a second added to the Health Regen row: the starting Regen the owner accepted (D153) | 0 |
+| `regen_scale` | Multiplies the Health Regen row (11.15, item 3) | 1 |
+| `hold_doomed` | The tower doesn't fire at an enemy that shots already in flight will kill, counting their damage before anything that would only add to it (so it may still waste a shot, never hold one it needed) | off |
+
+**The fuel economy is on** whenever `shot_price` or `bounty_share` is above 0. While it is on, a run also keeps a ledger: the shots paid for and their cost, what bounties paid, the wave the peak was set, and each wave's income and spending. `sim_runs.gd` gets a flag for each option, plus `--knockback off` (the Workshop's Knockback rows at 0 and its group closed), `--row-levels ID:N,...` (set rows to Workshop levels, opening their groups) and a `multishot` Workshop plan (Multishot and Bounce Shot opened and bought beside the core rows).
+
+### 12.2 Definitions
+
+- **A wave's net:** what the Number gained in that wave from everything but bought Health (Regen, bounties, Lifesteal, packages), minus what shots cost and what enemies took (hits, drains, ÷). The wave a run ends in counts, up to the moment it ends.
+- **A run's crossing:** its first wave with a negative net. A run that never has one counts as its last wave plus 1.
+- **A run's peak wave:** the wave in which the Number first stood at its peak.
+- **The builds:** `core`, `turtle`, `blender` and `multishot`, each built from 10K and from 100K Coins with `--workshop-plan`, buying `core` in the run, 3-hour cap, **6 seeds** (the harness's 1 to 6). Eight cells, each judged alone.
+
+### 12.3 The pass criteria (written before the options were built)
+
+The baseline is `data/balance/full.json` on `main` (`401deb1`): fresh runs' median waves 3 (none), 6 (even) and 3 (core); 10K core 31, turtle 41, blender 31; 100K core 51, turtle 84, blender 48.
+
+1. **The Number decides the run.** With the fuel economy on, making shots free (`shot_price` 0, all else the same) adds at least 2 median waves in each of the eight build cells.
+2. **The sustain barrier exists, and investment moves it.** The fresh tower that buys nothing (`fresh_none`, 20 seeds) has its median crossing between waves 2 and 10, and the 10K core build's median crossing is at least 10 waves later than that.
+3. **Runs have an arc.** In each of the eight cells, the median run's peak wave is at least 3 waves before its last wave. A run stopped by the cap counts as having no arc.
+4. **No runaway.** At 100K Coins, no run of any build reaches the 3-hour cap with Knockback off (the blender's Knockback rows at 0; the other builds buy none). And in every cell, in the median run, no source other than bounties and bought Health lifts more than half of the Number's rise to new highs: Regen's drift, Lifesteal, packages or the free killers must not become a printer (10.5). The runs with Knockback on are reported beside it; a cap reached only with it on is Knockback's problem, not the fuel economy's.
+5. **The early game holds.** `fresh_none`, `fresh_even` and `fresh_core` (20 seeds, 10-minute cap) each have a median wave of at least 2 and at most 10, and no fresh run reaches the cap.
+6. **The stats that should matter do.** On the 10K core build, Health Regen, Health (the Starting Number) and Coins / Kill (Bounty's stand-in) each raise the median peak Number by at least 10% at Workshop level 25 against level 0, one row at a time, the rest of the build unchanged.
+
+### 12.4 Configurations
+
+- **The centre:** `shot_price` 1, `bounty_share` 0.25, `free_bounty_share` 0, `base_regen` 1, `regen_scale` 1, `hold_doomed` on.
+- **The grid, one lever at a time around the centre:** `bounty_share` 0.125 and 0.5; `regen_scale` 10; `hold_doomed` off; `free_bounty_share` 0.5. Six configurations in all, each measured on every criterion.
+
+### 12.5 Rules of the stage
+
+- Every configuration is reported, passing or not, and no seed is chosen.
+- The criteria are not changed after results are seen. If none passes, that is the finding, and any change goes to the owner as a proposal. A grid configuration that passes where the centre fails is reported as a candidate, not adopted.
+- Exploring outside the grid is allowed, labelled exploratory, and never counts as a pass.
+- A pass means the numbers hold, not that it's fun: the owner's play is the next gate (11.13, stage 5).
