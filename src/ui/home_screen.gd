@@ -37,6 +37,9 @@ const TEST_GEMS := 500
 ## The best Number, large and thin in the light, as the battle draws the Number.
 const EMBLEM_HEIGHT := 250
 const EMBLEM_NUMBER_PX := 72
+## Written in full to a trillion (D154), a long best shrinks to fit the
+## emblem's width rather than being cut off, down to this size.
+const EMBLEM_NUMBER_MIN_PX := 28
 ## The Coins count-up (D141): its shortest and longest, the extra for each
 ## digit of the gain, and the chip's pop as it lands.
 const COUNT_SECONDS := 0.6
@@ -167,6 +170,7 @@ func _ready() -> void:
 	_best_number.add_theme_font_override("font", thin)
 	_best_number.add_theme_font_size_override("font_size", EMBLEM_NUMBER_PX)
 	_best_number.add_theme_color_override("font_color", Palette.NUMBER)
+	_best_number.resized.connect(_fit_best_number)
 	emblem.add_child(_best_number)
 	body.add_child(_caption("best Number"))
 	_next_digit = _caption("")
@@ -266,6 +270,7 @@ func refresh() -> void:
 	if _coin_count == null or not _coin_count.is_running():
 		_coins.text = "● " + Palette.money(workshop.coins)
 	_best_number.text = Palette.full(ceilf(workshop.best_number))
+	_fit_best_number()
 	var next := workshop.next_milestone()
 	_next_digit.text = "next digit  ● %s" % Palette.money(float(next.coins)) if not next.is_empty() else "every digit reached"
 	_best_wave.text = "Tier 1  ·  best wave %d  ·  %d run%s" % [progression.best_wave(1) if progression != null and progression.records.has("1") else workshop.best_wave, workshop.runs, "" if workshop.runs == 1 else "s"]
@@ -488,6 +493,17 @@ func _press_reset() -> void:
 	_reset.text = "Reset progress"
 	Overlay.close_current(self)
 	reset_pressed.emit()
+
+
+## Shrinks the best Number until it fits the emblem's width. Before the
+## emblem has a size it stays at full size, so it never starts small and grows.
+func _fit_best_number() -> void:
+	var font := _best_number.get_theme_font("font")
+	var width := _best_number.size.x
+	var font_size := EMBLEM_NUMBER_PX
+	while width > 0.0 and font_size > EMBLEM_NUMBER_MIN_PX and font.get_string_size(_best_number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > width:
+		font_size -= 2
+	_best_number.add_theme_font_size_override("font_size", font_size)
 
 
 func _caption(text: String) -> Label:

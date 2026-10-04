@@ -359,10 +359,10 @@ static func number(value: float) -> String:
 
 
 ## The Number, and what's added to it or taken from it, written out in full
-## (D100): "1,234", "999,999", never shortened to "1.23K" until FULL_BELOW,
-## so watching it grow feels like the number going up. Small amounts keep
+## (D100, D154): "1,234", "1,234,567", never shortened until FULL_BELOW, a
+## trillion, so the digits keep ticking as it grows. Small amounts keep
 ## `number`'s decimals ("2.35"); past FULL_BELOW it shortens as `number` does.
-const FULL_BELOW := 1000000.0
+const FULL_BELOW := 1000000000000.0
 
 
 static func full(value: float, below := FULL_BELOW) -> String:

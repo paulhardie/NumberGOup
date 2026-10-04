@@ -49,7 +49,7 @@ const WAVE_BAR := Color(1, 1, 1, 0.55)
 ## new is saved.
 const FIRST_SIGHT := {
 	"lock": {"sign": "=", "text": "Lock: while it stands in range, your Number can't go up. Kill it, or knock it back."},
-	"tank": {"sign": "5×", "text": "Tank: five times a basic's health, slow and heavy. Knockback barely moves it until it's worn down."},
+	"tank": {"sign": "5×", "text": "Tank: five times a basic's health, slow and heavy. Knockback barely moves it."},
 	"boss": {"sign": "20×", "text": "Boss: twenty times a basic's health, every tenth wave. Orbs and shockwaves can't touch it."},
 }
 ## Real seconds a first-sight card stays up, unless tapped away.

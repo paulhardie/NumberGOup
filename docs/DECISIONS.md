@@ -1332,6 +1332,8 @@ Rules:
 
 ## D100 — The Number is written out in full below a million
 
+- **Superseded in part by D154:** the limit is now a trillion, not a million.
+
 - **Status:** Accepted (2026-09-27) on owner direction: "I want numbers to not start shortening at 1K. Sort of kills the feeling of 'number going up'. I was thinking 999,999, maybe even more for the number in the centre."
 - **Decision:**
   - The Number, and what's added to it or taken from it, is written in full with commas up to 999,999 (`Palette.full`). It shortens as The Tower does ("1.00M") only from a million (`Palette.FULL_BELOW`, one constant to raise if a million proves too soon).
@@ -2110,6 +2112,8 @@ Rules:
 
 ## D145 — The five base enemies read as ours
 
+- **Superseded in part by D154:** a tank no longer sheds mass as it's shot; its cut still thins.
+
 - **Status:** Accepted (2026-10-01) on owner direction: "We'll do our basic, a faster one, the tank, the divider, and boss... in their own number go up style. Think of small tweaks to differentiate them from the tower". The owner approved the plan below, including the tank's rule.
 - **Decision:** they keep The Tower's health, attack, speed and pay, since the benchmarks and Coin pace rest on them. Only how each one reads changes, plus one small rule on the tank:
   - **Basic stays plain on purpose.** A bare number in the plain cut is already our answer to The Tower's square. It's the unit every other enemy is read against, and anything added would repeat across every crowd and fight the premium-minimal look (D138).
@@ -2319,4 +2323,15 @@ Rules:
 - **Would revisit when the design is accepted:** D149 A (The Tower's shape and benchmarks), D110 (the digit pace; its rule against growth by a share of itself stays), D111, D125 and D136 (systems revealed by waves), D131 (digits open identity only), D074 (Coins per kill), and D152's power coupling. AGENTS.md law 4 (run Upgrades spend Cash) stands for v1.
 - **Amended (2026-10-04), owner:** "yes, go with A and update the note", choosing **a fixed price per shot** over a price per damage dealt, after the agent re-weighed the two for how they feel to play and changed its recommendation to A. And: "We could always increase number demands the higher the tiers go too, so it could be tier specific, with the tier being the overall difficulty". So **each tier sets the Number's demands** (its shot price first) as part of its difficulty. THE_NUMBER.md 11.3 and 11.5.
 - **Nothing is built,** and nothing in the game changes.
+
+
+## D154 — Tanks keep their weight, and the Number is written in full to a trillion
+
+- **Status:** Accepted and built (2026-10-04) on owner direction: "lets not wear tanks away and weaken their knockback. They can still be instakilled, but I don't want them flying away like fast enemies", and "I don't want the number to shorten when you hit 1 million. That constant ticking up is better visually with more numbers making movement".
+- **Decision:**
+  1. **A tank keeps its weight however hurt.** D145's mass loss is gone, and with it the `sheds_mass` trait, which nothing else used. Knockback moves a worn tank exactly as far as a fresh one. Its cut still thins as it's shot, which is drawing only, and Orbs still kill it outright. Its first-sight card no longer says Knockback moves it once worn.
+  2. **The Number, and what's added to or taken from it, is written in full to 999,999,999,999** (`Palette.FULL_BELOW`, a trillion, was a million under D100). Cash, Coins and the other short-style numbers are unchanged. The battle's Number already shrinks to fit its ring; the home screen's best Number now shrinks to fit its emblem too (it was a fixed size, and would have been cut off past ten million on a phone-wide screen).
+- **The combat contract:** no rules-version bump, as D145 added the mass loss without one. A battle resumed from a save simply continues with tanks at full weight.
+- **Not touched:** the rest of Knockback's suspected strength (our 5 m per unit of force, and the knock rolling on every strike; THE_NUMBER.md 11.14) waits until the Number's role is settled, as the owner asked.
+- **Checked:** the tests and the full balance comparison; see the pull request and HANDOVER.md. **Not checked:** how a twelve-digit Number looks inside the range's ring, or shrunk in the home emblem, on a phone; a test checks only that it fits.
 

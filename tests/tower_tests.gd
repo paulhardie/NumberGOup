@@ -2152,9 +2152,9 @@ func test_the_first_tank_comes_on_wave_5() -> void:
 	screen.free()
 
 
-## D145: the base enemies each read as ours. The tank sheds mass as it's shot,
-## down to a basic's, and thins as it does; the fast one trails its number;
-## the boss is a rival Number with a card and the wave line; a landed ÷ peels
+## D145: the base enemies each read as ours. The tank thins as it's shot but
+## keeps its weight (D154), so Knockback never throws it like a basic; the
+## fast one trails its number; the boss is a rival Number with a card and the wave line; a landed ÷ peels
 ## the Number it cut away.
 func test_the_base_enemies_read_as_ours() -> void:
 	var sim := _quiet_sim()
@@ -2163,17 +2163,15 @@ func test_the_base_enemies_read_as_ours() -> void:
 	var basic := _place(sim, "basic", 50.0)
 	var full := EnemyKinds.mass_now(tank, sim.wave)
 	check_near(full, TowerData.mass_ratio("tank"), 0.0001, "a fresh tank weighs The Tower's tank")
-	tank.health = tank.max_health * 0.5
-	check_near(EnemyKinds.mass_now(tank, sim.wave), full * 0.5, 0.0001, "half shot, half as heavy")
 	tank.health = tank.max_health * 0.01
-	check_near(EnemyKinds.mass_now(tank, sim.wave), EnemyKinds.mass_now(basic, sim.wave), 0.0001, "and never lighter than a basic")
+	check_near(EnemyKinds.mass_now(tank, sim.wave), full, 0.0001, "and nearly dead, it weighs just the same (D154)")
 	basic.health = basic.max_health * 0.5
 	check_near(EnemyKinds.mass_now(basic, sim.wave), 1.0, 0.0001, "a basic weighs the same however shot")
 	var boss := _place(sim, "boss", 50.0)
 	boss.health = boss.max_health * 0.5
 	check_near(EnemyKinds.mass_now(boss, sim.wave), TowerData.mass_ratio("boss"), 0.0001, "and so does a boss")
-	# Knockback reads it: a worn tank goes further than a fresh one.
-	for share in [1.0, 0.5]:
+	# Knockback reads it: a worn tank goes no further than a fresh one.
+	for share in [1.0, 0.1]:
 		var pushed := _quiet_sim()
 		pushed.levels = {"knockback_chance": TowerData.max_level("knockback_chance"), "knockback_force": 10}
 		var shot := _place(pushed, "tank", 20.0)
@@ -2183,7 +2181,7 @@ func test_the_base_enemies_read_as_ours() -> void:
 			pushed.step()
 			if shot.distance > 20.0:
 				break
-		var want: float = pushed.stat("knockback_force") * Guesses.KNOCKBACK_METRES_PER_FORCE / (TowerData.mass_ratio("tank") * share)
+		var want: float = pushed.stat("knockback_force") * Guesses.KNOCKBACK_METRES_PER_FORCE / TowerData.mass_ratio("tank")
 		check_near(shot.distance - 20.0, want, 0.001, "a tank at %d%% health goes %.2f m back" % [roundi(share * 100.0), want])
 	tank.health = tank.max_health
 	check(ArenaView.tank_weight_step(tank) == ArenaView.TANK_WEIGHTS.size() - 1, "a fresh tank is drawn at its heaviest")
@@ -3038,6 +3036,30 @@ func test_milestones_pay_once_when_the_best_number_reaches_a_new_digit() -> void
 	await process_frame
 
 
+## D154: the best Number is written in full to a trillion, so a long one
+## shrinks to fit the emblem on a phone-wide screen instead of being cut off.
+func test_a_long_best_number_fits_its_emblem() -> void:
+	var workshop := Workshop.new()
+	workshop.runs = 1
+	workshop.best_number = 123.0
+	var home := HomeScreen.new()
+	home.workshop = workshop
+	home.size = Vector2(390, 844)
+	root.add_child(home)
+	await process_frame
+	var font := home._best_number.get_theme_font("font")
+	check(home._best_number.get_theme_font_size("font_size") == HomeScreen.EMBLEM_NUMBER_PX, "a short best is drawn full size")
+	workshop.best_number = 999999999999.0
+	home.refresh()
+	await process_frame
+	var font_size := home._best_number.get_theme_font_size("font_size")
+	var width := font.get_string_size(home._best_number.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x
+	check(home._best_number.text == "999,999,999,999" and home._best_number.size.x > 0.0 and width <= home._best_number.size.x,
+		"twelve digits fit the emblem: %.0f px at %d in %.0f" % [width, font_size, home._best_number.size.x])
+	home.queue_free()
+	await process_frame
+
+
 ## D138: one neutral face, Inter, for words and numbers, with every glyph the
 ## screens use and every digit the same width, so a ticking number stays put.
 func test_one_neutral_font_has_every_glyph_and_steady_digits() -> void:
@@ -3062,7 +3084,8 @@ func test_numbers_read_as_the_towers() -> void:
 	check(Palette.full(2.35) == "2.35" and Palette.full(402.9) == "402", "the Number reads as number() while small")
 	check(Palette.full(1460.0) == "1,460" and Palette.full(999999.4) == "999,999", "and in full, with commas, up to 999,999")
 	check(Palette.full(12345.9) == "12,345" and Palette.full(-5000.0) == "-5,000", "whole, never rounded up past what it is")
-	check(Palette.full(1e6) == "1.00M" and Palette.full(7.42e8) == "742.00M", "shortening only from a million")
+	check(Palette.full(1e6) == "1,000,000" and Palette.full(7.42e8) == "742,000,000", "in full past a million (D154)")
+	check(Palette.full(999999999999.0) == "999,999,999,999" and Palette.full(1e12) == "1.00T", "shortening only from a trillion")
 	check(Palette.full(1e6, INF) == "1,000,000", "or never, when asked, as a milestone is")
 
 
