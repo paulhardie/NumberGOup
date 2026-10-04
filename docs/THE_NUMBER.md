@@ -857,3 +857,32 @@ The baseline is `data/balance/full.json` on `main` (`401deb1`): fresh runs' medi
 - The criteria are not changed after results are seen. If none passes, that is the finding, and any change goes to the owner as a proposal. A grid configuration that passes where the centre fails is reported as a candidate, not adopted.
 - Exploring outside the grid is allowed, labelled exploratory, and never counts as a pass.
 - A pass means the numbers hold, not that it's fun: the owner's play is the next gate (11.13, stage 5).
+
+### 12.6 Results (4 October 2026): every configuration fails, and a fixed price can't fit Tier 1
+
+Measured on the committed options (`claude/number-fuel`), the harness's seeds, nothing chosen. `python3 tools/fuel_trial.py --grid` reproduces the declared runs; the exploratory ones add `--price N`.
+
+| Configuration | C1 | C2 | C3 | C4 | C5 | C6 |
+|---|---|---|---|---|---|---|
+| **Centre** (price 1, bounty 0.25, Regen +1, hold on) | FAIL | FAIL | FAIL | pass | pass | pass |
+| Bounty 0.125 | FAIL | FAIL | FAIL | pass | pass | pass |
+| Bounty 0.5 | FAIL | pass | FAIL | pass | pass | pass |
+| Regen row ×10 | FAIL | FAIL | FAIL | pass | pass | pass |
+| Hold off | FAIL | FAIL | FAIL | pass | pass | pass |
+| Free killers 0.5 | FAIL | FAIL | FAIL | pass | pass | pass |
+| *Exploratory:* price 3 | FAIL | FAIL | FAIL | pass | pass | pass |
+| *Exploratory:* price 5 | FAIL | FAIL | FAIL | FAIL | FAIL | pass |
+| *Exploratory:* price 10 | FAIL | FAIL | FAIL | FAIL | FAIL | FAIL |
+
+What the runs show (medians; 6 seeds a build, 20 a fresh policy):
+
+1. **At a price of 1, shots don't decide anything (C1).** Free shots add 0 waves in seven of the eight build cells (2 for the 10K turtle). On the 10K core build the shots cost about 7% of the peak (1,338 paid, 1,437 free) and bounties pay back about twice what shots cost. By 10K Coins, the Health row starts a run with a Number in the hundreds, so a 1-Number shot is noise. This is 11.3's known weakness, and it arrives early in Tier 1, not late.
+2. **A higher fixed price breaks the start before it bites the middle.** At 3, fresh towers die by wave 2; at 5 and 10, on wave 1, because 5 Number can't pay for the shots that would save it (C5). Only at 10 does the price decide 10K runs (free shots add 25 to 30 waves), and even then the 100K core shrugs it off (1 wave). **Within Tier 1 the Number spans 5 to thousands, and no single price fits both ends.**
+3. **The opening can't grow the Number.** A wave-1 kill pays about 0.3 for a 1-Number shot, and Regen refills only up to the best (D111), so early bounties just save Regen work: the fresh tower's first wave nets 0.00, −0.37 and 0.00 on three seeds, and its Number sits at 5 until a kill pays more than its shot (around wave 10 for a one-shot kill at a quarter share). C2 fails on that hair: the median crossing is wave 1. A bounty of 0.5 moves it to wave 2 and passes C2.
+4. **Runs end at a wall, not a drain (C3).** In most cells the Number peaks within 2 waves of the end, with shots paid or free: enemies' hits end the run, so the arc the design wants (peak, then the price outgrowing income) never forms. Only the 100K turtle, which outlasts its income for 19 waves, has one.
+5. **No runaway (C4).** No build reaches the cap, Multishot included, and nothing but bounties and bought Health lifts the Number's highs (at the centre at most 21%, the 100K blender's Lifesteal; 29% at bounty 0.125). Knockback didn't matter: the blender ends without it too.
+6. **The stats that should matter do (C6):** at the centre, Regen +88%, Starting Number +88% and Bounty +17% on the 10K core build's peak.
+7. **Bounties lengthen runs against today's game.** The 10K core build reaches wave 38 against the baseline's 31: a quarter of the Attack on any shot kill pays far more than D111's clean-kill 5%, and the Number is still the tower's health. The bounty share moves the peak most (844, 1,338 and 2,330 at 0.125, 0.25 and 0.5) and the wave not at all.
+8. **Holding fire changed nothing:** at these fire rates a second shot almost never leaves while the first is still flying at a one-shot kill. It works (a test at top Attack Speed shows it) but costs nothing to leave off.
+
+**The finding:** a price per shot fixed for the tier can't do the job in Tier 1, because the Number's own scale grows a hundredfold inside the tier. Section 12.3's rules say a change goes to the owner as a proposal; mine is in HANDOVER.md and D155: **set the price per wave, as a share of the wave's enemy Attack**, so a kill's profit is the bounty share less the price share times the shots it takes. The barrier is then your Damage against the wave's health, the same at a Number of 5 or 5,000, re-opened as the waves grow and solved by Damage, with a boss's price still falling as you upgrade. It keeps the owner's choice of a price per shot (not per damage) and moves the per-tier price to per-wave. It would be measured against these same criteria, written down again first.
