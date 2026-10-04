@@ -223,6 +223,19 @@ var hold_doomed := false
 var shots_paid := 0
 var fuel_spent := 0.0
 var fuel_log: Array[Dictionary] = []
+## The Number is Cash (D156, THE_NUMBER.md section 13): with `number_cash` on,
+## every Cash payment goes into the Number and run upgrades are bought with it,
+## never below 1; Regen and Lifesteal refill only up to `_ceiling`, which
+## spending lowers and enemies don't; Health isn't in the run shop; and a
+## row's price counts only the levels bought, not `free_levels`. With
+## `upgrades_off` the shop is shut for the run. `reserve_share` is the bots':
+## a purchase never leaves less than that share of the run's best. All off in
+## the game unless the Testing switch is on, and recorded only while on.
+var number_cash := false
+var upgrades_off := false
+var reserve_share := 0.0
+var _ceiling := 0.0
+var free_levels: Dictionary = {}
 
 ## The highest the Number has stood this run: the run's record (D081).
 var peak_number := 0.0
@@ -307,6 +320,7 @@ func _init(seed_value: int, row_levels: Dictionary = {}, groups: Array = START_G
 	health = max_health()
 	peak_number = health
 	_high = health
+	_start_number()
 	defences.start()
 	spawns.schedule_wave()
 
@@ -335,6 +349,46 @@ func tuning_config() -> Dictionary:
 ## Whether any of the Number-as-capital trial's options is in play.
 func trial_active() -> bool:
 	return thieves or number_power > 0.0
+
+
+## With the Number as Cash (D156), the starting Cash joins the starting
+## Number, and Regen's ceiling starts where the Number does.
+func _start_number() -> void:
+	if not number_cash:
+		return
+	health += cash
+	cash = 0.0
+	peak_number = maxf(peak_number, health)
+	_high = maxf(_high, health)
+	_ceiling = health
+
+
+## What a purchase may spend: the Cash, or with the Number as Cash (D156) the
+## Number above 1, or above the bots' reserve if that's higher.
+func spendable() -> float:
+	if not number_cash:
+		return cash
+	return maxf(0.0, health - maxf(1.0, reserve_share * peak_number))
+
+
+## Cash paid with the Number as Cash (D156): into the Number, and Regen's
+## ceiling rises with it, so it stays above the Number by what enemies took.
+## A standing Lock holds the Number (D133), so Cash paid then is lost.
+func _pay_cash(amount: float, source: String) -> void:
+	if amount <= 0.0 or locked:
+		return
+	var before := health
+	health += amount
+	_ceiling += amount
+	cash_earned += amount
+	_count_gain(source, before)
+
+
+## Regen's and Lifesteal's ceiling: the higher of Health and the run's best
+## (D111), or with the Number as Cash (D156) what the Number would be had
+## enemies taken nothing, less what was spent.
+func heal_ceiling() -> float:
+	return _ceiling if number_cash else maxf(max_health(), peak_number)
 
 
 ## Whether the fuel economy (D155) is on: shots cost Number or kills pay it.
@@ -373,6 +427,7 @@ func configure_tuning(tuning: Dictionary) -> bool:
 	for key in tuning:
 		set(key, tuning[key].duplicate(true) if tuning[key] is Dictionary else tuning[key])
 	_starting_tuning = tuning_config()
+	_start_number()
 	spawns.start(run_seed)
 	spawns.divider_due = 0.0
 	spawns.schedule_wave()
@@ -393,6 +448,8 @@ func apply_effect(effect: Dictionary, domain := "stat", record := true) -> bool:
 			return false
 		var previous := health
 		health = maxf(0.0, health + max_health() - before)
+		if number_cash:
+			_ceiling += health - previous
 		_count_gain("health", previous)
 		if health == 0.0:
 			alive = false
@@ -436,20 +493,33 @@ func at_max(id: String) -> bool:
 ## What one more level of `id` costs now. The Tower prices a run's upgrades by
 ## how many of that row the run has bought, whatever the Workshop level.
 func price(id: String) -> float:
-	return TowerData.cash_price(id, int(run_levels.get(id, 0)))
+	return TowerData.cash_price(id, _bought(id))
+
+
+## The levels of `id` this run has bought: all its run levels, or with the
+## Number as Cash (D156) those less the free ones, so a free level never
+## raises the price.
+func _bought(id: String) -> int:
+	return int(run_levels.get(id, 0)) - (int(free_levels.get(id, 0)) if number_cash else 0)
 
 
 ## What a buy of `count` levels of `id` gets and costs; 0 is Max, as many as
 ## the Cash covers (TowerData.plan_buy).
 func plan(id: String, count: int = 1) -> Dictionary:
-	return TowerData.plan_buy(TowerData.upgrade(id)["cash_prices"], int(run_levels.get(id, 0)), TowerData.max_level(id) - level(id), count, cash)
+	return TowerData.plan_buy(TowerData.upgrade(id)["cash_prices"], _bought(id), TowerData.max_level(id) - level(id), count, spendable())
 
 
 func can_buy(id: String, count: int = 1) -> bool:
-	if not alive or not is_open(id):
+	if not alive or not is_open(id) or not in_shop(id):
 		return false
 	var buying := plan(id, count)
-	return int(buying.levels) > 0 and cash >= float(buying.cost)
+	return int(buying.levels) > 0 and spendable() >= float(buying.cost)
+
+
+## Whether the run shop sells `id`: not with run upgrades off, and not Health
+## with the Number as Cash, since that would buy Number with Number (D156).
+func in_shop(id: String) -> bool:
+	return not upgrades_off and not (number_cash and id == "health")
 
 
 ## Buys `count` levels of `id` (0: Max) with Cash; false, and nothing
@@ -458,7 +528,12 @@ func buy(id: String, count: int = 1) -> bool:
 	if not can_buy(id, count):
 		return false
 	var buying := plan(id, count)
-	cash -= float(buying.cost)
+	if number_cash:
+		# Spent, not taken: Regen won't give it back (D156).
+		health -= float(buying.cost)
+		_ceiling -= float(buying.cost)
+	else:
+		cash -= float(buying.cost)
 	for _level in range(int(buying.levels)):
 		_raise(id)
 	inputs.append({"tick": ticks, "buy": id, "count": count})
@@ -493,14 +568,16 @@ func _heal(amount: float, source: String) -> void:
 	if source == "regen" and held > 0.0:
 		# No drift past the best while any of a bite is held: the ceiling is
 		# below the best.
-		health += minf(amount, maxf(0.0, maxf(max_health(), peak_number) - held - health))
+		health += minf(amount, maxf(0.0, heal_ceiling() - held - health))
 	elif source == "regen":
 		# Regen restores what enemies took, up to the best this run.
-		var to_best := maxf(0.0, maxf(max_health(), peak_number) - health)
+		var to_best := maxf(0.0, heal_ceiling() - health)
 		health += minf(amount, to_best) + maxf(0.0, amount - to_best) * peak_drift
 	else:
-		var room := maxf(0.0, max_health() - health)
+		var room := maxf(0.0, (_ceiling if number_cash else max_health()) - health)
 		health += minf(amount, room) + maxf(0.0, amount - room) * overfill
+	if number_cash:
+		_ceiling = maxf(_ceiling, health)
 	_count_gain(source, before)
 
 
@@ -1138,7 +1215,7 @@ func _kill(enemy: Enemy, by := "") -> void:
 	kills_by[source] = int(kills_by.get(source, 0)) + 1
 	if fuel_active():
 		_pay_bounty(enemy, source)
-	elif enemy.hits == 0 and enemy.attack > 0.0 and not locked:
+	elif not number_cash and enemy.hits == 0 and enemy.attack > 0.0 and not locked:
 		# Killed before it could land a hit: a share of the hit it never
 		# landed grows the Number, past Health too (D098); not under a Lock.
 		var before := health
@@ -1148,8 +1225,11 @@ func _kill(enemy: Enemy, by := "") -> void:
 			events.append({"type": "grown", "enemy": enemy, "gain": health - before})
 	var paid_cash := EnemyKinds.cash(enemy, stat("cash_bonus")) * rules.value("cash_multiplier")
 	var paid_coins := EnemyKinds.coins(enemy, wave, stat("coins_per_kill"), tier, rules.value("basic_coins")) * rules.value("coin_multiplier")
-	cash += paid_cash
-	cash_earned += paid_cash
+	if number_cash:
+		_pay_cash(paid_cash, "kill_cash")
+	else:
+		cash += paid_cash
+		cash_earned += paid_cash
 	coins += paid_coins
 	if record_events:
 		events.append({"type": "kill", "enemy": enemy, "cash": paid_cash, "coins": paid_coins, "by": by})
@@ -1207,10 +1287,15 @@ func _split(scatter: Enemy) -> void:
 ## nothing).
 func _pay_wave_end() -> void:
 	var paid_cash := stat("cash_per_wave") * stat("cash_bonus") * rules.value("cash_multiplier")
-	# Interest on the Cash held, after the wave's Cash, up to its cap.
-	paid_cash += minf(rules.value("interest_cap"), (cash + paid_cash) * stat("interest"))
-	cash += paid_cash
-	cash_earned += paid_cash
+	if number_cash:
+		# Interest on the Number, after the wave's Cash, up to the same cap.
+		_pay_cash(paid_cash, "wave_cash")
+		_pay_cash(minf(rules.value("interest_cap"), health * stat("interest")), "interest")
+	else:
+		# Interest on the Cash held, after the wave's Cash, up to its cap.
+		paid_cash += minf(rules.value("interest_cap"), (cash + paid_cash) * stat("interest"))
+		cash += paid_cash
+		cash_earned += paid_cash
 	if is_open("coins_per_wave"):
 		coins += stat("coins_per_wave") * float(TowerData.tier(tier).coins) * rules.value("coin_multiplier")
 	# Recovery Packages: by its chance a wave's end heals a share of Health,
@@ -1219,6 +1304,8 @@ func _pay_wave_end() -> void:
 	if is_open("package_chance") and _combat_rng.randf() < stat("package_chance") and not locked:
 		var before := health
 		health = maxf(health, minf(package_ceiling(), health + max_health() * stat("recovery_amount")))
+		if number_cash:
+			_ceiling = maxf(_ceiling, health)
 		_count_gain("package", before)
 		if record_events:
 			events.append({"type": "package"})
@@ -1230,12 +1317,14 @@ func _pay_wave_end() -> void:
 			continue
 		var rows: Array[String] = []
 		for id in TowerData.rows():
-			if TowerData.category(id) == category and is_open(id) and not at_max(id):
+			if TowerData.category(id) == category and is_open(id) and not at_max(id) and not (number_cash and id == "health"):
 				rows.append(id)
 		if rows.is_empty():
 			continue
 		var chosen := rows[_combat_rng.randi_range(0, rows.size() - 1)]
 		_raise(chosen)
+		if number_cash:
+			free_levels[chosen] = int(free_levels.get(chosen, 0)) + 1
 		if record_events:
 			events.append({"type": "free_upgrade", "id": chosen})
 	wave_log.append({"wave": wave, "time": time, "health": health, "max_health": max_health(), "cash": cash,

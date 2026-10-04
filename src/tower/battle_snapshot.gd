@@ -30,6 +30,7 @@ const ENEMY_FLIGHT := ["carried", "carry_health", "carry_paid"]
 const FUEL_FLOATS := ["fuel_spent"]
 const FUEL_INTS := ["shots_paid", "peak_wave"]
 const FUEL_WAVE := ["income", "spent", "lost", "net"]
+## The Number as Cash's state (D156), written only while it is on.
 ## Guesses.DIVIDER's numbers that may be 0: the slow refill, off (D134).
 
 
@@ -52,6 +53,8 @@ static func capture(sim: BattleSim) -> Dictionary:
 		for key in FUEL_FLOATS + FUEL_INTS:
 			fuel[key] = sim.get(key)
 		state.fuel = fuel
+	if sim.number_cash:
+		state.number_cash = {"ceiling": sim._ceiling, "free_levels": sim.free_levels.duplicate()}
 	var targets := {}
 	var field: Array = []
 	for enemy in sim.enemies:
@@ -150,6 +153,13 @@ static func _valid_state(data) -> bool:
 			if not RunConfig.number(trial.get(key)) or float(trial[key]) < 0.0: return false
 		for key in TRIAL_INTS:
 			if not _integer(trial.get(key)) or int(trial[key]) < 0: return false
+	if state.has("number_cash"):
+		var held = state.number_cash
+		if not held is Dictionary or not RunConfig.number(held.get("ceiling")) or float(held.ceiling) < 0.0 \
+				or not held.get("free_levels") is Dictionary: return false
+		for id in held.free_levels:
+			if id not in TowerData.rows() or not _integer(held.free_levels[id]) or int(held.free_levels[id]) < 0 \
+					or int(held.free_levels[id]) > int(state.run_levels.get(id, 0)): return false
 	if state.has("fuel"):
 		var fuel = state.fuel
 		if not fuel is Dictionary or not fuel.get("log") is Array or fuel.log.size() > int(state.wave): return false
@@ -260,6 +270,11 @@ static func restore(data) -> BattleSim:
 			sim.set(key, float(data.state.trial[key]))
 		for key in TRIAL_INTS:
 			sim.set(key, int(data.state.trial[key]))
+	if data.state.has("number_cash"):
+		sim._ceiling = float(data.state.number_cash.ceiling)
+		sim.free_levels = {}
+		for id in data.state.number_cash.free_levels:
+			sim.free_levels[id] = int(data.state.number_cash.free_levels[id])
 	if data.state.has("fuel"):
 		for key in FUEL_FLOATS:
 			sim.set(key, float(data.state.fuel[key]))
