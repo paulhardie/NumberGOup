@@ -54,7 +54,8 @@ static func capture(sim: BattleSim) -> Dictionary:
 			fuel[key] = sim.get(key)
 		state.fuel = fuel
 	if sim.number_cash:
-		state.number_cash = {"ceiling": sim._ceiling, "free_levels": sim.free_levels.duplicate()}
+		state.number_cash = {"ceiling": sim._ceiling, "free_levels": sim.free_levels.duplicate(),
+			"paid_by": sim.paid_by.duplicate(), "locked_out": sim.locked_out}
 	var targets := {}
 	var field: Array = []
 	for enemy in sim.enemies:
@@ -156,7 +157,10 @@ static func _valid_state(data) -> bool:
 	if state.has("number_cash"):
 		var held = state.number_cash
 		if not held is Dictionary or not RunConfig.number(held.get("ceiling")) or float(held.ceiling) < 0.0 \
-				or not held.get("free_levels") is Dictionary: return false
+				or not held.get("free_levels") is Dictionary or not held.get("paid_by", {}) is Dictionary \
+				or not RunConfig.number(held.get("locked_out", 0.0)) or float(held.get("locked_out", 0.0)) < 0.0: return false
+		for kind in held.get("paid_by", {}):
+			if not RunConfig.number(held.paid_by[kind]) or float(held.paid_by[kind]) < 0.0: return false
 		for id in held.free_levels:
 			if id not in TowerData.rows() or not _integer(held.free_levels[id]) or int(held.free_levels[id]) < 0 \
 					or int(held.free_levels[id]) > int(state.run_levels.get(id, 0)): return false
@@ -275,6 +279,11 @@ static func restore(data) -> BattleSim:
 		sim.free_levels = {}
 		for id in data.state.number_cash.free_levels:
 			sim.free_levels[id] = int(data.state.number_cash.free_levels[id])
+		# Saves from before these were counted read as nothing yet.
+		sim.paid_by = {}
+		for kind in data.state.number_cash.get("paid_by", {}):
+			sim.paid_by[kind] = float(data.state.number_cash.paid_by[kind])
+		sim.locked_out = float(data.state.number_cash.get("locked_out", 0.0))
 	if data.state.has("fuel"):
 		for key in FUEL_FLOATS:
 			sim.set(key, float(data.state.fuel[key]))

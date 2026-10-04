@@ -3719,6 +3719,13 @@ func test_cash_pays_into_the_number_and_buys_with_it() -> void:
 	var paid := EnemyKinds.cash(basic, sim.stat("cash_bonus"))
 	check_near(sim.health - start, paid, 0.000001, "a kill's Cash lands in the Number, and no clean-kill growth on top")
 	check(sim.gained_from.has("kill_cash") and not sim.gained_from.has("kills") and is_equal_approx(sim.cash_earned, paid), "booked as income")
+	check(is_equal_approx(float(sim.paid_by.get("basic", 0.0)), paid), "and counted against the kind that paid it")
+	sim.locked = true
+	var held := sim.health
+	sim.deal_damage(_place(sim, "basic", 20.0), 1e9, "shot")
+	check(sim.health == held and is_equal_approx(sim.locked_out, paid) and is_equal_approx(float(sim.paid_by.basic), paid),
+		"while a Lock stands a kill's Cash is lost, and counted as kept out")
+	sim.locked = false
 	check(not sim.can_buy("health"), "Health isn't sold: it would buy Number with Number")
 	sim.health = 50.0
 	sim._ceiling = 50.0
@@ -3760,8 +3767,18 @@ func test_the_number_as_cash_switches_are_settings_a_run_reads() -> void:
 	check(battle.sim.number_cash and battle.sim.upgrades_off and not battle._cash_chip.visible, "a new run starts with them, and the Cash readout steps aside")
 	back.number_cash = false
 	check(battle.sim.number_cash, "switching it off doesn't change a run that has started")
+	check(Palette.number_cash and Palette.row_title("cash_bonus") == "Number bonus" and Palette.row_title("cash_per_wave") == "Number / wave",
+		"and its words follow the run: the Cash rows read as the Number's")
 	battle.queue_free()
 	await process_frame
+	Palette.number_cash = false
+	check(Palette.row_title("cash_bonus") == "Cash bonus" and Palette.row_description("cash_per_wave").contains("Cash")
+		and CardsScreen.card_name("cash") == "Cash", "with the switch off, everything reads as before")
+	Palette.number_cash = true
+	check(Palette.row_description("interest").contains("Number") and CardsScreen.card_name("cash") == "Number Income"
+		and CardsScreen.card_description("cash").contains("Number") and Palette.row_title("damage") == "Damage",
+		"with it on, the Interest row and the Cash card are about the Number too, and other rows are untouched")
+	Palette.number_cash = false
 
 
 func test_with_the_number_as_cash_free_levels_dont_raise_prices() -> void:

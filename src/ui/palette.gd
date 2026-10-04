@@ -342,8 +342,26 @@ static func weight(base: Font, value: int) -> FontVariation:
 
 ## A row's title in sentence case, "Damage / meter", as the main screen writes it.
 static func row_title(id: String) -> String:
-	var title := String(TowerData.upgrade(id).title).to_lower()
+	var title := String(NUMBER_CASH_ROWS[id][0] if number_cash and NUMBER_CASH_ROWS.has(id) else TowerData.upgrade(id).title).to_lower()
 	return title.left(1).to_upper() + title.substr(1)
+
+
+## What a Workshop row does, in a sentence: The Tower's, or with the Number as
+## Cash (D156) written about the Number.
+static func row_description(id: String) -> String:
+	return String(NUMBER_CASH_ROWS[id][1] if number_cash and NUMBER_CASH_ROWS.has(id) else TowerData.upgrade(id).description)
+
+
+## Whether the screens write about the Number as Cash (D156): set from the
+## Testing switch for Home, the Workshop and Cards, and from a run's own rules
+## while it plays, so a run keeps the words it started with.
+static var number_cash := false
+## The rows about Cash, as they read with the Number as Cash: title, description.
+const NUMBER_CASH_ROWS := {
+	"cash_bonus": ["NUMBER BONUS", "Multiplies the Number kills and waves pay."],
+	"cash_per_wave": ["NUMBER / WAVE", "Number paid as each wave ends."],
+	"interest": ["INTEREST / WAVE", "Share of the Number held paid again as each wave ends, up to its cap."],
+}
 
 
 ## The Tower's way of writing numbers: two decimals while small, whole past

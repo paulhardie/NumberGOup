@@ -267,7 +267,7 @@ func _refresh_active() -> void:
 		column.add_child(value)
 		if index < cards.equipped.size():
 			var id: String = cards.equipped[index]
-			title.text = String(Cards.card(id).name)
+			title.text = card_name(id)
 			title.add_theme_color_override("font_color", Palette.TEXT)
 			value.text = describe(id, cards.level(id))
 			value.add_theme_color_override("font_color", Palette.ACCENT)
@@ -294,12 +294,12 @@ func _refresh_active() -> void:
 func _card_tile(id: String) -> Button:
 	var button := Palette.card_button(176)
 	var card: Dictionary = Cards.card(id)
-	button.tooltip_text = String(card.name) + " · tap for details"
+	button.tooltip_text = card_name(id) + " · tap for details"
 	var inside := _inside(button, 8)
 	inside.offset_left = 8
 	inside.offset_right = -8
 	inside.add_theme_constant_override("separation", 4)
-	var heading := _small(String(card.name), RARITY_COLOURS[card.rarity])
+	var heading := _small(card_name(id), RARITY_COLOURS[card.rarity])
 	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	heading.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	heading.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
@@ -435,6 +435,16 @@ static func odds_text(odds: Dictionary) -> String:
 
 ## What a card does at `level`, written as The Tower writes its value: "×1.50",
 ## "+5%", "+4% each".
+## A card's name and description, The Tower's, or with the Number as Cash
+## (D156) the Cash card's written about the Number.
+static func card_name(id: String) -> String:
+	return "Number Income" if Palette.number_cash and id == "cash" else String(Cards.card(id).name)
+
+
+static func card_description(id: String) -> String:
+	return "Increase all Number earned by [x]" if Palette.number_cash and id == "cash" else String(Cards.card(id).description)
+
+
 static func describe(id: String, level: int) -> String:
 	var card: Dictionary = Cards.definition(id)
 	var amount := Cards.value_at(id, level)
@@ -481,7 +491,7 @@ func _card_heading(column: VBoxContainer, id: String, level: int) -> void:
 	if CARD_ART.has(id) and progression.cards.owned(id):
 		column.add_child(_art_region(id, 124))
 	var name_label := Label.new()
-	name_label.text = String(card.name)
+	name_label.text = card_name(id)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_label.add_theme_font_size_override("font_size", 22)
 	column.add_child(name_label)
@@ -489,7 +499,7 @@ func _card_heading(column: VBoxContainer, id: String, level: int) -> void:
 	value.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	value.text = describe(id, level)
 	column.add_child(value)
-	var about := _small(String(card.description).replace("[x]%", "[x]").replace("[x]", describe(id, level)), Palette.SOFT)
+	var about := _small(card_description(id).replace("[x]%", "[x]").replace("[x]", describe(id, level)), Palette.SOFT)
 	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	about.text_overrun_behavior = TextServer.OVERRUN_NO_TRIMMING
 	about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER

@@ -21,6 +21,7 @@ const AmbientMusic = preload("res://src/ui/ambient_music.gd")
 const Progression = preload("res://src/tower/progression.gd")
 const RunReport = preload("res://src/tower/run_report.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
+const Palette = preload("res://src/ui/palette.gd")
 
 const AUTOSAVE_SECONDS := 20.0
 ## How long a new screen takes to fade in (D138).
@@ -81,11 +82,13 @@ func _save() -> void:
 
 
 func _show_home() -> HomeScreen:
+	Palette.number_cash = settings.number_cash
 	var home := HomeScreen.new()
 	home.workshop = workshop
 	home.progression = progression
 	home.settings = settings
 	home.settings_changed.connect(func():
+		Palette.number_cash = settings.number_cash
 		music.set_playing(settings.music)
 		settings.write(settings_path))
 	home.test_coins_pressed.connect(func(amount: float):
@@ -169,6 +172,7 @@ func _show_battle(saved: Dictionary = {}) -> void:
 
 func _show_workshop() -> void:
 	if not progression.writable: return
+	Palette.number_cash = settings.number_cash
 	var shop := WorkshopScreen.new()
 	shop.workshop = workshop
 	shop.progression = progression
@@ -183,6 +187,7 @@ func _show_workshop() -> void:
 ## change.
 func _show_cards() -> void:
 	if not progression.writable: return
+	Palette.number_cash = settings.number_cash
 	var cards := CardsScreen.new()
 	cards.workshop = workshop
 	cards.progression = progression
