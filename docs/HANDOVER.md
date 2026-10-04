@@ -54,7 +54,9 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 
 ## Checked, and not checked
 
-- **Checked, on the code now in `main`:** `bash run_tests.sh` passes: 4,778 tower checks (46 new in PR #148), 331 foundation checks (19 new, on top of D151's 312) and 26 Python tests (the criteria's own 11 included), exit 0. GitHub's CI passed on the PR. The trial's results were measured on that exact code, and PR #149 changed documents only. The headless boot is clean. The checks cover the carry-off, Thorns on the grab, proportional payback, recoveries of 0, 0.5 and 1.5, escape and fade, the Wall, targeting priority, no push on a thief, the power coupling, option validation, and a snapshot and replay with a thief mid-flight.
+- **Checked, D154 (PR #154):** `bash run_tests.sh` passes: 4,780 tower checks (a nearly dead tank weighs a fresh one's and Knockback moves it no further; the Number in full to 999,999,999,999 and 1.00T at a trillion; a twelve-digit best fits the home emblem), 331 foundation checks and 26 Python tests, exit 0. The headless boot is clean. The full balance comparison moved three of nineteen scenarios, all slightly: the 100K spread build's median wave fell 66 to 63 (one seed −3, one +1, four seeds), the 100K blender's and Tier 3's peak Numbers by under 2. Every design expectation reads as before, and the quick and full baselines are re-recorded on this code, so merging accepts them.
+- **Not checked, D154:** a twelve-digit Number on a phone, in the ring or shrunk in the home emblem.
+- **Checked, on the code in `main` before D154:** `bash run_tests.sh` passes: 4,778 tower checks (46 new in PR #148), 331 foundation checks (19 new, on top of D151's 312) and 26 Python tests (the criteria's own 11 included), exit 0. GitHub's CI passed on the PR. The trial's results were measured on that exact code, and PR #149 changed documents only. The headless boot is clean. The checks cover the carry-off, Thorns on the grab, proportional payback, recoveries of 0, 0.5 and 1.5, escape and fade, the Wall, targeting priority, no push on a thief, the power coupling, option validation, and a snapshot and replay with a thief mid-flight.
 - **Checked, D151 (PR #147):** merged. Its evidence is in the PR, and its checks are in the suites above.
 - **D153's design note** is documents only: nothing ran for it. Its worked example (11.4) uses the owner's screens' enemy stats and guessed prices, not measurements.
 - **Not checked:** a phone, or a real finger, for the pop-ups. Players, whether any of the Number's design is fun, Tier 2 and 3, Lifesteal, the Labs' cost, and any screen for thieves. The budget scenarios have 4 seeds.
@@ -77,7 +79,7 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 
 ## Next steps, in order
 
-1. **Owner:** merge the note's update, and answer what you can of open decision 1; none of it blocks stage 1.
+1. **Owner:** merge PR #154 (D154 and the pacing note), and answer what you can of open decision 1; none of it blocks stage 1.
 2. **Agent, on a go:** write the stage-1 criteria into THE_NUMBER.md first (from the draft in 11.13), then build the fuel economy as off-by-default measuring options with `sim_runs.gd` and `number_trial.py` support, and report every run.
 3. **Owner:** **play a run holding tiles on a phone**: it is the one check on the pop-ups that couldn't be made, and it settles the hold's timing.
 
