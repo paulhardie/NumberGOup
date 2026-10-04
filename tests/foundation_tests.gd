@@ -1253,6 +1253,43 @@ func test_the_fuel_economy_validates_records_and_continues() -> void:
 	check(Snapshot.restore(corrupt) == null, "a peak wave past the battle's is rejected")
 
 
+## D156: the Number as Cash validates, is recorded only while on, and a battle
+## with it on restores, continues and replays exactly, ceiling and free levels too.
+func test_the_number_as_cash_validates_records_and_continues() -> void:
+	check(RunConfig.valid_tuning({"number_cash": true, "upgrades_off": true, "reserve_share": 0.5}), "its options are valid tuning")
+	for bad in [{"number_cash": 1}, {"upgrades_off": "no"}, {"reserve_share": 1.0}, {"reserve_share": -0.1}, {"reserve_share": NAN}]:
+		check(not RunConfig.valid_tuning(bad), "rejected: %s" % [bad])
+	var plain: Dictionary = RunConfig.unpack(Snapshot.capture(BattleSim.new(3, {"health": 500})))
+	check(not plain.state.has("number_cash"), "a run without it saves none of its state")
+	var levels := {"damage": 30, "health": 30, "health_regen": 10}
+	for id in ["free_attack_upgrade", "free_defense_upgrade", "free_utility_upgrade"]:
+		levels[id] = TowerData.max_level(id)
+	var sim := BattleSim.new(5, levels, BattleSim.START_GROUPS + ["free_upgrades"])
+	check(sim.configure_tuning({"number_cash": true}) and sim.start_config().tuning.number_cash == true, "it freezes before the first wave and is recorded")
+	while sim.alive and (sim.wave < 4 or sim.shots.is_empty()):
+		if sim.can_buy("attack_speed"):
+			sim.buy("attack_speed")
+		sim.step()
+	check(sim.alive and sim.run_levels.size() > 0 and not sim.free_levels.is_empty(), "a battle on wave 4 that has bought and been given levels: %s free" % [sim.free_levels])
+	var saved: Dictionary = json(Snapshot.capture(sim))
+	var again := Snapshot.restore(saved)
+	check(again != null and Snapshot.capture(again).digest == saved.digest, "it round trips exactly")
+	if again != null:
+		check(again._ceiling == sim._ceiling and again.free_levels == sim.free_levels and again.cash == 0.0, "the ceiling and the free levels come back")
+		for i in range(900):
+			sim.step()
+			again.step()
+		check(Snapshot.capture(sim).digest == Snapshot.capture(again).digest, "and continues exactly: %s" % difference(json(Snapshot.capture(sim)), json(Snapshot.capture(again))))
+	var report: Dictionary = json(RunReport.build(sim))
+	check(RunReport.is_replayable(report) and RunReport.matches(report, RunReport.replay(report)), "a run with it replays from its seed, buys and all")
+	var state: Dictionary = RunConfig.unpack(saved)
+	var some: String = state.state.number_cash.free_levels.keys()[0]
+	state.state.number_cash.free_levels[some] = 999
+	var corrupt := RunConfig.pack(state)
+	corrupt.version = Snapshot.VERSION
+	check(Snapshot.restore(corrupt) == null, "more free levels than a row has are rejected")
+
+
 func test_starting_tuning_replays_and_freezes_before_wave_one() -> void:
 	var tuning := RunConfig.default_tuning()
 	tuning.lock.from_wave = 1

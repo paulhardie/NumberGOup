@@ -125,8 +125,9 @@ func show_tab(tab: String) -> void:
 		child.queue_free()
 	_cards.clear()
 	for id in TowerData.rows():
-		if TowerData.category(id) == tab and sim.is_open(id):
+		if TowerData.category(id) == tab and sim.is_open(id) and sim.in_shop(id):
 			_grid.add_child(_card(id))
+	_empty.text = "Run upgrades are off this run." if sim.upgrades_off else "Cash upgrades open in the Workshop."
 	_empty.visible = _cards.is_empty() and not collapsed
 	refresh()
 
@@ -136,12 +137,18 @@ func refresh() -> void:
 		var card: Dictionary = _cards[id]
 		var maxed := sim.at_max(id)
 		card.value.text = Palette.row_value(id, sim.stat(id))
-		card.price.text = "MAX" if maxed else Palette.quote(sim.plan(id, _amount), sim.price(id), "$")
+		card.price.text = "MAX" if maxed else Palette.quote(sim.plan(id, _amount), sim.price(id), price_symbol(sim))
 		var affordable := sim.can_buy(id, _amount)
 		card.button.disabled = not affordable
 		Palette.style_price_chip(card.chip, affordable, Palette.ACCENT)
-		card.bar.value = 1.0 if maxed else toward(sim.cash, _target(id))
+		card.bar.value = 1.0 if maxed else toward(sim.spendable(), _target(id))
 		(card.bar.get_theme_stylebox("fill") as StyleBoxFlat).bg_color = Palette.ACCENT if affordable or maxed else Color(Palette.ACCENT, 0.35)
+
+
+## What a price is written with: "$" for Cash, or "−" with the Number as Cash
+## (D156), since a purchase takes that much off the Number.
+static func price_symbol(battle: BattleSim) -> String:
+	return "−" if battle.number_cash else "$"
 
 
 ## The Cash the multiplier's press on `id` costs now, or the next level's

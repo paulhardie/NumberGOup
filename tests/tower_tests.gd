@@ -2894,7 +2894,8 @@ func test_the_number_grows_by_fighting_not_waiting() -> void:
 	await process_frame
 	home._open_settings()
 	var names := home.find_children("*", "CheckButton", true, false).map(func(toggle): return toggle.text)
-	check(names == ["Music"], "Home's Settings has the music switch and no Testing switches: %s" % [names])
+	check(names == ["Music", "Number is Cash (next run)", "Run upgrades off (next run)"],
+		"Home's Settings has the music switch and none of D111's old Testing switches, only D156's two: %s" % [names])
 	home.queue_free()
 	await process_frame
 
@@ -3693,6 +3694,115 @@ func test_the_fuel_ledger_books_each_wave() -> void:
 	check_near(spent, sim.fuel_spent, 0.0001, "the waves' spending adds up to the shots' cost")
 	check_near(nets, sim.health - start - float(sim.gained_from.get("health", 0.0)), 0.0001, "and their nets to the Number's change, less bought Health")
 	check(sim.peak_wave >= 1 and sim.peak_wave <= sim.wave and sim.shots_paid > 0, "the peak's wave and the shots paid are kept: wave %d, %d shots" % [sim.peak_wave, sim.shots_paid])
+
+
+## The Number is Cash (D156, THE_NUMBER.md section 13): off in the game unless
+## its Testing switch is on, and recorded only while on.
+func test_the_number_as_cash_is_off_and_leaves_no_trace() -> void:
+	var sim := BattleSim.new(1)
+	check(not sim.number_cash and not sim.upgrades_off and sim.reserve_share == 0.0, "the game plays none of it")
+	check(sim.spendable() == sim.cash and sim.heal_ceiling() == maxf(sim.max_health(), sim.peak_number) and sim.in_shop("health"),
+		"Cash, Regen's ceiling and the shop are as they were")
+	var recorded := sim.tuning_config()
+	check(not recorded.has("number_cash") and not recorded.has("upgrades_off") and not recorded.has("reserve_share"), "a run records none of it while off")
+
+
+func test_cash_pays_into_the_number_and_buys_with_it() -> void:
+	var sim := _quiet_sim({"health": 40})
+	sim.number_cash = true
+	sim._start_number()
+	var start := sim.health
+	check(sim.cash == 0.0 and is_equal_approx(sim._ceiling, start), "no Cash of its own; Regen's ceiling starts at the Number")
+	var basic := _place(sim, "basic", 20.0)
+	basic.hits = 0
+	sim.deal_damage(basic, 1e9, "shot")
+	var paid := EnemyKinds.cash(basic, sim.stat("cash_bonus"))
+	check_near(sim.health - start, paid, 0.000001, "a kill's Cash lands in the Number, and no clean-kill growth on top")
+	check(sim.gained_from.has("kill_cash") and not sim.gained_from.has("kills") and is_equal_approx(sim.cash_earned, paid), "booked as income")
+	check(not sim.can_buy("health"), "Health isn't sold: it would buy Number with Number")
+	sim.health = 50.0
+	sim._ceiling = 50.0
+	var cost := sim.price("damage")
+	check(sim.buy("damage") and is_equal_approx(sim.health, 50.0 - cost) and is_equal_approx(sim._ceiling, 50.0 - cost),
+		"a purchase spends the Number and lowers Regen's ceiling with it")
+	sim._heal(5.0, "regen")
+	check_near(sim.health, 50.0 - cost + 5.0 * sim.peak_drift, 0.000001, "so Regen doesn't hand the spending back, past drifting as it does past a best")
+	sim.health = 50.0 - cost
+	sim._ceiling = sim.health
+	sim.health -= 10.0
+	sim._heal(10.0, "regen")
+	check_near(sim.health, 50.0 - cost, 0.000001, "but it does restore what an enemy takes")
+	sim.health = 1.0 + sim.price("damage") - 0.01
+	check(not sim.can_buy("damage"), "and nothing is bought that would leave less than 1")
+	sim.health = 100.0
+	sim.reserve_share = 0.5
+	sim.peak_number = 190.0
+	check(is_equal_approx(sim.spendable(), 5.0), "the bots' reserve keeps a share of the best back: %.2f spendable" % sim.spendable())
+
+
+## D156: the Testing switches are kept in the settings file, off unless set,
+## and a new run reads them; a run that has started keeps what it started with.
+func test_the_number_as_cash_switches_are_settings_a_run_reads() -> void:
+	var settings := Settings.new()
+	check(not settings.number_cash and not settings.upgrades_off and settings.run_tuning().is_empty(), "off by default, and a run gets nothing new")
+	settings.number_cash = true
+	settings.upgrades_off = true
+	check(settings.write(TEST_SETTINGS), "written")
+	var back := Settings.new()
+	back.read(TEST_SETTINGS)
+	check(back.number_cash and back.upgrades_off and back.run_tuning() == {"number_cash": true, "upgrades_off": true}, "and read back as the next run's tuning")
+	DirAccess.remove_absolute(TEST_SETTINGS)
+	var battle := BattleScreen.new()
+	battle.workshop = Workshop.new()
+	battle.tuning = back.run_tuning()
+	root.add_child(battle)
+	await process_frame
+	check(battle.sim.number_cash and battle.sim.upgrades_off and not battle._cash_chip.visible, "a new run starts with them, and the Cash readout steps aside")
+	back.number_cash = false
+	check(battle.sim.number_cash, "switching it off doesn't change a run that has started")
+	battle.queue_free()
+	await process_frame
+
+
+func test_with_the_number_as_cash_free_levels_dont_raise_prices() -> void:
+	var sim := _quiet_sim()
+	sim.number_cash = true
+	var before := sim.price("damage")
+	sim.run_levels["damage"] = 1
+	sim.free_levels["damage"] = 1
+	check(sim.price("damage") == before, "a free level leaves the next level's price where it was")
+	sim.number_cash = false
+	check(sim.price("damage") > before, "where today's rules count it as bought")
+
+
+func test_interest_is_paid_on_the_number_up_to_its_cap() -> void:
+	var sim := _quiet_sim({"interest": 10}, BattleSim.START_GROUPS + ["interest"])
+	sim.number_cash = true
+	sim.health = 100.0
+	sim._ceiling = 100.0
+	var before := sim.health
+	sim._pay_wave_end()
+	check_near(float(sim.gained_from.get("interest", 0.0)), minf(sim.rules.value("interest_cap"), 100.0 * sim.stat("interest")), 0.000001, "a wave's interest is on the Number")
+	sim.health = 1e9
+	sim._ceiling = 1e9
+	var high := float(sim.gained_from.interest)
+	sim._pay_wave_end()
+	check_near(float(sim.gained_from.interest) - high, sim.rules.value("interest_cap"), 0.000001, "and never more than the cap, however big the Number")
+	check(sim.health > before, "the Number rose")
+
+
+func test_upgrades_off_shuts_the_shop_but_free_levels_still_land() -> void:
+	var sim := _quiet_sim({}, BattleSim.START_GROUPS + ["free_upgrades"])
+	sim.upgrades_off = true
+	sim.cash = 1e9
+	check(not sim.can_buy("damage") and not sim.buy("damage"), "nothing can be bought")
+	sim.levels["free_attack_upgrade"] = TowerData.max_level("free_attack_upgrade")
+	var levels := 0
+	for i in range(20):
+		sim._pay_wave_end()
+	for id in sim.run_levels:
+		levels += int(sim.run_levels[id])
+	check(levels > 0, "Free Upgrades still land: %d levels" % levels)
 
 
 func _quiet_sim(row_levels: Dictionary = {}, groups: Array = BattleSim.START_GROUPS) -> BattleSim:

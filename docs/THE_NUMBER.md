@@ -886,3 +886,34 @@ What the runs show (medians; 6 seeds a build, 20 a fresh policy):
 8. **Holding fire changed nothing:** at these fire rates a second shot almost never leaves while the first is still flying at a one-shot kill. It works (a test at top Attack Speed shows it) but costs nothing to leave off.
 
 **The finding:** a price per shot fixed for the tier can't do the job in Tier 1, because the Number's own scale grows a hundredfold inside the tier. Section 12.3's rules say a change goes to the owner as a proposal; mine is in HANDOVER.md and D155: **set the price per wave, as a share of the wave's enemy Attack**, so a kill's profit is the bounty share less the price share times the shots it takes. The barrier is then your Damage against the wave's health, the same at a Number of 5 or 5,000, re-opened as the waves grow and solved by Damage, with a boss's price still falling as you upgrade. It keeps the owner's choice of a price per shot (not per damage) and moves the per-tier price to per-wave. It would be measured against these same criteria, written down again first.
+
+## 13. The Number is Cash (4 October 2026, D156)
+
+After stage 1 failed (12.6), the agent laid out the options for the Number: drop it, keep it as health, make it a score, or make it the run's money as well as its life. The owner chose the last: "Let's also make it the cash as well, with the players aim that when they get strong enough they don't need to buy upgrades", "We could also give the player the option to complete switch them off before a run, but not during", and "Coins can still exist, and will be the way of upgrading the workshop permanently, so the player is stronger without sacrificing as much number to grow". The owner then accepted the four rules below that the agent said the plan needed ("Happy with all of these").
+
+### 13.1 The rules
+
+- **Every Cash payment goes into the Number:** a kill's Cash, Cash / Wave and Interest, with Cash Bonus and the Cash card multiplying them as now. Starting Cash adds to the starting Number. D111's clean-kill growth is off, since Cash replaces it.
+- **Run upgrades are bought with the Number**, at their Cash prices. A purchase can never take the Number below 1.
+- **Regen and Lifesteal restore what enemies took, not what you spent** (the owner accepted): their ceiling falls by every purchase, so spending is a real cost and not a loan Regen repays.
+- **Health is Workshop-only** (accepted): it is the Starting Number. It isn't in the run shop, and Free Upgrades skip it.
+- **Interest is paid on the Number, capped per wave as now** (accepted): the cap is what keeps D110's rule against growth by a share of itself.
+- **Free levels don't raise prices** (accepted): a run's price for a row counts only the levels bought.
+- **Run upgrades off:** a switch set before a run closes the shop for the whole run; it can't be changed mid-run. Free Upgrades still land.
+- **Coins are unchanged:** earned as now, and the Workshop is still bought with them.
+- **Unchanged and worth knowing:** a Divider's ÷ now cuts your wallet too, and a standing Lock (D133) holds the Number, so Cash paid while it stands is lost.
+
+Built as measuring options (`number_cash`, `upgrades_off`), off by default and recorded only while on, and as two switches in Settings → Testing, off by default, that apply from the next run, so the owner can play it beside today's game.
+
+### 13.2 The pass criteria (written before the options were built)
+
+Bots: the core and turtle Workshop plans at 10K, 100K and 1M Coins, 6 seeds each (the harness's 1 to 6), buying `core` in the run with **half the run's best Number kept in reserve** (a bot that spends to 1 dies to the next hit; `--reserve` changes it), and the same builds with run upgrades off. Fresh runs: 20 seeds, 10-minute cap. Every cell is also played as today's game (Number is Cash off) on the same seeds, as the control.
+
+1. **Buying matters while weak.** At 10K Coins, buying adds at least 3 median waves over run upgrades off, for core and for turtle.
+2. **Strong builds stop needing it.** The share of waves buying adds ((buying − off) ÷ buying) falls from 10K to 100K to 1M Coins for both plans, and at 1M it is at most 10%.
+3. **The Number goes up.** In every cell at 10K and 100K, buying, the median run's peak Number is at least the control's.
+4. **No runaway.** No run at 100K or 1M Coins reaches the 3-hour cap unless the control's same cell does too, and Interest supplies at most a quarter of the Number's income in every cell.
+5. **The pace holds.** Buying, each 10K and 100K cell's median wave is within 25% of the control's.
+6. **The early game holds.** Fresh runs buying nothing, evenly and core each have a median wave from 2 to 10, and none reaches the cap.
+
+The rules of section 10.4 and 12.5 apply: every configuration is reported, no seed is chosen, the criteria aren't changed after results are seen, and a pass means the numbers hold, not that it's fun. **The owner playing it is the real test.**

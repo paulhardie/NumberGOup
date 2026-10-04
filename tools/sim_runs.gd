@@ -51,6 +51,11 @@ extends SceneTree
 ## --hold-doomed holds fire on enemies that shots in flight will kill. Each
 ## run prints the fuel ledger: shots paid, their cost, bounties, the wave the
 ## peak came and the first wave whose net was negative.
+## The Number is Cash (D156, docs/THE_NUMBER.md section 13): --number-cash pays
+## every Cash payment into the Number and buys run upgrades with it,
+## --upgrades-off shuts the run shop for the run, and --reserve R keeps the bot
+## from spending below R times the run's best Number (0 to below 1; 0 spends
+## down to 1). Each run prints where the Number's income came from.
 ## --knockback off zeroes the Workshop's Knockback rows and closes its group,
 ## and --row-levels ID:N,... sets those rows to Workshop level N, opening their
 ## groups, on top of any other Workshop option (single runs and card sweeps).
@@ -262,7 +267,7 @@ func _init() -> void:
 		_record_run(sim, "run", 0, cap_seconds)
 		print("%4d  %4d  %9s  %5d  %11.0f  %5.0f  %11.1f  %13s  %5.0f%%  %-9s  %s" % [index + 1, sim.wave, _clock(sim.time), sim.kills, sim.cash_earned, sim.coins,
 			sim.peak_number, "%d/%d" % [sim.dividers_spawned, sim.dividers_landed], _divider_share_of_loss(sim),
-			sim.killed_by if not sim.alive else "(alive)", _bought(sim)] + _curve(sim, options) + _gains(sim, options) + _losses(sim, options) + _thieves(sim) + _fuel(sim))
+			sim.killed_by if not sim.alive else "(alive)", _bought(sim)] + _curve(sim, options) + _gains(sim, options) + _losses(sim, options) + _thieves(sim) + _fuel(sim) + _income(sim))
 	waves.sort()
 	print("median wave %d, range %d to %d" % [waves[waves.size() / 2], waves[0], waves[-1]])
 	quit(0 if _write_measurements(options) else 1)
@@ -519,13 +524,13 @@ func _spend(sim: BattleSim, strategy: String) -> void:
 	# automatic level changes happen at wave boundaries (Free Upgrades), so
 	# nothing affordable can change between checks with the same Cash/wave.
 	# Health-sensitive policies above must still run on every tick.
-	if _cache_buys and sim.get_meta("last_spend_cash", NAN) == sim.cash and sim.get_meta("last_spend_wave", -1) == sim.wave and sim.get_meta("last_spend_policy", "") == strategy:
+	if _cache_buys and sim.get_meta("last_spend_cash", NAN) == sim.spendable() and sim.get_meta("last_spend_wave", -1) == sim.wave and sim.get_meta("last_spend_policy", "") == strategy:
 		return
 	while true:
 		var choice := _choose(sim, strategy)
 		if choice == "" or not sim.buy(choice):
 			break
-	sim.set_meta("last_spend_cash", sim.cash)
+	sim.set_meta("last_spend_cash", sim.spendable())
 	sim.set_meta("last_spend_wave", sim.wave)
 	sim.set_meta("last_spend_policy", strategy)
 
@@ -565,7 +570,7 @@ func _spend_survival(sim: BattleSim) -> void:
 func _cheapest(sim: BattleSim, ids: Array) -> String:
 	var best := ""
 	for id in ids:
-		if sim.is_open(id) and not sim.at_max(id) and (best == "" or sim.price(id) < sim.price(best)):
+		if sim.is_open(id) and not sim.at_max(id) and sim.in_shop(id) and (best == "" or sim.price(id) < sim.price(best)):
 			best = id
 	return best
 
@@ -576,7 +581,9 @@ func _choose(sim: BattleSim, strategy: String) -> String:
 	var rows: Array[String] = []
 	for id in TowerData.rows():
 		var allowed: bool = (strategy != "attack" or id in ["damage", "attack_speed"]) and (strategy not in ["core", "grow"] or id in CORE_ROWS)
-		if sim.is_open(id) and not sim.at_max(id) and allowed:
+		# What the shop doesn't sell (Health with the Number as Cash, D156) is
+		# never waited for.
+		if sim.is_open(id) and not sim.at_max(id) and allowed and sim.in_shop(id):
 			rows.append(id)
 	if rows.is_empty():
 		return ""
@@ -671,6 +678,11 @@ func _tune(sim: BattleSim, options: Dictionary) -> bool:
 		sim.thief_fade = float(options["thief-fade"])
 	if options.has("number-power"):
 		sim.number_power = float(options["number-power"])
+	# The Number as Cash (D156), off unless asked for.
+	sim.number_cash = options.has("number-cash")
+	sim.upgrades_off = options.has("upgrades-off")
+	if options.has("reserve"):
+		sim.reserve_share = float(options.reserve)
 	# The fuel economy (D155), off unless asked for.
 	sim.hold_doomed = options.has("hold-doomed")
 	for option in ["shot-price", "bounty-share", "free-bounty-share", "base-regen", "regen-scale"]:
@@ -735,6 +747,20 @@ func _fuel(sim: BattleSim) -> String:
 		float(sim.gained_from.get("bounty", 0.0)), float(sim.gained_from.get("free_bounty", 0.0)), sim.peak_wave, _crossing(sim)]
 
 
+## With the Number as Cash (D156), its income: " | income 4,210: kill_cash 81%,
+## wave_cash 12%, interest 7%".
+func _income(sim: BattleSim) -> String:
+	if not sim.number_cash:
+		return ""
+	var income := 0.0
+	for source in ["kill_cash", "wave_cash", "interest"]:
+		income += float(sim.gained_from.get(source, 0.0))
+	var parts: Array[String] = []
+	for source in ["kill_cash", "wave_cash", "interest"]:
+		parts.append("%s %.0f%%" % [source, 100.0 * float(sim.gained_from.get(source, 0.0)) / income if income > 0.0 else 0.0])
+	return "  | income %.0f: %s" % [income, ", ".join(parts)]
+
+
 ## The share of everything the Number lost that Dividers took.
 func _divider_share_of_loss(sim: BattleSim) -> float:
 	var total := 0.0
@@ -791,6 +817,9 @@ func _record_run(sim: BattleSim, case_id: String, run: int, cap_seconds: float) 
 		"lost_to": sim.lost_to.duplicate(), "damage_by": sim.damage_by.duplicate(),
 		"start": sim.start_config()})
 	_measurements[-1].merge(ledger)
+	if sim.number_cash:
+		_measurements[-1].merge({"gained_from": sim.gained_from.duplicate(), "raised_by": sim.raised_by.duplicate(),
+			"free_levels": sim.free_levels.duplicate()})
 	if sim.fuel_active():
 		_measurements[-1].merge({"shots_paid": sim.shots_paid, "fuel_spent": sim.fuel_spent, "peak_wave": sim.peak_wave,
 			"crossing": _crossing(sim), "gained_from": sim.gained_from.duplicate(), "raised_by": sim.raised_by.duplicate()})
