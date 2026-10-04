@@ -991,3 +991,31 @@ The rules of 10.4 and 12.5 apply: every cell reported, no seed chosen, criteria 
 4. **The game is unchanged:** the quick balance comparison shows no movement (the option is off by default and needs the Number as Cash).
 
 **For the owner:** the remaining loss is the turtle's, and it is the same fact that made Locks a Tier 1 wall in D133 and D144 (kill it or knock it back): a build with no shots can't answer one. I'd leave it, and **let Thorns' build feel it in play** before changing D133. If it feels bad, the narrow fix is to let Thorns hurt a standing Lock at a share of its strength, built as a measuring option first.
+
+## 14. The Number is Cash becomes the game (5 October 2026, D158)
+
+After playing D156 and D157 behind the Testing switch the owner said "way better … I need to sort this friction out so I can keep climbing", then "merged and proceed" to the agent's offer to make it the game. **From D158, every new run plays the Number as Cash, with a Lock that holds the Cash it blocks.** The measuring options keep their off defaults, so the tools can still play the old game for comparison.
+
+### 14.1 The change snapshot (QUALITY_GATES, high risk: economy, purchasing and saves)
+
+- **Current behaviour:** runs play Cash rules unless the Testing switch is on (D156, D157); Cash is the run's currency in the code, the screens, the cards and the docs.
+- **Intended:** every new run plays Number as Cash and the held Lock. **Run upgrades off** becomes an ordinary setting, not a Testing one (the owner asked for "the option to completely switch them off before a run, but not during"). Cash is gone from the screens of a new run.
+- **Directly affected:** `RunConfig.game_tuning` (the game's rule set, one authority), `Settings` (the Testing switch Number is Cash goes; Run upgrades off stays, as a setting), `main.gd`, Home's Settings sheet, the words on the Workshop, Cards and run-over screens, AGENTS.md law 4, the balance harness and its baselines, the capture tool, README, TOWER_RULES.
+- **Adjacent:** saved battles and run reports (their rules), the settings file, the Coins and milestones (unchanged), `read_report.gd` and the activity log (they read a run's start config).
+- **Must preserve:** a saved battle or report from before resumes and replays under the rules it began with; Workshop ranks, Coins, Gems and cards; determinism; the real save's protection.
+- **Planned proof:** boundary and repeated-action tests; old-save, current-save, malformed and round-trip fixtures; a replay of a run in each rule set; the harness measuring the game's rules with re-recorded baselines; screenshots of Home, Settings and a battle; **an independent adversarial review of the final diff**.
+
+### 14.2 What changes, and what doesn't
+
+- **The game's rules live in one place:** `RunConfig.game_tuning()` returns the tuning a new run starts with (`number_cash`, `lock_holds_cash`, and `upgrades_off` while the setting is on). The code's own defaults stay off, so a run that starts without them (every existing save, report and test) plays exactly as before.
+- **No combat-rules version bump, deliberately.** A start config records its tuning, and a saved battle or report from before D156 has none of the new keys, so it restores and replays as Cash rules, to the byte. A bump would have ended saved battles on update. It is tested, not assumed: a run started under each rule set round-trips and replays, and a snapshot without the keys resumes with the Cash chip and Cash words.
+- **A resumed old run shows its own words.** A battle's screen follows its run's rules, so a Cash-rules battle saved before the update still reads "Cash" and "$", while Home, the Workshop and Cards read as the Number's.
+- **Settings:** the file's old `number_cash` key (written while D156 was a Testing switch) is ignored and dropped on the next write; `upgrades_off` is kept and now sits among the ordinary settings.
+- **Unchanged:** Coins and what they buy, the Workshop's ranks and prices, Gems and Cards, the milestones, the tiers, the enemies' stats. Cash's data rows keep The Tower's ids and values, shown under Number names (a presentation layer, since the generated data mirrors The Tower's table).
+
+### 14.3 What the owner hasn't decided, and this doesn't do
+
+- **Coins from the peak Number (11.6)** and the digit ladder (11.15): not built; Coins are earned as now.
+- **A way for Workshop power to outgrow the run shop** (13.3's finding): not built.
+- **The turtle and the Lock** (13.5): left for play.
+- **Tier 2 and 3** are not measured under the new rules.

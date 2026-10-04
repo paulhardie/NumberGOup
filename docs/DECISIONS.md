@@ -2374,3 +2374,16 @@ Rules:
 - **Not decided:** making the Number as Cash the game; the agent held that for a clear yes of its own, as it is high risk (economy and saves).
 - **Measured (2026-10-05, THE_NUMBER.md 13.5): FAIL on criterion 1 for the turtle only.** Core and blender lose 0 to 3% of their income to Locks (from up to 16%); the turtle still ends with 19.5% (100K) and 43.4% (1M) held on a Lock it can't kill, because Thorns don't hurt a Lock (D133). Pace, runaway and the unchanged cells pass; the turtle gains 5 to 6% waves and 16 to 24% peak. The criteria stand. The agent's recommendation: leave it and let the owner play the turtle first.
 - **Checked:** the tests (Cash blocked either way; held only with the option; one Lock down pays nothing while another stands; the last one pays all held plus the Locks' own Cash; a Lock's own Cash blocked as today without the option; the Testing switch turns it on; a snapshot round trip with held Cash), the measurements of 13.5 and the quick balance comparison, which shows the game unchanged. **Not checked:** a player, and the turtle's feel.
+
+## D158 — The Number is Cash is the game
+
+- **Status:** Accepted (2026-10-05) on the owner's direction. After playing D156 and D157 behind the Testing switch: "Okay this is way better. My first impression was, I need to sort this friction out so I can keep climbing", "feels good seeing cash per wave and coin per wave directly feeding power. Good to see the number jump up after a successful wave"; then "merged and proceed" to the agent's offer to make it the game.
+- **Decision:**
+  1. **Every new run plays the Number as Cash (D156) with a Lock that holds the Cash it blocks (D157).** The game's rule set is `RunConfig.game_tuning()`.
+  2. **Run upgrades off is an ordinary setting,** read by each new run (the owner's "option to completely switch them off before a run, but not during").
+  3. **Cash is gone from the screens of a new run:** the Cash chip, prices read "−N", the Cash rows and card are written about the Number, the run-over panel says "Number earned".
+  4. **No combat-rules version bump.** A start config records its tuning, so a saved battle or report from before resumes and replays under the rules it began with. Tested.
+  5. **AGENTS.md law 4 is rewritten:** the temporary layer is run Upgrades, bought with the Number.
+  6. **D111's clean-kill growth is superseded for new runs** (Cash replaces it); Lifesteal and Regen still refill only what enemies took (D156).
+- **Not decided here:** Coins from the peak Number, how Workshop power outgrows the run shop, the Thorns turtle against a Lock, and Tier 2 and 3's balance under the new rules.
+- **Checked / not checked:** see THE_NUMBER.md section 14, HANDOVER.md and the pull request.
