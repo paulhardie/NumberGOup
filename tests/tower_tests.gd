@@ -3568,6 +3568,133 @@ func test_the_music_plays_unless_the_player_turns_it_off() -> void:
 
 
 ## A sim with nothing spawning, for placing enemies by hand.
+## The fuel economy (D155, THE_NUMBER.md section 12): measuring options, off
+## in the game.
+func test_the_fuel_economy_is_off_and_leaves_no_trace() -> void:
+	var sim := BattleSim.new(1)
+	check(not sim.fuel_active() and sim.shot_price == 0.0 and sim.bounty_share == 0.0 and sim.free_bounty_share == 0.0 \
+			and sim.base_regen == 0.0 and sim.regen_scale == 1.0 and not sim.hold_doomed, "the game plays none of the fuel economy")
+	check(sim.regen_rate() == sim.stat("health_regen"), "and Regen is exactly the row")
+	var recorded := sim.tuning_config()
+	check(["shot_price", "bounty_share", "free_bounty_share", "base_regen", "regen_scale", "hold_doomed"].all(func(key): return not recorded.has(key)),
+		"a run records none of its options while they are off")
+	sim.shot_price = 1.0
+	sim.base_regen = 1.0
+	recorded = sim.tuning_config()
+	check(sim.fuel_active() and recorded.shot_price == 1.0 and recorded.base_regen == 1.0 and not recorded.has("bounty_share"), "and only the ones that are on")
+	check_near(sim.regen_rate(), sim.stat("health_regen") + 1.0, 0.000001, "a base Regen adds to the row")
+	sim.regen_scale = 10.0
+	check_near(sim.regen_rate(), sim.stat("health_regen") * 10.0 + 1.0, 0.000001, "which its scale multiplies first")
+
+
+func test_a_shot_costs_its_price_and_a_broke_tower_goes_quiet() -> void:
+	var sim := _quiet_sim()
+	sim.shot_price = 1.0
+	sim.health = 10.0
+	var target := _place(sim, "basic", 20.0)
+	target.health = 1e9
+	target.max_health = 1e9
+	for i in range(60):
+		if sim.shots_paid > 0:
+			break
+		sim.step()
+	check(sim.shots_paid == 1 and sim.fuel_spent == 1.0, "a volley is paid for: %d shots, %.2f spent" % [sim.shots_paid, sim.fuel_spent])
+	check_near(sim.health, 9.0, 0.01, "out of the Number")
+	sim.health = 1.5
+	var paid := sim.shots_paid
+	for i in range(90):
+		sim.step()
+	check(sim.shots_paid == paid and sim.health >= 1.5, "a shot that would leave less than 1 is never fired: the tower goes quiet")
+	# Multishot's copies ride free.
+	var multi := BattleSim.new(1, {"multishot_targets": 1}, BattleSim.START_GROUPS + ["multishot"], 1,
+		[{"stat": "multishot_chance", "op": "add", "value": 1.0, "source": "test"}])
+	multi.spawns.schedule.clear()
+	multi.wave_clock = -1e9
+	multi.shot_price = 1.0
+	multi.health = 10.0
+	for distance in [20.0, 22.0]:
+		var each := _place(multi, "basic", distance)
+		each.health = 1e9
+		each.max_health = 1e9
+	for i in range(60):
+		if multi.shots_paid > 0:
+			break
+		multi.step()
+	check(multi.shots_paid == 1 and multi.shots.size() == 2, "a multishot flies at two for the price of one: %d paid, %d flying" % [multi.shots_paid, multi.shots.size()])
+
+
+func test_a_kill_pays_its_bounty() -> void:
+	var sim := _quiet_sim()
+	sim.bounty_share = 0.25
+	var basic := _place(sim, "basic", 20.0)
+	basic.hits = 1
+	var before := sim.health
+	sim.deal_damage(basic, 1e9, "shot")
+	check_near(sim.health - before, basic.attack * 0.25, 0.000001, "a shot kill pays a quarter of its Attack, even one that hit first")
+	check(sim.gained_from.has("bounty") and not sim.gained_from.has("kills"), "booked as a bounty, in place of D111's clean-kill growth")
+	before = sim.health
+	sim.deal_damage(_place(sim, "basic", 20.0), 1e9, "orb")
+	check(sim.health == before, "an orb's kill pays nothing at the start")
+	sim.free_bounty_share = 0.5
+	var orbed := _place(sim, "basic", 20.0)
+	sim.deal_damage(orbed, 1e9, "orb")
+	check_near(sim.health - before, orbed.attack * 0.25 * 0.5, 0.000001, "and half a shot's once the Labs wake it")
+	check(sim.gained_from.has("free_bounty"), "booked apart, so a printer would show")
+	before = sim.health
+	sim.deal_damage(_place(sim, "divider", 20.0), 1e9, "shot")
+	check_near(sim.health - before, sim.enemy_attack_now("basic") * 0.25, 0.000001, "a Divider, with no Attack, pays a basic's")
+	sim.locked = true
+	before = sim.health
+	sim.deal_damage(_place(sim, "basic", 20.0), 1e9, "shot")
+	check(sim.health == before, "and nothing pays while a Lock stands")
+	var bounty_row := _quiet_sim({"coins_per_kill": 25}, BattleSim.START_GROUPS + ["coins"])
+	bounty_row.bounty_share = 0.25
+	var paid := _place(bounty_row, "basic", 20.0)
+	before = bounty_row.health
+	bounty_row.deal_damage(paid, 1e9, "shot")
+	check_near(bounty_row.health - before, paid.attack * 0.25 * bounty_row.stat("coins_per_kill"), 0.000001, "Coins / Kill raises it, standing in for Bounty")
+
+
+func test_holding_fire_on_a_doomed_enemy_saves_the_shots() -> void:
+	for hold in [true, false]:
+		var sim := _quiet_sim({"attack_speed": TowerData.max_level("attack_speed")})
+		sim.hold_doomed = hold
+		sim.shot_price = 1.0
+		sim.health = 50.0
+		var target := _place(sim, "basic", 25.0)
+		target.health = sim.stat("damage") * 0.5
+		for i in range(120):
+			if not sim.enemies.has(target):
+				break
+			sim.step()
+		check(not sim.enemies.has(target), "the enemy falls")
+		if hold:
+			check(sim.shots_paid == 1, "holding fire, one shot is paid for an enemy one shot kills: %d" % sim.shots_paid)
+		else:
+			check(sim.shots_paid > 1, "without it, the shots fired while the first flies are wasted: %d" % sim.shots_paid)
+
+
+func test_the_fuel_ledger_books_each_wave() -> void:
+	var sim := BattleSim.new(3, {"damage": 20, "health": 20, "health_regen": 10})
+	check(sim.configure_tuning({"shot_price": 1.0, "bounty_share": 0.25, "base_regen": 1.0, "hold_doomed": true}), "the fuel economy is set before the first wave")
+	var start := sim.health
+	while sim.alive and sim.wave < 4:
+		if sim.can_buy("health"):
+			sim.buy("health")
+		sim.step()
+	check(sim.alive, "the tower lives to wave 4")
+	check(sim.fuel_log.size() == sim.wave - 1 and sim.fuel_log.all(func(logged): return is_equal_approx(logged.net, logged.income - logged.spent - logged.lost)),
+		"each finished wave is booked, its net its income less its spending: %d waves" % sim.fuel_log.size())
+	var nets := float(sim.fuel_wave().net)
+	var spent := float(sim.fuel_wave().spent)
+	for logged in sim.fuel_log:
+		nets += float(logged.net)
+		spent += float(logged.spent)
+	check_near(spent, sim.fuel_spent, 0.0001, "the waves' spending adds up to the shots' cost")
+	check_near(nets, sim.health - start - float(sim.gained_from.get("health", 0.0)), 0.0001, "and their nets to the Number's change, less bought Health")
+	check(sim.peak_wave >= 1 and sim.peak_wave <= sim.wave and sim.shots_paid > 0, "the peak's wave and the shots paid are kept: wave %d, %d shots" % [sim.peak_wave, sim.shots_paid])
+
+
 func _quiet_sim(row_levels: Dictionary = {}, groups: Array = BattleSim.START_GROUPS) -> BattleSim:
 	var sim := BattleSim.new(1, row_levels, groups)
 	sim.spawns.schedule.clear()
