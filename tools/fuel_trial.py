@@ -138,9 +138,14 @@ def summary(results):
     return found
 
 
+def declared(config):
+    """Whether `config` is the centre or one of the grid's (THE_NUMBER.md 12.4)."""
+    return not config.get('extra') and config in [CENTRE] + [dict(CENTRE, **{lever: value}) for lever, value in GRID]
+
+
 def render(config, out):
     lines = ['Configuration: ' + json.dumps(config, sort_keys=True)]
-    if config.get('extra'):
+    if not declared(config):
         lines.append('EXPLORATORY: outside the declared grid, so it cannot count as a pass.')
     lines.append('')
     for number in range(1, 7):
@@ -149,7 +154,7 @@ def render(config, out):
         lines.append(f'C{number} {state}' + ('' if found is None else ': ' + found['detail']))
     run = list(out.values())
     overall = 'NOT COMPLETE' if len(run) < 6 else 'PASS' if all(v['pass'] for v in run) else 'FAIL'
-    if config.get('extra'):
+    if not declared(config):
         overall = 'EXPLORATORY'
     lines += ['', 'Overall: ' + overall]
     return '\n'.join(lines), overall

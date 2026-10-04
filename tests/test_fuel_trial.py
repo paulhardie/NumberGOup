@@ -105,9 +105,11 @@ class FuelCriteriaTests(unittest.TestCase):
         self.assertFalse(self.verdicts(results)[6])
 
     def test_exploring_never_passes(self):
-        config = dict(trial.CENTRE, extra={'bounty-share': '1'})
-        _, overall = trial.render(config, trial.evaluate(passing()))
-        self.assertEqual(overall, 'EXPLORATORY')
+        for config in (dict(trial.CENTRE, extra={'bounty-share': '1'}), dict(trial.CENTRE, price=5.0), dict(trial.CENTRE, bounty=0.5, scale=10.0)):
+            _, overall = trial.render(config, trial.evaluate(passing()))
+            self.assertEqual(overall, 'EXPLORATORY', config)
+        _, overall = trial.render(dict(trial.CENTRE, bounty=0.5), trial.evaluate(passing()))
+        self.assertEqual(overall, 'PASS', 'a declared grid configuration can pass')
 
     def test_the_plan_is_the_declared_one(self):
         runs = trial.plan(dict(trial.CENTRE))
