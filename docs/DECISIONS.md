@@ -2362,3 +2362,14 @@ Rules:
 - **Built first as measuring options and Testing switches, off by default** (THE_NUMBER.md section 13), measured against criteria written before the code, then played by the owner. Nothing changes for a run without the switch. Adopting it for real changes AGENTS.md architectural law 4 ("run Upgrades … spend Cash"), Cash's screens, the Cash and Health cards' wording and the activity report, and supersedes D111's clean-kill growth while it is on.
 - **Measured (2026-10-04, THE_NUMBER.md 13.3): FAIL on two of six criteria, with nothing broken.** Buying with the Number keeps today's pace and nothing runs away, but the run shop never stops mattering (it adds 25 to 37% of a run's waves even at 1M Coins), and a bot that buys holds its Number at a quarter to a fifth of today's peak. With the shop shut the Number goes higher and the run ends sooner: a fork between going far and going big. The owner's play is the next gate.
 - **Checked:** the tests (the option off and unrecorded by default; Cash into the Number; buying never below 1; Regen and Lifesteal refilling only what enemies took; Health out of the shop; free levels not raising prices; Interest on the Number up to its cap; a shut shop with Free Upgrades still landing; the settings switches read by a new run and not by a started one; validation and a snapshot round trip and replay), the headless boot, and screenshots of a battle with the switch on and with the shop shut. **Not checked:** a player, a phone, Tier 2 and 3, and the run-over panel's wording (it still says "Cash earned").
+
+## D157 — A Lock holds the Cash it blocks and pays it when it dies
+
+- **Status:** Accepted (2026-10-05) on the owner's "ye" to the agent's proposal after the enemy check under the Number as Cash (THE_NUMBER.md 13.4), which found the Lock had become an income thief (36% of a slow turtle's income at 100K Coins, 58% at 1M).
+- **Decision:**
+  1. **While a Lock stands, the Cash it blocks is held on it, and killing it pays all of it into the Number.** Holding stays a threat, and a slow build waits for its income rather than losing it.
+  2. **A Lock's own Cash is paid when it dies**, not blocked by the Lock that is falling.
+  3. **With two Locks, the held Cash is paid when the last one falls.**
+  4. **Built as the measuring option `lock_holds_cash`**, off by default and recorded only while on, and turned on by the Testing switch Number is Cash. It changes nothing for a run without that switch.
+- **Not decided:** making the Number as Cash the game; the agent held that for a clear yes of its own, as it is high risk (economy and saves).
+- **Checked / not checked:** see THE_NUMBER.md 13.5's results, HANDOVER.md and the pull request.

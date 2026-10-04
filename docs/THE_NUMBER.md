@@ -961,3 +961,15 @@ The owner played it ("way better … I need to sort this friction out so I can k
 5. **The early game:** a fresh tower loses to the same enemies as today (basics 84% of losses against 78%) and ends on the same wave (6). The owner's sense that it's harder fits what the bots can't feel: every early purchase lowers the Number a hit takes from.
 
 **Proposal for the Lock (the owner's call):** while a Lock stands, the Cash it blocks is held on it, and killing it pays the lot into the Number. Holding stays a threat, a slow-killing build still waits for its income, and killing the Lock becomes a payday rather than just relief. Built as a measuring option first and checked against the turtle's 36% and 58%.
+
+### 13.5 The Lock holds the Cash it blocks (5 October 2026, D157)
+
+The owner agreed to the proposal in 13.4 ("ye"): while a Lock stands, the Cash it blocks is held, and killing it pays all of it into the Number. **Built as the option `lock_holds_cash` (off by default, recorded only while on) before it was measured**, and **on whenever the Testing switch Number is Cash is on**, so the owner plays it. A Lock's own kill now also ends the hold before its own Cash is paid (until now the flag from the tick before still read "locked", so a Lock's own Cash was lost to itself). The held pool is the run's, not one Lock's: with two Locks it is paid when the last falls.
+
+**Pass criteria, written before the first measurement of the option** (the same cells and seeds as 13.4: core, turtle and blender at 10K, 100K and 1M Coins, 6 seeds, buying with the Number, bots keeping half in reserve; each against the same cell without the option):
+1. **The income comes back.** At 100K and 1M Coins, the share of income still lost to Locks at a run's end (held at the end ÷ income paid plus that) is at most 10% in every cell, against 36% and 58% for the turtle without it.
+2. **The pace holds.** Every cell's median wave is within 10% of the same cell without the option.
+3. **No runaway.** No run reaches the 3-hour cap, and no cell's median peak Number is more than double that of the same cell without it.
+4. **Nothing changes where nothing was blocked.** A cell whose runs were never locked plays identically with the option on (same waves, same peaks).
+
+The rules of 10.4 and 12.5 apply: every cell reported, no seed chosen, criteria not changed after results. A pass means the numbers hold; **the owner's play is the test.**
