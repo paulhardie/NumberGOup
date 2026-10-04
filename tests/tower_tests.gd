@@ -1686,6 +1686,38 @@ func test_the_game_opens_into_a_saved_run_and_gives_up_one_it_cant_replay() -> v
 	_clear_test_saves()
 
 
+## D158: the game itself starts every run under its rules, again and again, with
+## Run upgrades off read from the settings only as a run starts, and Home, the
+## Workshop and Cards write about the Number.
+func test_the_game_starts_every_run_under_its_rules() -> void:
+	_clear_test_saves()
+	_clear_test_logs()
+	var game = _game()
+	await process_frame
+	game._show_battle()
+	var battle = game._screen
+	check(battle.sim.number_cash and battle.sim.lock_holds_cash and not battle.sim.upgrades_off and not battle._cash_chip.visible,
+		"a new run plays the game's rules, with the shop open")
+	battle.sim.end_run()
+	battle._process(0.0)
+	battle.start_run(5)
+	check(battle.sim.number_cash and battle.sim.lock_holds_cash, "and so does the next one (Battle again)")
+	var record := RunReport.build(battle.sim)
+	check(record.start.tuning.number_cash == true and record.start.tuning.lock_holds_cash == true and RunReport.is_replayable(record), "recorded in its start config, so it replays")
+	battle.sim.end_run()
+	battle._process(0.0)
+	game.settings.upgrades_off = true
+	check(battle.sim.upgrades_off == false, "the setting changes nothing for the screen already open")
+	game._show_home()
+	check(Palette.number_cash and Palette.row_title("cash_per_wave") == "Number / wave", "Home and the Workshop write about the Number")
+	game._show_battle()
+	check(game._screen.sim.upgrades_off and game._screen.sim.number_cash and not game._screen.sim.can_buy("damage"), "with Run upgrades off, the next run's shop is shut")
+	game.free()
+	Palette.number_cash = false
+	_clear_test_saves()
+	_clear_test_logs()
+
+
 func test_every_run_on_a_battle_screen_is_logged() -> void:
 	_clear_test_saves()
 	_clear_test_logs()
