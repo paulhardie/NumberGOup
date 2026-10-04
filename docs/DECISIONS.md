@@ -2389,5 +2389,5 @@ Rules:
   4. **No combat-rules version bump.** A start config records its tuning, so a saved battle or report from before resumes and replays under the rules it began with. Tested.
   5. **AGENTS.md law 4 is rewritten:** the temporary layer is run Upgrades, bought with the Number.
   6. **D111's clean-kill growth is superseded for new runs** (Cash replaces it); Lifesteal and Regen still refill only what enemies took (D156).
-- **Not decided here:** Coins from the peak Number, how Workshop power outgrows the run shop, the Thorns turtle against a Lock, Tier 2 and 3's balance under the new rules, and **the Number milestones**, which now pay less because a spender's peak Number is lower (THE_NUMBER.md 14.3).
+- **Not decided here:** Coins from the peak Number, how Workshop power outgrows the run shop, the Thorns turtle against a Lock, Tier 2 and 3's balance under the new rules, and **the Number milestones**, which now pay less because a spender's peak Number is lower (THE_NUMBER.md 14.4).
 - **Checked / not checked:** see THE_NUMBER.md section 14, HANDOVER.md and the pull request.
