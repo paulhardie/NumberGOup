@@ -82,13 +82,12 @@ func _save() -> void:
 
 
 func _show_home() -> HomeScreen:
-	Palette.number_cash = settings.number_cash
+	Palette.number_cash = true
 	var home := HomeScreen.new()
 	home.workshop = workshop
 	home.progression = progression
 	home.settings = settings
 	home.settings_changed.connect(func():
-		Palette.number_cash = settings.number_cash
 		music.set_playing(settings.music)
 		settings.write(settings_path))
 	home.test_coins_pressed.connect(func(amount: float):
@@ -172,7 +171,7 @@ func _show_battle(saved: Dictionary = {}) -> void:
 
 func _show_workshop() -> void:
 	if not progression.writable: return
-	Palette.number_cash = settings.number_cash
+	Palette.number_cash = true
 	var shop := WorkshopScreen.new()
 	shop.workshop = workshop
 	shop.progression = progression
@@ -187,7 +186,7 @@ func _show_workshop() -> void:
 ## change.
 func _show_cards() -> void:
 	if not progression.writable: return
-	Palette.number_cash = settings.number_cash
+	Palette.number_cash = true
 	var cards := CardsScreen.new()
 	cards.workshop = workshop
 	cards.progression = progression

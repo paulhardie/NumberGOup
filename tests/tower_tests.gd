@@ -23,6 +23,7 @@ const HomeScreen = preload("res://src/ui/home_screen.gd")
 const NavBar = preload("res://src/ui/nav_bar.gd")
 const Main = preload("res://src/main.gd")
 const Settings = preload("res://src/settings.gd")
+const RunConfig = preload("res://src/tower/run_config.gd")
 const AmbientMusic = preload("res://src/ui/ambient_music.gd")
 const WaveInfo = preload("res://src/ui/wave_info.gd")
 const Cards = preload("res://src/tower/cards.gd")
@@ -1567,6 +1568,54 @@ func test_a_saved_run_resumes_where_it_was_left() -> void:
 	second.free()
 
 
+## D158: a saved battle comes back under the rules it began with, whichever
+## the game plays now: one begun as Cash (every save from before) keeps its
+## Cash chip and words, one begun as the game's rules keeps the Number's, each
+## from a full snapshot and from a replay of its record.
+func test_a_saved_run_resumes_under_the_rules_it_began_with() -> void:
+	for game in [false, true]:
+		var shop := Workshop.new()
+		shop.levels = {"damage": 20, "health": 60, "health_regen": 30}
+		var first := BattleScreen.new()
+		first.workshop = shop
+		if game:
+			first.tuning = RunConfig.game_tuning()
+		root.add_child(first)
+		first.start_run(99)
+		for frame in range(1500):
+			first._process(1.0 / 30.0)
+			if frame % 60 == 0 and first.sim.can_buy("attack_speed"):
+				first.sim.buy("attack_speed")
+		check(first.sim.alive and first.sim.number_cash == game and first.sim.run_levels.size() > 0,
+			"%s: a run that has bought is still going" % ["game's rules" if game else "Cash rules"])
+		var saved := _through_json(first.run_state())
+		check(saved.has("snapshot") and saved.start.tuning.has("number_cash") == game and not saved.start.tuning.has("lock_holds_cash") != game,
+			"its record says which rules it began with")
+		for from_snapshot in [true, false]:
+			var record := saved.duplicate(true)
+			if not from_snapshot:
+				record.erase("snapshot")
+			var second := BattleScreen.new()
+			second.workshop = shop
+			second.resume = record
+			root.add_child(second)
+			var frames := 0
+			while second.sim == null and frames < 300:
+				second._process(0.0)
+				frames += 1
+			var how := "%s, from %s" % ["game's rules" if game else "Cash rules", "a snapshot" if from_snapshot else "a replay"]
+			check(second.sim != null and second.sim.ticks == first.sim.ticks and is_equal_approx(second.sim.health, first.sim.health)
+				and is_equal_approx(second.sim.cash, first.sim.cash) and second.sim.number_cash == game, "%s: exactly where it was left, under its rules" % how)
+			check(second._cash_chip.visible != game and Palette.number_cash == game, "%s: the Cash chip and the words follow the run" % how)
+			check(Palette.row_title("cash_bonus") == ("Number bonus" if game else "Cash bonus") and second._upgrades.sim.in_shop("health") != game,
+				"%s: the shop sells what its rules sell" % how)
+			second._process(1.0)
+			check(second.sim.ticks > first.sim.ticks, "%s: and plays on" % how)
+			second.free()
+		first.free()
+	Palette.number_cash = false
+
+
 func test_a_run_that_cant_be_replayed_is_given_up_not_played_wrong() -> void:
 	var played := _played_run(11, 120.0)
 	var tampered := _through_json(RunReport.build(played))
@@ -2894,8 +2943,8 @@ func test_the_number_grows_by_fighting_not_waiting() -> void:
 	await process_frame
 	home._open_settings()
 	var names := home.find_children("*", "CheckButton", true, false).map(func(toggle): return toggle.text)
-	check(names == ["Music", "Number is Cash (next run)", "Run upgrades off (next run)"],
-		"Home's Settings has the music switch and none of D111's old Testing switches, only D156's two: %s" % [names])
+	check(names == ["Music", "Run upgrades off (next run)"],
+		"Home's Settings has the music switch and D158's Run upgrades off, and none of D111's old Testing switches or D156's Number is Cash: %s" % [names])
 	home.queue_free()
 	await process_frame
 
@@ -3747,26 +3796,45 @@ func test_cash_pays_into_the_number_and_buys_with_it() -> void:
 	check(is_equal_approx(sim.spendable(), 5.0), "the bots' reserve keeps a share of the best back: %.2f spendable" % sim.spendable())
 
 
-## D156: the Testing switches are kept in the settings file, off unless set,
-## and a new run reads them; a run that has started keeps what it started with.
-func test_the_number_as_cash_switches_are_settings_a_run_reads() -> void:
+## D158: the game's rules are one place (RunConfig.game_tuning) and a new run
+## reads them, with Run upgrades off from the settings; a run that has started
+## keeps what it started with, and an old settings file is read without the
+## Testing switch D156 had.
+func test_a_new_run_plays_the_games_rules_and_reads_run_upgrades_off() -> void:
+	var rules := RunConfig.game_tuning()
+	check(rules == {"number_cash": true, "lock_holds_cash": true} and RunConfig.valid_tuning(rules), "the game's rules: the Number is Cash and the Lock holds it")
+	check(RunConfig.game_tuning(true) == {"number_cash": true, "lock_holds_cash": true, "upgrades_off": true}, "and with the shop shut on request")
 	var settings := Settings.new()
-	check(not settings.number_cash and not settings.upgrades_off and settings.run_tuning().is_empty(), "off by default, and a run gets nothing new")
-	settings.number_cash = true
+	check(not settings.upgrades_off and settings.run_tuning() == rules, "by default a run gets the game's rules and an open shop")
 	settings.upgrades_off = true
 	check(settings.write(TEST_SETTINGS), "written")
 	var back := Settings.new()
 	back.read(TEST_SETTINGS)
-	check(back.number_cash and back.upgrades_off and back.run_tuning() == {"number_cash": true, "lock_holds_cash": true, "upgrades_off": true}, "and read back as the next run's tuning")
+	check(back.upgrades_off and back.run_tuning() == RunConfig.game_tuning(true), "and read back as the next run's tuning")
+	DirAccess.remove_absolute(TEST_SETTINGS)
+	var old := FileAccess.open(TEST_SETTINGS, FileAccess.WRITE)
+	old.store_string(JSON.stringify({"version": 1, "music": false, "number_cash": true, "upgrades_off": true}))
+	old.close()
+	var legacy := Settings.new()
+	legacy.read(TEST_SETTINGS)
+	check(not legacy.music and legacy.upgrades_off and not legacy.get("number_cash"), "a file from D156's Testing switch still reads, the Number is Cash key ignored")
+	check(legacy.write(TEST_SETTINGS) and not FileAccess.get_file_as_string(TEST_SETTINGS).contains("number_cash"), "and is written without it")
+	DirAccess.remove_absolute(TEST_SETTINGS)
+	var bad := FileAccess.open(TEST_SETTINGS, FileAccess.WRITE)
+	bad.store_string(JSON.stringify({"version": 1, "upgrades_off": "yes"}))
+	bad.close()
+	var strange := Settings.new()
+	strange.read(TEST_SETTINGS)
+	check(not strange.upgrades_off, "a value that isn't a boolean falls back to the shop open")
 	DirAccess.remove_absolute(TEST_SETTINGS)
 	var battle := BattleScreen.new()
 	battle.workshop = Workshop.new()
 	battle.tuning = back.run_tuning()
 	root.add_child(battle)
 	await process_frame
-	check(battle.sim.number_cash and battle.sim.upgrades_off and not battle._cash_chip.visible, "a new run starts with them, and the Cash readout steps aside")
-	back.number_cash = false
-	check(battle.sim.number_cash, "switching it off doesn't change a run that has started")
+	check(battle.sim.number_cash and battle.sim.lock_holds_cash and battle.sim.upgrades_off and not battle._cash_chip.visible, "a new run starts with them, and the Cash readout steps aside")
+	back.upgrades_off = false
+	check(battle.sim.upgrades_off, "changing the setting doesn't change a run that has started")
 	check(Palette.number_cash and Palette.row_title("cash_bonus") == "Number bonus" and Palette.row_title("cash_per_wave") == "Number / wave",
 		"and its words follow the run: the Cash rows read as the Number's")
 	battle.queue_free()

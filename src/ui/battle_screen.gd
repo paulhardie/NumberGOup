@@ -69,8 +69,9 @@ var progression: Progression
 ## The saved run to resume (Save.load_run), set before the screen is added;
 ## empty for a new run.
 var resume: Dictionary = {}
-## What a new run's measuring switches are: Testing's Number as Cash (D156).
-## A resumed run keeps the ones it started with.
+## The rules a new run starts with (RunConfig.game_tuning, D158), which the game
+## sets from the settings. A resumed run keeps the ones it started with; empty
+## where nothing sets it, as the tools and tests that play the old rules.
 var tuning: Dictionary = {}
 var _replay: RunReport.Replay
 var _resuming: Label
@@ -189,6 +190,9 @@ func _adopt(run_sim: BattleSim) -> void:
 	sim.record_events = true
 	# The run's words follow the run's own rules, whatever the switch says now.
 	Palette.number_cash = sim.number_cash
+	# Before the first frame draws, so a resumed run never shows the Cash chip
+	# it doesn't have (or lacks the one it does).
+	_cash_chip.visible = not sim.number_cash
 	_banked = 0.0
 	_arena.sim = sim
 	_upgrades.set_sim(sim)
