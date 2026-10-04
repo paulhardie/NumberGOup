@@ -819,7 +819,8 @@ func _record_run(sim: BattleSim, case_id: String, run: int, cap_seconds: float) 
 	_measurements[-1].merge(ledger)
 	if sim.number_cash:
 		_measurements[-1].merge({"gained_from": sim.gained_from.duplicate(), "raised_by": sim.raised_by.duplicate(),
-			"free_levels": sim.free_levels.duplicate()})
+			"free_levels": sim.free_levels.duplicate(), "paid_by": sim.paid_by.duplicate(), "locked_out": sim.locked_out,
+			"locked_seconds": sim.locked_seconds})
 	if sim.fuel_active():
 		_measurements[-1].merge({"shots_paid": sim.shots_paid, "fuel_spent": sim.fuel_spent, "peak_wave": sim.peak_wave,
 			"crossing": _crossing(sim), "gained_from": sim.gained_from.duplicate(), "raised_by": sim.raised_by.duplicate()})

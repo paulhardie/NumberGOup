@@ -3719,6 +3719,13 @@ func test_cash_pays_into_the_number_and_buys_with_it() -> void:
 	var paid := EnemyKinds.cash(basic, sim.stat("cash_bonus"))
 	check_near(sim.health - start, paid, 0.000001, "a kill's Cash lands in the Number, and no clean-kill growth on top")
 	check(sim.gained_from.has("kill_cash") and not sim.gained_from.has("kills") and is_equal_approx(sim.cash_earned, paid), "booked as income")
+	check(is_equal_approx(float(sim.paid_by.get("basic", 0.0)), paid), "and counted against the kind that paid it")
+	sim.locked = true
+	var held := sim.health
+	sim.deal_damage(_place(sim, "basic", 20.0), 1e9, "shot")
+	check(sim.health == held and is_equal_approx(sim.locked_out, paid) and is_equal_approx(float(sim.paid_by.basic), paid),
+		"while a Lock stands a kill's Cash is lost, and counted as kept out")
+	sim.locked = false
 	check(not sim.can_buy("health"), "Health isn't sold: it would buy Number with Number")
 	sim.health = 50.0
 	sim._ceiling = 50.0

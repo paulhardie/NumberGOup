@@ -236,6 +236,10 @@ var upgrades_off := false
 var reserve_share := 0.0
 var _ceiling := 0.0
 var free_levels: Dictionary = {}
+## Counted only, with the Number as Cash: what each kind's kills paid into the
+## Number, and the Cash a standing Lock kept out of it.
+var paid_by: Dictionary = {}
+var locked_out := 0.0
 
 ## The highest the Number has stood this run: the run's record (D081).
 var peak_number := 0.0
@@ -375,7 +379,10 @@ func spendable() -> float:
 ## ceiling rises with it, so it stays above the Number by what enemies took.
 ## A standing Lock holds the Number (D133), so Cash paid then is lost.
 func _pay_cash(amount: float, source: String) -> void:
-	if amount <= 0.0 or locked:
+	if amount <= 0.0:
+		return
+	if locked:
+		locked_out += amount
 		return
 	var before := health
 	health += amount
@@ -1226,6 +1233,8 @@ func _kill(enemy: Enemy, by := "") -> void:
 	var paid_cash := EnemyKinds.cash(enemy, stat("cash_bonus")) * rules.value("cash_multiplier")
 	var paid_coins := EnemyKinds.coins(enemy, wave, stat("coins_per_kill"), tier, rules.value("basic_coins")) * rules.value("coin_multiplier")
 	if number_cash:
+		if not locked:
+			paid_by[enemy.kind] = float(paid_by.get(enemy.kind, 0.0)) + paid_cash
 		_pay_cash(paid_cash, "kill_cash")
 	else:
 		cash += paid_cash
