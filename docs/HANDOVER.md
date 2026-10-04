@@ -3,12 +3,13 @@
 **Last updated:** 4 October 2026, by Claude Code.
 - Base `main` is `7672578`, including D150's balance harness (PR #143), the Tier research (PRs #144 to #146), D151's menus and pop-ups (PR #147), D152's Number-as-capital trial (PRs #148 and #149), D153's design note (PRs #151 to #153), D154 (PR #154: tanks keep their weight, the Number in full to a trillion) and **D155 (PR #155): the fuel economy measured, every configuration failing, with corrected balance baselines**. The public version stays 0.9.
 - `main` (`672daf8`) also carries **D156 (PRs #156 and #158): the Number as Cash, playable from Settings → Testing**, off by default. The owner has played it: "way better".
-- Branch `claude/number-cash-names` carries **the Cash rows and card renamed for the Number while the switch is on, and the enemy check under the new rules** (THE_NUMBER.md 13.4). With the switch off nothing changes. The play folder follows `origin/main` through `com.paulhardie.ngu-sync`, so it reaches your game only once its pull request merges.
+- `main` (`ec93d2f`) also carries **the Cash rows and card renamed for the Number while the switch is on, and the enemy check under the new rules** (PR #159, THE_NUMBER.md 13.4).
+- Branch `claude/number-lock` carries **D157: a Lock holds the Cash it blocks and pays it when it dies**, on with the Testing switch Number is Cash (THE_NUMBER.md 13.5). With the switch off nothing changes. The play folder follows `origin/main` through `com.paulhardie.ngu-sync`, so it reaches your game only once its pull request merges.
 - The pre-rebuild game is commit `f4f1e95`.
 
 ## Start here
 
-Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md). Fetch and inspect the checkout before editing. Accepted choices live in [DECISIONS.md](DECISIONS.md); grep it by ID. The next free ID is **D157**. The public version stays **0.9**.
+Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md). Fetch and inspect the checkout before editing. Accepted choices live in [DECISIONS.md](DECISIONS.md); grep it by ID. The next free ID is **D158**. The public version stays **0.9**.
 
 ## Where the game is
 
@@ -27,6 +28,7 @@ Tier 1 and every Workshop group work.
 After stage 1 failed, the owner chose to make the Number the run's Cash as well as its life, keep Coins for the Workshop, aim for players strong enough not to need run upgrades, and allow switching the run shop off before a run. THE_NUMBER.md section 13 has the rules, the criteria (committed before the code) and the results.
 - **The owner played it (5 October):** "way better … I need to sort this friction out so I can keep climbing"; early on a bit harder than The Tower, "but that's fine"; seeing Cash / Wave and Coins / Wave feed the Number at a wave's end feels good.
 - **Named for the Number (this branch):** with the switch on, Cash Bonus and Cash / Wave read as **Number Bonus** and **Number / Wave**, Interest and the Cash card (**Number Income**) speak of the Number, and the run-over panel says "Number earned". A run's words follow the rules it started with.
+- **The Lock (D157, this branch):** a standing Lock holds the Cash it blocks and pays all of it into the Number when the last Lock dies; a Lock's own Cash is no longer blocked by itself. Measured: core and blender lose 0 to 3% of income to Locks (from up to 16%), **the turtle still loses 19.5% at 100K and 43% at 1M** because Thorns can't hurt a Lock (D133). The pace, runaway and unchanged-cell criteria pass.
 - **The enemies (13.4):** overall difficulty is unchanged, but **Dividers now punish banking** (0 to 7% of a spender's losses, up to 96% of a banker's) and **the Lock has become an income thief**: a slow-killing turtle loses 36% of its income at 100K and 58% at 1M while Locks stand. Ranged enemies are the wall for every build that buys.
 - **To play it:** Settings → Testing → **Number is Cash (next run)**, and optionally **Run upgrades off (next run)**. Each new run reads them as it starts; a run in progress keeps what it began with. With them on, the Cash chip steps aside, prices read "−10" (what they take off the Number), kills pop "+1" in the Number's colour, Health leaves the run shop, and a shut shop says so.
 - **The rules:** Cash pays into the Number and upgrades spend it, never below 1; Regen and Lifesteal refill only what enemies took; Health is Workshop-only; Interest is on the Number, capped as now; free levels don't raise prices; a standing Lock still holds the Number, so Cash paid then is lost.
@@ -74,7 +76,8 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 
 ## Checked, and not checked
 
-- **Checked, this branch:** `bash run_tests.sh` passes: 4,837 tower checks (5 new: the Number names on and off and following a run's own rules, the Cash card's, and the kind and Lock counters), 360 foundation checks and 46 Python tests, exit 0. Headless boot clean. The enemy check (13.4) ran on the committed code, buying, shop shut and today's game on the same seeds. A screenshot of the Workshop's Utility tab with the switch on reads "Number bonus" and "Number / wave". **Not checked:** the Cards screen and run-over panel by eye, Tier 2 and 3's enemies.
+- **Checked, this branch (D157):** `bash run_tests.sh` passes: 4,849 tower checks (12 new: Cash blocked either way, held only with the option, one Lock down paying nothing while another stands, the last paying all held plus the Locks' own Cash, the old rule without the option) and 361 foundation checks (a snapshot round trip with held Cash) and 46 Python tests, exit 0. The measurements in THE_NUMBER.md 13.5 ran on the committed option, and the quick balance comparison shows the game unchanged. **Not checked:** a player, the turtle's feel, the held payout's look on screen (it shows as a rise in the Number), Tier 2 and 3.
+- **Checked, PR #159 (merged):** the Number names, the counters and the enemy check (13.4); not checked, the Cards screen and run-over panel by eye, Tier 2 and 3's enemies.
 - **Checked, D156 (merged):** `bash run_tests.sh` passed: 4,832 tower checks (the option off and unrecorded by default; Cash into the Number; never below 1; Regen and Lifesteal refill only what enemies took; Health out of the shop; free levels not raising prices; Interest on the Number to its cap; a shut shop with Free Upgrades landing; the settings switches read by a new run and not by a started one; D111's old Testing switches still gone), 360 foundation checks (validation, a snapshot round trip and replay with buys and free levels) and 46 Python tests (10 new for the criteria's code), exit 0. Headless boot clean. Screenshots of a battle with the switch on and with the shop shut, inspected. Every number in THE_NUMBER.md 13.3 was measured on the committed options.
 - **Not checked, D156:** a player, a phone, Tier 2 and 3; the run-over panel still says "Cash earned" with the switch on.
 - **Checked, D155 (PR #155, merged):** `bash run_tests.sh` passes: 4,808 tower checks (28 new: the options off and unrecorded by default, a shot's price, the broke rule, Multishot copies free, bounties for shots, free killers, Dividers and under a Lock, Coins / Kill raising it, holding fire, and the ledger adding up to the Number's change), 346 foundation checks (15 new: validation, a snapshot round trip and replay with the ledger) and 36 Python tests (10 new for the criteria's own code), exit 0. The quick balance comparison against a fresh baseline shows the game unchanged. Every result in THE_NUMBER.md 12.6 was measured on the committed options.
@@ -87,7 +90,7 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 
 ## Open decisions for the owner
 
-1. **The Lock under the Number as Cash (13.4):** I'd **hold the Cash a Lock blocks and pay it all out when it dies**, so a slow build waits for its income rather than losing it and killing a Lock is a payday. Trade-off: a Lock that's never killed still costs its income. Built as a measuring option first.
+1. **The turtle and the Lock (13.5):** I'd **leave it and play the Thorns turtle first**: the loss is a build with no shots meeting a wall that needs shots (D133, D144). If it feels bad, **let Thorns hurt a standing Lock at a share of its strength**, as a measuring option first. Trade-off: it changes D133's "Thorns don't touch a Lock", which keeps Locks a shot problem.
 2. **Make the Number as Cash the game?** The owner's play says yes in spirit. I'd do it after the Lock fix: switch on by default, Cash gone, the Workshop's rows renamed in their data, AGENTS.md law 4 rewritten, a combat-rules version bump so saved battles resume under the rules they started with, and the balance baselines re-recorded. High risk under QUALITY_GATES (economy and saves), so it gets its own pull request and an independent review.
 3. **Play the Number as Cash, then decide (THE_NUMBER.md 13.3).** The bots say it's safe and keeps today's pace; whether it's fun only playing can say. Then two questions follow: **should a run's reward (its Coins, or the record) follow its peak Number**, so "upgrades off" becomes a strategy (going big) rather than a handicap? I'd say yes, because it turns the fork the bots found into the choice you described. And **should Workshop power be able to outgrow the run shop** (Labs, or run prices that rise with the tier), so "strong enough not to buy" can arrive? The shot-price question (12.6) is parked behind this.
 4. **The rest of the Number-first design (THE_NUMBER.md 11.12):** now partly superseded by D156 (Cash is the Number):
@@ -106,9 +109,8 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 
 ## Next steps, in order
 
-1. **Owner:** merge this branch's pull request, and decide open decisions 1 (the Lock) and 2 (make it the game).
-2. **Agent, on a yes to the Lock:** build the held-and-paid-out Lock as a measuring option, check the turtle's lost income falls, and add it behind the same switch.
-3. **Agent, on a yes to making it the game:** its own high-risk pull request, as open decision 2 describes.
+1. **Owner:** merge this branch's pull request, **play a few runs of the Thorns turtle with Number is Cash on**, and decide open decisions 1 (the turtle's Lock) and 2 (make it the game).
+2. **Agent, on a clear yes to making it the game:** its own high-risk pull request, as open decision 2 describes.
 3. **Owner:** **play a run holding tiles on a phone**: it is the one check on the pop-ups that couldn't be made, and it settles the hold's timing.
 
 ## Known issues and limits

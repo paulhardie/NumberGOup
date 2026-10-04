@@ -973,3 +973,21 @@ The owner agreed to the proposal in 13.4 ("ye"): while a Lock stands, the Cash i
 4. **Nothing changes where nothing was blocked.** A cell whose runs were never locked plays identically with the option on (same waves, same peaks).
 
 The rules of 10.4 and 12.5 apply: every cell reported, no seed chosen, criteria not changed after results. A pass means the numbers hold; **the owner's play is the test.**
+
+**Results (5 October 2026), on the committed option:** `lock_holds_cash` against the same cells without it. **Overall: FAIL on criterion 1, for the turtle only; criteria 2, 3 and 4 pass.**
+
+| Cell (buying with the Number) | Median wave, without → with | Peak Number, without → with | Income still lost to Locks at the end, without → with |
+|---|---|---|---|
+| core 10K / 100K / 1M | 31 / 51 / 81, no change | 1.00× | 0% / 5.4% / 12.6% → 0% / 0% / 2.5% |
+| blender 10K / 100K / 1M | 31 / 50 / 81, no change | 1.00× | 0% / 5.2% / 15.7% → 0% / 0% / 3.1% |
+| **turtle 10K** | 41, no change | 1.04× | 5.0% → 0% |
+| **turtle 100K** | 79 → 83 (+5%) | 1.24× | **36.0% → 19.5%** |
+| **turtle 1M** | 142 → 150 (+6%) | 1.16× | **58.2% → 43.4%** |
+| fresh `even` | 6, no change | 1.00× | no Lock came |
+
+1. **C1 fails where a build can't kill a Lock.** Core and blender, which shoot, are down to 0 to 3%. The turtle still ends with 19.5% (100K) and 43.4% (1M) of its income held on a Lock that is still standing: at 1M a Lock stands for about 2,000 seconds of its run, and every run ends with 22,000 to 29,000 held. **Thorns don't hurt a Lock (D133)**, so the turtle's main damage (14.7M of its 20.9M at 1M) never touches it, and its shots (6.2M) are the only answer.
+2. **C2, C3, C4 pass.** No cell moves more than 6% in waves, none reaches the cap, no peak is more than 1.24 times the unheld one, and the one cell that was never locked plays identically.
+3. **What the option does for the turtle:** 5 to 6% more waves and 16 to 24% more peak Number than losing the income outright. It recovers about half of what was lost, and no more than the turtle can pay for in killing a Lock.
+4. **The game is unchanged:** the quick balance comparison shows no movement (the option is off by default and needs the Number as Cash).
+
+**For the owner:** the remaining loss is the turtle's, and it is the same fact that made Locks a Tier 1 wall in D133 and D144 (kill it or knock it back): a build with no shots can't answer one. I'd leave it, and **let Thorns' build feel it in play** before changing D133. If it feels bad, the narrow fix is to let Thorns hurt a standing Lock at a share of its strength, built as a measuring option first.
