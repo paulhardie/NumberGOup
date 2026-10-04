@@ -2894,7 +2894,8 @@ func test_the_number_grows_by_fighting_not_waiting() -> void:
 	await process_frame
 	home._open_settings()
 	var names := home.find_children("*", "CheckButton", true, false).map(func(toggle): return toggle.text)
-	check(names == ["Music"], "Home's Settings has the music switch and no Testing switches: %s" % [names])
+	check(names == ["Music", "Number is Cash (next run)", "Run upgrades off (next run)"],
+		"Home's Settings has the music switch and none of D111's old Testing switches, only D156's two: %s" % [names])
 	home.queue_free()
 	await process_frame
 
@@ -3737,6 +3738,30 @@ func test_cash_pays_into_the_number_and_buys_with_it() -> void:
 	sim.reserve_share = 0.5
 	sim.peak_number = 190.0
 	check(is_equal_approx(sim.spendable(), 5.0), "the bots' reserve keeps a share of the best back: %.2f spendable" % sim.spendable())
+
+
+## D156: the Testing switches are kept in the settings file, off unless set,
+## and a new run reads them; a run that has started keeps what it started with.
+func test_the_number_as_cash_switches_are_settings_a_run_reads() -> void:
+	var settings := Settings.new()
+	check(not settings.number_cash and not settings.upgrades_off and settings.run_tuning().is_empty(), "off by default, and a run gets nothing new")
+	settings.number_cash = true
+	settings.upgrades_off = true
+	check(settings.write(TEST_SETTINGS), "written")
+	var back := Settings.new()
+	back.read(TEST_SETTINGS)
+	check(back.number_cash and back.upgrades_off and back.run_tuning() == {"number_cash": true, "upgrades_off": true}, "and read back as the next run's tuning")
+	DirAccess.remove_absolute(TEST_SETTINGS)
+	var battle := BattleScreen.new()
+	battle.workshop = Workshop.new()
+	battle.tuning = back.run_tuning()
+	root.add_child(battle)
+	await process_frame
+	check(battle.sim.number_cash and battle.sim.upgrades_off and not battle._cash_chip.visible, "a new run starts with them, and the Cash readout steps aside")
+	back.number_cash = false
+	check(battle.sim.number_cash, "switching it off doesn't change a run that has started")
+	battle.queue_free()
+	await process_frame
 
 
 func test_with_the_number_as_cash_free_levels_dont_raise_prices() -> void:

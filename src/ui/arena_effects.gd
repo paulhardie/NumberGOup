@@ -264,7 +264,9 @@ func _take(events: Array[Dictionary]) -> void:
 		match event.type:
 			"kill":
 				# What it paid, beside where it died: Cash, and Coins when it paid any.
-				var paid: Array = [["$" + Palette.money(event.cash), view.mono_cut, 12, Palette.ACCENT]]
+				# With the Number as Cash (D156) the Cash is Number: a "+" in its colour.
+				var as_number: bool = view.sim != null and view.sim.number_cash
+				var paid: Array = [[("+" if as_number else "$") + Palette.money(event.cash), view.mono_cut, 12, Palette.NUMBER if as_number else Palette.ACCENT]]
 				if float(event.get("coins", 0.0)) > 0.0:
 					paid.append(["  ● " + Palette.money(float(event.coins)), view.mono_cut, 12, Palette.COIN])
 				floats.append({"parts": paid, "at": event.enemy.position(), "age": 0.0, "colour": Palette.ACCENT})

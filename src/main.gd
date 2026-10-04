@@ -153,6 +153,7 @@ func _show_battle(saved: Dictionary = {}) -> void:
 	var battle := BattleScreen.new()
 	battle.workshop = workshop
 	battle.progression = progression
+	battle.tuning = settings.run_tuning()
 	battle.wave_reward.connect(func(reward):
 		ActivityLog.append({"kind": "wave_milestone", "reward": reward}, log_path)
 		_save())

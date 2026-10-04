@@ -69,6 +69,9 @@ var progression: Progression
 ## The saved run to resume (Save.load_run), set before the screen is added;
 ## empty for a new run.
 var resume: Dictionary = {}
+## What a new run's measuring switches are: Testing's Number as Cash (D156).
+## A resumed run keeps the ones it started with.
+var tuning: Dictionary = {}
 var _replay: RunReport.Replay
 var _resuming: Label
 var _speed_index := 0
@@ -82,6 +85,8 @@ var _seconds_at_speed := {}
 
 var _arena: ArenaView
 var _cash: Label
+## The Cash chip around it, set aside with the Number as Cash (D156).
+var _cash_chip: Control
 var _coins: Label
 var _speed_button: Button
 var _wave_title: Label
@@ -125,7 +130,7 @@ func _ready() -> void:
 func start_run(seed_value: int) -> void:
 	var effects := progression.run_effects() if progression != null else []
 	var rules := progression.run_effects("rule") if progression != null else []
-	_adopt(BattleSim.new(seed_value, workshop.levels, workshop.open_groups, 1, effects, rules))
+	_adopt(BattleSim.new(seed_value, workshop.levels, workshop.open_groups, 1, effects, rules, tuning))
 
 
 func _begin_resume() -> void:
@@ -279,6 +284,8 @@ static func boss_alive(battle: BattleSim) -> bool:
 
 func _refresh() -> void:
 	_cash.text = "$ " + Palette.money(sim.cash)
+	# With the Number as Cash (D156) the Number is the wallet: no Cash of its own.
+	_cash_chip.visible = not sim.number_cash
 	_coins.text = "● " + Palette.money(workshop.coins)
 	_wave_title.text = wave_title(sim)
 	# As The Tower's (D122): the bar fills over the spawning, then again, in
@@ -349,6 +356,7 @@ func _build() -> void:
 	var money := Palette.money_line(_mono_bold)
 	top.add_child(money.line)
 	_cash = money.cash
+	_cash_chip = money.line.get_child(0)
 	_coins = money.coins
 	var gap := Control.new()
 	gap.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -515,7 +523,7 @@ func _update_held() -> void:
 	var maxed := sim.at_max(_held_id)
 	_held_info.update(sim.level(_held_id), TowerData.max_level(_held_id), Palette.row_value(_held_id, sim.stat(_held_id)),
 		"" if maxed else Palette.row_value(_held_id, sim.stat_with(_held_id, 1)),
-		"" if maxed else "$" + Palette.money(sim.price(_held_id), true))
+		"" if maxed else UpgradePanel.price_symbol(sim) + Palette.money(sim.price(_held_id), true))
 
 
 func _bar(colour: Color) -> ProgressBar:

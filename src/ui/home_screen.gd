@@ -457,10 +457,23 @@ func _open_settings() -> void:
 
 
 ## Testing, for the owner and the agents while the game is built (D097): free
-## Coins and Gems (D146) and a reset to a fresh Workshop. None of it is meant to ship as it is.
+## Coins and Gems (D146), the Number as Cash's switches (D156) and a reset to a
+## fresh Workshop. None of it is meant to ship as it is.
 func _build_testing(sheet: Overlay) -> void:
 	sheet.rule()
 	sheet.text("Testing", Palette.MUTED)
+	if settings != null:
+		for entry in [["number_cash", "Number is Cash (next run)"], ["upgrades_off", "Run upgrades off (next run)"]]:
+			var key: String = entry[0]
+			var toggle := CheckButton.new()
+			toggle.text = entry[1]
+			toggle.button_pressed = settings.get(key)
+			for colour in ["font_color", "font_hover_color", "font_pressed_color"]:
+				toggle.add_theme_color_override(colour, Palette.TEXT)
+			toggle.toggled.connect(func(on: bool):
+				settings.set(key, on)
+				settings_changed.emit())
+			sheet.column.add_child(toggle)
 	var gifts := HBoxContainer.new()
 	gifts.add_theme_constant_override("separation", 8)
 	sheet.column.add_child(gifts)
