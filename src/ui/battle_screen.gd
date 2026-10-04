@@ -324,7 +324,13 @@ func _show_run_over() -> void:
 	_over_text.text = ("%s\n%s of game time · %d kills\nPeak Number %s · %s\n" + ("Number earned %s" if sim.number_cash else "Cash earned $%s") + " · Coins earned %s\nBest wave %d · best Number %s") % [
 		how, Palette.clock(sim.time), sim.kills, Palette.full(ceilf(sim.peak_number)), dividers, Palette.money(sim.cash_earned),
 		Palette.money(sim.coins), workshop.best_wave, Palette.full(ceilf(workshop.best_number))]
-	_over_text.text += "\nKills grew the Number by %s" % Palette.amount(float(sim.gained_from.get("kills", 0.0)))
+	if sim.number_cash:
+		# Income is in "Number earned" above; what a Lock was still holding when
+		# the run ended is lost with it (D157).
+		if sim.lock_held > 0.0:
+			_over_text.text += "\n%s was still held on a Lock" % Palette.amount(sim.lock_held)
+	else:
+		_over_text.text += "\nKills grew the Number by %s" % Palette.amount(float(sim.gained_from.get("kills", 0.0)))
 	if sim.killed_by == "data_limit":
 		_over_text.text += "\nAll supported waves cleared. More enemy data is needed to continue further."
 	for milestone in milestones:

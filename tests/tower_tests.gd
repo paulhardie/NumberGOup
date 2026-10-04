@@ -1700,6 +1700,8 @@ func test_the_game_starts_every_run_under_its_rules() -> void:
 		"a new run plays the game's rules, with the shop open")
 	battle.sim.end_run()
 	battle._process(0.0)
+	check(battle._over_text.text.contains("Number earned") and not battle._over_text.text.contains("Cash earned") and not battle._over_text.text.contains("Kills grew"),
+		"the run-over panel speaks of the Number, with no clean-kill line the new rules don't have")
 	battle.start_run(5)
 	check(battle.sim.number_cash and battle.sim.lock_holds_cash, "and so does the next one (Battle again)")
 	var record := RunReport.build(battle.sim)
@@ -3778,7 +3780,7 @@ func test_the_fuel_ledger_books_each_wave() -> void:
 
 
 ## The Number is Cash (D156, THE_NUMBER.md section 13): off in the game unless
-## its Testing switch is on, and recorded only while on.
+## a run's tuning turns it on (D158 makes that the game's rules), and recorded only while on.
 func test_the_number_as_cash_is_off_and_leaves_no_trace() -> void:
 	var sim := BattleSim.new(1)
 	check(not sim.number_cash and not sim.upgrades_off and sim.reserve_share == 0.0, "the game plays none of it")
@@ -3899,9 +3901,15 @@ func test_a_lock_holds_the_cash_it_blocks_and_pays_it_when_it_dies() -> void:
 		check(sim.health == before and is_equal_approx(sim.locked_out, blocked), "its kill's Cash is blocked either way")
 		check(is_equal_approx(sim.lock_held, blocked if holds else 0.0), "and held only with the option: %.2f" % sim.lock_held)
 		var held := sim.lock_held
+		sim.record_events = true
+		sim.events.clear()
 		var lock_cash := EnemyKinds.cash(lock, sim.stat("cash_bonus")) + EnemyKinds.cash(other, sim.stat("cash_bonus"))
 		sim.deal_damage(lock, 1e9, "shot")
 		check(sim.locked and sim.health == before, "one Lock down, another still stands: nothing is paid yet")
+		var popped := sim.events.filter(func(event): return event.type == "kill")
+		var own_pay := EnemyKinds.cash(lock, sim.stat("cash_bonus"))
+		check(popped.size() == 1 and popped[0].cash == 0.0 and is_equal_approx(float(popped[0].held), own_pay if holds else 0.0),
+			"the pop-up of a kill under a standing Lock reads held (with the option), never gained")
 		sim.deal_damage(other, 1e9, "shot")
 		if holds:
 			check(not sim.locked and sim.lock_held == 0.0, "the last Lock down frees the Number and empties the pool")

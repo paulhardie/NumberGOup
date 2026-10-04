@@ -1290,6 +1290,16 @@ func test_the_number_as_cash_validates_records_and_continues() -> void:
 	var corrupt := RunConfig.pack(state)
 	corrupt.version = Snapshot.VERSION
 	check(Snapshot.restore(corrupt) == null, "more free levels than a row has are rejected")
+	var stripped: Dictionary = RunConfig.unpack(saved)
+	stripped.state.erase("number_cash")
+	var without := RunConfig.pack(stripped)
+	without.version = Snapshot.VERSION
+	check(Snapshot.restore(without) == null, "a run under its rules with its Number-as-Cash state missing is rejected, not restored with a guessed ceiling")
+	var added: Dictionary = RunConfig.unpack(Snapshot.capture(BattleSim.new(3, {"health": 500})))
+	added.state["number_cash"] = {"ceiling": 5.0, "free_levels": {}}
+	var alone := RunConfig.pack(added)
+	alone.version = Snapshot.VERSION
+	check(Snapshot.restore(alone) == null, "and the state without the rules is rejected too")
 
 
 func test_starting_tuning_replays_and_freezes_before_wave_one() -> void:

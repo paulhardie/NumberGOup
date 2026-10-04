@@ -2350,6 +2350,8 @@ Rules:
 
 ## D156 — The Number is Cash too: run upgrades are bought with it
 
+*Made the game's rules by D158; the Testing switch described below was how it was first played.*
+
 - **Status:** Accepted (2026-10-04) on owner direction, after stage 1 (D155) found a fixed shot price can't fit Tier 1. The owner's words: "Let's also make it the cash as well, with the players aim that when they get strong enough they don't need to buy upgrades … We could also give the player the option to complete switch them off before a run, but not during", "Coins can still exist, and will be the way of upgrading the workshop permanently, so the player is stronger without sacrificing as much number to grow", and, to the agent's four rules, "Happy with all of these".
 - **Decision:**
   1. **The Number is the run's Cash as well as its life.** Every Cash payment goes into it, and run upgrades are bought with it, never below 1.
@@ -2364,6 +2366,8 @@ Rules:
 - **Checked:** the tests (the option off and unrecorded by default; Cash into the Number; buying never below 1; Regen and Lifesteal refilling only what enemies took; Health out of the shop; free levels not raising prices; Interest on the Number up to its cap; a shut shop with Free Upgrades still landing; the settings switches read by a new run and not by a started one; validation and a snapshot round trip and replay), the headless boot, and screenshots of a battle with the switch on and with the shop shut. **Not checked:** a player, a phone, Tier 2 and 3, and the run-over panel's wording (it still says "Cash earned").
 
 ## D157 — A Lock holds the Cash it blocks and pays it when it dies
+
+*On for every new run since D158.*
 
 - **Status:** Accepted (2026-10-05) on the owner's "ye" to the agent's proposal after the enemy check under the Number as Cash (THE_NUMBER.md 13.4), which found the Lock had become an income thief (36% of a slow turtle's income at 100K Coins, 58% at 1M).
 - **Decision:**
@@ -2385,5 +2389,5 @@ Rules:
   4. **No combat-rules version bump.** A start config records its tuning, so a saved battle or report from before resumes and replays under the rules it began with. Tested.
   5. **AGENTS.md law 4 is rewritten:** the temporary layer is run Upgrades, bought with the Number.
   6. **D111's clean-kill growth is superseded for new runs** (Cash replaces it); Lifesteal and Regen still refill only what enemies took (D156).
-- **Not decided here:** Coins from the peak Number, how Workshop power outgrows the run shop, the Thorns turtle against a Lock, and Tier 2 and 3's balance under the new rules.
+- **Not decided here:** Coins from the peak Number, how Workshop power outgrows the run shop, the Thorns turtle against a Lock, Tier 2 and 3's balance under the new rules, and **the Number milestones**, which now pay less because a spender's peak Number is lower (THE_NUMBER.md 14.3).
 - **Checked / not checked:** see THE_NUMBER.md section 14, HANDOVER.md and the pull request.

@@ -1,38 +1,31 @@
 # Handover
 
-**Last updated:** 4 October 2026, by Claude Code.
-- Base `main` is `7672578`, including D150's balance harness (PR #143), the Tier research (PRs #144 to #146), D151's menus and pop-ups (PR #147), D152's Number-as-capital trial (PRs #148 and #149), D153's design note (PRs #151 to #153), D154 (PR #154: tanks keep their weight, the Number in full to a trillion) and **D155 (PR #155): the fuel economy measured, every configuration failing, with corrected balance baselines**. The public version stays 0.9.
-- `main` (`672daf8`) also carries **D156 (PRs #156 and #158): the Number as Cash, playable from Settings → Testing**, off by default. The owner has played it: "way better".
-- `main` (`ec93d2f`) also carries **the Cash rows and card renamed for the Number while the switch is on, and the enemy check under the new rules** (PR #159, THE_NUMBER.md 13.4).
-- Branch `claude/number-lock` carries **D157: a Lock holds the Cash it blocks and pays it when it dies**, on with the Testing switch Number is Cash (THE_NUMBER.md 13.5). With the switch off nothing changes. The play folder follows `origin/main` through `com.paulhardie.ngu-sync`, so it reaches your game only once its pull request merges.
+**Last updated:** 5 October 2026, by Claude Code.
+- Base `main` is `827e14c`: D150's balance harness, the Tier research, D151's menus and pop-ups, D152's capital trial (failed), D153's design note, D154 (tanks keep their weight, the Number in full to a trillion), D155 (the fuel economy measured, every configuration failed), D156 and D157 (the Number as Cash and the held Lock, first behind a Testing switch the owner played) and the Number names (PR #159). The public version stays 0.9.
+- Branch `claude/number-is-cash` carries **D158, which changes the game: the Number is Cash for every new run**, with the independent review's fixes, the balance harness playing the game's rules and **re-recorded baselines**. The play folder follows `origin/main` through `com.paulhardie.ngu-sync`, so none of it is in the game until its pull request merges.
 - The pre-rebuild game is commit `f4f1e95`.
 
 ## Start here
 
-Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md). Fetch and inspect the checkout before editing. Accepted choices live in [DECISIONS.md](DECISIONS.md); grep it by ID. The next free ID is **D158**. The public version stays **0.9**.
+Read `AGENTS.md`, this page and the Roadmap in [REBUILD_SPEC.md](REBUILD_SPEC.md). Fetch and inspect the checkout before editing. Accepted choices live in [DECISIONS.md](DECISIONS.md); grep it by ID. The next free ID is **D159**. The public version stays **0.9**.
 
 ## Where the game is
 
 Tier 1 and every Workshop group work.
-- **Tanks keep their weight (D154):** a hurt tank weighs what a fresh one does, so Knockback barely moves it at any health. One strong enough hit still kills it outright.
-- **The Number is written in full to a trillion (D154):** 1,000,000 and beyond keep every digit ticking; it shortens to 1.00T only at a trillion, and the home screen's best Number shrinks to fit. Not yet seen on a phone.
-- **The Number is the tower.** Flat enemies subtract from it, Dividers divide it, and the Lock (from wave 35) holds its growth. It is still only a health pool in the game (THE_NUMBER.md section 9). Section 10 tried a fix; section 11 is the new direction (D153).
-- **Enemies:** the five base enemies read as ours (D145).
-- **Cards (D146, D147):** they open at Tier 1 wave 20 (the dock shows them then, and the run pays 10 Gems). Eleven of The Tower's cards are built, laid out as a grid with a card's details on tap, and save version 3 holds the collection.
-- **Menus and pop-ups (D151):** every pop-up is one `Overlay` (a SHEET over a shade, or a BANNER under the top bar), and holding a Workshop row, the next unlock or a run's upgrade tile reads it while a tap still buys. [UI_POPUPS.md](UI_POPUPS.md) has the rules, what exists and where else we should.
-- **Candidates:** nine measure-only cards (Slow Aura, Critical Coin, Compound, Remainder, Unequal, Interest, Factor, Berserker and Super Tower) can be equipped in `sim_runs.gd` and are never drawn.
-- **What the card tests found** (CARDS.md): Tier 1's walls are its boss waves and only killing power moves them. Super Tower works (D148). Berserker does nothing at The Tower's numbers, and at about 30 times its share a tank build wins.
+- **The Number is the tower and the run's money (D156, D157, D158).** Kills and each wave's end pay into it; a run's upgrades are bought with it (never below 1); Regen and Lifesteal refill only what enemies took; Health is a Workshop row only (the Number a run starts with); Interest is on the Number, capped as before; free levels don't raise prices. A Lock (from wave 35) holds the Number's growth and the income it blocks, and pays it all when the last Lock dies. **Run upgrades off** in Settings shuts the run shop for the next run. Cash is gone from a new run's screens; the Workshop's Cash rows and the Cash card read as the Number's. THE_NUMBER.md sections 13 and 14 have the rules, criteria and results.
+- **A run begun before D158 plays its Cash rules to the end,** with its own words and Cash chip. The game's rules are `RunConfig.game_tuning()`; the code's own defaults stay off, so old saves, reports and the tools that don't ask replay exactly. There is no combat-rules version bump, deliberately (THE_NUMBER.md 14.2).
+- **Tanks keep their weight (D154)** and **the Number is written in full to a trillion (D154).**
+- **Enemies:** the five base enemies read as ours (D145). Under the new rules overall difficulty is unchanged, but **Dividers punish banking, not playing** and **the Lock holds a slow build's income** (13.4, 13.5).
+- **Cards (D146, D147):** they open at Tier 1 wave 20. Eleven of The Tower's cards are built; the Cash card reads as **Number Income**.
+- **Menus and pop-ups (D151):** every pop-up is one `Overlay`; holding a Workshop row, the next unlock or a run's upgrade tile reads it. [UI_POPUPS.md](UI_POPUPS.md).
+- **Candidates:** nine measure-only cards can be equipped in `sim_runs.gd` and are never drawn. **What the card tests found** (CARDS.md): Tier 1's walls are its boss waves and only killing power moves them.
 
-## The Number is Cash (D156, 4 October 2026): playable behind a Testing switch
+## The Number is Cash (D156 to D158, 4 to 5 October 2026): the game
 
-After stage 1 failed, the owner chose to make the Number the run's Cash as well as its life, keep Coins for the Workshop, aim for players strong enough not to need run upgrades, and allow switching the run shop off before a run. THE_NUMBER.md section 13 has the rules, the criteria (committed before the code) and the results.
-- **The owner played it (5 October):** "way better … I need to sort this friction out so I can keep climbing"; early on a bit harder than The Tower, "but that's fine"; seeing Cash / Wave and Coins / Wave feed the Number at a wave's end feels good.
-- **Named for the Number (this branch):** with the switch on, Cash Bonus and Cash / Wave read as **Number Bonus** and **Number / Wave**, Interest and the Cash card (**Number Income**) speak of the Number, and the run-over panel says "Number earned". A run's words follow the rules it started with.
-- **The Lock (D157, this branch):** a standing Lock holds the Cash it blocks and pays all of it into the Number when the last Lock dies; a Lock's own Cash is no longer blocked by itself. Measured: core and blender lose 0 to 3% of income to Locks (from up to 16%), **the turtle still loses 19.5% at 100K and 43% at 1M** because Thorns can't hurt a Lock (D133). The pace, runaway and unchanged-cell criteria pass.
-- **The enemies (13.4):** overall difficulty is unchanged, but **Dividers now punish banking** (0 to 7% of a spender's losses, up to 96% of a banker's) and **the Lock has become an income thief**: a slow-killing turtle loses 36% of its income at 100K and 58% at 1M while Locks stand. Ranged enemies are the wall for every build that buys.
-- **To play it:** Settings → Testing → **Number is Cash (next run)**, and optionally **Run upgrades off (next run)**. Each new run reads them as it starts; a run in progress keeps what it began with. With them on, the Cash chip steps aside, prices read "−10" (what they take off the Number), kills pop "+1" in the Number's colour, Health leaves the run shop, and a shut shop says so.
-- **The rules:** Cash pays into the Number and upgrades spend it, never below 1; Regen and Lifesteal refill only what enemies took; Health is Workshop-only; Interest is on the Number, capped as now; free levels don't raise prices; a standing Lock still holds the Number, so Cash paid then is lost.
-- **Measured: FAIL on two of six criteria, with nothing broken.** For the bots it's the same game: the same waves as Cash at 10K and 100K, no runaway, maxed Interest 15% of income. But **the run shop never stops mattering** (it adds 25 to 37% of a run's waves even at 1M Coins), and **a bot that buys keeps its Number at a quarter to a fifth of today's peak**. With the shop shut the Number climbs higher than today's and the run ends sooner: **a fork between going far and going big**, which would become a real choice if a run's reward followed its peak Number.
+After stage 1 failed (below) the owner chose to make the Number the run's Cash as well as its life, keep Coins for the Workshop, aim for players strong enough not to need run upgrades, and allow switching the run shop off before a run. It was built as measuring options and played behind a Testing switch ("way better … I need to sort this friction out so I can keep climbing"; early on a bit harder than The Tower, "but that's fine"; seeing Cash / Wave and Coins / Wave feed the Number at a wave's end feels good), then made the game (D158, "merged and proceed").
+- **Measured (13.3):** the same waves as Cash at 10K and 100K, no runaway, maxed Interest 15% of income. **Two criteria failed with nothing broken:** the run shop never stops mattering (it adds 25 to 37% of a run's waves even at 1M Coins), and a bot that buys keeps its Number at a fifth to a quarter of today's peak. With the shop shut the Number climbs higher and the run ends sooner: **a fork between going far and going big**.
+- **The Lock (13.5):** core and blender lose 0 to 3% of income to Locks (from up to 16%); **the Thorns turtle still loses 19.5% at 100K and 43% at 1M**, because Thorns can't hurt a Lock (D133).
+- **The independent review of D158 (QUALITY_GATES)** found no defect in saves, replays or determinism, and four real things, all fixed here: the committed baselines no longer matched the harness (re-recorded), the run-over panel showed a dead "Kills grew the Number by 0" line, a kill under a standing Lock popped "+N" while the Cash was held (it now says "held"), and a saved Number-as-Cash block could restore without its rules (now rejected). It also surfaced the milestone and Recovery Packages findings in the open decisions below.
 
 ## Stage 1, the fuel economy (D155, 4 October 2026): measured, and a fixed price fails
 
@@ -43,7 +36,9 @@ The owner said "go" to stage 1 with its six draft criteria plus a Multishot runa
 - **No runaway:** nothing reached the cap, Multishot included, and no printer appeared. Regen, Starting Number and Bounty each lift the peak (+88%, +88%, +17%).
 - **My proposal, the owner's call:** a price per wave, as a share of that wave's enemy Attack (12.6), measured against the same criteria.
 
-## The Number is the goal (D153, 4 October 2026): designed, not built
+## The Number is the goal (D153, 4 October 2026): the design note, partly built as D156 to D158
+
+The fixed shot price in this note failed (above); what survives is Cash as the Number, the Workshop rows' jobs and the pacing ideas, still proposals.
 
 The owner decided the Number is what the player plays for and waves are the test, and sketched the core: shots cost Number, Regen earns it back, and the first barrier is earning more than you spend. [THE_NUMBER.md section 11](THE_NUMBER.md#11-the-number-is-the-goal-4-october-2026-d153-design-note) is the design note. Everything in it beyond the goal and the sketch is a proposal:
 - **Every shot costs a fixed price: 1 Number in Tier 1** (the owner's choice, over a price per damage; stage 1 found a fixed price can't fit Tier 1, above). Damage and anything that multiplies a shot (crits, Multishot, bounces) make each Number go further; Attack Speed spends faster. A boss's price is the shots it takes, and falls as you upgrade.
@@ -72,14 +67,14 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 ## Balance and the baseline (D149, D150)
 
 - **"Balanced" (D149):** Tier 1 keeps The Tower's shape until the owner adopts a candidate, and every drawable card meets a floor. Six of the eleven built cards fail it: Health, Health Regen, Range, Critical Chance, Extra Defense and Free Upgrades.
+- **Since D158 the harness plays the game's rules** (`GAME_RULES` in `tools/balance_report.py`: the Number as Cash, the held Lock, and bots keeping half their best Number in reserve), and the committed baselines are measured under them. A baseline from before D158 doesn't validate against it.
 - **The baseline is bots, not players** (`data/balance/`). `python3 tools/balance_report.py compare` writes a before/after report, `--suite full` adds the card floor and broader careers ([BALANCE_TESTS.md](BALANCE_TESTS.md)). A green run means valid measurements, not balance sign-off. D150's evidence is in PR #143 and BALANCE_TESTS.md.
 
 ## Checked, and not checked
 
-- **Checked, this branch (D157):** `bash run_tests.sh` passes: 4,849 tower checks (12 new: Cash blocked either way, held only with the option, one Lock down paying nothing while another stands, the last paying all held plus the Locks' own Cash, the old rule without the option) and 361 foundation checks (a snapshot round trip with held Cash) and 46 Python tests, exit 0. The measurements in THE_NUMBER.md 13.5 ran on the committed option, and the quick balance comparison shows the game unchanged. **Not checked:** a player, the turtle's feel, the held payout's look on screen (it shows as a rise in the Number), Tier 2 and 3.
-- **Checked, PR #159 (merged):** the Number names, the counters and the enemy check (13.4); not checked, the Cards screen and run-over panel by eye, Tier 2 and 3's enemies.
-- **Checked, D156 (merged):** `bash run_tests.sh` passed: 4,832 tower checks (the option off and unrecorded by default; Cash into the Number; never below 1; Regen and Lifesteal refill only what enemies took; Health out of the shop; free levels not raising prices; Interest on the Number to its cap; a shut shop with Free Upgrades landing; the settings switches read by a new run and not by a started one; D111's old Testing switches still gone), 360 foundation checks (validation, a snapshot round trip and replay with buys and free levels) and 46 Python tests (10 new for the criteria's code), exit 0. Headless boot clean. Screenshots of a battle with the switch on and with the shop shut, inspected. Every number in THE_NUMBER.md 13.3 was measured on the committed options.
-- **Not checked, D156:** a player, a phone, Tier 2 and 3; the run-over panel still says "Cash earned" with the switch on.
+- **Checked, D158 (this branch):** `bash run_tests.sh` passes (see the pull request for the final counts): boundary and repeated-action tests for the rules, a run begun under each rule set saved and resumed from a snapshot and from a replay (words, chip and shop follow the run), the game starting every run under its rules with Run upgrades off read as a run starts, the settings file from the Testing-switch period, a malformed value, the snapshot tie, the kill pop-up and the run-over panel. The headless boot is clean, the capture tool runs and its Settings and battle screenshots were inspected, the balance harness measured the game's rules on the committed code, and an independent adversarial review of the diff ran (QUALITY_GATES).
+- **Not checked, D158:** a player on the final build, a phone, Tier 2 and 3 under the new rules, the Cards screen by eye, and a frozen byte fixture of a pre-D158 save (old-save equivalence holds by construction, since no simulator or snapshot code changed for old runs, and is tested with runs generated from today's code; `tools/check_migration.gd` checks a real save copy).
+- **Checked, D156 and D157 (merged):** their tests, the 13.3 to 13.5 measurements on the committed options, and screenshots.
 - **Checked, D155 (PR #155, merged):** `bash run_tests.sh` passes: 4,808 tower checks (28 new: the options off and unrecorded by default, a shot's price, the broke rule, Multishot copies free, bounties for shots, free killers, Dividers and under a Lock, Coins / Kill raising it, holding fire, and the ledger adding up to the Number's change), 346 foundation checks (15 new: validation, a snapshot round trip and replay with the ledger) and 36 Python tests (10 new for the criteria's own code), exit 0. The quick balance comparison against a fresh baseline shows the game unchanged. Every result in THE_NUMBER.md 12.6 was measured on the committed options.
 - **The balance baselines PR #154 committed were stale.** Both files held the pre-D154 measurements (the 100K spread build still at 66 rather than 63; Tier 3's peaks unchanged), although the recorder measures fresh every time; I couldn't find why that one recording run measured the old behaviour. This branch re-records both from a clean worktree of the committed code, and the full suite equals PR #154's own D154 measurement scenario for scenario. **Merging accepts them.**
 - **Checked, D154 (PR #154, merged):** its tests and the D154 measurement; not checked, a twelve-digit Number on a phone.
@@ -90,27 +85,20 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 
 ## Open decisions for the owner
 
-1. **The turtle and the Lock (13.5):** I'd **leave it and play the Thorns turtle first**: the loss is a build with no shots meeting a wall that needs shots (D133, D144). If it feels bad, **let Thorns hurt a standing Lock at a share of its strength**, as a measuring option first. Trade-off: it changes D133's "Thorns don't touch a Lock", which keeps Locks a shot problem.
-2. **Make the Number as Cash the game?** The owner's play says yes in spirit. I'd do it after the Lock fix: switch on by default, Cash gone, the Workshop's rows renamed in their data, AGENTS.md law 4 rewritten, a combat-rules version bump so saved battles resume under the rules they started with, and the balance baselines re-recorded. High risk under QUALITY_GATES (economy and saves), so it gets its own pull request and an independent review.
-3. **Play the Number as Cash, then decide (THE_NUMBER.md 13.3).** The bots say it's safe and keeps today's pace; whether it's fun only playing can say. Then two questions follow: **should a run's reward (its Coins, or the record) follow its peak Number**, so "upgrades off" becomes a strategy (going big) rather than a handicap? I'd say yes, because it turns the fork the bots found into the choice you described. And **should Workshop power be able to outgrow the run shop** (Labs, or run prices that rise with the tier), so "strong enough not to buy" can arrive? The shot-price question (12.6) is parked behind this.
-4. **The rest of the Number-first design (THE_NUMBER.md 11.12):** now partly superseded by D156 (Cash is the Number):
-   - **When broke: the tower goes quiet, or fires a free weak shot?** I'd go quiet, never below 1.
-   - **Orbs, Thorns and Mines:** their kills pay no bounty until a Lab for each gives them a share, capped at half (the owner's idea; 11.14).
-   - **The digit ladder (11.15):** Tier 2 at 1,000,000, Cards at 1,000, Labs at 10,000? I'd take it as the target to calibrate to.
-   - **The early-game items in 11.15:** a Regen row ten times as large, holding fire on doomed targets, and any shot kill paying. I'd build each as a stage-1 switch.
-   - **A bounty of about a quarter of the enemy's Attack,** so the shooting barrier isn't solved by one cheap Damage purchase? A guess to measure (11.14).
-   - **Keep Cash for run upgrades in v1?** I'd keep it; one big change at a time.
-   - **The pace of new digits,** early and late (proposal in 11.9).
-   Stage 1 measured two of these: holding fire changes nothing at Tier 1's fire rates, and a bounty share is the strongest lever on the peak but moves no wave.
-5. **Pop-ups (D151):** does holding stay, and what next? I'd keep it and add **a one-line hint that holding reads** (nothing tells a player today), then **hold the daily Gems pill** (its tooltip never shows on a phone). Two are yours: **a confirm on End run** (it ends a run on one tap; a confirm adds a tap at ×5) and **moving the run-over panel onto a sheet** (it shades the arena). UI_POPUPS.md section 3 has the rest.
-6. **Which cards to make drawable next?** Factor, Super Tower and a rescaled Berserker are the candidates in CARDS.md. Park the rest.
-7. **Changing cards mid-run:** I'd still keep them fixed for the run.
-8. **Still open from before:** play the D145 enemies and the Lock; sign off 1.0; the D131 digit rewards; the speed switch; the Mac sync waiting on a saved battle; the AGENTS.md modifier-law wording; publishing Tower-derived data.
+1. **The Number milestones pay less (THE_NUMBER.md 14.3), and the best Number reads smaller.** Spending keeps a buying run's peak Number at a fifth to a quarter of today's, so the digits (10 to 1,000,000), which pay Coins once when the best Number first reaches them, come later: at 100K Coins a core build's digits pay **60 instead of 310**, at 1M **310 instead of 2,810** (about a quarter of a 1M core run's Coins before, about 3% now). Nothing changed at 10K. **I'd keep the record as the true peak and recalibrate the digit ladder to the new scale, measured** (11.15 already planned it). Trade-off: until then, Number digits pay little to a strong player.
+2. **Should a run's reward follow its peak Number?** The bots found a fork: buying goes further with a small Number, a shut shop goes bigger and ends sooner. If Coins (or the record) followed the peak, "Run upgrades off" would be a real way to play, not a handicap. I'd say yes, measured first (11.6). It also answers decision 1.
+3. **Should Workshop power be able to outgrow the run shop?** Even at 1M Coins the shop adds 25 to 37% of a run's waves, so "strong enough not to need upgrades" doesn't arrive by itself (13.3). Options are Labs that cheapen or replace run upgrades, or tier prices that rise.
+4. **Recovery Packages refill spending too** (14.3): a package heals a share of Workshop Health and raises the Number's ceiling, so after a purchase it can give some back. Bounded, and Packages open at 1.5M Coins. **If D156's "only what enemies took" should hold for them, a package must not raise the ceiling.** I left it.
+5. **The turtle and the Lock (13.5):** I'd **leave it and play the Thorns turtle first**. If it feels bad, **let Thorns hurt a standing Lock at a share of its strength**, as a measuring option first (it changes D133's "Thorns don't touch a Lock").
+6. **The fuel economy (D155) is parked:** a fixed shot price can't fit Tier 1, so shots are free and Cash is the Number's pressure. The per-wave price (12.6), holding fire and bounties stay as measuring options.
+7. **Pop-ups (D151):** does holding stay, and what next? I'd keep it and add **a one-line hint that holding reads**, then **hold the daily Gems pill** (its tooltip never shows on a phone). Two are yours: **a confirm on End run** and **moving the run-over panel onto a sheet** (it shades the arena). UI_POPUPS.md section 3 has the rest.
+8. **Which cards to make drawable next?** Factor, Super Tower and a rescaled Berserker are the candidates in CARDS.md. Park the rest. **Changing cards mid-run:** I'd still keep them fixed for the run.
+9. **Still open from before:** play the D145 enemies; sign off 1.0; the D131 digit rewards; the speed switch; the Mac sync waiting on a saved battle; publishing Tower-derived data.
 
 ## Next steps, in order
 
-1. **Owner:** merge this branch's pull request, **play a few runs of the Thorns turtle with Number is Cash on**, and decide open decisions 1 (the turtle's Lock) and 2 (make it the game).
-2. **Agent, on a clear yes to making it the game:** its own high-risk pull request, as open decision 2 describes.
+1. **Owner:** merge this branch's pull request (it makes the Number is Cash the game and re-records the baselines, and merging accepts both), play a few runs as it now plays, and answer decision 1 (the milestones).
+2. **Agent, on a yes to decisions 1 and 2:** write the criteria first, then measure Coins from the peak Number and a recalibrated digit ladder as options, and report every run. Medium, touches the economy, so it needs the same review.
 3. **Owner:** **play a run holding tiles on a phone**: it is the one check on the pop-ups that couldn't be made, and it settles the hold's timing.
 
 ## Known issues and limits
@@ -123,6 +111,9 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 - **The Cards screen refreshes only on its own changes.**
 - **Wave 10 pays 10 Coins against the SDK's 25,** pending a reading.
 - **Settings → Testing can grant Coins and Gems and wipe progress.** It must go before a public release.
+- **`tools/read_report.gd` reads a new run oddly:** its "cash" column is 0 (Cash is the Number now) and its health figures pair the Number with Workshop Health. The report itself is right.
+- **A Cash-rules battle saved before D158 resumes with Cash words** while Home, the Workshop and Cards read as the Number's, until it ends. Intended, brief, and the only place Cash still shows.
+- **The Enemy Balance and Wave Skip cards still describe "cash"** in their text. They are unbuilt and never drawn.
 - **Older snapshot or combat-contract runs can end on update,** keeping banked Coins and permanent progress ([SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.md)).
 
 ## Handing on
