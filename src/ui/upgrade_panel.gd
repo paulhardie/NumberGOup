@@ -85,7 +85,7 @@ func _init() -> void:
 	_grid.add_theme_constant_override("v_separation", CARD_GAP)
 	scroll.add_child(_grid)
 	_empty = Label.new()
-	_empty.text = "Cash upgrades open in the Workshop."
+	_empty.text = "Run upgrades open in the Workshop."
 	_empty.add_theme_color_override("font_color", Palette.MUTED)
 	_empty.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	add_child(_empty)
@@ -127,7 +127,7 @@ func show_tab(tab: String) -> void:
 	for id in TowerData.rows():
 		if TowerData.category(id) == tab and sim.is_open(id) and sim.in_shop(id):
 			_grid.add_child(_card(id))
-	_empty.text = "Run upgrades are off this run." if sim.upgrades_off else "Cash upgrades open in the Workshop."
+	_empty.text = "Run upgrades are off this run." if sim.upgrades_off else "Run upgrades open in the Workshop."
 	_empty.visible = _cards.is_empty() and not collapsed
 	refresh()
 

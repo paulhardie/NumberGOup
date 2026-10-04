@@ -287,7 +287,7 @@ func show_group(group: String, heading: String) -> Overlay:
 		name_label.text = Palette.row_title(row)
 		name_label.add_theme_font_size_override("font_size", 14)
 		sheet.column.add_child(name_label)
-		sheet.text(String(TowerData.upgrade(row).description), Palette.SOFT, 12)
+		sheet.text(Palette.row_description(row), Palette.SOFT, 12)
 	sheet.done("Got it")
 	sheet.closed.connect(func(): if _opened_panel == sheet: _opened_panel = null)
 	sheet.show_over(self)

@@ -187,6 +187,8 @@ func _fail_resume(reason: String) -> void:
 func _adopt(run_sim: BattleSim) -> void:
 	sim = run_sim
 	sim.record_events = true
+	# The run's words follow the run's own rules, whatever the switch says now.
+	Palette.number_cash = sim.number_cash
 	_banked = 0.0
 	_arena.sim = sim
 	_upgrades.set_sim(sim)
@@ -315,7 +317,7 @@ func _show_run_over() -> void:
 	var divided := float(sim.lost_to.get("divider", 0.0))
 	var dividers := "%d Divider%s reached you, taking %s of the %s you lost" % [sim.dividers_landed, "" if sim.dividers_landed == 1 else "s",
 		Palette.amount(divided), Palette.amount(lost)] if sim.dividers_landed > 0 else "No Divider reached you"
-	_over_text.text = "%s\n%s of game time · %d kills\nPeak Number %s · %s\nCash earned $%s · Coins earned %s\nBest wave %d · best Number %s" % [
+	_over_text.text = ("%s\n%s of game time · %d kills\nPeak Number %s · %s\n" + ("Number earned %s" if sim.number_cash else "Cash earned $%s") + " · Coins earned %s\nBest wave %d · best Number %s") % [
 		how, Palette.clock(sim.time), sim.kills, Palette.full(ceilf(sim.peak_number)), dividers, Palette.money(sim.cash_earned),
 		Palette.money(sim.coins), workshop.best_wave, Palette.full(ceilf(workshop.best_number))]
 	_over_text.text += "\nKills grew the Number by %s" % Palette.amount(float(sim.gained_from.get("kills", 0.0)))

@@ -18,7 +18,7 @@ var _mono := Palette.weight(Palette.NUMBER_FONT, 400)
 ## Fills `sheet` for row `id`; `price_tone` is the currency's colour.
 func _init(sheet: Overlay, id: String, price_tone: Color) -> void:
 	sheet.heading(Palette.row_title(id), true)
-	sheet.text(String(TowerData.upgrade(id).description))
+	sheet.text(Palette.row_description(id))
 	sheet.rule()
 	var grid := GridContainer.new()
 	grid.columns = 2

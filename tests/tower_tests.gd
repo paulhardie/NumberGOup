@@ -3760,8 +3760,18 @@ func test_the_number_as_cash_switches_are_settings_a_run_reads() -> void:
 	check(battle.sim.number_cash and battle.sim.upgrades_off and not battle._cash_chip.visible, "a new run starts with them, and the Cash readout steps aside")
 	back.number_cash = false
 	check(battle.sim.number_cash, "switching it off doesn't change a run that has started")
+	check(Palette.number_cash and Palette.row_title("cash_bonus") == "Number bonus" and Palette.row_title("cash_per_wave") == "Number / wave",
+		"and its words follow the run: the Cash rows read as the Number's")
 	battle.queue_free()
 	await process_frame
+	Palette.number_cash = false
+	check(Palette.row_title("cash_bonus") == "Cash bonus" and Palette.row_description("cash_per_wave").contains("Cash")
+		and CardsScreen.card_name("cash") == "Cash", "with the switch off, everything reads as before")
+	Palette.number_cash = true
+	check(Palette.row_description("interest").contains("Number") and CardsScreen.card_name("cash") == "Number Income"
+		and CardsScreen.card_description("cash").contains("Number") and Palette.row_title("damage") == "Damage",
+		"with it on, the Interest row and the Cash card are about the Number too, and other rows are untouched")
+	Palette.number_cash = false
 
 
 func test_with_the_number_as_cash_free_levels_dont_raise_prices() -> void:
