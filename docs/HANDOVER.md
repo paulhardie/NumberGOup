@@ -59,7 +59,9 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 
 1. **The Number-first design (THE_NUMBER.md 11.12):** shot pricing is settled (a fixed price per shot, set per tier). What's left before stage 1:
    - **When broke: the tower goes quiet, or fires a free weak shot?** I'd go quiet, never below 1.
-   - **Kills by Orbs, Thorns and Mines pay no bounty?** I'd say yes, so nothing prints Number for free.
+   - **Orbs, Thorns and Mines:** their kills pay no bounty until a Lab for each gives them a share, capped at half (the owner's idea; 11.14).
+   - **A starting Regen equal to the fresh fire rate,** so shooting is free at the start and the first Attack Speed purchase is the first decision? I'd say yes (11.14).
+   - **A bounty of about a quarter of the enemy's Attack,** so the shooting barrier isn't solved by one cheap Damage purchase? A guess to measure (11.14).
    - **Keep Cash for run upgrades in v1?** I'd keep it; one big change at a time.
    - **The pace of new digits,** early and late (proposal in 11.9).
    None of these blocks a measure-only stage 1: I'd build each as a switch and show you both sides.
@@ -76,6 +78,7 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 
 ## Known issues and limits
 
+- **Knockback is probably too strong** (the owner, 4 October): at high levels it pushes tanks and bosses back faster than they walk, so they never arrive and runs never end. Our 5 metres per unit of force is a guess, and worn tanks shed mass to a basic's. The diagnosis is in THE_NUMBER.md 11.14; the fix waits until the Number's role is settled, but stage 1 measures with it on and off.
 - **A first-sight card only shows past the player's best wave.**
 - **Unbuilt cards are hidden, not shown locked.**
 - **Nothing tells a player that holding reads** (D151), and the daily pill's explanation is a hover tooltip, which a phone never shows.
