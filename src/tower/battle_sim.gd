@@ -202,9 +202,32 @@ var thief_taken := 0.0
 var thief_recovered := 0.0
 var thief_escaped := 0.0
 var thieves_escaped := 0
+## Stage 1 of the Number-first design, the fuel economy (D155, THE_NUMBER.md
+## section 12): measuring options, off in the game and kept out of a run's
+## recorded tuning while off. `shot_price` is what each volley costs the
+## Number (its Multishot copies and bounces are free), and no shot is fired
+## that would leave it below 1. `bounty_share` is the share of an enemy's
+## Attack a shot kill pays, times Coins / Kill (the Bounty row's stand-in),
+## in place of D111's clean-kill growth; Orbs, Thorns and Mines pay
+## `free_bounty_share` of that. `base_regen` is added to the Health Regen
+## row, which `regen_scale` multiplies, and `hold_doomed` has the tower hold
+## fire on an enemy that shots already in flight will kill.
+var shot_price := 0.0
+var bounty_share := 0.0
+var free_bounty_share := 0.0
+var base_regen := 0.0
+var regen_scale := 1.0
+var hold_doomed := false
+## The fuel economy's ledger, kept while it is on: the shots paid for and
+## their cost, and each finished wave's income, spending and net (fuel_wave).
+var shots_paid := 0
+var fuel_spent := 0.0
+var fuel_log: Array[Dictionary] = []
 
 ## The highest the Number has stood this run: the run's record (D081).
 var peak_number := 0.0
+## The wave it first stood there; saved only with the fuel economy (D155).
+var peak_wave := 1
 ## What the Number has lost to each kind of enemy, after defences.
 var lost_to: Dictionary = {}
 ## What the Number has gained from each source ("regen", "lifesteal",
@@ -312,6 +335,35 @@ func tuning_config() -> Dictionary:
 ## Whether any of the Number-as-capital trial's options is in play.
 func trial_active() -> bool:
 	return thieves or number_power > 0.0
+
+
+## Whether the fuel economy (D155) is on: shots cost Number or kills pay it.
+func fuel_active() -> bool:
+	return shot_price > 0.0 or bounty_share > 0.0
+
+
+## Regen a second: the Health Regen row, scaled and lifted by the fuel
+## economy's options, which leave it exactly the row while they are off.
+func regen_rate() -> float:
+	return stat("health_regen") * regen_scale + base_regen
+
+
+## The wave under way so far, as the fuel ledger books it: what the Number
+## gained from everything but bought Health, what shots cost, what enemies
+## took, and the net. Finished waves are in `fuel_log`.
+func fuel_wave() -> Dictionary:
+	var income := -float(gained_from.get("health", 0.0))
+	for source in gained_from:
+		income += float(gained_from[source])
+	var lost := 0.0
+	for kind in lost_to:
+		lost += float(lost_to[kind])
+	var spent := fuel_spent
+	for logged in fuel_log:
+		income -= float(logged.income)
+		spent -= float(logged.spent)
+		lost -= float(logged.lost)
+	return {"wave": wave, "income": income, "spent": spent, "lost": lost, "net": income - spent - lost}
 
 
 ## Measuring switches are fixed before the first step. Re-roll wave 1 from
@@ -522,7 +574,9 @@ func step() -> void:
 	divider_held = maxf(0.0, divider_held - _held_release * TICK)
 	if thief_held > 0.0:
 		thief_held = maxf(0.0, thief_held - _thief_release * TICK)
-	_heal(stat("health_regen") * TICK, "regen")
+	_heal(regen_rate() * TICK, "regen")
+	if health > peak_number:
+		peak_wave = wave
 	peak_number = maxf(peak_number, health)
 	defences.tick_wall()
 	defences.tick_shockwave()
@@ -822,13 +876,22 @@ func _fire() -> void:
 	var speed := stat("attack_speed") * (RAPID_FIRE_SPEED if rapid_fire_left > 0.0 else 1.0)
 	rapid_fire_left = maxf(0.0, rapid_fire_left - TICK)
 	_shot_charge += speed * TICK
+	var pending := _pending_damage() if hold_doomed else {}
 	while _shot_charge >= 1.0:
-		var target := _nearest_in_range()
+		var target := _nearest_in_range(pending)
 		if target == null:
 			# Ready to fire the moment something steps in, but no banking.
 			_shot_charge = 1.0
 			return
+		if shot_price > 0.0 and health - shot_price < 1.0:
+			# Broke (D155): quiet until Regen or a kill pays for the next shot.
+			_shot_charge = 1.0
+			return
 		_shot_charge -= 1.0
+		if shot_price > 0.0:
+			health -= shot_price
+			fuel_spent += shot_price
+			shots_paid += 1
 		var critical := _combat_rng.randf() < stat("critical_chance")
 		# Berserker and Super Tower (candidate cards) raise the tower's Damage
 		# before a critical multiplies it; both are neutral without their card.
@@ -846,6 +909,8 @@ func _fire() -> void:
 			targets.append_array(others.slice(0, int(stat("multishot_targets")) - 1))
 		for each in targets:
 			_launch(each, Vector2.ZERO, damage, critical)
+			if hold_doomed:
+				pending[each.id] = float(pending.get(each.id, 0.0)) + damage * damage_taken(each)
 		# Rapid Fire: each volley may start it, while it isn't running.
 		if rapid_fire_left <= 0.0 and stat("rapid_fire_chance") > 0.0 and _combat_rng.randf() < stat("rapid_fire_chance"):
 			rapid_fire_left = stat("rapid_fire_duration")
@@ -919,13 +984,27 @@ func _launch(target: Enemy, from: Vector2, damage: float, critical: bool) -> Sho
 	return shot
 
 
-func _nearest_in_range() -> Enemy:
+## The enemy in range the tower fires at next, passing over any whose
+## `pending` damage (hold_doomed's, D155) will already kill it.
+func _nearest_in_range(pending := {}) -> Enemy:
 	var reach := stat("range")
 	var nearest: Enemy = null
 	for enemy in enemies:
-		if enemy.distance <= reach and (nearest == null or _comes_first(enemy, nearest)):
+		if enemy.distance <= reach and (pending.is_empty() or float(pending.get(enemy.id, 0.0)) < enemy.health) \
+				and (nearest == null or _comes_first(enemy, nearest)):
 			nearest = enemy
 	return nearest
+
+
+## What the shots in flight will take off each enemy they fly at, by its id:
+## only what is certain (no Damage / Meter or Rend Armor, which can only add),
+## so holding fire never spares an enemy that would have lived.
+func _pending_damage() -> Dictionary:
+	var pending := {}
+	for shot in shots:
+		var id: int = shot.target.id
+		pending[id] = float(pending.get(id, 0.0)) + shot.damage * damage_taken(shot.target)
+	return pending
 
 
 func _in_range_nearest_first() -> Array[Enemy]:
@@ -1057,7 +1136,9 @@ func _kill(enemy: Enemy, by := "") -> void:
 	kills += 1
 	var source := by if by != "" else "shot"
 	kills_by[source] = int(kills_by.get(source, 0)) + 1
-	if enemy.hits == 0 and enemy.attack > 0.0 and not locked:
+	if fuel_active():
+		_pay_bounty(enemy, source)
+	elif enemy.hits == 0 and enemy.attack > 0.0 and not locked:
 		# Killed before it could land a hit: a share of the hit it never
 		# landed grows the Number, past Health too (D098); not under a Lock.
 		var before := health
@@ -1074,6 +1155,27 @@ func _kill(enemy: Enemy, by := "") -> void:
 		events.append({"type": "kill", "enemy": enemy, "cash": paid_cash, "coins": paid_coins, "by": by})
 	if enemy.kind == "scatter" and enemy.generation < int(TowerData.enemies().elites.scatter_splits):
 		_split(enemy)
+
+
+## The fuel economy's bounty (D155): a share of the enemy's Attack, times
+## Coins / Kill and Compound's growth, paid past Health. A Divider or Lock,
+## with no Attack, pays a basic's. Orbs, Thorns and Mines pay their share of
+## it; nothing pays while a Lock stands (D133).
+func _pay_bounty(enemy: Enemy, source: String) -> void:
+	if locked:
+		return
+	var attack := enemy.attack if enemy.attack > 0.0 else enemy_attack_now("basic")
+	var bounty := attack * bounty_share * stat("coins_per_kill") * rules.value("kill_growth")
+	var free := source != "shot"
+	if free:
+		bounty *= free_bounty_share
+	if bounty <= 0.0:
+		return
+	var before := health
+	health += bounty
+	_count_gain("free_bounty" if free else "bounty", before)
+	if record_events:
+		events.append({"type": "grown", "enemy": enemy, "gain": bounty})
 
 
 ## A Scatter falls into two, each with half its health, either side of where
@@ -1139,6 +1241,8 @@ func _pay_wave_end() -> void:
 	wave_log.append({"wave": wave, "time": time, "health": health, "max_health": max_health(), "cash": cash,
 		"cash_earned": cash_earned, "coins": coins, "kills": kills, "enemy_attack": enemy_attack_now("basic"),
 		"enemy_health": enemy_health_now("basic"), "bought": run_levels.duplicate()})
+	if fuel_active():
+		fuel_log.append(fuel_wave())
 
 
 ## Enemy Level Skip: each new wave's enemies are a level tougher and a level

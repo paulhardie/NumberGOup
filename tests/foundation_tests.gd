@@ -1220,6 +1220,39 @@ func test_the_number_capital_trial_validates_records_and_continues() -> void:
 		check(Snapshot.restore(corrupt) == null, "a negative %s in the trial's state is rejected" % key)
 
 
+## D155: the fuel economy's options validate, are recorded only while on, and
+## a battle with it on restores, continues and replays exactly, ledger and all.
+func test_the_fuel_economy_validates_records_and_continues() -> void:
+	var on := {"shot_price": 1.0, "bounty_share": 0.25, "free_bounty_share": 0.5, "base_regen": 1.0, "regen_scale": 10.0, "hold_doomed": true}
+	check(RunConfig.valid_tuning(on), "the fuel economy's options are valid tuning")
+	for bad in [{"shot_price": -1.0}, {"bounty_share": NAN}, {"free_bounty_share": 0.6}, {"base_regen": INF}, {"regen_scale": -0.5}, {"hold_doomed": 1}]:
+		check(not RunConfig.valid_tuning(bad), "rejected: %s" % [bad])
+	var plain: Dictionary = RunConfig.unpack(Snapshot.capture(BattleSim.new(3, {"health": 500})))
+	check(not plain.state.has("fuel"), "a run without it saves none of its ledger")
+	var sim := BattleSim.new(5, {"damage": 30, "health": 30, "health_regen": 10, "attack_speed": 10})
+	check(sim.configure_tuning({"shot_price": 1.0, "bounty_share": 0.25, "base_regen": 1.0, "hold_doomed": true}), "the options freeze before the first wave")
+	while sim.alive and (sim.wave < 3 or sim.shots.is_empty()):
+		sim.step()
+	check(sim.alive and sim.fuel_log.size() == 2 and not sim.shots.is_empty(), "a battle on wave 3 with shots in flight")
+	var saved: Dictionary = json(Snapshot.capture(sim))
+	var again := Snapshot.restore(saved)
+	check(again != null and Snapshot.capture(again).digest == saved.digest, "it round trips exactly")
+	if again != null:
+		check(again.shots_paid == sim.shots_paid and again.fuel_spent == sim.fuel_spent and again.peak_wave == sim.peak_wave and again.fuel_log == sim.fuel_log,
+			"the ledger comes back")
+		for i in range(900):
+			sim.step()
+			again.step()
+		check(Snapshot.capture(sim).digest == Snapshot.capture(again).digest, "and continues exactly: %s" % difference(json(Snapshot.capture(sim)), json(Snapshot.capture(again))))
+	var report: Dictionary = json(RunReport.build(sim))
+	check(RunReport.is_replayable(report) and RunReport.matches(report, RunReport.replay(report)), "a run with it replays from its seed")
+	var state: Dictionary = RunConfig.unpack(saved)
+	state.state.fuel.peak_wave = 99
+	var corrupt := RunConfig.pack(state)
+	corrupt.version = Snapshot.VERSION
+	check(Snapshot.restore(corrupt) == null, "a peak wave past the battle's is rejected")
+
+
 func test_starting_tuning_replays_and_freezes_before_wave_one() -> void:
 	var tuning := RunConfig.default_tuning()
 	tuning.lock.from_wave = 1

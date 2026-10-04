@@ -43,6 +43,17 @@ extends SceneTree
 ## stays out of Regen's reach (0 for ever), --thief-priority has the tower shoot
 ## carriers first, and --number-power K multiplies the tower's shots by the
 ## Number over 5 to the power K. Each run prints the thieves' ledger.
+## The fuel economy (D155, docs/THE_NUMBER.md section 12): --shot-price N
+## charges each volley N Number, --bounty-share N pays a shot kill that share
+## of its enemy's Attack (times Coins / Kill), --free-bounty-share N pays Orbs',
+## Thorns' and Mines' kills that share of it (at most 0.5), --base-regen N adds
+## N Regen a second, --regen-scale N multiplies the Health Regen row, and
+## --hold-doomed holds fire on enemies that shots in flight will kill. Each
+## run prints the fuel ledger: shots paid, their cost, bounties, the wave the
+## peak came and the first wave whose net was negative.
+## --knockback off zeroes the Workshop's Knockback rows and closes its group,
+## and --row-levels ID:N,... sets those rows to Workshop level N, opening their
+## groups, on top of any other Workshop option (single runs and card sweeps).
 ## --gains adds where the Number's gains came from: each source's share of
 ## all it gained, and after the slash its share of the new highs, the gains
 ## that lifted the Number past its best so far rather than refilling it.
@@ -147,6 +158,10 @@ const WORKSHOP_PLANS := {
 	"blender_orbline": {"groups": ["range", "defense", "thorns", "lifesteal", "knockback", "orbs"], "range_m": 60.0, "max_first": ["orbs"],
 		"rows": {"damage": 1, "attack_speed": 1, "health": 2, "health_regen": 1, "defense_absolute": 1, "lifesteal": 1, "knockback_chance": 1,
 		"knockback_force": 1, "orb_speed": 1, "thorns": 2}},
+	# The core rows with Multishot and Bounce Shot, whose free copies and
+	# bounces are the fuel economy's likeliest runaway (D155).
+	"multishot": {"groups": ["defense", "multishot", "bounce_shot"], "rows": {"damage": 1, "attack_speed": 1, "health": 1, "health_regen": 1,
+		"defense_absolute": 1, "multishot_chance": 2, "multishot_targets": 2, "bounce_shot_chance": 2, "bounce_shot_targets": 1}},
 	"spread": {"groups": [], "rows": {}},
 	# Never opens Defense Absolute: Health and Regen with a little killing, the
 	# build Berserker (damage from damage absorbed) is meant for.
@@ -214,6 +229,10 @@ func _init() -> void:
 			for id in TowerData.rows():
 				if TowerData.group(id) in groups:
 					levels[id] = TowerData.max_level(id) if workshop == "max" else mini(int(workshop), TowerData.max_level(id))
+	groups = groups.duplicate()
+	if not _adjust_build(levels, groups, options):
+		quit(1)
+		return
 	if (options.has("sweep-cards") or options.has("with-candidates")) and not options.has("card-sweep"):
 		printerr("--sweep-cards and --with-candidates go with --card-sweep LEVEL")
 		quit(1)
@@ -243,7 +262,7 @@ func _init() -> void:
 		_record_run(sim, "run", 0, cap_seconds)
 		print("%4d  %4d  %9s  %5d  %11.0f  %5.0f  %11.1f  %13s  %5.0f%%  %-9s  %s" % [index + 1, sim.wave, _clock(sim.time), sim.kills, sim.cash_earned, sim.coins,
 			sim.peak_number, "%d/%d" % [sim.dividers_spawned, sim.dividers_landed], _divider_share_of_loss(sim),
-			sim.killed_by if not sim.alive else "(alive)", _bought(sim)] + _curve(sim, options) + _gains(sim, options) + _losses(sim, options) + _thieves(sim))
+			sim.killed_by if not sim.alive else "(alive)", _bought(sim)] + _curve(sim, options) + _gains(sim, options) + _losses(sim, options) + _thieves(sim) + _fuel(sim))
 	waves.sort()
 	print("median wave %d, range %d to %d" % [waves[waves.size() / 2], waves[0], waves[-1]])
 	quit(0 if _write_measurements(options) else 1)
@@ -652,6 +671,11 @@ func _tune(sim: BattleSim, options: Dictionary) -> bool:
 		sim.thief_fade = float(options["thief-fade"])
 	if options.has("number-power"):
 		sim.number_power = float(options["number-power"])
+	# The fuel economy (D155), off unless asked for.
+	sim.hold_doomed = options.has("hold-doomed")
+	for option in ["shot-price", "bounty-share", "free-bounty-share", "base-regen", "regen-scale"]:
+		if options.has(option):
+			sim.set(option.replace("-", "_"), float(options[option]))
 	if options.get("lock", "") == "off":
 		sim.lock.from_wave = 0
 	if options.has("lock-from"):
@@ -668,6 +692,47 @@ func _tune(sim: BattleSim, options: Dictionary) -> bool:
 		printerr("Unsupported measuring tuning; check positive intervals and finite, bounded values.")
 		return false
 	return true
+
+
+## The Workshop options that adjust a build already made (D155): --knockback
+## off and --row-levels ID:N,... False, with a message, on a bad one.
+func _adjust_build(levels: Dictionary, groups: Array, options: Dictionary) -> bool:
+	if options.has("knockback"):
+		if options.knockback != "off":
+			printerr("--knockback takes off")
+			return false
+		for id in TowerData.group_rows("knockback"):
+			levels.erase(id)
+		groups.erase("knockback")
+	if options.has("row-levels"):
+		for part in String(options["row-levels"]).split(",", false):
+			var pair := part.split(":")
+			if pair.size() != 2 or pair[0] not in TowerData.rows() or not pair[1].is_valid_int() or int(pair[1]) < 0:
+				printerr("--row-levels takes ID:LEVEL,... with Workshop row ids")
+				return false
+			levels[pair[0]] = mini(int(pair[1]), TowerData.max_level(pair[0]))
+			if TowerData.group(pair[0]) not in groups:
+				groups.append(TowerData.group(pair[0]))
+	return true
+
+
+## A run's crossing for the fuel economy (THE_NUMBER.md 12.2): its first wave
+## whose net was negative, the wave it ended in counting as far as it went;
+## its last wave plus 1 if it never had one.
+func _crossing(sim: BattleSim) -> int:
+	for logged in sim.fuel_log:
+		if float(logged.net) < 0.0:
+			return int(logged.wave)
+	return sim.wave if float(sim.fuel_wave().net) < 0.0 else sim.wave + 1
+
+
+## With the fuel economy on (D155), its ledger: " | shots 812 paid 812,
+## bounties 640, peak wave 31, crossing 4".
+func _fuel(sim: BattleSim) -> String:
+	if not sim.fuel_active():
+		return ""
+	return "  | shots %d paid %.0f, bounties %.0f (free %.0f), peak wave %d, crossing %d" % [sim.shots_paid, sim.fuel_spent,
+		float(sim.gained_from.get("bounty", 0.0)), float(sim.gained_from.get("free_bounty", 0.0)), sim.peak_wave, _crossing(sim)]
 
 
 ## The share of everything the Number lost that Dividers took.
@@ -726,6 +791,9 @@ func _record_run(sim: BattleSim, case_id: String, run: int, cap_seconds: float) 
 		"lost_to": sim.lost_to.duplicate(), "damage_by": sim.damage_by.duplicate(),
 		"start": sim.start_config()})
 	_measurements[-1].merge(ledger)
+	if sim.fuel_active():
+		_measurements[-1].merge({"shots_paid": sim.shots_paid, "fuel_spent": sim.fuel_spent, "peak_wave": sim.peak_wave,
+			"crossing": _crossing(sim), "gained_from": sim.gained_from.duplicate(), "raised_by": sim.raised_by.duplicate()})
 
 
 func _write_measurements(options: Dictionary) -> bool:

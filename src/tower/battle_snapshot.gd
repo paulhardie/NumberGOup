@@ -26,6 +26,10 @@ const OUR_KINDS := ["divider", "lock"]
 const TRIAL_FLOATS := ["thief_held", "_thief_release", "thief_taken", "thief_recovered", "thief_escaped"]
 const TRIAL_INTS := ["thefts", "thieves_escaped"]
 const ENEMY_FLIGHT := ["carried", "carry_health", "carry_paid"]
+## The fuel economy's ledger (D155), written only while it is on, the same way.
+const FUEL_FLOATS := ["fuel_spent"]
+const FUEL_INTS := ["shots_paid", "peak_wave"]
+const FUEL_WAVE := ["income", "spent", "lost", "net"]
 ## Guesses.DIVIDER's numbers that may be 0: the slow refill, off (D134).
 
 
@@ -43,6 +47,11 @@ static func capture(sim: BattleSim) -> Dictionary:
 		for key in TRIAL_FLOATS + TRIAL_INTS:
 			trial[key] = sim.get(key)
 		state.trial = trial
+	if sim.fuel_active():
+		var fuel := {"log": sim.fuel_log.duplicate(true)}
+		for key in FUEL_FLOATS + FUEL_INTS:
+			fuel[key] = sim.get(key)
+		state.fuel = fuel
 	var targets := {}
 	var field: Array = []
 	for enemy in sim.enemies:
@@ -141,6 +150,18 @@ static func _valid_state(data) -> bool:
 			if not RunConfig.number(trial.get(key)) or float(trial[key]) < 0.0: return false
 		for key in TRIAL_INTS:
 			if not _integer(trial.get(key)) or int(trial[key]) < 0: return false
+	if state.has("fuel"):
+		var fuel = state.fuel
+		if not fuel is Dictionary or not fuel.get("log") is Array or fuel.log.size() > int(state.wave): return false
+		for key in FUEL_FLOATS:
+			if not RunConfig.number(fuel.get(key)) or float(fuel[key]) < 0.0: return false
+		for key in FUEL_INTS:
+			if not _integer(fuel.get(key)) or int(fuel[key]) < 0: return false
+		if int(fuel.peak_wave) < 1 or int(fuel.peak_wave) > int(state.wave): return false
+		for logged in fuel.log:
+			if not logged is Dictionary or not _integer(logged.get("wave")): return false
+			for key in FUEL_WAVE:
+				if not RunConfig.number(logged.get(key)): return false
 	for id in state.run_levels:
 		if id not in TowerData.rows() or not _integer(state.run_levels[id]) or int(state.run_levels[id]) < 0 \
 				or int(state.run_levels[id]) + int(data.start.levels.get(id, 0)) > TowerData.max_level(id): return false
@@ -239,6 +260,17 @@ static func restore(data) -> BattleSim:
 			sim.set(key, float(data.state.trial[key]))
 		for key in TRIAL_INTS:
 			sim.set(key, int(data.state.trial[key]))
+	if data.state.has("fuel"):
+		for key in FUEL_FLOATS:
+			sim.set(key, float(data.state.fuel[key]))
+		for key in FUEL_INTS:
+			sim.set(key, int(data.state.fuel[key]))
+		sim.fuel_log.clear()
+		for logged in data.state.fuel.log:
+			var entry := {"wave": int(logged.wave)}
+			for key in FUEL_WAVE:
+				entry[key] = float(logged[key])
+			sim.fuel_log.append(entry)
 	# Mid-run effects are state, not the frozen starting build.
 	sim.stats = preload("res://src/tower/stat_stack.gd").new()
 	for effect in data.get("current_effects", start.get("effects", [])):

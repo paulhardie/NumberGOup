@@ -16,12 +16,14 @@ static func default_tuning() -> Dictionary:
 		"sure_from": 0, "sure_every": 5, "sure_divisor": 1.1}
 
 
-## The Number-as-capital trial's measuring options (D152) and what each is
-## when off. A run records one only while it is on, so every run and save made
+## The Number-as-capital trial's measuring options (D152), the fuel
+## economy's (D155), and what each is when off. A run records one only while it is on, so every run and save made
 ## without them is byte for byte what it was.
 static func trial_tuning() -> Dictionary:
 	return {"thieves": false, "thief_recovery": 0.0, "thief_speed": 1.0, "thief_fade": 0.0,
-		"thief_priority": false, "number_power": 0.0}
+		"thief_priority": false, "number_power": 0.0,
+		"shot_price": 0.0, "bounty_share": 0.0, "free_bounty_share": 0.0, "base_regen": 0.0,
+		"regen_scale": 1.0, "hold_doomed": false}
 
 
 ## The measuring tool is a real consumer: its starting switches must replay
@@ -57,10 +59,12 @@ static func valid_tuning(tuning) -> bool:
 	if not (lock.full_wave >= lock.from_wave and lock.health > 0.0): return false
 	var options := {}
 	for key in trial: options[key] = tuning.get(key, trial[key])
-	for key in ["thieves", "thief_priority"]:
+	for key in ["thieves", "thief_priority", "hold_doomed"]:
 		if not options[key] is bool: return false
-	for key in ["thief_recovery", "thief_fade"]:
+	for key in ["thief_recovery", "thief_fade", "shot_price", "bounty_share", "base_regen", "regen_scale"]:
 		if not number(options[key]) or float(options[key]) < 0.0 or float(options[key]) > 1e6: return false
+	# The free killers' share is capped at half a shot kill's (THE_NUMBER.md 11.14).
+	if not number(options.free_bounty_share) or float(options.free_bounty_share) < 0.0 or float(options.free_bounty_share) > 0.5: return false
 	if not number(options.thief_speed) or float(options.thief_speed) <= 0.0 or float(options.thief_speed) > 1e3: return false
 	return number(options.number_power) and float(options.number_power) >= 0.0 and float(options.number_power) <= 4.0
 
