@@ -939,3 +939,25 @@ What it means:
 5. **The bots' reserve changes the peak, not the verdicts** (exploratory, 0.25 and 0.75: peaks 103 to 255 at 10K core, every verdict the same).
 
 These are bots spending by a fixed rule. A player banks, spends in bursts and reads the Number; **the owner's play is the test that matters**, and the Testing switches exist for it.
+
+### 13.4 The enemies under the Number as Cash (5 October 2026)
+
+The owner played it ("way better … I need to sort this friction out so I can keep climbing"; early on "feels a bit harder than the tower does, but that's fine") and asked for the enemies to be checked, since the main mechanic has changed. Measured with `sim_runs.gd --json-out` on the harness's seeds (fresh `even`, 20 seeds; core, turtle and blender at 10K, 100K and 1M Coins, 6 seeds), each buying with the Number (bots keeping half their best), with the shop shut, and as today's game. New counters (`paid_by`, `locked_out`) record what each kind's kills paid and the Cash a standing Lock kept out.
+
+**Overall difficulty is unchanged:** buying, every cell ends on today's median wave or within a few (13.3). What changed is which enemy matters, and why:
+
+| Share of the Number lost, median run's build totals | Today's game | Buying with the Number | Shop shut |
+|---|---|---|---|
+| **Dividers**, 10K (core / turtle / blender) | 26% / 48% / 34% | 2% / 7% / 3% | 30% / 47% / 26% |
+| **Dividers**, 100K | 39% / 85% / 34% | 0% / 0% / 3% | 42% / 80% / 48% |
+| **Dividers**, 1M | 42% / 92% / 44% | 6% / 0% / 5% | 41% / 96% / 30% |
+| **Ranged**, 10K | 37% / 10% / 32% | 57% / 22% / 56% | 4% / 5% / 5% |
+| **Ranged**, 1M | 52% / 2% / 52% | 93% / 19% / 95% | 22% / 1% / 50% |
+
+1. **Dividers now punish banking, not playing.** A ÷ takes a share of the Number, and a player who spends keeps the Number low, so for them Dividers all but vanish (0 to 7% of losses, against 26 to 92% today). With the shop shut, banking, they take as much as ever (up to 96%). That is the risk the owner wants on a big Number, and it arrives on its own.
+2. **The Lock has become an income thief.** It holds the Number (D133), and with the Number as Cash that means every kill's Cash and every wave's pay while it stands is lost. Builds that kill it fast lose about 5% of their income; the turtle, which kills slowly, loses **36% at 100K and 58% at 1M** (a Lock held in range for half an hour of a run). In today's game it only held growth. **This is the one enemy that is out of balance.**
+3. **Ranged enemies are the wall for every build that buys.** They were already the main killer in today's game; with Dividers fading they take most of what's lost (57% at 10K core, 93 to 95% at 1M) and end most runs. Not a new problem, but now the clearest one: Range and Defense answer it.
+4. **Basics, fast enemies, tanks and bosses pay well:** buying, their kills pay 2 to 44 times what they take. Tanks, which rarely land a hit, bring in an eighth to over a quarter of a run's income.
+5. **The early game:** a fresh tower loses to the same enemies as today (basics 84% of losses against 78%) and ends on the same wave (6). The owner's sense that it's harder fits what the bots can't feel: every early purchase lowers the Number a hit takes from.
+
+**Proposal for the Lock (the owner's call):** while a Lock stands, the Cash it blocks is held on it, and killing it pays the lot into the Number. Holding stays a threat, a slow-killing build still waits for its income, and killing the Lock becomes a payday rather than just relief. Built as a measuring option first and checked against the turtle's 36% and 58%.
