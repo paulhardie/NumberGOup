@@ -917,3 +917,25 @@ Bots: the core and turtle Workshop plans at 10K, 100K and 1M Coins, 6 seeds each
 6. **The early game holds.** Fresh runs buying nothing, evenly and core each have a median wave from 2 to 10, and none reaches the cap.
 
 The rules of section 10.4 and 12.5 apply: every configuration is reported, no seed is chosen, the criteria aren't changed after results are seen, and a pass means the numbers hold, not that it's fun. **The owner playing it is the real test.**
+
+### 13.3 Results (4 October 2026): pace and safety hold; the shop never stops mattering, and buying keeps the Number low
+
+Measured on the committed options with `python3 tools/cash_trial.py` (the declared run: bots keep half their best in reserve; 6 seeds a cell, 20 a fresh policy). **Overall: FAIL, on criteria 2 and 3.** Unlike sections 10 and 12, nothing breaks: the pace holds, nothing runs away and the early game stands.
+
+| Criterion | Result | What the runs show (medians) |
+|---|---|---|
+| 1. Buying matters while weak | **pass** | At 10K, buying adds 10 waves (core) and 18 (turtle) over the shop shut |
+| 2. Strong builds stop needing it | **FAIL** | The share of waves buying adds barely falls: core 32%, 26%, 25% and turtle 44%, 43%, 37% at 10K, 100K and 1M. In waves it grows: 10, 13, 20 (core) and 18, 34, 52 (turtle) |
+| 3. The Number goes up | **FAIL** | Buying, the peak is a quarter to a fifth of today's: 141 against 527 (10K core), 242 against 584 (10K turtle), 409 against 2,354 and 560 against 2,747 at 100K |
+| 4. No runaway | pass | No run reaches the cap. Neither plan opens Interest, so its half was checked separately (exploratory): maxed Interest on a 100K core build is 15% of income, under the cap and with no change in waves |
+| 5. The pace holds | pass | Buying reaches today's waves: 0% at 10K and 100K core, 0% and −6% turtle. (At 1M, outside the criterion: core 0%, turtle −12%) |
+| 6. The early game holds | pass | Fresh runs end on waves 4, 6 and 3 (buying nothing, evenly, core), none capped |
+
+What it means:
+1. **The swap is safe.** For the bots, buying with the Number is the same game as buying with Cash: the same waves, no runaway, Interest bounded by its cap. Nothing else measured here argues against playing it.
+2. **The owner's arc ("strong enough not to need upgrades") doesn't arrive through Coins in Tier 1,** at least by 1M Coins: run upgrades add more waves the stronger the build, because they stack on Workshop levels. It would need something that lets Workshop power outgrow the run shop (Labs, or run prices that rise with the tier), which is a design choice for the owner.
+3. **There is a fork instead: go far, or go big.** With the shop shut the Number climbs higher than today's at 10K (543 against 527 core, 744 against 584 turtle) while the run ends 10 to 18 waves sooner; buying goes further with a much smaller Number. If a run's reward followed its peak Number (11.6's Coins from the peak), "upgrades off" would be a real strategy rather than a handicap.
+4. **A fresh tower's Number now climbs from its kills:** buying nothing, its peak is 29 against today's 6.
+5. **The bots' reserve changes the peak, not the verdicts** (exploratory, 0.25 and 0.75: peaks 103 to 255 at 10K core, every verdict the same).
+
+These are bots spending by a fixed rule. A player banks, spends in bursts and reads the Number; **the owner's play is the test that matters**, and the Testing switches exist for it.
