@@ -1265,17 +1265,19 @@ func test_the_number_as_cash_validates_records_and_continues() -> void:
 	for id in ["free_attack_upgrade", "free_defense_upgrade", "free_utility_upgrade"]:
 		levels[id] = TowerData.max_level(id)
 	var sim := BattleSim.new(5, levels, BattleSim.START_GROUPS + ["free_upgrades"])
-	check(sim.configure_tuning({"number_cash": true}) and sim.start_config().tuning.number_cash == true, "it freezes before the first wave and is recorded")
+	check(sim.configure_tuning({"number_cash": true, "lock_holds_cash": true}) and sim.start_config().tuning.lock_holds_cash == true, "it freezes before the first wave and is recorded, the Lock's hold with it")
 	while sim.alive and (sim.wave < 4 or sim.shots.is_empty()):
 		if sim.can_buy("attack_speed"):
 			sim.buy("attack_speed")
 		sim.step()
 	check(sim.alive and sim.run_levels.size() > 0 and not sim.free_levels.is_empty(), "a battle on wave 4 that has bought and been given levels: %s free" % [sim.free_levels])
+	sim.lock_held = 3.5
 	var saved: Dictionary = json(Snapshot.capture(sim))
 	var again := Snapshot.restore(saved)
 	check(again != null and Snapshot.capture(again).digest == saved.digest, "it round trips exactly")
 	if again != null:
 		check(again._ceiling == sim._ceiling and again.free_levels == sim.free_levels and again.cash == 0.0, "the ceiling and the free levels come back")
+		check(again.lock_held == 3.5 and again.lock_holds_cash, "and the Cash a Lock is holding")
 		for i in range(900):
 			sim.step()
 			again.step()

@@ -240,6 +240,10 @@ var free_levels: Dictionary = {}
 ## Number, and the Cash a standing Lock kept out of it.
 var paid_by: Dictionary = {}
 var locked_out := 0.0
+## With `lock_holds_cash` on (D157), the Cash a standing Lock blocks isn't lost:
+## it is held here and paid into the Number, all of it, when the Lock dies.
+var lock_holds_cash := false
+var lock_held := 0.0
 
 ## The highest the Number has stood this run: the run's record (D081).
 var peak_number := 0.0
@@ -377,12 +381,15 @@ func spendable() -> float:
 
 ## Cash paid with the Number as Cash (D156): into the Number, and Regen's
 ## ceiling rises with it, so it stays above the Number by what enemies took.
-## A standing Lock holds the Number (D133), so Cash paid then is lost.
+## A standing Lock holds the Number (D133), so Cash paid then is lost, or with
+## `lock_holds_cash` (D157) held until the Lock dies.
 func _pay_cash(amount: float, source: String) -> void:
 	if amount <= 0.0:
 		return
 	if locked:
 		locked_out += amount
+		if lock_holds_cash:
+			lock_held += amount
 		return
 	var before := health
 	health += amount
@@ -1232,6 +1239,8 @@ func _kill(enemy: Enemy, by := "") -> void:
 			events.append({"type": "grown", "enemy": enemy, "gain": health - before})
 	var paid_cash := EnemyKinds.cash(enemy, stat("cash_bonus")) * rules.value("cash_multiplier")
 	var paid_coins := EnemyKinds.coins(enemy, wave, stat("coins_per_kill"), tier, rules.value("basic_coins")) * rules.value("coin_multiplier")
+	if number_cash and lock_holds_cash and EnemyKinds.attack_style(enemy.kind) == "hold":
+		_release_lock_cash(enemy)
 	if number_cash:
 		if not locked:
 			paid_by[enemy.kind] = float(paid_by.get(enemy.kind, 0.0)) + paid_cash
@@ -1244,6 +1253,21 @@ func _kill(enemy: Enemy, by := "") -> void:
 		events.append({"type": "kill", "enemy": enemy, "cash": paid_cash, "coins": paid_coins, "by": by})
 	if enemy.kind == "scatter" and enemy.generation < int(TowerData.enemies().elites.scatter_splits):
 		_split(enemy)
+
+
+## A Lock has died with `lock_holds_cash` on (D157): unless another still
+## stands, the Number is free again, and the Cash held on it is paid in full.
+## The flag is last tick's, so it is read again without the Lock that fell.
+func _release_lock_cash(lock: Enemy) -> void:
+	locked = enemies.any(func(other): return EnemyKinds.attack_style(other.kind) == "hold" and other.arrived() and not other.fleeing)
+	if locked or lock_held <= 0.0:
+		return
+	var held := lock_held
+	lock_held = 0.0
+	paid_by[lock.kind] = float(paid_by.get(lock.kind, 0.0)) + held
+	_pay_cash(held, "lock_cash")
+	if record_events:
+		events.append({"type": "grown", "enemy": lock, "gain": held})
 
 
 ## The fuel economy's bounty (D155): a share of the enemy's Attack, times

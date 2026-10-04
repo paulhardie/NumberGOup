@@ -24,7 +24,7 @@ static func trial_tuning() -> Dictionary:
 		"thief_priority": false, "number_power": 0.0,
 		"shot_price": 0.0, "bounty_share": 0.0, "free_bounty_share": 0.0, "base_regen": 0.0,
 		"regen_scale": 1.0, "hold_doomed": false,
-		"number_cash": false, "upgrades_off": false, "reserve_share": 0.0}
+		"number_cash": false, "upgrades_off": false, "reserve_share": 0.0, "lock_holds_cash": false}
 
 
 ## The measuring tool is a real consumer: its starting switches must replay
@@ -60,7 +60,7 @@ static func valid_tuning(tuning) -> bool:
 	if not (lock.full_wave >= lock.from_wave and lock.health > 0.0): return false
 	var options := {}
 	for key in trial: options[key] = tuning.get(key, trial[key])
-	for key in ["thieves", "thief_priority", "hold_doomed", "number_cash", "upgrades_off"]:
+	for key in ["thieves", "thief_priority", "hold_doomed", "number_cash", "upgrades_off", "lock_holds_cash"]:
 		if not options[key] is bool: return false
 	for key in ["thief_recovery", "thief_fade", "shot_price", "bounty_share", "base_regen", "regen_scale"]:
 		if not number(options[key]) or float(options[key]) < 0.0 or float(options[key]) > 1e6: return false

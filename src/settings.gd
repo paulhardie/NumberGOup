@@ -39,6 +39,8 @@ func run_tuning() -> Dictionary:
 	var tuning := {}
 	if number_cash:
 		tuning.number_cash = true
+		# A Lock holds the Cash it blocks and pays it when it dies (D157).
+		tuning.lock_holds_cash = true
 	if upgrades_off:
 		tuning.upgrades_off = true
 	return tuning

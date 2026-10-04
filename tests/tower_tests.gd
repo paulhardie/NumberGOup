@@ -3757,7 +3757,7 @@ func test_the_number_as_cash_switches_are_settings_a_run_reads() -> void:
 	check(settings.write(TEST_SETTINGS), "written")
 	var back := Settings.new()
 	back.read(TEST_SETTINGS)
-	check(back.number_cash and back.upgrades_off and back.run_tuning() == {"number_cash": true, "upgrades_off": true}, "and read back as the next run's tuning")
+	check(back.number_cash and back.upgrades_off and back.run_tuning() == {"number_cash": true, "lock_holds_cash": true, "upgrades_off": true}, "and read back as the next run's tuning")
 	DirAccess.remove_absolute(TEST_SETTINGS)
 	var battle := BattleScreen.new()
 	battle.workshop = Workshop.new()
@@ -3779,6 +3779,36 @@ func test_the_number_as_cash_switches_are_settings_a_run_reads() -> void:
 		and CardsScreen.card_description("cash").contains("Number") and Palette.row_title("damage") == "Damage",
 		"with it on, the Interest row and the Cash card are about the Number too, and other rows are untouched")
 	Palette.number_cash = false
+
+
+## D157: with the Lock holding Cash, what a standing Lock blocks is kept, not
+## lost, and paid in full when it dies; two Locks pay when the last one falls.
+func test_a_lock_holds_the_cash_it_blocks_and_pays_it_when_it_dies() -> void:
+	for holds in [false, true]:
+		var sim := _quiet_sim()
+		sim.number_cash = true
+		sim.lock_holds_cash = holds
+		var lock := _place(sim, "lock", 0.0)
+		var other := _place(sim, "lock", 0.0)
+		sim.step()
+		check(sim.locked, "a Lock in place holds the Number")
+		var before := sim.health
+		var first_basic := _place(sim, "basic", 20.0)
+		sim.deal_damage(first_basic, 1e9, "shot")
+		var blocked := EnemyKinds.cash(first_basic, sim.stat("cash_bonus"))
+		check(sim.health == before and is_equal_approx(sim.locked_out, blocked), "its kill's Cash is blocked either way")
+		check(is_equal_approx(sim.lock_held, blocked if holds else 0.0), "and held only with the option: %.2f" % sim.lock_held)
+		var held := sim.lock_held
+		var lock_cash := EnemyKinds.cash(lock, sim.stat("cash_bonus")) + EnemyKinds.cash(other, sim.stat("cash_bonus"))
+		sim.deal_damage(lock, 1e9, "shot")
+		check(sim.locked and sim.health == before, "one Lock down, another still stands: nothing is paid yet")
+		sim.deal_damage(other, 1e9, "shot")
+		if holds:
+			check(not sim.locked and sim.lock_held == 0.0, "the last Lock down frees the Number and empties the pool")
+			check_near(sim.health - before, held + lock_cash, 0.000001, "all that was held, and both Locks' own Cash, is paid in: %.2f" % (sim.health - before))
+			check(sim.gained_from.has("lock_cash") and float(sim.paid_by.get("lock", 0.0)) > 0.0, "booked as the Locks' payday")
+		else:
+			check(sim.health == before and sim.lock_held == 0.0, "as today, a standing Lock blocks even its own Cash: nothing is kept")
 
 
 func test_with_the_number_as_cash_free_levels_dont_raise_prices() -> void:
