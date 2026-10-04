@@ -636,7 +636,7 @@ Illustrative, in Tier 1 with a shot price of 1 and a kill paying its enemy's Att
 | 8 | 12.15 | 3.56 | 5 | −1.44 | 1 | +2.56 |
 | 22 | 63.11 | 15.90 | 22 | −6.10 | 4 | +11.90 |
 
-A tower that buys no Damage loses Number on every kill from wave 2; one that buys Damage profits more with every wave. **Buying Damage is how you stay in the black**, which is the satisfying loop: upgrade, and watch each kill pay more. Overkill is wasted damage, not wasted Number. The numbers are guesses to be measured, not a tuning: a missed shot, Regen and hits aren't in the table.
+A tower that buys no Damage loses Number on every kill from wave 2; one that buys Damage profits more with every wave. **Buying Damage is how you stay in the black**, which is the satisfying loop: upgrade, and watch each kill pay more. Overkill is wasted damage, not wasted Number. The numbers are guesses to be measured, not a tuning: a missed shot, Regen and hits aren't in the table, and a bounty of a whole Attack is too generous (11.14 shows why).
 
 ### 11.5 Tiers set the Number's demands (the owner's direction)
 
@@ -668,7 +668,7 @@ The rows stay The Tower's, with its Coin prices, but each has a job in the Numbe
 | **Rate** | Attack Speed, Rapid Fire | Unchanged rules: kill sooner, but spend faster. The early tension: rate against Regen |
 | **Control** | Range, Knockback, Shockwave | Unchanged: they keep enemies off the Number |
 | **Guard** | Defense % and Absolute, the Wall, Thorns, Death Defy, Recovery Packages | Unchanged: they keep the Number from enemies |
-| **Free killers** | Orbs, Thorns' damage, Land Mines | **Their kills pay no bounty** (open, 11.12): they protect the Number without printing it, since they aren't shots and cost nothing |
+| **Free killers** | Orbs, Thorns' damage, Land Mines | **Their kills pay no bounty at first** (open, 11.12): they protect the Number without printing it, since they aren't shots and cost nothing. **Labs raise their share** (the owner, 11.14) |
 | **Run economy** | Cash Bonus, Cash / Wave, Interest, Free Upgrades | Unchanged while Cash stays the run's currency |
 | **Meta** | Coins / Wave | Goes: Coins come from the peak |
 | **Enemy Level Skip** | Health and Attack skip | Unchanged; with Bounty tied to Attack, skipping Attack also lowers bounties, a real trade |
@@ -714,7 +714,7 @@ There is **no new stat**: under A, Damage and the rows that multiply a shot are 
 
 1. ~~Shots: a fixed price or a price per damage?~~ **A fixed price per shot, set per tier** (the owner, 4 October).
 2. **When broke: the tower goes quiet, or fires a free weak "pilot" shot?** I'd go quiet (dramatic and legible), never below 1.
-3. **Free killers (Orbs, Thorns, Mines): their kills pay no bounty?** I'd say yes: they keep protecting the Number but can't print it. The alternative, charging them per hit, is fiddlier and harder to read.
+3. **Free killers (Orbs, Thorns, Mines): their kills pay no bounty, until Labs give them a share?** The owner's idea, and I agree (11.14): nothing at the start, a Lab per killer raising it, capped at half a shot's bounty.
 4. **Cash: keep it for run upgrades, or buy upgrades with the Number?** I'd keep Cash for v1 and revisit once the fuel economy is measured. One big change at a time.
 5. **The pacing target:** how often a new best digit, early and late. Proposed in 11.9.
 6. **Digit unlocks, the Coins formula and each tier's shot price:** I'd set them by measurement, so play time to Cards, Labs and Tier 2 stays about where it is and each tier re-opens the barrier.
@@ -734,3 +734,41 @@ In stages, each played by the owner before the next (REBUILD_SPEC rule 5):
 3. **Coins from the peak and digit unlocks:** economy and saves, high risk, with migration fixtures.
 4. **The screen:** the net rate, boss prices, the drain and the pops.
 5. **The owner plays it,** and decides whether The Tower's shape goes for good.
+
+### 11.14 The mechanics in numbers (4 October 2026)
+
+Worked out from the generated enemy data; still to be measured.
+
+**The economy is one sum.** Every second:
+
+> net = Regen + kills × bounty − shots × price − hits that get through
+
+The tower only fires while something is in range, so excess Damage means fewer shots, not wasted Number. Per kill, that comes to **bounty − price × shots to kill**, and shots to kill are the enemy's health ÷ your Damage, rounded up.
+
+**Break-even Damage.** A kill pays for itself once your Damage passes roughly
+
+> price × (enemy health ÷ enemy attack) ÷ bounty share
+
+when the bounty is a share of the enemy's Attack. That is a number the player can be shown ("your shots pay for themselves from Damage 42"), and passing it is the owner's barrier made visible. What moves it is the enemy's health over its attack, which climbs with the waves (a basic enemy, from the generated data):
+
+| Level | 1 | 5 | 10 | 22 | 50 | 100 | 200 | 500 |
+|---|---|---|---|---|---|---|---|---|
+| Health ÷ attack | 2.0 | 3.2 | 3.8 | 4.4 | 5.9 | 10.8 | 22.6 | 116 |
+
+So the bar roughly doubles by wave 20, again by 100, then climbs steeply: **the barrier is solved, then quietly comes back**, which is the treadmill done gently, and Damage upgrades can outpace it.
+
+**Three things follow.**
+1. **A whole Attack as the bounty is far too generous.** Break-even Damage would be 2 at the start and 4.4 at wave 22, so one cheap Damage purchase solves the economy for most of Tier 1 and shooting stops mattering. **A share of about a quarter** puts it at about 8 at the start, 18 at wave 22 and 43 at wave 100. A fresh tower loses a little on each kill until it buys Damage in the run; the owner's fresh Tower run had Damage 19 by wave 8, where break-even would be about 14. That crossing would land inside a first run. A guess to measure.
+2. **Enemies split into earners and costs.** The bounty follows Attack but the price follows health, so a kind's health ÷ attack sets its break-even: a tank (5× health, ½ attack) needs 10 times a basic's Damage to pay, and a boss (20× health, 1× attack) 20 times. **Basics are income, tanks are a drain, and a boss is a bill every tenth wave.** That is a budget wall even with a fixed price per shot: the war chest you bring to wave 30 is what pays for its boss, and the bill falls as Damage rises.
+3. **A tier's multipliers alone don't move the barrier.** A tier multiplies enemy health and attack alike (×20 in Tier 2), so the shots per kill and the bounty grow together and break-even Damage stays put; only killing speed gets harder. **The tier's shot price is the lever that re-opens the barrier**, which is why the owner's tier demands (11.5) are needed, not optional: Tier 2's price multiplies break-even Damage by itself.
+
+**The start: shooting is free, exactly.** A fresh tower fires once a second at 1 Number a shot, and The Tower gives it no Regen, so it would be broke within five shots. **Proposal: the tower starts with 1 Regen a second, its fire rate times the price**, so at the start shooting costs nothing net and the owner's barrier begins at parity. Then the first Attack Speed purchase is the first real decision (faster, but now spending more than Regen gives), kills add bounty on top, and hits are the only loss. A tier's base Regen would scale with its price.
+
+**Free killers, and the Labs that wake them (the owner's idea).** Orbs, Thorns and Mines kill without firing, so their kills pay nothing at first: they guard the Number without printing it. **A Lab for each** (Orb, Thorn and Mine bounty) raises their kills' share of the bounty from nothing, **capped at half** a shot's bounty, so a paid shot is always the better earner per kill and a blender build earns more slowly than it kills. Their income is bounded by how many enemies arrive, not by its own size, so it can't compound the way 10.5's over-100% recovery did. It also gives Labs a clear first purpose, beside Regen, Bounty and Starting Number.
+
+**Knockback: probably broken today, and in the way of measuring this** (the owner, 4 October: it "pushes tanks and bosses back way more than it should, which is likely why runs just last forever"). From the code, not yet measured:
+- A push is Knockback Force × `KNOCKBACK_METRES_PER_FORCE` ÷ the enemy's mass over a basic's. That 5 metres per unit of force is **our guess**; The Tower gives no units (`guesses.gd`).
+- At Force level 25 (4.15) a basic goes back 21 m a knock, a tank 4.3 m and a boss 1.7 m; at the last level (6.08), 30 m, 6.3 m and 2.5 m. **A worn tank sheds mass down to a basic's (D145, ours), so a nearly dead one flies the full 21 to 30 m.**
+- The chance (up to 80%) rolls on every strike, including Multishot copies and bounces. A boss walks about 3 m a second (0.4 of a basic's 7.66). At the last levels, with about five strikes a second, it is pushed back about 10 m a second, so **it never arrives.** That would explain runs that never end once Knockback is high.
+- **The fix is for later, as the owner asked.** But it confounds the Number's measurements (a run that can't end trips the runaway check for the wrong reason), so stage 1 should run with Knockback both as it is and switched off, and report both.
+
