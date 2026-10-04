@@ -1,8 +1,8 @@
 # Handover
 
-**Last updated:** 3 October 2026, by Claude Code.
-- Base `main` is `d1fa94d`, including D150's balance harness (PR #143), the Tier research (PRs #144 to #146), D151, menus and pop-ups (PR #147), and [PR #148](https://github.com/paulhardie/NumberGOup/pull/148): D152, the Number-as-capital candidate (measuring options, off by default) and its trial tool. None of it changes game behaviour or a save format, and the public version stays 0.9.
-- The trial's results (THE_NUMBER.md 10.5, D152's outcome) are on `claude/number-capital-candidate`, restarted from that `main`, in a follow-up pull request. They are documents only. The play folder follows `origin/main` through `com.paulhardie.ngu-sync`, so it has them once that PR is merged.
+**Last updated:** 4 October 2026, by Claude Code.
+- Base `main` is `230a3a6`, including D150's balance harness (PR #143), the Tier research (PRs #144 to #146), D151, menus and pop-ups (PR #147), [PR #148](https://github.com/paulhardie/NumberGOup/pull/148) (D152, the Number-as-capital candidate: measuring options, off by default, and its trial tool) and [PR #149](https://github.com/paulhardie/NumberGOup/pull/149) (the trial's results, THE_NUMBER.md 10.5, and D152's outcome). None of it changes game behaviour or a save format, and the public version stays 0.9.
+- The play folder follows `origin/main` through `com.paulhardie.ngu-sync`, so everything above is in it; nothing in it changes what you play.
 - The pre-rebuild game is commit `f4f1e95`.
 
 ## Start here
@@ -39,7 +39,7 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 
 ## Checked, and not checked
 
-- **Checked, on the code now in `main` (`d1fa94d`):** `bash run_tests.sh` passes: 4,778 tower checks (46 new in PR #148), 331 foundation checks (19 new, on top of D151's 312) and 26 Python tests (the criteria's own 11 included), exit 0. GitHub's CI passed on the PR. The trial's results were measured on that exact code, and this follow-up changes documents only. The headless boot is clean. The checks cover the carry-off, Thorns on the grab, proportional payback, recoveries of 0, 0.5 and 1.5, escape and fade, the Wall, targeting priority, no push on a thief, the power coupling, option validation, and a snapshot and replay with a thief mid-flight.
+- **Checked, on the code now in `main`:** `bash run_tests.sh` passes: 4,778 tower checks (46 new in PR #148), 331 foundation checks (19 new, on top of D151's 312) and 26 Python tests (the criteria's own 11 included), exit 0. GitHub's CI passed on the PR. The trial's results were measured on that exact code, and PR #149 changed documents only. The headless boot is clean. The checks cover the carry-off, Thorns on the grab, proportional payback, recoveries of 0, 0.5 and 1.5, escape and fade, the Wall, targeting priority, no push on a thief, the power coupling, option validation, and a snapshot and replay with a thief mid-flight.
 - **Checked, D151 (PR #147):** merged. Its evidence is in the PR, and its checks are in the suites above.
 - **Not checked:** a phone, or a real finger, for the pop-ups. Players, whether any of the Number's design is fun, Tier 2 and 3, Lifesteal, the Labs' cost, and any screen for thieves. The budget scenarios have 4 seeds.
 
@@ -54,7 +54,7 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 ## Next steps, in order
 
 1. **Owner:** read the Number verdict and decide (open decision 1). A yes to "change it" starts a second round: its criteria written first (with C2 bounded from below), then a candidate with a weaker, bounded coupling, a capped recovery and the new enemy.
-2. **Owner:** merge the results PR, and **play a run holding tiles on a phone**: it is the one check on the pop-ups that couldn't be made, and it settles the hold's timing.
+2. **Owner:** **play a run holding tiles on a phone**: it is the one check on the pop-ups that couldn't be made, and it settles the hold's timing.
 3. **Owner:** sequence the six drawable-card failures and choose the next drawable candidates (open decision 3). The coupling already makes the Health card matter, so the Number's answer changes that list.
 
 ## Known issues and limits
