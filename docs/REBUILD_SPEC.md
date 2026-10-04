@@ -109,6 +109,8 @@ tests/       tower_tests.gd
 
 ## Roadmap
 
+**D153 (4 October 2026): the Number is the goal, and waves are the test.** 1.0's "done when" below (The Tower's benchmarks) no longer stands as written; it is rewritten when the owner accepts the Number-first design ([THE_NUMBER.md](THE_NUMBER.md) section 11). Until then the table is the record of the plan so far.
+
 Versions, each one a playable thing the owner plays and signs off (D079). The number is `application/config/version` in `project.godot`. It shows on Home and is stamped on every report entry beside the commit. The agent raises it only when a version's "done when" is met; work in between keeps the current number, and the commit tells builds apart. The order is the order a new Tower player meets things (Cards at wave 20, Labs at wave 30, Ultimate Weapons later), not the order The Tower's developer built them ([TOWER_EARLY_PROGRESSION.md](TOWER_EARLY_PROGRESSION.md#the-towers-own-version-history)).
 
 | Version | What | Done when |
