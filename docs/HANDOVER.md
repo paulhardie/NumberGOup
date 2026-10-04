@@ -1,8 +1,8 @@
 # Handover
 
 **Last updated:** 4 October 2026, by Claude Code.
-- Base `main` is `5513c27`, including D150's balance harness (PR #143), the Tier research (PRs #144 to #146), D151, menus and pop-ups (PR #147), [PR #148](https://github.com/paulhardie/NumberGOup/pull/148) (D152, the Number-as-capital candidate: measuring options, off by default, and its trial tool) [PR #149](https://github.com/paulhardie/NumberGOup/pull/149) (the trial's results, THE_NUMBER.md 10.5, and D152's outcome) and PR #150 (a handover fix). None of it changes game behaviour or a save format, and the public version stays 0.9.
-- Branch `claude/number-first-design` carries D153 and its design note (THE_NUMBER.md section 11), documents only, in its own pull request. The play folder follows `origin/main` through `com.paulhardie.ngu-sync`; none of this changes what you play.
+- Base `main` is `5667bd6`, including D150's balance harness (PR #143), the Tier research (PRs #144 to #146), D151, menus and pop-ups (PR #147), [PR #148](https://github.com/paulhardie/NumberGOup/pull/148) (D152, the Number-as-capital candidate: measuring options, off by default, and its trial tool) [PR #149](https://github.com/paulhardie/NumberGOup/pull/149) (the trial's results, THE_NUMBER.md 10.5, and D152's outcome) PR #150 (a handover fix) and PR #151 (D153 and its design note). None of it changes game behaviour or a save format, and the public version stays 0.9.
+- Branch `claude/number-first-design` carries the owner's choices on that note (a fixed price per shot, set per tier), documents only, in its own pull request. The play folder follows `origin/main` through `com.paulhardie.ngu-sync`; none of this changes what you play.
 - The pre-rebuild game is commit `f4f1e95`.
 
 ## Start here
@@ -22,12 +22,13 @@ Tier 1 and every Workshop group work.
 ## The Number is the goal (D153, 4 October 2026): designed, not built
 
 The owner decided the Number is what the player plays for and waves are the test, and sketched the core: shots cost Number, Regen earns it back, and the first barrier is earning more than you spend. [THE_NUMBER.md section 11](THE_NUMBER.md#11-the-number-is-the-goal-4-october-2026-d153-design-note) is the design note. Everything in it beyond the goal and the sketch is a proposal:
-- **Shots priced per damage dealt (B), not per shot (A),** so every enemy and boss has a price in Number and the Number's size decides the wall; recommended, the owner's call.
+- **Every shot costs a fixed price: 1 Number in Tier 1** (the owner's choice, over a price per damage). Damage and anything that multiplies a shot (crits, Multishot, bounces) make each Number go further; Attack Speed spends faster. A boss's price is the shots it takes, and falls as you upgrade.
+- **Each tier sets the Number's demands** (the owner): its shot price rises, so every tier re-opens the sustain barrier. The tier is the overall difficulty dial.
 - **The run's arc:** survive, sustain (a net-rate readout under the Number), grow, then hit the wall where prices outgrow income. The peak is the score.
 - **The best Number is the record, Coins come from the run's peak, and digits open systems**, set by measurement so play time to Cards, Labs and Tier 2 stays about where it is.
-- **The Workshop's rows each get a job:** Health becomes Starting Number, Coins / Kill becomes Bounty, the crit rows and a new Efficiency row stretch each Number, and free killers pay for their damage.
+- **The Workshop's rows each get a job:** Health becomes Starting Number, Coins / Kill becomes Bounty, Damage and the shot-multiplying rows are the efficiency (no new stat), and kills by Orbs, Thorns and Mines pay no bounty.
 - **Pacing:** growth compounds where it's earned and every run peaks; no interest on the Number (D110's guard stays), and a new digit pace in play time for the owner to set.
-- **Proof in stages, measure-only first,** with draft criteria to agree before anything is built (11.12).
+- **Proof in stages, measure-only first,** with draft criteria to agree before anything is built (11.13).
 
 ## The Number as capital (D152, 3 October 2026): tried, and the declared candidate failed
 
@@ -56,12 +57,12 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 
 ## Open decisions for the owner
 
-1. **The Number-first design (THE_NUMBER.md 11.11):** the questions that decide the first build.
-   - **Shots: a price per damage dealt (B) or a fixed price per shot (A)?** I'd choose **B**, because it's the only one where the Number's size decides the boss wall and the economy never quietly solves itself. Trade-off: one new stat (Efficiency) to explain.
+1. **The Number-first design (THE_NUMBER.md 11.12):** shot pricing is settled (a fixed price per shot, set per tier). What's left before stage 1:
    - **When broke: the tower goes quiet, or fires a free weak shot?** I'd go quiet, never below 1.
-   - **Orbs, Thorns and Mines pay for their damage like shots?** I'd say yes, so nothing prints Number for free.
+   - **Kills by Orbs, Thorns and Mines pay no bounty?** I'd say yes, so nothing prints Number for free.
    - **Keep Cash for run upgrades in v1?** I'd keep it; one big change at a time.
-   - **The pace of new digits,** early and late (proposal in 11.8).
+   - **The pace of new digits,** early and late (proposal in 11.9).
+   None of these blocks a measure-only stage 1: I'd build each as a switch and show you both sides.
 2. **Pop-ups (D151):** does holding stay, and what next? I'd keep it and add **a one-line hint that holding reads** (nothing tells a player today), then **hold the daily Gems pill** (its tooltip never shows on a phone). Two are yours: **a confirm on End run** (it ends a run on one tap; a confirm adds a tap at ×5) and **moving the run-over panel onto a sheet** (it shades the arena). UI_POPUPS.md section 3 has the rest.
 3. **Which cards to make drawable next?** Factor, Super Tower and a rescaled Berserker are the candidates in CARDS.md. Park the rest.
 4. **Changing cards mid-run:** I'd still keep them fixed for the run.
@@ -69,8 +70,8 @@ The owner chose to try the Number as the player's capital: the hit of watching i
 
 ## Next steps, in order
 
-1. **Owner:** answer open decision 1, at least shot pricing (A or B). That unlocks the first stage.
-2. **Agent, on a yes:** write the stage-1 criteria into THE_NUMBER.md first (from the draft in 11.12), then build the fuel economy as off-by-default measuring options with `sim_runs.gd` and `number_trial.py` support, and report every run.
+1. **Owner:** merge the note's update, and answer what you can of open decision 1; none of it blocks stage 1.
+2. **Agent, on a go:** write the stage-1 criteria into THE_NUMBER.md first (from the draft in 11.13), then build the fuel economy as off-by-default measuring options with `sim_runs.gd` and `number_trial.py` support, and report every run.
 3. **Owner:** **play a run holding tiles on a phone**: it is the one check on the pop-ups that couldn't be made, and it settles the hold's timing.
 
 ## Known issues and limits
