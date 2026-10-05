@@ -889,6 +889,8 @@ What the runs show (medians; 6 seeds a build, 20 a fresh policy):
 
 ## 13. The Number is Cash (4 October 2026, D156)
 
+*D158 (section 14) made these the game's rules. Mentions below of a Testing switch describe how it was first built, played and measured.*
+
 After stage 1 failed (12.6), the agent laid out the options for the Number: drop it, keep it as health, make it a score, or make it the run's money as well as its life. The owner chose the last: "Let's also make it the cash as well, with the players aim that when they get strong enough they don't need to buy upgrades", "We could also give the player the option to complete switch them off before a run, but not during", and "Coins can still exist, and will be the way of upgrading the workshop permanently, so the player is stronger without sacrificing as much number to grow". The owner then accepted the four rules below that the agent said the plan needed ("Happy with all of these").
 
 ### 13.1 The rules
@@ -991,3 +993,49 @@ The rules of 10.4 and 12.5 apply: every cell reported, no seed chosen, criteria 
 4. **The game is unchanged:** the quick balance comparison shows no movement (the option is off by default and needs the Number as Cash).
 
 **For the owner:** the remaining loss is the turtle's, and it is the same fact that made Locks a Tier 1 wall in D133 and D144 (kill it or knock it back): a build with no shots can't answer one. I'd leave it, and **let Thorns' build feel it in play** before changing D133. If it feels bad, the narrow fix is to let Thorns hurt a standing Lock at a share of its strength, built as a measuring option first.
+
+## 14. The Number is Cash becomes the game (5 October 2026, D158)
+
+After playing D156 and D157 behind the Testing switch the owner said "way better … I need to sort this friction out so I can keep climbing", then "merged and proceed" to the agent's offer to make it the game. **From D158, every new run plays the Number as Cash, with a Lock that holds the Cash it blocks.** The measuring options keep their off defaults, so the tools can still play the old game for comparison.
+
+### 14.1 The change snapshot (QUALITY_GATES, high risk: economy, purchasing and saves)
+
+- **Current behaviour:** runs play Cash rules unless the Testing switch is on (D156, D157); Cash is the run's currency in the code, the screens, the cards and the docs.
+- **Intended:** every new run plays Number as Cash and the held Lock. **Run upgrades off** becomes an ordinary setting, not a Testing one (the owner asked for "the option to completely switch them off before a run, but not during"). Cash is gone from the screens of a new run.
+- **Directly affected:** `RunConfig.game_tuning` (the game's rule set, one authority), `Settings` (the Testing switch Number is Cash goes; Run upgrades off stays, as a setting), `main.gd`, Home's Settings sheet, the words on the Workshop, Cards and run-over screens, AGENTS.md law 4, the balance harness and its baselines, the capture tool, README, TOWER_RULES.
+- **Adjacent:** saved battles and run reports (their rules), the settings file, the Coins and milestones (unchanged), `read_report.gd` and the activity log (they read a run's start config).
+- **Must preserve:** a saved battle or report from before resumes and replays under the rules it began with; Workshop ranks, Coins, Gems and cards; determinism; the real save's protection.
+- **Planned proof:** boundary and repeated-action tests; old-save, current-save, malformed and round-trip fixtures; a replay of a run in each rule set; the harness measuring the game's rules with re-recorded baselines; screenshots of Home, Settings and a battle; **an independent adversarial review of the final diff**.
+
+### 14.2 What changes, and what doesn't
+
+- **The game's rules live in one place:** `RunConfig.game_tuning()` returns the tuning a new run starts with (`number_cash`, `lock_holds_cash`, and `upgrades_off` while the setting is on). The code's own defaults stay off, so a run that starts without them (every existing save, report and test) plays exactly as before.
+- **No combat-rules version bump, deliberately.** A start config records its tuning, and a saved battle or report from before D156 has none of the new keys, so it restores and replays as Cash rules, to the byte. A bump would have ended saved battles on update. It is tested, not assumed: a run started under each rule set round-trips and replays, and a snapshot without the keys resumes with the Cash chip and Cash words.
+- **A resumed old run shows its own words.** A battle's screen follows its run's rules, so a Cash-rules battle saved before the update still reads "Cash" and "$", while Home, the Workshop and Cards read as the Number's.
+- **Settings:** the file's old `number_cash` key (written while D156 was a Testing switch) is ignored and dropped on the next write; `upgrades_off` is kept and now sits among the ordinary settings.
+- **Unchanged:** Coins and what they buy, the Workshop's ranks and prices, Gems and Cards, the milestone thresholds, the tiers, the enemies' stats. **But the Number milestones are reached later** (14.4). Cash's data rows keep The Tower's ids and values, shown under Number names (a presentation layer, since the generated data mirrors The Tower's table).
+
+### 14.3 Measured under the game's rules (the harness, 5 October 2026)
+
+The balance harness now plays the game's rules (BALANCE_TESTS.md) and both baselines are re-recorded on the committed code (source digest `ea78c9aa…`). Median waves and peak Numbers, today's rules against the game's, on the harness's seeds (the full suite):
+
+| Scenario | Median wave | Median peak Number |
+|---|---|---|
+| fresh, buying nothing / evenly / core | 3 → 4 / 6 → 6 / 3 → 3 | 6 → 29 / 14 → 20 / 6 → 13 |
+| 10K Coins: core / turtle / blender / spread | 31 → 31 / 41 → 42 / 31 → 31 / 31 → 31 | 527 → 137 / 584 → 252 / 576 → 149 / 389 → 173 |
+| 100K Coins: core / turtle / blender / spread | 51 → 51 / 84 → 82 / 48 → 51 / 63 → 68 | 2,442 → 409 / 2,820 → 692 / 2,898 → 409 / 5,029 → 742 |
+| career (core / grow / even) | 21 → 21 / 21 → 21 / 10 → 10 | 136 → 70 / 158 → 75 / 35 → 38 |
+| Tier 2 / Tier 3 at level 20 | 18 → 18 / 18 → 17 | 4,504 → 499 / 11,392 → 561 |
+
+**The pace is the same and the Number is a fifth to a quarter of its old size** (13.3). Under the game's rules **four of D149's six dead cards meet the floor**: Extra Defense, Free Upgrades, Range and Health (by a single wave, in one build), because every point of defence now protects the Number a purchase just lowered. **Critical Chance and Health Regen still fail.** (The harness still lists all six as its documented known failures; it labels one only when it fails.)
+
+### 14.4 What the owner hasn't decided, and this doesn't do
+
+- **The Number milestones pay less, because spending keeps the peak Number low (found by the independent review, then measured).** The digits (10, 100, 1,000 … 1,000,000) pay Coins once, when the run's best Number first reaches them (D125, D131), and the Number as Cash holds a buying run's peak at a fifth to a quarter of today's (13.3). From the 13.3 medians: at 10K Coins nothing changes (60 Coins of digits either way); at 100K a core build's digits pay **60 instead of 310** and a turtle's the same; at 1M **310 instead of 2,810**, against a run's own Coins of about 10,000 (core) and 25,000 (turtle), so the digits go from about a quarter of a 1M core run's Coins to about 3%. The best Number the Home screen shows is also smaller. **The owner's call**; I'd keep the record as the true peak and **recalibrate the digit ladder to the new scale** (11.15 already planned this), measured, not guessed.
+- **Recovery Packages refill spending too.** A package heals a share of Workshop Health, up to its Max Recovery, and the Number's ceiling rises with it, so after a purchase it can give some of it back. Bounded by `max_health × max_recovery` and Packages open at 1.5M Coins, so I left it; **if the owner wants D156's "only what enemies took" to hold for them too, a package should not raise the ceiling.**
+- **A Lock still standing when a run ends takes its held Cash with it** (the run-over panel now says how much).
+
+- **Coins from the peak Number (11.6)** and the digit ladder (11.15): not built; Coins are earned as now.
+- **A way for Workshop power to outgrow the run shop** (13.3's finding): not built.
+- **The turtle and the Lock** (13.5): left for play.
+- **Tier 2 and 3** are not measured under the new rules.

@@ -16,6 +16,7 @@ const Progression = preload("res://src/tower/progression.gd")
 const CardsScreen = preload("res://src/ui/cards_screen.gd")
 const Cards = preload("res://src/tower/cards.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
+const RunConfig = preload("res://src/tower/run_config.gd")
 
 const MOMENTS := [4.0, 30.0, 120.0, 240.0, 600.0]
 const FOLDER := "user://capture"
@@ -192,6 +193,7 @@ func _capture() -> void:
 		"rapid_fire_duration": 40, "multishot_chance": 60, "bounce_shot_chance": 60, "knockback_chance": 40,
 		"land_mine_chance": 30, "wall_health": 400}
 	var showcase := BattleScreen.new()
+	showcase.tuning = RunConfig.game_tuning()
 	showcase.workshop = strong
 	root.add_child(showcase)
 	await process_frame
@@ -224,6 +226,7 @@ func _capture() -> void:
 
 	# The moment a Divider reaches the Number (D082).
 	var divided := BattleScreen.new()
+	divided.tuning = RunConfig.game_tuning()
 	var middling := Workshop.new()
 	middling.levels = {"damage": 25, "attack_speed": 10, "health": 80, "health_regen": 40}
 	divided.workshop = middling
@@ -257,6 +260,7 @@ func _capture() -> void:
 
 	# Full Range (D101): the view zooms out so the range stays on screen.
 	var far := BattleScreen.new()
+	far.tuning = RunConfig.game_tuning()
 	var reaching := Workshop.new()
 	reaching.open_groups.append("range")
 	reaching.levels = {"damage": 25, "attack_speed": 10, "health": 20, "health_regen": 10, "range": 79}
@@ -279,6 +283,7 @@ func _capture() -> void:
 
 	# The moment the Number reaches a new digit (D099), a moment after it lands.
 	var digits := BattleScreen.new()
+	digits.tuning = RunConfig.game_tuning()
 	var climbing := Workshop.new()
 	climbing.levels = {"damage": 25, "attack_speed": 10, "health": 20, "health_regen": 30}
 	digits.workshop = climbing
@@ -304,6 +309,7 @@ func _capture() -> void:
 	# A kill growing the Number (D111): its sparks, its Cash, and the "+" by
 	# the Number, a moment after a kill that grew it by at least 1.
 	var grown := BattleScreen.new()
+	grown.tuning = RunConfig.game_tuning()
 	grown.workshop = middling
 	root.add_child(grown)
 	await process_frame
@@ -327,6 +333,7 @@ func _capture() -> void:
 	# A crowd with the wave-10 boss in it, to see every enemy type's number
 	# side by side (D085).
 	var crowd := BattleScreen.new()
+	crowd.tuning = RunConfig.game_tuning()
 	crowd.workshop = middling
 	root.add_child(crowd)
 	await process_frame
@@ -351,6 +358,7 @@ func _capture() -> void:
 	# and elites on the field, then Wave Info open over them. The Number is
 	# held up, since only the look matters here.
 	var invaded := BattleScreen.new()
+	invaded.tuning = RunConfig.game_tuning()
 	invaded.workshop = strong
 	root.add_child(invaded)
 	await process_frame
@@ -398,6 +406,7 @@ func _capture() -> void:
 	# The Lock (D133) on Tier 1's wave 40, holding the Number from the range's
 	# edge in a crowd walking in, with the card a player sees the first time.
 	var held := BattleScreen.new()
+	held.tuning = RunConfig.game_tuning()
 	held.workshop = middling
 	root.add_child(held)
 	await process_frame
@@ -441,6 +450,7 @@ func _capture() -> void:
 	# fresh tank and a worn one thinned, and the boss as a rival Number, with
 	# the wave line naming it.
 	var base := BattleScreen.new()
+	base.tuning = RunConfig.game_tuning()
 	base.workshop = middling
 	root.add_child(base)
 	await process_frame
@@ -469,6 +479,7 @@ func _capture() -> void:
 	await process_frame
 
 	var screen := BattleScreen.new()
+	screen.tuning = RunConfig.game_tuning()
 	screen.workshop = Workshop.new()
 	root.add_child(screen)
 	await process_frame

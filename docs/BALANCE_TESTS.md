@@ -17,6 +17,8 @@ Every Godot process goes through `run_godot.sh` and uses scratch storage. The ha
 
 ## Coverage and limits
 
+**Since D158 every scenario plays the game's rules** (`GAME_RULES` in `tools/balance_report.py`: the Number as Cash, the held Lock, and bots that keep half their best Number in reserve), so the baseline measures the game as it is played. The bots' reserve is a stand-in for a player's feel for what is safe to spend; the criteria in THE_NUMBER.md 13.2 show the verdicts don't depend on it. A baseline recorded before D158 fails validation ("Scenario definitions changed") until re-recorded.
+
 | Suite | Scenarios |
 |---|---|
 | Quick (every PR) | Fresh no-buy, even and core: 20 seeds each. Four 10K-Coin Workshop plans: 4 seeds each. One 50-run core career. Uniform-level-20 Tier 2/3 smoke measurements: 2 seeds each, to wave 100 or 10 game minutes. |

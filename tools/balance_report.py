@@ -17,13 +17,18 @@ import tempfile
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMA = 1
 METRICS = ('wave', 'game_seconds', 'coins', 'coins_per_hour', 'cash', 'peak_number')
+# The game's rules since D158: the Number is Cash, a Lock holds the Cash it
+# blocks, and the bot keeps half its best Number in reserve (a bot that spends to
+# 1 dies to the next hit; a player banks by feel). Every scenario plays them, so
+# the baseline measures the game as it is played.
+GAME_RULES = {'number-cash': 'true', 'lock-holds-cash': 'true', 'reserve': 0.5}
 KNOWN_CARD_FAILURES = {'health', 'health_regen', 'range', 'critical_chance', 'extra_defense', 'free_upgrades'}
 
 
 def scenarios(suite):
     cases = []
     def add(name, **options):
-        cases.append({'id': name, 'options': options})
+        cases.append({'id': name, 'options': {**options, **GAME_RULES}})
     for policy in ('none', 'even', 'core'):
         add('fresh_' + policy, seeds=20, buy=policy, **{'cap-minutes': 10})
     for budget in ((10000,) if suite == 'quick' else (10000, 100000)):

@@ -154,6 +154,9 @@ static func _valid_state(data) -> bool:
 			if not RunConfig.number(trial.get(key)) or float(trial[key]) < 0.0: return false
 		for key in TRIAL_INTS:
 			if not _integer(trial.get(key)) or int(trial[key]) < 0: return false
+	# The Number as Cash's state goes with its rules, never without or alone.
+	var tuned = data.start.get("tuning", {})
+	if state.has("number_cash") != (tuned is Dictionary and tuned.get("number_cash", false) == true): return false
 	if state.has("number_cash"):
 		var held = state.number_cash
 		if not held is Dictionary or not RunConfig.number(held.get("ceiling")) or float(held.ceiling) < 0.0 \

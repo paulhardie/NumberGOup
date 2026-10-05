@@ -230,7 +230,8 @@ var fuel_log: Array[Dictionary] = []
 ## row's price counts only the levels bought, not `free_levels`. With
 ## `upgrades_off` the shop is shut for the run. `reserve_share` is the bots':
 ## a purchase never leaves less than that share of the run's best. All off in
-## the game unless the Testing switch is on, and recorded only while on.
+## the code unless a run's tuning turns them on (RunConfig.game_tuning, D158),
+## and recorded only while on.
 var number_cash := false
 var upgrades_off := false
 var reserve_share := 0.0
@@ -1241,16 +1242,21 @@ func _kill(enemy: Enemy, by := "") -> void:
 	var paid_coins := EnemyKinds.coins(enemy, wave, stat("coins_per_kill"), tier, rules.value("basic_coins")) * rules.value("coin_multiplier")
 	if number_cash and lock_holds_cash and EnemyKinds.attack_style(enemy.kind) == "hold":
 		_release_lock_cash(enemy)
+	# What lands in the Number now; with the Number as Cash a standing Lock holds
+	# it instead, and the kill's pop-up says so.
+	var landed := paid_cash
 	if number_cash:
 		if not locked:
 			paid_by[enemy.kind] = float(paid_by.get(enemy.kind, 0.0)) + paid_cash
+		else:
+			landed = 0.0
 		_pay_cash(paid_cash, "kill_cash")
 	else:
 		cash += paid_cash
 		cash_earned += paid_cash
 	coins += paid_coins
 	if record_events:
-		events.append({"type": "kill", "enemy": enemy, "cash": paid_cash, "coins": paid_coins, "by": by})
+		events.append({"type": "kill", "enemy": enemy, "cash": landed, "held": (paid_cash - landed) if lock_holds_cash else 0.0, "coins": paid_coins, "by": by})
 	if enemy.kind == "scatter" and enemy.generation < int(TowerData.enemies().elites.scatter_splits):
 		_split(enemy)
 

@@ -27,6 +27,18 @@ static func trial_tuning() -> Dictionary:
 		"number_cash": false, "upgrades_off": false, "reserve_share": 0.0, "lock_holds_cash": false}
 
 
+## The rules a new run of the game starts with (D158): the Number is Cash
+## (D156), and a Lock holds the Cash it blocks (D157), with the run shop shut if
+## the player chose that before the run. The code's own defaults stay off, so a
+## start config without these keys (every save and report from before) plays as
+## it always did; the game's rules are named here, in one place, and recorded.
+static func game_tuning(upgrades_off := false) -> Dictionary:
+	var tuning := {"number_cash": true, "lock_holds_cash": true}
+	if upgrades_off:
+		tuning.upgrades_off = true
+	return tuning
+
+
 ## The measuring tool is a real consumer: its starting switches must replay
 ## before the first wave is rolled, just like the normal game's build.
 static func valid_tuning(tuning) -> bool:

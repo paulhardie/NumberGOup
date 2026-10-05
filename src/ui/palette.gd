@@ -352,9 +352,10 @@ static func row_description(id: String) -> String:
 	return String(NUMBER_CASH_ROWS[id][1] if number_cash and NUMBER_CASH_ROWS.has(id) else TowerData.upgrade(id).description)
 
 
-## Whether the screens write about the Number as Cash (D156): set from the
-## Testing switch for Home, the Workshop and Cards, and from a run's own rules
-## while it plays, so a run keeps the words it started with.
+## Whether the screens write about the Number as Cash (D156, D158): the game
+## sets it for Home, the Workshop and Cards, and a battle sets it from its own
+## run's rules, so a Cash-rules battle saved before D158 keeps its words. False
+## where nothing has set it, as the tools and tests that play the old rules.
 static var number_cash := false
 ## The rows about Cash, as they read with the Number as Cash: title, description.
 const NUMBER_CASH_ROWS := {

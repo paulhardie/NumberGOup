@@ -84,14 +84,14 @@
 | Recovery Packages | By chance each wave, a package spawns and heals a share of max health at once, up to Max Recovery × Health; packages don't reach bosses | At the wave's end | Built; the timing is **unknown** |
 | Free Upgrades | A chance each wave for each tab; never a maxed row. Over 100% gives a chance of a second | Same (it can't pass 49.5% yet) | Built |
 | Enemy Level Skip | Deterministic since V26: its share of waves, evenly spread | Same | Built |
-| Interest | (Cash + Cash / Wave × Cash Bonus) × Interest, up to $50 until the Max Interest lab | Same | Built |
+| Interest | (Cash + Cash / Wave × Cash Bonus) × Interest, up to $50 until the Max Interest lab | Same, **paid on the Number instead of Cash since D158** (the Number is the run's money), up to the same cap | Built |
 | Hard caps | Defense % 98%, Thorns 99%, Wall Rebuild 150 s, Shockwave 7 s; game speed ×6.25 at most | The first four, in one place (D119); game speed isn't a stat yet | Built |
 
 ## 4. Economy
 
 | Rule | The Tower | Us | Mark |
 |---|---|---|---|
-| **Cash per kill** | $1, plus $1 every 10 waves **up to wave 200, then $1 every 20 waves** ($21 at 200, $24 at 260). Then × Cash Bonus × Golden Tower × Enemy Balance (SDK's kill chain) | The same by wave (D116), times a type weight (fast and ranged 2, tank 5, boss 20; D071) | Built by wave. The type weights aren't confirmed by any source: **unknown** |
+| **Cash per kill** | $1, plus $1 every 10 waves **up to wave 200, then $1 every 20 waves** ($21 at 200, $24 at 260). Then × Cash Bonus × Golden Tower × Enemy Balance (SDK's kill chain) | The same by wave (D116), times a type weight (fast and ranged 2, tank 5, boss 20; D071), **paid into the Number since D158** (a Cash row reads as the Number's) | Built by wave. The type weights aren't confirmed by any source: **unknown** |
 | Cash and tiers | No source says whether a tier multiplies Cash | Not multiplied (D071 assumed it would be) | **Unknown** |
 | Coins per kill | By type: fast 2, ranged 2, tank 4, boss 5, protector 3, elites 4; basics pay nothing without a card. Times Coins / Kill Bonus × the tier bonus × every other bonus, all multiplied together, and ×0.5 for an enemy alive more than 3 waves | Flat by type × Coins / Kill × tier (D074); no decay | Built |
 | Coins / Wave | A flat 1–150 a wave, × the tier bonus | Same | Built |
