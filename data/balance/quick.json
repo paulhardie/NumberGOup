@@ -1,8 +1,8 @@
 {
   "provenance": {
-    "commit": "3e3438e813b1976ea30f608547c9fa4b2dbedd8c",
-    "dirty": false,
-    "source_sha256": "ea78c9aa7b54d5df1d529e8f55f0b1cdd703425be3bb4477e6c35dbbc9b45fd8"
+    "commit": "fcce815d9f563de439cf9b4e3f03e1ba355b4866",
+    "dirty": true,
+    "source_sha256": "cb72a33883140c7c47daad7c94837e1a22069fd7b9c3ab09c6cf5c07c1099358"
   },
   "scenarios": [
     {
@@ -7026,6 +7026,10 @@
             "damage_by": {
               "shot": 135.27704672000004
             },
+            "digits": [
+              10.0
+            ],
+            "digits_paid": 10.0,
             "dividers_landed": 0,
             "dividers_spawned": 0,
             "free_levels": {},
@@ -7111,6 +7115,8 @@
             "damage_by": {
               "shot": 80.83491660000001
             },
+            "digits": [],
+            "digits_paid": 0.0,
             "dividers_landed": 0,
             "dividers_spawned": 0,
             "free_levels": {},
@@ -7195,6 +7201,8 @@
             "damage_by": {
               "shot": 45.03201154
             },
+            "digits": [],
+            "digits_paid": 0.0,
             "dividers_landed": 0,
             "dividers_spawned": 0,
             "free_levels": {},
@@ -7278,6 +7286,8 @@
             "damage_by": {
               "shot": 240.09003698
             },
+            "digits": [],
+            "digits_paid": 0.0,
             "dividers_landed": 0,
             "dividers_spawned": 0,
             "free_levels": {},
@@ -7365,6 +7375,8 @@
             "damage_by": {
               "shot": 301.35333835
             },
+            "digits": [],
+            "digits_paid": 0.0,
             "dividers_landed": 0,
             "dividers_spawned": 0,
             "free_levels": {},
@@ -7451,6 +7463,10 @@
             "damage_by": {
               "shot": 811.9687908100001
             },
+            "digits": [
+              100.0
+            ],
+            "digits_paid": 25.0,
             "dividers_landed": 1,
             "dividers_spawned": 1,
             "free_levels": {},
@@ -7477,7 +7493,7 @@
               "tank": 5.0
             },
             "peak_number": 22.96883441067929,
-            "permanent_rewards": 0.0,
+            "permanent_rewards": 25.0,
             "raised_by": {
               "kill_cash": 18.45849117401269,
               "regen": 0.5103432366665963
@@ -7537,39 +7553,44 @@
           },
           {
             "case": "career",
-            "cash": 95.0,
-            "coins": 14.0,
+            "cash": 125.0,
+            "coins": 22.0,
             "damage_by": {
-              "shot": 564.8233826400003
+              "shot": 944.2451966399997
             },
-            "dividers_landed": 0,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 1,
             "dividers_spawned": 1,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 95.0,
-              "regen": 6.090329463326173
+              "kill_cash": 125.0,
+              "regen": 18.53067388727332
             },
-            "game_seconds": 236.89999999998912,
+            "game_seconds": 311.6333333333656,
             "killed_by": "basic",
-            "kills": 84,
+            "kills": 108,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 55.566872922655406,
-              "fast": 0.5442719500000002,
+              "basic": 61.804945324842805,
+              "divider": 0.0,
+              "fast": 2.152559304800001,
+              "ranged": 3.1768093796000008,
               "tank": 0.0
             },
             "paid_by": {
-              "basic": 79.0,
-              "fast": 6.0,
-              "tank": 10.0
+              "basic": 100.0,
+              "fast": 8.0,
+              "ranged": 2.0,
+              "tank": 15.0
             },
-            "peak_number": 19.0,
+            "peak_number": 22.479373557674492,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 18.28079239035359,
-              "regen": 0.13446234271682656
+              "kill_cash": 17.706712160162034,
+              "regen": 0.7726613975124579
             },
             "reached": {},
             "run": 7,
@@ -7582,183 +7603,6 @@
                 "defense"
               ],
               "levels": {
-                "damage": 1
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 7
-          },
-          {
-            "case": "career",
-            "cash": 92.0,
-            "coins": 20.0,
-            "damage_by": {
-              "shot": 583.4591474700004
-            },
-            "dividers_landed": 1,
-            "dividers_spawned": 1,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 92.0,
-              "regen": 5.71722395333282
-            },
-            "game_seconds": 248.39999999998847,
-            "killed_by": "basic",
-            "kills": 80,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 24.09591256957289,
-              "divider": 0.0,
-              "fast": 9.455434764881465
-            },
-            "paid_by": {
-              "basic": 71.0,
-              "fast": 16.0,
-              "tank": 5.0
-            },
-            "peak_number": 18.326933571152583,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 15.0
-            },
-            "reached": {},
-            "run": 8,
-            "seed": 8,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "damage": 1
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 8
-          },
-          {
-            "case": "career",
-            "cash": 112.0,
-            "coins": 22.0,
-            "damage_by": {
-              "shot": 731.3747756699998
-            },
-            "dividers_landed": 1,
-            "dividers_spawned": 1,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 112.0,
-              "regen": 8.47536869906563
-            },
-            "game_seconds": 250.89999999998832,
-            "killed_by": "basic",
-            "kills": 97,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 52.96073530142545,
-              "divider": 0.10358002626910201,
-              "fast": 2.969352386000001,
-              "tank": 0.0
-            },
-            "paid_by": {
-              "basic": 88.0,
-              "fast": 14.0,
-              "tank": 10.0
-            },
-            "peak_number": 18.0,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 14.0
-            },
-            "reached": {},
-            "run": 9,
-            "seed": 9,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
                 "attack_speed": 1,
                 "damage": 1
               },
@@ -7800,44 +7644,246 @@
               "version": 1
             },
             "stop": "death",
-            "wave": 8
+            "wave": 9
           },
           {
             "case": "career",
-            "cash": 89.0,
-            "coins": 14.0,
+            "cash": 158.0,
+            "coins": 22.0,
             "damage_by": {
-              "shot": 500.1456153100002
+              "shot": 1386.36822647
             },
-            "dividers_landed": 0,
-            "dividers_spawned": 0,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 2,
+            "dividers_spawned": 2,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 89.0,
-              "regen": 3.5439515933330483
+              "kill_cash": 158.0,
+              "regen": 21.458714584889748
             },
-            "game_seconds": 215.63333333332366,
-            "killed_by": "basic",
-            "kills": 78,
+            "game_seconds": 348.63333333339506,
+            "killed_by": "boss",
+            "kills": 132,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 32.58004726738634,
-              "fast": 0.1247293100000002,
+              "basic": 58.54539954210038,
+              "boss": 4.141070517696001,
+              "divider": 1.190106360343608,
+              "fast": 18.95004744963444
+            },
+            "paid_by": {
+              "basic": 135.0,
+              "fast": 18.0,
+              "tank": 5.0
+            },
+            "peak_number": 25.926067988518824,
+            "permanent_rewards": 10.0,
+            "raised_by": {
+              "kill_cash": 16.03682846724635,
+              "regen": 1.5070803533331016
+            },
+            "reached": {
+              "10": 315.00000000003496
+            },
+            "run": 8,
+            "seed": 8,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 1,
+                "damage": 1,
+                "health": 1
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 10
+          },
+          {
+            "case": "career",
+            "cash": 198.0,
+            "coins": 48.0,
+            "damage_by": {
+              "shot": 1850.639045369998
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 1,
+            "dividers_spawned": 2,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 198.0,
+              "regen": 13.64103856298327
+            },
+            "game_seconds": 354.4000000000663,
+            "killed_by": "basic",
+            "kills": 147,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 25.051052686699528,
+              "boss": 6.437824220802345,
+              "divider": 0.6653579999999986,
+              "fast": 1.6339329384038423,
               "tank": 0.0
             },
             "paid_by": {
-              "basic": 73.0,
-              "fast": 6.0,
-              "tank": 10.0
+              "basic": 137.0,
+              "divider": 2.0,
+              "fast": 34.0,
+              "tank": 25.0
             },
-            "peak_number": 18.0,
+            "peak_number": 33.603008459903975,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 10.0
+              "kill_cash": 26.927722159196136
             },
-            "reached": {},
+            "reached": {
+              "10": 315.00000000003496
+            },
+            "run": 9,
+            "seed": 9,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 1,
+                "damage": 1,
+                "health": 1,
+                "health_regen": 1
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 11
+          },
+          {
+            "case": "career",
+            "cash": 169.0,
+            "coins": 22.0,
+            "damage_by": {
+              "shot": 1643.648602409999
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 2,
+            "dividers_spawned": 2,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 169.0,
+              "regen": 3.0737058080475927
+            },
+            "game_seconds": 356.9000000000683,
+            "killed_by": "basic",
+            "kills": 146,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 8.22665296482424,
+              "boss": 3.4804562303230195,
+              "divider": 0.06535799999999892,
+              "fast": 0.0,
+              "ranged": 17.582393778070724,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 145.0,
+              "fast": 12.0,
+              "ranged": 2.0,
+              "tank": 10.0
+            },
+            "peak_number": 28.0,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 20.0
+            },
+            "reached": {
+              "10": 315.00000000003496
+            },
             "run": 10,
             "seed": 10,
             "start": {
@@ -7850,7 +7896,9 @@
               "levels": {
                 "attack_speed": 1,
                 "damage": 1,
-                "health": 1
+                "defense_absolute": 1,
+                "health": 1,
+                "health_regen": 1
               },
               "rules": [],
               "rules_version": 2,
@@ -7890,43 +7938,53 @@
               "version": 1
             },
             "stop": "death",
-            "wave": 7
+            "wave": 11
           },
           {
             "case": "career",
-            "cash": 85.0,
-            "coins": 12.0,
+            "cash": 163.0,
+            "coins": 24.0,
             "damage_by": {
-              "shot": 499.91568998000014
+              "shot": 1592.9093384799987
             },
-            "dividers_landed": 0,
-            "dividers_spawned": 0,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 1,
+            "dividers_spawned": 2,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 85.0,
-              "regen": 3.602720076666383
+              "kill_cash": 163.0,
+              "regen": 2.2031338666667413
             },
-            "game_seconds": 213.89999999999043,
+            "game_seconds": 358.4000000000695,
             "killed_by": "basic",
-            "kills": 77,
+            "kills": 135,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 29.49623523594476,
+              "basic": 18.22655845934568,
+              "boss": 4.988273667583367,
+              "divider": 0.0,
+              "fast": 0.0,
+              "ranged": 0.0,
               "tank": 0.0
             },
             "paid_by": {
-              "basic": 72.0,
-              "fast": 8.0,
-              "tank": 5.0
+              "basic": 135.0,
+              "divider": 2.0,
+              "fast": 14.0,
+              "ranged": 2.0,
+              "tank": 10.0
             },
-            "peak_number": 18.0,
+            "peak_number": 27.0,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 10.0
+              "kill_cash": 20.0
             },
-            "reached": {},
+            "reached": {
+              "10": 315.00000000003496
+            },
             "run": 11,
             "seed": 11,
             "start": {
@@ -7939,7 +7997,9 @@
               "levels": {
                 "attack_speed": 1,
                 "damage": 1,
-                "health": 1
+                "defense_absolute": 1,
+                "health": 1,
+                "health_regen": 1
               },
               "rules": [],
               "rules_version": 2,
@@ -7979,44 +8039,47 @@
               "version": 1
             },
             "stop": "death",
-            "wave": 7
+            "wave": 11
           },
           {
             "case": "career",
-            "cash": 150.0,
-            "coins": 26.0,
+            "cash": 162.0,
+            "coins": 28.0,
             "damage_by": {
-              "shot": 1204.2461739599985
+              "shot": 1450.3493864599982
             },
-            "dividers_landed": 0,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 1,
             "dividers_spawned": 2,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 150.0,
-              "regen": 3.4926216257335287
+              "kill_cash": 162.0,
+              "regen": 7.32050315333345
             },
-            "game_seconds": 338.1333333333867,
-            "killed_by": "basic",
-            "kills": 125,
+            "game_seconds": 353.63333333339904,
+            "killed_by": "boss",
+            "kills": 130,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 32.414713588043675,
-              "fast": 10.513402933585596,
+              "basic": 18.182788570310144,
+              "boss": 6.437824220802345,
+              "divider": 0.0,
+              "fast": 18.414876223519723,
               "tank": 0.0
             },
             "paid_by": {
-              "basic": 122.0,
+              "basic": 130.0,
               "divider": 2.0,
-              "fast": 16.0,
+              "fast": 20.0,
               "tank": 10.0
             },
-            "peak_number": 28.6480690800001,
-            "permanent_rewards": 10.0,
+            "peak_number": 26.0,
+            "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 18.331077906666735,
-              "regen": 0.31699117333336346
+              "kill_cash": 18.0
             },
             "reached": {
               "10": 315.00000000003496
@@ -8033,198 +8096,6 @@
               "levels": {
                 "attack_speed": 1,
                 "damage": 1,
-                "health": 1,
-                "health_regen": 1
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 10
-          },
-          {
-            "case": "career",
-            "cash": 161.0,
-            "coins": 32.0,
-            "damage_by": {
-              "shot": 1543.058957749999
-            },
-            "dividers_landed": 1,
-            "dividers_spawned": 2,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 161.0,
-              "regen": 2.4682863800000145
-            },
-            "game_seconds": 353.13333333339864,
-            "killed_by": "basic",
-            "kills": 126,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 15.580666522840215,
-              "boss": 4.843615289233023,
-              "divider": 0.3760089999999989
-            },
-            "paid_by": {
-              "basic": 124.0,
-              "divider": 2.0,
-              "fast": 10.0,
-              "tank": 25.0
-            },
-            "peak_number": 28.0,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 20.0
-            },
-            "reached": {
-              "10": 315.00000000003496
-            },
-            "run": 13,
-            "seed": 13,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 1,
-                "damage": 1,
-                "health": 1,
-                "health_regen": 1
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 11
-          },
-          {
-            "case": "career",
-            "cash": 156.0,
-            "coins": 24.0,
-            "damage_by": {
-              "shot": 1429.9773133499991
-            },
-            "dividers_landed": 1,
-            "dividers_spawned": 2,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 156.0,
-              "regen": 7.8905192957339505
-            },
-            "game_seconds": 351.9000000000643,
-            "killed_by": "basic",
-            "kills": 129,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 23.929325962448225,
-              "boss": 3.492823701185597,
-              "divider": 0.06535799999999892,
-              "fast": 0.0,
-              "ranged": 10.39583035721982
-            },
-            "paid_by": {
-              "basic": 128.0,
-              "divider": 2.0,
-              "fast": 12.0,
-              "ranged": 4.0,
-              "tank": 10.0
-            },
-            "peak_number": 29.546189065180524,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 20.153692125180395,
-              "regen": 1.3924969400001324
-            },
-            "reached": {
-              "10": 315.00000000003496
-            },
-            "run": 14,
-            "seed": 14,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 1,
-                "damage": 1,
                 "defense_absolute": 1,
                 "health": 1,
                 "health_regen": 1
@@ -8271,242 +8142,54 @@
           },
           {
             "case": "career",
-            "cash": 161.0,
-            "coins": 20.0,
+            "cash": 654.0,
+            "coins": 93.0,
             "damage_by": {
-              "shot": 1465.5597904999988
+              "shot": 9539.418235150024
             },
-            "dividers_landed": 1,
-            "dividers_spawned": 2,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 161.0,
-              "regen": 6.002638730302026
-            },
-            "game_seconds": 344.8666666667254,
-            "killed_by": "ranged",
-            "kills": 140,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 0.0,
-              "divider": 0.0,
-              "ranged": 43.35059314676579
-            },
-            "paid_by": {
-              "basic": 140.0,
-              "divider": 2.0,
-              "fast": 10.0,
-              "ranged": 4.0,
-              "tank": 5.0
-            },
-            "peak_number": 28.0,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 19.0
-            },
-            "reached": {
-              "10": 315.00000000003496
-            },
-            "run": 15,
-            "seed": 15,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 1,
-                "damage": 1,
-                "defense_absolute": 1,
-                "health": 1,
-                "health_regen": 1
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 10
-          },
-          {
-            "case": "career",
-            "cash": 147.0,
-            "coins": 36.0,
-            "damage_by": {
-              "shot": 1528.7393754199982
-            },
-            "dividers_landed": 0,
-            "dividers_spawned": 2,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 147.0,
-              "regen": 2.452198360000085
-            },
-            "game_seconds": 354.63333333339983,
-            "killed_by": "boss",
-            "kills": 114,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 14.664458098055487,
-              "boss": 8.28518718963444
-            },
-            "paid_by": {
-              "basic": 102.0,
-              "divider": 6.0,
-              "fast": 24.0,
-              "tank": 15.0
-            },
-            "peak_number": 27.0,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 21.0
-            },
-            "reached": {
-              "10": 315.00000000003496
-            },
-            "run": 16,
-            "seed": 16,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 1,
-                "damage": 2,
-                "defense_absolute": 1,
-                "health": 1,
-                "health_regen": 1
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 11
-          },
-          {
-            "case": "career",
-            "cash": 644.0,
-            "coins": 95.0,
-            "damage_by": {
-              "shot": 8907.014553009998
-            },
-            "dividers_landed": 4,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 3,
             "dividers_spawned": 6,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 644.0,
-              "regen": 107.49199246512475
+              "kill_cash": 654.0,
+              "regen": 131.3360247158179
             },
-            "game_seconds": 698.6333333333553,
-            "killed_by": "boss",
-            "kills": 304,
+            "game_seconds": 692.4000000000276,
+            "killed_by": "basic",
+            "kills": 302,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 151.145528889994,
-              "boss": 10.323516414848847,
-              "divider": 6.107305505186146,
-              "fast": 1.6246490846712662,
-              "ranged": 8.322324160000003,
+              "basic": 227.893580478103,
+              "boss": 1.308160488448844,
+              "divider": 16.733211909664053,
+              "fast": 4.252230927104643,
+              "ranged": 2.4985151718400047,
               "tank": 0.0
             },
             "paid_by": {
-              "basic": 436.0,
+              "basic": 442.0,
               "boss": 40.0,
-              "divider": 6.0,
-              "fast": 52.0,
-              "ranged": 20.0,
-              "tank": 90.0
+              "divider": 10.0,
+              "fast": 38.0,
+              "ranged": 4.0,
+              "tank": 120.0
             },
-            "peak_number": 76.0,
+            "peak_number": 70.23900443066593,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 67.0912188399999,
-              "regen": 1.9087811600001032
+              "kill_cash": 61.747620030665985,
+              "regen": 0.4913843999999301
             },
             "reached": {
               "10": 315.00000000003496,
               "20": 665.0000000000525
             },
-            "run": 17,
-            "seed": 17,
+            "run": 13,
+            "seed": 13,
             "start": {
               "effects": [],
               "groups": [
@@ -8563,46 +8246,52 @@
           },
           {
             "case": "career",
-            "cash": 144.0,
-            "coins": 26.0,
+            "cash": 450.0,
+            "coins": 55.0,
             "damage_by": {
-              "shot": 1515.838404789998
+              "shot": 5389.1582715500035
             },
-            "dividers_landed": 0,
-            "dividers_spawned": 2,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 1,
+            "dividers_spawned": 4,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 144.0,
-              "regen": 2.973980520000101
+              "kill_cash": 450.0,
+              "regen": 62.24547129780684
             },
-            "game_seconds": 353.63333333339904,
+            "game_seconds": 595.1333333334494,
             "killed_by": "basic",
-            "kills": 120,
+            "kills": 240,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 20.07671988625737,
-              "boss": 6.437824220802345,
-              "ranged": 0.0
+              "basic": 91.22348116510325,
+              "boss": 4.988273667583367,
+              "divider": 0.34913438878405056,
+              "fast": 22.234441988686655,
+              "ranged": 0.8091175176960013,
+              "tank": 0.0
             },
             "paid_by": {
-              "basic": 115.0,
-              "divider": 6.0,
-              "fast": 16.0,
-              "ranged": 2.0,
-              "tank": 5.0
+              "basic": 326.0,
+              "boss": 40.0,
+              "divider": 10.0,
+              "fast": 40.0,
+              "ranged": 4.0,
+              "tank": 30.0
             },
-            "peak_number": 27.076999999999998,
+            "peak_number": 52.077,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 14.0
+              "kill_cash": 41.0
             },
             "reached": {
               "10": 315.00000000003496
             },
-            "run": 18,
-            "seed": 18,
+            "run": 14,
+            "seed": 14,
             "start": {
               "effects": [],
               "groups": [
@@ -8655,51 +8344,57 @@
               "version": 1
             },
             "stop": "death",
-            "wave": 11
+            "wave": 18
           },
           {
             "case": "career",
-            "cash": 147.0,
-            "coins": 30.0,
+            "cash": 523.0,
+            "coins": 81.0,
             "damage_by": {
-              "shot": 1487.0271797599985
+              "shot": 6878.926473800003
             },
+            "digits": [],
+            "digits_paid": 0.0,
             "dividers_landed": 1,
-            "dividers_spawned": 2,
+            "dividers_spawned": 5,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 147.0,
-              "regen": 5.877438641029547
+              "kill_cash": 523.0,
+              "regen": 54.21049798342535
             },
-            "game_seconds": 351.63333333339745,
+            "game_seconds": 661.9000000000553,
             "killed_by": "basic",
-            "kills": 121,
+            "kills": 264,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 3.1346625759399975,
-              "boss": 3.492823701185597,
-              "divider": 0.0,
-              "ranged": 25.181073373646115
+              "basic": 105.26281841997678,
+              "boss": 0.6221985196167488,
+              "divider": 2.2667316666666686,
+              "fast": 6.345929410000002,
+              "ranged": 4.264333403901674,
+              "tank": 0.0
             },
             "paid_by": {
-              "basic": 112.0,
-              "divider": 2.0,
-              "fast": 16.0,
-              "ranged": 2.0,
-              "tank": 15.0
+              "basic": 340.0,
+              "boss": 40.0,
+              "divider": 14.0,
+              "fast": 62.0,
+              "ranged": 12.0,
+              "tank": 55.0
             },
-            "peak_number": 28.076999999999998,
+            "peak_number": 64.077,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 14.0
+              "kill_cash": 46.648772867839654,
+              "regen": 4.351227132160346
             },
             "reached": {
               "10": 315.00000000003496
             },
-            "run": 19,
-            "seed": 19,
+            "run": 15,
+            "seed": 15,
             "start": {
               "effects": [],
               "groups": [
@@ -8752,49 +8447,465 @@
               "version": 1
             },
             "stop": "death",
-            "wave": 11
+            "wave": 19
           },
           {
             "case": "career",
-            "cash": 583.0,
-            "coins": 95.0,
+            "cash": 610.0,
+            "coins": 99.0,
             "damage_by": {
-              "shot": 8215.050142519993
+              "shot": 8992.34971222001
             },
-            "dividers_landed": 4,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 3,
             "dividers_spawned": 6,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 583.0,
-              "regen": 152.8361180944683
+              "kill_cash": 610.0,
+              "regen": 49.01731577769944
             },
-            "game_seconds": 687.8666666666984,
-            "killed_by": "ranged",
-            "kills": 276,
+            "game_seconds": 703.6333333333507,
+            "killed_by": "boss",
+            "kills": 272,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 86.94830380122121,
-              "boss": 0.18939058804742626,
-              "divider": 5.947522333333334,
-              "fast": 1.7318813100000021,
-              "ranged": 117.34015849344256,
+              "basic": 83.3295281607047,
+              "boss": 37.494525251312155,
+              "divider": 8.83046666666667,
+              "fast": 0.0,
+              "ranged": 2.4820822952576034,
               "tank": 0.0
             },
             "paid_by": {
-              "basic": 376.0,
+              "basic": 386.0,
+              "boss": 40.0,
+              "divider": 10.0,
+              "fast": 56.0,
+              "ranged": 8.0,
+              "tank": 110.0
+            },
+            "peak_number": 73.0594148399996,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 55.86434980283701,
+              "regen": 3.135650197162988
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525
+            },
+            "run": 16,
+            "seed": 16,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 2,
+                "damage": 2,
+                "defense_absolute": 2,
+                "health": 2,
+                "health_regen": 2
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 21
+          },
+          {
+            "case": "career",
+            "cash": 644.0,
+            "coins": 95.0,
+            "damage_by": {
+              "shot": 9100.51455301
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 4,
+            "dividers_spawned": 6,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 644.0,
+              "regen": 31.168481770666215
+            },
+            "game_seconds": 701.4000000000194,
+            "killed_by": "basic",
+            "kills": 304,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 76.63097369932588,
+              "boss": 10.336688089994253,
+              "divider": 18.844885778044194,
+              "fast": 0.0,
+              "ranged": 5.4497941600000015,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 436.0,
               "boss": 40.0,
               "divider": 6.0,
+              "fast": 52.0,
+              "ranged": 20.0,
+              "tank": 90.0
+            },
+            "peak_number": 77.09719,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 57.000000000000014,
+              "regen": 3.0
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525
+            },
+            "run": 17,
+            "seed": 17,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 2,
+                "damage": 2,
+                "defense_absolute": 2,
+                "health": 3,
+                "health_regen": 2
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 21
+          },
+          {
+            "case": "career",
+            "cash": 659.0,
+            "coins": 91.0,
+            "damage_by": {
+              "shot": 9643.00937489001
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 3,
+            "dividers_spawned": 6,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 659.0,
+              "regen": 59.95193540373393
+            },
+            "game_seconds": 699.6333333333544,
+            "killed_by": "basic",
+            "kills": 300,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 100.22169094338354,
+              "boss": 7.276978751503434,
+              "divider": 3.1609003301866654,
+              "fast": 2.766943496000003,
+              "ranged": 0.0,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 441.0,
+              "boss": 40.0,
+              "divider": 10.0,
+              "fast": 54.0,
+              "ranged": 14.0,
+              "tank": 100.0
+            },
+            "peak_number": 71.09719,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 57.84446108693358
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525
+            },
+            "run": 18,
+            "seed": 18,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 2,
+                "damage": 2,
+                "defense_absolute": 2,
+                "health": 3,
+                "health_regen": 3
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 20
+          },
+          {
+            "case": "career",
+            "cash": 571.0,
+            "coins": 75.0,
+            "damage_by": {
+              "shot": 8950.390888659998
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 4,
+            "dividers_spawned": 6,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 571.0,
+              "regen": 165.6251576958532
+            },
+            "game_seconds": 703.4000000000176,
+            "killed_by": "basic",
+            "kills": 283,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 174.357503615819,
+              "boss": 29.42284111813779,
+              "divider": 12.83723022987688,
+              "fast": 13.591590563456007,
+              "ranged": 21.282790857076552,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 408.0,
+              "boss": 40.0,
+              "divider": 6.0,
+              "fast": 58.0,
+              "ranged": 14.0,
+              "tank": 45.0
+            },
+            "peak_number": 70.6460750165447,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 42.92026597896367,
+              "regen": 7.628619037581004
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525
+            },
+            "run": 19,
+            "seed": 19,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 2,
+                "damage": 3,
+                "defense_absolute": 2,
+                "health": 3,
+                "health_regen": 3
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 21
+          },
+          {
+            "case": "career",
+            "cash": 596.0,
+            "coins": 99.0,
+            "damage_by": {
+              "shot": 8457.144418020003
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 2,
+            "dividers_spawned": 6,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 596.0,
+              "regen": 42.22472233005919
+            },
+            "game_seconds": 691.3666666666952,
+            "killed_by": "ranged",
+            "kills": 279,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 12.832462783999999,
+              "boss": 0.0,
+              "divider": 0.6605029999999985,
+              "fast": 0.0,
+              "ranged": 102.89965817171003,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 379.0,
+              "boss": 40.0,
+              "divider": 16.0,
               "fast": 50.0,
               "ranged": 16.0,
               "tank": 95.0
             },
-            "peak_number": 69.43979911297531,
+            "peak_number": 67.09719,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 52.74288257257537,
-              "regen": 4.619916540399942
+              "kill_cash": 54.0
             },
             "reached": {
               "10": 315.00000000003496,
@@ -8810,11 +8921,11 @@
                 "defense"
               ],
               "levels": {
-                "attack_speed": 2,
-                "damage": 2,
-                "defense_absolute": 1,
-                "health": 2,
-                "health_regen": 2
+                "attack_speed": 3,
+                "damage": 3,
+                "defense_absolute": 2,
+                "health": 3,
+                "health_regen": 3
               },
               "rules": [],
               "rules_version": 2,
@@ -8861,26 +8972,28 @@
             "cash": 630.0,
             "coins": 81.0,
             "damage_by": {
-              "shot": 9632.09448704001
+              "shot": 9973.795487040003
             },
+            "digits": [],
+            "digits_paid": 0.0,
             "dividers_landed": 4,
             "dividers_spawned": 6,
             "free_levels": {},
             "gained_from": {
               "kill_cash": 630.0,
-              "regen": 27.972308554469492
+              "regen": 16.056655999733252
             },
-            "game_seconds": 704.6333333333498,
-            "killed_by": "boss",
+            "game_seconds": 707.400000000014,
+            "killed_by": "basic",
             "kills": 307,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 44.329481753380236,
-              "boss": 29.979777353377848,
-              "divider": 7.053930916714721,
-              "fast": 10.38893719736459,
+              "basic": 45.871361305020166,
+              "boss": 27.261990401413485,
+              "divider": 10.202145332181336,
+              "fast": 0.0,
               "ranged": 0.0,
               "tank": 0.0
             },
@@ -8892,11 +9005,10 @@
               "ranged": 2.0,
               "tank": 65.0
             },
-            "peak_number": 76.077,
+            "peak_number": 75.09719,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 62.49750806666657,
-              "regen": 1.502491933333431
+              "kill_cash": 58.000000000000014
             },
             "reached": {
               "10": 315.00000000003496,
@@ -8912,11 +9024,11 @@
                 "defense"
               ],
               "levels": {
-                "attack_speed": 2,
-                "damage": 2,
-                "defense_absolute": 2,
-                "health": 2,
-                "health_regen": 2
+                "attack_speed": 3,
+                "damage": 3,
+                "defense_absolute": 3,
+                "health": 3,
+                "health_regen": 3
               },
               "rules": [],
               "rules_version": 2,
@@ -8960,44 +9072,46 @@
           },
           {
             "case": "career",
-            "cash": 697.0,
-            "coins": 103.0,
+            "cash": 704.0,
+            "coins": 105.0,
             "damage_by": {
-              "shot": 10340.619979740002
+              "shot": 10987.985257239998
             },
-            "dividers_landed": 3,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 2,
             "dividers_spawned": 6,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 697.0,
-              "regen": 64.8404307790745
+              "kill_cash": 704.0,
+              "regen": 31.97452267624005
             },
-            "game_seconds": 701.6333333333525,
+            "game_seconds": 706.1333333333484,
             "killed_by": "basic",
-            "kills": 335,
+            "kills": 337,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 53.744991587953066,
-              "boss": 14.224397613594027,
-              "divider": 18.813956333333334,
-              "fast": 19.617401992837863,
-              "ranged": 7.062829949482035,
+              "basic": 50.50654394407757,
+              "boss": 21.38843868751296,
+              "divider": 17.354416666666673,
+              "fast": 0.0,
+              "ranged": 0.3752734767734385,
               "tank": 0.0
             },
             "paid_by": {
-              "basic": 466.0,
+              "basic": 469.0,
               "boss": 40.0,
-              "divider": 10.0,
+              "divider": 14.0,
               "fast": 94.0,
               "ranged": 12.0,
               "tank": 75.0
             },
-            "peak_number": 81.09719,
+            "peak_number": 80.09719,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 64.00000000000001
+              "kill_cash": 62.000000000000014
             },
             "reached": {
               "10": 315.00000000003496,
@@ -9013,11 +9127,11 @@
                 "defense"
               ],
               "levels": {
-                "attack_speed": 2,
-                "damage": 2,
-                "defense_absolute": 2,
+                "attack_speed": 3,
+                "damage": 3,
+                "defense_absolute": 3,
                 "health": 3,
-                "health_regen": 2
+                "health_regen": 3
               },
               "rules": [],
               "rules_version": 2,
@@ -9061,44 +9175,47 @@
           },
           {
             "case": "career",
-            "cash": 591.0,
-            "coins": 69.0,
+            "cash": 598.0,
+            "coins": 71.0,
             "damage_by": {
-              "shot": 8798.865827490008
+              "shot": 9405.50001939
             },
-            "dividers_landed": 4,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 3,
             "dividers_spawned": 6,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 591.0,
-              "regen": 53.54448498108983
+              "kill_cash": 598.0,
+              "regen": 37.7120235559724
             },
-            "game_seconds": 700.6333333333534,
-            "killed_by": "boss",
-            "kills": 286,
+            "game_seconds": 706.9000000000144,
+            "killed_by": "basic",
+            "kills": 288,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 73.60796135211022,
-              "boss": 17.94138808999425,
-              "divider": 10.503863333333335,
-              "fast": 15.637334852905566,
-              "ranged": 4.744400119257602,
+              "basic": 58.307307776172124,
+              "boss": 44.17277456141349,
+              "divider": 13.600025804533507,
+              "fast": 3.6097518831718833,
+              "ranged": 0.0,
               "tank": 0.0
             },
             "paid_by": {
-              "basic": 424.0,
+              "basic": 427.0,
               "boss": 40.0,
-              "divider": 6.0,
+              "divider": 10.0,
               "fast": 46.0,
               "ranged": 10.0,
               "tank": 65.0
             },
-            "peak_number": 69.09719,
+            "peak_number": 78.65207811333379,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 53.17054955456048
+              "kill_cash": 47.35150604053372,
+              "regen": 5.302662072800061
             },
             "reached": {
               "10": 315.00000000003496,
@@ -9114,10 +9231,10 @@
                 "defense"
               ],
               "levels": {
-                "attack_speed": 2,
-                "damage": 2,
-                "defense_absolute": 2,
-                "health": 3,
+                "attack_speed": 3,
+                "damage": 3,
+                "defense_absolute": 3,
+                "health": 4,
                 "health_regen": 3
               },
               "rules": [],
@@ -9162,44 +9279,45 @@
           },
           {
             "case": "career",
-            "cash": 674.0,
-            "coins": 93.0,
+            "cash": 680.0,
+            "coins": 95.0,
             "damage_by": {
-              "shot": 9775.733714320002
+              "shot": 10130.96185632
             },
-            "dividers_landed": 1,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 0,
             "dividers_spawned": 6,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 674.0,
-              "regen": 30.262480045920007
+              "kill_cash": 680.0,
+              "regen": 25.073364429994136
             },
-            "game_seconds": 697.6333333333562,
+            "game_seconds": 702.6333333333516,
             "killed_by": "basic",
-            "kills": 322,
+            "kills": 323,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 88.38874206564748,
-              "boss": 2.4079141600000025,
-              "divider": 7.649590000000003,
-              "fast": 2.61695213696,
-              "ranged": 0.3546343129600018,
+              "basic": 99.64098390951845,
+              "boss": 8.31119695813779,
+              "fast": 0.0,
+              "ranged": 0.0,
               "tank": 0.0
             },
             "paid_by": {
               "basic": 449.0,
               "boss": 40.0,
-              "divider": 18.0,
+              "divider": 24.0,
               "fast": 58.0,
               "ranged": 14.0,
               "tank": 95.0
             },
-            "peak_number": 73.90287780000021,
+            "peak_number": 78.99791,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 66.74768773360009
+              "kill_cash": 55.999999999999986
             },
             "reached": {
               "10": 315.00000000003496,
@@ -9215,11 +9333,11 @@
                 "defense"
               ],
               "levels": {
-                "attack_speed": 2,
+                "attack_speed": 3,
                 "damage": 3,
-                "defense_absolute": 2,
-                "health": 3,
-                "health_regen": 3
+                "defense_absolute": 3,
+                "health": 4,
+                "health_regen": 4
               },
               "rules": [],
               "rules_version": 2,
@@ -9259,33 +9377,35 @@
               "version": 1
             },
             "stop": "death",
-            "wave": 20
+            "wave": 21
           },
           {
             "case": "career",
             "cash": 583.0,
             "coins": 85.0,
             "damage_by": {
-              "shot": 8269.2926143
+              "shot": 8398.643614300001
             },
+            "digits": [],
+            "digits_paid": 0.0,
             "dividers_landed": 1,
             "dividers_spawned": 6,
             "free_levels": {},
             "gained_from": {
               "kill_cash": 583.0,
-              "regen": 15.829683733333276
+              "regen": 19.234703499999952
             },
-            "game_seconds": 700.5000000000202,
-            "killed_by": "fast",
+            "game_seconds": 702.6333333333516,
+            "killed_by": "boss",
             "kills": 286,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 40.786684179988505,
-              "boss": 13.171348163456006,
-              "divider": 4.503863333333335,
-              "fast": 17.94138808999425
+              "basic": 44.23037855627559,
+              "boss": 18.776261118137796,
+              "divider": 4.949830000000006,
+              "fast": 18.776261118137796
             },
             "paid_by": {
               "basic": 393.0,
@@ -9294,10 +9414,10 @@
               "fast": 70.0,
               "tank": 60.0
             },
-            "peak_number": 67.09719,
+            "peak_number": 68.99791,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 50.0
+              "kill_cash": 48.0
             },
             "reached": {
               "10": 315.00000000003496,
@@ -9315,9 +9435,9 @@
               "levels": {
                 "attack_speed": 3,
                 "damage": 3,
-                "defense_absolute": 2,
-                "health": 3,
-                "health_regen": 3
+                "defense_absolute": 3,
+                "health": 4,
+                "health_regen": 4
               },
               "rules": [],
               "rules_version": 2,
@@ -9361,44 +9481,46 @@
           },
           {
             "case": "career",
-            "cash": 684.0,
-            "coins": 91.0,
+            "cash": 688.0,
+            "coins": 93.0,
             "damage_by": {
-              "shot": 10520.508783009993
+              "shot": 10709.602031009998
             },
-            "dividers_landed": 2,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 1,
             "dividers_spawned": 6,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 684.0,
-              "regen": 105.93128643743168
+              "kill_cash": 688.0,
+              "regen": 22.81227543552073
             },
-            "game_seconds": 704.9000000000162,
+            "game_seconds": 703.4000000000176,
             "killed_by": "basic",
-            "kills": 325,
+            "kills": 326,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 56.47264179223627,
-              "boss": 16.29185319337784,
-              "divider": 10.901724719171645,
-              "fast": 21.38843868751296,
-              "ranged": 83.28284382073646,
+              "basic": 27.949869924827645,
+              "boss": 8.31119695813779,
+              "divider": 6.6717333333333375,
+              "fast": 16.29185319337784,
+              "ranged": 9.178042757669488,
               "tank": 0.0
             },
             "paid_by": {
               "basic": 464.0,
               "boss": 40.0,
-              "divider": 14.0,
+              "divider": 18.0,
               "fast": 48.0,
               "ranged": 18.0,
               "tank": 100.0
             },
-            "peak_number": 80.09719,
+            "peak_number": 80.99791,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 63.000000000000014
+              "kill_cash": 57.999999999999986
             },
             "reached": {
               "10": 315.00000000003496,
@@ -9415,10 +9537,10 @@
               ],
               "levels": {
                 "attack_speed": 3,
-                "damage": 3,
+                "damage": 4,
                 "defense_absolute": 3,
-                "health": 3,
-                "health_regen": 3
+                "health": 4,
+                "health_regen": 4
               },
               "rules": [],
               "rules_version": 2,
@@ -9462,47 +9584,48 @@
           },
           {
             "case": "career",
-            "cash": 583.0,
-            "coins": 111.0,
+            "cash": 665.0,
+            "coins": 121.0,
             "damage_by": {
-              "shot": 7606.599044579997
+              "shot": 10622.756591380008
             },
-            "dividers_landed": 1,
-            "dividers_spawned": 5,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 0,
+            "dividers_spawned": 6,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 583.0,
-              "regen": 38.53271542910065
+              "kill_cash": 665.0,
+              "regen": 13.866902969855943
             },
-            "game_seconds": 629.6000000000847,
-            "killed_by": "ranged",
-            "kills": 275,
+            "game_seconds": 705.9000000000153,
+            "killed_by": "basic",
+            "kills": 305,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 8.780507095767003,
-              "boss": 0.0,
-              "divider": 5.982923333333336,
-              "fast": 0.28079662781030734,
-              "ranged": 118.03455492334558,
+              "basic": 60.37803285400263,
+              "boss": 21.38843868751296,
+              "ranged": 0.0,
               "tank": 0.0
             },
             "paid_by": {
-              "basic": 352.0,
+              "basic": 412.0,
               "boss": 40.0,
-              "divider": 14.0,
-              "fast": 58.0,
-              "ranged": 14.0,
+              "divider": 24.0,
+              "fast": 62.0,
+              "ranged": 22.0,
               "tank": 105.0
             },
-            "peak_number": 65.77816287709486,
+            "peak_number": 77.99791,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 52.57983528266274
+              "kill_cash": 55.999999999999986
             },
             "reached": {
-              "10": 315.00000000003496
+              "10": 315.00000000003496,
+              "20": 665.0000000000525
             },
             "run": 27,
             "seed": 27,
@@ -9514,11 +9637,11 @@
                 "defense"
               ],
               "levels": {
-                "attack_speed": 3,
-                "damage": 3,
+                "attack_speed": 4,
+                "damage": 4,
                 "defense_absolute": 3,
-                "health": 3,
-                "health_regen": 3
+                "health": 4,
+                "health_regen": 4
               },
               "rules": [],
               "rules_version": 2,
@@ -9558,21 +9681,23 @@
               "version": 1
             },
             "stop": "death",
-            "wave": 18
+            "wave": 21
           },
           {
             "case": "career",
             "cash": 701.0,
             "coins": 103.0,
             "damage_by": {
-              "shot": 10210.756933140001
+              "shot": 10357.162533140005
             },
+            "digits": [],
+            "digits_paid": 0.0,
             "dividers_landed": 2,
             "dividers_spawned": 6,
             "free_levels": {},
             "gained_from": {
               "kill_cash": 701.0,
-              "regen": 17.249899199466604
+              "regen": 19.8025681994662
             },
             "game_seconds": 706.4000000000149,
             "killed_by": "basic",
@@ -9581,7 +9706,7 @@
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 52.29823231932912,
+              "basic": 57.394817813464236,
               "boss": 21.38843868751296,
               "divider": 3.0050666666666697,
               "fast": 0.0,
@@ -9615,211 +9740,7 @@
                 "defense"
               ],
               "levels": {
-                "attack_speed": 3,
-                "damage": 3,
-                "defense_absolute": 3,
-                "health": 4,
-                "health_regen": 3
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 21
-          },
-          {
-            "case": "career",
-            "cash": 624.0,
-            "coins": 97.0,
-            "damage_by": {
-              "shot": 9312.650414560008
-            },
-            "dividers_landed": 2,
-            "dividers_spawned": 6,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 624.0,
-              "regen": 59.76318075262321
-            },
-            "game_seconds": 705.4000000000158,
-            "killed_by": "basic",
-            "kills": 303,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 65.3552777591438,
-              "boss": 16.29185319337784,
-              "divider": 10.288230000000011,
-              "fast": 0.0,
-              "ranged": 35.40371458855695,
-              "tank": 0.0
-            },
-            "paid_by": {
-              "basic": 410.0,
-              "boss": 40.0,
-              "divider": 14.0,
-              "fast": 84.0,
-              "ranged": 6.0,
-              "tank": 70.0
-            },
-            "peak_number": 72.01341851172084,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 48.98449148827916,
-              "regen": 2.0155085117208387
-            },
-            "reached": {
-              "10": 315.00000000003496,
-              "20": 665.0000000000525
-            },
-            "run": 29,
-            "seed": 29,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 3,
-                "damage": 3,
-                "defense_absolute": 3,
-                "health": 4,
-                "health_regen": 4
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 21
-          },
-          {
-            "case": "career",
-            "cash": 1207.0,
-            "coins": 158.0,
-            "damage_by": {
-              "shot": 23397.126256640073
-            },
-            "dividers_landed": 4,
-            "dividers_spawned": 9,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 1207.0,
-              "regen": 335.99061087940294
-            },
-            "game_seconds": 945.8666666664637,
-            "killed_by": "ranged",
-            "kills": 428,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 309.32360903554815,
-              "boss": 41.465550229624846,
-              "divider": 38.45079641746965,
-              "fast": 7.877931263999994,
-              "ranged": 20.083332854368017,
-              "tank": 0.0
-            },
-            "paid_by": {
-              "basic": 743.0,
-              "boss": 100.0,
-              "divider": 20.0,
-              "fast": 110.0,
-              "ranged": 14.0,
-              "tank": 220.0
-            },
-            "peak_number": 118.99790999999999,
-            "permanent_rewards": 50.0,
-            "raised_by": {
-              "kill_cash": 104.21985082044986,
-              "regen": 3.7801491795501363
-            },
-            "reached": {
-              "10": 315.00000000003496,
-              "20": 665.0000000000525
-            },
-            "run": 30,
-            "seed": 30,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 3,
+                "attack_speed": 4,
                 "damage": 4,
                 "defense_absolute": 3,
                 "health": 4,
@@ -9863,47 +9784,258 @@
               "version": 1
             },
             "stop": "death",
-            "wave": 28
+            "wave": 21
           },
           {
             "case": "career",
-            "cash": 624.0,
-            "coins": 91.0,
+            "cash": 628.0,
+            "coins": 99.0,
             "damage_by": {
-              "shot": 9598.38144915001
+              "shot": 9884.14666256001
             },
-            "dividers_landed": 2,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 1,
             "dividers_spawned": 6,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 624.0,
-              "regen": 19.298926892319912
+              "kill_cash": 628.0,
+              "regen": 15.446183156933046
             },
-            "game_seconds": 708.9000000000126,
+            "game_seconds": 707.6333333333471,
             "killed_by": "basic",
-            "kills": 311,
+            "kills": 304,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 34.65285560979004,
-              "boss": 41.465550229624846,
-              "divider": 7.338400000000005,
-              "fast": 1.8708860959999996,
-              "ranged": 0.42690239999999946
+              "basic": 63.62576504953795,
+              "boss": 18.896533053875775,
+              "divider": 2.9642233333333365,
+              "ranged": 0.0,
+              "tank": 0.0
             },
             "paid_by": {
-              "basic": 427.0,
+              "basic": 410.0,
               "boss": 40.0,
+              "divider": 18.0,
+              "fast": 84.0,
+              "ranged": 6.0,
+              "tank": 70.0
+            },
+            "peak_number": 70.99791,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 55.0
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525
+            },
+            "run": 29,
+            "seed": 29,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 4,
+                "damage": 4,
+                "defense_absolute": 4,
+                "health": 4,
+                "health_regen": 4
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 21
+          },
+          {
+            "case": "career",
+            "cash": 1280.0,
+            "coins": 168.0,
+            "damage_by": {
+              "shot": 25917.089003640052
+            },
+            "digits": [
+              1000.0
+            ],
+            "digits_paid": 250.0,
+            "dividers_landed": 3,
+            "dividers_spawned": 9,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 1280.0,
+              "regen": 253.69976484912092
+            },
+            "game_seconds": 985.3999999997611,
+            "killed_by": "basic",
+            "kills": 446,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 244.68437118257802,
+              "boss": 18.896533053875775,
+              "divider": 26.789267056945366,
+              "fast": 63.31274888051506,
+              "ranged": 58.257905983613895,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 785.0,
+              "boss": 100.0,
+              "divider": 24.0,
+              "fast": 116.0,
+              "ranged": 20.0,
+              "tank": 235.0
+            },
+            "peak_number": 129.67582,
+            "permanent_rewards": 250.0,
+            "raised_by": {
+              "kill_cash": 105.44833827945718,
+              "regen": 6.551661720542768
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525
+            },
+            "run": 30,
+            "seed": 30,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 4,
+                "damage": 4,
+                "defense_absolute": 4,
+                "health": 5,
+                "health_regen": 4
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 29
+          },
+          {
+            "case": "career",
+            "cash": 732.0,
+            "coins": 102.0,
+            "damage_by": {
+              "shot": 10794.622463049993
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 2,
+            "dividers_spawned": 6,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 732.0,
+              "regen": 66.45552079999715
+            },
+            "game_seconds": 728.5999999999947,
+            "killed_by": "ranged",
+            "kills": 325,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 27.059941818561526,
+              "boss": 24.710986299630584,
+              "divider": 7.856860000000001,
+              "fast": 10.602234069383996,
+              "ranged": 136.9997033672439,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 457.0,
+              "boss": 100.0,
               "divider": 14.0,
-              "fast": 80.0,
+              "fast": 98.0,
               "ranged": 8.0,
               "tank": 55.0
             },
-            "peak_number": 68.99791,
+            "peak_number": 77.99729217258147,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 49.0
+              "kill_cash": 69.76332337982602
             },
             "reached": {
               "10": 315.00000000003496,
@@ -9920,10 +10052,10 @@
               ],
               "levels": {
                 "attack_speed": 4,
-                "damage": 4,
-                "defense_absolute": 3,
-                "health": 4,
-                "health_regen": 4
+                "damage": 5,
+                "defense_absolute": 4,
+                "health": 5,
+                "health_regen": 5
               },
               "rules": [],
               "rules_version": 2,
@@ -9967,44 +10099,46 @@
           },
           {
             "case": "career",
-            "cash": 731.0,
-            "coins": 92.0,
+            "cash": 840.0,
+            "coins": 110.0,
             "damage_by": {
-              "shot": 10949.491496120014
+              "shot": 13575.116880219966
             },
+            "digits": [],
+            "digits_paid": 0.0,
             "dividers_landed": 3,
-            "dividers_spawned": 6,
+            "dividers_spawned": 7,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 731.0,
-              "regen": 39.71019569480957
+              "kill_cash": 840.0,
+              "regen": 130.18348998171868
             },
-            "game_seconds": 713.4000000000085,
+            "game_seconds": 767.133333333293,
             "killed_by": "basic",
-            "kills": 317,
+            "kills": 339,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 98.24110985187804,
-              "boss": 13.922446471419228,
-              "divider": 16.969290000000008,
-              "fast": 0.0,
+              "basic": 192.74702753694874,
+              "boss": 9.756404757518705,
+              "divider": 3.7145166666666647,
+              "fast": 36.960003679921364,
               "ranged": 0.0,
               "tank": 0.0
             },
             "paid_by": {
-              "basic": 471.0,
+              "basic": 519.0,
               "boss": 100.0,
-              "divider": 10.0,
-              "fast": 76.0,
+              "divider": 14.0,
+              "fast": 88.0,
               "ranged": 4.0,
-              "tank": 70.0
+              "tank": 115.0
             },
-            "peak_number": 79.5169916333333,
+            "peak_number": 93.67581999999999,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 70.53951202047165
+              "kill_cash": 81.67690630294537
             },
             "reached": {
               "10": 315.00000000003496,
@@ -10021,1015 +10155,9 @@
               ],
               "levels": {
                 "attack_speed": 4,
-                "damage": 4,
-                "defense_absolute": 4,
-                "health": 4,
-                "health_regen": 4
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 21
-          },
-          {
-            "case": "career",
-            "cash": 599.0,
-            "coins": 75.0,
-            "damage_by": {
-              "shot": 9390.479984430009
-            },
-            "dividers_landed": 2,
-            "dividers_spawned": 6,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 599.0,
-              "regen": 77.94153927159539
-            },
-            "game_seconds": 707.1333333333475,
-            "killed_by": "basic",
-            "kills": 300,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 69.61370774976295,
-              "boss": 27.261990401413485,
-              "divider": 12.343466666666675,
-              "fast": 0.0,
-              "ranged": 50.39763657212879,
-              "tank": 0.0
-            },
-            "paid_by": {
-              "basic": 431.0,
-              "boss": 40.0,
-              "divider": 14.0,
-              "fast": 52.0,
-              "ranged": 12.0,
-              "tank": 50.0
-            },
-            "peak_number": 79.99791,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 51.0,
-              "regen": 3.0
-            },
-            "reached": {
-              "10": 315.00000000003496,
-              "20": 665.0000000000525
-            },
-            "run": 33,
-            "seed": 33,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 4,
-                "damage": 4,
-                "defense_absolute": 4,
-                "health": 4,
-                "health_regen": 4
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 21
-          },
-          {
-            "case": "career",
-            "cash": 644.0,
-            "coins": 95.0,
-            "damage_by": {
-              "shot": 10152.322022080016
-            },
-            "dividers_landed": 1,
-            "dividers_spawned": 6,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 644.0,
-              "regen": 14.479366128143468
-            },
-            "game_seconds": 707.6333333333471,
-            "killed_by": "boss",
-            "kills": 309,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 16.29290902316254,
-              "boss": 18.896533053875775,
-              "divider": 0.0,
-              "fast": 31.399420875215586,
-              "ranged": 0.0
-            },
-            "paid_by": {
-              "basic": 432.0,
-              "boss": 40.0,
-              "divider": 20.0,
-              "fast": 60.0,
-              "ranged": 12.0,
-              "tank": 80.0
-            },
-            "peak_number": 76.67582,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 49.999999999999986
-            },
-            "reached": {
-              "10": 315.00000000003496,
-              "20": 665.0000000000525
-            },
-            "run": 34,
-            "seed": 34,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 4,
-                "damage": 4,
-                "defense_absolute": 4,
-                "health": 5,
-                "health_regen": 4
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 21
-          },
-          {
-            "case": "career",
-            "cash": 559.0,
-            "coins": 79.0,
-            "damage_by": {
-              "shot": 9094.781547270013
-            },
-            "dividers_landed": 1,
-            "dividers_spawned": 6,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 559.0,
-              "regen": 14.520265699466606
-            },
-            "game_seconds": 705.6333333333489,
-            "killed_by": "boss",
-            "kills": 274,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 38.70155274397029,
-              "boss": 21.38843868751296,
-              "divider": 1.2310366666666699,
-              "fast": 0.0,
-              "tank": 0.0
-            },
-            "paid_by": {
-              "basic": 384.0,
-              "boss": 40.0,
-              "divider": 18.0,
-              "fast": 62.0,
-              "tank": 55.0
-            },
-            "peak_number": 64.67582,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 40.0
-            },
-            "reached": {
-              "10": 315.00000000003496,
-              "20": 665.0000000000525
-            },
-            "run": 35,
-            "seed": 35,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 4,
-                "damage": 4,
-                "defense_absolute": 4,
-                "health": 5,
-                "health_regen": 4
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 21
-          },
-          {
-            "case": "career",
-            "cash": 652.0,
-            "coins": 117.0,
-            "damage_by": {
-              "shot": 10138.787452090017
-            },
-            "dividers_landed": 1,
-            "dividers_spawned": 6,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 652.0,
-              "regen": 18.569313249491252
-            },
-            "game_seconds": 708.6333333333462,
-            "killed_by": "basic",
-            "kills": 292,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 50.84889704764741,
-              "boss": 24.710986299630584,
-              "divider": 0.19019333333333677,
-              "fast": 0.0,
-              "ranged": 2.3534133644149886,
-              "tank": 0.0
-            },
-            "paid_by": {
-              "basic": 402.0,
-              "boss": 40.0,
-              "divider": 18.0,
-              "fast": 52.0,
-              "ranged": 10.0,
-              "tank": 130.0
-            },
-            "peak_number": 78.67582,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 48.999999999999986
-            },
-            "reached": {
-              "10": 315.00000000003496,
-              "20": 665.0000000000525
-            },
-            "run": 36,
-            "seed": 36,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 4,
-                "damage": 4,
-                "defense_absolute": 4,
-                "health": 5,
-                "health_regen": 5
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 21
-          },
-          {
-            "case": "career",
-            "cash": 611.0,
-            "coins": 95.0,
-            "damage_by": {
-              "shot": 9779.680250370006
-            },
-            "dividers_landed": 0,
-            "dividers_spawned": 6,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 611.0,
-              "regen": 13.749832551743001
-            },
-            "game_seconds": 708.400000000013,
-            "killed_by": "basic",
-            "kills": 299,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 53.90708758959643,
-              "boss": 18.896533053875775,
-              "fast": 0.0,
-              "ranged": 0.0,
-              "tank": 0.0
-            },
-            "paid_by": {
-              "basic": 414.0,
-              "boss": 40.0,
-              "divider": 24.0,
-              "fast": 68.0,
-              "ranged": 10.0,
-              "tank": 55.0
-            },
-            "peak_number": 71.67582,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 45.0
-            },
-            "reached": {
-              "10": 315.00000000003496,
-              "20": 665.0000000000525
-            },
-            "run": 37,
-            "seed": 37,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 4,
-                "damage": 4,
-                "defense_absolute": 4,
-                "health": 5,
-                "health_regen": 5
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 21
-          },
-          {
-            "case": "career",
-            "cash": 1088.0,
-            "coins": 144.0,
-            "damage_by": {
-              "shot": 21122.756147129996
-            },
-            "dividers_landed": 2,
-            "dividers_spawned": 8,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 1088.0,
-              "regen": 192.34908699528387
-            },
-            "game_seconds": 903.3999999998357,
-            "killed_by": "basic",
-            "kills": 393,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 75.27657014308863,
-              "boss": 18.896533053875775,
-              "divider": 9.179919999999996,
-              "fast": 58.88171619832757,
-              "ranged": 177.07737284793689,
-              "tank": 0.0
-            },
-            "paid_by": {
-              "basic": 673.0,
-              "boss": 100.0,
-              "divider": 24.0,
-              "fast": 76.0,
-              "ranged": 10.0,
-              "tank": 205.0
-            },
-            "peak_number": 115.48070411713128,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 83.0,
-              "regen": 1.0
-            },
-            "reached": {
-              "10": 315.00000000003496,
-              "20": 665.0000000000525
-            },
-            "run": 38,
-            "seed": 38,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 4,
                 "damage": 5,
                 "defense_absolute": 4,
                 "health": 5,
-                "health_regen": 5
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 26
-          },
-          {
-            "case": "career",
-            "cash": 1101.0,
-            "coins": 154.0,
-            "damage_by": {
-              "shot": 20635.909660579986
-            },
-            "dividers_landed": 4,
-            "dividers_spawned": 8,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 1101.0,
-              "regen": 72.70153945118437
-            },
-            "game_seconds": 881.6333333331888,
-            "killed_by": "basic",
-            "kills": 385,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 123.04509648251556,
-              "boss": 2.527681729375164,
-              "divider": 5.152289999999997,
-              "fast": 44.447673398415446,
-              "ranged": 0.0,
-              "tank": 0.0
-            },
-            "paid_by": {
-              "basic": 666.0,
-              "boss": 100.0,
-              "divider": 14.0,
-              "fast": 100.0,
-              "ranged": 16.0,
-              "tank": 205.0
-            },
-            "peak_number": 111.67581999999999,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 93.97931055454846
-            },
-            "reached": {
-              "10": 315.00000000003496,
-              "20": 665.0000000000525
-            },
-            "run": 39,
-            "seed": 39,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 4,
-                "damage": 5,
-                "defense_absolute": 5,
-                "health": 5,
-                "health_regen": 5
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 26
-          },
-          {
-            "case": "career",
-            "cash": 880.0,
-            "coins": 106.0,
-            "damage_by": {
-              "shot": 14620.63450383001
-            },
-            "dividers_landed": 2,
-            "dividers_spawned": 7,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 880.0,
-              "regen": 43.902246297560204
-            },
-            "game_seconds": 815.6333333332489,
-            "killed_by": "basic",
-            "kills": 361,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 134.4481602356967,
-              "boss": 8.049790025732232,
-              "divider": 7.095700000000001,
-              "fast": 0.0,
-              "ranged": 0.0,
-              "tank": 0.0
-            },
-            "paid_by": {
-              "basic": 589.0,
-              "boss": 100.0,
-              "divider": 18.0,
-              "fast": 84.0,
-              "ranged": 4.0,
-              "tank": 85.0
-            },
-            "peak_number": 92.67581999999999,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 96.4752103662319
-            },
-            "reached": {
-              "10": 315.00000000003496,
-              "20": 665.0000000000525
-            },
-            "run": 40,
-            "seed": 40,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 4,
-                "damage": 5,
-                "defense_absolute": 5,
-                "health": 5,
-                "health_regen": 5
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 24
-          },
-          {
-            "case": "career",
-            "cash": 1074.0,
-            "coins": 152.0,
-            "damage_by": {
-              "shot": 19837.598234419966
-            },
-            "dividers_landed": 2,
-            "dividers_spawned": 8,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 1074.0,
-              "regen": 41.356379273974106
-            },
-            "game_seconds": 904.6333333331679,
-            "killed_by": "basic",
-            "kills": 395,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 120.66000015435242,
-              "boss": 0.9476162352400479,
-              "divider": 0.0,
-              "fast": 4.937520649357836,
-              "ranged": 51.534679677277204,
-              "tank": 0.0
-            },
-            "paid_by": {
-              "basic": 628.0,
-              "boss": 100.0,
-              "divider": 26.0,
-              "fast": 116.0,
-              "ranged": 4.0,
-              "tank": 200.0
-            },
-            "peak_number": 108.67582,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 89.99999999999999
-            },
-            "reached": {
-              "10": 315.00000000003496,
-              "20": 665.0000000000525
-            },
-            "run": 41,
-            "seed": 41,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 5,
-                "damage": 5,
-                "defense_absolute": 5,
-                "health": 5,
-                "health_regen": 5
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 26
-          },
-          {
-            "case": "career",
-            "cash": 736.0,
-            "coins": 102.0,
-            "damage_by": {
-              "shot": 11339.119834279976
-            },
-            "dividers_landed": 2,
-            "dividers_spawned": 6,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 736.0,
-              "regen": 87.34965581840663
-            },
-            "game_seconds": 737.6333333333198,
-            "killed_by": "basic",
-            "kills": 302,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 223.9772868920594,
-              "boss": 9.756404757518705,
-              "divider": 7.068440000000006,
-              "tank": 0.0
-            },
-            "paid_by": {
-              "basic": 439.0,
-              "boss": 100.0,
-              "divider": 14.0,
-              "fast": 58.0,
-              "tank": 125.0
-            },
-            "peak_number": 75.31056000000001,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 82.14044983670561,
-              "regen": 3.0
-            },
-            "reached": {
-              "10": 315.00000000003496,
-              "20": 665.0000000000525
-            },
-            "run": 42,
-            "seed": 42,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 5,
-                "damage": 5,
-                "defense_absolute": 5,
-                "health": 6,
                 "health_regen": 5
               },
               "rules": [],
@@ -11074,50 +10202,364 @@
           },
           {
             "case": "career",
-            "cash": 709.0,
-            "coins": 100.0,
+            "cash": 1322.0,
+            "coins": 160.0,
             "damage_by": {
-              "shot": 10617.224843059976
+              "shot": 28329.447012029923
             },
-            "dividers_landed": 2,
-            "dividers_spawned": 6,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 5,
+            "dividers_spawned": 10,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 709.0,
-              "regen": 30.29883454663163
+              "kill_cash": 1322.0,
+              "regen": 320.9251213885624
             },
-            "game_seconds": 716.1333333333394,
+            "game_seconds": 1043.6333333330415,
             "killed_by": "basic",
-            "kills": 305,
+            "kills": 451,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 141.6960655639379,
-              "boss": 12.05523327148704,
-              "divider": 1.9260966666666697,
-              "fast": 0.9320062044350159,
-              "ranged": 0.0
+              "basic": 363.7872585291888,
+              "boss": 4.884713443275686,
+              "divider": 20.83551666666666,
+              "fast": 33.95572499868513,
+              "ranged": 34.59691801250562,
+              "tank": 0.0
             },
             "paid_by": {
-              "basic": 437.0,
+              "basic": 808.0,
               "boss": 100.0,
-              "divider": 14.0,
-              "fast": 98.0,
-              "ranged": 10.0,
-              "tank": 50.0
+              "divider": 18.0,
+              "fast": 114.0,
+              "ranged": 32.0,
+              "tank": 250.0
             },
-            "peak_number": 75.31056000000001,
+            "peak_number": 124.67581999999999,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 40.0
+              "kill_cash": 93.20602760816115,
+              "regen": 3.00897675850554
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525,
+              "30": 1014.9999999997342
+            },
+            "run": 33,
+            "seed": 33,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 4,
+                "damage": 5,
+                "defense_absolute": 5,
+                "health": 5,
+                "health_regen": 5
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 30
+          },
+          {
+            "case": "career",
+            "cash": 1223.0,
+            "coins": 156.0,
+            "damage_by": {
+              "shot": 24770.573884979905
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 4,
+            "dividers_spawned": 9,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 1223.0,
+              "regen": 136.28094928709072
+            },
+            "game_seconds": 974.3666666664378,
+            "killed_by": "ranged",
+            "kills": 439,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 60.358414660443735,
+              "boss": 8.049790025732232,
+              "divider": 37.92465458888891,
+              "fast": 1.4698844044350174,
+              "ranged": 133.13906991325246,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 759.0,
+              "boss": 100.0,
+              "divider": 20.0,
+              "fast": 132.0,
+              "ranged": 12.0,
+              "tank": 200.0
+            },
+            "peak_number": 126.67582,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 96.96585853333339
             },
             "reached": {
               "10": 315.00000000003496,
               "20": 665.0000000000525
             },
-            "run": 43,
-            "seed": 43,
+            "run": 34,
+            "seed": 34,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 5,
+                "damage": 5,
+                "defense_absolute": 5,
+                "health": 5,
+                "health_regen": 5
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 28
+          },
+          {
+            "case": "career",
+            "cash": 1158.0,
+            "coins": 140.0,
+            "damage_by": {
+              "shot": 25460.55699426999
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 4,
+            "dividers_spawned": 10,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 1158.0,
+              "regen": 129.88740218274037
+            },
+            "game_seconds": 1032.133333333052,
+            "killed_by": "basic",
+            "kills": 417,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 82.94312139397664,
+              "boss": 9.756404757518705,
+              "divider": 11.875546666666668,
+              "fast": 71.6744342554816,
+              "ranged": 57.96790947743163
+            },
+            "paid_by": {
+              "basic": 741.0,
+              "boss": 100.0,
+              "divider": 24.0,
+              "fast": 154.0,
+              "ranged": 24.0,
+              "tank": 115.0
+            },
+            "peak_number": 116.1027150261683,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 94.00000000000001,
+              "regen": 1.0
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525,
+              "30": 1014.9999999997342
+            },
+            "run": 35,
+            "seed": 35,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 5,
+                "damage": 5,
+                "defense_absolute": 5,
+                "health": 5,
+                "health_regen": 5
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 30
+          },
+          {
+            "case": "career",
+            "cash": 748.0,
+            "coins": 130.0,
+            "damage_by": {
+              "shot": 10881.678588089973
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 1,
+            "dividers_spawned": 6,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 748.0,
+              "regen": 33.02968291329933
+            },
+            "game_seconds": 717.633333333338,
+            "killed_by": "basic",
+            "kills": 297,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 149.7097408102908,
+              "boss": 8.049790025732232,
+              "divider": 0.9260966666666697,
+              "ranged": 0.0,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 408.0,
+              "boss": 100.0,
+              "divider": 18.0,
+              "fast": 52.0,
+              "ranged": 10.0,
+              "tank": 160.0
+            },
+            "peak_number": 81.24557613289858,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 82.30969749956517
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525
+            },
+            "run": 36,
+            "seed": 36,
             "start": {
               "effects": [],
               "groups": [
@@ -11174,152 +10616,52 @@
           },
           {
             "case": "career",
-            "cash": 703.0,
-            "coins": 106.0,
+            "cash": 671.0,
+            "coins": 100.0,
             "damage_by": {
-              "shot": 10406.724818849969
+              "shot": 10154.301960369989
             },
-            "dividers_landed": 1,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 0,
             "dividers_spawned": 6,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 703.0,
-              "regen": 27.14589210743333
+              "kill_cash": 671.0,
+              "regen": 16.606109887399512
             },
-            "game_seconds": 714.9000000000071,
+            "game_seconds": 710.6333333333444,
             "killed_by": "basic",
-            "kills": 295,
+            "kills": 300,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 130.39829363654377,
-              "boss": 16.934657847072042,
-              "divider": 0.0,
+              "basic": 54.3970988131545,
+              "boss": 4.884713443275686,
               "fast": 0.0,
               "ranged": 0.0,
               "tank": 0.0
             },
             "paid_by": {
-              "basic": 406.0,
+              "basic": 414.0,
               "boss": 100.0,
-              "divider": 20.0,
-              "fast": 92.0,
+              "divider": 24.0,
+              "fast": 68.0,
               "ranged": 10.0,
-              "tank": 75.0
+              "tank": 55.0
             },
-            "peak_number": 77.31056000000001,
+            "peak_number": 73.31056000000001,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 52.0
+              "kill_cash": 82.24759109954314
             },
             "reached": {
               "10": 315.00000000003496,
               "20": 665.0000000000525
             },
-            "run": 44,
-            "seed": 44,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 5,
-                "damage": 5,
-                "defense_absolute": 5,
-                "health": 6,
-                "health_regen": 5
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 21
-          },
-          {
-            "case": "career",
-            "cash": 635.0,
-            "coins": 83.0,
-            "damage_by": {
-              "shot": 9650.004679709986
-            },
-            "dividers_landed": 2,
-            "dividers_spawned": 6,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 635.0,
-              "regen": 29.004146443275516
-            },
-            "game_seconds": 700.1000000000206,
-            "killed_by": "ranged",
-            "kills": 306,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 0.0,
-              "boss": 0.0,
-              "divider": 0.0,
-              "fast": 0.0,
-              "ranged": 78.682117996331,
-              "tank": 0.0
-            },
-            "paid_by": {
-              "basic": 443.0,
-              "boss": 40.0,
-              "divider": 14.0,
-              "fast": 62.0,
-              "ranged": 6.0,
-              "tank": 70.0
-            },
-            "peak_number": 69.31056000000001,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 39.0
-            },
-            "reached": {
-              "10": 315.00000000003496,
-              "20": 665.0000000000525
-            },
-            "run": 45,
-            "seed": 45,
+            "run": 37,
+            "seed": 37,
             "start": {
               "effects": [],
               "groups": [
@@ -11376,39 +10718,41 @@
           },
           {
             "case": "career",
-            "cash": 1109.0,
-            "coins": 134.0,
+            "cash": 1094.0,
+            "coins": 144.0,
             "damage_by": {
-              "shot": 22513.839340429935
+              "shot": 21318.64622712999
             },
-            "dividers_landed": 3,
-            "dividers_spawned": 9,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 2,
+            "dividers_spawned": 8,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 1109.0,
-              "regen": 57.26087977467512
+              "kill_cash": 1094.0,
+              "regen": 108.4371846113726
             },
-            "game_seconds": 985.3666666664278,
+            "game_seconds": 904.0999999998351,
             "killed_by": "ranged",
-            "kills": 419,
+            "kills": 395,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 3.2942020061006794,
-              "boss": 0.9476162352400479,
-              "divider": 14.224803333333348,
-              "fast": 0.0,
-              "ranged": 157.3998966573892,
+              "basic": 12.297108615926536,
+              "boss": 4.884713443275686,
+              "divider": 10.326336666666677,
+              "fast": 29.45668637063318,
+              "ranged": 161.37014271129433,
               "tank": 0.0
             },
             "paid_by": {
-              "basic": 732.0,
+              "basic": 679.0,
               "boss": 100.0,
               "divider": 24.0,
-              "fast": 128.0,
+              "fast": 76.0,
               "ranged": 10.0,
-              "tank": 115.0
+              "tank": 205.0
             },
             "peak_number": 112.31056000000001,
             "permanent_rewards": 0.0,
@@ -11419,8 +10763,8 @@
               "10": 315.00000000003496,
               "20": 665.0000000000525
             },
-            "run": 46,
-            "seed": 46,
+            "run": 38,
+            "seed": 38,
             "start": {
               "effects": [],
               "groups": [
@@ -11473,158 +10817,57 @@
               "version": 1
             },
             "stop": "death",
-            "wave": 29
+            "wave": 26
           },
           {
             "case": "career",
-            "cash": 1419.0,
-            "coins": 180.0,
+            "cash": 1126.0,
+            "coins": 162.0,
             "damage_by": {
-              "shot": 32543.304779790098
+              "shot": 21212.987665079956
             },
-            "dividers_landed": 1,
-            "dividers_spawned": 10,
-            "free_levels": {},
-            "gained_from": {
-              "kill_cash": 1419.0,
-              "regen": 230.74396308116349
-            },
-            "game_seconds": 1053.6333333330324,
-            "killed_by": "boss",
-            "kills": 502,
-            "lock_held": 0.0,
-            "locked_out": 0.0,
-            "locked_seconds": 0.0,
-            "lost_to": {
-              "basic": 92.1346301686767,
-              "boss": 73.57586053047926,
-              "divider": 0.8382166666666713,
-              "fast": 26.776192090217116,
-              "ranged": 137.76898986567443,
-              "tank": 0.0
-            },
-            "paid_by": {
-              "basic": 876.0,
-              "boss": 100.0,
-              "divider": 42.0,
-              "fast": 148.0,
-              "ranged": 48.0,
-              "tank": 205.0
-            },
-            "peak_number": 139.31056,
-            "permanent_rewards": 0.0,
-            "raised_by": {
-              "kill_cash": 94.51898393600015,
-              "regen": 8.481016063999846
-            },
-            "reached": {
-              "10": 315.00000000003496,
-              "20": 665.0000000000525,
-              "30": 1014.9999999997342
-            },
-            "run": 47,
-            "seed": 47,
-            "start": {
-              "effects": [],
-              "groups": [
-                "attack_start",
-                "defense_start",
-                "defense"
-              ],
-              "levels": {
-                "attack_speed": 5,
-                "damage": 6,
-                "defense_absolute": 5,
-                "health": 6,
-                "health_regen": 6
-              },
-              "rules": [],
-              "rules_version": 2,
-              "tier": 1,
-              "tuning": {
-                "divider": {
-                  "divisor_first": 1.25,
-                  "divisor_full": 1.5,
-                  "divisor_step": 0.25,
-                  "from_wave": 5,
-                  "full_wave": 30,
-                  "health_first": 4.0,
-                  "health_full": 4.0,
-                  "rate_first": 0.3333333333333333,
-                  "rate_full": 0.5,
-                  "refill_seconds": 0.0,
-                  "speed": 1.0
-                },
-                "kill_share": 0.05,
-                "lock": {
-                  "every_first": 3,
-                  "every_full": 2,
-                  "from_wave": 35,
-                  "full_wave": 60,
-                  "health": 3.0
-                },
-                "lock_holds_cash": true,
-                "number_cash": true,
-                "overfill": 1.0,
-                "packages_to_best": false,
-                "peak_drift": 0.0,
-                "reserve_share": 0.5,
-                "sure_divisor": 1.1,
-                "sure_every": 5,
-                "sure_from": 0
-              },
-              "version": 1
-            },
-            "stop": "death",
-            "wave": 31
-          },
-          {
-            "case": "career",
-            "cash": 943.0,
-            "coins": 128.0,
-            "damage_by": {
-              "shot": 16216.501815320025
-            },
+            "digits": [],
+            "digits_paid": 0.0,
             "dividers_landed": 2,
-            "dividers_spawned": 7,
+            "dividers_spawned": 8,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 943.0,
-              "regen": 64.05626759401999
+              "kill_cash": 1126.0,
+              "regen": 44.180731546953226
             },
-            "game_seconds": 844.2666666665561,
+            "game_seconds": 882.7666666665211,
             "killed_by": "fast",
-            "kills": 354,
+            "kills": 388,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 77.17181476182637,
-              "boss": 0.9476162352400479,
-              "divider": 7.603080000000009,
-              "fast": 101.87695193452336,
+              "basic": 110.39047570620548,
+              "boss": 0.0,
+              "divider": 12.32633666666668,
+              "fast": 66.85037404830857,
               "ranged": 0.0,
               "tank": 0.0
             },
             "paid_by": {
-              "basic": 579.0,
+              "basic": 666.0,
               "boss": 100.0,
-              "divider": 18.0,
-              "fast": 86.0,
-              "ranged": 10.0,
-              "tank": 150.0
+              "divider": 24.0,
+              "fast": 100.0,
+              "ranged": 16.0,
+              "tank": 220.0
             },
-            "peak_number": 94.31056000000001,
+            "peak_number": 111.31056000000001,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 81.64870090757876
+              "kill_cash": 74.0
             },
             "reached": {
               "10": 315.00000000003496,
               "20": 665.0000000000525
             },
-            "run": 48,
-            "seed": 48,
+            "run": 39,
+            "seed": 39,
             "start": {
               "effects": [],
               "groups": [
@@ -11677,56 +10920,160 @@
               "version": 1
             },
             "stop": "death",
-            "wave": 25
+            "wave": 26
           },
           {
             "case": "career",
-            "cash": 1342.0,
-            "coins": 164.0,
+            "cash": 898.0,
+            "coins": 110.0,
             "damage_by": {
-              "shot": 30207.799446540015
+              "shot": 14837.465930430022
             },
-            "dividers_landed": 4,
-            "dividers_spawned": 10,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 2,
+            "dividers_spawned": 7,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 1342.0,
-              "regen": 93.01845862515455
+              "kill_cash": 898.0,
+              "regen": 35.98861675386729
             },
-            "game_seconds": 1052.6333333330333,
+            "game_seconds": 815.1333333332493,
             "killed_by": "basic",
-            "kills": 482,
+            "kills": 363,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "basic": 88.79560823906385,
-              "boss": 43.79430051007621,
-              "divider": 8.410293333333346,
+              "basic": 103.35105764226599,
+              "boss": 0.9476162352400479,
+              "divider": 12.185526666666675,
               "fast": 0.0,
-              "ranged": 47.23543210731232,
+              "ranged": 0.0,
               "tank": 0.0
             },
             "paid_by": {
-              "basic": 854.0,
+              "basic": 592.0,
               "boss": 100.0,
-              "divider": 26.0,
-              "fast": 132.0,
-              "ranged": 30.0,
-              "tank": 200.0
+              "divider": 18.0,
+              "fast": 84.0,
+              "ranged": 4.0,
+              "tank": 100.0
             },
-            "peak_number": 129.31056,
+            "peak_number": 94.31056000000001,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 93.0
+              "kill_cash": 64.14585633404874
             },
             "reached": {
               "10": 315.00000000003496,
-              "20": 665.0000000000525,
-              "30": 1014.9999999997342
+              "20": 665.0000000000525
             },
-            "run": 49,
-            "seed": 49,
+            "run": 40,
+            "seed": 40,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 5,
+                "damage": 6,
+                "defense_absolute": 5,
+                "health": 6,
+                "health_regen": 6
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 24
+          },
+          {
+            "case": "career",
+            "cash": 1089.0,
+            "coins": 152.0,
+            "damage_by": {
+              "shot": 20345.631934419984
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 2,
+            "dividers_spawned": 8,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 1089.0,
+              "regen": 43.10850972910397
+            },
+            "game_seconds": 909.5999999998301,
+            "killed_by": "ranged",
+            "kills": 400,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 49.5670836163061,
+              "boss": 0.0,
+              "divider": 0.0,
+              "fast": 0.6769411623424091,
+              "ranged": 92.42506603219772,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 643.0,
+              "boss": 100.0,
+              "divider": 26.0,
+              "fast": 116.0,
+              "ranged": 4.0,
+              "tank": 200.0
+            },
+            "peak_number": 110.31056000000001,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 90.0
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525
+            },
+            "run": 41,
+            "seed": 41,
             "start": {
               "effects": [],
               "groups": [
@@ -11779,52 +11126,164 @@
               "version": 1
             },
             "stop": "death",
-            "wave": 31
+            "wave": 26
           },
           {
             "case": "career",
-            "cash": 671.0,
-            "coins": 90.0,
+            "cash": 1273.0,
+            "coins": 142.0,
             "damage_by": {
-              "shot": 10621.707892399983
+              "shot": 28245.3422947799
             },
-            "dividers_landed": 0,
-            "dividers_spawned": 6,
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 6,
+            "dividers_spawned": 10,
             "free_levels": {},
             "gained_from": {
-              "kill_cash": 671.0,
-              "regen": 30.579581542111697
+              "kill_cash": 1273.0,
+              "regen": 242.92434177822946
             },
-            "game_seconds": 712.6000000000092,
+            "game_seconds": 1016.8666666663992,
             "killed_by": "ranged",
-            "kills": 276,
+            "kills": 451,
             "lock_held": 0.0,
             "locked_out": 0.0,
             "locked_seconds": 0.0,
             "lost_to": {
-              "boss": 0.0,
+              "basic": 106.4399387968818,
+              "boss": 0.9476162352400479,
+              "divider": 16.08033333333335,
               "fast": 0.0,
-              "ranged": 120.9376905108067,
+              "ranged": 220.03230783537927,
               "tank": 0.0
             },
             "paid_by": {
-              "basic": 393.0,
+              "basic": 841.0,
               "boss": 100.0,
-              "divider": 24.0,
-              "fast": 54.0,
-              "tank": 100.0
+              "divider": 14.0,
+              "fast": 100.0,
+              "ranged": 18.0,
+              "tank": 200.0
             },
-            "peak_number": 70.31056000000001,
+            "peak_number": 130.0195228541869,
             "permanent_rewards": 0.0,
             "raised_by": {
-              "kill_cash": 52.02236973247324
+              "kill_cash": 92.2418445333335,
+              "regen": 2.7581554666664942
             },
             "reached": {
               "10": 315.00000000003496,
-              "20": 665.0000000000525
+              "20": 665.0000000000525,
+              "30": 1014.9999999997342
             },
-            "run": 50,
-            "seed": 50,
+            "run": 42,
+            "seed": 42,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 5,
+                "damage": 6,
+                "defense_absolute": 6,
+                "health": 6,
+                "health_regen": 6
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 30
+          },
+          {
+            "case": "career",
+            "cash": 1321.0,
+            "coins": 154.0,
+            "damage_by": {
+              "shot": 31062.724781260014
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 4,
+            "dividers_spawned": 10,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 1321.0,
+              "regen": 177.96398526999852
+            },
+            "game_seconds": 1054.133333333032,
+            "killed_by": "basic",
+            "kills": 467,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 186.96605663380979,
+              "boss": 55.44674053047927,
+              "divider": 11.087276666666686,
+              "fast": 0.0,
+              "ranged": 0.0,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 869.0,
+              "boss": 100.0,
+              "divider": 26.0,
+              "fast": 164.0,
+              "ranged": 22.0,
+              "tank": 140.0
+            },
+            "peak_number": 134.0790357878672,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 90.17082036,
+              "regen": 3.5976554278672097
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525,
+              "30": 1014.9999999997342
+            },
+            "run": 43,
+            "seed": 43,
             "start": {
               "effects": [],
               "groups": [
@@ -11877,7 +11336,733 @@
               "version": 1
             },
             "stop": "death",
+            "wave": 31
+          },
+          {
+            "case": "career",
+            "cash": 1054.0,
+            "coins": 150.0,
+            "damage_by": {
+              "shot": 18944.37764725
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 2,
+            "dividers_spawned": 8,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 1054.0,
+              "regen": 63.643313975489804
+            },
+            "game_seconds": 869.5999999998664,
+            "killed_by": "ranged",
+            "kills": 376,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 18.525742457933056,
+              "boss": 1.690548296357072,
+              "divider": 2.171550000000007,
+              "fast": 0.0,
+              "ranged": 170.49435304894888,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 604.0,
+              "boss": 100.0,
+              "divider": 26.0,
+              "fast": 122.0,
+              "ranged": 22.0,
+              "tank": 180.0
+            },
+            "peak_number": 107.31056000000001,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 73.0
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525
+            },
+            "run": 44,
+            "seed": 44,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 6,
+                "damage": 6,
+                "defense_absolute": 6,
+                "health": 6,
+                "health_regen": 6
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 25
+          },
+          {
+            "case": "career",
+            "cash": 642.0,
+            "coins": 85.0,
+            "damage_by": {
+              "shot": 10364.68553521
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 1,
+            "dividers_spawned": 6,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 642.0,
+              "regen": 34.85609520877835
+            },
+            "game_seconds": 704.100000000017,
+            "killed_by": "ranged",
+            "kills": 308,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 0.0,
+              "boss": 0.0,
+              "divider": 1.5965766666666674,
+              "fast": 0.0,
+              "ranged": 108.10088101758409,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 446.0,
+              "boss": 40.0,
+              "divider": 18.0,
+              "fast": 62.0,
+              "ranged": 6.0,
+              "tank": 70.0
+            },
+            "peak_number": 79.06934,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 45.0
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525
+            },
+            "run": 45,
+            "seed": 45,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 6,
+                "damage": 6,
+                "defense_absolute": 6,
+                "health": 7,
+                "health_regen": 6
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
             "wave": 21
+          },
+          {
+            "case": "career",
+            "cash": 1259.0,
+            "coins": 152.0,
+            "damage_by": {
+              "shot": 28229.223840429957
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 2,
+            "dividers_spawned": 10,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 1259.0,
+              "regen": 222.48152488973773
+            },
+            "game_seconds": 1051.399999999701,
+            "killed_by": "basic",
+            "kills": 453,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 72.61966930881408,
+              "boss": 24.800799687570443,
+              "divider": 5.966756832515223,
+              "fast": 36.16284807507327,
+              "ranged": 172.06871466921405,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 821.0,
+              "boss": 100.0,
+              "divider": 36.0,
+              "fast": 144.0,
+              "ranged": 28.0,
+              "tank": 130.0
+            },
+            "peak_number": 132.13691949999992,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 74.00000000000003,
+              "regen": 9.726256197546576
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525,
+              "30": 1014.9999999997342
+            },
+            "run": 46,
+            "seed": 46,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 6,
+                "damage": 6,
+                "defense_absolute": 6,
+                "health": 7,
+                "health_regen": 6
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 31
+          },
+          {
+            "case": "career",
+            "cash": 1419.0,
+            "coins": 180.0,
+            "damage_by": {
+              "shot": 32935.044779790114
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 1,
+            "dividers_spawned": 10,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 1419.0,
+              "regen": 118.50278558607991
+            },
+            "game_seconds": 1055.6333333330306,
+            "killed_by": "boss",
+            "kills": 502,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 71.17839975169844,
+              "boss": 83.35424745376639,
+              "divider": 1.4916700000000063,
+              "fast": 1.1556334064933473,
+              "ranged": 70.86141397958667,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 876.0,
+              "boss": 100.0,
+              "divider": 42.0,
+              "fast": 148.0,
+              "ranged": 48.0,
+              "tank": 205.0
+            },
+            "peak_number": 129.06934,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 91.0
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525,
+              "30": 1014.9999999997342
+            },
+            "run": 47,
+            "seed": 47,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 6,
+                "damage": 6,
+                "defense_absolute": 6,
+                "health": 7,
+                "health_regen": 6
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 31
+          },
+          {
+            "case": "career",
+            "cash": 1111.0,
+            "coins": 152.0,
+            "damage_by": {
+              "shot": 21895.85818731995
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 3,
+            "dividers_spawned": 8,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 1111.0,
+              "regen": 121.9237971074945
+            },
+            "game_seconds": 921.0999999998196,
+            "killed_by": "ranged",
+            "kills": 390,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 0.8762736658647157,
+              "boss": 0.0,
+              "divider": 9.498856666666676,
+              "fast": 50.383673582881414,
+              "ranged": 191.65000959196865,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 663.0,
+              "boss": 100.0,
+              "divider": 18.0,
+              "fast": 104.0,
+              "ranged": 16.0,
+              "tank": 210.0
+            },
+            "peak_number": 111.06934000000001,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 80.4656511666668
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525
+            },
+            "run": 48,
+            "seed": 48,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 6,
+                "damage": 6,
+                "defense_absolute": 6,
+                "health": 7,
+                "health_regen": 7
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 27
+          },
+          {
+            "case": "career",
+            "cash": 1352.0,
+            "coins": 168.0,
+            "damage_by": {
+              "shot": 30683.654624540115
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 2,
+            "dividers_spawned": 10,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 1352.0,
+              "regen": 91.85205951374274
+            },
+            "game_seconds": 1053.1333333330329,
+            "killed_by": "basic",
+            "kills": 484,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 112.84758975776191,
+              "boss": 43.79430051007621,
+              "divider": 11.42447666666667,
+              "fast": 0.0,
+              "ranged": 37.95162828822123,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 854.0,
+              "boss": 100.0,
+              "divider": 36.0,
+              "fast": 132.0,
+              "ranged": 30.0,
+              "tank": 200.0
+            },
+            "peak_number": 128.06934,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 87.0558508672,
+              "regen": 0.9441491328000069
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525,
+              "30": 1014.9999999997342
+            },
+            "run": 49,
+            "seed": 49,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 6,
+                "damage": 7,
+                "defense_absolute": 6,
+                "health": 7,
+                "health_regen": 7
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 31
+          },
+          {
+            "case": "career",
+            "cash": 1262.0,
+            "coins": 146.0,
+            "damage_by": {
+              "shot": 27777.741249200182
+            },
+            "digits": [],
+            "digits_paid": 0.0,
+            "dividers_landed": 1,
+            "dividers_spawned": 10,
+            "free_levels": {},
+            "gained_from": {
+              "kill_cash": 1262.0,
+              "regen": 150.38950203375293
+            },
+            "game_seconds": 1014.3999999997347,
+            "killed_by": "basic",
+            "kills": 431,
+            "lock_held": 0.0,
+            "locked_out": 0.0,
+            "locked_seconds": 0.0,
+            "lost_to": {
+              "basic": 99.66993847363062,
+              "boss": 0.0,
+              "divider": 2.7578100000000028,
+              "fast": 0.0,
+              "ranged": 145.0306904853422,
+              "tank": 0.0
+            },
+            "paid_by": {
+              "basic": 795.0,
+              "boss": 100.0,
+              "divider": 36.0,
+              "fast": 102.0,
+              "ranged": 24.0,
+              "tank": 205.0
+            },
+            "peak_number": 126.06934000000001,
+            "permanent_rewards": 0.0,
+            "raised_by": {
+              "kill_cash": 92.0
+            },
+            "reached": {
+              "10": 315.00000000003496,
+              "20": 665.0000000000525
+            },
+            "run": 50,
+            "seed": 50,
+            "start": {
+              "effects": [],
+              "groups": [
+                "attack_start",
+                "defense_start",
+                "defense"
+              ],
+              "levels": {
+                "attack_speed": 6,
+                "damage": 7,
+                "defense_absolute": 6,
+                "health": 7,
+                "health_regen": 7
+              },
+              "rules": [],
+              "rules_version": 2,
+              "tier": 1,
+              "tuning": {
+                "divider": {
+                  "divisor_first": 1.25,
+                  "divisor_full": 1.5,
+                  "divisor_step": 0.25,
+                  "from_wave": 5,
+                  "full_wave": 30,
+                  "health_first": 4.0,
+                  "health_full": 4.0,
+                  "rate_first": 0.3333333333333333,
+                  "rate_full": 0.5,
+                  "refill_seconds": 0.0,
+                  "speed": 1.0
+                },
+                "kill_share": 0.05,
+                "lock": {
+                  "every_first": 3,
+                  "every_full": 2,
+                  "from_wave": 35,
+                  "full_wave": 60,
+                  "health": 3.0
+                },
+                "lock_holds_cash": true,
+                "number_cash": true,
+                "overfill": 1.0,
+                "packages_to_best": false,
+                "peak_drift": 0.0,
+                "reserve_share": 0.5,
+                "sure_divisor": 1.1,
+                "sure_every": 5,
+                "sure_from": 0
+              },
+              "version": 1
+            },
+            "stop": "death",
+            "wave": 29
           }
         ],
         "schema": 1

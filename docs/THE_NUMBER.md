@@ -1264,4 +1264,13 @@ The owner: "yes make it the game with digit 100 at 25". **Since D164 a digit pay
 - **The save keeps the best Number earned** (`best_earned`, beside `best_number`; save version 4). A save from before D164 migrates with a byte-exact backup and climbs from its best peak, because the old ladder paid every digit up to it; no digit pays twice. A damaged value is protected untouched. A player whose best peak was 252 has digits 10 and 100 already and is paid digit 1,000 the first time a run earns 1,000.
 - **Home's milestone sheet** is headed "Number earned in a run · best N", ticks and fills its bar by the best earned, and the next-digit line follows it. The emblem's best Number is still the peak, so the two can differ; the heading says which is which.
 - **The peak ladder is a measuring option** (`--ladder peak`), so `tools/ladder_trial.py` can still read its control; run again, the control pays 25 for digit 100 too, so its numbers differ from 17.6's.
-- **Not measured against 17.5:** the 25-Coin variant was chosen on judgement (17.6, point 3). The balance baselines were re-recorded with it (careers change; single runs don't, since the ladder pays between runs); their movement is in the PR.
+- **Not measured against 17.5:** the 25-Coin variant was chosen on judgement (17.6, point 3).
+- **The balance baselines, re-recorded (full suite against the old baseline):** only the three careers move; every single run is unchanged, since the ladder pays between runs. The digits pay 352 Coins in each career against 127 before (10 at run 1, 100 at runs 6, 6 and 13, 1,000 at runs 30, 41 and 63).
+
+| Career | Wave 10 | Wave 20 | Wave 30 | Coins over the career |
+|---|---|---|---|---|
+| core (50 runs) | run 12 → 8 | 17 → 13 | **47 → 33** | 3,923 → 5,074 |
+| grow (70 runs) | 13 → 13 | 28 → 25 | 47 → 43 | 12,879 → 14,302 |
+| even (70 runs) | 13 → 13 | 63 → 63 | never → never | 3,026 → 2,419 |
+
+  The core career reaches wave 30 at run 33, as at full rewards in 17.6: **halving digit 100 did not undo L5 there**, so the early pace is the accepted cost the owner chose. The even career's loss is a bot artefact: 25 fewer Coins at digit 100 leave it a rank short at run 61, it loses to the wave-10 boss from then on, and it spends digit 1,000's Coins opening Multishot rather than on ranks. Its median wave (10) is unchanged.
