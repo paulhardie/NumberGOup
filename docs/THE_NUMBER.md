@@ -15,6 +15,7 @@
 | 12 | The fuel economy, measured (D155) | **Parked.** Every configuration failed; a fixed price can't fit Tier 1 |
 | 13 | The Number is Cash (D156, D157): rules, criteria, results, the enemies | **Live.** The rules are built and the results stand |
 | 14 | It becomes the game (D158) | **Live. The current rules**, compatibility reasoning and what is undecided |
+| 15 | Coins from the peak Number: what the peak is made of (6 October) | **Live finding.** Nothing built; the owner's yes to a peak reward needs one more answer |
 
 ### The Number today (D158)
 
@@ -1065,3 +1066,29 @@ The balance harness now plays the game's rules (BALANCE_TESTS.md) and both basel
 - **A way for Workshop power to outgrow the run shop** (13.3's finding): not built.
 - **The turtle and the Lock** (13.5): left for play.
 - **Tier 2 and 3** are not measured under the new rules.
+
+## 15. Coins from the peak Number: what the peak is made of (6 October 2026)
+
+The owner answered **yes** to both open questions of 14.4: keep the record as the true peak and recalibrate the digit ladder, and let a run's reward follow its peak Number. Before writing the experiment's criteria the agent measured what the peak is made of in today's game (the committed full baseline, `data/balance/full.json`, each run's `peak_number` and the part of it raised in play), because the whole design leans on it.
+
+**The finding: for most strong builds the peak Number is the Number the run starts with, which is the Workshop's Health row, not anything done in the run.** Spending lowers the Number and kills only refill it, so a buying run rarely climbs above where it began.
+
+| Cell (game's rules, buying) | Median peak | Raised in play | Share of the peak that play built |
+|---|---|---|---|
+| fresh, buying nothing / evenly / core | 29 / 20 / 13 | 24 / 16 / 8 | 83% / 79% / 67% |
+| 10K Coins: core / turtle / spread | 133 / 252 / 171 | 67 / 281 / 154 | 52% / 106% / 88% |
+| **100K Coins: core / blender** | **409 / 409** | **0 / 6** | **0% / 1%** |
+| 100K Coins: turtle / spread | 688 / 718 | 1,300 / 681 | 184% / 92% |
+| Tier 2 / Tier 3 at level 20 | 493 / 503 | 165 / 180 | 33% / 35% |
+| **1M Coins, core, 6 seeds (`sim_runs.gd`)** | **2,763.5, every seed** | none | **0%** |
+
+A 1M-Coin core run's peak is the same 2,763.5 on every seed: it is the Health row's Number, reached on wave 1 and never beaten. Its run earned 11,000 to 12,000 Number over 81 waves and spent it all.
+
+**What that means for the plan:**
+1. **A reward that follows the peak pays for the Health row, not for play,** for core and blender builds from about 100K Coins up. Only builds that keep the Number growing (Thorns turtle, spread) or weak and fresh runs get a peak that play moved.
+2. **The record is the same:** the best Number on Home is, for those builds, their Health row. That is a fair description of the Number as the tower's health, but it is not "how well you played".
+3. **The digit ladder has the same problem.** A 1M-Coin core build tops out at 2,763 and so reaches digit 1,000 and never 10,000; the top three digits (10K, 100K, 1M) are out of reach in Tier 1 for a spender whatever the rewards are. Recalibrating their Coins changes nothing for them.
+4. **What does move with play is the Number earned,** every point paid into the Number by kills, waves and Interest, whatever it is then spent on: 11,000+ for that 1M run, 4,000 for a 100K core run, 1,500 at 10K. Spending doesn't lower it, so a spender and a hoarder are measured alike, and it grows with the waves reached.
+
+**The question this raises (HANDOVER.md, open decision 1):** pay the reward from the Number *earned* rather than the peak, keeping the record as the true peak. Nothing is built for either; the experiment's criteria are not written yet.
+
