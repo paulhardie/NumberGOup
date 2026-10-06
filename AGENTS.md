@@ -236,7 +236,7 @@ And the headless boot:
 bash run_godot.sh --headless --path . --quit
 ```
 
-- `run_godot.sh` finds Godot itself: `$GODOT` if set, your Mac app, `godot` on `PATH`, or the copy `tools/install_godot_linux.sh` installs (the version is pinned in `.godot-version`). Cloud sessions install it at start (`.claude/hooks/session-start.sh`).
+- `run_godot.sh` finds Godot itself: `$GODOT` if set, the copy `tools/install_godot_linux.sh` installs (pinned in `.godot-version`, and what CI runs), your Mac app, or `godot` on `PATH`. Cloud sessions install it at start (`.claude/hooks/session-start.sh`).
 - `run_tests.sh` runs `tests/tower_tests.gd`, `tests/foundation_tests.gd` and the Python balance-report contracts; a green count with errors printed is not a pass, and the script fails the run on any error line. If it fails on classes it cannot find, the `.godot` cache is stale: run `bash run_godot.sh --headless --path . --import`.
 - The headless project run catches parse and scene-build errors in `main.gd` and the screens.
 - CI runs the same baseline on every pull request and push to `main` (`.github/workflows/verify.yml`), with its Godot version pinned in `.godot-version` to match the development build and checksum verified — update the pin there when upgrading Godot. `main` requires a pull request with a passing "Economy tests and headless boot" check.

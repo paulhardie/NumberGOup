@@ -19,7 +19,11 @@ ROOT = Path(__file__).resolve().parents[1]
 DECISIONS = ROOT / 'docs' / 'DECISIONS.md'
 INDEX = ROOT / 'docs' / 'DECISIONS_INDEX.md'
 HEADING = re.compile(r'^## (D\d{3,}) — (.+)$')
-SUPERSEDED = re.compile(r'(?:[Ss]uperseded|[Rr]eplaced)( in part| in whole| for new runs)? by ((?:D\d{3}(?:[, ]+(?:and )?)?)+)')
+# A clause such as "superseded by D044 and its name by D045" or "superseded the
+# same day by D080": from the word to the end of the sentence, cut at the first
+# colon, semicolon or "which"/"but" so a decision merely mentioned later in it
+# isn't read as a superseder.
+SUPERSEDED = re.compile(r'(?:[Ss]uperseded|[Rr]eplaced)( in part| in whole| for new runs)?(.*?)(?:\.(?:\s|$)|:|;| which\b| but\b|$)')
 LINK = re.compile(r'\[([^\]]+)\]\([^)]*\)')
 LOOKAHEAD = 14
 
@@ -32,14 +36,26 @@ def parse(text=None):
         match = HEADING.match(line)
         if not match:
             continue
-        head = lines[number + 1:number + 1 + LOOKAHEAD]
+        end = next((i for i in range(number + 1, min(number + 1 + LOOKAHEAD, len(lines))) if HEADING.match(lines[i])),
+                   min(number + 1 + LOOKAHEAD, len(lines)))
+        head = lines[number + 1:end]
         status = next((entry for entry in head if '**Status:**' in entry), '')
         status = LINK.sub(r'\1', status.split('**Status:**', 1)[-1].strip()) if status else ''
         status = re.split(r'(?<=[a-z0-9)])\.(?:\s|$)|:\s|\s\(', status, maxsplit=1)[0].strip()[:90]
-        by = SUPERSEDED.search(LINK.sub(r'\1', ' '.join(lines[number:number + 1 + LOOKAHEAD])))
-        found.append((match.group(1), match.group(2).strip(), status,
-                      ' '.join(re.findall(r'D\d{3}', by.group(2))) + (' (' + by.group(1).strip().replace('in ', 'in ') + ')' if by.group(1) in (' in part', ' for new runs') else '') if by else ''))
+        found.append((match.group(1), match.group(2).strip(), status, superseded_by(' '.join(lines[number:end]))))
     return found
+
+
+def superseded_by(record):
+    """The IDs that superseded a record, with "(in part)" or "(for new runs)" when its first note says so."""
+    matches = list(SUPERSEDED.finditer(LINK.sub(r'\1', record)))
+    ids = []
+    for found in matches:
+        ids += [ident for ident in re.findall(r'D\d{3}', found.group(2)) if ident not in ids]
+    if not ids:
+        return ''
+    qualifier = next((m.group(1) for m in matches if re.search(r'D\d{3}', m.group(2))), None)
+    return ' '.join(ids) + (' (' + qualifier.strip().replace('in ', 'in ') + ')' if qualifier in (' in part', ' for new runs') else '')
 
 
 def next_id(decisions):

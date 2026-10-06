@@ -14,33 +14,33 @@ To read a decision, grep its heading: `grep -n "^## D004" docs/DECISIONS.md`. Ne
 | [D006](DECISIONS.md#d006--deterministic-run-seeds-and-saved-rng-state) | Deterministic run seeds and saved RNG state | Accepted |  |
 | [D007](DECISIONS.md#d007--save-schema-v4-with-explicit-migrations) | Save schema V4 with explicit migrations | Accepted |  |
 | [D008](DECISIONS.md#d008--what-survives-a-reset) | What survives a reset | Accepted |  |
-| [D009](DECISIONS.md#d009--the-tower-is-a-shape-reference-not-a-content-source) | The Tower is a shape reference, not a content source | Accepted | D033 |
-| [D010](DECISIONS.md#d010--grace-waves-pay-repeatable-coins) | Grace waves pay repeatable Coins | Accepted | D033 |
-| [D011](DECISIONS.md#d011--product-direction-simple-surface-deep-systems) | Product direction: simple surface, deep systems | Accepted | D037 |
+| [D009](DECISIONS.md#d009--the-tower-is-a-shape-reference-not-a-content-source) | The Tower is a shape reference, not a content source | Accepted |  |
+| [D010](DECISIONS.md#d010--grace-waves-pay-repeatable-coins) | Grace waves pay repeatable Coins | Accepted | D033 D040 |
+| [D011](DECISIONS.md#d011--product-direction-simple-surface-deep-systems) | Product direction: simple surface, deep systems | Accepted |  |
 | [D012](DECISIONS.md#d012--output-beats-the-wave-before-it-becomes-number) | Output beats the wave before it becomes Number | Superseded by D037 | D037 |
 | [D013](DECISIONS.md#d013--the-workshop-has-four-categories-attack-defense-utility-ultimates) | The Workshop has four categories: Attack, Defense, Utility, Ultimates | Accepted |  |
-| [D014](DECISIONS.md#d014--player-facing-vocabulary-wave-hp-hit-armor) | Player-facing vocabulary: Wave HP, Hit, Armor | Accepted | D044 |
-| [D015](DECISIONS.md#d015--the-rig-the-same-four-categories-inside-a-run-bought-with-number) | The Rig: the same four categories inside a run, bought with Number | Its rule that run ranks are uncapped is superseded by D044 and its name by D045 | D044 |
+| [D014](DECISIONS.md#d014--player-facing-vocabulary-wave-hp-hit-armor) | Player-facing vocabulary: Wave HP, Hit, Armor | Accepted |  |
+| [D015](DECISIONS.md#d015--the-rig-the-same-four-categories-inside-a-run-bought-with-number) | The Rig: the same four categories inside a run, bought with Number | Its rule that run ranks are uncapped is superseded by D044 and its name by D045 | D044 D045 D042 D039 |
 | [D016](DECISIONS.md#d016--the-bottom-bar-carries-what-is-actionable-now) | The bottom bar carries what is actionable now | Its between-runs bar is superseded by D048 | D048 |
 | [D017](DECISIONS.md#d017--save-schema-v5-for-the-four-workshop-categories) | Save schema V5 for the four Workshop categories | Accepted |  |
-| [D018](DECISIONS.md#d018--multi-buy-and-the-reference-workshop-layout) | Multi-buy, and the reference Workshop layout | Accepted | D047 |
+| [D018](DECISIONS.md#d018--multi-buy-and-the-reference-workshop-layout) | Multi-buy, and the reference Workshop layout | Accepted |  |
 | [D019](DECISIONS.md#d019--deep-rank-ladders-multiply-the-cap-divide-the-step) | Deep rank ladders: multiply the cap, divide the step | Its rule that every ladder ends where the shallow one did is superseded by D047 | D047 |
 | [D020](DECISIONS.md#d020--defense-becomes-a-build-siphon-recoil-tier-scaled-cushion-brace-cost-second-wind) | Defense becomes a build: Siphon, Recoil, tier-scaled Cushion, Brace Cost, Second Wind | Accepted |  |
 | [D021](DECISIONS.md#d021--boss-damage-and-utility-pays-in-coins-and-knowledge) | Boss Damage, and Utility pays in Coins and Knowledge | Accepted |  |
-| [D022](DECISIONS.md#d022--the-run-over-screen-names-what-the-run-was-lost-to) | The run-over screen names what the run was lost to | Accepted | D044 |
+| [D022](DECISIONS.md#d022--the-run-over-screen-names-what-the-run-was-lost-to) | The run-over screen names what the run was lost to | Accepted |  |
 | [D023](DECISIONS.md#d023--a-rig-rank-is-worth-three-workshop-ranks-and-the-defensive-effects-get-combined-ceilings) | A Rig rank is worth three Workshop ranks, and the defensive effects get combined ceilings | Its three-Workshop-rank worth is superseded by D044 | D044 |
 | [D024](DECISIONS.md#d024--labs-real-research-mirroring-the-tower-separate-from-the-knowledge-sheet) | Labs: real research, mirroring The Tower, separate from the Knowledge sheet | Accepted | D029 |
 | [D025](DECISIONS.md#d025--the-run-screen-becomes-a-landing-page-between-runs-not-an-idle-loop) | The run screen becomes a landing page between runs, not an idle loop | Accepted |  |
-| [D026](DECISIONS.md#d026--what-the-towers-home-screen-contributes-to-the-landing-panel-and-what-it-doesnt) | What The Tower's home screen contributes to the landing panel, and what it doesn't | Accepted | D030 |
+| [D026](DECISIONS.md#d026--what-the-towers-home-screen-contributes-to-the-landing-panel-and-what-it-doesnt) | What The Tower's home screen contributes to the landing panel, and what it doesn't | Accepted |  |
 | [D027](DECISIONS.md#d027--cards-a-real-gem-pulled-collection-toned-down-from-the-reference) | Cards: a real, Gem-pulled collection, toned down from the reference | Accepted | D030 |
 | [D028](DECISIONS.md#d028--save-schema-v6-and-never-writing-over-a-save-the-loader-cannot-read) | Save schema V6, and never writing over a save the loader cannot read | Accepted |  |
 | [D029](DECISIONS.md#d029--lab-slots-start-at-one-and-open-to-five-with-gems) | Lab slots start at one and open to five with Gems | Accepted |  |
 | [D030](DECISIONS.md#d030--gems-from-boss-waves-and-per-tier-milestone-checkpoints) | Gems from boss waves and per-tier milestone checkpoints | Accepted |  |
 | [D031](DECISIONS.md#d031--research-that-finishes-during-a-run-counts-from-the-next-run) | Research that finishes during a run counts from the next run | Accepted |  |
-| [D032](DECISIONS.md#d032--the-run-screen-keeps-the-number-on-top-and-the-rig-below-it) | The run screen keeps the Number on top and the Rig below it | Accepted | D040 |
-| [D033](DECISIONS.md#d033--tier-1-opens-under-attack) | Tier 1 opens under attack | Its warm-up is replaced by D040's single curve | D040 |
-| [D034](DECISIONS.md#d034--make-the-tier-1-opening-kinder) | Make the Tier 1 opening kinder | Its warm-up is replaced by D040's single curve | D040 |
-| [D035](DECISIONS.md#d035--lower-workshop-prices-for-the-first-permanent-build) | Lower Workshop prices for the first permanent build | Accepted | D040 |
+| [D032](DECISIONS.md#d032--the-run-screen-keeps-the-number-on-top-and-the-rig-below-it) | The run screen keeps the Number on top and the Rig below it | Accepted |  |
+| [D033](DECISIONS.md#d033--tier-1-opens-under-attack) | Tier 1 opens under attack | Its warm-up is replaced by D040's single curve | D040 D037 |
+| [D034](DECISIONS.md#d034--make-the-tier-1-opening-kinder) | Make the Tier 1 opening kinder | Its warm-up is replaced by D040's single curve | D040 D039 |
+| [D035](DECISIONS.md#d035--lower-workshop-prices-for-the-first-permanent-build) | Lower Workshop prices for the first permanent build | Accepted |  |
 | [D036](DECISIONS.md#d036--let-the-first-tier-1-run-bank-number) | Let the first Tier 1 run bank Number | Its warm-up is replaced by D040's single curve | D040 |
 | [D037](DECISIONS.md#d037--the-number-always-rises-missed-waves-move-on-bosses-stay-and-fight) | The Number always rises; missed waves move on; bosses stay and fight | Accepted |  |
 | [D038](DECISIONS.md#d038--siphon-becomes-leech-and-recoil-becomes-thorns) | Siphon becomes Leech and Recoil becomes Thorns | Accepted |  |
@@ -84,7 +84,7 @@ To read a decision, grep its heading: `grep -n "^## D004" docs/DECISIONS.md`. Ne
 | [D076](DECISIONS.md#d076--every-workshop-group-the-towers-unlock-card-and-multi-buy) | Every Workshop group, The Tower's Unlock card, and multi-buy | Accepted |  |
 | [D077](DECISIONS.md#d077--an-activity-log-the-owner-exports-for-agents) | An activity log the owner exports for agents | Accepted |  |
 | [D078](DECISIONS.md#d078--a-run-closed-mid-way-resumes-by-replaying-it) | A run closed mid-way resumes, by replaying it | Built |  |
-| [D079](DECISIONS.md#d079--a-version-roadmap-with-the-number-as-the-runs-score-after-10) | A version roadmap, with the Number as the run's score after 1.0 | Accepted |  |
+| [D079](DECISIONS.md#d079--a-version-roadmap-with-the-number-as-the-runs-score-after-10) | A version roadmap, with the Number as the run's score after 1.0 | Accepted | D080 |
 | [D080](DECISIONS.md#d080--the-number-is-the-tower-and-10-needs-it) | The Number is the tower, and 1.0 needs it | Accepted direction |  |
 | [D081](DECISIONS.md#d081--the-numbers-first-four-answers) | The Number's first four answers | Accepted | D083 |
 | [D082](DECISIONS.md#d082--the-divider-and-the-number-on-screen) | The Divider, and the Number on screen | Its ÷2 and health ramp are superseded by D083 the same day | D083 |

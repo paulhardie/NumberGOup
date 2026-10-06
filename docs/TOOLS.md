@@ -2,7 +2,7 @@
 
 The commands for measuring, importing and inspecting the game. [`AGENTS.md`](../AGENTS.md) keeps the two every change needs (`bash run_tests.sh` and the headless boot); everything else is here.
 
-Every Godot run goes through `run_godot.sh`, which keeps it away from the owner's real save. It finds Godot by itself: `$GODOT` if set, the owner's Mac app, `godot` on `PATH`, or the copy `tools/install_godot_linux.sh` installs (the version is pinned in `.godot-version`).
+Every Godot run goes through `run_godot.sh`, which keeps it away from the owner's real save. It finds Godot by itself: `$GODOT` if set, the copy `tools/install_godot_linux.sh` installs (pinned in `.godot-version`, and what CI runs), the owner's Mac app, or `godot` on `PATH`.
 
 ## Measure the game's rules, not the old ones
 
