@@ -18,6 +18,7 @@ Tier 1 and every Workshop group work.
 - **Tanks keep their weight (D154); the Number is written in full to a trillion (D154).** The five base enemies read as ours (D145).
 - **Cards (D146, D147):** open at Tier 1 wave 20; eleven of The Tower's cards are built; the Cash card reads as **Number Income**. **Menus and pop-ups (D151):** one `Overlay`; holding a tile reads it ([UI_POPUPS.md](UI_POPUPS.md)).
 - **Measure-only, never in the game:** the fuel economy (D155, a fixed shot price can't fit Tier 1), the capital trial (D152, failed), nine candidate cards. **Balance harness (D150):** bots, not players; since D158 it plays the game's rules ([BALANCE_TESTS.md](BALANCE_TESTS.md)). Under them four of D149's six dead cards meet the floor (Critical Chance and Health Regen still fail).
+- **The Workshop may flatten, and we aren't bound to The Tower's rows (D161).** The design note [GROWTH_LAYERS.md](GROWTH_LAYERS.md) sets out each growth layer's job (Workshop, run upgrades, Cards, Labs, Ultimate Weapons, tiers, a later Workshop II), a Coin sink ladder, and candidates of our own (Head Start, Run Discount, Interest depth, Lockpick). Nothing is built.
 - **Home shows what's coming (D160):** after a first run a shelf above Battle holds **Missions** (sample goals, "later") and the **next tier** (Tier 2's real row and a bar to clearing wave 100, "1.4"), and **Settings is grouped** with six unbuilt settings as tagged text. All stand-ins live in `src/ui/coming_soon.gd`; none reads a save or changes a rule.
 - **Development tooling (merged, D159):** the pinned Godot installs itself (`tools/install_godot_linux.sh`, `.godot-version`; CI and a cloud-session hook use it), commands moved to TOOLS.md, a decision index with a test, a glossary.
 
@@ -32,14 +33,15 @@ Tier 1 and every Workshop group work.
 6. **The fuel economy (D155) is parked:** a fixed shot price can't fit Tier 1, so shots are free and Cash is the Number's pressure. The per-wave price (12.6), holding fire and bounties stay as measuring options.
 7. **Pop-ups (D151):** does holding stay, and what next? I'd keep it and add **a one-line hint that holding reads**, then **hold the daily Gems pill** (its tooltip never shows on a phone). Two are yours: **a confirm on End run** and **moving the run-over panel onto a sheet** (it shades the arena). UI_POPUPS.md section 3 has the rest.
 8. **Which cards to make drawable next?** Factor, Super Tower and a rescaled Berserker are the candidates in CARDS.md. Park the rest. **Changing cards mid-run:** I'd still keep them fixed for the run.
-9. **What should Missions be, if anything?** (D160 shows samples only.) It needs a daily clock, progress counted from runs and a claim-once payout, and the anti-goals still list live-ops before the core run is proven. I'd **keep it a stand-in until the late-game direction (decisions 2 and 3) is settled**, because what a mission asks and pays depends on what Coins and Gems are for by then. Tournaments and events weren't placed (server and calendar).
-10. **Still open from before:** play the D145 enemies; sign off 1.0; the D131 digit rewards; the speed switch; the Mac sync waiting on a saved battle; publishing Tower-derived data.
+9. **Growth layers (D161):** the questions in GROWTH_LAYERS.md section 6 are open: the Ultimate Weapons currency, Labs' first catalogue, where our own Workshop rows live.
+10. **What should Missions be, if anything?** (D160 shows samples only.) It needs a daily clock, progress counted from runs and a claim-once payout, and the anti-goals still list live-ops before the core run is proven. I'd **keep it a stand-in until the late-game direction (decisions 2 and 3) is settled**, because what a mission asks and pays depends on what Coins and Gems are for by then. Tournaments and events weren't placed (server and calendar).
+11. **Still open from before:** play the D145 enemies; sign off 1.0; the D131 digit rewards; the speed switch; the Mac sync waiting on a saved battle; publishing Tower-derived data.
 
 ## Next steps, in order
 
 1. **Owner:** answer open decision 1 (pay from the Number earned, not the peak) and play a few runs as the game now plays.
 2. **Agent, on a yes:** write the criteria first, then measure Coins from the Number earned and a recalibrated digit ladder as options, and report every run. Medium, touches the economy, so it needs the independent review.
-3. **Owner:** decide the late-game direction (open decisions 2 and 3, and the Labs and Ultimate Weapons ideas discussed 5 October: Head Start, Run Discount, Lockpick, Vault). I'd write that up as a design note before building anything.
+3. **Owner:** read [GROWTH_LAYERS.md](GROWTH_LAYERS.md) and answer its section 6: which currency pays for Ultimate Weapons (I'd reuse Gems for now), whether Labs lead with run-economy Labs (I'd say yes), and where our own rows live (before the first one). Then Labs (1.2) is the next build.
 4. **Owner:** **play a run holding tiles on a phone**: the one pop-up check that couldn't be made.
 
 ## Checked, and not checked

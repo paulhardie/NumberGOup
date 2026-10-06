@@ -2416,3 +2416,13 @@ Rules:
   4. **Everything is in `src/ui/coming_soon.gd`**, so a stand-in is replaced by its real screen by removing it there. No save, setting, rule or economy change; the dock's reveal rules are untouched.
 - **Consequences:** The sample missions' rewards (Gems and Coins) are illustrations, not design. A real Missions system needs a daily clock (the UTC day the free Gems use is the candidate), progress counted from runs, and a payout that is claimed once; none exists, and none is authorised here.
 - **Revisit when:** Missions are designed (the sheet is replaced), Tier 2 is built (the tile becomes the tier chooser), or a stand-in's system is dropped from the roadmap (remove its tile and row).
+
+## D161 — The Workshop may flatten, and we are not bound to The Tower's rows
+
+- **Status:** Accepted (2026-10-06) on the owner's direction, in answer to "are we happy for the workshop to be 'solved' at one point, similar to how it is like that in the tower in a sense? (growth is now coming from labs, ultimate weapon upgrades etc", then "we're not bound to the exact workshop items from the tower. We can add more, and larger sinks over time too". It relaxes [D068](#d068--the-towers-workshop-in-full-around-the-number) in part.
+- **Decision:**
+  1. **The Workshop is allowed to flatten.** Past about level 100 a row's price climbs far faster than its gain (Damage: +1.75% a level for 81,000 Coins at level 100, +0.39% for 5.0M at 500), and growth is meant to come from other layers: Labs, Ultimate Weapons and tiers. A literally solved Workshop isn't a state a player reaches in Tiers 1 to 3 (about 2.6 × 10²⁰ Coins to max it).
+  2. **We are not bound to The Tower's Workshop rows.** We may add rows of our own and larger Coin sinks over time. The generated rows stay generated and are never edited by hand; where our own rows live is an open question (GROWTH_LAYERS.md 6).
+  3. **Each growth layer has one job, one resource or clock, and its own relationship to the Number,** so no layer is a second Workshop with a timer. [GROWTH_LAYERS.md](GROWTH_LAYERS.md) sets that out as a design note.
+- **Not decided:** which currency pays for Ultimate Weapons, what Labs' first catalogue holds, where our own rows are stored, and the sizes of any sink. **Nothing is built.** No Workshop Enhancements, own rows or new currency until Labs and a second tier show where the Workshop flattens in play (AGENTS law 8).
+- **Revisit when:** Labs (1.2) exist and the owner has played against them.

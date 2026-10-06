@@ -26,6 +26,7 @@
 - **Run upgrades off** (a setting, chosen before a run) shuts the shop for that run.
 - **Runs begun before D158 play their Cash rules to the end.** The game's rules are `RunConfig.game_tuning()`; the code's own defaults stay off so old saves and measurements replay exactly. No version bump (14.2).
 - **What the bots say (13.3, 14.3):** the same pace as Cash, a Number a fifth to a quarter of its old size, no runaway. The shop adds 25 to 37% of a run's waves even at 1M Coins, as it does under The Tower's own rules.
+- **Growth after the Workshop flattens:** [GROWTH_LAYERS.md](GROWTH_LAYERS.md) (D161), a design note.
 - **Undecided (14.4, HANDOVER.md):** the Number milestones now pay less; whether a run's reward follows its peak Number; how Workshop power outgrows the run shop; Recovery Packages; the Thorns turtle against a Lock.
 - **The lesson that cost two experiments:** the Number runs from 5 to millions inside Tier 1, so anything priced in a flat amount of it breaks. Use shares or time.
 
