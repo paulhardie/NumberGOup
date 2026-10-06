@@ -134,12 +134,23 @@ func _change_coins(amount: float) -> void:
 	_coins = high
 
 
+## The digit ladder keyed on the Number earned (D163, THE_NUMBER.md 17): measuring
+## options, off in the game and never saved. With `ladder_on_earned` a digit pays
+## the first time the best Number a run has earned (`best_earned`, held in memory
+## only) reaches it, instead of the best peak, and `ladder_scale` multiplies what it
+## pays. The record, `best_number`, stays the true peak either way.
+var ladder_on_earned := false
+var ladder_scale := 1.0
+var best_earned := 0.0
+
+
 ## Counts a run as it ends: its wave and its peak Number against the bests.
 ## The first run's end also gives FIRST_RUN_GIFT.
 ## A peak that takes the best Number past a milestone for the first time pays
-## that milestone's Coins (D107); the milestones reached are returned, as
+## that milestone's Coins (D107), or with the ladder keyed on the Number earned
+## (D163, measuring only) the run's `earned` does; the milestones reached are returned, as
 ## {number, coins}, for the run's end to show and the log to keep.
-func finish_run(wave: int, peak_number: float = 0.0) -> Array[Dictionary]:
+func finish_run(wave: int, peak_number: float = 0.0, earned: float = 0.0) -> Array[Dictionary]:
 	gift_given = 0.0
 	if runs == 0:
 		add_coins(FIRST_RUN_GIFT)
@@ -148,6 +159,18 @@ func finish_run(wave: int, peak_number: float = 0.0) -> Array[Dictionary]:
 	runs += 1
 	best_wave = maxi(best_wave, wave)
 	var reached: Array[Dictionary] = []
+	if ladder_on_earned:
+		if is_finite(earned):
+			for milestone in Guesses.MILESTONES:
+				if best_earned < float(milestone.number) and earned >= float(milestone.number):
+					var paid: Dictionary = milestone.duplicate()
+					paid.coins = float(milestone.coins) * ladder_scale
+					reached.append(paid)
+					add_coins(float(paid.coins))
+			best_earned = maxf(best_earned, earned)
+		if is_finite(peak_number):
+			best_number = maxf(best_number, peak_number)
+		return reached
 	if is_finite(peak_number):
 		for milestone in Guesses.MILESTONES:
 			if best_number < float(milestone.number) and peak_number >= float(milestone.number):
