@@ -1051,7 +1051,7 @@ func test_home_shows_what_is_coming_after_a_first_run() -> void:
 	check(home._shelf_box.visible and _texts(home._shelf).has("Daily goals") and _texts(home._shelf).has("Tier 2 · wave 100"), "after one it holds Missions and the next tier")
 	check(_texts(home._shelf).has("later") and _texts(home._shelf).has("1.4"), "each says when it comes")
 	var bar: ProgressBar = home._tier_tile.find_child("Progress", true, false)
-	check(is_equal_approx(bar.value, 0.5), "the next tier's bar follows the best wave: 50 of 100")
+	check(is_equal_approx(bar.value, 0.49), "the next tier's bar follows the best wave cleared, as D002 opens it: 49 of 100, not the 50 reached")
 	var gems := p.gems
 	var changed := [0]
 	home.settings_changed.connect(func(): changed[0] += 1)
@@ -1063,8 +1063,8 @@ func test_home_shows_what_is_coming_after_a_first_run() -> void:
 	home._open_next_tier()
 	check(Overlay.current(home) != missions and not missions.visible, "the next tier's sheet replaces it")
 	words = _texts(Overlay.current(home))
-	check(" ".join(words).contains("×20") and " ".join(words).contains("×1.8") and " ".join(words).contains("best is 50"),
-		"it reads Tier 2's real row from the data and the player's best wave: %s" % [words])
+	check(" ".join(words).contains("×20") and " ".join(words).contains("×1.8") and " ".join(words).contains("best clear is 49"),
+		"it reads Tier 2's real row from the data and the player's best clear: %s" % [words])
 	Overlay.close_current(home)
 	check(p.gems == gems and changed[0] == 0 and Overlay.current(home) == null, "opening and closing them gives and changes nothing")
 	home.free()

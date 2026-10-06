@@ -16,7 +16,7 @@ const LATER := "later"
 ## The roadmap version that brings tiers (D079).
 const TIERS_VERSION := "1.4"
 const TILE_HEIGHT := 64
-## What the next tier asks (D138: the wave of the one before).
+## What the next tier asks: clearing this wave of the one before (D002, D138).
 const NEXT_TIER_WAVE := 100
 
 ## Samples of the shape a mission could take, as The Tower's daily missions do.
@@ -175,11 +175,13 @@ static func _mission(mission: Dictionary) -> Control:
 
 
 ## The next tier: its real row, and how far the player is from opening it.
-static func tier_sheet(best_wave: int) -> Overlay:
+## A tier opens by clearing the wave (D002), not by reaching it, so the
+## player's best clear is what counts.
+static func tier_sheet(best_clear: int) -> Overlay:
 	var next := TowerData.tier(2)
 	var sheet := Overlay.new()
 	sheet.heading("Tier 2", true)
-	sheet.text("Opens when you reach wave %d of Tier 1. Your best is %d." % [NEXT_TIER_WAVE, best_wave], Palette.SOFT, 12)
+	sheet.text("Opens when you clear wave %d of Tier 1. Your best clear is %d." % [NEXT_TIER_WAVE, best_clear], Palette.SOFT, 12)
 	sheet.rule()
 	sheet.text("Enemy health ×%s and attack ×%s.\nCoins ×%s." % [_plain(next.enemy_health), _plain(next.enemy_attack), _plain(next.coins)], Palette.TEXT, 13)
 	sheet.text("Tiers come in %s. Until then Tier 1 is the whole game." % TIERS_VERSION, Palette.MUTED, 11)
