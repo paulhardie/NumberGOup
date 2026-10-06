@@ -25,25 +25,15 @@ jobs:
     name: Economy tests and headless boot
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    env:
-      GODOT_VERSION: 4.7.2-stable
     steps:
       - uses: actions/checkout@v7
         with:
           persist-credentials: false
 
+      # The Godot version is pinned in .godot-version, and the same script
+      # (checksum verified) installs it for cloud sessions.
       - name: Install Godot
-        run: |
-          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}"
-          curl -fsSLO "${base}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
-          curl -fsSLO "${base}/SHA512-SUMS.txt"
-          expected="$(grep -F "  Godot_v${GODOT_VERSION}_linux.x86_64.zip" SHA512-SUMS.txt)"
-          test -n "${expected}" || { echo "checksum entry missing"; exit 1; }
-          printf '%s\n' "${expected}" | sha512sum -c -
-          unzip -q "Godot_v${GODOT_VERSION}_linux.x86_64.zip"
-          mv "Godot_v${GODOT_VERSION}_linux.x86_64" godot
-          chmod +x godot
-          echo "GODOT=${PWD}/godot" >> "$GITHUB_ENV"
+        run: echo "GODOT=$(bash tools/install_godot_linux.sh)" >> "$GITHUB_ENV"
 
       - name: Import project
         run: bash run_godot.sh --headless --path . --import
