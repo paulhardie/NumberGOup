@@ -2,6 +2,8 @@
 
 **Status:** accepted 25 September 2026 as [D073](DECISIONS.md#d073--rebuild-the-tower-first-the-number-second). The game is 0.9 with 1.0's Number built; see [Progress](#progress) and the [Roadmap](#roadmap).
 
+> **Read this before trusting the Roadmap (6 October 2026).** This spec was written for "The Tower first, the Number second", and its Progress section is the history of building The Tower's first hours (under Cash rules). **Since D152 to D158 the Number is the run's money as well as its health**, so the Roadmap's order (Labs 1.2, Ultimate Weapons 1.3, tiers 1.4) predates the pivot and is **not yet re-planned.** The open late-game questions are in [HANDOVER.md](HANDOVER.md) (the milestones, the reward following the peak Number, how Workshop power outgrows the run shop), and the design is in [THE_NUMBER.md](THE_NUMBER.md). Re-plan the Roadmap once the owner has decided them; until then treat it as a list of The Tower's systems, not an order.
+
 ## Why rebuild
 
 The game has become The Tower one decision at a time (D009 "shape reference, not a content source" → D068 "go full tower"). Every step carried the one before it: 11 save formats in four days, a one-off Coin conversion, resumed-save reconciliation (D060, D066, D071, D072), a 4,300-line `main.gd` and a 2,300-line `GameState` still named for tax waves. Most recent work has gone on keeping old states valid rather than on the game.
@@ -206,6 +208,6 @@ This needs the owner's OK, then an edit to [`AGENTS.md`](../AGENTS.md), since on
 
 1. ~~Go on the rebuild~~: accepted (D073).
 2. **The process change above:** still open.
-3. ~~The Number's version (A, B or C)~~: A after 1.0 (D079), then superseded: the Number is the tower, in 1.0 (D080). Its open questions are in [`THE_NUMBER.md`](THE_NUMBER.md#6-decisions-for-the-owner).
+3. ~~The Number's version (A, B or C)~~: A after 1.0 (D079), then superseded: the Number is the tower, in 1.0 (D080). Its open questions are in [`THE_NUMBER.md`](THE_NUMBER.md#6-decisions).
 4. ~~Coins per kill~~: flat, accepted (D074).
 5. ~~Cheaper Workshop prices?~~ Keep The Tower's (the owner, 26 September: "fair enough"). The Tower lowers them later with Workshop Discount labs (up to 49.5% a tab), which come with Labs (1.3).

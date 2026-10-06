@@ -1,6 +1,32 @@
 # The Number: design considerations
 
-**Status:** the direction is decided (D080), its four decisions are answered (D081, section 6), and the enemy design is answered and built (D082, section 7): the Number in the centre, and the Divider. Since then the owner removed the Number's ceiling and made Tier 1's Divider gentle (D083: ÷1.25, then ÷1.5). What's left for 1.0 is the owner playing it. Section 9 (2 October 2026) reopens what the Number *is*: it is measurably a health pool. Section 10 (3 October 2026) is the owner's answer (D152): the Number is the player's capital, tried as a measure-only candidate against criteria written down first. Section 11 (4 October 2026) is the owner's next step (D153): **the Number is the goal and waves are the test**, with a design note proposing shots paid for out of the Number. This page is the working list of everything that changes now that the tower *is* a number; the owner's answers go into [`DECISIONS.md`](DECISIONS.md), and this page is updated to match.
+**Status (6 October 2026):** the Number is the tower **and the run's money** (D158). This page grew over two weeks, and its early sections describe what the Number *was*. **Read the table and "The Number today" first, then only the sections you need.** The owner's answers go into [`DECISIONS.md`](DECISIONS.md) (find one in [`DECISIONS_INDEX.md`](DECISIONS_INDEX.md)), and this page is updated to match.
+
+### Which section to trust
+
+| Section | What it is | Status |
+|---|---|---|
+| The direction, 1 to 6 | The first design (D080, D081): the Number as the tower's Health, in the centre | **History.** Its decisions stand (D080 to D083) but the Number is no longer only Health |
+| 2, 7, 8 | How enemies act on the Number; the enemy brainstorm; our base roster (D133) | **Live** for how Dividers, Locks and flat hits work. 7 is a brainstorm, 8 is built |
+| 3, 4, 5 | Systems the Number touches, the screen, the balance plan | **Partly live.** The screen and targets still hold; the Cash and Health rows changed (13, 14) |
+| 9 | "Is the Number a health pool?" (2 October) | **History.** It led to 10 |
+| 10 | The Number as the player's capital (D152) | **Tried and failed.** Kept for its criteria and as the model for an experiment |
+| 11 | The Number is the goal (D153): the design note | **Partly built.** Cash as the Number and the Workshop rows' jobs survive; the fixed shot price failed (12). 11.15 (pacing) is still a proposal |
+| 12 | The fuel economy, measured (D155) | **Parked.** Every configuration failed; a fixed price can't fit Tier 1 |
+| 13 | The Number is Cash (D156, D157): rules, criteria, results, the enemies | **Live.** The rules are built and the results stand |
+| 14 | It becomes the game (D158) | **Live. The current rules**, compatibility reasoning and what is undecided |
+
+### The Number today (D158)
+
+- **One number is your health, your wallet and your score.** Kills and each wave's end pay into it. A run's upgrades are bought with it, never below 1. Enemies' hits and Dividers take from it. The best Number is the record.
+- **Regen and Lifesteal refill only what enemies took.** Spending lowers the ceiling they refill to, so every purchase is a real cost. Recovery Packages are the one exception (14.4).
+- **Health is a Workshop row only:** the Number a run starts with. Interest is on the Number, capped. Free levels don't raise prices.
+- **A Lock holds the Number's growth and the income it blocks,** and pays it all when the last Lock dies (D157).
+- **Run upgrades off** (a setting, chosen before a run) shuts the shop for that run.
+- **Runs begun before D158 play their Cash rules to the end.** The game's rules are `RunConfig.game_tuning()`; the code's own defaults stay off so old saves and measurements replay exactly. No version bump (14.2).
+- **What the bots say (13.3, 14.3):** the same pace as Cash, a Number a fifth to a quarter of its old size, no runaway. The shop adds 25 to 37% of a run's waves even at 1M Coins, as it does under The Tower's own rules.
+- **Undecided (14.4, HANDOVER.md):** the Number milestones now pay less; whether a run's reward follows its peak Number; how Workshop power outgrows the run shop; Recovery Packages; the Thorns turtle against a Lock.
+- **The lesson that cost two experiments:** the Number runs from 5 to millions inside Tier 1, so anything priced in a flat amount of it breaks. Use shares or time.
 
 ## The direction, in the owner's words
 
