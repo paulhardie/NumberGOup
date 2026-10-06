@@ -32,7 +32,9 @@ To add a pop-up: `var sheet := Overlay.new()`, fill `sheet.column` (or `heading`
 
 | Surface | Opens by | Kind | Source |
 |---|---|---|---|
-| Settings | `•••` on Home | SHEET | ours |
+| Settings (grouped, scrolls) | `•••` on Home | SHEET | ours (D160) |
+| Missions (samples) | the Missions tile on Home | SHEET | The Tower's seat, a stand-in (D160) |
+| The next tier | the Next tier tile on Home | SHEET | The Tower's tier card, a stand-in (D160) |
 | Milestones | tap the best Number | SHEET | ours (D107) |
 | Workshop's welcome | first run's end | SHEET, answered | The Tower (D125) |
 | What a group opened | opening it | SHEET | The Tower's unlock popup (D125) |

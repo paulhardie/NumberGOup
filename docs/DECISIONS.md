@@ -2404,3 +2404,15 @@ Rules:
   6. **`docs/GLOSSARY.md`** explains words that differ between code and screen (Cash is the Number now, and the code still says `cash`).
 - **No working rule in AGENTS.md changed:** the commands moved and the Godot sentence was updated, nothing the owner asked to keep as it was.
 - **Checked / not checked:** see HANDOVER.md and the pull request.
+
+## D160 — Home shows what is coming: Missions and the next tier as stand-ins, and a grouped Settings
+
+- **Status:** Accepted (2026-10-06) on the owner's direction: "build out the main screen to have more placeholder content for what's coming next (missions, a better settings menu, etc. Use the tower as a reference)". It goes against D026's and D138's earlier calls to leave Missions and locked placeholders off Home; the owner's latest word controls.
+- **Context:** The Tower's home has Missions, tournament and event countdowns, a tier card and a settings icon. D026 left Missions, tournaments and events off as live-ops scaffolding before the core run is proven, D096 put Missions in as a locked pill, and D138 removed every locked placeholder from Home for a premium-minimal look until Tier 2 existed. Missions are still not on the roadmap (D079), so this shows a direction rather than a plan.
+- **Decision:**
+  1. **A shelf above Battle, shown once a first run has ended** (D125: a new player meets Battle alone). Two tiles, each tagged with when it comes. **Missions** ("later", not on the roadmap) opens a sheet of sample daily and weekly goals with empty bars, and says they are samples: nothing counts and what they ask and pay isn't decided. **Next tier** ("1.4") shows Tier 2's wave 100 gate with a bar that follows the player's best wave, and opens a sheet with Tier 2's real row from the data (enemy health and attack ×20, Coins ×1.8).
+  2. **Settings is grouped and scrolls:** Audio, Gameplay, Display, Data and Testing, with the build line in view under the list. Music, Run upgrades off (with a line saying what it does), Export report and the Testing tools work as before. **Sound effects, Game speed (a Lab, 1.2), Confirm End run, Reduce motion, Haptics and Cloud save are text with a tag, not controls,** so a stand-in can never write a setting.
+  3. **Tournaments and events are not placed.** They need a server and a calendar, and the foundation-completeness law doesn't support building their seats before anything could fill them.
+  4. **Everything is in `src/ui/coming_soon.gd`**, so a stand-in is replaced by its real screen by removing it there. No save, setting, rule or economy change; the dock's reveal rules are untouched.
+- **Consequences:** The sample missions' rewards (Gems and Coins) are illustrations, not design. A real Missions system needs a daily clock (the UTC day the free Gems use is the candidate), progress counted from runs, and a payout that is claimed once; none exists, and none is authorised here.
+- **Revisit when:** Missions are designed (the sheet is replaced), Tier 2 is built (the tile becomes the tier chooser), or a stand-in's system is dropped from the roadmap (remove its tile and row).

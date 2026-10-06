@@ -1,6 +1,6 @@
 # Handover
 
-**Last updated:** 6 October 2026, by Claude Code.
+**Last updated:** 6 October 2026, by Claude Code (Home's stand-ins, D160).
 
 This page is the map for the next session: where the game is, what the owner has to decide, what to do next, what is broken, and what was and wasn't checked for the last change. **Replace it at hand-off; never append.** History lives where it belongs: decisions in [DECISIONS.md](DECISIONS.md) (find one in [DECISIONS_INDEX.md](DECISIONS_INDEX.md)), the Number's design and every experiment's criteria and results in [THE_NUMBER.md](THE_NUMBER.md). Don't write a commit hash or "the next free ID" here: they go stale at the next merge (`python3 tools/decisions_index.py --next` prints the ID, `git log` the hash).
 
@@ -18,7 +18,8 @@ Tier 1 and every Workshop group work.
 - **Tanks keep their weight (D154); the Number is written in full to a trillion (D154).** The five base enemies read as ours (D145).
 - **Cards (D146, D147):** open at Tier 1 wave 20; eleven of The Tower's cards are built; the Cash card reads as **Number Income**. **Menus and pop-ups (D151):** one `Overlay`; holding a tile reads it ([UI_POPUPS.md](UI_POPUPS.md)).
 - **Measure-only, never in the game:** the fuel economy (D155, a fixed shot price can't fit Tier 1), the capital trial (D152, failed), nine candidate cards. **Balance harness (D150):** bots, not players; since D158 it plays the game's rules ([BALANCE_TESTS.md](BALANCE_TESTS.md)). Under them four of D149's six dead cards meet the floor (Critical Chance and Health Regen still fail).
-- **Development tooling (this PR):** the pinned Godot installs itself (`tools/install_godot_linux.sh`, `.godot-version`; CI and a cloud-session hook use it), commands moved to TOOLS.md, a decision index with a test, a glossary.
+- **Home shows what's coming (D160):** after a first run a shelf above Battle holds **Missions** (sample goals, "later") and the **next tier** (Tier 2's real row and a bar to wave 100, "1.4"), and **Settings is grouped** with six unbuilt settings as tagged text. All stand-ins live in `src/ui/coming_soon.gd`; none reads a save or changes a rule.
+- **Development tooling (merged, D159):** the pinned Godot installs itself (`tools/install_godot_linux.sh`, `.godot-version`; CI and a cloud-session hook use it), commands moved to TOOLS.md, a decision index with a test, a glossary.
 
 ## Open decisions for the owner
 
@@ -30,7 +31,8 @@ Tier 1 and every Workshop group work.
 6. **The fuel economy (D155) is parked:** a fixed shot price can't fit Tier 1, so shots are free and Cash is the Number's pressure. The per-wave price (12.6), holding fire and bounties stay as measuring options.
 7. **Pop-ups (D151):** does holding stay, and what next? I'd keep it and add **a one-line hint that holding reads**, then **hold the daily Gems pill** (its tooltip never shows on a phone). Two are yours: **a confirm on End run** and **moving the run-over panel onto a sheet** (it shades the arena). UI_POPUPS.md section 3 has the rest.
 8. **Which cards to make drawable next?** Factor, Super Tower and a rescaled Berserker are the candidates in CARDS.md. Park the rest. **Changing cards mid-run:** I'd still keep them fixed for the run.
-9. **Still open from before:** play the D145 enemies; sign off 1.0; the D131 digit rewards; the speed switch; the Mac sync waiting on a saved battle; publishing Tower-derived data.
+9. **What should Missions be, if anything?** (D160 shows samples only.) It needs a daily clock, progress counted from runs and a claim-once payout, and the anti-goals still list live-ops before the core run is proven. I'd **keep it a stand-in until the late-game direction (decisions 2 and 3) is settled**, because what a mission asks and pays depends on what Coins and Gems are for by then. Tournaments and events weren't placed (server and calendar).
+10. **Still open from before:** play the D145 enemies; sign off 1.0; the D131 digit rewards; the speed switch; the Mac sync waiting on a saved battle; publishing Tower-derived data.
 
 ## Next steps, in order
 
@@ -41,8 +43,9 @@ Tier 1 and every Workshop group work.
 
 ## Checked, and not checked
 
-- **Checked, this PR (tooling and docs only, no game change):** `bash run_tests.sh` passes with no `GODOT` set (the fallback finds the installed copy), the install script and the session-start hook were run fresh, again (idempotent) and outside a cloud session (does nothing), the decision index is generated and tested, every command, flag and tool path from the old AGENTS.md Commands section is still present (checked by script), CI runs the same install script.
-- **Not checked:** the CI run on the new install step until the PR's checks finish; the hook inside a real cloud session start (it was run directly); how much shorter a cold session now is.
+- **Checked, D160 (Home's stand-ins; UI only, no rule, save or setting changed):** `bash run_tests.sh` passes (26 new checks: no shelf before a first run, the shelf and its tags after, the tier bar following the best wave, both sheets and what they say, Tier 2's row read from the data, Settings' groups in order, no unbuilt setting has anything to press, only the two real switches are switches, opening them writes nothing); the headless boot is clean; screenshots of Home, Settings (top and bottom), Missions and the next tier at 540 × 960 looked at.
+- **Not checked, D160:** a real phone, a screen shorter than 960 (the shelf adds about 70 points to Home), the Settings list on a short window beyond its height rule, and whether the owner likes the shelf, the sample goals and the groups.
+- **Checked, D159 (merged, tooling and docs only):** the pinned Godot installs and runs the baseline with no `GODOT` set, the install script and session-start hook were run fresh, again and outside a cloud session, the decision index is generated and tested, CI ran the same install script and passed. **Not checked:** the hook inside a brand-new cloud session start, and how much shorter a cold session is.
 - **Checked, D158 (PR #161, merged):** tests for the rules, a run begun under each rule set resumed from a snapshot and a replay, the game's own start, the settings file from the Testing-switch period; the headless boot and capture tool; the harness measuring the game's rules; an independent adversarial review (its findings fixed). **Not checked:** a player on that build, a phone, Tier 2 and 3, a frozen byte fixture of a pre-D158 save (old runs are tested with ones generated from today's code; `tools/check_migration.gd` checks a real save copy).
 
 ## Known issues and limits
@@ -50,6 +53,7 @@ Tier 1 and every Workshop group work.
 - **Knockback is probably still too strong** (the owner, 4 October): at high levels it pushes tanks and bosses back faster than they walk, so they never arrive and runs never end. D154 removed the worn-tank mass loss; what's left is our guessed 5 metres per unit of force and a chance that rolls on every strike. The diagnosis is in THE_NUMBER.md 11.14; the rest of the fix waits until the Number's role is settled. Stage 1 measured the blender with it on and off: neither run reached the cap.
 - **A first-sight card only shows past the player's best wave.**
 - **Unbuilt cards are hidden, not shown locked.**
+- **Home's stand-ins can mislead a quick glance:** the sample missions' rewards are illustrations, and the Missions tile says "Daily goals" though none exist (the tag and the sheet say so).
 - **Nothing tells a player that holding reads** (D151), and the daily pill's explanation is a hover tooltip, which a phone never shows.
 - **The run-over panel isn't on `Overlay`:** it doesn't shade the arena like every other panel.
 - **The Cards screen refreshes only on its own changes.**

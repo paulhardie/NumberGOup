@@ -59,6 +59,21 @@ func _capture() -> void:
 	home = HomeScreen.new()
 	home.workshop = progress
 	home.progression = earned
+	home.ready.connect(home._open_settings)
+	await _shoot(home, "home_settings_bottom", true)
+	home = HomeScreen.new()
+	home.workshop = progress
+	home.progression = earned
+	home.ready.connect(home._open_missions)
+	await _shoot(home, "home_missions")
+	home = HomeScreen.new()
+	home.workshop = progress
+	home.progression = earned
+	home.ready.connect(home._open_next_tier)
+	await _shoot(home, "home_next_tier")
+	home = HomeScreen.new()
+	home.workshop = progress
+	home.progression = earned
 	home.show_gift(57.0)
 	await _shoot(home, "home_welcome")
 	var shop := WorkshopScreen.new()
