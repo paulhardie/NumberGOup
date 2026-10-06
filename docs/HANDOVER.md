@@ -38,7 +38,7 @@ Tier 1 and every Workshop group work.
 
 ## Next steps, in order
 
-1. **Agent:** build the earned-Coins options off by default (`earned_share`, `earned_power`, `earned_scale`), the trial tool `tools/earned_trial.py` with its criteria as code and tests, and measure all six configurations against E1 to E7, reporting every one (THE_NUMBER.md 16). Medium, economy, so it is high risk and needs the independent review before it becomes the game. I'd start on the owner's word that the criteria read right.
+1. **Agent:** measure the six configurations of the earned-Coins options against E1 to E7 with `python3 tools/earned_trial.py` and report every one (THE_NUMBER.md 16). The options (`earned_share`, `earned_power`, `earned_scale`) and the trial tool are built, off by default, with tests; the quick balance comparison shows no movement. Making it the game is its own high-risk change with an independent review.
 2. **Owner:** read the criteria (THE_NUMBER.md 16.5) and say if any should change **before** results exist, since they can't change after; and play a few runs as the game now plays.
 3. **Owner:** read [GROWTH_LAYERS.md](GROWTH_LAYERS.md) and answer its section 6: which currency pays for Ultimate Weapons (I'd reuse Gems for now), whether Labs lead with run-economy Labs (I'd say yes), and where our own rows live (before the first one). Then Labs (1.2) is the next build.
 4. **Owner:** **play a run holding tiles on a phone**: the one pop-up check that couldn't be made.

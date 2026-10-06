@@ -16,7 +16,7 @@
 | 13 | The Number is Cash (D156, D157): rules, criteria, results, the enemies | **Live.** The rules are built and the results stand |
 | 14 | It becomes the game (D158) | **Live. The current rules**, compatibility reasoning and what is undecided |
 | 15 | Coins from the peak Number: what the peak is made of (6 October) | **Live finding.** The peak is the Health row's Number for strong builds, so the reward follows the Number earned (16) |
-| 16 | Coins from the Number earned (D162): definitions, options and pass criteria | **Criteria written; nothing built.** Written before any option, per QUALITY_GATES |
+| 16 | Coins from the Number earned (D162): definitions, options and pass criteria | **Criteria written first; options built, off by default; measuring.** Not the game's rules |
 
 ### The Number today (D158)
 
@@ -1120,7 +1120,7 @@ Turtle at 1M (4 seeds, buying): wave 150 every seed, about 36,800 earned, about 
 
 ### 16.3 The options
 
-All off by default, in the style of D155 to D157: BattleSim fields `earned_share` (`s`), `earned_power` (`p`) and `earned_scale` (`K`); recorded in a run's start config only while on (`RunConfig.trial_tuning`, validated by `valid_tuning`); the earned part's running total saved in a snapshot only while on; flags in `sim_runs.gd`; the criteria as code in `tools/earned_trial.py` (the pattern of `cash_trial.py`) with a test that each criterion fails at its boundary and that a criterion whose runs weren't played reads "not run", never a pass. A run made without them is byte for byte what it was; **the quick balance comparison showing no movement is the proof.**
+**Built (6 October 2026), nothing measured yet.** All off by default, in the style of D155 to D157: BattleSim fields `earned_share` (`s`), `earned_power` (`p`) and `earned_scale` (`K`); recorded in a run's start config only while on (`RunConfig.trial_tuning`, validated by `valid_tuning`); the earned part's running total saved in a snapshot only while on; flags in `sim_runs.gd`; the criteria as code in `tools/earned_trial.py` (the pattern of `cash_trial.py`) with a test that each criterion fails at its boundary and that a criterion whose runs weren't played reads "not run", never a pass. A run made without them is byte for byte what it was; **the quick balance comparison showing no movement is the proof.**
 
 ### 16.4 The cells
 

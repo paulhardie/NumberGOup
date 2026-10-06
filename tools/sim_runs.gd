@@ -57,6 +57,10 @@ extends SceneTree
 ## in when the Lock dies, --upgrades-off shuts the run shop for the run, and --reserve R keeps the bot
 ## from spending below R times the run's best Number (0 to below 1; 0 spends
 ## down to 1). Each run prints where the Number's income came from.
+## Coins from the Number earned (D162, docs/THE_NUMBER.md section 16):
+## --earned-share S makes that share of a run's Coins follow the Number earned
+## (0 to 1; the kill and wave Coins pay the rest), --earned-power P its power
+## (default 1) and --earned-scale K its constant. Each run prints the Coins it paid.
 ## --knockback off zeroes the Workshop's Knockback rows and closes its group,
 ## and --row-levels ID:N,... sets those rows to Workshop level N, opening their
 ## groups, on top of any other Workshop option (single runs and card sweeps).
@@ -268,7 +272,7 @@ func _init() -> void:
 		_record_run(sim, "run", 0, cap_seconds)
 		print("%4d  %4d  %9s  %5d  %11.0f  %5.0f  %11.1f  %13s  %5.0f%%  %-9s  %s" % [index + 1, sim.wave, _clock(sim.time), sim.kills, sim.cash_earned, sim.coins,
 			sim.peak_number, "%d/%d" % [sim.dividers_spawned, sim.dividers_landed], _divider_share_of_loss(sim),
-			sim.killed_by if not sim.alive else "(alive)", _bought(sim)] + _curve(sim, options) + _gains(sim, options) + _losses(sim, options) + _thieves(sim) + _fuel(sim) + _income(sim))
+			sim.killed_by if not sim.alive else "(alive)", _bought(sim)] + _curve(sim, options) + _gains(sim, options) + _losses(sim, options) + _thieves(sim) + _fuel(sim) + _income(sim) + _earned(sim))
 	waves.sort()
 	print("median wave %d, range %d to %d" % [waves[waves.size() / 2], waves[0], waves[-1]])
 	quit(0 if _write_measurements(options) else 1)
@@ -685,6 +689,10 @@ func _tune(sim: BattleSim, options: Dictionary) -> bool:
 	sim.lock_holds_cash = options.has("lock-holds-cash")
 	if options.has("reserve"):
 		sim.reserve_share = float(options.reserve)
+	# Coins from the Number earned (D162), off unless asked for.
+	for option in ["earned-share", "earned-power", "earned-scale"]:
+		if options.has(option):
+			sim.set(option.replace("-", "_"), float(options[option]))
 	# The fuel economy (D155), off unless asked for.
 	sim.hold_doomed = options.has("hold-doomed")
 	for option in ["shot-price", "bounty-share", "free-bounty-share", "base-regen", "regen-scale"]:
@@ -747,6 +755,13 @@ func _fuel(sim: BattleSim) -> String:
 		return ""
 	return "  | shots %d paid %.0f, bounties %.0f (free %.0f), peak wave %d, crossing %d" % [sim.shots_paid, sim.fuel_spent,
 		float(sim.gained_from.get("bounty", 0.0)), float(sim.gained_from.get("free_bounty", 0.0)), sim.peak_wave, _crossing(sim)]
+
+
+## With Coins following the Number earned (D162), what they paid: " | earned Coins 412 of 915".
+func _earned(sim: BattleSim) -> String:
+	if not sim.earned_active():
+		return ""
+	return "  | earned Coins %.0f of %.0f" % [sim.earned_coins, sim.coins]
 
 
 ## With the Number as Cash (D156), its income: " | income 4,210: kill_cash 81%,
@@ -823,6 +838,8 @@ func _record_run(sim: BattleSim, case_id: String, run: int, cap_seconds: float) 
 		_measurements[-1].merge({"gained_from": sim.gained_from.duplicate(), "raised_by": sim.raised_by.duplicate(),
 			"free_levels": sim.free_levels.duplicate(), "paid_by": sim.paid_by.duplicate(), "locked_out": sim.locked_out,
 			"locked_seconds": sim.locked_seconds, "lock_held": sim.lock_held})
+	if sim.earned_active():
+		_measurements[-1].merge({"earned_coins": sim.earned_coins})
 	if sim.fuel_active():
 		_measurements[-1].merge({"shots_paid": sim.shots_paid, "fuel_spent": sim.fuel_spent, "peak_wave": sim.peak_wave,
 			"crossing": _crossing(sim), "gained_from": sim.gained_from.duplicate(), "raised_by": sim.raised_by.duplicate()})

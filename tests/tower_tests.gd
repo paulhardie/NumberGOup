@@ -3654,6 +3654,46 @@ func test_the_music_plays_unless_the_player_turns_it_off() -> void:
 ## A sim with nothing spawning, for placing enemies by hand.
 ## The fuel economy (D155, THE_NUMBER.md section 12): measuring options, off
 ## in the game.
+## A run of the game's rules, with Coins following the Number earned or not (D162).
+func _earned_run(seed_value: int, tuning: Dictionary, run_tier: int = 1, seconds: float = 400.0) -> BattleSim:
+	var sim := BattleSim.new(seed_value, {"damage": 20, "health": 30, "health_regen": 10}, BattleSim.START_GROUPS, run_tier)
+	check(sim.configure_tuning(tuning), "a run takes its tuning before its first wave")
+	var rows := ["damage", "attack_speed", "health_regen"]
+	var turn := 0
+	while sim.alive and sim.time < seconds:
+		sim.step()
+		if sim.ticks % 61 == 0 and sim.can_buy(rows[turn % rows.size()]):
+			sim.buy(rows[turn % rows.size()])
+			turn += 1
+	return sim
+
+
+## D162 (THE_NUMBER.md section 16): off in the game and recorded only while on;
+## the rule pays the Coins the section says, and a seed plays exactly as it does
+## without it, so only the Coins differ (the criteria's per-seed comparison).
+func test_coins_following_the_number_earned_pay_by_the_rule_and_change_only_the_coins() -> void:
+	var rules := {"number_cash": true, "lock_holds_cash": true}
+	var plain := BattleSim.new(1)
+	check(not plain.earned_active() and plain.earned_share == 0.0 and plain.earned_scale == 0.0 and plain.earned_power == 1.0, "the game plays none of it")
+	check(["earned_share", "earned_power", "earned_scale"].all(func(key): return not plain.tuning_config().has(key)), "and a run records none of its options while they are off")
+	var control := _earned_run(7, rules)
+	check(control.coins > 0.0 and control.cash_earned > 0.0 and control.earned_coins == 0.0, "the control earns Number and ordinary Coins: %.1f Coins, %.1f earned" % [control.coins, control.cash_earned])
+	var all_of_it := _earned_run(7, rules.merged({"earned_share": 1.0, "earned_power": 1.0, "earned_scale": 0.1}))
+	check(all_of_it.earned_active() and all_of_it.start_config().tuning.earned_share == 1.0 and not all_of_it.start_config().tuning.has("earned_power"), "turned on it is recorded, and only what differs from off")
+	check(all_of_it.ticks == control.ticks and all_of_it.wave == control.wave and all_of_it.kills == control.kills and is_equal_approx(all_of_it.cash_earned, control.cash_earned)
+			and is_equal_approx(all_of_it.health, control.health) and is_equal_approx(all_of_it.peak_number, control.peak_number),
+		"the same seed plays the same run: waves, kills, Number earned and Number all equal the control's")
+	check_near(all_of_it.coins, 0.1 * all_of_it.cash_earned, 1e-6 * maxf(1.0, all_of_it.coins), "a whole share pays scale times the Number earned and the kills' own Coins nothing")
+	check_near(all_of_it.earned_coins, all_of_it.coins, 1e-9 * maxf(1.0, all_of_it.coins), "all of it from the earned rule")
+	var half := _earned_run(7, rules.merged({"earned_share": 0.5, "earned_power": 0.8, "earned_scale": 0.2}))
+	var paid := 0.5 * 0.2 * pow(half.cash_earned, 0.8)
+	check_near(half.earned_coins, paid, 1e-6 * maxf(1.0, paid), "half a share at a power pays share times scale times earned to the power")
+	check_near(half.coins, 0.5 * control.coins + half.earned_coins, 1e-6 * maxf(1.0, half.coins), "and the kills and waves pay the other half of what they did")
+	var second := _earned_run(7, rules.merged({"earned_share": 1.0, "earned_power": 1.0, "earned_scale": 0.1}), 2, 300.0)
+	check(second.tier == 2 and second.cash_earned > 0.0, "a Tier 2 run earned Number")
+	check_near(second.coins, 0.1 * float(TowerData.tier(2).coins) * second.cash_earned, 1e-6 * maxf(1.0, second.coins), "the tier's Coin bonus multiplies the earned part, and the Number earned isn't scaled by the tier's Attack")
+
+
 func test_the_fuel_economy_is_off_and_leaves_no_trace() -> void:
 	var sim := BattleSim.new(1)
 	check(not sim.fuel_active() and sim.shot_price == 0.0 and sim.bounty_share == 0.0 and sim.free_bounty_share == 0.0 \
