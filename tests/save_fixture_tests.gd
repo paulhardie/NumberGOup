@@ -60,7 +60,9 @@ func run() -> void:
 	for name in PROTECTED: test_protected(name)
 	for name in UNREADABLE: test_unreadable(name)
 	# Only this suite owns this unique directory; leave no test saves behind.
-	for name in DirAccess.get_files_at(scratch):
+	# Listings need a globalised path: macOS Godot ignores the user:// prefix
+	# here and lists the project root instead.
+	for name in DirAccess.get_files_at(ProjectSettings.globalize_path(scratch)):
 		check(DirAccess.remove_absolute(scratch.path_join(name)) == OK, "scratch file removed: " + name)
 	check(DirAccess.remove_absolute(scratch) == OK, "scratch directory removed")
 	for failure in failures: printerr("FAIL: ", failure)
@@ -167,7 +169,7 @@ func test_unreadable(name: String) -> void:
 	check(not FileAccess.file_exists(path), name + " unreadable original moves aside")
 	var backups: Array[String] = []
 	var prefix := name.get_basename() + ".unreadable-"
-	for file in DirAccess.get_files_at(scratch):
+	for file in DirAccess.get_files_at(ProjectSettings.globalize_path(scratch)):
 		if file.begins_with(prefix): backups.append(file)
 	check(backups.size() == 1, name + " has exactly one recovery copy")
 	if backups.size() != 1: return
