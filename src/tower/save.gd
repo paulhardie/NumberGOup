@@ -1,13 +1,14 @@
 extends RefCounted
 ## One atomic file owns permanent progress and the active battle. Versions 1
-## and 2 migrate explicitly, each kept first as a backup; newer files stay in
-## place and disable progress writes. Version 3 adds Cards (D146).
+## to 3 migrate explicitly, each kept first as a backup; newer files stay in
+## place and disable progress writes. Version 3 adds Cards (D146); version 4
+## the best Number earned, which the digit ladder climbs (D164).
 const Workshop = preload("res://src/tower/workshop.gd")
 const Progression = preload("res://src/tower/progression.gd")
 const PATH := "user://number_go_up_tower.json"
-const VERSION := 3
+const VERSION := 4
 ## The older versions this build migrates.
-const OLDER := [1, 2]
+const OLDER := [1, 2, 3]
 
 
 static func _read(path: String):
@@ -44,7 +45,7 @@ static func load_progress(path: String = PATH) -> Progression:
 				progress.notice = "The save contains unsupported or damaged progress. It has been kept untouched for recovery."
 				return progress
 			progress.restore(migrated)
-			if not _valid_current(data.workshop, migrated, progress):
+			if not _valid_current(_migrated_workshop(data, progress), migrated, progress):
 				progress.writable = false
 				progress.notice = "The save contains unsupported or damaged progress. It has been kept untouched for recovery."
 		else:
@@ -72,6 +73,17 @@ static func _migrated(data: Dictionary):
 	return progression
 
 
+## A saved Workshop as the current schema holds it: before version 4 there was
+## no best Number earned, and the Workshop seeds it from the best peak (D164).
+## Null if an older save already claims one, which no older build wrote.
+static func _migrated_workshop(data: Dictionary, progress: Progression):
+	var workshop: Dictionary = data.workshop.duplicate(true)
+	if int(data.version) < 4:
+		if workshop.has("best_earned"): return null
+		workshop.best_earned = progress.workshop.best_earned
+	return workshop
+
+
 static func _known(version) -> bool:
 	return (version is int or version is float) and (int(version) == VERSION or int(version) in OLDER) and float(version) == int(version)
 
@@ -82,9 +94,10 @@ static func _view(value) -> String:
 	return JSON.stringify(json.data, "", true, true)
 
 
-static func _valid_current(saved_workshop: Dictionary, progression: Dictionary, progress: Progression) -> bool:
+static func _valid_current(saved_workshop, progression: Dictionary, progress: Progression) -> bool:
 	# A repair in a current schema must not silently delete permanent progress.
 	# Legacy sanitisation is backed up separately before the v1 migration.
+	if not saved_workshop is Dictionary: return false
 	var workshop: Dictionary = saved_workshop.duplicate(true)
 	if workshop.has("coin_parts"):
 		var parts = preload("res://src/tower/run_config.gd").unpack(workshop.coin_parts)
