@@ -1216,7 +1216,7 @@ What the numbers show (medians, bots):
 - **Configurations:** the control (today's peak ladder), and the earned ladder with today's rewards scaled by 1.0 and by 0.5. Reported all three.
 - **The record stays the true peak** (`best_number`), and is still what Home shows.
 
-### 17.3 The options
+### 17.3 The options (built 6 October 2026)
 
 Measuring options on `Workshop`, off by default and never saved: `ladder_on_earned` (key the ladder on the Number earned) and `ladder_scale` (a multiplier on its rewards), with the best Number earned held in memory only while on. `Workshop.finish_run` takes the run's Number earned. `sim_runs.gd` gets `--ladder earned` and `--ladder-scale N`. The criteria as code in `tools/ladder_trial.py`, tested so that each fails at its boundary and an unplayed criterion reads "not run". **With them off nothing changes; the quick balance comparison is the proof.** Making it the game is its own change, with a save field for the best Number earned, a migration and an independent review.
 
