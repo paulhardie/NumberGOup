@@ -2435,4 +2435,5 @@ Rules:
   3. **The experiment's design and pass criteria are written first** (THE_NUMBER.md 16), before any option is built, as QUALITY_GATES requires: the definitions, the reward rule and its one-cell calibration, the six configurations, the cells and seven criteria (E1 to E7), all committed before the options exist.
   4. **The digit ladder is a second stage,** with its own criteria after this one's results.
 - **Not decided:** whether the earned reward becomes the game's rule (it waits on the results, the owner's play and an independent review), the share `s` and power `p` it would use, and what the digit ladder should pay.
-- **Revisit when:** the measurement is in, or play shows the reward feels wrong.
+- **Measured (2026-10-06, THE_NUMBER.md 16.7): FAIL, all six configurations.** E4 (tiers) passes in every one; E2 (paid alike) and E5 (Coin rows still matter) pull against each other, so no share satisfies both; a power of 0.8 over-pays fresh runs and a power of 1 mis-sizes builds. The nearest are share 0.25 (5 of 7). **The earned reward is not the game's rule,** and the agent recommends leaving Coins as they are; the owner decides.
+- **Revisit when:** the owner decides what to do with the result, or play shows the reward feels wrong.

@@ -165,6 +165,22 @@ class EarnedCriteriaTests(unittest.TestCase):
         _, overall = trial.render(((0.5, 1.0),), passing())
         self.assertEqual(overall[PREFIX], 'PASS')
 
+    def test_the_post_hoc_reading_uses_equal_horizons_and_never_changes_a_verdict(self):
+        results = passing()
+        for cell, coins_each in (('career_core', 100.0), ('career_grow', 40.0)):
+            for who in ('ctrl', PREFIX):
+                runs = [{'case': 'career', 'seed': i + 1, 'run': i + 1, 'coins': coins_each if i < 50 else 1000.0, 'cash': 100.0,
+                         'game_seconds': 600.0} for i in range(trial.CAREER_RUNS[cell.split('_')[1]])]
+                results[f'{who}.{cell}'] = {'runs': runs}
+        extra = trial.post_hoc(results, PREFIX)
+        self.assertEqual(extra['horizon'], 50)
+        self.assertAlmostEqual(extra['grow_over_core_median'], 0.4, msg='the 20 later grow runs are left out, so the median is 40 over 100')
+        self.assertAlmostEqual(extra['grow_over_core_total'], 0.4)
+        self.assertAlmostEqual(extra['worst_run_over_limit']['core'], 100.0 / 150.0)
+        self.assertTrue(set(trial.evaluate(results, PREFIX)) <= set(range(1, 8)), 'it is reported beside the criteria, never one of them')
+        del results[f'{PREFIX}.career_grow']
+        self.assertIsNone(trial.post_hoc(results, PREFIX), 'without its runs it reads nothing, not a number')
+
     def test_the_calibration_and_the_plan_are_the_declared_ones(self):
         self.assertAlmostEqual(trial.scale(1.0), 420.5 / 3950.5)
         self.assertAlmostEqual(trial.scale(0.8) * 3950.5 ** 0.8, 420.5, places=6)
