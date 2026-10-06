@@ -134,22 +134,25 @@ func _change_coins(amount: float) -> void:
 	_coins = high
 
 
-## The digit ladder keyed on the Number earned (D163, THE_NUMBER.md 17): measuring
-## options, off in the game and never saved. With `ladder_on_earned` a digit pays
-## the first time the best Number a run has earned (`best_earned`, held in memory
-## only) reaches it, instead of the best peak, and `ladder_scale` multiplies what it
-## pays. The record, `best_number`, stays the true peak either way.
-var ladder_on_earned := false
-var ladder_scale := 1.0
+## The most Number any run has earned (kills, waves and Interest, before
+## spending; BattleSim.cash_earned), which the digit ladder climbs (D164). Saves
+## from before it start from the best peak, the old ladder's measure, so no
+## digit already paid pays again.
 var best_earned := 0.0
+## Measuring options (D163), never saved: `ladder_on_peak` pays digits on the
+## best peak as before D164, for comparing; `ladder_scale` multiplies what a
+## digit pays.
+var ladder_on_peak := false
+var ladder_scale := 1.0
 
 
-## Counts a run as it ends: its wave and its peak Number against the bests.
-## The first run's end also gives FIRST_RUN_GIFT.
-## A peak that takes the best Number past a milestone for the first time pays
-## that milestone's Coins (D107), or with the ladder keyed on the Number earned
-## (D163, measuring only) the run's `earned` does; the milestones reached are returned, as
-## {number, coins}, for the run's end to show and the log to keep.
+## Counts a run as it ends: its wave, its peak Number and the Number it earned
+## against the bests. The first run's end also gives FIRST_RUN_GIFT.
+## A run whose Number earned passes a milestone the best hadn't reached pays
+## that milestone's Coins (D107, D164), so a player who spends the Number climbs
+## the ladder as one who hoards it does; the milestones reached are returned, as
+## {number, coins}, for the run's end to show and the log to keep. The record
+## Home shows, `best_number`, stays the true peak.
 func finish_run(wave: int, peak_number: float = 0.0, earned: float = 0.0) -> Array[Dictionary]:
 	gift_given = 0.0
 	if runs == 0:
@@ -159,37 +162,39 @@ func finish_run(wave: int, peak_number: float = 0.0, earned: float = 0.0) -> Arr
 	runs += 1
 	best_wave = maxi(best_wave, wave)
 	var reached: Array[Dictionary] = []
-	if ladder_on_earned:
-		if is_finite(earned):
-			for milestone in Guesses.MILESTONES:
-				if best_earned < float(milestone.number) and earned >= float(milestone.number):
-					var paid: Dictionary = milestone.duplicate()
-					paid.coins = float(milestone.coins) * ladder_scale
-					reached.append(paid)
-					add_coins(float(paid.coins))
-			best_earned = maxf(best_earned, earned)
-		if is_finite(peak_number):
-			best_number = maxf(best_number, peak_number)
-		return reached
-	if is_finite(peak_number):
+	var climbed := peak_number if ladder_on_peak else earned
+	if is_finite(climbed):
+		var best := ladder_best()
 		for milestone in Guesses.MILESTONES:
-			if best_number < float(milestone.number) and peak_number >= float(milestone.number):
-				reached.append(milestone.duplicate())
-				add_coins(float(milestone.coins))
+			if best < float(milestone.number) and climbed >= float(milestone.number):
+				var paid: Dictionary = milestone.duplicate()
+				if ladder_scale != 1.0:
+					paid.coins = float(milestone.coins) * ladder_scale
+				reached.append(paid)
+				add_coins(float(paid.coins))
+	if is_finite(earned):
+		best_earned = maxf(best_earned, earned)
+	if is_finite(peak_number):
 		best_number = maxf(best_number, peak_number)
 	return reached
 
 
-## The next milestone the best Number hasn't reached, or empty past the last.
+## What the digit ladder has climbed to: the best Number earned (D164), or the
+## best peak while measuring the old ladder.
+func ladder_best() -> float:
+	return best_number if ladder_on_peak else best_earned
+
+
+## The next milestone the ladder hasn't reached, or empty past the last.
 func next_milestone() -> Dictionary:
 	for milestone in Guesses.MILESTONES:
-		if best_number < float(milestone.number):
+		if ladder_best() < float(milestone.number):
 			return milestone
 	return {}
 
 
 func to_dict() -> Dictionary:
-	return {"coins": coins, "coin_remainder": _coin_remainder, "coin_parts": RunConfig.pack({"coins": coins, "remainder": _coin_remainder}), "levels": levels.duplicate(), "open_groups": open_groups.duplicate(), "best_wave": best_wave, "best_number": best_number, "runs": runs}
+	return {"coins": coins, "coin_remainder": _coin_remainder, "coin_parts": RunConfig.pack({"coins": coins, "remainder": _coin_remainder}), "levels": levels.duplicate(), "open_groups": open_groups.duplicate(), "best_wave": best_wave, "best_number": best_number, "best_earned": best_earned, "runs": runs}
 
 
 ## Takes saved data into this fresh Workshop, keeping only what still makes
@@ -219,6 +224,11 @@ func restore(data: Dictionary) -> void:
 	best_wave = int(_amount(data.get("best_wave")))
 	# Saves from before D081 have none, and start from 0.
 	best_number = _amount(data.get("best_number"))
+	# Saves from before D164 have none: their digits were paid on the peak, so
+	# every digit up to the best peak counts as climbed. A damaged value is read
+	# the same way, so it can never pay a digit twice.
+	var earned = data.get("best_earned")
+	best_earned = float(earned) if (earned is float or earned is int) and is_finite(float(earned)) and float(earned) >= 0.0 else best_number
 	runs = int(_amount(data.get("runs")))
 
 

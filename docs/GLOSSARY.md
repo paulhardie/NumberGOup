@@ -5,6 +5,7 @@ Words that mean something different in the code, the docs and the old game. When
 | Word | What it means now | Where it trips you up |
 |---|---|---|
 | **Number** | The tower's health **and the run's money** (D158). Code: `health`, `max_health()`, `peak_number`, `_ceiling` (what Regen and Lifesteal may refill to) | It is also the score: the best Number is the record |
+| **Number earned** | What kills, waves and Interest paid into the Number in a run, before any was spent. The digit ladder climbs it (D164) | Code: `cash_earned` in a run, `best_earned` in the Workshop. The best Number (the record) is the peak, a different figure |
 | **Cash** | **Gone from a new run.** Kills, waves and Interest pay into the Number. Still real for a run begun before D158, which plays its Cash rules to the end | The code keeps the name: `cash_earned`, `cash_per_wave`, `cash_bonus`, the `cash` card and `sim.cash` all exist. A Cash row reads as "Number bonus" or "Number / wave" on screen (`Palette.row_title`) |
 | **Run upgrades** (also "the Rig", "in-run upgrades") | The shop a run buys from during play. Priced in The Tower's Cash price tables, **paid from the Number**, never below 1. Code: `buy`, `plan`, `run_levels`, `free_levels`, `in_shop` | "Run Upgrades off" in Settings shuts it for the next run |
 | **Workshop** | Permanent rows bought with Coins between runs. The **Health** row is the Number a run starts with; **Health Regen** is Number Regen | Health is Workshop-only: the run shop doesn't sell it |

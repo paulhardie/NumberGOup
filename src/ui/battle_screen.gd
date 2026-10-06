@@ -245,7 +245,7 @@ func _process(delta: float) -> void:
 	_refresh()
 	_first_sight(delta)
 	if not sim.alive and not _over.visible:
-		milestones = workshop.finish_run(sim.wave, sim.peak_number)
+		milestones = workshop.finish_run(sim.wave, sim.peak_number, sim.cash_earned)
 		run_finished.emit()
 		_show_run_over()
 
@@ -334,7 +334,7 @@ func _show_run_over() -> void:
 	if sim.killed_by == "data_limit":
 		_over_text.text += "\nAll supported waves cleared. More enemy data is needed to continue further."
 	for milestone in milestones:
-		_over_text.text += "\nMilestone: %s reached · +● %s" % [Palette.full(float(milestone.number), INF), Palette.money(float(milestone.coins))]
+		_over_text.text += "\nMilestone: %s earned · +● %s" % [Palette.full(float(milestone.number), INF), Palette.money(float(milestone.coins))]
 	# A first run's end leads Home, where the Workshop's welcome waits (D125).
 	_again.visible = workshop.gift_waiting <= 0.0
 	_over.visible = true

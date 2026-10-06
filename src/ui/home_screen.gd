@@ -291,7 +291,9 @@ func refresh() -> void:
 	_best_number.text = Palette.full(ceilf(workshop.best_number))
 	_fit_best_number()
 	var next := workshop.next_milestone()
-	_next_digit.text = "next digit  ● %s" % Palette.money(float(next.coins)) if not next.is_empty() else "every digit reached"
+	# Under the peak, so it names its own measure: the digits climb the Number a
+	# run earns (D164), not the best Number above it.
+	_next_digit.text = "earn %s in a run  ● %s" % [Palette.full(float(next.number), INF), Palette.money(float(next.coins))] if not next.is_empty() else "every digit reached"
 	var best := _best_wave_now()
 	_best_wave.text = "Tier 1  ·  best wave %d  ·  %d run%s" % [best, workshop.runs, "" if workshop.runs == 1 else "s"]
 	_shelf_box.visible = workshop.runs > 0
@@ -420,10 +422,12 @@ func _fill_milestones() -> void:
 			label.add_theme_color_override("font_color", Palette.MUTED if claimed else Palette.TEXT)
 			_milestones_list.add_child(label)
 		_milestones_list.add_child(Palette.hairline())
-		_milestones_list.add_child(_caption("Best Number"))
+		# Digits are climbed by the Number a run earns, spent or not (D164), so the
+		# heading says so: the emblem's best Number is the peak, a different figure.
+		_milestones_list.add_child(_caption("Number earned in a run · best %s" % Palette.full(ceilf(workshop.ladder_best()))))
 	var next := workshop.next_milestone()
 	for milestone in Guesses.MILESTONES:
-		var reached := workshop.best_number >= float(milestone.number)
+		var reached := workshop.ladder_best() >= float(milestone.number)
 		var row := HBoxContainer.new()
 		_milestones_list.add_child(row)
 		var number := _figure(16, Palette.TEXT if reached or milestone == next else Palette.MUTED)
@@ -441,7 +445,7 @@ func _fill_milestones() -> void:
 			progress.show_percentage = false
 			progress.custom_minimum_size = Vector2(0, 3)
 			progress.max_value = float(milestone.number)
-			progress.value = workshop.best_number
+			progress.value = workshop.ladder_best()
 			var back := StyleBoxFlat.new()
 			back.bg_color = Palette.HAIRLINE
 			var fill := StyleBoxFlat.new()
