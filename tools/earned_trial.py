@@ -176,6 +176,33 @@ def evaluate(results, prefix):
     return out
 
 
+def post_hoc(results, prefix):
+    """Two readings the declared criteria don't make, reported beside them and never counted
+    (they were added after the first results, on review; THE_NUMBER.md 16.7). E5 compares a
+    70-run career with a 50-run one, so this reads both over the same first 50 runs; E7's
+    per-run limit can't be applied to careers, whose Workshop diverges from the control's, so
+    this reads each career run against the control's run with the same index."""
+    horizon = min(CAREER_RUNS.values())
+    names = [f'{prefix}.career_{p}' for p in CAREERS] + [f'ctrl.career_{p}' for p in CAREERS]
+    if not all(n in results for n in names):
+        return None
+
+    def first(key):
+        return sorted(rows(results[key]), key=lambda row: row['run'])[:horizon]
+
+    def ratios(who):
+        grow, core = first(f'{who}.career_grow'), first(f'{who}.career_core')
+        return (median([r['coins'] for r in grow]) / median([r['coins'] for r in core]),
+                sum(r['coins'] for r in grow) / sum(r['coins'] for r in core))
+    worst = {}
+    for policy in CAREERS:
+        control = first(f'ctrl.career_{policy}')
+        worst[policy] = max(a['coins'] / max(1.5 * b['coins'], b['coins'] + 2.0) for a, b in zip(first(f'{prefix}.career_{policy}'), control))
+    mine, ctrl = ratios(prefix), ratios('ctrl')
+    return {'horizon': horizon, 'grow_over_core_median': mine[0], 'grow_over_core_total': mine[1],
+            'control_median': ctrl[0], 'control_total': ctrl[1], 'worst_run_over_limit': worst}
+
+
 def summary(results, prefix):
     found = {}
     for cell in cells():
@@ -202,6 +229,12 @@ def render(configs, results):
         result = 'NOT COMPLETE' if len(run) < 7 else 'PASS' if all(v['pass'] for v in run) else 'FAIL'
         overall[prefix] = 'EXPLORATORY' if exploratory else result
         lines.append(f'  Overall: {overall[prefix]}')
+        extra = post_hoc(results, prefix)
+        if extra:
+            lines.append(f"  Post-hoc, not a criterion (first {extra['horizon']} career runs of each): grow over core, median per run "
+                         f"{extra['grow_over_core_median']:.2f} (control {extra['control_median']:.2f}), total Coins {extra['grow_over_core_total']:.2f} "
+                         f"(control {extra['control_total']:.2f}); each career run against the control's run of the same index, "
+                         f"highest over its limit {shown(extra['worst_run_over_limit'])}")
         lines.append('')
     return '\n'.join(lines), overall
 
@@ -222,6 +255,7 @@ def main():
         if args.output:
             args.output.write_text(json.dumps({'overall': overall,
                                                'verdicts': {name(s, p): evaluate(results, name(s, p)) for s, p in configs},
+                                               'post_hoc': {name(s, p): post_hoc(results, name(s, p)) for s, p in configs},
                                                'medians': {name(s, p): summary(results, name(s, p)) for s, p in configs}}, indent=2, sort_keys=True) + '\n')
         return 0
     except (OSError, ValueError, KeyError, TypeError, ZeroDivisionError, subprocess.SubprocessError) as error:
