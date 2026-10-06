@@ -7,12 +7,13 @@ const Snapshot = preload("res://src/tower/battle_snapshot.gd")
 const RunReport = preload("res://src/tower/run_report.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
 const FIXTURES := "res://tests/fixtures/saves/"
-const VALID := ["v1.json", "v2.json", "v3-pre-d158.json", "v3-current.json", "v3-fresh.json", "v3-large-coins.json"]
+const VALID := ["v1.json", "v2.json", "v3-pre-d158.json", "v3-current.json", "v4-current.json", "v3-fresh.json", "v3-large-coins.json"]
 # Measured by each fixture's original build, after 600 further ticks.
 # A second restore by today's code would share any restoration regression.
 const CONTINUATION := {
 	"v3-pre-d158.json": "0d230094679a2530020b39d2b988fba7bcbdcf1fe791ff6071f40edb0f1aee57",
 	"v3-current.json": "ada1fa4059a8a470e407c52b5fdee5f8f63df74ef367570546419659b7917888",
+	"v4-current.json": "91b51b0c423f766c9d560011510e36b69f8c0e1231bef97ab19f4517e9874401",
 }
 const PROTECTED := ["future.json", "nan-string.json", "huge-string.json", "missing-progression.json", "unknown-rank.json", "damaged-cards.json"]
 const UNREADABLE := ["non-integer-version.json", "truncated.json", "missing-workshop.json", "empty.json"]
@@ -121,7 +122,7 @@ func test_valid(name: String) -> void:
 
 
 func test_active(name: String, p: Progression, active: Dictionary) -> void:
-	var number_cash := name == "v3-current.json"
+	var number_cash := name != "v3-pre-d158.json"
 	check(bool(active.start.tuning.get("number_cash", false)) == number_cash, name + " frozen run has its original Cash rules")
 	check(RunReport.is_replayable(active), name + " frozen run can replay")
 	check(RunReport.matches(active, RunReport.replay(active)), name + " independent replay matches frozen result")

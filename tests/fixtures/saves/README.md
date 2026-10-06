@@ -14,6 +14,7 @@ uses `run_godot.sh`; the generation and verification scratch root was
 | `v2.json` | Real v2 writer at `5edd0681facf029197616ace0118c40dc95bcf4f`, immediately before D146's Cards implementation | Coins including exact parts, Gems, multi-tier records, claims, daily/clock and research; byte-exact backup; one free empty Card slot. |
 | `v3-pre-d158.json` | Real v3 writer and battle screen at `8bdf1cf7796540edc90960e3f235943b496e19f4`, immediately before D158 changed new-run rules | Owned/equipped Cards and slots plus permanent account fields; frozen active Cash-rules snapshot, independent replay, actual screen resume and 600-tick continuation. |
 | `v3-current.json` | Real v3 writer and battle screen at `f408d34be6e2a38ebd1dad49ff849d1dfc999249` | Same permanent fields; active Number-as-Cash battle retains its rules and resumes exactly. “Current” means this source commit, not a file refreshed whenever main moves. |
+| `v4-current.json` | Real schema-4 writer and battle screen from merged main `032845fa4dce3113761077aca67c66e963c43591` | Best Number earned 1,500 survives alongside peak 180 and all schema-3 account progress; newly played Number-as-Cash battle resumes and matches its frozen continuation. |
 | `v3-fresh.json` | Real v3 writer at `f408d34be6e2a38ebd1dad49ff849d1dfc999249` | Zero Coins/records/runs, empty Cards and research, free groups and one Card slot. |
 | `v3-large-coins.json` | Real v3 writer at `f408d34be6e2a38ebd1dad49ff849d1dfc999249`, after setting Coins to `1e20` and adding one Coin 1,000 times | The exact Coin remainder survives load/save/reload: spending `1e20` leaves exactly 1,000. |
 | `future.json` | Hand-edited copy of `v3-current.json`, version changed to 99 | Notice and disabled writes, including Workshop-only writes; original bytes stay at the original path. |
@@ -50,7 +51,7 @@ valid saved research data, not a shipped Lab. Claims are the known Tier 1
 10/20/30/40/50/80/90/100 and Tier 2 10 rewards. Schema 3 additionally owns Damage
 8 and Coins 1, with two slots equipped in the order Coins, Damage.
 
-The two active-run generators attached the historical/current `BattleScreen`
+The two schema-3 active-run generators attached the historical/current `BattleScreen`
 to the tree, disabled automatic processing, restarted with seed 173 and called
 `_process(0.1)` 120 times before obtaining `run_state()`. The pre-D158 tuning was
 empty (normal Cash rules); the current tuning was `RunConfig.game_tuning()`.
@@ -66,6 +67,15 @@ digest. The pre-D158 digest is
 `0d230094679a2530020b39d2b988fba7bcbdcf1fe791ff6071f40edb0f1aee57`;
 the current-source digest is
 `ada1fa4059a8a470e407c52b5fdee5f8f63df74ef367570546419659b7917888`.
+After D164 merged during this task, `v4-current.json` was written by that
+merged production source in the isolated issue checkout. Its generator loaded
+the synthetic `v3-current.json`, set best Number earned to 1,500, played a new
+seed-173 battle with the same 120 manual processing calls, and saved with the
+real schema-4 writer. Its peak remains 180. Its independently measured further
+600-tick digest is
+`91b51b0c423f766c9d560011510e36b69f8c0e1231bef97ab19f4517e9874401`.
+No fixture was rewritten; a new supported schema received its own file.
+
 The suite compares the actual resumed screen to these literals, so a regression
 shared by two restores in today's code cannot make continuation pass.
 
@@ -98,17 +108,15 @@ snapshots; frozen research has no pending jobs or effect payloads, and D164 owns
 semantics of the added earned-Number field. Other generated boundary/recovery
 tests remain in the existing suites. A real-copy probe remains `tools/check_migration.gd` through the wrapper.
 
-Final local verification on the issue branch: `bash run_tests.sh` passed
-(4,906 tower checks, 407 foundation checks, 2,859 frozen-fixture checks and 79
-Python tests). The headless boot passed with no error lines. The existing tower,
-foundation and boot processes reported 13–26 ObjectDB instances leaked at exit;
-the fixture suite itself reported only the expected unreadable-file warnings.
-
-The final frozen-fixture suite also passed 2,900 checks against an isolated
-archive of earned-ladder commit
-`084e9df52517e66b3a14543381ade6ec1ff3a385` (including its schema-4 migration).
-The archive's tracked source bytes were checked against that commit. This is
-compatibility evidence, not a balance rerun or proof of D164's reward semantics.
+Final verification results are recorded in PR #178. The complete baseline
+and headless boot were rerun after integrating merged main `032845f` and adding
+its current schema-4 fixture. Existing suites and boot emit ObjectDB leak
+warnings; the fixture suite emits only the expected unreadable-file warnings.
+The earlier 16-file suite also passed 2,900 checks against an isolated archive
+of earned-ladder commit `084e9df52517e66b3a14543381ade6ec1ff3a385`, including its
+schema-4 migration, with archive tracked bytes checked against that commit.
+This is compatibility evidence, not a balance rerun or proof of D164's reward
+semantics.
 
 Independent read-only review found one test-proof gap: using two restores by
 today's code as the continuation oracle could share a regression. The final
