@@ -2459,5 +2459,6 @@ Rules:
   5. **The peak ladder stays a measuring option** (`Workshop.ladder_on_peak`, `sim_runs.gd --ladder peak`), with `ladder_scale`; neither is saved. D163's `--ladder earned` is now the default and still accepted.
 - **Why:** the peak ladder stops at digit 100 for a buying build and pays 1% to 2% of a career's Coins (17.6: it fails L1 to L3). The earned ladder reaches every digit to 10,000 in Tier 1. At 50, digit 100 paid 3.6 times the run that reached it (L4); at 25 it pays about 1.8 times.
 - **Accepted cost:** some careers reach wave 30 a few runs sooner (17.6, L5). The 25-Coin variant was not measured against 17.5's criteria before being chosen; it is the owner's judgement on an exploratory reading. An older build now refuses a version-4 save ("needs a newer game version") and leaves it untouched. A run begun before D158 under Cash rules, resumed or recovered after this, climbs its Cash earned (kills, waves and Interest on Cash): about the same size, and at most one run.
+- **Measured (re-recorded baselines, THE_NUMBER.md 17.7):** only careers move; the core career reaches wave 30 at run 33 against 47 and earns 5,074 Coins against 3,923, grow reaches it at 43 against 47.
 - **Supersedes:** D107 in part (what a digit is measured on, and digit 100's Coins).
 - **Revisit when:** the owner plays it, or Labs or tiers change what a run earns.
