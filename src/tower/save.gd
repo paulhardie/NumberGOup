@@ -36,6 +36,11 @@ static func load_progress(path: String = PATH) -> Progression:
 				progress.notice = "Couldn't back up the older save. Progress is protected until the save folder is writable."
 				return progress
 		if int(data.version) == 1:
+			if data.workshop.has("best_earned"):
+				# No version-1 build wrote one (D164): a claimed best could pay digits twice.
+				progress.writable = false
+				progress.notice = "The save contains unsupported or damaged progress. It has been kept untouched for recovery."
+				return progress
 			# The old best is Tier 1's reached wave, not proof it was cleared.
 			progress.observe(1, progress.workshop.best_wave, maxi(0, progress.workshop.best_wave - 1))
 		elif data.get("progression") is Dictionary:

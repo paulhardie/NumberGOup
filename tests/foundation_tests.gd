@@ -564,7 +564,7 @@ func test_version_three_saves_migrate_to_the_best_number_earned() -> void:
 	check(again.writable and again.workshop.best_earned == 999.0 and again.workshop.best_number == 252.0, "and reads back the same")
 	var claimed := v3_workshop.duplicate(true)
 	claimed.best_earned = 5000.0
-	for broken in [{"version": 3, "workshop": claimed}, {"version": Save.VERSION, "workshop": v3_workshop},
+	for broken in [{"version": 1, "workshop": claimed}, {"version": 3, "workshop": claimed}, {"version": Save.VERSION, "workshop": v3_workshop},
 			{"version": Save.VERSION, "workshop": claimed.merged({"best_earned": "5000"}, true)},
 			{"version": Save.VERSION, "workshop": claimed.merged({"best_earned": -1.0}, true)}]:
 		write({"version": broken.version, "workshop": broken.workshop, "progression": p.to_dict()})
@@ -572,8 +572,12 @@ func test_version_three_saves_migrate_to_the_best_number_earned() -> void:
 		loaded = Save.load_progress(PATH)
 		check(not loaded.writable and not Save.save_progress(loaded, PATH) and FileAccess.get_file_as_string(PATH) == bytes,
 			"protected untouched: version %d, best earned %s" % [broken.version, broken.workshop.get("best_earned", "(none)")])
-	for extra in ["", ".v3-backup.json"]:
+	for extra in ["", ".v3-backup.json", ".v1-backup.json"]:
 		DirAccess.remove_absolute(PATH + extra)
+	# A protected older save loaded again keeps a timestamped backup beside the first.
+	for file in DirAccess.get_files_at(PATH.get_base_dir()):
+		if file.begins_with(PATH.get_file() + ".v3-backup-") or file.begins_with(PATH.get_file() + ".v1-backup-"):
+			DirAccess.remove_absolute(PATH.get_base_dir().path_join(file))
 
 
 ## D146: the Cards screen draws, buys a slot and equips, saying so each time.
