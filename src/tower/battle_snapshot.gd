@@ -53,6 +53,8 @@ static func capture(sim: BattleSim) -> Dictionary:
 		for key in FUEL_FLOATS + FUEL_INTS:
 			fuel[key] = sim.get(key)
 		state.fuel = fuel
+	if sim.earned_active():
+		state.earned = {"coins": sim.earned_coins}
 	if sim.number_cash:
 		state.number_cash = {"ceiling": sim._ceiling, "free_levels": sim.free_levels.duplicate(),
 			"paid_by": sim.paid_by.duplicate(), "locked_out": sim.locked_out, "lock_held": sim.lock_held}
@@ -168,6 +170,11 @@ static func _valid_state(data) -> bool:
 		for id in held.free_levels:
 			if id not in TowerData.rows() or not _integer(held.free_levels[id]) or int(held.free_levels[id]) < 0 \
 					or int(held.free_levels[id]) > int(state.run_levels.get(id, 0)): return false
+	# Coins from the Number earned (D162): its ledger goes with its rule, never without or alone.
+	if state.has("earned") != (tuned is Dictionary and float(tuned.get("earned_share", 0.0)) > 0.0): return false
+	if state.has("earned"):
+		var earned = state.earned
+		if not earned is Dictionary or not RunConfig.number(earned.get("coins")) or float(earned.coins) < 0.0 or float(earned.coins) > float(state.coins): return false
 	if state.has("fuel"):
 		var fuel = state.fuel
 		if not fuel is Dictionary or not fuel.get("log") is Array or fuel.log.size() > int(state.wave): return false
@@ -289,6 +296,8 @@ static func restore(data) -> BattleSim:
 			sim.paid_by[kind] = float(data.state.number_cash.paid_by[kind])
 		sim.locked_out = float(data.state.number_cash.get("locked_out", 0.0))
 		sim.lock_held = float(data.state.number_cash.get("lock_held", 0.0))
+	if data.state.has("earned"):
+		sim.earned_coins = float(data.state.earned.coins)
 	if data.state.has("fuel"):
 		for key in FUEL_FLOATS:
 			sim.set(key, float(data.state.fuel[key]))

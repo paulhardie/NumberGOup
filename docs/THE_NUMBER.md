@@ -16,7 +16,7 @@
 | 13 | The Number is Cash (D156, D157): rules, criteria, results, the enemies | **Live.** The rules are built and the results stand |
 | 14 | It becomes the game (D158) | **Live. The current rules**, compatibility reasoning and what is undecided |
 | 15 | Coins from the peak Number: what the peak is made of (6 October) | **Live finding.** The peak is the Health row's Number for strong builds, so the reward follows the Number earned (16) |
-| 16 | Coins from the Number earned (D162): definitions, options and pass criteria | **Criteria written; nothing built.** Written before any option, per QUALITY_GATES |
+| 16 | Coins from the Number earned (D162): definitions, options and pass criteria | **Criteria written first; options built, off by default; measuring.** Not the game's rules |
 
 ### The Number today (D158)
 
@@ -28,7 +28,7 @@
 - **Runs begun before D158 play their Cash rules to the end.** The game's rules are `RunConfig.game_tuning()`; the code's own defaults stay off so old saves and measurements replay exactly. No version bump (14.2).
 - **What the bots say (13.3, 14.3):** the same pace as Cash, a Number a fifth to a quarter of its old size, no runaway. The shop adds 25 to 37% of a run's waves even at 1M Coins, as it does under The Tower's own rules.
 - **Growth after the Workshop flattens:** [GROWTH_LAYERS.md](GROWTH_LAYERS.md) (D161), a design note.
-- **Undecided (14.4, HANDOVER.md):** the Number milestones now pay less; whether the digit ladder should be recalibrated (a run's Coin reward follows the Number earned, D162, criteria in 16, nothing built); how Workshop power outgrows the run shop; Recovery Packages; the Thorns turtle against a Lock.
+- **Undecided (14.4, HANDOVER.md):** the Number milestones now pay less; whether the digit ladder should be recalibrated (a run's Coin reward follows the Number earned, D162, criteria in 16, options built and being measured, not the game's rules); how Workshop power outgrows the run shop; Recovery Packages; the Thorns turtle against a Lock.
 - **The lesson that cost two experiments:** the Number runs from 5 to millions inside Tier 1, so anything priced in a flat amount of it breaks. Use shares or time.
 
 ## The direction, in the owner's words
@@ -1097,7 +1097,7 @@ A 1M-Coin core run's peak is the same 2,763.5 on every seed: it is the Health ro
 
 ## 16. Coins from the Number earned (6 October 2026, D162)
 
-**The owner's direction:** after section 15, "yeah go with earned, write the criteria". A run's Coin reward follows the **Number earned** in the run, not its peak, and the record stays the true peak. **This section is the experiment's design and its pass criteria, written before any option is built or measured.** Nothing is built. The digit ladder (11.15, 14.4) is a second stage with its own criteria, written after this stage's results, because what a digit should pay depends on what a run's Coins are by then.
+**The owner's direction:** after section 15, "yeah go with earned, write the criteria". A run's Coin reward follows the **Number earned** in the run, not its peak, and the record stays the true peak. **This section is the experiment's design and its pass criteria, written before any option was built or measured.** The options are now built (16.3), off by default and in no game rule; the measurement is in 16.7 once it has run. The digit ladder (11.15, 14.4) is a second stage with its own criteria, written after this stage's results, because what a digit should pay depends on what a run's Coins are by then.
 
 ### 16.1 What today's game already does (measured 6 October, the game's rules, buying `core` in the run, reserve 0.5, 6 seeds, core Workshop plan)
 
@@ -1120,7 +1120,7 @@ Turtle at 1M (4 seeds, buying): wave 150 every seed, about 36,800 earned, about 
 
 ### 16.3 The options
 
-All off by default, in the style of D155 to D157: BattleSim fields `earned_share` (`s`), `earned_power` (`p`) and `earned_scale` (`K`); recorded in a run's start config only while on (`RunConfig.trial_tuning`, validated by `valid_tuning`); the earned part's running total saved in a snapshot only while on; flags in `sim_runs.gd`; the criteria as code in `tools/earned_trial.py` (the pattern of `cash_trial.py`) with a test that each criterion fails at its boundary and that a criterion whose runs weren't played reads "not run", never a pass. A run made without them is byte for byte what it was; **the quick balance comparison showing no movement is the proof.**
+**Built (6 October 2026), nothing measured yet.** All off by default, in the style of D155 to D157: BattleSim fields `earned_share` (`s`), `earned_power` (`p`) and `earned_scale` (`K`); recorded in a run's start config only while on (`RunConfig.trial_tuning`, validated by `valid_tuning`); the earned part's running total saved in a snapshot only while on; flags in `sim_runs.gd`; the criteria as code in `tools/earned_trial.py` (the pattern of `cash_trial.py`) with a test that each criterion fails at its boundary and that a criterion whose runs weren't played reads "not run", never a pass. A run made without them is byte for byte what it was; **the quick balance comparison showing no movement is the proof.**
 
 ### 16.4 The cells
 

@@ -1324,6 +1324,50 @@ func test_the_fuel_economy_validates_records_and_continues() -> void:
 	check(Snapshot.restore(corrupt) == null, "a peak wave past the battle's is rejected")
 
 
+## D162: Coins following the Number earned validate, are recorded only while on, and a
+## battle with them on restores, continues and replays exactly, its ledger with it.
+func test_coins_following_the_number_earned_validate_record_and_continue() -> void:
+	check(RunConfig.valid_tuning({"earned_share": 0.5, "earned_power": 0.8, "earned_scale": 0.1}), "its options are valid tuning")
+	for bad in [{"earned_share": 1.5}, {"earned_share": -0.1}, {"earned_share": NAN}, {"earned_power": 0.0}, {"earned_power": 5.0}, {"earned_scale": -1.0}, {"earned_scale": "a"}]:
+		check(not RunConfig.valid_tuning(bad), "rejected: %s" % [bad])
+	var plain: Dictionary = RunConfig.unpack(Snapshot.capture(BattleSim.new(3, {"health": 500})))
+	check(not plain.state.has("earned"), "a run without it saves none of its state")
+	var sim := BattleSim.new(5, {"damage": 30, "health": 30, "health_regen": 10})
+	check(sim.configure_tuning({"number_cash": true, "lock_holds_cash": true, "earned_share": 0.5, "earned_power": 0.8, "earned_scale": 0.2}), "it freezes before the first wave")
+	while sim.alive and sim.wave < 4:
+		if sim.can_buy("attack_speed"):
+			sim.buy("attack_speed")
+		sim.step()
+	check(sim.alive and sim.earned_coins > 0.0, "a battle on wave 4 that has been paid by it: %.2f Coins" % sim.earned_coins)
+	var saved: Dictionary = json(Snapshot.capture(sim))
+	var again := Snapshot.restore(saved)
+	check(again != null and Snapshot.capture(again).digest == saved.digest, "it round trips exactly")
+	if again != null:
+		check(again.earned_coins == sim.earned_coins and again.earned_share == 0.5 and again.earned_scale == 0.2, "the ledger and the rule come back")
+		for i in range(900):
+			sim.step()
+			again.step()
+		check(Snapshot.capture(sim).digest == Snapshot.capture(again).digest and sim.earned_coins > again.earned_coins * 0.999,
+			"and continues exactly: %s" % difference(json(Snapshot.capture(sim)), json(Snapshot.capture(again))))
+	var report: Dictionary = json(RunReport.build(sim))
+	check(RunReport.is_replayable(report) and RunReport.matches(report, RunReport.replay(report)), "a run with it replays from its seed")
+	var stripped: Dictionary = RunConfig.unpack(saved)
+	stripped.state.erase("earned")
+	var without := RunConfig.pack(stripped)
+	without.version = Snapshot.VERSION
+	check(Snapshot.restore(without) == null, "a run under its rule with its ledger missing is rejected, not restored with a guessed one")
+	var added: Dictionary = RunConfig.unpack(Snapshot.capture(BattleSim.new(3, {"health": 500})))
+	added.state["earned"] = {"coins": 0.0}
+	var alone := RunConfig.pack(added)
+	alone.version = Snapshot.VERSION
+	check(Snapshot.restore(alone) == null, "and the ledger without the rule is rejected too")
+	var over: Dictionary = RunConfig.unpack(saved)
+	over.state.earned.coins = float(over.state.coins) + 1.0
+	var greedy := RunConfig.pack(over)
+	greedy.version = Snapshot.VERSION
+	check(Snapshot.restore(greedy) == null, "a ledger that paid more than the run holds is rejected")
+
+
 ## D156: the Number as Cash validates, is recorded only while on, and a battle
 ## with it on restores, continues and replays exactly, ceiling and free levels too.
 func test_the_number_as_cash_validates_records_and_continues() -> void:

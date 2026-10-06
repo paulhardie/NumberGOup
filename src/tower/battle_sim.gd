@@ -246,6 +246,20 @@ var locked_out := 0.0
 var lock_holds_cash := false
 var lock_held := 0.0
 
+## Coins from the Number earned (D162, THE_NUMBER.md section 16): a measuring
+## option, off in the game and kept out of a run's recorded tuning while off.
+## With `earned_share` above 0 a run's kill and wave Coins pay only (1 - share)
+## of what they do, and the share pays instead from the Number earned,
+## `cash_earned`: share * `earned_scale` * the tier's Coin bonus * the run's Coin
+## multiplier * (earned ^ `earned_power`), paid as the Number earned rises, so a
+## saved run resumes the same. Nothing in a run spends Coins, so a seed plays
+## exactly as it does with the option off; only `coins` differs.
+var earned_share := 0.0
+var earned_power := 1.0
+var earned_scale := 0.0
+## Counted only: the Coins the earned rule has paid.
+var earned_coins := 0.0
+
 ## The highest the Number has stood this run: the run's record (D081).
 var peak_number := 0.0
 ## The wave it first stood there; saved only with the fuel economy (D155).
@@ -355,6 +369,28 @@ func tuning_config() -> Dictionary:
 	return result
 
 
+## Whether Coins follow the Number earned (D162).
+func earned_active() -> bool:
+	return earned_share > 0.0
+
+
+## What an ordinary Coin payment (a kill's, a wave's) is worth: all of it, or
+## its share that doesn't follow the Number earned. Exactly itself while off.
+func _ordinary(amount: float) -> float:
+	return amount if earned_share == 0.0 else amount * (1.0 - earned_share)
+
+
+## The Number earned rises by `amount`; with Coins following it (D162) the Coins
+## for that rise are paid now. The one place `cash_earned` changes.
+func _earn(amount: float) -> void:
+	if earned_share > 0.0 and amount > 0.0:
+		var bonus := float(TowerData.tier(tier).coins) * rules.value("coin_multiplier")
+		var paid := earned_share * earned_scale * bonus * (pow(cash_earned + amount, earned_power) - pow(cash_earned, earned_power))
+		coins += paid
+		earned_coins += paid
+	cash_earned += amount
+
+
 ## Whether any of the Number-as-capital trial's options is in play.
 func trial_active() -> bool:
 	return thieves or number_power > 0.0
@@ -395,7 +431,7 @@ func _pay_cash(amount: float, source: String) -> void:
 	var before := health
 	health += amount
 	_ceiling += amount
-	cash_earned += amount
+	_earn(amount)
 	_count_gain(source, before)
 
 
@@ -1196,7 +1232,7 @@ func _strike(enemy: Enemy, shot_damage: float, critical: bool) -> void:
 		var drop := rules.value("critical_coin")
 		if critical and drop > 0.0 and EnemyKinds.pays_as(enemy) == "basic" and _combat_rng.randf() < drop:
 			# Paid as a basic worth CRITICAL_COIN_COINS, decay and all.
-			var dropped := EnemyKinds.coins(enemy, wave, stat("coins_per_kill"), tier, Guesses.CRITICAL_COIN_COINS) * rules.value("coin_multiplier")
+			var dropped := _ordinary(EnemyKinds.coins(enemy, wave, stat("coins_per_kill"), tier, Guesses.CRITICAL_COIN_COINS) * rules.value("coin_multiplier"))
 			coins += dropped
 			if record_events:
 				events.append({"type": "critical_coin", "enemy": enemy, "coins": dropped})
@@ -1239,7 +1275,7 @@ func _kill(enemy: Enemy, by := "") -> void:
 		if record_events:
 			events.append({"type": "grown", "enemy": enemy, "gain": health - before})
 	var paid_cash := EnemyKinds.cash(enemy, stat("cash_bonus")) * rules.value("cash_multiplier")
-	var paid_coins := EnemyKinds.coins(enemy, wave, stat("coins_per_kill"), tier, rules.value("basic_coins")) * rules.value("coin_multiplier")
+	var paid_coins := _ordinary(EnemyKinds.coins(enemy, wave, stat("coins_per_kill"), tier, rules.value("basic_coins")) * rules.value("coin_multiplier"))
 	if number_cash and lock_holds_cash and EnemyKinds.attack_style(enemy.kind) == "hold":
 		_release_lock_cash(enemy)
 	# What lands in the Number now; with the Number as Cash a standing Lock holds
@@ -1253,7 +1289,7 @@ func _kill(enemy: Enemy, by := "") -> void:
 		_pay_cash(paid_cash, "kill_cash")
 	else:
 		cash += paid_cash
-		cash_earned += paid_cash
+		_earn(paid_cash)
 	coins += paid_coins
 	if record_events:
 		events.append({"type": "kill", "enemy": enemy, "cash": landed, "held": (paid_cash - landed) if lock_holds_cash else 0.0, "coins": paid_coins, "by": by})
@@ -1334,9 +1370,9 @@ func _pay_wave_end() -> void:
 		# Interest on the Cash held, after the wave's Cash, up to its cap.
 		paid_cash += minf(rules.value("interest_cap"), (cash + paid_cash) * stat("interest"))
 		cash += paid_cash
-		cash_earned += paid_cash
+		_earn(paid_cash)
 	if is_open("coins_per_wave"):
-		coins += stat("coins_per_wave") * float(TowerData.tier(tier).coins) * rules.value("coin_multiplier")
+		coins += _ordinary(stat("coins_per_wave") * float(TowerData.tier(tier).coins) * rules.value("coin_multiplier"))
 	# Recovery Packages: by its chance a wave's end heals a share of Health,
 	# which may go past Health up to Max Recovery times it. A standing Lock
 	# stops it (D133), after the roll, so the stream is drawn as ever.

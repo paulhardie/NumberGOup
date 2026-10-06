@@ -17,14 +17,15 @@ static func default_tuning() -> Dictionary:
 
 
 ## The Number-as-capital trial's measuring options (D152), the fuel
-## economy's (D155), the Number as Cash (D156), and what each is when off. A run records one only while it is on, so every run and save made
+## economy's (D155), the Number as Cash (D156), Coins from the Number earned (D162), and what each is when off. A run records one only while it is on, so every run and save made
 ## without them is byte for byte what it was.
 static func trial_tuning() -> Dictionary:
 	return {"thieves": false, "thief_recovery": 0.0, "thief_speed": 1.0, "thief_fade": 0.0,
 		"thief_priority": false, "number_power": 0.0,
 		"shot_price": 0.0, "bounty_share": 0.0, "free_bounty_share": 0.0, "base_regen": 0.0,
 		"regen_scale": 1.0, "hold_doomed": false,
-		"number_cash": false, "upgrades_off": false, "reserve_share": 0.0, "lock_holds_cash": false}
+		"number_cash": false, "upgrades_off": false, "reserve_share": 0.0, "lock_holds_cash": false,
+		"earned_share": 0.0, "earned_power": 1.0, "earned_scale": 0.0}
 
 
 ## The rules a new run of the game starts with (D158): the Number is Cash
@@ -79,6 +80,9 @@ static func valid_tuning(tuning) -> bool:
 	# The free killers' share is capped at half a shot kill's (THE_NUMBER.md 11.14).
 	if not number(options.free_bounty_share) or float(options.free_bounty_share) < 0.0 or float(options.free_bounty_share) > 0.5: return false
 	if not number(options.reserve_share) or float(options.reserve_share) < 0.0 or float(options.reserve_share) >= 1.0: return false
+	if not number(options.earned_share) or float(options.earned_share) < 0.0 or float(options.earned_share) > 1.0: return false
+	if not number(options.earned_power) or float(options.earned_power) <= 0.0 or float(options.earned_power) > 4.0: return false
+	if not number(options.earned_scale) or float(options.earned_scale) < 0.0 or float(options.earned_scale) > 1e6: return false
 	if not number(options.thief_speed) or float(options.thief_speed) <= 0.0 or float(options.thief_speed) > 1e3: return false
 	return number(options.number_power) and float(options.number_power) >= 0.0 and float(options.number_power) <= 4.0
 
