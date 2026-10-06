@@ -150,8 +150,10 @@ func check_recovery(active: Dictionary, before: Progression) -> void:
 			expected_coins += float(row.coins)
 			expected_gems += int(row.gems)
 	var peak := float(active.result.get("peak_number", 0.0))
+	# Digits climb the Number earned (D164); a save from before it starts there from its best peak.
+	var earned := float(active.result.cash_earned)
 	for row in Guesses.MILESTONES:
-		if before.workshop.best_number < float(row.number) and peak >= float(row.number): expected_coins += float(row.coins)
+		if before.workshop.best_earned < float(row.number) and earned >= float(row.number): expected_coins += float(row.coins)
 	if before.workshop.runs == 0: expected_coins += Workshop.FIRST_RUN_GIFT
 	var main := Main.new()
 	main.save_path = probe_path
@@ -168,7 +170,8 @@ func check_recovery(active: Dictionary, before: Progression) -> void:
 	var after := Save.load_progress(probe_path)
 	check(after.writable and after.workshop.levels == before.workshop.levels and after.workshop.open_groups == before.workshop.open_groups, "recovery preserves every rank and opened group")
 	check(is_equal_approx(after.workshop.coins, expected_coins) and after.gems == expected_gems, "banked Coins are kept, never banked twice; only earned new rewards are added")
-	check(after.workshop.runs == before.workshop.runs + 1 and after.workshop.best_wave == maxi(before.workshop.best_wave, reached) and is_equal_approx(after.workshop.best_number, maxf(before.workshop.best_number, peak)), "recovered run retains its records and is counted once")
+	check(after.workshop.runs == before.workshop.runs + 1 and after.workshop.best_wave == maxi(before.workshop.best_wave, reached) and is_equal_approx(after.workshop.best_number, maxf(before.workshop.best_number, peak)) \
+		and is_equal_approx(after.workshop.best_earned, maxf(before.workshop.best_earned, earned)), "recovered run retains its records and is counted once")
 	check(after.best_wave(tier) == maxi(before.best_wave(tier), reached) and after.best_wave(tier, true) == maxi(before.best_wave(tier, true), cleared), "recovered tier reached/cleared progress is retained")
 	if tier == 1 and reached >= 30: check(after.unlocked("labs"), "saved Labs reveal survives changed combat")
 	var entries := ActivityLog.read(main.log_path).filter(func(entry): return entry.kind == "run")

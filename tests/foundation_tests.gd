@@ -1456,6 +1456,7 @@ func test_changed_and_damaged_run_recovery_preserves_the_account() -> void:
 	var sim := BattleSim.new(4)
 	sim.wave = 39
 	sim.peak_number = 1500.0
+	sim.cash_earned = 1500.0
 	var old: Dictionary = json(RunReport.build(sim))
 	old.start.rules_version = 1
 	old.commands = RunConfig.pack({"start": old.start, "inputs": old.inputs})
@@ -1470,11 +1471,13 @@ func test_changed_and_damaged_run_recovery_preserves_the_account() -> void:
 			record.seed = "bad"
 			record.result.wave = TowerData.last_wave()
 			record.result.peak_number = 1e300
+			record.result.cash_earned = 1e300
 		var permanent := Workshop.new()
 		permanent.coins = 100.0
 		permanent.runs = 2
 		permanent.best_wave = 27
 		permanent.best_number = 100.0
+		permanent.best_earned = 100.0
 		permanent.levels = {"health": 3}
 		var p := Progression.new(permanent)
 		p.observe(1, 27, 26)
@@ -1490,10 +1493,10 @@ func test_changed_and_damaged_run_recovery_preserves_the_account() -> void:
 		var loaded := Save.load_progress(PATH)
 		check(loaded.workshop.levels == permanent.levels and loaded.workshop.runs == 3, "ranks survive and the ended run is counted once")
 		if damaged:
-			check(loaded.workshop.coins == 110.0 and loaded.workshop.best_wave == 27 and loaded.workshop.best_number == 100.0, "damaged wave and peak cannot inflate permanent bests or milestone Coins")
+			check(loaded.workshop.coins == 110.0 and loaded.workshop.best_wave == 27 and loaded.workshop.best_number == 100.0 and loaded.workshop.best_earned == 100.0, "damaged wave, peak and Number earned cannot inflate permanent bests or milestone Coins")
 			check(loaded.best_wave(1) == 27 and not loaded.unlocked("labs"), "damaged values cannot create progression unlocks")
 		else:
-			check(loaded.workshop.coins == 360.0 and loaded.workshop.best_wave == 39 and loaded.workshop.best_number == 1500.0, "sound old-rules recovery keeps its wave, peak and one earned Number reward")
+			check(loaded.workshop.coins == 360.0 and loaded.workshop.best_wave == 39 and loaded.workshop.best_number == 1500.0 and loaded.workshop.best_earned == 1500.0, "sound old-rules recovery keeps its wave, peak, Number earned and one digit's reward")
 			check(loaded.best_wave(1) == 39 and loaded.best_wave(1, true) == 38 and loaded.unlocked("labs"), "changed combat preserves reached/cleared records and Labs")
 		var run_entries := ActivityLog.read(main.log_path).filter(func(entry): return entry.kind == "run")
 		check(run_entries.size() == 1 and run_entries[0].resume_failed == ("damaged" if damaged else "changed"), "recovery is logged once with the right reason")

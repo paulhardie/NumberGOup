@@ -420,10 +420,12 @@ func _fill_milestones() -> void:
 			label.add_theme_color_override("font_color", Palette.MUTED if claimed else Palette.TEXT)
 			_milestones_list.add_child(label)
 		_milestones_list.add_child(Palette.hairline())
-		_milestones_list.add_child(_caption("Best Number"))
+		# Digits are climbed by the Number a run earns, spent or not (D164), so the
+		# heading says so: the emblem's best Number is the peak, a different figure.
+		_milestones_list.add_child(_caption("Number earned in a run · best %s" % Palette.full(ceilf(workshop.ladder_best()))))
 	var next := workshop.next_milestone()
 	for milestone in Guesses.MILESTONES:
-		var reached := workshop.best_number >= float(milestone.number)
+		var reached := workshop.ladder_best() >= float(milestone.number)
 		var row := HBoxContainer.new()
 		_milestones_list.add_child(row)
 		var number := _figure(16, Palette.TEXT if reached or milestone == next else Palette.MUTED)
@@ -441,7 +443,7 @@ func _fill_milestones() -> void:
 			progress.show_percentage = false
 			progress.custom_minimum_size = Vector2(0, 3)
 			progress.max_value = float(milestone.number)
-			progress.value = workshop.best_number
+			progress.value = workshop.ladder_best()
 			var back := StyleBoxFlat.new()
 			back.bg_color = Palette.HAIRLINE
 			var fill := StyleBoxFlat.new()

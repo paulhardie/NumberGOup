@@ -210,7 +210,8 @@ func _resume_failed(saved: Dictionary, reason: String) -> void:
 		for reward in progression.observe(int(saved.start.get("tier", 1)), reached, maxi(0, reached - 1)):
 			ActivityLog.append({"kind": "wave_milestone", "reward": reward}, log_path)
 	var peak := float(result.get("peak_number", 0.0)) if trusted else 0.0
-	for milestone in workshop.finish_run(reached, peak):
+	var earned := float(result.cash_earned) if trusted else 0.0
+	for milestone in workshop.finish_run(reached, peak, earned):
 		ActivityLog.append({"kind": "milestone", "number": milestone.number, "coins": milestone.coins}, log_path)
 	var entry := saved.duplicate(true)
 	entry["kind"] = "run"

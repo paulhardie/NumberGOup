@@ -245,7 +245,7 @@ func _process(delta: float) -> void:
 	_refresh()
 	_first_sight(delta)
 	if not sim.alive and not _over.visible:
-		milestones = workshop.finish_run(sim.wave, sim.peak_number)
+		milestones = workshop.finish_run(sim.wave, sim.peak_number, sim.cash_earned)
 		run_finished.emit()
 		_show_run_over()
 

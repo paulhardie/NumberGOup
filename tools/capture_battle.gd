@@ -512,7 +512,7 @@ func _capture() -> void:
 		screen._bank_coins()
 		screen._refresh()
 		if not screen.sim.alive:
-			screen.workshop.finish_run(screen.sim.wave, screen.sim.peak_number)
+			screen.workshop.finish_run(screen.sim.wave, screen.sim.peak_number, screen.sim.cash_earned)
 			screen._show_run_over()
 		screen._arena.queue_redraw()
 		await _frames()

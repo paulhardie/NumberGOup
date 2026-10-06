@@ -1676,7 +1676,7 @@ func test_the_game_opens_into_a_saved_run_and_gives_up_one_it_cant_replay() -> v
 		# Sound changed-rules records retain milestones; damaged values can't pay.
 		var expected := Workshop.new()
 		expected.coins = 60.0
-		expected.finish_run(played.wave if reason == "changed" else 0, played.peak_number if reason == "changed" else 0.0)
+		expected.finish_run(played.wave if reason == "changed" else 0, played.peak_number if reason == "changed" else 0.0, played.cash_earned if reason == "changed" else 0.0)
 		check(Save.load_run(TEST_SAVE).is_empty() and loaded.runs == 1 and loaded.best_wave == expected.best_wave and is_equal_approx(loaded.coins, expected.coins),
 			"the run is cleared, counted at its wave, and its Coins kept, milestones paid: %s" % loaded.coins)
 		var entries := ActivityLog.read(TEST_LOG).filter(func(entry): return entry.kind == "run")
@@ -3091,21 +3091,24 @@ func test_the_number_fits_inside_its_range() -> void:
 	unsized.free()
 
 
-## Milestones (D107): the first time the best Number reaches each new digit,
-## the Workshop gets its Coins, once; a best already past a milestone pays
-## nothing more, and Home lists them.
-func test_milestones_pay_once_when_the_best_number_reaches_a_new_digit() -> void:
+## Milestones (D107, D164): the first time a run's Number earned reaches each
+## new digit, the Workshop gets its Coins, once; a best already past a milestone
+## pays nothing more, the peak doesn't count, and Home lists them.
+func test_milestones_pay_once_when_the_number_earned_reaches_a_new_digit() -> void:
 	var workshop := Workshop.new()
 	# Past the first run's gift (D125), so only milestones pay here.
 	workshop.runs = 1
-	check(workshop.finish_run(3, 9.0).is_empty() and workshop.coins == 0.0, "a best Number under 10 reaches none")
-	var first := workshop.finish_run(5, 12.0)
-	check(first.size() == 1 and float(first[0].number) == 10.0 and workshop.coins == 10.0, "reaching 10 pays its Coins: %s" % [first])
-	check(workshop.finish_run(5, 40.0).is_empty() and workshop.coins == 10.0, "and never again")
-	var jump := workshop.finish_run(20, 1500.0)
-	check(jump.size() == 2 and workshop.coins == 10.0 + 50.0 + 250.0, "a jump past two digits pays both: %s" % [jump])
+	check(workshop.finish_run(3, 500.0, 9.99).is_empty() and workshop.coins == 0.0, "earning under 10 reaches none, whatever the peak")
+	var first := workshop.finish_run(5, 3.0, 10.0)
+	check(first.size() == 1 and float(first[0].number) == 10.0 and workshop.coins == 10.0, "earning exactly 10 pays its Coins: %s" % [first])
+	check(workshop.finish_run(5, 3.0, 40.0).is_empty() and workshop.coins == 10.0, "and never again")
+	var jump := workshop.finish_run(20, 3.0, 1500.0)
+	check(jump.size() == 2 and workshop.coins == 10.0 + 25.0 + 250.0, "a jump past two digits pays both, digit 100 at 25: %s" % [jump])
+	check(workshop.best_number == 500.0 and workshop.best_earned == 1500.0, "the record stays the peak, the ladder's best is what was earned")
 	check(float(workshop.next_milestone().number) == 10000.0, "the next is 10,000")
-	check(workshop.finish_run(1, INF).is_empty(), "a peak that isn't a number reaches nothing")
+	check(workshop.finish_run(1, 3.0, INF).is_empty() and workshop.finish_run(1, 3.0, NAN).is_empty() and workshop.finish_run(1, 3.0, -5.0).is_empty(),
+		"an earned that isn't a number, or is below zero, reaches nothing")
+	check(workshop.best_earned == 1500.0 and workshop.coins == 10.0 + 25.0 + 250.0, "and changes nothing")
 	var home := HomeScreen.new()
 	home.workshop = workshop
 	root.add_child(home)
@@ -3116,6 +3119,8 @@ func test_milestones_pay_once_when_the_best_number_reaches_a_new_digit() -> void
 	check(home._next_digit.text.contains(Palette.money(float(workshop.next_milestone().coins))), "the next digit's reward shows: %s" % home._next_digit.text)
 	home._emblem.pressed.emit()
 	check(home._milestones_panel.visible and home._milestones_list.get_child_count() == Guesses.MILESTONES.size() + 1, "listing every milestone, with progress to the next")
+	var bars := home._milestones_list.find_children("*", "ProgressBar", true, false)
+	check(bars.size() == 1 and (bars[0] as ProgressBar).value == 1500.0 and (bars[0] as ProgressBar).max_value == 10000.0, "the bar runs from the best earned to the next digit")
 	home.queue_free()
 	await process_frame
 
@@ -3654,27 +3659,43 @@ func test_the_music_plays_unless_the_player_turns_it_off() -> void:
 ## A sim with nothing spawning, for placing enemies by hand.
 ## The fuel economy (D155, THE_NUMBER.md section 12): measuring options, off
 ## in the game.
-## D163 (THE_NUMBER.md 17): the digit ladder keyed on the Number earned is off unless
-## asked for and never saved; on, a digit pays the first time the best Number earned
-## reaches it, at its scale, and the record stays the true peak.
-func test_the_digit_ladder_can_follow_the_number_earned() -> void:
-	var plain := Workshop.new()
-	var paid := plain.finish_run(30, 50.0, 5000.0)
-	check(not plain.ladder_on_earned and plain.best_earned == 0.0 and paid.map(func(digit): return float(digit.number)) == [10.0],
-		"off, the peak pays: a peak of 50 reaches only digit 10, whatever the run earned")
+## D164 (THE_NUMBER.md 17): the digit ladder climbs the Number earned and saves its
+## best. A save from before it starts from its best peak, which the old ladder paid
+## on, so no digit pays twice; a damaged best is read the same way. The old ladder
+## and a reward scale stay as measuring options, never saved.
+func test_the_digit_ladder_climbs_the_number_earned_and_saves_it() -> void:
 	var shop := Workshop.new()
-	shop.ladder_on_earned = true
-	shop.ladder_scale = 0.5
-	paid = shop.finish_run(30, 50.0, 1500.0)
-	check(paid.map(func(digit): return float(digit.number)) == [10.0, 100.0, 1000.0], "on, a run that earned 1,500 reaches digits 10, 100 and 1,000")
-	check_near(shop.coins, Workshop.FIRST_RUN_GIFT + 0.5 * (10.0 + 50.0 + 250.0), 0.000001, "each paid at half, beside the first run's gift")
-	check(shop.best_number == 50.0 and shop.best_earned == 1500.0, "the record stays the peak; the best earned is kept beside it")
+	var paid := shop.finish_run(30, 50.0, 1500.0)
+	check(paid.map(func(digit): return float(digit.number)) == [10.0, 100.0, 1000.0], "a run that earned 1,500 reaches digits 10, 100 and 1,000 with a peak of 50")
+	check(shop.coins == Workshop.FIRST_RUN_GIFT + 10.0 + 25.0 + 250.0, "each paid in full, beside the first run's gift")
 	var coins := shop.coins
 	check(shop.finish_run(20, 400.0, 900.0).is_empty() and shop.coins == coins and shop.best_number == 400.0, "a smaller run earns nothing, though its peak is a record")
-	paid = shop.finish_run(80, 100.0, 12000.0)
-	check(paid.size() == 1 and float(paid[0].number) == 10000.0 and float(paid[0].coins) == 1250.0, "and a run that earns 12,000 pays digit 10,000 once, at half")
-	check(shop.finish_run(5, 10.0, INF).is_empty() and shop.best_earned == 12000.0 and shop.best_number == 400.0, "an earned that isn't a number pays nothing and changes nothing")
-	check(not shop.to_dict().has("best_earned") and not shop.to_dict().has("ladder_on_earned"), "and none of it is saved")
+	var again := Workshop.new()
+	again.restore(shop.to_dict())
+	check(again.best_earned == 1500.0 and again.best_number == 400.0, "both bests come through a save")
+	check(again.finish_run(5, 1.0, 1500.0).is_empty() and float(again.next_milestone().number) == 10000.0, "and a saved best pays nothing twice")
+	# Before D164: a best peak of 252 paid digits 10 and 100.
+	var older := Workshop.new()
+	older.restore({"coins": 5.0, "best_wave": 41, "best_number": 252.0, "runs": 30})
+	check(older.best_earned == 252.0, "a save from before it climbs from its best peak")
+	paid = older.finish_run(30, 200.0, 999.0)
+	check(paid.is_empty() and older.coins == 5.0, "so earning past 10 and 100 pays neither again")
+	paid = older.finish_run(30, 200.0, 1000.0)
+	check(paid.size() == 1 and float(paid[0].number) == 1000.0 and older.coins == 255.0, "and earning 1,000 pays digit 1,000")
+	for damaged in [null, "1500", -1.0, NAN, INF, [], {}]:
+		var read := Workshop.new()
+		read.restore({"best_number": 120.0, "best_earned": damaged})
+		check(read.best_earned == 120.0, "a damaged best earned (%s) reads as the best peak, so it pays nothing twice" % [damaged])
+	var zero := Workshop.new()
+	zero.restore({"best_number": 120.0, "best_earned": 0})
+	check(zero.best_earned == 0.0, "a saved best of 0 is kept as saved")
+	var peak := Workshop.new()
+	peak.ladder_on_peak = true
+	peak.ladder_scale = 0.5
+	paid = peak.finish_run(30, 150.0, 5000.0)
+	check(paid.map(func(digit): return float(digit.number)) == [10.0, 100.0] and float(paid[1].coins) == 12.5, "measuring the old ladder, the peak pays, at its scale")
+	check(peak.best_earned == 5000.0 and float(peak.next_milestone().number) == 1000.0, "the best earned is still kept, and the next digit follows the peak")
+	check(not peak.to_dict().has("ladder_on_peak") and not peak.to_dict().has("ladder_scale"), "neither option is saved")
 
 
 ## A run of the game's rules, with Coins following the Number earned or not (D162).

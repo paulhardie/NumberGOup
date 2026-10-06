@@ -8,6 +8,10 @@ Workshop cells of section 16.4 once, without the option (the ladder pays between
 runs, so a run with a fixed Workshop plays the same either way). Each criterion
 reads PASS, FAIL or NOT RUN. Measurements are cached by options and source. Bots,
 not players: a pass says the numbers hold, not that it is fun.
+
+Since D164 the earned ladder is the game, with digit 100 at 25 Coins, and the control
+asks for the peak ladder. The results in section 17.6 were measured before that, with
+digit 100 at 50 in both; run it again and they differ there.
 """
 import argparse
 import json
@@ -24,8 +28,8 @@ BUDGETS = (10000, 100000, 1000000)
 CAREERS = ('core', 'grow')
 CAREER_RUNS = 50
 SCALES = (1.0, 0.5)
-# Guesses.MILESTONES (D107): each digit and the Coins it pays at scale 1.
-DIGITS = {10.0: 10.0, 100.0: 50.0, 1000.0: 250.0, 10000.0: 2500.0, 100000.0: 10000.0, 1000000.0: 50000.0}
+# Guesses.MILESTONES (D107, D164): each digit and the Coins it pays at scale 1.
+DIGITS = {10.0: 10.0, 100.0: 25.0, 1000.0: 250.0, 10000.0: 2500.0, 100000.0: 10000.0, 1000000.0: 50000.0}
 LABELS = {1: 'reachable', 2: 'early digits', 3: 'share', 4: 'no digit dominates', 5: 'not rushed'}
 
 
@@ -49,8 +53,7 @@ def plan(scales=SCALES):
     for scale in (None,) + tuple(scales):
         for policy in CAREERS:
             options = dict(balance.GAME_RULES, careers=CAREER_RUNS, buy=policy, **{'cap-minutes': 90})
-            if scale is not None:
-                options.update({'ladder': 'earned', 'ladder-scale': scale})
+            options.update({'ladder': 'peak'} if scale is None else {'ladder': 'earned', 'ladder-scale': scale})
             runs[f'{name(scale)}.career_{policy}'] = options
     return runs
 
@@ -64,10 +67,9 @@ def verdict(passed, detail):
 
 
 def career(results, prefix, policy):
-    """A career's runs in order, each with the digits it reached and what they paid. The
-    control's are read from its peaks as Workshop.finish_run pays them; an earned-ladder
-    career's are recorded by the option and checked against the same reading of its
-    Number earned, so the tool and the game can't disagree unnoticed."""
+    """A career's runs in order, each with the digits it reached and what they paid, as
+    the simulator recorded them, checked against a reading of its peaks (the control) or
+    its Number earned, so the tool and the game can't disagree unnoticed."""
     runs = sorted(rows(results[f'{prefix}.career_{policy}']), key=lambda row: row['run'])
     key, pay = ('peak_number', 1.0) if prefix == 'ctrl' else ('cash', float(prefix[1:]))
     best = 0.0
@@ -75,9 +77,7 @@ def career(results, prefix, policy):
         reached = [d for d in DIGITS if best < d <= row[key]]
         best = max(best, row[key])
         paid = sum(DIGITS[d] * pay for d in reached)
-        if prefix == 'ctrl':
-            row['digits'], row['digits_paid'] = reached, paid
-        elif row.get('digits') != reached or abs(row.get('digits_paid', -1.0) - paid) > 1e-6:
+        if row.get('digits') != reached or abs(row.get('digits_paid', -1.0) - paid) > 1e-6:
             raise ValueError(f'{prefix}.career_{policy} run {row["run"]}: recorded digits {row.get("digits")} differ from the reading {reached}')
     return runs
 
