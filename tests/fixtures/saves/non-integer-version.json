@@ -1,0 +1,71 @@
+{
+  "progression": {
+    "cards": {
+      "copies": {
+        "coins": 1,
+        "damage": 8
+      },
+      "equipped": [
+        "coins",
+        "damage"
+      ],
+      "slots": 2
+    },
+    "claimed": [
+      "1:10",
+      "1:20",
+      "1:30",
+      "1:40",
+      "1:50",
+      "1:80",
+      "1:90",
+      "1:100",
+      "2:10"
+    ],
+    "clock": 100000.0,
+    "gems": 300,
+    "last_daily_day": 1,
+    "records": {
+      "1": {
+        "cleared": 100,
+        "reached": 101
+      },
+      "2": {
+        "cleared": 9,
+        "reached": 10
+      }
+    },
+    "research": {
+      "effects": {
+        "fixture_lab": []
+      },
+      "jobs": [],
+      "levels": {
+        "fixture_lab": 2
+      },
+      "slots": 1
+    }
+  },
+  "version": 2.5,
+  "workshop": {
+    "best_number": 180.0,
+    "best_wave": 100,
+    "coin_parts": {
+      "digest": "4a11e86fd2d2dbcf8dfd5861f2e929a7a109f092c05bfb4783cf5bb8c77a43a4",
+      "encoding": 1,
+      "payload": "GwAAAAIAAAAEAAAABQAAAGNvaW5zAAAAAwAAAABQmkQEAAAACQAAAHJlbWFpbmRlcgAAAAMAAAAAAAAA"
+    },
+    "coin_remainder": 0.0,
+    "coins": 1234.5,
+    "levels": {
+      "attack_speed": 2,
+      "damage": 4,
+      "health": 3
+    },
+    "open_groups": [
+      "attack_start",
+      "defense_start"
+    ],
+    "runs": 7
+  }
+}
