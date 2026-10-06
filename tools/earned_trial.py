@@ -239,15 +239,20 @@ def render(configs, results):
     return '\n'.join(lines), overall
 
 
+def chosen(extra):
+    """The declared grid, always, then any exploratory configurations asked for."""
+    return GRID + tuple(config for config in (extra or ()) if config not in GRID)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--jobs', type=int, default=4)
     parser.add_argument('--cache', type=Path, default=Path('/tmp/ngu-earned-trial'))
     parser.add_argument('--output', type=Path, help='write the verdicts and the cells\' medians here')
     parser.add_argument('--config', action='append', metavar='SHARE:POWER',
-                        help='measure this configuration instead of the declared grid (labelled exploratory when outside it)')
+                        help='also measure this configuration (labelled exploratory when outside the declared grid)')
     args = parser.parse_args()
-    configs = tuple(tuple(float(part) for part in text.split(':')) for text in args.config) if args.config else GRID
+    configs = chosen(tuple(tuple(float(part) for part in text.split(':')) for text in (args.config or ())))
     try:
         results = run_all(plan(configs), args.cache, args.jobs)
         text, overall = render(configs, results)

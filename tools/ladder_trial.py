@@ -150,14 +150,19 @@ def render(scales, results):
     return '\n'.join(lines), overall
 
 
+def chosen(extra):
+    """The declared scales, always, then any exploratory ones asked for."""
+    return SCALES + tuple(scale for scale in (extra or ()) if scale not in SCALES)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--jobs', type=int, default=4)
     parser.add_argument('--cache', type=Path, default=Path('/tmp/ngu-ladder-trial'))
     parser.add_argument('--output', type=Path)
-    parser.add_argument('--scale', action='append', type=float, help='measure this reward scale instead (exploratory unless declared)')
+    parser.add_argument('--scale', action='append', type=float, help='also measure this reward scale (exploratory unless declared)')
     args = parser.parse_args()
-    scales = tuple(args.scale) if args.scale else SCALES
+    scales = chosen(args.scale)
     try:
         results = run_all(plan(scales), args.cache, args.jobs)
         text, overall = render(scales, results)

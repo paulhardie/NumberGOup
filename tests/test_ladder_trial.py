@@ -115,6 +115,11 @@ class LadderCriteriaTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             trial.evaluate(results, 1.0)
 
+    def test_an_exploratory_scale_is_added_never_in_place_of_the_declared(self):
+        self.assertEqual(trial.chosen(None), (1.0, 0.5))
+        self.assertEqual(trial.chosen([0.7]), (1.0, 0.5, 0.7))
+        self.assertEqual(trial.chosen([0.5]), (1.0, 0.5), 'a declared scale asked for again is not doubled')
+
     def test_the_plan_is_the_declared_one(self):
         runs = trial.plan()
         self.assertEqual(len(runs), 6 + 2 * 3)

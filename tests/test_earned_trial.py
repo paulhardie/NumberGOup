@@ -181,6 +181,11 @@ class EarnedCriteriaTests(unittest.TestCase):
         del results[f'{PREFIX}.career_grow']
         self.assertIsNone(trial.post_hoc(results, PREFIX), 'without its runs it reads nothing, not a number')
 
+    def test_an_exploratory_configuration_is_added_never_in_place_of_the_grid(self):
+        self.assertEqual(trial.chosen(None), trial.GRID)
+        self.assertEqual(trial.chosen([(0.3, 1.0)]), trial.GRID + ((0.3, 1.0),))
+        self.assertEqual(trial.chosen([(0.5, 1.0)]), trial.GRID, 'a declared configuration asked for again is not doubled')
+
     def test_the_calibration_and_the_plan_are_the_declared_ones(self):
         self.assertAlmostEqual(trial.scale(1.0), 420.5 / 3950.5)
         self.assertAlmostEqual(trial.scale(0.8) * 3950.5 ** 0.8, 420.5, places=6)
