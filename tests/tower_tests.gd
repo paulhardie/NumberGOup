@@ -3654,6 +3654,29 @@ func test_the_music_plays_unless_the_player_turns_it_off() -> void:
 ## A sim with nothing spawning, for placing enemies by hand.
 ## The fuel economy (D155, THE_NUMBER.md section 12): measuring options, off
 ## in the game.
+## D163 (THE_NUMBER.md 17): the digit ladder keyed on the Number earned is off unless
+## asked for and never saved; on, a digit pays the first time the best Number earned
+## reaches it, at its scale, and the record stays the true peak.
+func test_the_digit_ladder_can_follow_the_number_earned() -> void:
+	var plain := Workshop.new()
+	var paid := plain.finish_run(30, 50.0, 5000.0)
+	check(not plain.ladder_on_earned and plain.best_earned == 0.0 and paid.map(func(digit): return float(digit.number)) == [10.0],
+		"off, the peak pays: a peak of 50 reaches only digit 10, whatever the run earned")
+	var shop := Workshop.new()
+	shop.ladder_on_earned = true
+	shop.ladder_scale = 0.5
+	paid = shop.finish_run(30, 50.0, 1500.0)
+	check(paid.map(func(digit): return float(digit.number)) == [10.0, 100.0, 1000.0], "on, a run that earned 1,500 reaches digits 10, 100 and 1,000")
+	check_near(shop.coins, Workshop.FIRST_RUN_GIFT + 0.5 * (10.0 + 50.0 + 250.0), 0.000001, "each paid at half, beside the first run's gift")
+	check(shop.best_number == 50.0 and shop.best_earned == 1500.0, "the record stays the peak; the best earned is kept beside it")
+	var coins := shop.coins
+	check(shop.finish_run(20, 400.0, 900.0).is_empty() and shop.coins == coins and shop.best_number == 400.0, "a smaller run earns nothing, though its peak is a record")
+	paid = shop.finish_run(80, 100.0, 12000.0)
+	check(paid.size() == 1 and float(paid[0].number) == 10000.0 and float(paid[0].coins) == 1250.0, "and a run that earns 12,000 pays digit 10,000 once, at half")
+	check(shop.finish_run(5, 10.0, INF).is_empty() and shop.best_earned == 12000.0 and shop.best_number == 400.0, "an earned that isn't a number pays nothing and changes nothing")
+	check(not shop.to_dict().has("best_earned") and not shop.to_dict().has("ladder_on_earned"), "and none of it is saved")
+
+
 ## A run of the game's rules, with Coins following the Number earned or not (D162).
 func _earned_run(seed_value: int, tuning: Dictionary, run_tier: int = 1, seconds: float = 400.0) -> BattleSim:
 	var sim := BattleSim.new(seed_value, {"damage": 20, "health": 30, "health_regen": 10}, BattleSim.START_GROUPS, run_tier)

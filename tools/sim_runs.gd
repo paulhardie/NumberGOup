@@ -57,6 +57,10 @@ extends SceneTree
 ## in when the Lock dies, --upgrades-off shuts the run shop for the run, and --reserve R keeps the bot
 ## from spending below R times the run's best Number (0 to below 1; 0 spends
 ## down to 1). Each run prints where the Number's income came from.
+## The digit ladder keyed on the Number earned (D163, docs/THE_NUMBER.md section 17):
+## --ladder earned pays each digit the first time a career's best Number earned
+## reaches it, instead of its best peak, and --ladder-scale N multiplies what the
+## digits pay (careers only).
 ## Coins from the Number earned (D162, docs/THE_NUMBER.md section 16):
 ## --earned-share S makes that share of a run's Coins follow the Number earned
 ## (0 to 1; the kill and wave Coins pay the rest), --earned-power P its power
@@ -350,6 +354,9 @@ func _card_sweep(level: int, seeds: int, levels: Dictionary, groups: Array, stra
 
 func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionary, loadout: Dictionary) -> bool:
 	var workshop := Workshop.new()
+	# The digit ladder keyed on the Number earned (D163), off unless asked for.
+	workshop.ladder_on_earned = options.get("ladder", "") == "earned"
+	workshop.ladder_scale = float(options.get("ladder-scale", "1"))
 	var progression := Progression.new(workshop)
 	var hours := 0.0
 	print("career, buying %s in each run, %d-minute cap%s" % [strategy, int(cap_seconds / 60.0), ", Cards " + options.cards if options.has("cards") else ""])
@@ -370,13 +377,20 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 		_record_run(sim, "career", run + 1, cap_seconds)
 		workshop.add_coins(sim.coins)
 		var before_rewards := workshop.coins
-		workshop.finish_run(sim.wave, sim.peak_number)
+		var digits := workshop.finish_run(sim.wave, sim.peak_number, sim.cash_earned)
 		# Same one-time rewards as the screens; the switch measures D125's
 		# earlier progression without altering any battle rules.
 		if not options.has("legacy-progression"):
 			progression.observe(sim.tier, sim.wave, sim.wave if sim.killed_by == "data_limit" else sim.wave - 1)
 		if _export_measurements:
 			_measurements[-1]["permanent_rewards"] = workshop.coins - before_rewards
+			# Recorded only while the earned ladder is on, so other measurements stay as they were.
+			if workshop.ladder_on_earned:
+				var paid := 0.0
+				for digit in digits:
+					paid += float(digit.coins)
+				_measurements[-1]["digits_paid"] = paid
+				_measurements[-1]["digits"] = digits.map(func(digit): return float(digit.number))
 		hours += sim.time / 3600.0
 		_spend_workshop(workshop, strategy)
 		# The Number as the wave it ended on began (at death it reads 0).

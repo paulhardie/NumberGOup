@@ -17,6 +17,7 @@
 | 14 | It becomes the game (D158) | **Live. The current rules**, compatibility reasoning and what is undecided |
 | 15 | Coins from the peak Number: what the peak is made of (6 October) | **Live finding.** The peak is the Health row's Number for strong builds, so the reward follows the Number earned (16) |
 | 16 | Coins from the Number earned (D162): definitions, options and pass criteria | **Measured: all six configurations fail** (16.7). Options built, off by default; not the game's rules |
+| 17 | Stage 2: the digit ladder keyed on the Number earned (D163) | **Measured: both scales fail; the earned ladder fixes what the peak one lacks** (17.6). Not the game's rules |
 
 ### The Number today (D158)
 
@@ -1197,3 +1198,61 @@ What the numbers show (medians, bots):
 4. **If the owner wants the gentle version anyway,** share 0.25 with power 1 is the closest (E2 and E3 are its two misses), and it would need new criteria, written first, that say which of those is acceptable.
 
 **Not checked:** a player on it (bots, not people); Tier 2 and 3 beyond the harness's level-20 cells; careers longer than 50 and 70 runs; and the interaction with Cards and Labs, which change the Coin multiplier.
+
+## 17. Stage 2: the digit ladder keyed on the Number earned (6 October 2026, D163)
+
+**The owner's direction:** after 16.7 ("leave Coins as they are, and write stage 2's criteria for a digit ladder keyed on the Number earned"), "Yeah keep going". **Coins stay as they are.** The digit ladder (D107: 10, 100, 1,000, 10,000, 100,000 and 1,000,000, paying 10, 50, 250, 2,500, 10,000 and 50,000 Coins the first time each is reached) is to be keyed on the **Number earned in a run** instead of the run's peak. The record on Home stays the true peak. **This section is written before any option is built or measured.**
+
+### 17.1 Why, in numbers (today's game, the committed careers and cells)
+
+- **By the peak, the ladder barely pays.** Over a career's first 50 runs (core and grow alike) it pays 60 Coins, 1.6% of what the career earns. Digit 100 arrives at run 30 (core) or 41 (grow); 1,000 never. A buying build's peak is its Health row's Number, so the median peak is 139 at 10K Coins, 409 at 100K and 2,764 at 1M (core); **digits 10,000 and up are out of reach in Tier 1.**
+- **By the Number earned, the same rewards would arrive with progress.** The median buying run earns 1,455 at 10K, 3,951 at 100K and 11,229 at 1M (core), 36,800 for the turtle at 1M: digit 1,000 at the first budget, 10,000 at the last. Over the careers' first 50 runs the same rewards would pay 310 Coins, digit 100 at run 6 and 1,000 at run 30 or 41.
+- **Prediction, written before measuring:** reading the measured careers through the earned ladder (the analysis above, not the option), L1, L2, L3 and L5 should pass at both reward scales; **L4 (no digit dominates) should fail at full rewards**, because digit 100 arrives at run 6, which earns about 14 Coins, and pays 50 (3.6 times), and pass at half.
+
+### 17.2 The definitions
+
+- **A run's Number earned:** its `cash_earned` (kills, waves, Interest; THE_NUMBER 16.2).
+- **The best Number earned:** the highest any run has earned. A digit pays its Coins the first time the best Number earned reaches it, as the peak ladder does with the best Number.
+- **Configurations:** the control (today's peak ladder), and the earned ladder with today's rewards scaled by 1.0 and by 0.5. Reported all three.
+- **The record stays the true peak** (`best_number`), and is still what Home shows.
+
+### 17.3 The options (built and measured, 17.6)
+
+Measuring options on `Workshop`, off by default and never saved: `ladder_on_earned` (key the ladder on the Number earned) and `ladder_scale` (a multiplier on its rewards), with the best Number earned held in memory only while on. `Workshop.finish_run` takes the run's Number earned. `sim_runs.gd` gets `--ladder earned` and `--ladder-scale N`. The criteria as code in `tools/ladder_trial.py`, tested so that each fails at its boundary and an unplayed criterion reads "not run". **With them off nothing changes; the quick balance comparison is the proof.** Making it the game is its own change, with a save field for the best Number earned, a migration and an independent review.
+
+### 17.4 The cells
+
+- **Careers,** played with the option: `core` and `grow` from a fresh Workshop, **50 runs each (equal horizons, after 16.7's lesson)**, the game's rules, 90-minute cap.
+- **Workshop cells,** read without the option (the ladder pays between runs, so a run with a fixed Workshop plays the same either way): core and turtle, buying, at 10K, 100K and 1M Coins, the seeds of 16.4.
+
+### 17.5 The pass criteria
+
+1. **L1. The ladder is reachable in Tier 1, with a long goal left.** The median buying run's Number earned reaches 1,000 at 10K Coins and 10,000 at 1M Coins, for core and turtle; and no measured run's Number earned reaches 1,000,000. *Why: the digits should arrive as a build grows, and the last should stay something to chase.*
+2. **L2. The early career meets the first digits.** In each career, digit 100 is first reached by run 10, and digit 1,000 within the 50 runs. *Why: the first hour should show the ladder working.*
+3. **L3. It pays a real but minor share.** Over each career's 50 runs the ladder pays between 3% and 20% of all the Coins the career earned (its runs' Coins plus the ladder's). *Why: today's 1.6% is invisible; above a fifth it would replace playing for Coins.*
+4. **L4. No digit dominates its moment.** In each career, every digit after the first (10) pays at most 3 times the Coins of the run that first reaches it. *Why: a single digit worth many runs would make the ladder the economy.*
+5. **L5. The early game isn't rushed.** In each career, the first run to reach wave 30 is no earlier than 80% of the control's run for that career. *Why: the ladder's Coins buy Workshop rows; it must not skip the first hours.*
+
+**The rules of 10.4, 12.5, 13.2 and 16.5 apply:** every configuration reported, no seed chosen, criteria not changed after results, exploratory runs labelled, a failure written up with a proposal for the owner. **The owner's play is the real test.**
+
+### 17.6 Results (6 October 2026): the earned ladder fixes what the peak ladder lacks, and both scales fail
+
+Measured with `python3 tools/ladder_trial.py` on the committed options (criteria committed first, unchanged; careers 50 runs each, the Workshop cells of 16.4). **Overall: FAIL for both scales; the control (today's peak ladder) fails too.**
+
+| | L1 reachable | L2 early digits | L3 share | L4 no digit dominates | L5 not rushed |
+|---|---|---|---|---|---|
+| **Control: today's peak ladder** | **fail** (median peak 141 to 2,764) | **fail** (100 at runs 30 and 41, 1,000 never) | **fail** (1.6% and 1.2%) | pass | pass |
+| **Earned ladder, full rewards** | pass (median earned 1,470 at 10K, 11,343 at 1M core) | pass (100 at run 6, 1,000 at 30 and 38) | pass (6.0% and 4.6%) | **fail** (digit 100 pays 3.57 times its run) | **fail** (core reaches wave 30 at run 33 against 47) |
+| **Earned ladder, half rewards** | pass | pass (100 at run 6, 1,000 at 30 and 41) | **fail** for grow (2.9%; core 3.3%) | pass (1.79) | **fail** (core at run 35 against 47) |
+
+Against the prediction in 17.1: L1 to L3 and L4 came out as predicted, except that half rewards land the grow career just under L3's 3% floor; **L5 was not predicted.** In the core career the ladder's early Coins (50 for digit 100 at run 6, then 250 for 1,000 at run 30) bring wave 30 forward by 12 to 14 runs.
+
+**Exploratory, not a criterion (three more career seeds, core, `--career-seed 1` to `3`, read the same way):** the first run reaching wave 30 is 39, 39 and 44 in the control, 39, 33 and 44 at full rewards, and 39, 34 and 44 at half. With the declared career that is 47, 39, 39 and 44 against 33, 39, 33 and 44 at full rewards: **the ladder speeds two of four careers by 5 to 14 runs and leaves two alone**, about 5 runs or 12% on average. The declared career is the largest case; the effect is real but modest and noisy.
+
+**What it means, and a proposal (the owner decides):**
+1. **Keying the ladder on the Number earned works.** It makes every digit to 10,000 reachable in Tier 1 with 1,000,000 still far off, brings the first digits into the first hour, and pays a visible 5% to 6% of a career's Coins where today's pays 1% to 2% and stops at digit 100 for a buying build.
+2. **Its costs are the early digits.** Digit 100 now comes at run 6, when a run earns about 14 Coins, so 50 Coins is three and a half runs (L4), and the early Coins move wave 30 forward in some careers (L5). Halving every reward fixes L4 but not L5, and leaves the ladder nearly invisible (L3).
+3. **I'd make it the game with today's rewards except digit 100 at 25 Coins** (1.8 times its run, L4's measure), and accept that some careers reach wave 30 a few runs sooner. That is my judgement on an exploratory reading; that variant hasn't been measured against the criteria, and by the rules it can't pass them now. Making the ladder the game is its own high-risk change: a save field for the best Number earned (seeded from the best peak so no digit pays twice), Home's milestone sheet reading it, tests and an independent review.
+4. **The alternative** is to leave the peak ladder as it is (it fails L1 to L3) and write new criteria first for a variant (for example a gentler digit 100) before measuring it.
+
+**Not checked:** a player (bots only); careers beyond 50 runs; the digits from 100,000 up in real play (no measured Tier 1 run earns more than 38,286); Tier 2 and 3 careers.

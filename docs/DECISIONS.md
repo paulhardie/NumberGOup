@@ -2437,3 +2437,13 @@ Rules:
 - **Not decided:** whether the earned reward becomes the game's rule (it waits on the results, the owner's play and an independent review), the share `s` and power `p` it would use, and what the digit ladder should pay.
 - **Measured (2026-10-06, THE_NUMBER.md 16.7): FAIL, all six configurations.** E4 (tiers) passes in every one; E2 (paid alike) and E5 (Coin rows still matter) pull against each other, so no share satisfies both; a power of 0.8 over-pays fresh runs and a power of 1 mis-sizes builds. The nearest are share 0.25 (5 of 7). **The earned reward is not the game's rule,** and the agent recommends leaving Coins as they are; the owner decides.
 - **Revisit when:** the owner decides what to do with the result, or play shows the reward feels wrong.
+
+## D163 — Coins stay as they are; the digit ladder is measured keyed on the Number earned
+
+- **Status:** Accepted (2026-10-06) on the owner's direction, after the earned-Coins reward failed in all six configurations (D162, THE_NUMBER.md 16.7) and the agent proposed leaving Coins as they are and keying the digit ladder on the Number earned: "Yeah keep going. You don't need to stop after every little change you make."
+- **Decision:**
+  1. **Coins stay as they are.** The earned-Coins options stay in the code, off by default, as the measuring record.
+  2. **Stage 2 measures the digit ladder keyed on the Number earned in a run** (THE_NUMBER.md 17), with its criteria written first and equal career horizons. The record stays the true peak.
+- **Not decided:** whether the earned ladder becomes the game (it waits on the measurement, the owner's play and an independent review), its reward scale, and how a save records the best Number earned.
+- **Measured (2026-10-06, THE_NUMBER.md 17.6): FAIL at both reward scales; the control (today's peak ladder) fails L1 to L3.** The earned ladder makes every digit to 10,000 reachable in Tier 1 and pays 5% to 6% of a career's Coins (today 1% to 2%); at full rewards digit 100 pays 3.6 times the run that reaches it (L4), and at both scales the core career reaches wave 30 12 to 14 runs sooner (L5; across four career seeds, exploratory, two of four careers are sped by 5 to 14 runs). The agent proposes making it the game with digit 100 at 25 Coins, as its own high-risk change; the owner decides.
+- **Revisit when:** the owner decides on 17.6's proposal.
