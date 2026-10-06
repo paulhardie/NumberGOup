@@ -295,7 +295,13 @@ func refresh() -> void:
 	var best := _best_wave_now()
 	_best_wave.text = "Tier 1  ·  best wave %d  ·  %d run%s" % [best, workshop.runs, "" if workshop.runs == 1 else "s"]
 	_shelf_box.visible = workshop.runs > 0
-	Palette.fill_progress(_tier_tile.find_child("Progress", true, false), clampf(float(best) / ComingSoon.NEXT_TIER_WAVE, 0.0, 1.0), true, Palette.ACCENT)
+	Palette.fill_progress(_tier_tile.find_child("Progress", true, false), clampf(float(_best_clear_now()) / ComingSoon.NEXT_TIER_WAVE, 0.0, 1.0), true, Palette.ACCENT)
+
+
+## The best Tier 1 wave cleared, which is what opens Tier 2 (D002); without a
+## progression there is no clear record.
+func _best_clear_now() -> int:
+	return progression.best_wave(1, true) if progression != null else 0
 
 
 func _best_wave_now() -> int:
@@ -451,7 +457,7 @@ func _open_missions() -> void:
 
 
 func _open_next_tier() -> void:
-	ComingSoon.tier_sheet(_best_wave_now()).show_over(self)
+	ComingSoon.tier_sheet(_best_clear_now()).show_over(self)
 
 
 ## Settings, over the screen, in groups (D160): what works now, and what's
