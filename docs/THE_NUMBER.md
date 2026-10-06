@@ -15,7 +15,8 @@
 | 12 | The fuel economy, measured (D155) | **Parked.** Every configuration failed; a fixed price can't fit Tier 1 |
 | 13 | The Number is Cash (D156, D157): rules, criteria, results, the enemies | **Live.** The rules are built and the results stand |
 | 14 | It becomes the game (D158) | **Live. The current rules**, compatibility reasoning and what is undecided |
-| 15 | Coins from the peak Number: what the peak is made of (6 October) | **Live finding.** Nothing built; the owner's yes to a peak reward needs one more answer |
+| 15 | Coins from the peak Number: what the peak is made of (6 October) | **Live finding.** The peak is the Health row's Number for strong builds, so the reward follows the Number earned (16) |
+| 16 | Coins from the Number earned (D162): definitions, options and pass criteria | **Criteria written; nothing built.** Written before any option, per QUALITY_GATES |
 
 ### The Number today (D158)
 
@@ -27,7 +28,7 @@
 - **Runs begun before D158 play their Cash rules to the end.** The game's rules are `RunConfig.game_tuning()`; the code's own defaults stay off so old saves and measurements replay exactly. No version bump (14.2).
 - **What the bots say (13.3, 14.3):** the same pace as Cash, a Number a fifth to a quarter of its old size, no runaway. The shop adds 25 to 37% of a run's waves even at 1M Coins, as it does under The Tower's own rules.
 - **Growth after the Workshop flattens:** [GROWTH_LAYERS.md](GROWTH_LAYERS.md) (D161), a design note.
-- **Undecided (14.4, HANDOVER.md):** the Number milestones now pay less; whether a run's reward follows its peak Number; how Workshop power outgrows the run shop; Recovery Packages; the Thorns turtle against a Lock.
+- **Undecided (14.4, HANDOVER.md):** the Number milestones now pay less; whether the digit ladder should be recalibrated (a run's Coin reward follows the Number earned, D162, criteria in 16, nothing built); how Workshop power outgrows the run shop; Recovery Packages; the Thorns turtle against a Lock.
 - **The lesson that cost two experiments:** the Number runs from 5 to millions inside Tier 1, so anything priced in a flat amount of it breaks. Use shares or time.
 
 ## The direction, in the owner's words
@@ -1091,5 +1092,63 @@ A 1M-Coin core run's peak is the same 2,763.5 on every seed: it is the Health ro
 3. **The digit ladder has the same problem.** A 1M-Coin core build tops out at 2,763 and so reaches digit 1,000 and never 10,000; the top three digits (10K, 100K, 1M) are out of reach in Tier 1 for a spender whatever the rewards are. Recalibrating their Coins changes nothing for them.
 4. **What does move with play is the Number earned,** every point paid into the Number by kills, waves and Interest, whatever it is then spent on: 11,000+ for that 1M run, 4,000 for a 100K core run, 1,500 at 10K. Spending doesn't lower it, so a spender and a hoarder are measured alike, and it grows with the waves reached.
 
-**The question this raises (HANDOVER.md, open decision 1):** pay the reward from the Number *earned* rather than the peak, keeping the record as the true peak. Nothing is built for either; the experiment's criteria are not written yet.
+**The question this raised, answered (6 October):** the owner chose to pay the reward from the Number *earned* rather than the peak, keeping the record as the true peak. The experiment's design and criteria are section 16.
 
+
+## 16. Coins from the Number earned (6 October 2026, D162)
+
+**The owner's direction:** after section 15, "yeah go with earned, write the criteria". A run's Coin reward follows the **Number earned** in the run, not its peak, and the record stays the true peak. **This section is the experiment's design and its pass criteria, written before any option is built or measured.** Nothing is built. The digit ladder (11.15, 14.4) is a second stage with its own criteria, written after this stage's results, because what a digit should pay depends on what a run's Coins are by then.
+
+### 16.1 What today's game already does (measured 6 October, the game's rules, buying `core` in the run, reserve 0.5, 6 seeds, core Workshop plan)
+
+| Budget | Buying: wave / Number earned / Coins | Coins per Number earned | Run upgrades off: wave / earned / Coins | Coins per earned |
+|---|---|---|---|---|
+| 10K | 31 / 1,455 / 178 | 0.123 | 20.5 / 621 / 92 | 0.148 |
+| 100K | 51 / 3,951 / 421 | 0.106 | 36.5 / 1,893 / 219 | 0.116 |
+| 1M | 81 / 11,229 / 915 | 0.081 | 61 / 5,772 / 578 | 0.100 |
+
+Turtle at 1M (4 seeds, buying): wave 150 every seed, about 36,800 earned, about 2,460 Coins (0.067 per earned). The harness's medians (the committed full baseline; Number earned here is kills, waves and Interest) say the same shape in Tier 1: **0.09 to 0.19 Coins per Number earned** for fresh runs and the core, turtle, blender and spread plans at 10K and 100K, and 0.25 for the career that buys Coins income (the Coin rows show). **Tiers differ, by exactly their Coin bonus:** Tier 2 and 3 at level 20 earn 0.35 and 0.51, which is 0.19 and 0.20 per unit of the tier's Coin bonus (1.8 and 2.6). The Number earned itself does **not** scale with the tier's enemy Attack: a kill's Cash depends on its wave and kind only, so a Tier 2 run at wave 18 earns about 2,300, not twenty times a Tier 1 run's.
+
+**Prediction, written before measuring:** because Coins per Number earned is already within a factor of two across Tier 1 builds, budgets and rules, and scales by the tier's Coin bonus across tiers, a reward that follows the Number earned will move a run's Coins by tens of percent, not by multiples. Its value is **structural** (the Coin economy becomes a share of the Number's income, so a tier's scale arrives through the Number and the Coin bonus, and "pushing the Number" pays), **not a change of pace.** I expect E1, E3 and E7 to pass; **E5 (the Coin rows still matter) is the one most likely to fail**, at the largest share, and **E4 (the tier ratio) is the other to watch**, because the level-20 tier builds earn more Coins per Number than the plan that sets `K`.
+
+### 16.2 The definitions
+
+- **Number earned, `E`:** the run's `cash_earned`: every point paid into the Number by kills, wave ends and Interest, when it lands (a Lock's held share counts when it is paid out). Not Regen, Lifesteal or Recovery Packages, which only refill what enemies took. **Spending doesn't lower it.**
+- **No tier normalisation of `E`.** The Number earned doesn't scale with the tier's enemy Attack (a kill's Cash is by wave and kind), so the tier's scale reaches the Coins through its Coin bonus (`TowerData.tier(n).coins`, 1.8 and 2.6), which multiplies the earned part as it multiplies ordinary Coins today. (An earlier draft divided `E` by the tier's Attack multiplier; that would have cut a Tier 2 run's earned part twentyfold, and was dropped on review.)
+- **The reward rule:** a run's Coins are `(1 − s) × ordinary Coins + s × K × coin_bonus × E^p`, where ordinary Coins are what kills and waves pay today (with the Workshop's Coin rows), `coin_bonus` is the tier's Coin bonus times the run's Coin multiplier (cards, Labs), `s` is the share that follows the Number, `p` the power and `K` a constant fixed by the rule below. The earned part is paid as `E` rises (the increase in `E^p` since the last payment, at each wave's end and when the run ends), so it banks like today's Coins and a saved run resumes the same.
+- **Calibration rule (declared now, never retuned after results):** `K = 420.5 / 3,950.5^p` (E is the raw Number earned), so that at the reference cell (core Workshop plan, 100K Coins, buying, Tier 1) the earned part pays exactly `s` times the 421 Coins that cell earns today. One cell sets `K`; every other cell tests the shape.
+
+### 16.3 The options
+
+All off by default, in the style of D155 to D157: BattleSim fields `earned_share` (`s`), `earned_power` (`p`) and `earned_scale` (`K`); recorded in a run's start config only while on (`RunConfig.trial_tuning`, validated by `valid_tuning`); the earned part's running total saved in a snapshot only while on; flags in `sim_runs.gd`; the criteria as code in `tools/earned_trial.py` (the pattern of `cash_trial.py`) with a test that each criterion fails at its boundary and that a criterion whose runs weren't played reads "not run", never a pass. A run made without them is byte for byte what it was; **the quick balance comparison showing no movement is the proof.**
+
+### 16.4 The cells
+
+Bots playing the game's rules (`--number-cash --lock-holds-cash --reserve 0.5`), buying `core` in the run, and each cell again with run upgrades off. Seeds 1 to 6 (1 to 4 for turtle at 1M Coins, which runs 87 minutes of game time), no seed chosen. Each is also played as a control, the same cell with the options off.
+
+- **Workshop cells:** the core and turtle plans at 10K, 100K and 1M Coins.
+- **Tier cells:** Tier 1, Tier 2 and Tier 3 with every row at level 20 (the harness's two tier cells, and a Tier 1 cell on the same seeds as the comparator for them).
+- **Fresh runs:** 20 seeds, buying nothing, evenly and core, 10-minute cap.
+- **Careers:** `--careers` from a fresh Workshop, the `core` and `grow` policies (`grow` also buys Coins income), as the harness's career cells.
+
+### 16.5 The pass criteria
+
+**Configurations, all reported:** `s` in {0.25, 0.5, 1.0} and `p` in {0.8, 1.0}, six in all. (`s` = 1.0 is the bound where the Workshop's Coin rows pay nothing; it is expected to fail E5 and is measured to say so.) A configuration passes when every criterion below holds.
+
+1. **E1. The Workshop's pace holds.** Buying, every core and turtle cell at 10K, 100K and 1M Coins has a median Coins per run within 25% of its control's. *Why: Coins are how the Workshop grows, so the reward must not speed it up or slow it by more than a quarter, whatever it follows.*
+2. **E2. Coins follow the Number earned, however it is spent.** For each plan and budget, Coins per Number earned buying and with run upgrades off are within 10% of each other (today they differ by 9% to 23%). *Why: the point of the change is that a run that spends and one that doesn't are paid by the same measure.*
+3. **E3. Run upgrades off stays a real option, not a handicap and not dominant.** For each plan and budget, off-runs' Coins per game-minute are between 70% and 130% of buying runs' (today 72% to 84%). *Why: the owner's switch should be a way to play.*
+4. **E4. Tiers keep their meaning.** The ratio of a tier's median Coins per run to the Tier 1 level-20 cell's (Tier 2 over Tier 1, and Tier 3 over Tier 1) under the option is within 15% of the same ratio in the controls. *Why: the tier Coin bonuses (1.8, 2.6 and on) are The Tower's sizing of income against the tiers; comparing ratios tests that without leaning on the one build that sets `K`.*
+5. **E5. The Workshop's Coin rows still matter.** In the careers, `grow` earns at least 25% more Coins over its runs than `core` (it earns about 75% more today). *Why: a share that follows the Number must leave Coins / Kill and Coins / Wave worth buying.*
+6. **E6. The early game holds.** Each fresh policy's median Coins is within 50% of its control's, or within 2 Coins, whichever is larger; none is zero. *Why: the first runs fund the Workshop's first rows.*
+7. **E7. No runaway.** In every cell, each run's Coins are at most 1.5 times its **same-seed control's** or its control's plus 2 Coins, whichever is larger, and Interest (already capped) supplies at most a quarter of the Number earned. *Why: the reward is a function of income, so a cap bypass would show here. A seed replays its control exactly (the option pays Coins, which nothing in a run spends), so the comparison is per seed, and ordinary seed variance can't fail it.*
+
+**The rules of 10.4, 12.5 and 13.2 apply:** every configuration is reported whether it passes or not, no seed is chosen, the criteria and the calibration rule are not changed after results are seen, a run outside the declared grid is labelled exploratory and never counts as a pass, and a pass means the numbers hold, not that it is fun. **The owner playing it is the real test.** A failure is a finding: it is written up with a proposal and the owner decides.
+
+### 16.6 What this stage proves, and what it leaves
+
+- **Proves, if it passes:** a Coin reward that follows the Number earned keeps the Workshop's pace, the tiers' sizing and the Coin rows' worth, and treats spenders and hoarders alike. It does not prove it is more fun.
+- **A seed replays its control,** to be shown by a test when it is built: the same seed with the option on has the same waves, kills and Number earned as with it off, and only the Coins differ (E7 depends on it).
+- **Compatibility, to be shown when it is built:** options off leave every existing run, snapshot, report and baseline unchanged; a run begun under them saves and resumes with the earned part intact, and a snapshot carries that state if and only if the run's rules say so (the D156 tests are the pattern).
+- **Making it the game is its own change** (QUALITY_GATES): `RunConfig.game_tuning()` gains the option, the run-over and Home text say what a run's Coins followed, and **an independent adversarial review of the final diff** is required (economy, saves).
+- **Not in this stage:** the digit ladder and its unreachable top digits (stage 2); how the Workshop's power outgrows the run shop; the Labs that GROWTH_LAYERS.md proposes.

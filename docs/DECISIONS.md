@@ -2425,3 +2425,14 @@ Rules:
   2. **We are not bound to The Tower's Workshop rows.** We may add rows of our own and larger Coin sinks over time. The generated rows stay generated and are never edited by hand; where our own rows live is an open question (GROWTH_LAYERS.md 6).
 - **Not decided:** the design note's recommendation that each growth layer has one job, one resource or clock and its own relationship to the Number, so no layer is a second Workshop with a timer ([GROWTH_LAYERS.md](GROWTH_LAYERS.md) sections 3 to 7 are the agent's recommendations, not decisions); which currency pays for Ultimate Weapons, what Labs' first catalogue holds, where our own rows are stored, and the sizes of any sink. **Nothing is built.** No Workshop Enhancements, own rows or new currency until Labs and a second tier show where the Workshop flattens in play (AGENTS law 8).
 - **Revisit when:** Labs (1.2) exist and the owner has played against them.
+
+## D162 — A run's Coin reward follows the Number earned, not the peak; the criteria come first
+
+- **Status:** Accepted (2026-10-06) on the owner's direction, after the agent found the peak is mostly the Health row's Number (THE_NUMBER.md 15): "yeah go with earned, write the criteria". This settles the question of what a run's reward follows. It does not make the reward the game: that waits on the measurement.
+- **Decision:**
+  1. **A run's Coin reward follows the Number earned** (the run's `cash_earned`, which spending doesn't lower), not the peak Number.
+  2. **The record stays the true peak** (the owner's earlier choice, D153 and 14.4); only the reward follows what was earned.
+  3. **The experiment's design and pass criteria are written first** (THE_NUMBER.md 16), before any option is built, as QUALITY_GATES requires: the definitions, the reward rule and its one-cell calibration, the six configurations, the cells and seven criteria (E1 to E7), all committed before the options exist.
+  4. **The digit ladder is a second stage,** with its own criteria after this one's results.
+- **Not decided:** whether the earned reward becomes the game's rule (it waits on the results, the owner's play and an independent review), the share `s` and power `p` it would use, and what the digit ladder should pay.
+- **Revisit when:** the measurement is in, or play shows the reward feels wrong.
