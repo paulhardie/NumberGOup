@@ -61,7 +61,6 @@ Tier 1 and every Workshop group work.
 - **The Cards screen refreshes only on its own changes.**
 - **Wave 10 pays 10 Coins against the SDK's 25,** pending a reading.
 - **Settings → Testing can grant Coins and Gems and wipe progress.** It must go before a public release.
-- **`tools/read_report.gd` reads a new run oddly:** its "cash" column is 0 (Cash is the Number now) and its health figures pair the Number with Workshop Health. The report itself is right.
 - **A Cash-rules battle saved before D158 resumes with Cash words** while Home, the Workshop and Cards read as the Number's, until it ends. Intended, brief, and the only place Cash still shows.
 - **The Enemy Balance and Wave Skip cards still describe "cash"** in their text. They are unbuilt and never drawn.
 - **Older snapshot or combat-contract runs can end on update,** keeping banked Coins and permanent progress ([SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.md)).
