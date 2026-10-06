@@ -1252,6 +1252,21 @@ func test_heat_up_comes_from_the_generated_data() -> void:
 	check_near(TowerData.heat_up_per_hit(), 1.04, 0.0, "each hit an enemy lands makes its next 4% harder (TheTowerSDK, D116)")
 
 
+## The wave a run has cleared is the sim's to say: it pays the wave rewards and
+## opens tiers. Every wave before the one it stands on, except at the data
+## horizon, whose own end is the achievement.
+func test_cleared_waves_come_from_the_sim() -> void:
+	var sim := _quiet_sim()
+	sim.wave = 12
+	check(sim.cleared_wave() == 11, "a run standing on wave 12 has cleared 11")
+	sim.killed_by = "basic"
+	check(sim.cleared_wave() == 11, "dying on it clears the waves before it")
+	sim.killed_by = "ended"
+	check(sim.cleared_wave() == 11, "and ending the run by hand does not claim the wave")
+	sim.killed_by = "data_limit"
+	check(sim.cleared_wave() == 12, "the data horizon's last wave is itself an achievement")
+
+
 ## The Wall is drawn as brackets round the Number (D106): enemies held at it
 ## stand clear of the brackets, and once it falls they come in to the digits.
 func test_enemies_at_the_wall_stand_clear_of_its_brackets() -> void:
@@ -3207,6 +3222,7 @@ func test_an_enemy_shows_what_it_does() -> void:
 	basic.hits = 10
 	var tenth := sim.landed_damage(20.0 * pow(TowerData.heat_up_per_hit(), 10))
 	check(tenth > first and ArenaView.shown_text(sim, basic) == Palette.amount(tenth), "and it grows with each hit it lands: %s" % ArenaView.shown_text(sim, basic))
+	check_near(sim.next_hit_damage(basic), tenth, 0.0, "the sim's own next hit is the same number, since the screen reads it")
 
 	var far := _place(sim, "divider", sim.stat("range") + 5.0)
 	far.divisor = 1.25
@@ -3966,6 +3982,24 @@ func test_a_new_run_plays_the_games_rules_and_reads_run_upgrades_off() -> void:
 		and CardsScreen.card_description("cash").contains("Number") and Palette.row_title("damage") == "Damage",
 		"with it on, the Interest row and the Cash card are about the Number too, and other rows are untouched")
 	Palette.number_cash = false
+
+
+## A settings write that cannot swap its file in says so, rather than replacing
+## the player's file with a half-written one (as the save already does).
+func test_a_settings_write_that_cannot_land_reports_failure() -> void:
+	DirAccess.remove_absolute(TEST_SETTINGS)
+	var settings := Settings.new()
+	check(settings.write(TEST_SETTINGS), "a normal write lands")
+	DirAccess.remove_absolute(TEST_SETTINGS)
+	DirAccess.make_dir_recursive_absolute(TEST_SETTINGS)
+	var sentinel := FileAccess.open(TEST_SETTINGS + "/keep.txt", FileAccess.WRITE)
+	sentinel.store_string("keep")
+	sentinel.close()
+	check(not settings.write(TEST_SETTINGS), "a write whose swap cannot land reports failure")
+	check(FileAccess.get_file_as_string(TEST_SETTINGS + "/keep.txt") == "keep", "and what was already there is untouched")
+	DirAccess.remove_absolute(TEST_SETTINGS + ".tmp")
+	DirAccess.remove_absolute(TEST_SETTINGS + "/keep.txt")
+	DirAccess.remove_absolute(TEST_SETTINGS)
 
 
 ## D157: with the Lock holding Cash, what a standing Lock blocks is kept, not

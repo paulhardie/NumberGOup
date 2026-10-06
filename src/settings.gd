@@ -46,5 +46,9 @@ func write(path: String = PATH) -> bool:
 		push_warning("Couldn't write the settings to %s." % temporary)
 		return false
 	file.store_string(JSON.stringify({"version": VERSION, "music": music, "upgrades_off": upgrades_off}, "\t"))
+	file.flush()
+	var written := file.get_error() == OK
 	file.close()
+	if not written:
+		return false
 	return DirAccess.rename_absolute(temporary, path) == OK

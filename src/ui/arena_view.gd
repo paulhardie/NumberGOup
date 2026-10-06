@@ -680,7 +680,7 @@ static func operation_text(battle: BattleSim, enemy: BattleSim.Enemy) -> String:
 	if enemy.kind == "vampire":
 		var share := snappedf(100.0 * float(TowerData.enemies().elites.vampire_drain), 0.1)
 		return "%s%%/s" % (str(roundi(share)) if is_equal_approx(share, roundf(share)) else String.num(share, 1))
-	return Palette.amount(battle.landed_damage(enemy.attack * pow(TowerData.heat_up_per_hit(), enemy.hits)))
+	return Palette.amount(battle.next_hit_damage(enemy))
 
 
 ## The nearest Divider inside the range and what it will leave: {sign, after},

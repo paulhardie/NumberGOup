@@ -1,6 +1,6 @@
 # Handover
 
-**Last updated:** 6 October 2026, by Claude Code (the digit ladder climbs the Number earned, D164).
+**Last updated:** 6 October 2026, by opencode (one authority for the enemy's next hit and the wave a run cleared; the frozen-fixture suite fixed for macOS).
 
 This page is the map for the next session: where the game is, what the owner has to decide, what to do next, what is broken, and what was and wasn't checked for the last change. **Replace it at hand-off; never append.** History lives where it belongs: decisions in [DECISIONS.md](DECISIONS.md) (find one in [DECISIONS_INDEX.md](DECISIONS_INDEX.md)), the Number's design and every experiment's criteria and results in [THE_NUMBER.md](THE_NUMBER.md). Don't write a commit hash or "the next free ID" here: they go stale at the next merge (`python3 tools/decisions_index.py --next` prints the ID, `git log` the hash).
 
@@ -25,7 +25,7 @@ Tier 1 and every Workshop group work.
 
 ## Open decisions for the owner
 
-1. **Answered yes (6 October): the earned digit ladder with digit 100 at 25 is built (D164), waiting on the merge.** Play it and say if the early digits feel too generous: by the bots some careers reach wave 30 a few runs sooner (THE_NUMBER.md 17.6, 17.7).
+1. **Answered yes (6 October): the earned digit ladder with digit 100 at 25 is built and merged (D164, PR #179).** Play it and say if the early digits feel too generous: by the bots some careers reach wave 30 a few runs sooner (THE_NUMBER.md 17.6, 17.7).
 2. **Background tasks for another agent** are GitHub issues #173 to #176 (frozen old-save fixtures, a small-screen layout audit, a simulation profile, the 1.1 build list checked against the code). Each lists the files it must not touch.
 3. **Should Workshop power be able to outgrow the run shop?** Even at 1M Coins the shop adds 25 to 37% of a run's waves, so "strong enough not to need upgrades" doesn't arrive by itself (13.3). Options are Labs that cheapen or replace run upgrades, or tier prices that rise.
 4. **Recovery Packages refill spending too** (14.4): a package heals a share of Workshop Health and raises the Number's ceiling, so after a purchase it can give some back. Bounded, and Packages open at 1.5M Coins. **If D156's "only what enemies took" should hold for them, a package must not raise the ceiling.** I left it.
@@ -39,7 +39,7 @@ Tier 1 and every Workshop group work.
 
 ## Next steps, in order
 
-1. **Owner:** merge the D164 pull request and play a few runs; watch the Milestones sheet and the line under the best Number.
+1. **Owner:** play a few runs on merged `main` and say if the early digits feel too generous; watch the Milestones sheet and the line under the best Number.
 2. **Owner or another agent:** hand issues #173 to #176 to the background agent; review each PR as it comes.
 3. **Owner:** read [GROWTH_LAYERS.md](GROWTH_LAYERS.md) and answer its section 6: which currency pays for Ultimate Weapons (I'd reuse Gems for now), whether Labs lead with run-economy Labs (I'd say yes), and where our own rows live (before the first one). Then Labs (1.2) is the next build.
 4. **Owner:** **play a run holding tiles on a phone**: the one pop-up check that couldn't be made.
@@ -48,6 +48,7 @@ Tier 1 and every Workshop group work.
 
 - **Checked, D164 (the earned ladder; economy and save, high risk):** `bash run_tests.sh` passes (new checks: digit boundaries, NaN, infinite and negative earned, the peak option, save round trip, version 1 to 3 migration with a byte-exact backup and the active battle, damaged and claimed values protected, Home's line and bar, recovery of a run that can't carry over); the headless boot is clean; a version-3 save written by `main`'s own code (Cards, an active battle) passes `tools/check_migration.gd` (19 checks) and the migrated file is refused by `main`'s build as newer; the balance baselines re-recorded from a clean worktree, only careers moving (THE_NUMBER.md 17.7), and the quick suite on the final code shows no movement; screenshots of Home and the Milestones sheet looked at; an independent adversarial review found that the first version made every existing save read-only (fixed with save version 4) and a hand-edited version-1 case (fixed), then passed.
 - **Not checked, D164:** the owner's real save through `check_migration.gd` (needs the Mac), a player, a phone. The quick baseline's provenance reads dirty: it was recorded after the full one in the same worktree.
+- **Checked, battle seams (no rule, save or displayed number changed):** `bash run_tests.sh` passes (tower 4,928 checks, foundation 421, frozen save fixtures 3,581, Python 79) and the headless boot is clean; new checks pin the enemy's shown next hit to the sim's own damage, the cleared-wave rule at each run end, and a settings write that cannot swap its file in; the quick balance comparison shows no movement. The frozen-fixture suite now lists its scratch through a globalised path — bare `user://` listings return the project root on macOS Godot, so the suite failed there while CI's Linux Godot passed. **Not checked:** a player and a phone.
 - **Checked, D160 (Home's stand-ins; UI only, no rule, save or setting changed):** `bash run_tests.sh` passes (26 new checks: no shelf before a first run, the shelf and its tags after, the tier bar following the best wave cleared, both sheets and what they say, Tier 2's row read from the data, Settings' groups in order, no unbuilt setting has anything to press, only the two real switches are switches, opening them writes nothing); the headless boot is clean; screenshots of Home, Settings (top and bottom), Missions and the next tier at 540 × 960 looked at, the next tier's again after it was changed to read the best wave cleared (PR #164).
 - **Not checked, D160:** a real phone, a screen shorter than 960 (the shelf adds about 70 points to Home), the Settings list on a short window beyond its height rule, and whether the owner likes the shelf, the sample goals and the groups.
 - **Checked, D159 (merged, tooling and docs only):** the pinned Godot installs and runs the baseline with no `GODOT` set, the install script and session-start hook were run fresh, again and outside a cloud session, the decision index is generated and tested, CI ran the same install script and passed. **Not checked:** the hook inside a brand-new cloud session start, and how much shorter a cold session is.
@@ -67,6 +68,7 @@ Tier 1 and every Workshop group work.
 - **A Cash-rules battle saved before D158 resumes with Cash words** while Home, the Workshop and Cards read as the Number's, until it ends. Intended, brief, and the only place Cash still shows.
 - **The Enemy Balance and Wave Skip cards still describe "cash"** in their text. They are unbuilt and never drawn.
 - **Older snapshot or combat-contract runs can end on update,** keeping banked Coins and permanent progress ([SCALING_FOUNDATIONS.md](SCALING_FOUNDATIONS.md)).
+- **Two small rule copies remain:** Home re-derives the daily-claim rule and the milestone claimed-key format instead of asking `Progression`, and a snapshot's `trial` and `fuel` blocks are validated more loosely than its `number_cash` and `earned` ones. Neither is reachable from honest play; noted for a later tidy-up.
 
 
 ## Handing on

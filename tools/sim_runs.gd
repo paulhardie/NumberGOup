@@ -384,7 +384,7 @@ func _career(runs: int, strategy: String, cap_seconds: float, options: Dictionar
 		# Same one-time rewards as the screens; the switch measures D125's
 		# earlier progression without altering any battle rules.
 		if not options.has("legacy-progression"):
-			progression.observe(sim.tier, sim.wave, sim.wave if sim.killed_by == "data_limit" else sim.wave - 1)
+			progression.observe(sim.tier, sim.wave, sim.cleared_wave())
 		if _export_measurements:
 			_measurements[-1]["permanent_rewards"] = workshop.coins - before_rewards
 			var paid := 0.0
