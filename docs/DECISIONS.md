@@ -2391,3 +2391,16 @@ Rules:
   6. **D111's clean-kill growth is superseded for new runs** (Cash replaces it); Lifesteal and Regen still refill only what enemies took (D156).
 - **Not decided here:** Coins from the peak Number, how Workshop power outgrows the run shop, the Thorns turtle against a Lock, Tier 2 and 3's balance under the new rules, and **the Number milestones**, which now pay less because a spender's peak Number is lower (THE_NUMBER.md 14.4).
 - **Checked / not checked:** see THE_NUMBER.md section 14, HANDOVER.md and the pull request.
+
+## D159 — Development tooling: one pinned Godot, a command reference, a decision index
+
+- **Status:** Accepted (2026-10-06) on the owner's direction: "do what needs to be done to ensure a better dev experience and whatever makes your job easier", after the agent listed the friction it had met (a 49KB AGENTS.md read every session, a HANDOVER and a THE_NUMBER that had outgrown their jobs, no way to find a current decision, and Godot that cloud sessions had to fetch by hand).
+- **Decision:**
+  1. **Godot is pinned in `.godot-version` and installed by `tools/install_godot_linux.sh`** (checksum verified, safe to repeat). CI, `run_godot.sh` and a cloud session's start hook (`.claude/hooks/session-start.sh`) all use it; `run_godot.sh` finds Godot without `GODOT` set.
+  2. **AGENTS.md keeps the tests, the boot and the Godot rule; every other command moved unchanged to `docs/TOOLS.md`**, which also says the tools' defaults are still the old Cash rules and how to measure the game's.
+  3. **`docs/DECISIONS_INDEX.md` is generated** by `tools/decisions_index.py` (ID, title, status, superseded-by, next free ID), and a test fails if it is out of date or an ID is taken twice. HANDOVER no longer carries a commit hash or the next ID.
+  4. **HANDOVER.md is a map, not a history:** it was halved; the experiments' history stays in THE_NUMBER.md, which gets a status table and "The Number today" at the top.
+  5. **QUALITY_GATES.md records the practice** the project has used four times: the experiment protocol (criteria committed first, options off by default, every configuration reported), the compatibility pattern (no version bump when a run records its tuning) and how to run the independent review.
+  6. **`docs/GLOSSARY.md`** explains words that differ between code and screen (Cash is the Number now, and the code still says `cash`).
+- **No working rule in AGENTS.md changed:** the commands moved and the Godot sentence was updated, nothing the owner asked to keep as it was.
+- **Checked / not checked:** see HANDOVER.md and the pull request.
