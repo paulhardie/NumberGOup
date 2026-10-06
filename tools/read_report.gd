@@ -40,7 +40,9 @@ func _init() -> void:
 
 
 func _print_runs(runs: Array, here: String) -> void:
-	print("\n  #  when (UTC)           wave  game time  real time  kills  cash earned  coins  ended by  buys  replay")
+	# "earned" is the Cash a run earned, or under the Number as Cash (D158) what kills,
+	# waves and Interest paid into the Number.
+	print("\n  #  when (UTC)           wave  game time  real time  kills  rules   earned  coins  ended by  buys  replay")
 	for index in range(runs.size()):
 		var run: Dictionary = runs[index]
 		if not RunReport.is_replayable(run):
@@ -55,9 +57,9 @@ func _print_runs(runs: Array, here: String) -> void:
 			ended = "lost"
 		elif bool(result.closed_mid_run):
 			ended = "closed"
-		print("%3d  %-19s  %4d  %9s  %9s  %5d  %11s  %5s  %-8s  %4d  %s" % [index + 1, run.get("at", "?"), int(result.wave),
+		print("%3d  %-19s  %4d  %9s  %9s  %5d  %-6s  %7s  %5s  %-8s  %4d  %s" % [index + 1, run.get("at", "?"), int(result.wave),
 			_clock(float(result.time)), _clock(float(run.play.get("real_seconds", 0.0))), int(result.kills),
-			_n(result.cash_earned), _n(result.coins), ended, run.inputs.size(), replay])
+			"Number" if _number_cash(run) else "Cash", _n(result.cash_earned), _n(result.coins), ended, run.inputs.size(), replay])
 
 
 func _print_run(runs: Array, number: int) -> void:
@@ -70,11 +72,24 @@ func _print_run(runs: Array, number: int) -> void:
 		return
 	print("\nRun %d: seed %d, started with %s" % [number, int(run.seed), run.start.levels])
 	print("Played %s real, at speeds %s" % [_clock(float(run.play.get("real_seconds", 0.0))), run.play.get("seconds_at_speed", {})])
-	print("\n wave  game time  health / most   cash  earned  coins  kills  enemy atk  enemy hp  bought")
+	# Under the Number as Cash (D158) there is no Cash, and "max_health" is the
+	# Health stat as it stood (the Workshop row and any effects), not a cap. It
+	# isn't the Number the run started from: Starting Cash adds to that.
+	var number_cash := _number_cash(run)
+	print("Rules: %s" % ("the Number is Cash (D158)" if number_cash else "Cash"))
+	if number_cash:
+		print("\n wave  game time         Number   Health  earned  coins  kills  enemy atk  enemy hp  bought")
+	else:
+		print("\n wave  game time  health / most   cash  earned  coins  kills  enemy atk  enemy hp  bought")
 	for snapshot in run.waves:
-		print("%5d  %9s  %13s  %5s  %6s  %5s  %5d  %9s  %8s  %s" % [int(snapshot.wave), _clock(float(snapshot.time)),
-			"%s / %s" % [_n(snapshot.health), _n(snapshot.max_health)], _n(snapshot.cash), _n(snapshot.cash_earned),
-			_n(snapshot.coins), int(snapshot.kills), _n(snapshot.enemy_attack), _n(snapshot.enemy_health), _levels(snapshot.bought)])
+		if number_cash:
+			print("%5d  %9s  %13s  %7s  %6s  %5s  %5d  %9s  %8s  %s" % [int(snapshot.wave), _clock(float(snapshot.time)),
+				_n(snapshot.health), _n(snapshot.max_health), _n(snapshot.cash_earned),
+				_n(snapshot.coins), int(snapshot.kills), _n(snapshot.enemy_attack), _n(snapshot.enemy_health), _levels(snapshot.bought)])
+		else:
+			print("%5d  %9s  %13s  %5s  %6s  %5s  %5d  %9s  %8s  %s" % [int(snapshot.wave), _clock(float(snapshot.time)),
+				"%s / %s" % [_n(snapshot.health), _n(snapshot.max_health)], _n(snapshot.cash), _n(snapshot.cash_earned),
+				_n(snapshot.coins), int(snapshot.kills), _n(snapshot.enemy_attack), _n(snapshot.enemy_health), _levels(snapshot.bought)])
 	print("\nBuys (game time, row × count):")
 	for input in run.inputs:
 		var at := _clock(float(input.tick) * RunReport.BattleSim.TICK)
@@ -84,6 +99,13 @@ func _print_run(runs: Array, number: int) -> void:
 			print("  %s  %s" % [at, "End run" if input.has("end") else "%s ×%s" % [input.buy, "Max" if int(input.count) == 0 else str(int(input.count))]])
 	var result: Dictionary = run.result
 	print("\nEnded wave %d at %s by %s." % [int(result.wave), _clock(float(result.time)), "closing the game" if bool(result.closed_mid_run) else result.killed_by])
+
+
+## Whether a run was played under the Number as Cash (D158), from its recorded start.
+static func _number_cash(run: Dictionary) -> bool:
+	var start = run.get("start", {})
+	var tuning = start.get("tuning", {}) if start is Dictionary else {}
+	return tuning is Dictionary and tuning.get("number_cash", false) == true
 
 
 func _print_workshop(entries: Array) -> void:
