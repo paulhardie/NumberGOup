@@ -82,20 +82,20 @@ class LadderCriteriaTests(unittest.TestCase):
     def test_the_share_is_real_but_minor(self):
         results = passing()
         results['x1.career_core'] = career(coins=2.0)
-        self.assertFalse(self.verdicts(results)[3], '310 of 410 Coins is far over a fifth')
+        self.assertFalse(self.verdicts(results)[3], '285 of 385 Coins is far over a fifth')
         results['x1.career_core'] = career(coins=300.0)
-        self.assertFalse(self.verdicts(results)[3], '310 of 15,310 is under 3%')
+        self.assertFalse(self.verdicts(results)[3], '285 of 15,285 is under 3%')
 
     def test_no_digit_may_dominate_its_run(self):
         results = passing()
-        results['x1.career_grow']['runs'][4]['coins'] = 16.0
-        self.assertFalse(self.verdicts(results)[4], 'digit 100 pays 50 for a 16-Coin run: over 3 times')
-        results['x1.career_grow']['runs'][4]['coins'] = 16.7
-        self.assertTrue(self.verdicts(results)[4], '50 for 16.7 is under 3 times')
+        results['x1.career_grow']['runs'][4]['coins'] = 8.0
+        self.assertFalse(self.verdicts(results)[4], 'digit 100 pays 25 for an 8-Coin run: over 3 times')
+        results['x1.career_grow']['runs'][4]['coins'] = 8.4
+        self.assertTrue(self.verdicts(results)[4], '25 for 8.4 is under 3 times')
         results = passing(0.5)
-        results['x0.5.career_grow']['runs'][4]['coins'] = 8.0
-        self.assertFalse(self.verdicts(results, 0.5)[4], 'at half, digit 100 pays 25: over 3 times 8')
-        results['x0.5.career_grow']['runs'][4]['coins'] = 9.0
+        results['x0.5.career_grow']['runs'][4]['coins'] = 4.0
+        self.assertFalse(self.verdicts(results, 0.5)[4], 'at half, digit 100 pays 12.5: over 3 times 4')
+        results['x0.5.career_grow']['runs'][4]['coins'] = 4.2
         self.assertTrue(self.verdicts(results, 0.5)[4])
         results['x0.5.career_grow']['runs'][0]['coins'] = 0.5
         self.assertTrue(self.verdicts(results, 0.5)[4], 'the first digit, 10, is exempt')
@@ -123,7 +123,7 @@ class LadderCriteriaTests(unittest.TestCase):
     def test_the_plan_is_the_declared_one(self):
         runs = trial.plan()
         self.assertEqual(len(runs), 6 + 2 * 3)
-        self.assertNotIn('ladder', runs['ctrl.career_core'])
+        self.assertEqual(runs['ctrl.career_core']['ladder'], 'peak', 'the control is the old ladder, asked for')
         self.assertEqual((runs['x0.5.career_grow']['ladder'], runs['x0.5.career_grow']['ladder-scale']), ('earned', 0.5))
         self.assertEqual({runs[f'ctrl.career_{p}']['careers'] for p in trial.CAREERS}, {50}, 'equal horizons')
         self.assertEqual(runs['cell.buy_1000000_turtle']['seeds'], 4)

@@ -489,21 +489,24 @@ func test_cards_save_and_version_two_migration() -> void:
 	check(Save.save_progress(p, PATH), "Cards save")
 	var loaded := Save.load_progress(PATH)
 	check(loaded.writable and loaded.to_dict() == p.to_dict() and loaded.cards.level("damage") == 3 and loaded.cards.equipped == ["coins", "damage"], "and load exactly: %s" % [loaded.cards.to_dict()])
-	check(JSON.parse_string(FileAccess.get_file_as_string(PATH)).version == 3, "as version 3")
+	check(JSON.parse_string(FileAccess.get_file_as_string(PATH)).version == Save.VERSION, "as the current version")
 	var older := Progression.new()
 	older.observe(1, 25, 24)
 	older.gems = 40
 	var v2_progression := older.to_dict()
 	v2_progression.erase("cards")
-	write({"version": 2, "workshop": older.workshop.to_dict(), "progression": v2_progression})
+	# Version 2's Workshop, as a version-2 build wrote it: no best Number earned (D164).
+	var v2_workshop := older.workshop.to_dict()
+	v2_workshop.erase("best_earned")
+	write({"version": 2, "workshop": v2_workshop, "progression": v2_progression})
 	var bytes := FileAccess.get_file_as_string(PATH)
 	loaded = Save.load_progress(PATH)
 	check(loaded.writable and loaded.gems == 40 and loaded.best_wave(1) == 25 and loaded.cards.copies.is_empty() and loaded.cards.slots == 1, "version 2 migrates with its Gems and records, and no Cards")
 	check(FileAccess.get_file_as_string(PATH + ".v2-backup.json") == bytes, "keeping a byte-exact backup")
-	check(Save.save_progress(loaded, PATH) and Save.load_progress(PATH).writable, "and writes version 3")
+	check(Save.save_progress(loaded, PATH) and Save.load_progress(PATH).writable, "and writes the current version")
 	var claimed_cards := v2_progression.duplicate(true)
 	claimed_cards.cards = {"copies": {"damage": 80}, "slots": 22, "equipped": ["damage"]}
-	write({"version": 2, "workshop": older.workshop.to_dict(), "progression": claimed_cards})
+	write({"version": 2, "workshop": v2_workshop, "progression": claimed_cards})
 	bytes = FileAccess.get_file_as_string(PATH)
 	loaded = Save.load_progress(PATH)
 	check(not loaded.writable and FileAccess.get_file_as_string(PATH) == bytes, "a version-2 save claiming Cards, which no version-2 build wrote, is protected")
@@ -520,9 +523,61 @@ func test_cards_save_and_version_two_migration() -> void:
 	var missing := {"version": Save.VERSION, "workshop": p.workshop.to_dict(), "progression": p.to_dict()}
 	missing.progression.erase("cards")
 	write(missing)
-	check(not Save.load_progress(PATH).writable, "a version-3 save without Cards is damaged")
+	check(not Save.load_progress(PATH).writable, "a current save without Cards is damaged")
 	for extra in ["", ".v2-backup.json"]:
 		DirAccess.remove_absolute(PATH + extra)
+
+
+## D164: save version 4 holds the best Number earned. A version-3 save, as the
+## game wrote it before, migrates with a byte-exact backup and climbs from its
+## best peak, so no digit pays twice; one that claims a best earned, or a
+## version-4 save without or with a damaged one, is protected untouched.
+func test_version_three_saves_migrate_to_the_best_number_earned() -> void:
+	for extra in ["", ".v3-backup.json"]:
+		DirAccess.remove_absolute(PATH + extra)
+	var p := Progression.new()
+	p.observe(1, 41, 40)
+	p.gems = 75
+	p.workshop.coins = 1234.5
+	p.workshop.runs = 30
+	p.workshop.best_wave = 41
+	p.workshop.best_number = 252.0
+	p.workshop.levels = {"damage": 7, "health": 4}
+	p.cards.copies = {"damage": 3}
+	var v3_workshop := p.workshop.to_dict()
+	v3_workshop.erase("best_earned")
+	var run: Dictionary = json(RunReport.build(BattleSim.new(5)))
+	write({"version": 3, "workshop": v3_workshop, "progression": p.to_dict(), "run": run})
+	var bytes := FileAccess.get_file_as_string(PATH)
+	var loaded := Save.load_progress(PATH)
+	check(loaded.writable and loaded.notice == "", "a version-3 save loads and can be written: %s" % loaded.notice)
+	check(loaded.workshop.best_earned == 252.0 and loaded.workshop.best_number == 252.0, "climbing from its best peak")
+	check(loaded.workshop.coins == 1234.5 and loaded.workshop.levels == p.workshop.levels and loaded.workshop.runs == 30 and loaded.gems == 75
+		and loaded.best_wave(1) == 41 and loaded.cards.copies == {"damage": 3}, "with every Coin, rank, record, Gem and Card")
+	check(FileAccess.get_file_as_string(PATH + ".v3-backup.json") == bytes, "keeping a byte-exact backup")
+	check(Save.load_run(PATH) == run, "and its active battle")
+	check(loaded.workshop.finish_run(30, 200.0, 999.0).is_empty(), "digits 10 and 100, paid on the peak, never pay again")
+	check(Save.save_progress(loaded, PATH, run), "it writes")
+	var written = JSON.parse_string(FileAccess.get_file_as_string(PATH))
+	check(written.version == Save.VERSION and written.workshop.best_earned == 999.0, "as version %d, with the best earned" % Save.VERSION)
+	var again := Save.load_progress(PATH)
+	check(again.writable and again.workshop.best_earned == 999.0 and again.workshop.best_number == 252.0, "and reads back the same")
+	var claimed := v3_workshop.duplicate(true)
+	claimed.best_earned = 5000.0
+	for broken in [{"version": 1, "workshop": claimed}, {"version": 3, "workshop": claimed}, {"version": Save.VERSION, "workshop": v3_workshop},
+			{"version": Save.VERSION, "workshop": claimed.merged({"best_earned": "5000"}, true)},
+			{"version": Save.VERSION, "workshop": claimed.merged({"best_earned": -1.0}, true)}]:
+		write({"version": broken.version, "workshop": broken.workshop, "progression": p.to_dict()})
+		bytes = FileAccess.get_file_as_string(PATH)
+		loaded = Save.load_progress(PATH)
+		check(not loaded.writable and not Save.save_progress(loaded, PATH) and FileAccess.get_file_as_string(PATH) == bytes,
+			"protected untouched: version %d, best earned %s" % [broken.version, broken.workshop.get("best_earned", "(none)")])
+	for extra in ["", ".v3-backup.json", ".v1-backup.json"]:
+		DirAccess.remove_absolute(PATH + extra)
+	# A protected older save loaded again keeps a timestamped backup beside the first.
+	for file in DirAccess.get_files_at(PATH.get_base_dir()):
+		if file.begins_with(PATH.get_file() + ".v3-backup-") or file.begins_with(PATH.get_file() + ".v1-backup-"):
+			DirAccess.remove_absolute(PATH.get_base_dir().path_join(file))
 
 
 ## D146: the Cards screen draws, buys a slot and equips, saying so each time.
@@ -1456,6 +1511,7 @@ func test_changed_and_damaged_run_recovery_preserves_the_account() -> void:
 	var sim := BattleSim.new(4)
 	sim.wave = 39
 	sim.peak_number = 1500.0
+	sim.cash_earned = 1500.0
 	var old: Dictionary = json(RunReport.build(sim))
 	old.start.rules_version = 1
 	old.commands = RunConfig.pack({"start": old.start, "inputs": old.inputs})
@@ -1470,11 +1526,13 @@ func test_changed_and_damaged_run_recovery_preserves_the_account() -> void:
 			record.seed = "bad"
 			record.result.wave = TowerData.last_wave()
 			record.result.peak_number = 1e300
+			record.result.cash_earned = 1e300
 		var permanent := Workshop.new()
 		permanent.coins = 100.0
 		permanent.runs = 2
 		permanent.best_wave = 27
 		permanent.best_number = 100.0
+		permanent.best_earned = 100.0
 		permanent.levels = {"health": 3}
 		var p := Progression.new(permanent)
 		p.observe(1, 27, 26)
@@ -1490,10 +1548,10 @@ func test_changed_and_damaged_run_recovery_preserves_the_account() -> void:
 		var loaded := Save.load_progress(PATH)
 		check(loaded.workshop.levels == permanent.levels and loaded.workshop.runs == 3, "ranks survive and the ended run is counted once")
 		if damaged:
-			check(loaded.workshop.coins == 110.0 and loaded.workshop.best_wave == 27 and loaded.workshop.best_number == 100.0, "damaged wave and peak cannot inflate permanent bests or milestone Coins")
+			check(loaded.workshop.coins == 110.0 and loaded.workshop.best_wave == 27 and loaded.workshop.best_number == 100.0 and loaded.workshop.best_earned == 100.0, "damaged wave, peak and Number earned cannot inflate permanent bests or milestone Coins")
 			check(loaded.best_wave(1) == 27 and not loaded.unlocked("labs"), "damaged values cannot create progression unlocks")
 		else:
-			check(loaded.workshop.coins == 360.0 and loaded.workshop.best_wave == 39 and loaded.workshop.best_number == 1500.0, "sound old-rules recovery keeps its wave, peak and one earned Number reward")
+			check(loaded.workshop.coins == 360.0 and loaded.workshop.best_wave == 39 and loaded.workshop.best_number == 1500.0 and loaded.workshop.best_earned == 1500.0, "sound old-rules recovery keeps its wave, peak, Number earned and one digit's reward")
 			check(loaded.best_wave(1) == 39 and loaded.best_wave(1, true) == 38 and loaded.unlocked("labs"), "changed combat preserves reached/cleared records and Labs")
 		var run_entries := ActivityLog.read(main.log_path).filter(func(entry): return entry.kind == "run")
 		check(run_entries.size() == 1 and run_entries[0].resume_failed == ("damaged" if damaged else "changed"), "recovery is logged once with the right reason")

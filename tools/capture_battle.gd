@@ -32,6 +32,10 @@ func _capture() -> void:
 	progress.coins = 180.0
 	progress.best_wave = 9
 	progress.runs = 3
+	# A peak below what a run earned, as a spender's is: the emblem shows the
+	# peak, the milestone sheet the Number earned (D164).
+	progress.best_number = 180.0
+	progress.best_earned = 1500.0
 	progress.levels = {"damage": 3, "health": 2}
 	progress.open_groups.append("cash")
 
@@ -512,7 +516,7 @@ func _capture() -> void:
 		screen._bank_coins()
 		screen._refresh()
 		if not screen.sim.alive:
-			screen.workshop.finish_run(screen.sim.wave, screen.sim.peak_number)
+			screen.workshop.finish_run(screen.sim.wave, screen.sim.peak_number, screen.sim.cash_earned)
 			screen._show_run_over()
 		screen._arena.queue_redraw()
 		await _frames()

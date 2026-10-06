@@ -169,13 +169,15 @@ const PEAK_REGEN_DRIFT := 0.0
 ## moment.
 const KILL_GROWTH := 0.05
 
-## Milestones (D107): the first time the player's best Number reaches each
-## new digit, the Workshop gets a one-off Coin reward, sized to the Coins a
-## run earns around then. Rewards, never gates: no system waits on the Number.
+## Milestones (D107): the first time a run's Number earned reaches each new
+## digit (D164; before it, the best peak), the Workshop gets a one-off Coin
+## reward, sized to the Coins a run earns around then. Rewards, never gates: no
+## system waits on the Number. Digit 100 pays 25, not 50 (D164): at 50 it paid
+## over three times the run that reached it (THE_NUMBER.md 17.6).
 ## Ours; The Tower's milestones are by wave and pay other currencies.
 const MILESTONES := [
 	{"number": 10.0, "coins": 10.0},
-	{"number": 100.0, "coins": 50.0},
+	{"number": 100.0, "coins": 25.0},
 	{"number": 1000.0, "coins": 250.0},
 	{"number": 10000.0, "coins": 2500.0},
 	{"number": 100000.0, "coins": 10000.0},
