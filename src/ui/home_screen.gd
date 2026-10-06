@@ -15,6 +15,7 @@ const Settings = preload("res://src/settings.gd")
 const NavBar = preload("res://src/ui/nav_bar.gd")
 const Overlay = preload("res://src/ui/overlay.gd")
 const Progression = preload("res://src/tower/progression.gd")
+const ComingSoon = preload("res://src/ui/coming_soon.gd")
 
 signal battle_pressed
 signal workshop_pressed
@@ -65,6 +66,11 @@ var _battle: Button
 ## The Battle button's box, whose glow breathes with the Number's light.
 var _battle_box: StyleBoxFlat
 var _best_wave: Label
+## The shelf of what's coming (D160), shown once a first run has ended, and the
+## next tier's tile, whose bar follows the best wave.
+var _shelf: HBoxContainer
+var _shelf_box: MarginContainer
+var _tier_tile: Button
 ## The milestones sheet while it's up, and the list inside it.
 var _milestones_panel: Overlay
 var _milestones_list: VBoxContainer
@@ -185,6 +191,19 @@ func _ready() -> void:
 	_best_wave = _caption("")
 	body.add_child(_best_wave)
 
+	# What's coming (D160): stand-ins, only once a first run has ended so a new
+	# player meets Battle alone (D125).
+	_shelf = HBoxContainer.new()
+	_shelf.add_theme_constant_override("separation", 10)
+	var shelf_box := MarginContainer.new()
+	shelf_box.add_theme_constant_override("margin_bottom", 6)
+	shelf_box.add_child(_shelf)
+	_shelf_box = shelf_box
+	body.add_child(shelf_box)
+	_shelf.add_child(ComingSoon.tile("Missions", "Daily goals", ComingSoon.LATER, -1.0, _open_missions))
+	_tier_tile = ComingSoon.tile("Next tier", "Tier 2 · wave %d" % ComingSoon.NEXT_TIER_WAVE, ComingSoon.TIERS_VERSION, 0.0, _open_next_tier)
+	_shelf.add_child(_tier_tile)
+
 	# Battle: the one filled, lit button, its glow breathing with the
 	# Number's light (D138).
 	_battle = Button.new()
@@ -273,7 +292,14 @@ func refresh() -> void:
 	_fit_best_number()
 	var next := workshop.next_milestone()
 	_next_digit.text = "next digit  ● %s" % Palette.money(float(next.coins)) if not next.is_empty() else "every digit reached"
-	_best_wave.text = "Tier 1  ·  best wave %d  ·  %d run%s" % [progression.best_wave(1) if progression != null and progression.records.has("1") else workshop.best_wave, workshop.runs, "" if workshop.runs == 1 else "s"]
+	var best := _best_wave_now()
+	_best_wave.text = "Tier 1  ·  best wave %d  ·  %d run%s" % [best, workshop.runs, "" if workshop.runs == 1 else "s"]
+	_shelf_box.visible = workshop.runs > 0
+	Palette.fill_progress(_tier_tile.find_child("Progress", true, false), clampf(float(best) / ComingSoon.NEXT_TIER_WAVE, 0.0, 1.0), true, Palette.ACCENT)
+
+
+func _best_wave_now() -> int:
+	return progression.best_wave(1) if progression != null and progression.records.has("1") else workshop.best_wave
 
 
 ## Says where the report went, from ActivityLog.export_report's result.
@@ -419,41 +445,63 @@ func _fill_milestones() -> void:
 			_milestones_list.add_child(progress)
 
 
-## Settings, over the screen: the music, the report, and which build this is.
+## Missions and the next tier (D160): stand-ins, see ComingSoon.
+func _open_missions() -> void:
+	ComingSoon.missions_sheet().show_over(self)
+
+
+func _open_next_tier() -> void:
+	ComingSoon.tier_sheet(_best_wave_now()).show_over(self)
+
+
+## Settings, over the screen, in groups (D160): what works now, and what's
+## coming marked with when. The list scrolls so it fits a short screen; the
+## build line stays in view under it.
 func _open_settings() -> void:
 	var sheet := Overlay.new()
 	# Reset asks twice, and asks again from scratch the next time Settings opens.
 	sheet.closed.connect(func(): _reset_armed = false)
 	sheet.heading("Settings", true)
 	sheet.rule()
-	var music_toggle := CheckButton.new()
-	music_toggle.text = "Music"
-	music_toggle.button_pressed = settings.music
-	music_toggle.add_theme_color_override("font_color", Palette.TEXT)
-	music_toggle.add_theme_color_override("font_hover_color", Palette.TEXT)
-	music_toggle.add_theme_color_override("font_pressed_color", Palette.TEXT)
-	music_toggle.toggled.connect(func(on: bool):
-		settings.music = on
-		settings_changed.emit())
-	sheet.column.add_child(music_toggle)
+	var scroll := ScrollContainer.new()
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.custom_minimum_size = Vector2(Overlay.CARD_WIDTH - 24, clampf(size.y * 0.58, 240.0, 460.0))
+	sheet.column.add_child(scroll)
+	# Clear of the scroll bar, so a tag at a row's end is never under it.
+	var gutter := MarginContainer.new()
+	gutter.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	gutter.add_theme_constant_override("margin_right", 14)
+	scroll.add_child(gutter)
+	var list := VBoxContainer.new()
+	list.add_theme_constant_override("separation", 10)
+	gutter.add_child(list)
+
+	_group(list, "Audio")
+	list.add_child(_toggle("Music", settings.music, func(on: bool): settings.music = on))
+	list.add_child(ComingSoon.setting("Sound effects", "Hits, kills and purchases.", ComingSoon.LATER))
+
+	_group(list, "Gameplay")
 	# Run upgrades off (D158): chosen here, before a run; each new run reads it.
-	var shop_toggle := CheckButton.new()
-	shop_toggle.text = "Run upgrades off (next run)"
-	shop_toggle.button_pressed = settings.upgrades_off
-	for colour in ["font_color", "font_hover_color", "font_pressed_color"]:
-		shop_toggle.add_theme_color_override(colour, Palette.TEXT)
-	shop_toggle.toggled.connect(func(on: bool):
-		settings.upgrades_off = on
-		settings_changed.emit())
-	sheet.column.add_child(shop_toggle)
+	list.add_child(_toggle("Run upgrades off (next run)", settings.upgrades_off, func(on: bool): settings.upgrades_off = on))
+	list.add_child(ComingSoon.hint("Shuts the run shop for your next run. The Number then only pays for itself."))
+	list.add_child(ComingSoon.setting("Game speed", "A Lab in The Tower, opened at wave 30.", "1.2"))
+	list.add_child(ComingSoon.setting("Confirm End run", "Ask before a run is ended.", ComingSoon.LATER))
+
+	_group(list, "Display")
+	list.add_child(ComingSoon.setting("Reduce motion", "Calmer light and fewer effects.", ComingSoon.LATER))
+	list.add_child(ComingSoon.setting("Haptics", "A buzz on a hit, on a phone.", ComingSoon.LATER))
+
+	_group(list, "Data")
 	var export := Button.new()
 	export.text = "Export report"
 	export.custom_minimum_size = Vector2(0, 44)
 	export.pressed.connect(func():
 		sheet.dismiss()
 		export_pressed.emit())
-	sheet.column.add_child(export)
-	_build_testing(sheet)
+	list.add_child(export)
+	list.add_child(ComingSoon.setting("Cloud save", "Keep progress across devices.", ComingSoon.LATER))
+
+	_build_testing(list)
 	# The roadmap version and the commit (D079), so a screenshot or a report
 	# says which build it came from.
 	var build := Label.new()
@@ -466,15 +514,36 @@ func _open_settings() -> void:
 	sheet.show_over(self)
 
 
+## A settings group's name, with room above it to read as a new group.
+func _group(list: VBoxContainer, words: String) -> void:
+	var space := Control.new()
+	space.custom_minimum_size = Vector2(0, 4)
+	list.add_child(space)
+	list.add_child(ComingSoon.section(words))
+
+
+## A switch that writes a setting as it turns.
+func _toggle(words: String, on: bool, set_it: Callable) -> CheckButton:
+	var toggle := CheckButton.new()
+	toggle.text = words
+	toggle.button_pressed = on
+	for colour in ["font_color", "font_hover_color", "font_pressed_color"]:
+		toggle.add_theme_color_override(colour, Palette.TEXT)
+	toggle.toggled.connect(func(now: bool):
+		set_it.call(now)
+		settings_changed.emit())
+	return toggle
+
+
 ## Testing, for the owner and the agents while the game is built (D097): free
 ## Coins and Gems (D146) and a reset to a fresh Workshop. None of it is meant to
 ## ship as it is.
-func _build_testing(sheet: Overlay) -> void:
-	sheet.rule()
-	sheet.text("Testing", Palette.MUTED)
+func _build_testing(list: VBoxContainer) -> void:
+	list.add_child(Palette.hairline())
+	_group(list, "Testing")
 	var gifts := HBoxContainer.new()
 	gifts.add_theme_constant_override("separation", 8)
-	sheet.column.add_child(gifts)
+	list.add_child(gifts)
 	for amount in TEST_COINS:
 		var gift := Palette.pill("+● " + Palette.money(amount), Palette.COIN, _mono, 32)
 		gift.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -491,7 +560,7 @@ func _build_testing(sheet: Overlay) -> void:
 		gifts.add_child(gems)
 	_reset = Palette.pill("Reset progress", Palette.WARNING, null, 32)
 	_reset.pressed.connect(_press_reset)
-	sheet.column.add_child(_reset)
+	list.add_child(_reset)
 
 
 ## The first press asks; the second, while it's asking, resets.

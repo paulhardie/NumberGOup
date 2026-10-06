@@ -19,6 +19,7 @@ const ActivityLog = preload("res://src/tower/activity_log.gd")
 const Cards = preload("res://src/tower/cards.gd")
 const CardsScreen = preload("res://src/ui/cards_screen.gd")
 const Overlay = preload("res://src/ui/overlay.gd")
+const ComingSoon = preload("res://src/ui/coming_soon.gd")
 const HoldToRead = preload("res://src/ui/hold_to_read.gd")
 const UpgradeInfo = preload("res://src/ui/upgrade_info.gd")
 const Palette = preload("res://src/ui/palette.gd")
@@ -1031,6 +1032,76 @@ func test_a_stat_can_be_read_a_level_on() -> void:
 	check(sim.buy("damage") and sim.stat("damage") == promised and promised > TowerData.value("damage", 0), "one on is what a buy then gives")
 	var pass_through := BattleSim.new(3, {}, BattleSim.START_GROUPS, 1, [{"stat": "damage", "op": "multiply", "value": 2.0, "source": "card:damage"}])
 	check(pass_through.stat_with("damage", 1) == TowerData.value("damage", 1) * 2.0, "and goes through the run's effects as the stat does")
+
+
+## What's coming, shown now (D160): stand-ins that read no save and change no
+## rule, shown once a first run has ended.
+func test_home_shows_what_is_coming_after_a_first_run() -> void:
+	_phone()
+	var p := Progression.new()
+	var home := Home.new()
+	home.workshop = p.workshop
+	home.progression = p
+	root.add_child(home)
+	await process_frame
+	check(not home._shelf_box.visible, "a new player meets Battle alone: no shelf before a first run")
+	p.workshop.runs = 1
+	p.observe(1, 50, 49)
+	home.refresh()
+	check(home._shelf_box.visible and _texts(home._shelf).has("Daily goals") and _texts(home._shelf).has("Tier 2 · wave 100"), "after one it holds Missions and the next tier")
+	check(_texts(home._shelf).has("later") and _texts(home._shelf).has("1.4"), "each says when it comes")
+	var bar: ProgressBar = home._tier_tile.find_child("Progress", true, false)
+	check(is_equal_approx(bar.value, 0.5), "the next tier's bar follows the best wave: 50 of 100")
+	var gems := p.gems
+	var changed := [0]
+	home.settings_changed.connect(func(): changed[0] += 1)
+	home._open_missions()
+	var missions := Overlay.current(home)
+	var words := _texts(missions)
+	check(words.has("Missions") and words.has("Reach wave 20") and words.has("Finish 20 runs"), "Missions opens with samples, daily and weekly")
+	check(" ".join(words).contains("samples") and " ".join(words).contains("isn't decided"), "and says they are samples, not rules")
+	home._open_next_tier()
+	check(Overlay.current(home) != missions and not missions.visible, "the next tier's sheet replaces it")
+	words = _texts(Overlay.current(home))
+	check(" ".join(words).contains("×20") and " ".join(words).contains("×1.8") and " ".join(words).contains("best is 50"),
+		"it reads Tier 2's real row from the data and the player's best wave: %s" % [words])
+	Overlay.close_current(home)
+	check(p.gems == gems and changed[0] == 0 and Overlay.current(home) == null, "opening and closing them gives and changes nothing")
+	home.free()
+	await process_frame
+
+
+## Settings is grouped, and what isn't built is text with a tag: nothing in it
+## can be switched on, so no stand-in can write a setting.
+func test_settings_groups_the_real_and_the_coming() -> void:
+	_phone()
+	var home := Home.new()
+	home.workshop = Workshop.new()
+	root.add_child(home)
+	await process_frame
+	var written := [0]
+	home.settings_changed.connect(func(): written[0] += 1)
+	home._open_settings()
+	var sheet := Overlay.current(home)
+	var words := _texts(sheet)
+	var groups := ["AUDIO", "GAMEPLAY", "DISPLAY", "DATA", "TESTING"]
+	var seen := words.filter(func(word): return word in groups)
+	check(seen == groups, "Settings has its groups in order: %s" % [seen])
+	var coming := {"Sound effects": "later", "Game speed": "1.2", "Confirm End run": "later", "Reduce motion": "later", "Haptics": "later", "Cloud save": "later"}
+	for name in coming:
+		check(words.has(name) and words.has(coming[name]), "%s is listed and says when: %s" % [name, coming[name]])
+	for row in sheet.find_children("*", "HBoxContainer", true, false):
+		var labels := row.find_children("*", "Label", true, false).map(func(label): return label.text)
+		if labels.any(func(text): return text in coming):
+			check(row.find_children("*", "BaseButton", true, false).is_empty(), "%s has nothing to press" % [labels[0]])
+	var toggles := sheet.find_children("*", "CheckButton", true, false).map(func(toggle): return toggle.text)
+	check(toggles == ["Music", "Run upgrades off (next run)"], "only the two real switches are switches: %s" % [toggles])
+	check(not sheet.find_children("*", "ScrollContainer", true, false).is_empty(), "the list scrolls to fit a short screen")
+	var build := sheet.find_children("*", "Label", true, false).filter(func(label): return label.text.begins_with("v"))
+	check(not build.is_empty(), "and the build line stays in view under it")
+	check(written[0] == 0, "opening Settings writes nothing")
+	home.free()
+	await process_frame
 
 
 func test_home_sheets_open_answer_and_close() -> void:

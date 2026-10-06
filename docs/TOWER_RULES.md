@@ -95,7 +95,7 @@
 | Cash and tiers | No source says whether a tier multiplies Cash | Not multiplied (D071 assumed it would be) | **Unknown** |
 | Coins per kill | By type: fast 2, ranged 2, tank 4, boss 5, protector 3, elites 4; basics pay nothing without a card. Times Coins / Kill Bonus × the tier bonus × every other bonus, all multiplied together, and ×0.5 for an enemy alive more than 3 waves | Flat by type × Coins / Kill × tier (D074); no decay | Built |
 | Coins / Wave | A flat 1–150 a wave, × the tier bonus | Same | Built |
-| Other Coin sources | Daily Missions, and wave milestones (below) | Number milestones (D107) and known early wave milestones (D126) | Missions remains unscheduled |
+| Other Coin sources | Daily Missions, and wave milestones (below) | Number milestones (D107) and known early wave milestones (D126) | Missions remains unscheduled (a stand-in on Home, D160) |
 | **Gems** | Cards, card slots, lab slots/rushing and Modules. Sources include wave milestones, floating gems, ads, daily gifts, missions and events | D126: known early wave Gems and a free daily 20-Gem claim; no ads or store | Cards spend it (D146: draws and slots); later rewards need exact source amounts |
 
 ## 5. Progression
