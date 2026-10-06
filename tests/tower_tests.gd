@@ -3116,7 +3116,8 @@ func test_milestones_pay_once_when_the_number_earned_reaches_a_new_digit() -> vo
 	# Tapping the best Number opens them (D138), with the next digit's reward
 	# written under it.
 	check(home.find_children("*", "Button", true, false).filter(func(button): return button.text == "Milestones").is_empty(), "no Milestones pill any more")
-	check(home._next_digit.text.contains(Palette.money(float(workshop.next_milestone().coins))), "the next digit's reward shows: %s" % home._next_digit.text)
+	check(home._next_digit.text.contains(Palette.money(float(workshop.next_milestone().coins))) and home._next_digit.text.contains("earn 10,000 in a run"),
+		"the next digit's reward shows, and what a run must earn for it: %s" % home._next_digit.text)
 	home._emblem.pressed.emit()
 	check(home._milestones_panel.visible and home._milestones_list.get_child_count() == Guesses.MILESTONES.size() + 1, "listing every milestone, with progress to the next")
 	var bars := home._milestones_list.find_children("*", "ProgressBar", true, false)

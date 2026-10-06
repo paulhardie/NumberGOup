@@ -32,6 +32,10 @@ func _capture() -> void:
 	progress.coins = 180.0
 	progress.best_wave = 9
 	progress.runs = 3
+	# A peak below what a run earned, as a spender's is: the emblem shows the
+	# peak, the milestone sheet the Number earned (D164).
+	progress.best_number = 180.0
+	progress.best_earned = 1500.0
 	progress.levels = {"damage": 3, "health": 2}
 	progress.open_groups.append("cash")
 

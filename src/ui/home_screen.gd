@@ -291,7 +291,9 @@ func refresh() -> void:
 	_best_number.text = Palette.full(ceilf(workshop.best_number))
 	_fit_best_number()
 	var next := workshop.next_milestone()
-	_next_digit.text = "next digit  ● %s" % Palette.money(float(next.coins)) if not next.is_empty() else "every digit reached"
+	# Under the peak, so it names its own measure: the digits climb the Number a
+	# run earns (D164), not the best Number above it.
+	_next_digit.text = "earn %s in a run  ● %s" % [Palette.full(float(next.number), INF), Palette.money(float(next.coins))] if not next.is_empty() else "every digit reached"
 	var best := _best_wave_now()
 	_best_wave.text = "Tier 1  ·  best wave %d  ·  %d run%s" % [best, workshop.runs, "" if workshop.runs == 1 else "s"]
 	_shelf_box.visible = workshop.runs > 0

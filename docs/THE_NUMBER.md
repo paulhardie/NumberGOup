@@ -17,7 +17,7 @@
 | 14 | It becomes the game (D158) | **Live. The current rules**, compatibility reasoning and what is undecided |
 | 15 | Coins from the peak Number: what the peak is made of (6 October) | **Live finding.** The peak is the Health row's Number for strong builds, so the reward follows the Number earned (16) |
 | 16 | Coins from the Number earned (D162): definitions, options and pass criteria | **Measured: all six configurations fail** (16.7). Options built, off by default; not the game's rules |
-| 17 | Stage 2: the digit ladder keyed on the Number earned (D163) | **Measured: both scales fail; the earned ladder fixes what the peak one lacks** (17.6). Not the game's rules |
+| 17 | Stage 2: the digit ladder keyed on the Number earned (D163, D164) | **The game since D164:** digits climb the Number earned, digit 100 pays 25 (17.7). Both declared scales had failed (17.6); the owner chose the variant |
 
 ### The Number today (D158)
 
@@ -29,7 +29,7 @@
 - **Runs begun before D158 play their Cash rules to the end.** The game's rules are `RunConfig.game_tuning()`; the code's own defaults stay off so old saves and measurements replay exactly. No version bump (14.2).
 - **What the bots say (13.3, 14.3):** the same pace as Cash, a Number a fifth to a quarter of its old size, no runaway. The shop adds 25 to 37% of a run's waves even at 1M Coins, as it does under The Tower's own rules.
 - **Growth after the Workshop flattens:** [GROWTH_LAYERS.md](GROWTH_LAYERS.md) (D161), a design note.
-- **Undecided (14.4, HANDOVER.md):** the Number milestones now pay less; whether the digit ladder should be recalibrated (a run's Coin reward follows the Number earned, D162, criteria in 16, measured and every configuration failed, 16.7; the ladder's stage 2 is open); how Workshop power outgrows the run shop; Recovery Packages; the Thorns turtle against a Lock.
+- **Undecided (14.4, HANDOVER.md):** the Number milestones now pay less; whether the digit ladder should be recalibrated (a run's Coin reward follows the Number earned, D162, criteria in 16, measured and every configuration failed, 16.7; the digit ladder now climbs the Number earned, D164, 17.7); how Workshop power outgrows the run shop; Recovery Packages; the Thorns turtle against a Lock.
 - **The lesson that cost two experiments:** the Number runs from 5 to millions inside Tier 1, so anything priced in a flat amount of it breaks. Use shares or time.
 
 ## The direction, in the owner's words
@@ -1256,3 +1256,12 @@ Against the prediction in 17.1: L1 to L3 and L4 came out as predicted, except th
 4. **The alternative** is to leave the peak ladder as it is (it fails L1 to L3) and write new criteria first for a variant (for example a gentler digit 100) before measuring it.
 
 **Not checked:** a player (bots only); careers beyond 50 runs; the digits from 100,000 up in real play (no measured Tier 1 run earns more than 38,286); Tier 2 and 3 careers.
+
+### 17.7 Made the game (6 October 2026, D164)
+
+The owner: "yes make it the game with digit 100 at 25". **Since D164 a digit pays the first time a run's Number earned reaches it, and digit 100 pays 25 Coins**; the others are unchanged. The record on Home stays the true peak.
+
+- **The save keeps the best Number earned** (`best_earned`, beside `best_number`). A save from before D164, or one whose value is damaged, climbs from its best peak, because the old ladder paid every digit up to it; no digit pays twice. A player whose best peak was 252 has digits 10 and 100 already and is paid digit 1,000 the first time a run earns 1,000.
+- **Home's milestone sheet** is headed "Number earned in a run · best N", ticks and fills its bar by the best earned, and the next-digit line follows it. The emblem's best Number is still the peak, so the two can differ; the heading says which is which.
+- **The peak ladder is a measuring option** (`--ladder peak`), so `tools/ladder_trial.py` can still read its control; run again, the control pays 25 for digit 100 too, so its numbers differ from 17.6's.
+- **Not measured against 17.5:** the 25-Coin variant was chosen on judgement (17.6, point 3). The balance baselines were re-recorded with it (careers change; single runs don't, since the ladder pays between runs); their movement is in the PR.
