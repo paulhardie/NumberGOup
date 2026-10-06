@@ -73,11 +73,12 @@ func _print_run(runs: Array, number: int) -> void:
 	print("\nRun %d: seed %d, started with %s" % [number, int(run.seed), run.start.levels])
 	print("Played %s real, at speeds %s" % [_clock(float(run.play.get("real_seconds", 0.0))), run.play.get("seconds_at_speed", {})])
 	# Under the Number as Cash (D158) there is no Cash, and "max_health" is the
-	# Workshop's Health row: the Number the run started from, not a cap.
+	# Health stat as it stood (the Workshop row and any effects), not a cap. It
+	# isn't the Number the run started from: Starting Cash adds to that.
 	var number_cash := _number_cash(run)
 	print("Rules: %s" % ("the Number is Cash (D158)" if number_cash else "Cash"))
 	if number_cash:
-		print("\n wave  game time         Number  started  earned  coins  kills  enemy atk  enemy hp  bought")
+		print("\n wave  game time         Number   Health  earned  coins  kills  enemy atk  enemy hp  bought")
 	else:
 		print("\n wave  game time  health / most   cash  earned  coins  kills  enemy atk  enemy hp  bought")
 	for snapshot in run.waves:
