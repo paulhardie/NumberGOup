@@ -2445,4 +2445,5 @@ Rules:
   1. **Coins stay as they are.** The earned-Coins options stay in the code, off by default, as the measuring record.
   2. **Stage 2 measures the digit ladder keyed on the Number earned in a run** (THE_NUMBER.md 17), with its criteria written first and equal career horizons. The record stays the true peak.
 - **Not decided:** whether the earned ladder becomes the game (it waits on the measurement, the owner's play and an independent review), its reward scale, and how a save records the best Number earned.
-- **Revisit when:** stage 2 is measured.
+- **Measured (2026-10-06, THE_NUMBER.md 17.6): FAIL at both reward scales; the control (today's peak ladder) fails L1 to L3.** The earned ladder makes every digit to 10,000 reachable in Tier 1 and pays 5% to 6% of a career's Coins (today 1% to 2%); at full rewards digit 100 pays 3.6 times the run that reaches it (L4), and at both scales the core career reaches wave 30 12 to 14 runs sooner (L5; across four career seeds, exploratory, two of four careers are sped by 5 to 14 runs). The agent proposes making it the game with digit 100 at 25 Coins, as its own high-risk change; the owner decides.
+- **Revisit when:** the owner decides on 17.6's proposal.

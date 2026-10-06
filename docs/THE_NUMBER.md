@@ -17,7 +17,7 @@
 | 14 | It becomes the game (D158) | **Live. The current rules**, compatibility reasoning and what is undecided |
 | 15 | Coins from the peak Number: what the peak is made of (6 October) | **Live finding.** The peak is the Health row's Number for strong builds, so the reward follows the Number earned (16) |
 | 16 | Coins from the Number earned (D162): definitions, options and pass criteria | **Measured: all six configurations fail** (16.7). Options built, off by default; not the game's rules |
-| 17 | Stage 2: the digit ladder keyed on the Number earned (D163) | **Criteria written first; being built and measured** |
+| 17 | Stage 2: the digit ladder keyed on the Number earned (D163) | **Measured: both scales fail; the earned ladder fixes what the peak one lacks** (17.6). Not the game's rules |
 
 ### The Number today (D158)
 
@@ -1216,7 +1216,7 @@ What the numbers show (medians, bots):
 - **Configurations:** the control (today's peak ladder), and the earned ladder with today's rewards scaled by 1.0 and by 0.5. Reported all three.
 - **The record stays the true peak** (`best_number`), and is still what Home shows.
 
-### 17.3 The options (built 6 October 2026)
+### 17.3 The options (built and measured, 17.6)
 
 Measuring options on `Workshop`, off by default and never saved: `ladder_on_earned` (key the ladder on the Number earned) and `ladder_scale` (a multiplier on its rewards), with the best Number earned held in memory only while on. `Workshop.finish_run` takes the run's Number earned. `sim_runs.gd` gets `--ladder earned` and `--ladder-scale N`. The criteria as code in `tools/ladder_trial.py`, tested so that each fails at its boundary and an unplayed criterion reads "not run". **With them off nothing changes; the quick balance comparison is the proof.** Making it the game is its own change, with a save field for the best Number earned, a migration and an independent review.
 
@@ -1234,3 +1234,25 @@ Measuring options on `Workshop`, off by default and never saved: `ladder_on_earn
 5. **L5. The early game isn't rushed.** In each career, the first run to reach wave 30 is no earlier than 80% of the control's run for that career. *Why: the ladder's Coins buy Workshop rows; it must not skip the first hours.*
 
 **The rules of 10.4, 12.5, 13.2 and 16.5 apply:** every configuration reported, no seed chosen, criteria not changed after results, exploratory runs labelled, a failure written up with a proposal for the owner. **The owner's play is the real test.**
+
+### 17.6 Results (6 October 2026): the earned ladder fixes what the peak ladder lacks, and both scales fail
+
+Measured with `python3 tools/ladder_trial.py` on the committed options (criteria committed first, unchanged; careers 50 runs each, the Workshop cells of 16.4). **Overall: FAIL for both scales; the control (today's peak ladder) fails too.**
+
+| | L1 reachable | L2 early digits | L3 share | L4 no digit dominates | L5 not rushed |
+|---|---|---|---|---|---|
+| **Control: today's peak ladder** | **fail** (median peak 141 to 2,764) | **fail** (100 at runs 30 and 41, 1,000 never) | **fail** (1.6% and 1.2%) | pass | pass |
+| **Earned ladder, full rewards** | pass (median earned 1,470 at 10K, 11,343 at 1M core) | pass (100 at run 6, 1,000 at 30 and 38) | pass (6.0% and 4.6%) | **fail** (digit 100 pays 3.57 times its run) | **fail** (core reaches wave 30 at run 33 against 47) |
+| **Earned ladder, half rewards** | pass | pass (100 at run 6, 1,000 at 30 and 41) | **fail** for grow (2.9%; core 3.3%) | pass (1.79) | **fail** (core at run 35 against 47) |
+
+Against the prediction in 17.1: L1 to L3 and L4 came out as predicted, except that half rewards land the grow career just under L3's 3% floor; **L5 was not predicted.** In the core career the ladder's early Coins (50 for digit 100 at run 6, then 250 for 1,000 at run 30) bring wave 30 forward by 12 to 14 runs.
+
+**Exploratory, not a criterion (three more career seeds, core, `--career-seed 1` to `3`, read the same way):** the first run reaching wave 30 is 39, 39 and 44 in the control, 39, 33 and 44 at full rewards, and 39, 34 and 44 at half. With the declared career that is 47, 39, 39 and 44 against 33, 39, 33 and 44 at full rewards: **the ladder speeds two of four careers by 5 to 14 runs and leaves two alone**, about 5 runs or 12% on average. The declared career is the largest case; the effect is real but modest and noisy.
+
+**What it means, and a proposal (the owner decides):**
+1. **Keying the ladder on the Number earned works.** It makes every digit to 10,000 reachable in Tier 1 with 1,000,000 still far off, brings the first digits into the first hour, and pays a visible 5% to 6% of a career's Coins where today's pays 1% to 2% and stops at digit 100 for a buying build.
+2. **Its costs are the early digits.** Digit 100 now comes at run 6, when a run earns about 14 Coins, so 50 Coins is three and a half runs (L4), and the early Coins move wave 30 forward in some careers (L5). Halving every reward fixes L4 but not L5, and leaves the ladder nearly invisible (L3).
+3. **I'd make it the game with today's rewards except digit 100 at 25 Coins** (1.8 times its run, L4's measure), and accept that some careers reach wave 30 a few runs sooner. That is my judgement on an exploratory reading; that variant hasn't been measured against the criteria, and by the rules it can't pass them now. Making the ladder the game is its own high-risk change: a save field for the best Number earned (seeded from the best peak so no digit pays twice), Home's milestone sheet reading it, tests and an independent review.
+4. **The alternative** is to leave the peak ladder as it is (it fails L1 to L3) and write new criteria first for a variant (for example a gentler digit 100) before measuring it.
+
+**Not checked:** a player (bots only); careers beyond 50 runs; the digits from 100,000 up in real play (no measured Tier 1 run earns more than 38,286); Tier 2 and 3 careers.
