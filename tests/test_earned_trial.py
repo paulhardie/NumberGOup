@@ -67,6 +67,23 @@ class EarnedCriteriaTests(unittest.TestCase):
         results[f'{PREFIX}.buy_10000_core'] = result(coins=74.0)
         self.assertFalse(self.verdicts(results)[1])
 
+    def test_a_hair_outside_a_limit_fails_rounding_never_rescues_it(self):
+        results = passing()
+        results[f'{PREFIX}.buy_10000_core'] = result(coins=125.049)
+        self.assertFalse(self.verdicts(results)[1], '25.049% over is outside 25%, however it is displayed')
+        results = passing()
+        results[f'{PREFIX}.off_100000_core'] = result(coins=110.04)
+        self.assertFalse(self.verdicts(results)[2], '10.04% off is outside 10%')
+        results = passing()
+        results[f'{PREFIX}.off_10000_turtle'] = result(seconds=857.2)
+        self.assertFalse(self.verdicts(results)[3], 'a rate of 0.6999 is under 0.70')
+        results = passing()
+        results[f'{PREFIX}.tier2'] = result(coins=180.0 * 1.1501, count=2)
+        self.assertFalse(self.verdicts(results)[4], '15.01% off the control\'s tier ratio is outside 15%')
+        results = passing()
+        results[f'{PREFIX}.buy_10000_core']['runs'][0]['coins'] = 150.01
+        self.assertFalse(self.verdicts(results)[7], 'a run a hair over 1.5 times its control')
+
     def test_spenders_and_hoarders_are_paid_by_the_same_measure(self):
         results = passing()
         results[f'{PREFIX}.off_100000_core'] = result(coins=115.0)
@@ -161,7 +178,7 @@ class EarnedCriteriaTests(unittest.TestCase):
         self.assertEqual(runs['ctrl.buy_1000000_turtle']['seeds'], 4)
         self.assertEqual(runs['ctrl.off_1000000_turtle']['upgrades-off'], 'true')
         self.assertEqual(runs['ctrl.fresh_even']['seeds'], 20)
-        self.assertEqual(runs['ctrl.career_grow']['careers'], 50)
+        self.assertEqual((runs['ctrl.career_core']['careers'], runs['ctrl.career_grow']['careers']), (50, 70), "the harness's career horizons")
         self.assertEqual(runs['ctrl.tier3']['tier'], 3)
         chosen = runs[f'{trial.name(0.25, 0.8)}.buy_100000_core']
         self.assertEqual((chosen['earned-share'], chosen['earned-power'], float(chosen['earned-scale'])), (0.25, 0.8, trial.scale(0.8)))

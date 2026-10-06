@@ -25,6 +25,8 @@ PLANS = ('core', 'turtle')
 BUDGETS = (10000, 100000, 1000000)
 FRESH = ('none', 'even', 'core')
 CAREERS = ('core', 'grow')
+# The harness's career cells (balance_report.scenarios): core plays 50 runs, grow 70.
+CAREER_RUNS = {'core': 50, 'grow': 70}
 TIERS = (1, 2, 3)
 SHARES = (0.25, 0.5, 1.0)
 POWERS = (0.8, 1.0)
@@ -62,7 +64,7 @@ def cells():
     for policy in FRESH:
         found[f'fresh_{policy}'] = dict(rules, seeds=20, buy=policy, **{'cap-minutes': 10})
     for policy in CAREERS:
-        found[f'career_{policy}'] = dict(rules, careers=50, buy=policy, **{'cap-minutes': 90})
+        found[f'career_{policy}'] = dict(rules, careers=CAREER_RUNS[policy], buy=policy, **{'cap-minutes': 90})
     return found
 
 
@@ -79,6 +81,11 @@ def plan(configs=GRID):
 
 def median(values):
     return balance.upper_median(values) if values else None
+
+
+def shown(values):
+    """Raw values rounded for the report only; every predicate reads the raw ones."""
+    return {key: round(value, 3) for key, value in values.items()}
 
 
 def verdict(passed, detail):
@@ -120,24 +127,24 @@ def evaluate(results, prefix):
     workshop = [(b, p) for b in BUDGETS for p in PLANS]
     buying = [f'buy_{b}_{p}' for b, p in workshop]
     if have(*buying):
-        moved = {c: round(coins(mine(c)) / coins(ctrl(c)) - 1.0, 3) for c in buying}
-        out[1] = verdict(all(abs(v) <= 0.25 for v in moved.values()), f'median Coins against the control {moved}; each within 0.25')
+        moved = {c: coins(mine(c)) / coins(ctrl(c)) - 1.0 for c in buying}
+        out[1] = verdict(all(abs(v) <= 0.25 for v in moved.values()), f'median Coins against the control {shown(moved)}; each within 0.25')
     if have(*buying, *[f'off_{b}_{p}' for b, p in workshop]):
-        gaps = {f'{b}/{p}': round(per_earned(mine(f'off_{b}_{p}')) / per_earned(mine(f'buy_{b}_{p}')) - 1.0, 3) for b, p in workshop}
-        out[2] = verdict(all(abs(v) <= 0.10 for v in gaps.values()), f'Coins per Number earned, off against buying {gaps}; each within 0.10')
-        rates = {f'{b}/{p}': round(per_minute(mine(f'off_{b}_{p}')) / per_minute(mine(f'buy_{b}_{p}')), 3) for b, p in workshop}
-        out[3] = verdict(all(0.70 <= v <= 1.30 for v in rates.values()), f'Coins per game-minute, off over buying {rates}; each 0.70 to 1.30')
+        gaps = {f'{b}/{p}': per_earned(mine(f'off_{b}_{p}')) / per_earned(mine(f'buy_{b}_{p}')) - 1.0 for b, p in workshop}
+        out[2] = verdict(all(abs(v) <= 0.10 for v in gaps.values()), f'Coins per Number earned, off against buying {shown(gaps)}; each within 0.10')
+        rates = {f'{b}/{p}': per_minute(mine(f'off_{b}_{p}')) / per_minute(mine(f'buy_{b}_{p}')) for b, p in workshop}
+        out[3] = verdict(all(0.70 <= v <= 1.30 for v in rates.values()), f'Coins per game-minute, off over buying {shown(rates)}; each 0.70 to 1.30')
     if have(*[f'tier{t}' for t in TIERS]):
         kept = {}
         for tier in (2, 3):
             theirs = coins(ctrl(f'tier{tier}')) / coins(ctrl('tier1'))
             mine_ratio = coins(mine(f'tier{tier}')) / coins(mine('tier1'))
-            kept[f'tier {tier} over tier 1'] = round(mine_ratio / theirs - 1.0, 3)
-        out[4] = verdict(all(abs(v) <= 0.15 for v in kept.values()), f'the tier ratio of median Coins against the control\'s {kept}; each within 0.15')
+            kept[f'tier {tier} over tier 1'] = mine_ratio / theirs - 1.0
+        out[4] = verdict(all(abs(v) <= 0.15 for v in kept.values()), f'the tier ratio of median Coins against the control\'s {shown(kept)}; each within 0.15')
     if have(*[f'career_{p}' for p in CAREERS]):
         found = coins(mine('career_grow')) / coins(mine('career_core'))
         was = coins(ctrl('career_grow')) / coins(ctrl('career_core'))
-        out[5] = verdict(found >= 1.25, f'median Coins per run, the Coins-income career over the core one: {found:.2f} (control {was:.2f}); at least 1.25')
+        out[5] = verdict(found >= 1.25, f'median Coins per run, the Coins-income career ({CAREER_RUNS["grow"]} runs) over the core one ({CAREER_RUNS["core"]}): {found:.2f} (control {was:.2f}); at least 1.25')
     if have(*[f'fresh_{p}' for p in FRESH]):
         gaps = {}
         ok = True
@@ -161,11 +168,11 @@ def evaluate(results, prefix):
                 highest = max(highest, row['coins'] / limit)
                 if row['coins'] > limit:
                     bad.append(cell)
-            worst[cell] = round(highest, 3)
-        shares = {c: round(median([interest_share(row) for row in rows(mine(c))]), 3) for c in run_cells}
+            worst[cell] = highest
+        shares = {c: median([interest_share(row) for row in rows(mine(c))]) for c in run_cells}
         out[7] = verdict(not bad and max(shares.values()) <= 0.25,
-                         f'each run\'s Coins over its same-seed limit, the highest per cell {worst} (1 or less); '
-                         f'median Interest share of income {shares} (at most 0.25)')
+                         f'each run\'s Coins over its same-seed limit, the highest per cell {shown(worst)} (1 or less); '
+                         f'median Interest share of income {shown(shares)} (at most 0.25)')
     return out
 
 
