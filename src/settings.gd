@@ -18,6 +18,9 @@ var music := true
 ## Run upgrades off (D158): the run shop is shut for each new run. Chosen before
 ## a run, never during one; off unless set.
 var upgrades_off := false
+## The invaders view (D166, a prototype): the Number at the bottom, enemies
+## coming down from the top. Drawing only; off unless set.
+var invaders := false
 
 
 func read(path: String = PATH) -> void:
@@ -30,6 +33,8 @@ func read(path: String = PATH) -> void:
 	music = playing if playing is bool else true
 	var shut = json.data.get("upgrades_off", false)
 	upgrades_off = shut if shut is bool else false
+	var view = json.data.get("invaders", false)
+	invaders = view if view is bool else false
 
 
 ## The rules a new run starts with: the game's (RunConfig.game_tuning), with the
@@ -45,7 +50,7 @@ func write(path: String = PATH) -> bool:
 	if file == null:
 		push_warning("Couldn't write the settings to %s." % temporary)
 		return false
-	file.store_string(JSON.stringify({"version": VERSION, "music": music, "upgrades_off": upgrades_off}, "\t"))
+	file.store_string(JSON.stringify({"version": VERSION, "music": music, "upgrades_off": upgrades_off, "invaders": invaders}, "\t"))
 	file.flush()
 	var written := file.get_error() == OK
 	file.close()

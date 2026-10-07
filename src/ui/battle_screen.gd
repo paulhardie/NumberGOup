@@ -73,6 +73,10 @@ var resume: Dictionary = {}
 ## sets from the settings. A resumed run keeps the ones it started with; empty
 ## where nothing sets it, as the tools and tests that play the old rules.
 var tuning: Dictionary = {}
+## The invaders view (D166, a prototype, a setting): the Number at the bottom
+## with only the run upgrades below it, folded to their tabs until opened, and
+## the wave line at the top. Set before the screen is added.
+var invaders := false
 var _replay: RunReport.Replay
 var _resuming: Label
 var _speed_index := 0
@@ -383,24 +387,35 @@ func _build() -> void:
 	top.add_child(end)
 
 	_arena = ArenaView.new()
+	_arena.invaders = invaders
 	_arena.digit_reached.connect(func(power: int): digit_reached.emit(power))
 	_arena.clip_contents = true
 	_arena.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_arena.custom_minimum_size = Vector2(0, 320)
-	_arena.resized.connect(func(): _arena.centre = Vector2(_arena.size.x * 0.5, _arena.size.y * 0.52))
-	column.add_child(_arena)
+	_arena.resized.connect(func(): _arena.centre = _arena.invaders_centre() if invaders else Vector2(_arena.size.x * 0.5, _arena.size.y * 0.52))
 
 	# The wave line: its number (tap for Wave Info) and The Tower's two-phase
-	# bar (D122), in place of the old Tower and Wave readouts (D143).
+	# bar (D122), in place of the old Tower and Wave readouts (D143). Under the
+	# arena, or in the invaders view above it, so only the run upgrades sit
+	# below the Number.
 	var wave_margin := _margined(_wave_line(), 14)
 	wave_margin.add_theme_constant_override("margin_top", 10)
-	column.add_child(wave_margin)
+	if invaders:
+		wave_margin.add_theme_constant_override("margin_top", 2)
+		column.add_child(wave_margin)
+	column.add_child(_arena)
+	if not invaders:
+		column.add_child(wave_margin)
 
 	_upgrades = UpgradePanel.new()
 	_upgrades.info_requested.connect(_show_held)
 	var upgrades_margin := _margined(_upgrades, 24)
 	upgrades_margin.add_theme_constant_override("margin_top", 4)
 	column.add_child(upgrades_margin)
+	if invaders:
+		# Folded to their tabs until the player opens them (D129's fold).
+		upgrades_margin.add_theme_constant_override("margin_bottom", 18)
+		_upgrades.set_collapsed(true)
 
 	# Both banners live under the screen from the start, hidden, so they go
 	# with it whether or not they were ever shown.

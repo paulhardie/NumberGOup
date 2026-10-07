@@ -498,6 +498,9 @@ func _open_settings() -> void:
 	list.add_child(ComingSoon.setting("Confirm End run", "Ask before a run is ended.", ComingSoon.LATER))
 
 	_group(list, "Display")
+	# The invaders view (D166): a prototype layout, read as each battle starts.
+	list.add_child(_toggle("Invaders view (prototype)", settings.invaders, func(on: bool): settings.invaders = on))
+	list.add_child(ComingSoon.hint("The Number at the bottom, numbers coming down from the top. The battle is the same."))
 	list.add_child(ComingSoon.setting("Reduce motion", "Calmer light and fewer effects.", ComingSoon.LATER))
 	list.add_child(ComingSoon.setting("Haptics", "A buzz on a hit, on a phone.", ComingSoon.LATER))
 

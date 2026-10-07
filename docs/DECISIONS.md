@@ -2462,3 +2462,14 @@ Rules:
 - **Measured (re-recorded baselines, THE_NUMBER.md 17.7):** only careers move; the core career reaches wave 30 at run 33 against 47 and earns 5,074 Coins against 3,923, grow reaches it at 43 against 47.
 - **Supersedes:** D107 in part (what a digit is measured on, and digit 100's Coins).
 - **Revisit when:** the owner plays it, or Labs or tiers change what a run earns.
+
+## D166 — The invaders view: the Number at the bottom, numbers coming down from the top
+
+- **Status:** Accepted (2026-10-07) as a prototype on the owner's direction: "What I'd want is the number (the player) to be at the very bottom of the screen, with only the workshop buttons below it (they can reveal themselves in a way that doesn't distract too much) but I still think a workshop, cards and labs are a good idea. Bounce shots etc, thorns, regen … Basically think space invaders, we are at the bottom of the screen, all numbers slowly come from the [top], and we shoot upwards to try kill them all." The agent read "come from the bottom" as from the top, since the player shoots upwards.
+- **Decision:**
+  1. **A drawing-only view, chosen in Settings → Display ("Invaders view (prototype)"), off by default.** The battle is unchanged: the round field is mapped onto a portrait screen (`ArenaView.project`), with distance as height above the Number at the bottom and direction as a column across the width (straight up in the middle), so enemies come down from the top and draw in to the Number over their last 20 metres; the range is a line across the screen, orbs sweep sideways, a shockwave rises as a line.
+  2. **Only the run upgrades sit below the Number,** folded to their tabs until a tab is tapped (D129's fold); the wave line moves to the top. Opening the cards lifts the Number above them.
+  3. **The Workshop, Cards, Labs and every defence row stay** as they are.
+- **Open:** whether enemies in this view should show their health rather than the hit they will land (most read 0 to 2 after the defences, which looks flat at this size); whether the view becomes the game; and the owner's idle mode ("an idle mode that just plays on repeat outside of [a run], that still rewards idle play, or not"), which D089 already accepts in direction.
+- **Revisit when:** the owner has played it.
+

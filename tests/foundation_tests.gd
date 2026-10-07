@@ -1150,7 +1150,7 @@ func test_settings_groups_the_real_and_the_coming() -> void:
 		if labels.any(func(text): return text in coming):
 			check(row.find_children("*", "BaseButton", true, false).is_empty(), "%s has nothing to press" % [labels[0]])
 	var toggles := sheet.find_children("*", "CheckButton", true, false).map(func(toggle): return toggle.text)
-	check(toggles == ["Music", "Run upgrades off (next run)"], "only the two real switches are switches: %s" % [toggles])
+	check(toggles == ["Music", "Run upgrades off (next run)", "Invaders view (prototype)"], "only the three real switches are switches: %s" % [toggles])
 	check(not sheet.find_children("*", "ScrollContainer", true, false).is_empty(), "the list scrolls to fit a short screen")
 	var build := sheet.find_children("*", "Label", true, false).filter(func(label): return label.text.begins_with("v"))
 	check(not build.is_empty(), "and the build line stays in view under it")

@@ -6,6 +6,8 @@ extends SceneTree
 ## Info open. Every screen gets its own Workshop,
 ## so nothing is saved. On headless Linux wrap it in
 ## xvfb-run -a -s "-screen 0 1024x1100x24".
+## `-- --invaders` captures only the invaders view (D166): runs at a few moments,
+## a strong tower with orbs and bounces, and the run upgrades opened.
 
 const Workshop = preload("res://src/tower/workshop.gd")
 const HomeScreen = preload("res://src/ui/home_screen.gd")
@@ -28,6 +30,10 @@ func _init() -> void:
 
 func _capture() -> void:
 	DirAccess.make_dir_recursive_absolute(FOLDER)
+	if "--invaders" in OS.get_cmdline_user_args():
+		await _invaders()
+		quit()
+		return
 	var progress := Workshop.new()
 	progress.coins = 180.0
 	progress.best_wave = 9
@@ -522,6 +528,50 @@ func _capture() -> void:
 		await _frames()
 		_save_png("battle_%03ds" % int(moment))
 	quit()
+
+
+## The invaders view (D166): the game's rules, a seeded run fast-forwarded,
+## buying evenly as it goes.
+func _invaders() -> void:
+	var plain := {"damage": 6, "attack_speed": 4, "health": 8, "health_regen": 4, "defense_absolute": 3}
+	var strong := {"damage": 30, "attack_speed": 20, "health": 25, "health_regen": 20, "defense_absolute": 15,
+		"bounce_shot_chance": 10, "bounce_shot_targets": 3, "orbs": 2, "orb_speed": 5, "multishot_chance": 10, "multishot_targets": 2}
+	var groups := ["defense", "bounce_shot", "orbs", "multishot", "thorns"]
+	for shot in [["invaders_early", plain, 20.0, false], ["invaders_crowd", plain, 240.0, false],
+			["invaders_strong", strong, 900.0, false], ["invaders_tray_open", plain, 240.0, true]]:
+		var screen := BattleScreen.new()
+		screen.tuning = RunConfig.game_tuning()
+		screen.invaders = true
+		var built := Workshop.new()
+		built.levels = shot[1]
+		for group in groups:
+			if not group in built.open_groups:
+				built.open_groups.append(group)
+		screen.workshop = built
+		root.add_child(screen)
+		await process_frame
+		screen.start_run(9)
+		screen.set_process(false)
+		var bought := 0.0
+		while screen.sim.alive and screen.sim.time < float(shot[2]):
+			screen.sim.step()
+			screen.sim.events.clear()
+			if screen.sim.time - bought >= 5.0:
+				bought = screen.sim.time
+				_buy_evenly(screen.sim)
+		if shot[3]:
+			screen._upgrades.set_collapsed(false)
+			screen._upgrades.show_tab("attack")
+		for _i in range(40):
+			screen._arena.absorb([], 0.05)
+		screen._refresh()
+		screen._upgrades.refresh()
+		screen._arena.queue_redraw()
+		await _frames()
+		_save_png(String(shot[0]))
+		print("%s: wave %d, alive %s, %d enemies" % [shot[0], screen.sim.wave, screen.sim.alive, screen.sim.enemies.size()])
+		screen.queue_free()
+		await process_frame
 
 
 func _shoot(screen: Control, name: String, scroll_bottom: bool = false) -> void:

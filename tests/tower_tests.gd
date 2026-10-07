@@ -2992,8 +2992,8 @@ func test_the_number_grows_by_fighting_not_waiting() -> void:
 	await process_frame
 	home._open_settings()
 	var names := home.find_children("*", "CheckButton", true, false).map(func(toggle): return toggle.text)
-	check(names == ["Music", "Run upgrades off (next run)"],
-		"Home's Settings has the music switch and D158's Run upgrades off, and none of D111's old Testing switches or D156's Number is Cash: %s" % [names])
+	check(names == ["Music", "Run upgrades off (next run)", "Invaders view (prototype)"],
+		"Home's Settings has the music switch, D158's Run upgrades off and D166's invaders view, and none of D111's old Testing switches or D156's Number is Cash: %s" % [names])
 	home.queue_free()
 	await process_frame
 
@@ -3986,6 +3986,63 @@ func test_a_new_run_plays_the_games_rules_and_reads_run_upgrades_off() -> void:
 
 ## A settings write that cannot swap its file in says so, rather than replacing
 ## the player's file with a half-written one (as the save already does).
+## D166: the invaders view, a prototype. A setting, off by default and in older
+## files; on, the battle is the same and only the drawing changes: straight up
+## is the middle column, distance is height above the Number at the bottom,
+## enemies draw in to it as they arrive and stand above its digits, and the
+## run upgrades sit below it, folded to their tabs.
+func test_the_invaders_view_is_a_setting_that_only_redraws_the_battle() -> void:
+	var settings := Settings.new()
+	check(not settings.invaders, "off by default")
+	settings.invaders = true
+	check(settings.write(TEST_SETTINGS), "written")
+	var back := Settings.new()
+	back.read(TEST_SETTINGS)
+	check(back.invaders, "and read back")
+	var odd := FileAccess.open(TEST_SETTINGS, FileAccess.WRITE)
+	odd.store_string(JSON.stringify({"version": 1, "invaders": "yes"}))
+	odd.close()
+	var reread := Settings.new()
+	reread.read(TEST_SETTINGS)
+	check(not reread.invaders, "a value that isn't a switch reads as off")
+	DirAccess.remove_absolute(TEST_SETTINGS)
+	var arena := ArenaView.new()
+	arena.size = Vector2(400, 800)
+	arena.centre = Vector2(200, 400)
+	var classic := arena.project(Vector2(10, -5))
+	check(classic.is_equal_approx(arena.centre + Vector2(10, -5) * arena.px_per_metre()), "the classic view is unchanged")
+	arena.invaders = true
+	arena.centre = arena.invaders_centre()
+	check(arena.centre.x == 200.0 and arena.centre.y == 800.0 - ArenaView.INVADERS_BOTTOM_PX, "the Number stands centred at the bottom: %s" % [arena.centre])
+	var px := arena.px_per_metre()
+	check(is_equal_approx(px, (arena.centre.y - ArenaView.INVADERS_TOP_PX) / Guesses.SPAWN_DISTANCE_M), "the whole walk in fills the height above it")
+	var above := arena.project(Vector2(0, -50))
+	check(is_equal_approx(above.x, 200.0) and is_equal_approx(above.y, arena.centre.y - 50.0 * px), "straight up is the middle, 50 m up: %s" % [above])
+	var spawn := arena.project(Vector2(0, -Guesses.SPAWN_DISTANCE_M))
+	check(is_equal_approx(spawn.y, ArenaView.INVADERS_TOP_PX), "where enemies set off is the top")
+	var right := arena.project(Vector2(50, 0))
+	var left := arena.project(Vector2(-50, 0))
+	check(right.x > 200.0 and left.x < 200.0 and is_equal_approx(right.x - 200.0, 200.0 - left.x) and is_equal_approx(right.y, above.y), "right and left are columns either side, at the same height")
+	var near := arena.project(Vector2(50, 0).normalized() * 2.0)
+	check(absf(near.x - 200.0) < absf(right.x - 200.0) * 0.2, "close in, it draws in to the Number")
+	var arrived := arena.enemy_at(PI / 3.0, 0.0, Vector2(8, 6))
+	check(arrived.y < arena.centre.y, "an enemy at the Number stands above its digits")
+	arena.free()
+	var screen := BattleScreen.new()
+	screen.tuning = RunConfig.game_tuning()
+	screen.invaders = true
+	root.add_child(screen)
+	await process_frame
+	await process_frame
+	check(screen._arena.invaders and screen._upgrades.collapsed, "a battle in it draws the invaders view, the run upgrades folded")
+	var column: VBoxContainer = screen._arena.get_parent()
+	check(column.get_children().find(screen._arena) > column.get_children().find(screen._wave_title.get_parent().get_parent()), "the wave line sits above the arena")
+	check(screen._arena.centre.y > screen._arena.size.y * 0.75, "and the Number near the arena's bottom: %s of %s" % [screen._arena.centre.y, screen._arena.size.y])
+	check(screen.sim != null and screen.sim.number_cash and screen.sim.lock_holds_cash and not screen.sim.start_config().tuning.has("invaders"), "the battle's rules are the game's, and the view is no part of them")
+	screen.queue_free()
+	await process_frame
+
+
 func test_a_settings_write_that_cannot_land_reports_failure() -> void:
 	DirAccess.remove_absolute(TEST_SETTINGS)
 	var settings := Settings.new()

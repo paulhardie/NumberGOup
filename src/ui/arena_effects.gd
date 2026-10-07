@@ -168,7 +168,13 @@ func draw_shockwave(reach_px: float) -> void:
 	if shockwave_age < SHOCKWAVE_SECONDS:
 		# The ring runs out to the edge of range and fades as it goes.
 		var spread := shockwave_age / SHOCKWAVE_SECONDS
-		view.draw_arc(view.centre, reach_px * spread, 0.0, TAU, 96, Color(Palette.TEXT, 0.6 * (1.0 - spread)), 3.0, true)
+		var colour := Color(Palette.TEXT, 0.6 * (1.0 - spread))
+		if view.invaders:
+			# In the invaders view the wave rises as a line to the range's height.
+			var line_y: float = view.centre.y - reach_px * spread
+			view.draw_line(Vector2(0.0, line_y), Vector2(view.size.x, line_y), colour, 3.0, true)
+		else:
+			view.draw_arc(view.centre, reach_px * spread, 0.0, TAU, 96, colour, 3.0, true)
 
 
 func draw_blasts(blast_px: float) -> void:
@@ -186,6 +192,8 @@ func draw_ranged_shots(number_half: Vector2, wall_half: Vector2) -> void:
 		var toward := Vector2.from_angle(shot.enemy.angle)
 		var fade: float = 1.0 - shot.age / RANGED_SHOT_SECONDS
 		var to: Vector2 = view.centre + toward * (wall_half.x if shot.get("at_wall", false) else number_half.x)
+		if view.invaders:
+			to = view.centre + Vector2(0.0, -(wall_half.y if shot.get("at_wall", false) else number_half.y))
 		if shot.enemy.kind == "ray":
 			view.draw_line(from - toward * 12.0, to, Color(Palette.RAY, 0.8 * fade), 3.0, true)
 		else:
