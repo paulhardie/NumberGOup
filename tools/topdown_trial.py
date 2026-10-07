@@ -21,8 +21,11 @@ from number_trial import rows, run_all  # noqa: E402
 BUDGETS = (10000, 100000)
 PLANS = ('core', 'turtle', 'blender')
 CAREERS = {'core': 50, 'grow': 70}
+# T4 (TOP_DOWN.md 2): where orbs, bounces, land mines and Protectors work.
+GEOMETRY_PLANS = ('blender_orbs', 'multishot', 'spread', 'turtle')
+GEOMETRY_TIERS = (2, 3)
 WAYS = ('round', 'top')
-LABELS = {1: 'the first minutes', 2: 'Workshop cells', 3: 'careers'}
+LABELS = {1: 'the first minutes', 2: 'Workshop cells', 3: 'careers', 4: 'where the geometry differs'}
 
 
 def cells():
@@ -33,7 +36,15 @@ def cells():
             found[f'buy_{budget}_{plan}'] = dict(rules, seeds=6, buy='core', **{'workshop-coins': budget, 'workshop-plan': plan, 'cap-minutes': 180})
     for policy, runs in CAREERS.items():
         found[f'career_{policy}'] = dict(rules, careers=runs, buy=policy, **{'cap-minutes': 90})
+    for plan in GEOMETRY_PLANS:
+        found[f'buy_1000000_{plan}'] = dict(rules, seeds=6, buy='core', **{'workshop-coins': 1000000, 'workshop-plan': plan, 'cap-minutes': 180})
+    for tier in GEOMETRY_TIERS:
+        found[f'tier_{tier}_level20'] = dict(rules, seeds=6, buy='core', workshop=20, tier=tier, **{'cap-minutes': 30})
     return found
+
+
+def geometry_cells():
+    return [f'buy_1000000_{plan}' for plan in GEOMETRY_PLANS] + [f'tier_{tier}_level20' for tier in GEOMETRY_TIERS]
 
 
 def plan():
@@ -95,6 +106,15 @@ def evaluate(results):
             reading[policy] = (mine, theirs)
             ok = ok and ((mine is None and theirs is None) or (mine is not None and theirs is not None and within(mine, theirs, 0.25)))
         out[3] = verdict(ok, 'first run reaching wave 30 top-down against round ' + ', '.join(f'{p}: {m} / {t}' for p, (m, t) in reading.items()) + ' (within 25%)')
+    wanted = geometry_cells()
+    if all(f'{way}.{cell}' in results for way in WAYS for cell in wanted):
+        reading, ok = {}, True
+        for cell in wanted:
+            theirs = median([row['wave'] for row in rows(results[f'round.{cell}'])])
+            mine = median([row['wave'] for row in rows(results[f'top.{cell}'])])
+            reading[cell] = (mine, theirs)
+            ok = ok and within(mine, theirs, 0.20)
+        out[4] = verdict(ok, 'median wave top-down against round ' + ', '.join(f'{c}: {m} / {t}' for c, (m, t) in reading.items()) + ' (within 20%)')
     return out
 
 
@@ -121,11 +141,11 @@ def reported(results):
 def render(results):
     lines = []
     out = evaluate(results)
-    for number in range(1, 4):
+    for number in range(1, 5):
         found = out.get(number)
         state = 'NOT RUN' if found is None else 'PASS' if found['pass'] else 'FAIL'
         lines.append(f'T{number} {LABELS[number]}: {state}' + ('' if found is None else ': ' + found['detail']))
-    overall = 'NOT COMPLETE' if len(out) < 3 else 'PASS' if all(v['pass'] for v in out.values()) else 'FAIL'
+    overall = 'NOT COMPLETE' if len(out) < 4 else 'PASS' if all(v['pass'] for v in out.values()) else 'FAIL'
     lines += [f'Overall: {overall}', '', 'Reported, not criteria:']
     for cell, ways in reported(results).items():
         lines.append(f'  {cell}: ' + ' | '.join(f'{way} coins {ways[way]["coins"]}, damage {ways[way]["damage_by"]}, lost {ways[way]["lost_to"]}' for way in WAYS))
