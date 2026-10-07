@@ -61,6 +61,16 @@ def first_reaching(result, wave):
     return next((row['run'] for row in sorted(rows(result), key=lambda row: row['run']) if row['wave'] >= wave), None)
 
 
+def check_ways(results):
+    """Every run says which battle it played (its recorded tuning), so a switch the
+    simulator ignored can't make both ways read alike and pass."""
+    for name, result in results.items():
+        wanted = name.startswith('top.')
+        for row in rows(result):
+            if bool(row.get('start', {}).get('tuning', {}).get('top_down', False)) != wanted:
+                raise ValueError(f'{name}: run {row.get("run")} seed {row.get("seed")} played the {"round" if wanted else "top-down"} battle')
+
+
 def evaluate(results):
     """The three criteria of TOP_DOWN.md section 2; one whose runs weren't played is absent."""
     out = {}
@@ -130,6 +140,7 @@ def main():
     args = parser.parse_args()
     try:
         results = run_all(plan(), args.cache, args.jobs)
+        check_ways(results)
         text, overall = render(results)
         print(text)
         if args.output:

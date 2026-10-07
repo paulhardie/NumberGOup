@@ -12,8 +12,9 @@ trial = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(trial)
 
 
-def cell(wave=30, count=6, seconds=600.0, stop='death'):
+def cell(wave=30, count=6, seconds=600.0, stop='death', top=False):
     return {'runs': [{'case': 'run', 'seed': i + 1, 'run': 0, 'wave': wave, 'game_seconds': seconds, 'stop': stop, 'coins': 100.0,
+                      'start': {'tuning': {'top_down': True} if top else {}},
                       'damage_by': {'shot': 90.0, 'orb': 10.0}, 'lost_to': {'basic': 5.0, 'ranged': 15.0}} for i in range(count)]}
 
 
@@ -86,6 +87,16 @@ class TopDownCriteriaTests(unittest.TestCase):
         self.assertEqual(runs['top.career_core']['top-down'], 'true')
         self.assertEqual({k: v for k, v in runs['top.buy_100000_turtle'].items() if k != 'top-down'}, runs['round.buy_100000_turtle'])
         self.assertEqual(runs['round.career_grow']['careers'], 70)
+
+    def test_a_run_that_played_the_other_battle_is_an_error(self):
+        results = {'top.buy_10000_core': cell(top=True), 'round.buy_10000_core': cell()}
+        trial.check_ways(results)
+        results['top.buy_10000_core'] = cell()
+        with self.assertRaises(ValueError):
+            trial.check_ways(results)
+        results = {'round.buy_10000_core': cell(top=True)}
+        with self.assertRaises(ValueError):
+            trial.check_ways(results)
 
     def test_the_report_is_shares_beside_the_criteria(self):
         report = trial.reported(passing())

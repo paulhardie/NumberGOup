@@ -153,10 +153,11 @@ func maybe_lay_mine() -> void:
 		var reach: float = sim._combat_rng.randf_range(Guesses.CONTACT_DISTANCE_M, sim.stat("range"))
 		var turn: float = sim._combat_rng.randf()
 		if sim.top_down:
-			# Top-down (D167): above the Number, where enemies are, inside the field.
+			# Top-down (D167): above the Number, where enemies are, inside the field,
+			# and no lower than they stop, so a walking one can always set it off.
 			var half := Guesses.TOP_DOWN_WIDTH_M * 0.5
 			var spot := Vector2.from_angle(-PI * turn) * reach
-			mines.append(Vector2(clampf(spot.x, -half, half), spot.y))
+			mines.append(Vector2(clampf(spot.x, -half, half), minf(spot.y, -Guesses.CONTACT_DISTANCE_M)))
 		else:
 			mines.append(Vector2.from_angle(turn * TAU) * reach)
 

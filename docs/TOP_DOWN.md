@@ -1,6 +1,6 @@
 # True top-down: the Number at the bottom, numbers falling from the top (D167)
 
-**Status (7 October 2026): criteria written before anything is built or measured.** The owner chose "Do true top down" after the invaders view (D166) showed the round battle drawn on a portrait screen. This page holds the rule, the pass criteria and, once measured, the results.
+**Status (7 October 2026): built as a run option and measured: all three criteria pass (section 3). Not yet the game's rule; the owner decides after playing it.** The owner chose "Do true top down" after the invaders view (D166) showed the round battle drawn on a portrait screen. This page holds the rule, the pass criteria and, once measured, the results.
 
 ## 1. The rule
 
@@ -23,6 +23,18 @@ Reported beside the criteria, never one of them: how kills split between shots, 
 
 **Why these:** the change is meant to alter how the battle looks and reads, not how hard Tier 1 is. The bands are wide enough for the geometry's honest effects (enemies three times denser across 60 m than round a 30 m ring, so bounces find neighbours and Protectors cover more) and narrow enough to catch a broken defence or a runaway build.
 
-## 3. Results
+## 3. Results (7 October 2026): PASS on all three
 
-Not yet measured.
+Measured with `python3 tools/topdown_trial.py` (criteria committed first, unchanged; every run checked to have played the battle it was meant to, from its recorded tuning).
+
+| Criterion | Reading | Verdict |
+|---|---|---|
+| T1, the first minutes | 20 of 20 fresh towers dead by wave 5 inside 180 s | PASS |
+| T2, Workshop cells (median wave, top-down / round) | 10K core 31 / 31, turtle 41 / 41, blender 31 / 31; 100K core 51 / 51, turtle 83 / 83, blender 50 / 50 | PASS |
+| T3, careers (first run reaching wave 30) | core 35 / 33, grow 47 / 43 | PASS |
+
+**Reported beside the criteria:** losses split almost exactly as in the round battle (Ranged 56% against 57% at 10K core; Thorns 46% of a 100K turtle's damage against 45%), and a run's Coins are the same within 1% to 2% in every cell.
+
+**What it means:** top-down changes how the battle looks and reads, not how hard Tier 1 is. Range, contact, knockback and targeting all follow distance, which is now height, so the waves a build reaches are the same.
+
+**Not measured:** no trial cell opens orbs, bounce shots, land mines or meets a Protector (they open above these budgets or later in Tier 1), so where the geometry differs most (enemies three times denser across 60 m than round a 30 m ring) is unmeasured. The land-mine height rule (mines laid no lower than enemies stop, from the independent review) came after the measurement; no measured cell lays mines. A player, a phone and Tier 2 and 3 are not checked.

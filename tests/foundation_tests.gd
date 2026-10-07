@@ -1580,7 +1580,7 @@ func test_a_top_down_run_resumes_exactly_and_refuses_stray_columns() -> void:
 		for i in range(900): sim.step()
 		check(not sim.enemies.is_empty() and sim.enemies.all(func(enemy): return enemy.straight and absf(enemy.x) <= Guesses.TOP_DOWN_WIDTH_M * 0.5),
 			"tier %d: every enemy falls in a column inside the field" % tier)
-		check(sim.defences.mines.all(func(mine): return mine.y <= 0.0 and absf(mine.x) <= Guesses.TOP_DOWN_WIDTH_M * 0.5), "mines lie above the Number, inside the field")
+		check(sim.defences.mines.all(func(mine): return mine.y <= -Guesses.CONTACT_DISTANCE_M and absf(mine.x) <= Guesses.TOP_DOWN_WIDTH_M * 0.5), "mines lie above where enemies stop, inside the field: %s" % [sim.defences.mines])
 		var saved: Dictionary = json(Snapshot.capture(sim))
 		var again := Snapshot.restore(saved)
 		check(again != null and Snapshot.capture(again).digest == saved.digest, "tier %d: a top-down snapshot round trips" % tier)

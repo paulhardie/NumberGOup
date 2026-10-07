@@ -31,6 +31,9 @@ signal wave_reward(reward: Dictionary)
 ## A saved run couldn't be brought back: its record is damaged ("damaged"),
 ## or the game changed so its replay no longer ends where it was left
 ## ("changed").
+## "Battle again" for a battle the screen isn't laid out for (D167): the game
+## opens a fresh battle screen instead.
+signal rebuild_requested
 signal resume_failed(saved: Dictionary, reason: String)
 
 ## Game speeds, for testing a run quickly (docs/REBUILD_SPEC.md, "Dev only").
@@ -448,7 +451,13 @@ func _build() -> void:
 	over_column.add_child(_over_text)
 	_again = Button.new()
 	_again.text = "Battle again"
-	_again.pressed.connect(func(): start_run(randi()))
+	_again.pressed.connect(func():
+		# The next run plays the battle Settings now asks for; laid out for the
+		# other one (D167), the screen is built again for it.
+		if (tuning.get("top_down", false) == true) != invaders:
+			rebuild_requested.emit()
+		else:
+			start_run(randi()))
 	over_column.add_child(_again)
 	var home := Button.new()
 	home.text = "Home"

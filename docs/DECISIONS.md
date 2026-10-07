@@ -2482,4 +2482,5 @@ Rules:
   2. **The Settings switch starts the next run top-down** and the battle screen draws it with the Number at the bottom; this replaces D166's drawing-only mapping. A resumed run is drawn as it was played.
   3. **The round battle stays the default** until the owner decides, after playing and after the criteria are read.
 - **Supersedes:** D166 in part (the view becomes the rule's, not a projection of the round battle).
-- **Revisit when:** the criteria are measured, and the owner has played it.
+- **Measured (7 October 2026, TOP_DOWN.md section 3): PASS on all three criteria.** The same median wave in all six Workshop cells; careers reach wave 30 at runs 35 and 47 against 33 and 43. Orbs, bounces, mines and Protectors are not yet measured top-down.
+- **Revisit when:** the owner has played it, to decide whether it becomes the game's rule.

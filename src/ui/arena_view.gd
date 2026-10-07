@@ -243,6 +243,18 @@ static func enemy_x(enemy) -> float:
 	return enemy.x if enemy.straight else NAN
 
 
+## Which way an enemy truly lies from the Number, as an angle: its direction
+## walking in round, or top-down (D167) towards its column and height.
+static func bearing(enemy) -> float:
+	return enemy.position().angle() if enemy.straight else enemy.angle
+
+
+## The way an enemy has come from, for what trails behind it: back along its
+## line, or top-down (D167) straight up its column.
+static func behind_of(enemy) -> Vector2:
+	return Vector2.UP if enemy.straight else Vector2.from_angle(enemy.angle)
+
+
 ## Where something reaching the Number from `toward` meets its digits: their
 ## edge on that side, or, in the invaders view, their top.
 func number_edge(toward: Vector2) -> Vector2:
@@ -503,7 +515,7 @@ func label_plan() -> Dictionary:
 		var half := enemy_half(enemy.kind, text)
 		var at := enemy_at(enemy.angle, _shown_metres(enemy), half, enemy_x(enemy))
 		# A shot rocks it back, landing a hit it lunges in (D103).
-		at += Vector2.from_angle(enemy.angle) * float(effects.recoil.get(enemy.id, 0.0))
+		at += Vector2.from_angle(bearing(enemy)) * float(effects.recoil.get(enemy.id, 0.0))
 		entries.append({"enemy": enemy, "text": text, "at": at, "half": half, "shown": "full", "count": 1})
 	entries.sort_custom(func(a, b):
 		var rank_a := int(LABEL_RANK.get(a.enemy.kind, 3))
@@ -554,7 +566,7 @@ func _draw_enemy(enemy: BattleSim.Enemy, label: Dictionary) -> void:
 	var font_size: int = look.size
 	var baseline := at + Vector2(-half.x, font_size * 0.35)
 	if shows_trail(enemy, label):
-		var behind := Vector2.from_angle(enemy.angle) * maxf(4.0, enemy.speed * px_per_metre() * TRAIL_SECONDS)
+		var behind := behind_of(enemy) * maxf(4.0, enemy.speed * px_per_metre() * TRAIL_SECONDS)
 		for i in TRAIL_ALPHAS.size():
 			draw_string(font, baseline + behind * (i + 1), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(look.colour, TRAIL_ALPHAS[i] * shade))
 	draw_string_outline(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, HALO_PX, Color(HALO, HALO.a * shade))
@@ -606,12 +618,12 @@ func _draw_shields_and_drains() -> void:
 			draw_circle(at, radius_px, Color(Palette.PROTECTOR, SHIELD_ALPHA * 0.25))
 			draw_arc(at, radius_px, 0.0, TAU, 48, Color(Palette.PROTECTOR, SHIELD_ALPHA), 1.0, true)
 		elif enemy.kind == "vampire" and enemy.arrived():
-			var toward := Vector2.from_angle(enemy.angle)
+			var toward := Vector2.from_angle(bearing(enemy))
 			var from := enemy_at(enemy.angle, _shown_metres(enemy), enemy_half(enemy.kind, "0"), enemy_x(enemy)) - toward * 10.0
 			var flicker := 0.35 + 0.2 * sin(sim.time * 17.0 + float(enemy.id))
 			draw_line(from, number_edge(toward), Color(Palette.VAMPIRE, flicker), 1.5, true)
 		elif enemy.kind == "lock" and enemy.arrived():
-			var toward := Vector2.from_angle(enemy.angle)
+			var toward := Vector2.from_angle(bearing(enemy))
 			var across := toward.orthogonal() * LOCK_LINE_GAP_PX
 			var from := enemy_at(enemy.angle, _shown_metres(enemy), enemy_half(enemy.kind, "="), enemy_x(enemy)) - toward * 12.0
 			var to := number_edge(toward)

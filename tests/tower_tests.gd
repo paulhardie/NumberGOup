@@ -4064,6 +4064,15 @@ func test_the_top_down_battle_falls_in_columns_and_lays_out_from_its_rules() -> 
 	root.add_child(plain)
 	await process_frame
 	check(not plain.invaders and not plain._arena.invaders and not plain.sim.top_down, "a round run is laid out as it always was")
+	var asked := [false]
+	plain.rebuild_requested.connect(func(): asked[0] = true)
+	plain.tuning = RunConfig.game_tuning(false, true)
+	plain._again.pressed.emit()
+	check(asked[0] and not plain.sim.top_down, "Battle again for a top-down run asks for a fresh screen rather than playing it in the round layout")
+	plain.tuning = RunConfig.game_tuning()
+	asked[0] = false
+	plain._again.pressed.emit()
+	check(not asked[0], "and for the same battle starts it here, as before")
 	plain.queue_free()
 	await process_frame
 
