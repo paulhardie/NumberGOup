@@ -1283,9 +1283,11 @@ The owner: "yes make it the game with digit 100 at 25". **Since D164 a digit pay
 
 ### 18.1 The option
 
-`one_enemy` (off in the game, recorded only while on): each wave is rolled exactly as without it, every stream drawn in the same order, then sent as **one enemy standing for the whole wave**, from straight above, as the wave starts. Its health is the wave's summed (× `one_enemy_health`), its attack the wave's summed (× `one_enemy_attack`), it walks at a basic's speed, carries the boss's traits (orbs and shockwaves don't take it, Thorns hurts it half), and pays the wave's Cash and Coins on the kill. `one_enemy_drip` pays its Cash as it is hurt instead, a share for each share of its health taken off, the rest on the kill. Waves keep their 35-second clock. `sim_runs.gd --one-enemy [--one-enemy-attack A] [--one-enemy-health H] [--one-enemy-drip]`; `capture_battle.gd -- --one-enemy A` for screenshots.
+`one_enemy` (off in the game, recorded only while on): each wave is rolled by the game's odds, then sent as **one enemy standing for the whole wave**, from straight above, as the wave starts. Its health is the wave's summed (× `one_enemy_health`), its attack the wave's summed (× `one_enemy_attack`), it walks at a basic's speed, carries the boss's traits (orbs and shockwaves don't take it, Thorns hurts it half), and pays the wave's Cash and Coins on the kill. `one_enemy_drip` pays its Cash as it is hurt instead, a share for each share of its health taken off, the rest on the kill. Waves keep their 35-second clock. `sim_runs.gd --one-enemy [--one-enemy-attack A] [--one-enemy-health H] [--one-enemy-drip]`; `capture_battle.gd -- --one-enemy A` for screenshots.
 
 A wave stands for 12 to 29 enemies (12 at wave 1, 18 at 10, 23 at 30, 29 at 50 and 100), so its summed hit is 12 to 29 times a basic's.
+
+**What the comparisons are (found by the independent review):** wave 1 is the same wave as without the option, but a merged wave draws no directions from the spawn stream and the caps turn none away, so from wave 2 a seed rolls different waves (seed 5's waves 2 to 5: 10, 11, 14 and 12 enemies against 10, 10, 15 and 9). The odds are the game's, so medians compare; same-seed pairs do not. Also: a merged Scatter pays and weighs without the pieces it would split into; a merged Divider counts as spawned but never lands; every wave's enemy has the boss's kind, so the screen reads "Wave N · Boss" each wave.
 
 ### 18.2 Results: single runs (6 seeds, the game's rules, buying core, median wave)
 

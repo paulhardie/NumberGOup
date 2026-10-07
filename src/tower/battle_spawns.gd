@@ -114,9 +114,10 @@ func schedule_wave() -> void:
 		_merge_wave()
 
 
-## One enemy a wave (D165): the wave rolled as ever, every stream drawn in the
-## same order, then sent as one enemy standing for all of it, as the wave
-## starts. The caps don't apply to it.
+## One enemy a wave (D165): the wave rolled by the game's odds, then sent as
+## one enemy standing for all of it, as the wave starts. The caps don't apply
+## to it, and it draws no directions, so from wave 2 the spawn stream, and the
+## waves it rolls, differ from the same seed's without the option.
 func _merge_wave() -> void:
 	var members: Array[String] = []
 	for entry in schedule:
