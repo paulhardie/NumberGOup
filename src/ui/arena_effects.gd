@@ -22,6 +22,9 @@ const HIT_FLASH_SECONDS := 0.05
 const POP_SECONDS := 0.12
 ## A ranged enemy's shot shows as a line to the Number for this long.
 const RANGED_SHOT_SECONDS := 0.2
+## Top-down (D167): a melee hit flashes a line from the enemy to the Number for
+## this long, so a hit from the far edge of the field is seen to land.
+const STRIKE_SECONDS := 0.25
 ## A ÷ or × flares the light in its colour, this much stronger, fading over
 ## this long.
 const DIVIDE_FLARE := 1.5
@@ -84,6 +87,8 @@ var eased := {}
 var recoil := {}
 ## Ranged enemies' shots at the Number: {enemy, age}.
 var ranged_shots: Array[Dictionary] = []
+## Top-down melee hits on their way to fading: {enemy, age}.
+var strikes: Array[Dictionary] = []
 ## A kill's sparks {at, velocity, colour, age, life, size} and rings {at, colour, age}.
 var sparks: Array[Dictionary] = []
 var death_rings: Array[Dictionary] = []
@@ -126,6 +131,9 @@ func absorb(events: Array[Dictionary], delta: float) -> void:
 	pops = pops.filter(func(pop): return pop.age < POP_SECONDS)
 	for shot in ranged_shots:
 		shot.age += delta
+	for strike in strikes:
+		strike.age += delta
+	strikes = strikes.filter(func(strike): return strike.age < STRIKE_SECONDS)
 	for chip in chips:
 		chip.age += delta
 		chip.at += chip.velocity * delta
@@ -198,6 +206,17 @@ func draw_ranged_shots(number_half: Vector2, wall_half: Vector2) -> void:
 			view.draw_line(from - toward * 12.0, to, Color(Palette.RAY, 0.8 * fade), 3.0, true)
 		else:
 			view.draw_dashed_line(from - toward * 12.0, to, Color(Palette.RANGED, 0.45 * fade), 1.0, 2.0)
+
+
+## Top-down (D167): each melee hit as a line in the enemy's colour from where it
+## stands to the top of the Number, fading.
+func draw_strikes(number_half: Vector2) -> void:
+	for strike in strikes:
+		var enemy = strike.enemy
+		var from: Vector2 = view.enemy_at(enemy.angle, enemy.distance, view.enemy_half(enemy.kind, "0"), view.enemy_x(enemy))
+		var to: Vector2 = view.centre + Vector2(0.0, -number_half.y)
+		var fade: float = 1.0 - strike.age / STRIKE_SECONDS
+		view.draw_line(from, to, Color(view.LOOKS[enemy.kind].colour, 0.55 * fade), 1.5, true)
 
 
 ## A killed enemy's number swells to 1.3× and fades where it died.
@@ -298,6 +317,8 @@ func _take(events: Array[Dictionary]) -> void:
 				motion.knock(view.bearing(event.enemy), float(event.damage))
 				if event.enemy.kind == "ranged" or event.enemy.kind == "ray":
 					ranged_shots.append({"enemy": event.enemy, "age": 0.0})
+				elif view.invaders:
+					strikes.append({"enemy": event.enemy, "age": 0.0})
 			"wall_hit":
 				# A standing Wall takes ranged shots too (D116): theirs end at it.
 				if event.enemy.kind == "ranged" or event.enemy.kind == "ray":

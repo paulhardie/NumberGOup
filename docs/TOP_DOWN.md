@@ -18,6 +18,7 @@ Measured with `tools/topdown_trial.py`; every configuration is reported.
 - **T1, the first minutes:** a fresh tower that buys nothing dies on every seed by wave 5 and inside 180 game seconds (The Tower's "you die immediately", the harness's design expectation).
 - **T2, Workshop cells:** for each cell (10,000 and 100,000 Coins, each spent core, turtle and blender), the median wave reached top-down is within 20% of the round battle's.
 - **T3, careers:** for the core (50 runs) and grow (70 runs) careers, the first run reaching wave 30 top-down is within 25% of the round battle's (both never reaching it passes; one only fails).
+- **T4, where the geometry differs most (added 7 October, before measuring, after T1 to T3 passed without reaching these):** orbs, bounce shots, land mines and Protectors act on true positions, and enemies stand three times closer together top-down. For each cell where they work, the median wave reached top-down is within 20% of the round battle's: 1,000,000 Coins spent as `blender_orbs` (every orb first), `multishot` (Multishot and Bounce Shot), `spread` (every group, land mines included) and `turtle` (Thorns), 6 seeds each; and Tier 2 and Tier 3 with every Workshop row at level 20 (Protectors and elites, orbs, bounces and mines together), 6 seeds, 30 game minutes each. How each cell's damage splits between shots, orbs, bounces, Thorns and mines is reported beside it.
 
 Reported beside the criteria, never one of them: how kills split between shots, bounces, orbs, Thorns and mines; how much of the Number Ranged, basic and boss enemies take; and the Coins a run earns.
 
@@ -38,3 +39,12 @@ Measured with `python3 tools/topdown_trial.py` (criteria committed first, unchan
 **What it means:** top-down changes how the battle looks and reads, not how hard Tier 1 is. Range, contact, knockback and targeting all follow distance, which is now height, so the waves a build reaches are the same.
 
 **Not measured:** no trial cell opens orbs, bounce shots, land mines or meets a Protector (they open above these budgets or later in Tier 1), so where the geometry differs most (enemies three times denser across 60 m than round a 30 m ring) is unmeasured. The land-mine height rule (mines laid no lower than enemies stop, from the independent review) came after the measurement; no measured cell lays mines. A player, a phone and Tier 2 and 3 are not checked.
+
+## 4. How it looks (7 October 2026)
+
+Drawing only; the battle is unchanged.
+
+- **An enemy that hits shows its health**, counting down as it is shot, with the hit it will land small under it ("−2"), and nothing there when the defences would take that hit whole. A Divider keeps its ÷, a Lock its = and a Vampire its drain, since those are what they do. The round battle still shows the hit, as D102 has it.
+- **A faint line across the field where enemies stop,** broken where the Number stands, so an enemy reaching the bottom at an edge reads as having arrived.
+- **A melee hit flashes a line** in the enemy's colour from where it stands to the top of the Number, for a quarter of a second.
+

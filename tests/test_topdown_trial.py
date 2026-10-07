@@ -32,6 +32,8 @@ def passing():
                 out[f'{way}.buy_{budget}_{plan}'] = cell(wave=30 if budget == 10000 else 50)
         for policy, runs in trial.CAREERS.items():
             out[f'{way}.career_{policy}'] = career(runs=runs)
+        for name in trial.geometry_cells():
+            out[f'{way}.{name}'] = cell(wave=80)
     return out
 
 
@@ -40,13 +42,13 @@ class TopDownCriteriaTests(unittest.TestCase):
         return {number: found['pass'] for number, found in trial.evaluate(results).items()}
 
     def test_the_passing_set_passes_every_criterion(self):
-        self.assertEqual(self.verdicts(passing()), {1: True, 2: True, 3: True})
+        self.assertEqual(self.verdicts(passing()), {1: True, 2: True, 3: True, 4: True})
         self.assertEqual(trial.render(passing())[1], 'PASS')
 
     def test_a_criterion_without_its_runs_is_not_run(self):
         results = passing()
         del results['round.buy_100000_blender']
-        self.assertEqual(set(trial.evaluate(results)), {1, 3})
+        self.assertEqual(set(trial.evaluate(results)), {1, 3, 4})
         self.assertEqual(trial.render(results)[1], 'NOT COMPLETE')
 
     def test_the_first_minutes_end_by_wave_5_inside_180_seconds(self):
@@ -82,7 +84,9 @@ class TopDownCriteriaTests(unittest.TestCase):
 
     def test_the_plan_plays_both_ways_on_the_same_cells(self):
         runs = trial.plan()
-        self.assertEqual(len(runs), 2 * (1 + len(trial.BUDGETS) * len(trial.PLANS) + len(trial.CAREERS)))
+        self.assertEqual(len(runs), 2 * (1 + len(trial.BUDGETS) * len(trial.PLANS) + len(trial.CAREERS) + len(trial.GEOMETRY_PLANS) + len(trial.GEOMETRY_TIERS)))
+        self.assertEqual(runs['top.tier_3_level20']['tier'], 3)
+        self.assertEqual(runs['round.buy_1000000_blender_orbs']['workshop-plan'], 'blender_orbs')
         self.assertNotIn('top-down', runs['round.career_core'])
         self.assertEqual(runs['top.career_core']['top-down'], 'true')
         self.assertEqual({k: v for k, v in runs['top.buy_100000_turtle'].items() if k != 'top-down'}, runs['round.buy_100000_turtle'])
@@ -101,7 +105,16 @@ class TopDownCriteriaTests(unittest.TestCase):
     def test_the_report_is_shares_beside_the_criteria(self):
         report = trial.reported(passing())
         self.assertEqual(report['buy_10000_core']['top']['damage_by'], {'shot': 0.9, 'orb': 0.1})
-        self.assertEqual(set(trial.evaluate(passing())), {1, 2, 3}, 'never a criterion itself')
+        self.assertEqual(set(trial.evaluate(passing())), {1, 2, 3, 4}, 'never a criterion itself')
+
+    def test_the_geometry_cells_stay_within_a_fifth(self):
+        results = passing()
+        results['top.tier_2_level20'] = cell(wave=97)
+        self.assertFalse(self.verdicts(results)[4], '97 against 80 is over 20%')
+        results['top.tier_2_level20'] = cell(wave=96)
+        self.assertTrue(self.verdicts(results)[4], '96 is exactly 20%')
+        del results['round.buy_1000000_spread']
+        self.assertNotIn(4, trial.evaluate(results), 'without its runs it is not run')
 
 
 if __name__ == '__main__':

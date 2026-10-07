@@ -48,6 +48,8 @@ const NUMBER_RING_SHARE := 0.6
 ## The Tower's ring, and D139's 9% and D140's 6% still drew the eye.
 const RANGE_LINE := Color(1, 1, 1, 0.045)
 const RANGE_LINE_PX := 1.0
+## Top-down (D167): where enemies stop, a little brighter than the range.
+const BASE_LINE := Color(1, 1, 1, 0.09)
 ## Enemies at the tower are drawn this clear of the Number's digits, which is
 ## only drawing: the sim's contact distance is unchanged.
 const CONTACT_GAP_PX := 3.0
@@ -344,8 +346,11 @@ func _draw() -> void:
 		draw_circle(to_view(mine), 3.0, Palette.WARNING)
 	effects.draw_blasts(sim.stat("land_mine_radius") * px_per_metre())
 	var number := _number_layout()
+	if invaders:
+		_draw_base_line()
 	_draw_wall()
 	effects.draw_ranged_shots(_number_half, _clear_half)
+	effects.draw_strikes(_number_half)
 	_draw_shields_and_drains()
 	var labels := label_plan()
 	for enemy in sim.enemies:
@@ -432,6 +437,17 @@ func _draw_peels(number: Dictionary) -> void:
 		draw_set_transform(centre + Vector2(0.0, drop), 0.0, Vector2.ONE * float(number.scale))
 		draw_string(_number_cut, Vector2(-width * 0.5, font_size * 0.35), text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, Color(Palette.DIVIDER, 0.5 * (1.0 - done)))
 	draw_set_transform(Vector2.ZERO)
+
+
+## Top-down (D167): a faint line across the field where enemies stop and hit,
+## broken where the Number stands, so an enemy arriving at an edge reads as
+## having reached the bottom.
+func _draw_base_line() -> void:
+	var line_y := centre.y - Guesses.CONTACT_DISTANCE_M * px_per_metre()
+	var gap := _clear_half.x + 12.0
+	for span in [[0.0, centre.x - gap], [centre.x + gap, size.x]]:
+		if span[1] > span[0]:
+			draw_line(Vector2(span[0], line_y), Vector2(span[1], line_y), BASE_LINE, 1.0, true)
 
 
 ## The Wall as brackets round the Number (D106), brighter the more of its
@@ -585,7 +601,7 @@ func _draw_enemy(enemy: BattleSim.Enemy, label: Dictionary) -> void:
 		var count_at := at + Vector2(half.x + 2.0, font_size * 0.35)
 		draw_string_outline(hit_cut, count_at, count, HORIZONTAL_ALIGNMENT_LEFT, -1, COUNT_PX, HALO_PX, Color(HALO, HALO.a * shade))
 		draw_string(hit_cut, count_at, count, HORIZONTAL_ALIGNMENT_LEFT, -1, COUNT_PX, Color(look.colour, 0.85 * shade))
-	var dealt := dealt_text(enemy)
+	var dealt := under_text(sim, enemy)
 	if dealt != "":
 		# The Tower's way: the damage so far, small and white, under the enemy.
 		var dealt_width := hit_cut.get_string_size(dealt, HORIZONTAL_ALIGNMENT_LEFT, -1, DEALT_PX).x
@@ -724,9 +740,29 @@ func enemy_at(angle: float, distance_m: float, half: Vector2, x_m := NAN) -> Vec
 ## The number an enemy shows is what it does to the Number (D102), from the
 ## moment it appears until it dies: "−2.4" for a hit after the tower's
 ## defences, "÷1.5" for a Divider. It doesn't count down as it's shot; the
-## damage dealt so far shows under it instead.
+## damage dealt so far shows under it instead. Top-down (D167) an enemy that
+## hits shows its health instead, counting down as it's shot, with its hit
+## under it (`under_text`), so the numbers falling at the Number are what it
+## has to beat.
 static func shown_text(battle: BattleSim, enemy: BattleSim.Enemy) -> String:
+	if battle.top_down and counts_down(enemy):
+		return Palette.amount(maxf(enemy.health, 0.0))
 	return operation_text(battle, enemy)
+
+
+## Whether an enemy shows its health top-down: every one that hits. A Divider's
+## ÷, a Lock's = and a Vampire's drain stay its number, since they are what it does.
+static func counts_down(enemy: BattleSim.Enemy) -> bool:
+	return not enemy.kind in ["divider", "lock", "vampire"]
+
+
+## The small line under an enemy: the damage dealt so far, or top-down (D167)
+## the hit it will land, since its health is already its number; nothing for
+## a hit the defences take whole.
+static func under_text(battle: BattleSim, enemy: BattleSim.Enemy) -> String:
+	if battle.top_down and counts_down(enemy):
+		return "" if battle.next_hit_damage(enemy) <= 0.0 else "−" + operation_text(battle, enemy)
+	return dealt_text(enemy)
 
 
 ## The damage dealt to an enemy so far, for the small white line under it

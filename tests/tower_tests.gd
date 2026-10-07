@@ -4077,6 +4077,42 @@ func test_the_top_down_battle_falls_in_columns_and_lays_out_from_its_rules() -> 
 	await process_frame
 
 
+## D167: top-down, an enemy that hits shows its health, counting down as it's
+## shot, with the hit it will land under it (none if the defences take it
+## whole); a Divider keeps its ÷; a melee hit flashes a line to the Number;
+## the round battle's numbers are as they were.
+func test_top_down_numbers_count_down_with_their_hit_under_them() -> void:
+	var sim := BattleSim.new(6, {}, BattleSim.START_GROUPS, 1, [], [], RunConfig.game_tuning(false, true))
+	sim.record_events = true
+	var basic := _place(sim, "basic", 40.0)
+	check(ArenaView.shown_text(sim, basic) == Palette.amount(basic.max_health), "a falling enemy shows its health: %s" % ArenaView.shown_text(sim, basic))
+	check(ArenaView.under_text(sim, basic) == "−" + Palette.amount(sim.next_hit_damage(basic)), "with its hit under it: %s" % ArenaView.under_text(sim, basic))
+	sim.deal_damage(basic, basic.max_health * 0.4, "shot")
+	check(ArenaView.shown_text(sim, basic) == Palette.amount(basic.max_health * 0.6), "and it counts down as it's shot: %s" % ArenaView.shown_text(sim, basic))
+	var guarded := BattleSim.new(6, {"defense_absolute": 60}, ["attack_start", "defense_start", "defense"], 1, [], [], RunConfig.game_tuning(false, true))
+	var soaked := _place(guarded, "basic", 40.0)
+	check(guarded.next_hit_damage(soaked) <= 0.0 and ArenaView.under_text(guarded, soaked) == "", "a hit the defences take whole shows nothing under it")
+	var divider := _place(sim, "divider", 40.0)
+	check(ArenaView.shown_text(sim, divider).begins_with("÷"), "a Divider keeps its ÷: %s" % ArenaView.shown_text(sim, divider))
+	var round := BattleSim.new(6)
+	var walker := _place(round, "basic", 40.0)
+	check(ArenaView.shown_text(round, walker) == Palette.amount(round.next_hit_damage(walker)) and ArenaView.under_text(round, walker) == "", "the round battle still shows the hit, and nothing under it until shot")
+	var arena := ArenaView.new()
+	arena.sim = sim
+	arena.invaders = true
+	root.add_child(arena)
+	await process_frame
+	arena.absorb([{"type": "tower_hit", "enemy": basic, "damage": 1.0}], 0.0)
+	check(arena.effects.strikes.size() == 1, "a melee hit top-down flashes a strike to the Number")
+	arena.absorb([], 1.0)
+	check(arena.effects.strikes.is_empty(), "which fades")
+	arena.invaders = false
+	arena.absorb([{"type": "tower_hit", "enemy": walker, "damage": 1.0}], 0.0)
+	check(arena.effects.strikes.is_empty(), "and the round battle draws none")
+	arena.queue_free()
+	await process_frame
+
+
 func test_a_settings_write_that_cannot_land_reports_failure() -> void:
 	DirAccess.remove_absolute(TEST_SETTINGS)
 	var settings := Settings.new()
