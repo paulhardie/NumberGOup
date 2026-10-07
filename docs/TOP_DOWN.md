@@ -71,7 +71,7 @@ Drawing only; the battle is unchanged.
 
 - Orbs travel straight across the field and back at the height the round orbs' circle stands at (Guesses.ORB_MIN_RADIUS_M, 60 m, further as Range grows past it, as D108 has it), so they still sweep the approach rather than the Range's edge, and enemies Knockback holds at a 60 m Range sit on them as they did. The mock-ups drew the line lower, at about 33 m; that height was for the picture, and it would put the orbs on top of ranged enemies standing at a 30 m Range.
 - They move as fast along the line as round orbs move round their circle (Orb Speed, rotations a minute, times the circle's length): at the first Orb Speed level a crossing takes about 24 seconds, at the last about 1.6. Each turns back at the field's edge.
-- With two or more they share the patrol evenly: two start at opposite edges and cross in the middle.
+- With two or more they share the patrol evenly in time, each a fraction of a patrol behind the last: two start at opposite edges and cross in the middle. On a line, orbs going opposite ways pass through one another, so with three or four, two sometimes stand together for a moment.
 - They kill what they touch exactly as round orbs do (within Guesses.ORB_HIT_M, unless it's one orbs can't kill or a Protector shields it), and each tick checks the whole stretch an orb covered, including a turn at the edge.
 - The game's top-down runs start with it. A top-down run saved before it keeps round orbs to its end, and the round battle is untouched.
 

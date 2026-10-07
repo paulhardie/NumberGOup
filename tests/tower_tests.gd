@@ -1047,6 +1047,28 @@ func test_top_down_orbs_patrol_a_line_across_the_field() -> void:
 	check(not sim.enemies.has(walker), "an orb kills the enemy on its line, however tough")
 	check(sim.enemies.has(boss) and sim.enemies.has(below) and sim.enemies.has(aside), "but not a boss, one below the line, or one along it the orb hasn't reached")
 	check(sim.defences.orb_angles().size() == 2, "round orbs' count still reads the same")
+	# A tick in which the orb turns at the right edge covers the edge itself.
+	# With a narrow touch, the tick's two ends alone fall short of an enemy
+	# right at the edge; one at the left edge must be untouched.
+	var turning := _quiet_sim()
+	turning.top_down = true
+	turning.orb_line = true
+	turning.levels = {"orbs": 1, "orb_speed": TowerData.max_level("orb_speed")}
+	turning.defences.orb_hit_m = 0.1
+	var step_m := TAU * turning.defences.orb_radius() * turning.defences.orb_turns_per_second() * BattleSim.TICK
+	turning.time = (Guesses.TOP_DOWN_WIDTH_M - 0.5 * step_m) / (step_m / BattleSim.TICK)
+	var ends := [turning.defences.orb_line_points(turning.time)[0].x, turning.defences.orb_line_points(turning.time + BattleSim.TICK)[0].x]
+	check(ends[0] < half - 0.2 and ends[1] < half - 0.2, "the tick starts and ends short of the right edge: %s" % [ends])
+	var at_right := _place(turning, "basic", turning.defences.orb_radius())
+	at_right.straight = true
+	at_right.x = half - 0.05
+	var at_left := _place(turning, "basic", turning.defences.orb_radius())
+	at_left.straight = true
+	at_left.x = -half + 0.05
+	for enemy in [at_right, at_left]:
+		enemy.stop_at = enemy.distance
+	turning.step()
+	check(not turning.enemies.has(at_right) and turning.enemies.has(at_left), "the turn at the right edge kills there, and never sweeps the left")
 
 
 ## Orbs as The Tower has them (D108): Orb Speed in rotations a minute, and at
