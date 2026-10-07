@@ -170,5 +170,5 @@ To read a decision, grep its heading: `grep -n "^## D004" docs/DECISIONS.md`. Ne
 | [D162](DECISIONS.md#d162--a-runs-coin-reward-follows-the-number-earned-not-the-peak-the-criteria-come-first) | A run's Coin reward follows the Number earned, not the peak; the criteria come first | Accepted |  |
 | [D163](DECISIONS.md#d163--coins-stay-as-they-are-the-digit-ladder-is-measured-keyed-on-the-number-earned) | Coins stay as they are; the digit ladder is measured keyed on the Number earned | Accepted |  |
 | [D164](DECISIONS.md#d164--the-digit-ladder-climbs-the-number-earned-in-a-run-digit-100-pays-25) | The digit ladder climbs the Number earned in a run; digit 100 pays 25 | Accepted |  |
-| [D166](DECISIONS.md#d166--the-invaders-view-the-number-at-the-bottom-numbers-coming-down-from-the-top) | The invaders view: the Number at the bottom, numbers coming down from the top | Accepted |  |
+| [D166](DECISIONS.md#d166--the-invaders-view-the-number-at-the-bottom-numbers-coming-down-from-the-top) | The invaders view: the Number at the bottom, numbers coming down from the top | Accepted | D167 (in part) |
 | [D167](DECISIONS.md#d167--true-top-down-enemies-fall-in-columns-towards-the-number-at-the-bottom) | True top-down: enemies fall in columns towards the Number at the bottom | Accepted |  |
