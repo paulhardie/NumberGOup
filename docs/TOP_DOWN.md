@@ -82,3 +82,15 @@ Drawing only; the battle is unchanged.
 - **O3, on screen:** the orbs stay inside the field, at one height, for the whole run, and a crossing takes between 1 and 30 seconds across the Orb Speed levels (tests).
 
 If O1 fails, the result is reported with a proposal (a slower or lower line), not tuned until it passes.
+
+**Result (7 October 2026): O1 FAIL.** Measured with `python3 tools/orbline_trial.py` (criteria committed first, unchanged; every run checked to have played top-down with the orbs it was meant to). O2's round half holds (quick compare: no movement); O3 holds by test.
+
+| Cell | Median wave, line / round orbs | Waves, line | Waves, round | Orbs' share of damage, line / round |
+|---|---|---|---|---|
+| 1M `blender_orbs` | 130 / 110 (+18%) | 121–141 | 105–112 | 88% / 26% |
+| 1M `blender_orbline` | 41 / 35 (+17%) | 40–41 | 31–37 | 53% / 10% |
+| 1M `spread` | 309 / 309 (the cap) | 309 | 309 | 46% / 12% |
+| Tier 2, level 20 | 43 / 38 (+13%) | 32–51 | 28–40 | 86% / 27% |
+| Tier 3, level 20 | **37 / 17 (+118%)** | 20–41 | 10–25 | 85% / 26% |
+
+**Why:** a round orb crosses the field only along the top sixth of its circle, so it passes over any one column once a turn; the line is on the field all the time and, at the same speed, passes over every column about six times as often. The orbs go from about a quarter of the damage to most of it, and in Tier 3 the waves a tower reaches double.
