@@ -991,8 +991,7 @@ func test_orbs_kill_walking_enemies_but_not_bosses() -> void:
 
 
 ## D168: top-down orbs patrol a line across the field at their circle's
-## height, as fast along it as round it, and kill what they touch as round
-## orbs do. A top-down rule, recorded only while on; a top-down run without it
+## height, crossing it once a turn, and kill what they touch as round orbs do. A top-down rule, recorded only while on; a top-down run without it
 ## (one saved before it) keeps round orbs.
 func test_top_down_orbs_patrol_a_line_across_the_field() -> void:
 	check(RunConfig.game_tuning(false, true).get("orb_line") == true and not RunConfig.game_tuning().has("orb_line"), "the game's top-down runs start with it, round runs without")
@@ -1010,9 +1009,9 @@ func test_top_down_orbs_patrol_a_line_across_the_field() -> void:
 	var start := sim.defences.orb_line_points(0.0)
 	check(start.size() == 2 and start[0].is_equal_approx(Vector2(-half, -Guesses.ORB_MIN_RADIUS_M)) and start[1].is_equal_approx(Vector2(half, -Guesses.ORB_MIN_RADIUS_M)),
 		"two start at opposite edges, 60 m up: %s" % [start])
-	var speed := TAU * sim.defences.orb_radius() * sim.defences.orb_turns_per_second()
-	var crossing := Guesses.TOP_DOWN_WIDTH_M / speed
-	check(crossing > 20.0 and crossing < 30.0, "a crossing takes about 24 s at the first Orb Speed level: %.1f s" % crossing)
+	var crossing := Guesses.TOP_DOWN_WIDTH_M / sim.defences.orb_line_speed()
+	check(is_equal_approx(crossing, 1.0 / sim.defences.orb_turns_per_second()) and is_equal_approx(crossing, 150.0),
+		"a crossing takes a turn, 150 s at the first Orb Speed level: %.1f s" % crossing)
 	var meet := sim.defences.orb_line_points(crossing * 0.5)
 	check(meet[0].is_equal_approx(meet[1]) and absf(meet[0].x) < 1e-6, "and they cross in the middle")
 	var inside := true
@@ -1022,8 +1021,8 @@ func test_top_down_orbs_patrol_a_line_across_the_field() -> void:
 	check(inside, "over a whole patrol they stay inside the field at one height")
 	check(sim.defences.orb_line_points(2.0 * crossing)[0].is_equal_approx(start[0]), "and are back where they began after crossing and returning")
 	sim.levels["orb_speed"] = TowerData.max_level("orb_speed")
-	var fastest := Guesses.TOP_DOWN_WIDTH_M / (TAU * sim.defences.orb_radius() * sim.defences.orb_turns_per_second())
-	check(fastest >= 1.0 and fastest < 2.0, "about 1.6 s at the last: %.2f s" % fastest)
+	var fastest := Guesses.TOP_DOWN_WIDTH_M / sim.defences.orb_line_speed()
+	check(fastest > 9.0 and fastest < 11.0, "about 10 s at the last: %.2f s" % fastest)
 	# The orbs cross the middle mid-patrol; an enemy there, at their height, dies.
 	sim.time = fastest * 0.5 - BattleSim.TICK * 0.5
 	var mid: Vector2 = sim.defences.orb_line_points(sim.time + BattleSim.TICK)[0]
@@ -1054,17 +1053,17 @@ func test_top_down_orbs_patrol_a_line_across_the_field() -> void:
 	turning.top_down = true
 	turning.orb_line = true
 	turning.levels = {"orbs": 1, "orb_speed": TowerData.max_level("orb_speed")}
-	turning.defences.orb_hit_m = 0.1
-	var step_m := TAU * turning.defences.orb_radius() * turning.defences.orb_turns_per_second() * BattleSim.TICK
+	turning.defences.orb_hit_m = 0.01
+	var step_m := turning.defences.orb_line_speed() * BattleSim.TICK
 	turning.time = (Guesses.TOP_DOWN_WIDTH_M - 0.5 * step_m) / (step_m / BattleSim.TICK)
 	var ends := [turning.defences.orb_line_points(turning.time)[0].x, turning.defences.orb_line_points(turning.time + BattleSim.TICK)[0].x]
-	check(ends[0] < half - 0.2 and ends[1] < half - 0.2, "the tick starts and ends short of the right edge: %s" % [ends])
+	check(ends[0] < half - 0.05 and ends[1] < half - 0.05, "the tick starts and ends short of the right edge: %s" % [ends])
 	var at_right := _place(turning, "basic", turning.defences.orb_radius())
 	at_right.straight = true
-	at_right.x = half - 0.05
+	at_right.x = half - 0.02
 	var at_left := _place(turning, "basic", turning.defences.orb_radius())
 	at_left.straight = true
-	at_left.x = -half + 0.05
+	at_left.x = -half + 0.02
 	for enemy in [at_right, at_left]:
 		enemy.stop_at = enemy.distance
 	turning.step()

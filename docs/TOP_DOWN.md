@@ -70,7 +70,7 @@ Drawing only; the battle is unchanged.
 **The rule (a run option, `orb_line`, recorded only while on, and only with `top_down`):**
 
 - Orbs travel straight across the field and back at the height the round orbs' circle stands at (Guesses.ORB_MIN_RADIUS_M, 60 m, further as Range grows past it, as D108 has it), so they still sweep the approach rather than the Range's edge, and enemies Knockback holds at a 60 m Range sit on them as they did. The mock-ups drew the line lower, at about 33 m; that height was for the picture, and it would put the orbs on top of ranged enemies standing at a 30 m Range.
-- They move as fast along the line as round orbs move round their circle (Orb Speed, rotations a minute, times the circle's length): at the first Orb Speed level a crossing takes about 24 seconds, at the last about 1.6. Each turns back at the field's edge.
+- **They cross the field once a turn** (Orb Speed's rotations a minute): two and a half minutes at the first Orb Speed level, about 10 seconds at the last, so each column is passed as often as a round orb passes it. Each turns back at the field's edge. (As first built they moved as fast along the line as round orbs move round their circle, a crossing in 24 seconds to 1.6; that failed O1 below, and the owner chose the slower line.)
 - With two or more they share the patrol evenly in time, each a fraction of a patrol behind the last: two start at opposite edges and cross in the middle. On a line, orbs going opposite ways pass through one another, so with three or four, two sometimes stand together for a moment.
 - They kill what they touch exactly as round orbs do (within Guesses.ORB_HIT_M, unless it's one orbs can't kill or a Protector shields it), and each tick checks the whole stretch an orb covered, including a turn at the edge.
 - The game's top-down runs start with it. A top-down run saved before it keeps round orbs to its end, and the round battle is untouched.
@@ -79,7 +79,7 @@ Drawing only; the battle is unchanged.
 
 - **O1, balance where orbs work:** for each cell, the median wave reached with the line is within 20% of the round orbs' (the T4 band): 1,000,000 Coins spent `blender_orbs`, `blender_orbline` and `spread`, and Tier 2 and Tier 3 with every Workshop row at level 20. How each cell's damage splits, and the orbs' share, is reported beside it, never a criterion.
 - **O2, nothing else moves:** the round battle is the same run for run (the balance harness's quick compare), and a top-down run without the option keeps round orbs (a test).
-- **O3, on screen:** the orbs stay inside the field, at one height, for the whole run, and a crossing takes between 1 and 30 seconds across the Orb Speed levels (tests).
+- **O3, on screen:** the orbs stay inside the field, at one height, for the whole run, and a crossing takes between 1 and 30 seconds across the Orb Speed levels (tests). *Replaced on the owner's choice of the slower line (7 October, "Go slower for sure"), after measuring: a crossing takes one turn, 150 seconds to about 10.*
 
 If O1 fails, the result is reported with a proposal (a slower or lower line), not tuned until it passes.
 
@@ -95,6 +95,6 @@ If O1 fails, the result is reported with a proposal (a slower or lower line), no
 
 **Why:** a round orb crosses the field only along the top sixth of its circle, so it passes over any one column once a turn; the line is on the field all the time and, at the same speed, passes over every column about six times as often. The orbs go from about a quarter of the damage to most of it, and in Tier 3 the waves a tower reaches double.
 
-**A slower line, measured the same way (not built):** with orbs crossing the field once a turn (150 seconds at the first Orb Speed level, about 10 at the last), each column is passed as often as a round orb passes it. The median waves are 120 / 110, 40 / 35, 309 / 309, 38 / 38 and 22 / 17: four cells pass and Tier 3 (+29%, its six seeds spread 10 to 25 either way) still fails, with the orbs at 22% to 47% of the damage. It also breaks O3, since a first-level orb would take two and a half minutes to cross.
+**A slower line, measured the same way (from a scratch build, before it was chosen):** with orbs crossing the field once a turn (150 seconds at the first Orb Speed level, about 10 at the last), each column is passed as often as a round orb passes it. The median waves are 120 / 110, 40 / 35, 309 / 309, 38 / 38 and 22 / 17: four cells pass and Tier 3 (+29%, its six seeds spread 10 to 25 either way) still fails, with the orbs at 22% to 47% of the damage. It also breaks O3, since a first-level orb would take two and a half minutes to cross.
 
-**The owner's call:** the lively line as built (strong: orbs become most of the damage), or the slow line (close to today's balance, but crawling until Orb Speed is bought). Recommended: the slow line, since The Tower's own orbs take two and a half minutes a turn at the first level, the line is in sight either way, and bought Orb Speed makes it brisk.
+**The owner chose the slow line** (7 October): it is the rule above, re-measured below.

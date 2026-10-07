@@ -120,15 +120,22 @@ func orb_angles(at_time: float = sim.time) -> Array[float]:
 	return angles
 
 
-## Top-down patrol-line orbs (D168): how far along its patrol each orb has
-## come, in metres unfolded (one patrol, across and back, is twice the field),
-## moving as fast as it would round its circle.
+## Top-down patrol-line orbs (D168) cross the field once a turn: 150 seconds
+## at the first Orb Speed level, about 10 at the last. So each column is passed
+## as often as a round orb passes it; as fast as a round orb moves, the line
+## passed each column about six times as often and orbs became most of the
+## damage (TOP_DOWN.md 6). Metres a second.
+func orb_line_speed() -> float:
+	return Guesses.TOP_DOWN_WIDTH_M * orb_turns_per_second()
+
+
+## How far along its patrol each orb has come, in metres unfolded (one patrol,
+## across and back, is twice the field).
 func orb_line_travel(at_time: float = sim.time) -> Array[float]:
 	var travel: Array[float] = []
 	var count: int = int(sim.stat("orbs"))
-	var speed: float = TAU * orb_radius() * orb_turns_per_second()
 	for orb in range(count):
-		travel.append(speed * at_time + 2.0 * Guesses.TOP_DOWN_WIDTH_M * float(orb) / float(count))
+		travel.append(orb_line_speed() * at_time + 2.0 * Guesses.TOP_DOWN_WIDTH_M * float(orb) / float(count))
 	return travel
 
 
