@@ -100,6 +100,9 @@ static func _enemy(enemy) -> Dictionary:
 		result.fleeing = true
 		for key in ENEMY_FLIGHT:
 			result[key] = enemy.get(key)
+	# Top-down (D167): its column, written only for an enemy falling in one.
+	if enemy.straight:
+		result.x = enemy.x
 	if enemy.merged > 0:
 		for key in ENEMY_MERGED_FLOATS + ENEMY_MERGED_INTS:
 			result[key] = enemy.get(key)
@@ -177,6 +180,8 @@ static func _valid_state(data) -> bool:
 		for id in held.free_levels:
 			if id not in TowerData.rows() or not _integer(held.free_levels[id]) or int(held.free_levels[id]) < 0 \
 					or int(held.free_levels[id]) > int(state.run_levels.get(id, 0)): return false
+	# Top-down (D167): a column only with its rule.
+	var columns: bool = tuned is Dictionary and tuned.get("top_down", false) == true
 	# One enemy a wave (D165): a merged enemy or wave only with its rule.
 	var merging: bool = tuned is Dictionary and tuned.get("one_enemy", false) == true
 	# Coins from the Number earned (D162): its ledger goes with its rule, never without or alone.
@@ -223,6 +228,8 @@ static func _valid_state(data) -> bool:
 			for key in ENEMY_FLIGHT:
 				if not RunConfig.number(enemy.get(key)) or float(enemy[key]) < 0.0: return false
 			if float(enemy.carry_health) <= 0.0 or float(enemy.carry_paid) > 1.0: return false
+		if enemy.has("x") != columns: return false
+		if enemy.has("x") and (not RunConfig.number(enemy.x) or absf(float(enemy.x)) > Guesses.TOP_DOWN_WIDTH_M * 0.5 + 1e-6): return false
 		if enemy.has("merged"):
 			if not merging or enemy.kind != "boss": return false
 			for key in ENEMY_MERGED_FLOATS:
@@ -348,6 +355,9 @@ static func restore(data) -> BattleSim:
 			enemy.fleeing = true
 			for key in ENEMY_FLIGHT:
 				enemy.set(key, float(data.targets[id][key]))
+		if data.targets[id].has("x"):
+			enemy.straight = true
+			enemy.x = float(data.targets[id].x)
 		if data.targets[id].has("merged"):
 			for key in ENEMY_MERGED_FLOATS:
 				enemy.set(key, float(data.targets[id][key]))

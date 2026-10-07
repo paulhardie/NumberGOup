@@ -2992,8 +2992,8 @@ func test_the_number_grows_by_fighting_not_waiting() -> void:
 	await process_frame
 	home._open_settings()
 	var names := home.find_children("*", "CheckButton", true, false).map(func(toggle): return toggle.text)
-	check(names == ["Music", "Run upgrades off (next run)"],
-		"Home's Settings has the music switch and D158's Run upgrades off, and none of D111's old Testing switches or D156's Number is Cash: %s" % [names])
+	check(names == ["Music", "Run upgrades off (next run)", "Top-down battle (next run)"],
+		"Home's Settings has the music switch, D158's Run upgrades off and D167's top-down battle, and none of D111's old Testing switches or D156's Number is Cash: %s" % [names])
 	home.queue_free()
 	await process_frame
 
@@ -3986,6 +3986,97 @@ func test_a_new_run_plays_the_games_rules_and_reads_run_upgrades_off() -> void:
 
 ## A settings write that cannot swap its file in says so, rather than replacing
 ## the player's file with a half-written one (as the save already does).
+## D167: the top-down battle. A setting, off by default and in older files,
+## that puts `top_down` in the next run's rules; on, enemies fall in columns,
+## distance is height, every position is true, and the screen lays itself out
+## from the rules of the run it shows, with the Number at the bottom and the
+## run upgrades folded below it.
+func test_the_top_down_battle_falls_in_columns_and_lays_out_from_its_rules() -> void:
+	var settings := Settings.new()
+	check(not settings.top_down and not settings.run_tuning().has("top_down"), "off by default, and a run records none of it")
+	settings.top_down = true
+	check(settings.run_tuning() == RunConfig.game_tuning(false, true) and settings.run_tuning().top_down == true, "on, the next run's rules carry it")
+	check(settings.write(TEST_SETTINGS), "written")
+	var back := Settings.new()
+	back.read(TEST_SETTINGS)
+	check(back.top_down, "and read back")
+	var odd := FileAccess.open(TEST_SETTINGS, FileAccess.WRITE)
+	odd.store_string(JSON.stringify({"version": 1, "top_down": "yes"}))
+	odd.close()
+	var reread := Settings.new()
+	reread.read(TEST_SETTINGS)
+	check(not reread.top_down, "a value that isn't a switch reads as off")
+	DirAccess.remove_absolute(TEST_SETTINGS)
+	check(is_equal_approx(BattleSim.column_m(-PI / 2.0), 0.0) and BattleSim.column_m(0.0) > 0.0 and BattleSim.column_m(PI) < 0.0
+		and is_equal_approx(BattleSim.column_m(0.0), -BattleSim.column_m(PI)), "straight up is the middle column, right and left either side")
+	check(absf(BattleSim.column_m(PI / 2.0 - 0.001)) <= Guesses.TOP_DOWN_WIDTH_M * 0.5 and absf(BattleSim.column_m(PI / 2.0 + 0.001)) <= Guesses.TOP_DOWN_WIDTH_M * 0.5,
+		"straight down is an edge, inside the field")
+	var round := BattleSim.new(4, {}, BattleSim.START_GROUPS, 1, [], [], RunConfig.game_tuning())
+	var columns := BattleSim.new(4, {}, BattleSim.START_GROUPS, 1, [], [], RunConfig.game_tuning(false, true))
+	check(columns.top_down and columns.start_config().tuning.top_down == true and not round.start_config().tuning.has("top_down"), "the rule is recorded only while on")
+	for i in range(240):
+		round.step()
+		columns.step()
+	check(round.enemies.size() == columns.enemies.size() and round.enemies.size() > 0, "the same seed sends the same enemies at the same moments")
+	var falling = columns.enemies[0]
+	var walking = round.enemies[0]
+	check(falling.straight and not walking.straight and falling.kind == walking.kind and is_equal_approx(falling.distance, walking.distance)
+		and is_equal_approx(falling.x, BattleSim.column_m(walking.angle)), "each falls in the column its direction gives, as far in")
+	check(falling.position().is_equal_approx(Vector2(falling.x, -falling.distance)), "its position is its column and its height")
+	var arena := ArenaView.new()
+	arena.size = Vector2(400, 800)
+	arena.centre = Vector2(200, 400)
+	var classic := arena.project(Vector2(10, -5))
+	check(classic.is_equal_approx(arena.centre + Vector2(10, -5) * arena.px_per_metre()), "the round view is unchanged")
+	arena.invaders = true
+	arena.centre = arena.invaders_centre()
+	check(arena.centre.x == 200.0 and arena.centre.y == 800.0 - ArenaView.INVADERS_BOTTOM_PX, "the Number stands centred at the bottom: %s" % [arena.centre])
+	var px := arena.px_per_metre()
+	check(px * Guesses.SPAWN_DISTANCE_M <= arena.centre.y - ArenaView.INVADERS_TOP_PX + 0.001 and px * Guesses.TOP_DOWN_WIDTH_M <= 400.0 - 2.0 * ArenaView.INVADERS_SIDE_PX + 0.001,
+		"one scale fits the walk in and the field's width")
+	check(arena.project(Vector2(12, -30)).is_equal_approx(arena.centre + Vector2(12, -30) * px), "every point is drawn where it truly is")
+	var at_edge := arena.enemy_at(-PI / 2.0, 3.0, Vector2(8, 6), 25.0)
+	var at_number := arena.enemy_at(-PI / 2.0, 3.0, Vector2(8, 6), 0.0)
+	check(is_equal_approx(at_edge.x, 200.0 + 25.0 * px) and at_number.y < arena.centre.y, "an enemy at the bottom stands in its column, above the Number's digits if it's over them")
+	arena.free()
+	var screen := BattleScreen.new()
+	screen.tuning = RunConfig.game_tuning(false, true)
+	root.add_child(screen)
+	await process_frame
+	await process_frame
+	check(screen.invaders and screen._arena.invaders and screen.sim.top_down and screen._upgrades.collapsed, "a top-down run draws top-down, the run upgrades folded")
+	var column: VBoxContainer = screen._arena.get_parent()
+	check(column.get_children().find(screen._arena) > column.get_children().find(screen._wave_title.get_parent().get_parent()), "the wave line sits above the arena")
+	check(screen._arena.centre.y > screen._arena.size.y * 0.75, "and the Number near the arena's bottom: %s of %s" % [screen._arena.centre.y, screen._arena.size.y])
+	var saved := screen.run_state()
+	screen.queue_free()
+	await process_frame
+	var resumed := BattleScreen.new()
+	resumed.tuning = RunConfig.game_tuning()
+	resumed.resume = saved
+	root.add_child(resumed)
+	await process_frame
+	await process_frame
+	check(resumed.invaders and resumed.sim != null and resumed.sim.top_down, "a resumed top-down run keeps its rules and its layout, whatever the setting says now")
+	resumed.queue_free()
+	var plain := BattleScreen.new()
+	plain.tuning = RunConfig.game_tuning()
+	root.add_child(plain)
+	await process_frame
+	check(not plain.invaders and not plain._arena.invaders and not plain.sim.top_down, "a round run is laid out as it always was")
+	var asked := [false]
+	plain.rebuild_requested.connect(func(): asked[0] = true)
+	plain.tuning = RunConfig.game_tuning(false, true)
+	plain._again.pressed.emit()
+	check(asked[0] and not plain.sim.top_down, "Battle again for a top-down run asks for a fresh screen rather than playing it in the round layout")
+	plain.tuning = RunConfig.game_tuning()
+	asked[0] = false
+	plain._again.pressed.emit()
+	check(not asked[0], "and for the same battle starts it here, as before")
+	plain.queue_free()
+	await process_frame
+
+
 func test_a_settings_write_that_cannot_land_reports_failure() -> void:
 	DirAccess.remove_absolute(TEST_SETTINGS)
 	var settings := Settings.new()

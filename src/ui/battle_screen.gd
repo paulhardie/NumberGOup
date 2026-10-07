@@ -31,6 +31,9 @@ signal wave_reward(reward: Dictionary)
 ## A saved run couldn't be brought back: its record is damaged ("damaged"),
 ## or the game changed so its replay no longer ends where it was left
 ## ("changed").
+## "Battle again" for a battle the screen isn't laid out for (D167): the game
+## opens a fresh battle screen instead.
+signal rebuild_requested
 signal resume_failed(saved: Dictionary, reason: String)
 
 ## Game speeds, for testing a run quickly (docs/REBUILD_SPEC.md, "Dev only").
@@ -73,6 +76,11 @@ var resume: Dictionary = {}
 ## sets from the settings. A resumed run keeps the ones it started with; empty
 ## where nothing sets it, as the tools and tests that play the old rules.
 var tuning: Dictionary = {}
+## Laid out for a top-down battle (D167): the Number at the bottom with only
+## the run upgrades below it, folded to their tabs until opened, and the wave
+## line at the top. Read from the rules of the run it shows, a resumed one's
+## included, as the screen is built.
+var invaders := false
 var _replay: RunReport.Replay
 var _resuming: Label
 var _speed_index := 0
@@ -121,6 +129,8 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	if workshop == null:
 		workshop = Workshop.new()
+	var rules = resume.get("start", {}).get("tuning", {}) if not resume.is_empty() else tuning
+	invaders = rules is Dictionary and rules.get("top_down", false) == true
 	_build()
 	if resume.is_empty():
 		start_run(randi())
@@ -195,6 +205,7 @@ func _adopt(run_sim: BattleSim) -> void:
 	_cash_chip.visible = not sim.number_cash
 	_banked = 0.0
 	_arena.sim = sim
+	_arena.invaders = sim.top_down
 	_upgrades.set_sim(sim)
 	_carry = 0.0
 	_real_seconds = 0.0
@@ -383,24 +394,35 @@ func _build() -> void:
 	top.add_child(end)
 
 	_arena = ArenaView.new()
+	_arena.invaders = invaders
 	_arena.digit_reached.connect(func(power: int): digit_reached.emit(power))
 	_arena.clip_contents = true
 	_arena.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	_arena.custom_minimum_size = Vector2(0, 320)
-	_arena.resized.connect(func(): _arena.centre = Vector2(_arena.size.x * 0.5, _arena.size.y * 0.52))
-	column.add_child(_arena)
+	_arena.resized.connect(func(): _arena.centre = _arena.invaders_centre() if invaders else Vector2(_arena.size.x * 0.5, _arena.size.y * 0.52))
 
 	# The wave line: its number (tap for Wave Info) and The Tower's two-phase
-	# bar (D122), in place of the old Tower and Wave readouts (D143).
+	# bar (D122), in place of the old Tower and Wave readouts (D143). Under the
+	# arena, or in the invaders view above it, so only the run upgrades sit
+	# below the Number.
 	var wave_margin := _margined(_wave_line(), 14)
 	wave_margin.add_theme_constant_override("margin_top", 10)
-	column.add_child(wave_margin)
+	if invaders:
+		wave_margin.add_theme_constant_override("margin_top", 2)
+		column.add_child(wave_margin)
+	column.add_child(_arena)
+	if not invaders:
+		column.add_child(wave_margin)
 
 	_upgrades = UpgradePanel.new()
 	_upgrades.info_requested.connect(_show_held)
 	var upgrades_margin := _margined(_upgrades, 24)
 	upgrades_margin.add_theme_constant_override("margin_top", 4)
 	column.add_child(upgrades_margin)
+	if invaders:
+		# Folded to their tabs until the player opens them (D129's fold).
+		upgrades_margin.add_theme_constant_override("margin_bottom", 18)
+		_upgrades.set_collapsed(true)
 
 	# Both banners live under the screen from the start, hidden, so they go
 	# with it whether or not they were ever shown.
@@ -429,7 +451,13 @@ func _build() -> void:
 	over_column.add_child(_over_text)
 	_again = Button.new()
 	_again.text = "Battle again"
-	_again.pressed.connect(func(): start_run(randi()))
+	_again.pressed.connect(func():
+		# The next run plays the battle Settings now asks for; laid out for the
+		# other one (D167), the screen is built again for it.
+		if (tuning.get("top_down", false) == true) != invaders:
+			rebuild_requested.emit()
+		else:
+			start_run(randi()))
 	over_column.add_child(_again)
 	var home := Button.new()
 	home.text = "Home"

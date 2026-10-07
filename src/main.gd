@@ -166,6 +166,8 @@ func _show_battle(saved: Dictionary = {}) -> void:
 		_save())
 	battle.home_pressed.connect(_show_home_after_battle)
 	battle.digit_reached.connect(func(_power: int): music.chime())
+	# Battle again for the other battle (D167): a fresh screen laid out for it.
+	battle.rebuild_requested.connect(func(): _show_battle())
 	_swap(battle)
 
 

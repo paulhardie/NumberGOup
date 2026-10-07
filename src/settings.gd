@@ -18,6 +18,9 @@ var music := true
 ## Run upgrades off (D158): the run shop is shut for each new run. Chosen before
 ## a run, never during one; off unless set.
 var upgrades_off := false
+## The top-down battle (D167, a prototype): the next run's enemies fall in
+## columns towards the Number at the bottom. Off unless set.
+var top_down := false
 
 
 func read(path: String = PATH) -> void:
@@ -30,12 +33,14 @@ func read(path: String = PATH) -> void:
 	music = playing if playing is bool else true
 	var shut = json.data.get("upgrades_off", false)
 	upgrades_off = shut if shut is bool else false
+	var columns = json.data.get("top_down", false)
+	top_down = columns if columns is bool else false
 
 
 ## The rules a new run starts with: the game's (RunConfig.game_tuning), with the
-## run shop shut if the player chose that.
+## run shop shut and the battle top-down if the player chose those.
 func run_tuning() -> Dictionary:
-	return RunConfig.game_tuning(upgrades_off)
+	return RunConfig.game_tuning(upgrades_off, top_down)
 
 
 ## Writes to a temporary file first and then swaps it in, as the save does.
@@ -45,7 +50,7 @@ func write(path: String = PATH) -> bool:
 	if file == null:
 		push_warning("Couldn't write the settings to %s." % temporary)
 		return false
-	file.store_string(JSON.stringify({"version": VERSION, "music": music, "upgrades_off": upgrades_off}, "\t"))
+	file.store_string(JSON.stringify({"version": VERSION, "music": music, "upgrades_off": upgrades_off, "top_down": top_down}, "\t"))
 	file.flush()
 	var written := file.get_error() == OK
 	file.close()

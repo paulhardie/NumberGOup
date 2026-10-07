@@ -8,6 +8,7 @@ const Snapshot = preload("res://src/tower/battle_snapshot.gd")
 const RunReport = preload("res://src/tower/run_report.gd")
 const RunConfig = preload("res://src/tower/run_config.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
+const Guesses = preload("res://src/tower/guesses.gd")
 const Save = preload("res://src/tower/save.gd")
 const RealClock = preload("res://src/tower/real_clock.gd")
 const BattleScreen = preload("res://src/ui/battle_screen.gd")
@@ -1150,7 +1151,7 @@ func test_settings_groups_the_real_and_the_coming() -> void:
 		if labels.any(func(text): return text in coming):
 			check(row.find_children("*", "BaseButton", true, false).is_empty(), "%s has nothing to press" % [labels[0]])
 	var toggles := sheet.find_children("*", "CheckButton", true, false).map(func(toggle): return toggle.text)
-	check(toggles == ["Music", "Run upgrades off (next run)"], "only the two real switches are switches: %s" % [toggles])
+	check(toggles == ["Music", "Run upgrades off (next run)", "Top-down battle (next run)"], "only the three real switches are switches: %s" % [toggles])
 	check(not sheet.find_children("*", "ScrollContainer", true, false).is_empty(), "the list scrolls to fit a short screen")
 	var build := sheet.find_children("*", "Label", true, false).filter(func(label): return label.text.begins_with("v"))
 	check(not build.is_empty(), "and the build line stays in view under it")
@@ -1562,13 +1563,63 @@ func test_changed_and_damaged_run_recovery_preserves_the_account() -> void:
 	DirAccess.remove_absolute(PATH)
 
 
+## D167: a top-down run saves each enemy's column and resumes exactly, with orbs,
+## mines, bounces and Scatters in play; a column in a round run, or a top-down
+## enemy without one, is refused.
+func test_a_top_down_run_resumes_exactly_and_refuses_stray_columns() -> void:
+	var groups: Array = BattleSim.START_GROUPS.duplicate()
+	groups.append_array(["defense", "orbs", "land_mines", "bounce_shot", "thorns"])
+	var ranks := {"damage": 20, "attack_speed": 12, "health": 30, "health_regen": 15, "defense_absolute": 10, "orbs": 2, "orb_speed": 4,
+		"land_mine_chance": 10, "bounce_shot_chance": 10, "bounce_shot_targets": 3, "thorns": 5}
+	for tier in [1, 2]:
+		var sim := BattleSim.new(13, ranks, groups, tier, [], [], RunConfig.game_tuning(false, true))
+		sim.wave = 40
+		sim.health_level = 40
+		sim.attack_level = 40
+		sim.spawns.schedule_wave()
+		for i in range(900): sim.step()
+		check(not sim.enemies.is_empty() and sim.enemies.all(func(enemy): return enemy.straight and absf(enemy.x) <= Guesses.TOP_DOWN_WIDTH_M * 0.5),
+			"tier %d: every enemy falls in a column inside the field" % tier)
+		check(sim.defences.mines.all(func(mine): return mine.y <= -Guesses.CONTACT_DISTANCE_M and absf(mine.x) <= Guesses.TOP_DOWN_WIDTH_M * 0.5), "mines lie above where enemies stop, inside the field: %s" % [sim.defences.mines])
+		var saved: Dictionary = json(Snapshot.capture(sim))
+		var again := Snapshot.restore(saved)
+		check(again != null and Snapshot.capture(again).digest == saved.digest, "tier %d: a top-down snapshot round trips" % tier)
+		if again == null: continue
+		for i in range(900):
+			sim.step()
+			again.step()
+		check(Snapshot.capture(sim).digest == Snapshot.capture(again).digest, "tier %d: and continues exactly: %s" % [tier, difference(json(Snapshot.capture(sim)), json(Snapshot.capture(again)))])
+	var round := BattleSim.new(13, {}, BattleSim.START_GROUPS, 1, [], [], RunConfig.game_tuning())
+	for i in range(300): round.step()
+	var state: Dictionary = RunConfig.unpack(json(Snapshot.capture(round)))
+	if not state.targets.is_empty():
+		var forged := state.duplicate(true)
+		forged.targets[forged.targets.keys()[0]].x = 4.0
+		var packed := RunConfig.pack(forged)
+		packed.version = Snapshot.VERSION
+		check(Snapshot.restore(packed) == null, "a column in a round run is refused")
+	var columns := BattleSim.new(13, {}, BattleSim.START_GROUPS, 1, [], [], RunConfig.game_tuning(false, true))
+	for i in range(300): columns.step()
+	var straight: Dictionary = RunConfig.unpack(json(Snapshot.capture(columns)))
+	if not straight.targets.is_empty():
+		var missing := straight.duplicate(true)
+		missing.targets[missing.targets.keys()[0]].erase("x")
+		var packed_missing := RunConfig.pack(missing)
+		packed_missing.version = Snapshot.VERSION
+		check(Snapshot.restore(packed_missing) == null, "a top-down enemy without its column is refused")
+		var outside := straight.duplicate(true)
+		outside.targets[outside.targets.keys()[0]].x = 400.0
+		var packed_outside := RunConfig.pack(outside)
+		packed_outside.version = Snapshot.VERSION
+		check(Snapshot.restore(packed_outside) == null, "and one outside the field")
+
+
 ## D165 (THE_NUMBER.md 18): one enemy a wave, a measuring option. Off, a run
 ## records none of it; on, each wave comes as one enemy from straight above,
 ## standing for the wave rolled as ever and paying what it would, its Cash as
 ## it is hurt with the drip; and a snapshot resumes it exactly. A merged enemy
 ## or wave in a snapshot without the rule is refused.
 func test_one_enemy_a_wave_stands_for_its_wave_and_resumes_exactly() -> void:
-	var Guesses = preload("res://src/tower/guesses.gd")
 	var EnemyKinds = preload("res://src/tower/enemy_kinds.gd")
 	var plain := BattleSim.new(5, {}, BattleSim.START_GROUPS, 1, [], [], RunConfig.game_tuning())
 	check(["one_enemy", "one_enemy_health", "one_enemy_attack", "one_enemy_drip"].all(func(key): return not plain.tuning_config().has(key)), "off, a run records none of it")
