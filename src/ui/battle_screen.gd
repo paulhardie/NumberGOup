@@ -240,7 +240,7 @@ func _process(delta: float) -> void:
 	_arena.queue_redraw()
 	_bank_coins()
 	if progression != null:
-		for reward in progression.observe(sim.tier, sim.wave, sim.wave if sim.killed_by == "data_limit" else sim.wave - 1):
+		for reward in progression.observe(sim.tier, sim.wave, sim.cleared_wave()):
 			wave_reward.emit(reward)
 	_refresh()
 	_first_sight(delta)

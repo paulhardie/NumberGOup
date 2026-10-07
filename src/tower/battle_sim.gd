@@ -833,7 +833,7 @@ func _enemies_hit() -> void:
 		if enemy.hit_in > 0.0:
 			continue
 		enemy.hit_in += EnemyKinds.hit_seconds(enemy.kind)
-		var damage := landed_damage(enemy.attack * pow(TowerData.heat_up_per_hit(), enemy.hits))
+		var damage := next_hit_damage(enemy)
 		enemy.hits += 1
 		# While the Wall stands it takes every hit, ranged ones too: The Tower's
 		# tower takes nothing but a Vampire's drain behind it (D116). When it
@@ -998,6 +998,21 @@ func divide_share(divisor: float) -> float:
 ## What a hit of `raw` leaves after the tower's defences.
 func landed_damage(raw: float) -> float:
 	return maxf(0.0, raw * (1.0 - stat("defense_percent")) - stat("defense_absolute"))
+
+
+## What this enemy's next hit will take from the Number: its attack grown by
+## heat-up for every hit it has already landed (D116), through the defences.
+## The battle screen shows this number, so what an enemy promises the player
+## is exactly what its hit deals.
+func next_hit_damage(enemy: Enemy) -> float:
+	return landed_damage(enemy.attack * pow(TowerData.heat_up_per_hit(), enemy.hits))
+
+
+## The last wave cleared by this run: every wave before the one it stands on,
+## except at the data horizon, whose own end is the achievement. One authority
+## for the screen's wave rewards and the tools', so they cannot drift.
+func cleared_wave() -> int:
+	return wave if killed_by == "data_limit" else maxi(0, wave - 1)
 
 
 func _fire() -> void:
