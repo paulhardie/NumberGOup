@@ -129,6 +129,9 @@ static func pays_as(enemy) -> String:
 ## The Cash `enemy` pays when killed: its wave's Cash (TowerData.kill_cash)
 ## times its kind's weight and Cash Bonus.
 static func cash(enemy, cash_bonus: float) -> float:
+	# One enemy a wave (D165) pays what the wave it stands for would have.
+	if enemy.merged > 0:
+		return TowerData.kill_cash(enemy.wave) * enemy.worth_cash * cash_bonus
 	return TowerData.kill_cash(enemy.wave) * float(Guesses.CASH_BY_TYPE[pays_as(enemy)]) * cash_bonus
 
 
@@ -138,6 +141,8 @@ static func cash(enemy, cash_bonus: float) -> float:
 static func coins(enemy, wave: int, coins_per_kill: float, tier: int, basic_coins := 0.0) -> float:
 	var kind := pays_as(enemy)
 	var base := basic_coins if kind == "basic" else float(Guesses.COINS_BY_TYPE[kind])
+	if enemy.merged > 0:
+		base = enemy.worth_coins + enemy.worth_basics * basic_coins
 	var paid := base * coins_per_kill * float(TowerData.tier(tier).coins)
 	var decay: Dictionary = TowerData.enemies().coin_decay
 	if wave - enemy.wave >= int(decay.after_waves):

@@ -1562,6 +1562,80 @@ func test_changed_and_damaged_run_recovery_preserves_the_account() -> void:
 	DirAccess.remove_absolute(PATH)
 
 
+## D165 (THE_NUMBER.md 18): one enemy a wave, a measuring option. Off, a run
+## records none of it; on, each wave comes as one enemy from straight above,
+## standing for the wave rolled as ever and paying what it would, its Cash as
+## it is hurt with the drip; and a snapshot resumes it exactly. A merged enemy
+## or wave in a snapshot without the rule is refused.
+func test_one_enemy_a_wave_stands_for_its_wave_and_resumes_exactly() -> void:
+	var Guesses = preload("res://src/tower/guesses.gd")
+	var EnemyKinds = preload("res://src/tower/enemy_kinds.gd")
+	var plain := BattleSim.new(5, {}, BattleSim.START_GROUPS, 1, [], [], RunConfig.game_tuning())
+	check(["one_enemy", "one_enemy_health", "one_enemy_attack", "one_enemy_drip"].all(func(key): return not plain.tuning_config().has(key)), "off, a run records none of it")
+	var kinds: Array = []
+	for entry in plain.spawns.schedule: kinds.append(String(entry.kind))
+	var tuning := RunConfig.game_tuning()
+	tuning.one_enemy = true
+	tuning.one_enemy_attack = 0.5
+	tuning.one_enemy_drip = true
+	var sim := BattleSim.new(5, {}, BattleSim.START_GROUPS, 1, [], [], tuning)
+	check(sim.start_config().tuning.one_enemy == true and sim.start_config().tuning.one_enemy_attack == 0.5, "on, it is recorded")
+	check(sim.spawns.schedule.size() == 1 and JSON.stringify(sim.spawns.schedule[0].members) == JSON.stringify(kinds) and kinds.size() > 1,
+		"the wave is one entry standing for the %d enemies it rolls without the option" % kinds.size())
+	sim.step()
+	check(sim.enemies.size() == 1, "it sets off as the wave starts")
+	var enemy = sim.enemies[0]
+	var health := 0.0
+	var attack := 0.0
+	var weight := 0.0
+	for kind in kinds:
+		health += sim.enemy_health_now(kind)
+		attack += sim.enemy_attack_now(kind)
+		weight += float(Guesses.CASH_BY_TYPE[kind])
+	check(enemy.merged == kinds.size() and is_equal_approx(enemy.max_health, health) and is_equal_approx(enemy.attack, 0.5 * attack),
+		"its health is the wave's and its attack half the wave's: %.1f / %.1f" % [enemy.max_health, enemy.attack])
+	check(is_equal_approx(enemy.angle, -PI / 2.0) and enemy.position().y < 0.0 and absf(enemy.position().x) < 1e-3, "it comes from straight above")
+	var worth := EnemyKinds.cash(enemy, sim.stat("cash_bonus")) * sim.rules.value("cash_multiplier")
+	check(is_equal_approx(worth, TowerData.kill_cash(1) * weight * sim.stat("cash_bonus")), "worth the wave's Cash")
+	var before := sim.cash_earned
+	sim.deal_damage(enemy, enemy.max_health * 0.25, "shot")
+	check(is_equal_approx(sim.cash_earned - before, worth * 0.25), "a quarter of its health taken pays a quarter of its Cash: %.3f of %.3f" % [sim.cash_earned - before, worth])
+	for i in range(300): sim.step()
+	var saved: Dictionary = json(Snapshot.capture(sim))
+	var again := Snapshot.restore(saved)
+	check(again != null and Snapshot.capture(again).digest == saved.digest, "a snapshot round trips")
+	if again != null:
+		for i in range(900):
+			sim.step()
+			again.step()
+		check(Snapshot.capture(sim).digest == Snapshot.capture(again).digest, "and continues exactly: %s" % difference(json(Snapshot.capture(sim)), json(Snapshot.capture(again))))
+	var kill := BattleSim.new(5, {}, BattleSim.START_GROUPS, 1, [], [], tuning)
+	kill.step()
+	var whole = kill.enemies[0]
+	var paid_before := kill.cash_earned
+	kill.deal_damage(whole, whole.max_health * 0.4, "shot")
+	kill.deal_damage(whole, whole.max_health, "shot")
+	check(whole not in kill.enemies and is_equal_approx(kill.cash_earned - paid_before, worth), "hurt then killed, it pays the wave's Cash once in all")
+	plain.step()
+	var state: Dictionary = RunConfig.unpack(json(Snapshot.capture(plain)))
+	var target: String = state.targets.keys()[0] if not state.targets.is_empty() else ""
+	if target != "":
+		var forged := state.duplicate(true)
+		forged.targets[target].merge({"merged": 3, "worth_basics": 3, "worth_cash": 3.0, "worth_coins": 0.0, "dripped": 0.0})
+		var packed := RunConfig.pack(forged)
+		packed.version = Snapshot.VERSION
+		check(Snapshot.restore(packed) == null, "a merged enemy without the rule is refused")
+	var schedule := state.duplicate(true)
+	schedule.spawns.schedule = [{"kind": "boss", "at": 0.0, "members": ["basic", "basic"]}]
+	schedule.spawns.next_spawn = 0
+	var forged_wave := RunConfig.pack(schedule)
+	forged_wave.version = Snapshot.VERSION
+	check(Snapshot.restore(forged_wave) == null, "and so is a merged wave")
+	var bad := tuning.duplicate()
+	bad.one_enemy_attack = 0.0
+	check(not RunConfig.valid_tuning(bad), "a zero attack scale is refused")
+
+
 func difference(a, b, path := "") -> String:
 	if a is Dictionary and b is Dictionary:
 		for key in a:

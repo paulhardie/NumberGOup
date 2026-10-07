@@ -2462,3 +2462,11 @@ Rules:
 - **Measured (re-recorded baselines, THE_NUMBER.md 17.7):** only careers move; the core career reaches wave 30 at run 33 against 47 and earns 5,074 Coins against 3,923, grow reaches it at 43 against 47.
 - **Supersedes:** D107 in part (what a digit is measured on, and digit 100's Coins).
 - **Revisit when:** the owner plays it, or Labs or tiers change what a run earns.
+
+## D165 — One enemy a wave, from the top: tried as a measuring option
+
+- **Status:** Accepted (2026-10-07) as an exploratory trial on the owner's direction: "Try the single enemy per wave. (Have it travel from the top of the screen down towards the player.) Report back on how it is, and if it could work." **Not the game's rules.**
+- **Decision:** build it as measuring options (`one_enemy`, `one_enemy_health`, `one_enemy_attack`, `one_enemy_drip`), off by default and recorded in a run only while on, with the snapshot keeping a merged enemy's worth so a resumed run plays the same. No criteria were written first; the results (THE_NUMBER.md 18) are readings, not verdicts.
+- **Measured (18.2 to 18.4):** the literal version is unplayable; at about one enemy's hit and with Cash paid as it is hurt it paces like today (core career wave 30 at run 35 against 33). Half of each wave is an empty screen (51% against 7%), and the crowd rows and our own enemies go dead.
+- **Revisit when:** the owner decides whether to pursue it (with the next things to try in 18.4) or drop it.
+
