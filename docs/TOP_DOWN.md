@@ -8,7 +8,7 @@
 
 - **Enemies fall straight down in columns** across a field `Guesses.TOP_DOWN_WIDTH_M` wide (60 m), centred on the Number. A spawn's column comes from the same draw that gave its direction in the round battle (straight up is the middle), so the same seed sends the same enemies at the same moments.
 - **Distance is height.** Everything that used an enemy's distance keeps doing so: walking in, arriving, Range (now a height), knockback (now upward), the Wall, targeting the nearest. An enemy reaching the bottom hits the Number from its column.
-- **Positions are true:** an enemy stands at (its column, minus its height), so shots fly to it in straight lines, bounces jump between true neighbours, and Protector shields, land mines and orbs act where things really are. Orbs still circle the Number and catch what their circle crosses; land mines are laid above it; a Scatter splits sideways.
+- **Positions are true:** an enemy stands at (its column, minus its height), so shots fly to it in straight lines, bounces jump between true neighbours, and Protector shields, land mines and orbs act where things really are. Orbs circle the Number and catch what their circle crosses (since D168 the game's top-down runs have them patrol a line instead, section 6); land mines are laid above it; a Scatter splits sideways.
 - **The game's rules otherwise unchanged.** The Settings switch starts the next run top-down, and the battle screen draws it with the Number at the bottom (D166's layout). The round battle stays the default until the owner decides.
 
 ## 2. Pass criteria (top-down against round, both under the game's rules, the bots' usual buying)
