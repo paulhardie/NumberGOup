@@ -3,8 +3,8 @@ extends Control
 ## and the Wall's brackets, enemies walking in, shots in flight, land mines
 ## and orbs. What fades around them lives in ArenaEffects, and how the Number
 ## moves and its light in NumberMotion. It reads the sim and never changes it.
-## In the invaders view (D166) the same battle is drawn with the Number at the
-## bottom and enemies coming down from the top (`project`).
+## A top-down battle (D167) is drawn as it is: the Number at the bottom and
+## enemies falling in their columns from the top (`invaders`).
 
 const TowerData = preload("res://src/tower/tower_data.gd")
 const Guesses = preload("res://src/tower/guesses.gd")
@@ -132,15 +132,11 @@ const DEALT_PX := 9
 const FLASH := Color("f4f3ef")
 
 var sim: BattleSim
-## The invaders view (D166, a prototype): only the drawing changes. The battle
-## stays round, and `project` maps each point of it onto a portrait screen:
-## distance becomes height above the Number, which stands at the bottom, and
-## direction becomes a column across the width, straight up in the middle, so
-## enemies come down from the top and draw in to the Number over their last
-## INVADERS_FUNNEL_M; shots fan out from it to their targets.
+## Drawing a top-down battle (D167): the Number at the bottom, every position
+## where it truly is, at one scale that fits the field's width and the walk in
+## from the top. Set from the run's rules.
 var invaders := false
-const INVADERS_FUNNEL_M := 20.0
-## Room above the farthest enemy, and either side of the outermost columns.
+## Room above the farthest enemy, and either side of the field.
 const INVADERS_TOP_PX := 28.0
 const INVADERS_SIDE_PX := 26.0
 ## How far below its centre the Number leaves room, in the invaders view.
@@ -223,10 +219,13 @@ func px_per_metre() -> float:
 	return _zoom if _zoom > 0.0 else target_px_per_metre()
 
 
-## Points per metre upward in the invaders view: the whole walk in, from where
-## enemies set off to the Number, fills the height above it.
+## Points per metre in a top-down battle: the whole walk in, from where enemies
+## set off to the Number, fills the height above it, unless the field's width
+## would then run off the sides.
 func _invaders_px() -> float:
-	return maxf(0.001, (centre.y - INVADERS_TOP_PX) / Guesses.SPAWN_DISTANCE_M)
+	var tall := (centre.y - INVADERS_TOP_PX) / Guesses.SPAWN_DISTANCE_M
+	var wide := (size.x - 2.0 * INVADERS_SIDE_PX) / Guesses.TOP_DOWN_WIDTH_M
+	return maxf(0.001, minf(tall, wide))
 
 
 ## Where the Number stands in the invaders view: centred, at the bottom.
@@ -236,16 +235,12 @@ func invaders_centre() -> Vector2:
 
 ## Where a point of the battle, in metres from the Number, is drawn.
 func project(world: Vector2) -> Vector2:
-	if not invaders:
-		return centre + world * px_per_metre()
-	var distance := world.length()
-	if distance < 0.0001:
-		return centre
-	# 0.5 straight up; 0.75 to the right, 0.25 to the left; straight down at the edges.
-	var turn := fposmod(world.angle() + PI * 1.5, TAU) / TAU
-	var column := lerpf(INVADERS_SIDE_PX, size.x - INVADERS_SIDE_PX, turn)
-	var x := lerpf(centre.x, column, clampf(distance / INVADERS_FUNNEL_M, 0.0, 1.0))
-	return Vector2(x, centre.y - distance * _invaders_px())
+	return centre + world * px_per_metre()
+
+
+## The column an enemy falls in, top-down (D167), or NAN for one walking in round.
+static func enemy_x(enemy) -> float:
+	return enemy.x if enemy.straight else NAN
 
 
 ## Where something reaching the Number from `toward` meets its digits: their
@@ -506,7 +501,7 @@ func label_plan() -> Dictionary:
 	for enemy in sim.enemies:
 		var text := shown_text(sim, enemy)
 		var half := enemy_half(enemy.kind, text)
-		var at := enemy_at(enemy.angle, _shown_metres(enemy), half)
+		var at := enemy_at(enemy.angle, _shown_metres(enemy), half, enemy_x(enemy))
 		# A shot rocks it back, landing a hit it lunges in (D103).
 		at += Vector2.from_angle(enemy.angle) * float(effects.recoil.get(enemy.id, 0.0))
 		entries.append({"enemy": enemy, "text": text, "at": at, "half": half, "shown": "full", "count": 1})
@@ -607,18 +602,18 @@ func _draw_shields_and_drains() -> void:
 	var radius_px := TowerData.protector_radius_m(sim.wave, sim.tier) * px_per_metre()
 	for enemy in sim.enemies:
 		if enemy.kind == "protector":
-			var at := enemy_at(enemy.angle, _shown_metres(enemy), enemy_half(enemy.kind, "0"))
+			var at := enemy_at(enemy.angle, _shown_metres(enemy), enemy_half(enemy.kind, "0"), enemy_x(enemy))
 			draw_circle(at, radius_px, Color(Palette.PROTECTOR, SHIELD_ALPHA * 0.25))
 			draw_arc(at, radius_px, 0.0, TAU, 48, Color(Palette.PROTECTOR, SHIELD_ALPHA), 1.0, true)
 		elif enemy.kind == "vampire" and enemy.arrived():
 			var toward := Vector2.from_angle(enemy.angle)
-			var from := enemy_at(enemy.angle, _shown_metres(enemy), enemy_half(enemy.kind, "0")) - toward * 10.0
+			var from := enemy_at(enemy.angle, _shown_metres(enemy), enemy_half(enemy.kind, "0"), enemy_x(enemy)) - toward * 10.0
 			var flicker := 0.35 + 0.2 * sin(sim.time * 17.0 + float(enemy.id))
 			draw_line(from, number_edge(toward), Color(Palette.VAMPIRE, flicker), 1.5, true)
 		elif enemy.kind == "lock" and enemy.arrived():
 			var toward := Vector2.from_angle(enemy.angle)
 			var across := toward.orthogonal() * LOCK_LINE_GAP_PX
-			var from := enemy_at(enemy.angle, _shown_metres(enemy), enemy_half(enemy.kind, "=")) - toward * 12.0
+			var from := enemy_at(enemy.angle, _shown_metres(enemy), enemy_half(enemy.kind, "="), enemy_x(enemy)) - toward * 12.0
 			var to := number_edge(toward)
 			for side in [-1.0, 1.0]:
 				draw_line(from + across * side, to + across * side, Color(Palette.LOCK, LOCK_LINE_ALPHA), 1.0, true)
@@ -695,12 +690,14 @@ func enemy_half(kind: String, text: String) -> Vector2:
 ## Where an enemy is drawn: where it stands, or, at the tower, just clear of
 ## the Number's digits on its own side, and of the Wall's brackets while it
 ## stands.
-func enemy_at(angle: float, distance_m: float, half: Vector2) -> Vector2:
+func enemy_at(angle: float, distance_m: float, half: Vector2, x_m := NAN) -> Vector2:
 	var toward := Vector2.from_angle(angle)
-	if invaders:
-		# Drawn where it is, and at the Number just above its digits.
-		var at := project(toward * distance_m)
-		at.y = minf(at.y, centre.y - _clear_half.y - half.y - CONTACT_GAP_PX)
+	if not is_nan(x_m):
+		# Top-down (D167): in its column at its height; one that reaches the
+		# Number stands just above its digits.
+		var at := project(Vector2(x_m, -distance_m))
+		if absf(at.x - centre.x) < _clear_half.x + half.x + CONTACT_GAP_PX:
+			at.y = minf(at.y, centre.y - _clear_half.y - half.y - CONTACT_GAP_PX)
 		return at
 	var clear := _clear_half + half + Vector2(CONTACT_GAP_PX, CONTACT_GAP_PX)
 	# The nearest it can come along its line without the two boxes touching.

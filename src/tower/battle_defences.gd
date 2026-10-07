@@ -129,11 +129,16 @@ func sweep_orbs() -> void:
 	var slack: float = orb_hit_m / radius
 	var touched := []
 	for enemy in sim.enemies:
-		if not EnemyKinds.orbs_kill(enemy.kind) or absf(enemy.distance - radius) > orb_hit_m:
+		# Where it truly is from the Number: its own line round, or top-down
+		# (D167) its column and height.
+		var at: Vector2 = enemy.position()
+		var reach: float = at.length() if enemy.straight else enemy.distance
+		var bearing: float = at.angle() if enemy.straight else enemy.angle
+		if not EnemyKinds.orbs_kill(enemy.kind) or absf(reach - radius) > orb_hit_m:
 			continue
 		for start in starts:
 			# How far ahead of the orb's starting angle the enemy sits.
-			if fposmod(enemy.angle - start + slack, TAU) <= sweep + 2.0 * slack:
+			if fposmod(bearing - start + slack, TAU) <= sweep + 2.0 * slack:
 				touched.append(enemy)
 				break
 	for enemy in touched.filter(func(enemy): return not sim.shielded(enemy)):
@@ -146,7 +151,14 @@ func sweep_orbs() -> void:
 func maybe_lay_mine() -> void:
 	if sim.stat("land_mine_chance") > 0.0 and mines.size() < Guesses.MAX_LAND_MINES and sim._combat_rng.randf() < sim.stat("land_mine_chance"):
 		var reach: float = sim._combat_rng.randf_range(Guesses.CONTACT_DISTANCE_M, sim.stat("range"))
-		mines.append(Vector2.from_angle(sim._combat_rng.randf() * TAU) * reach)
+		var turn: float = sim._combat_rng.randf()
+		if sim.top_down:
+			# Top-down (D167): above the Number, where enemies are, inside the field.
+			var half := Guesses.TOP_DOWN_WIDTH_M * 0.5
+			var spot := Vector2.from_angle(-PI * turn) * reach
+			mines.append(Vector2(clampf(spot.x, -half, half), spot.y))
+		else:
+			mines.append(Vector2.from_angle(turn * TAU) * reach)
 
 
 ## A blast: Land Mine Damage's share of Damage, with the average crit built

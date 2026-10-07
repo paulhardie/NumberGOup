@@ -56,11 +56,20 @@ class Enemy:
 	## The share of the bite already paid back, 0 to 1.
 	var carry_paid := 0.0
 
+	## Top-down (D167): it falls straight down its column, `x` metres across
+	## from the Number, its distance a height.
+	var straight := false
+	var x := 0.0
+
 	func position() -> Vector2:
+		if straight:
+			return Vector2(x, -distance)
 		return Vector2.from_angle(angle) * distance
 
 	## Where to draw it `blend` of the way from the last tick to this one.
 	func drawn_at(blend: float) -> Vector2:
+		if straight:
+			return Vector2(x, -lerpf(last_distance, distance, blend))
 		return Vector2.from_angle(angle) * lerpf(last_distance, distance, blend)
 
 	func arrived() -> bool:
@@ -259,6 +268,11 @@ var earned_power := 1.0
 var earned_scale := 0.0
 ## Counted only: the Coins the earned rule has paid.
 var earned_coins := 0.0
+
+## Top-down (D167): a rule option, recorded only while on. Enemies fall in
+## columns across Guesses.TOP_DOWN_WIDTH_M, the column drawn where the round
+## battle drew a direction, and distance is height (Enemy.straight).
+var top_down := false
 
 ## The highest the Number has stood this run: the run's record (D081).
 var peak_number := 0.0
@@ -751,6 +765,9 @@ func _place(kind: String, angle: float) -> void:
 	enemy.attack = enemy_attack_now(kind)
 	enemy.speed = EnemyKinds.speed_m(kind, wave, tier, divider)
 	enemy.angle = angle
+	if top_down:
+		enemy.straight = true
+		enemy.x = column_m(angle)
 	if kind == "divider":
 		enemy.divisor = EnemyKinds.divider_divisor(divider, wave)
 		dividers_spawned += 1
@@ -764,6 +781,12 @@ func _place(kind: String, angle: float) -> void:
 	elif kind == "protector":
 		_protectors.append(enemy)
 	enemies.append(enemy)
+
+
+## Top-down (D167): the column a direction becomes, in metres across from the
+## Number: straight up the middle, round to either edge.
+static func column_m(angle: float) -> float:
+	return Guesses.TOP_DOWN_WIDTH_M * (fposmod(angle + PI * 1.5, TAU) / TAU - 0.5)
 
 
 func _move_enemies() -> void:
@@ -1362,6 +1385,10 @@ func _split(scatter: Enemy) -> void:
 		piece.attack = scatter.attack
 		piece.speed = scatter.speed
 		piece.angle = scatter.angle + side * Guesses.SCATTER_SPREAD
+		if scatter.straight:
+			var half := Guesses.TOP_DOWN_WIDTH_M * 0.5
+			piece.straight = true
+			piece.x = clampf(scatter.x + side * Guesses.SCATTER_SPREAD * scatter.distance, -half, half)
 		piece.distance = scatter.distance
 		piece.last_distance = scatter.distance
 		piece.stop_at = Guesses.CONTACT_DISTANCE_M

@@ -6,7 +6,7 @@ extends SceneTree
 ## Info open. Every screen gets its own Workshop,
 ## so nothing is saved. On headless Linux wrap it in
 ## xvfb-run -a -s "-screen 0 1024x1100x24".
-## `-- --invaders` captures only the invaders view (D166): runs at a few moments,
+## `-- --invaders` captures only the top-down battle (D167): runs at a few moments,
 ## a strong tower with orbs and bounces, and the run upgrades opened.
 
 const Workshop = preload("res://src/tower/workshop.gd")
@@ -530,7 +530,7 @@ func _capture() -> void:
 	quit()
 
 
-## The invaders view (D166): the game's rules, a seeded run fast-forwarded,
+## The top-down battle (D167): the game's rules, a seeded run fast-forwarded,
 ## buying evenly as it goes.
 func _invaders() -> void:
 	var plain := {"damage": 6, "attack_speed": 4, "health": 8, "health_regen": 4, "defense_absolute": 3}
@@ -540,8 +540,7 @@ func _invaders() -> void:
 	for shot in [["invaders_early", plain, 20.0, false], ["invaders_crowd", plain, 240.0, false],
 			["invaders_strong", strong, 900.0, false], ["invaders_tray_open", plain, 240.0, true]]:
 		var screen := BattleScreen.new()
-		screen.tuning = RunConfig.game_tuning()
-		screen.invaders = true
+		screen.tuning = RunConfig.game_tuning(false, true)
 		var built := Workshop.new()
 		built.levels = shot[1]
 		for group in groups:

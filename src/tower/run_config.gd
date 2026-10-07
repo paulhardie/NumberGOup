@@ -25,7 +25,7 @@ static func trial_tuning() -> Dictionary:
 		"shot_price": 0.0, "bounty_share": 0.0, "free_bounty_share": 0.0, "base_regen": 0.0,
 		"regen_scale": 1.0, "hold_doomed": false,
 		"number_cash": false, "upgrades_off": false, "reserve_share": 0.0, "lock_holds_cash": false,
-		"earned_share": 0.0, "earned_power": 1.0, "earned_scale": 0.0}
+		"earned_share": 0.0, "earned_power": 1.0, "earned_scale": 0.0, "top_down": false}
 
 
 ## The rules a new run of the game starts with (D158): the Number is Cash
@@ -33,10 +33,13 @@ static func trial_tuning() -> Dictionary:
 ## the player chose that before the run. The code's own defaults stay off, so a
 ## start config without these keys (every save and report from before) plays as
 ## it always did; the game's rules are named here, in one place, and recorded.
-static func game_tuning(upgrades_off := false) -> Dictionary:
+static func game_tuning(upgrades_off := false, top_down := false) -> Dictionary:
 	var tuning := {"number_cash": true, "lock_holds_cash": true}
 	if upgrades_off:
 		tuning.upgrades_off = true
+	# The top-down battle (D167), chosen in Settings before a run.
+	if top_down:
+		tuning.top_down = true
 	return tuning
 
 
@@ -73,7 +76,7 @@ static func valid_tuning(tuning) -> bool:
 	if not (lock.full_wave >= lock.from_wave and lock.health > 0.0): return false
 	var options := {}
 	for key in trial: options[key] = tuning.get(key, trial[key])
-	for key in ["thieves", "thief_priority", "hold_doomed", "number_cash", "upgrades_off", "lock_holds_cash"]:
+	for key in ["thieves", "thief_priority", "hold_doomed", "number_cash", "upgrades_off", "lock_holds_cash", "top_down"]:
 		if not options[key] is bool: return false
 	for key in ["thief_recovery", "thief_fade", "shot_price", "bounty_share", "base_regen", "regen_scale"]:
 		if not number(options[key]) or float(options[key]) < 0.0 or float(options[key]) > 1e6: return false

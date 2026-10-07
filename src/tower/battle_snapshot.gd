@@ -6,6 +6,7 @@ const BattleSim = preload("res://src/tower/battle_sim.gd")
 const RunConfig = preload("res://src/tower/run_config.gd")
 const TowerData = preload("res://src/tower/tower_data.gd")
 const RunReport = preload("res://src/tower/run_report.gd")
+const Guesses = preload("res://src/tower/guesses.gd")
 const VERSION := 2
 const FLOATS := ["time", "wave_clock", "health", "cash", "cash_earned", "coins",
 	"peak_drift", "kill_share", "overfill", "sure_divisor", "peak_number", "_high",
@@ -96,6 +97,9 @@ static func _enemy(enemy) -> Dictionary:
 		result.fleeing = true
 		for key in ENEMY_FLIGHT:
 			result[key] = enemy.get(key)
+	# Top-down (D167): its column, written only for an enemy falling in one.
+	if enemy.straight:
+		result.x = enemy.x
 	return result
 
 
@@ -170,6 +174,8 @@ static func _valid_state(data) -> bool:
 		for id in held.free_levels:
 			if id not in TowerData.rows() or not _integer(held.free_levels[id]) or int(held.free_levels[id]) < 0 \
 					or int(held.free_levels[id]) > int(state.run_levels.get(id, 0)): return false
+	# Top-down (D167): a column only with its rule.
+	var columns: bool = tuned is Dictionary and tuned.get("top_down", false) == true
 	# Coins from the Number earned (D162): its ledger goes with its rule, never without or alone.
 	if state.has("earned") != (tuned is Dictionary and float(tuned.get("earned_share", 0.0)) > 0.0): return false
 	if state.has("earned"):
@@ -214,6 +220,8 @@ static func _valid_state(data) -> bool:
 			for key in ENEMY_FLIGHT:
 				if not RunConfig.number(enemy.get(key)) or float(enemy[key]) < 0.0: return false
 			if float(enemy.carry_health) <= 0.0 or float(enemy.carry_paid) > 1.0: return false
+		if enemy.has("x") != columns: return false
+		if enemy.has("x") and (not RunConfig.number(enemy.x) or absf(float(enemy.x)) > Guesses.TOP_DOWN_WIDTH_M * 0.5 + 1e-6): return false
 	var seen := {}
 	for id in data.field:
 		if not _integer(id) or not data.targets.has(str(int(id))) or seen.has(str(int(id))):
@@ -328,6 +336,9 @@ static func restore(data) -> BattleSim:
 			enemy.fleeing = true
 			for key in ENEMY_FLIGHT:
 				enemy.set(key, float(data.targets[id][key]))
+		if data.targets[id].has("x"):
+			enemy.straight = true
+			enemy.x = float(data.targets[id].x)
 		targets[id] = enemy
 	sim.enemies.clear()
 	sim._protectors.clear()

@@ -156,7 +156,6 @@ func _show_battle(saved: Dictionary = {}) -> void:
 	battle.workshop = workshop
 	battle.progression = progression
 	battle.tuning = settings.run_tuning()
-	battle.invaders = settings.invaders
 	battle.wave_reward.connect(func(reward):
 		ActivityLog.append({"kind": "wave_milestone", "reward": reward}, log_path)
 		_save())

@@ -11,6 +11,11 @@ const SPAWN_DISTANCE_M := 100.0
 ## Where a melee enemy stops: the tower's edge.
 const CONTACT_DISTANCE_M := 3.0
 
+## Top-down (D167): enemies fall in columns across a field this wide, centred
+## on the Number, so a portrait phone shows it whole at the scale that shows
+## their 100 m walk. Ours.
+const TOP_DOWN_WIDTH_M := 60.0
+
 ## Seconds between an enemy's hits once it is in place, first hit on arrival:
 ## about one a second at ×1 (the owner, 26 September). TheTowerSDK has no enemy
 ## attack interval. Ranged enemies stop on the edge of the tower's Range; that
@@ -40,7 +45,8 @@ const ORB_MIN_RADIUS_M := 60.0
 const ORB_RANGE_SLOPE := 0.5
 const ORB_HIT_M := 3.0
 ## A Scatter's two pieces land this many radians either side of where it
-## fell. Ours; The Tower's split in two is all that's known.
+## fell (top-down, D167, that arc's length either side at its height). Ours;
+## The Tower's split in two is all that's known.
 const SCATTER_SPREAD := 0.06
 
 ## The Wall stands this far out; melee enemies stop at it and hit it while

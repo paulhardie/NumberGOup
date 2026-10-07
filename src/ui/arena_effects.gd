@@ -188,7 +188,7 @@ func draw_blasts(blast_px: float) -> void:
 ## and heavier, its charge let go.
 func draw_ranged_shots(number_half: Vector2, wall_half: Vector2) -> void:
 	for shot in ranged_shots:
-		var from: Vector2 = view.enemy_at(shot.enemy.angle, shot.enemy.distance, view.enemy_half(shot.enemy.kind, "0"))
+		var from: Vector2 = view.enemy_at(shot.enemy.angle, shot.enemy.distance, view.enemy_half(shot.enemy.kind, "0"), view.enemy_x(shot.enemy))
 		var toward := Vector2.from_angle(shot.enemy.angle)
 		var fade: float = 1.0 - shot.age / RANGED_SHOT_SECONDS
 		var to: Vector2 = view.centre + toward * (wall_half.x if shot.get("at_wall", false) else number_half.x)
@@ -205,7 +205,7 @@ func draw_pops() -> void:
 	for pop in pops:
 		var look: Dictionary = view.LOOKS[pop.kind]
 		var half: Vector2 = view.enemy_half(pop.kind, pop.text)
-		var at: Vector2 = view.enemy_at(pop.angle, pop.distance, half)
+		var at: Vector2 = view.enemy_at(pop.angle, pop.distance, half, float(pop.get("x", NAN)))
 		var done: float = pop.age / POP_SECONDS
 		var grow := 1.0 + 0.3 * done
 		view.draw_set_transform(at, 0.0, Vector2(grow, grow))
@@ -285,7 +285,7 @@ func _take(events: Array[Dictionary]) -> void:
 				# The killed enemy's own number swells and fades where it died; an
 				# orb's kill reads 0, since an orb sets it to zero (D106).
 				var last: String = "0" if event.get("by", "") == "orb" else (view.shown_text(view.sim, event.enemy) if view.sim != null else "")
-				pops.append({"kind": event.enemy.kind, "angle": event.enemy.angle, "distance": event.enemy.distance, "age": 0.0,
+				pops.append({"kind": event.enemy.kind, "angle": event.enemy.angle, "distance": event.enemy.distance, "x": view.enemy_x(event.enemy), "age": 0.0,
 					"text": last})
 				flashes.erase(event.enemy.id)
 			"enemy_hit":
@@ -355,7 +355,7 @@ func _burst(enemy) -> void:
 	if not view.LOOKS.has(enemy.kind) or view.sim == null:
 		return
 	var look: Dictionary = view.LOOKS[enemy.kind]
-	var at: Vector2 = view.enemy_at(enemy.angle, shown_metres(enemy), view.enemy_half(enemy.kind, "0"))
+	var at: Vector2 = view.enemy_at(enemy.angle, shown_metres(enemy), view.enemy_half(enemy.kind, "0"), view.enemy_x(enemy))
 	death_rings.append({"at": at, "colour": look.colour, "age": 0.0})
 	var count: int = mini(int(SPARKS.get(enemy.kind, 10)), MAX_SPARKS - sparks.size())
 	for _spark in range(count):
@@ -401,7 +401,7 @@ func _chip(enemy: BattleSim.Enemy, critical: bool) -> void:
 	if chips.size() >= MAX_CHIPS or not view.LOOKS.has(enemy.kind):
 		return
 	var look: Dictionary = view.LOOKS[enemy.kind]
-	var at: Vector2 = view.enemy_at(enemy.angle, shown_metres(enemy), view.enemy_half(enemy.kind, view.shown_text(view.sim, enemy)))
+	var at: Vector2 = view.enemy_at(enemy.angle, shown_metres(enemy), view.enemy_half(enemy.kind, view.shown_text(view.sim, enemy)), view.enemy_x(enemy))
 	for n in range(CRIT_CHIPS if critical else CHIPS):
 		var heading := Vector2.from_angle(enemy.angle + _look_rng.randf_range(-0.9, 0.9))
 		chips.append({"at": at, "velocity": heading * CHIP_SPEED_PX * _look_rng.randf_range(0.5, 1.3),

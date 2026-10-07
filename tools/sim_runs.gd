@@ -60,6 +60,8 @@ extends SceneTree
 ## The digit ladder climbs the Number earned (D164, docs/THE_NUMBER.md section 17):
 ## --ladder peak pays each digit on a career's best peak instead, as before D164,
 ## and --ladder-scale N multiplies what the digits pay (careers only).
+## --top-down plays the top-down battle (D167, docs/TOP_DOWN.md): enemies fall
+## in columns towards the Number at the bottom.
 ## Coins from the Number earned (D162, docs/THE_NUMBER.md section 16):
 ## --earned-share S makes that share of a run's Coins follow the Number earned
 ## (0 to 1; the kill and wave Coins pay the rest), --earned-power P its power
@@ -704,6 +706,8 @@ func _tune(sim: BattleSim, options: Dictionary) -> bool:
 	sim.lock_holds_cash = options.has("lock-holds-cash")
 	if options.has("reserve"):
 		sim.reserve_share = float(options.reserve)
+	# Top-down (D167), off unless asked for.
+	sim.top_down = options.has("top-down")
 	# Coins from the Number earned (D162), off unless asked for.
 	for option in ["earned-share", "earned-power", "earned-scale"]:
 		if options.has(option):

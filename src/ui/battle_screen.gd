@@ -73,9 +73,10 @@ var resume: Dictionary = {}
 ## sets from the settings. A resumed run keeps the ones it started with; empty
 ## where nothing sets it, as the tools and tests that play the old rules.
 var tuning: Dictionary = {}
-## The invaders view (D166, a prototype, a setting): the Number at the bottom
-## with only the run upgrades below it, folded to their tabs until opened, and
-## the wave line at the top. Set before the screen is added.
+## Laid out for a top-down battle (D167): the Number at the bottom with only
+## the run upgrades below it, folded to their tabs until opened, and the wave
+## line at the top. Read from the rules of the run it shows, a resumed one's
+## included, as the screen is built.
 var invaders := false
 var _replay: RunReport.Replay
 var _resuming: Label
@@ -125,6 +126,8 @@ func _ready() -> void:
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	if workshop == null:
 		workshop = Workshop.new()
+	var rules = resume.get("start", {}).get("tuning", {}) if not resume.is_empty() else tuning
+	invaders = rules is Dictionary and rules.get("top_down", false) == true
 	_build()
 	if resume.is_empty():
 		start_run(randi())
@@ -199,6 +202,7 @@ func _adopt(run_sim: BattleSim) -> void:
 	_cash_chip.visible = not sim.number_cash
 	_banked = 0.0
 	_arena.sim = sim
+	_arena.invaders = sim.top_down
 	_upgrades.set_sim(sim)
 	_carry = 0.0
 	_real_seconds = 0.0

@@ -498,9 +498,9 @@ func _open_settings() -> void:
 	list.add_child(ComingSoon.setting("Confirm End run", "Ask before a run is ended.", ComingSoon.LATER))
 
 	_group(list, "Display")
-	# The invaders view (D166): a prototype layout, read as each battle starts.
-	list.add_child(_toggle("Invaders view (prototype)", settings.invaders, func(on: bool): settings.invaders = on))
-	list.add_child(ComingSoon.hint("The Number at the bottom, numbers coming down from the top. The battle is the same."))
+	# The top-down battle (D167): a prototype, read as each new run starts.
+	list.add_child(_toggle("Top-down battle (next run)", settings.top_down, func(on: bool): settings.top_down = on))
+	list.add_child(ComingSoon.hint("The Number at the bottom, numbers falling from the top. A prototype; a run already going keeps its own."))
 	list.add_child(ComingSoon.setting("Reduce motion", "Calmer light and fewer effects.", ComingSoon.LATER))
 	list.add_child(ComingSoon.setting("Haptics", "A buzz on a hit, on a phone.", ComingSoon.LATER))
 
