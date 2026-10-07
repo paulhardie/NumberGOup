@@ -94,3 +94,7 @@ If O1 fails, the result is reported with a proposal (a slower or lower line), no
 | Tier 3, level 20 | **37 / 17 (+118%)** | 20–41 | 10–25 | 85% / 26% |
 
 **Why:** a round orb crosses the field only along the top sixth of its circle, so it passes over any one column once a turn; the line is on the field all the time and, at the same speed, passes over every column about six times as often. The orbs go from about a quarter of the damage to most of it, and in Tier 3 the waves a tower reaches double.
+
+**A slower line, measured the same way (not built):** with orbs crossing the field once a turn (150 seconds at the first Orb Speed level, about 10 at the last), each column is passed as often as a round orb passes it. The median waves are 120 / 110, 40 / 35, 309 / 309, 38 / 38 and 22 / 17: four cells pass and Tier 3 (+29%, its six seeds spread 10 to 25 either way) still fails, with the orbs at 22% to 47% of the damage. It also breaks O3, since a first-level orb would take two and a half minutes to cross.
+
+**The owner's call:** the lively line as built (strong: orbs become most of the damage), or the slow line (close to today's balance, but crawling until Orb Speed is bought). Recommended: the slow line, since The Tower's own orbs take two and a half minutes a turn at the first level, the line is in sight either way, and bought Orb Speed makes it brisk.

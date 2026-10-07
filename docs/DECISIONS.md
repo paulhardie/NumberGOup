@@ -2499,4 +2499,5 @@ Rules:
   1. **A run option, `orb_line`, recorded only while on and only with `top_down`:** orbs travel left and right across the 60 m field at the height the round orbs' circle stands at, as fast along the line as they would go round the circle, and kill what they touch as round orbs do.
   2. **The game's top-down runs start with it** (Settings' top-down switch). A top-down run saved before it keeps round orbs; the round battle is untouched.
 - **Why:** round orbs top-down are on the field only along the top sixth of their circle, so mostly off screen; a patrol line is always in sight and reads as the field's own defence.
-- **Revisit when:** the line is measured (TOP_DOWN.md 6, O1), or the owner has played it.
+- **Measured (7 October 2026, TOP_DOWN.md section 6): O1 FAIL.** As fast as round orbs, the line passes each column about six times as often: orbs go from a quarter of the damage to most of it, and Tier 3 at level 20 reaches wave 37 against 17. A line crossing once a turn comes close (four of five cells pass; Tier 3 22 against 17) but crawls at low Orb Speed.
+- **Revisit when:** the owner chooses the lively line or the slow one (recommended: slow), then re-measure.
