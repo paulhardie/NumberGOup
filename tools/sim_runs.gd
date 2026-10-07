@@ -61,7 +61,8 @@ extends SceneTree
 ## --ladder peak pays each digit on a career's best peak instead, as before D164,
 ## and --ladder-scale N multiplies what the digits pay (careers only).
 ## --top-down plays the top-down battle (D167, docs/TOP_DOWN.md): enemies fall
-## in columns towards the Number at the bottom.
+## in columns towards the Number at the bottom; with --orb-line too, its orbs
+## patrol a line across the field (D168), as the game's top-down runs have them.
 ## Coins from the Number earned (D162, docs/THE_NUMBER.md section 16):
 ## One enemy a wave (D165, docs/THE_NUMBER.md section 18): --one-enemy sends each
 ## wave as one enemy from the top, standing for the whole wave; --one-enemy-health H
@@ -712,6 +713,8 @@ func _tune(sim: BattleSim, options: Dictionary) -> bool:
 		sim.reserve_share = float(options.reserve)
 	# Top-down (D167), off unless asked for.
 	sim.top_down = options.has("top-down")
+	# Its orbs as a patrol line (D168), as the game's top-down runs have them.
+	sim.orb_line = options.has("orb-line")
 	# Coins from the Number earned (D162), off unless asked for.
 	for option in ["earned-share", "earned-power", "earned-scale"]:
 		if options.has(option):

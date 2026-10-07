@@ -17,7 +17,7 @@ static func default_tuning() -> Dictionary:
 
 
 ## The Number-as-capital trial's measuring options (D152), the fuel
-## economy's (D155), the Number as Cash (D156), Coins from the Number earned (D162), one enemy a wave (D165), and what each is when off. A run records one only while it is on, so every run and save made
+## economy's (D155), the Number as Cash (D156), Coins from the Number earned (D162), one enemy a wave (D165), top-down and its orbs (D167, D168), and what each is when off. A run records one only while it is on, so every run and save made
 ## without them is byte for byte what it was.
 static func trial_tuning() -> Dictionary:
 	return {"thieves": false, "thief_recovery": 0.0, "thief_speed": 1.0, "thief_fade": 0.0,
@@ -25,7 +25,7 @@ static func trial_tuning() -> Dictionary:
 		"shot_price": 0.0, "bounty_share": 0.0, "free_bounty_share": 0.0, "base_regen": 0.0,
 		"regen_scale": 1.0, "hold_doomed": false,
 		"number_cash": false, "upgrades_off": false, "reserve_share": 0.0, "lock_holds_cash": false,
-		"earned_share": 0.0, "earned_power": 1.0, "earned_scale": 0.0, "top_down": false,
+		"earned_share": 0.0, "earned_power": 1.0, "earned_scale": 0.0, "top_down": false, "orb_line": false,
 		"one_enemy": false, "one_enemy_health": 1.0, "one_enemy_attack": 1.0, "one_enemy_drip": false}
 
 
@@ -41,6 +41,8 @@ static func game_tuning(upgrades_off := false, top_down := false) -> Dictionary:
 	# The top-down battle (D167), chosen in Settings before a run.
 	if top_down:
 		tuning.top_down = true
+		# Its orbs patrol a line across the field (D168).
+		tuning.orb_line = true
 	return tuning
 
 
@@ -77,8 +79,10 @@ static func valid_tuning(tuning) -> bool:
 	if not (lock.full_wave >= lock.from_wave and lock.health > 0.0): return false
 	var options := {}
 	for key in trial: options[key] = tuning.get(key, trial[key])
-	for key in ["thieves", "thief_priority", "hold_doomed", "number_cash", "upgrades_off", "lock_holds_cash", "top_down", "one_enemy", "one_enemy_drip"]:
+	for key in ["thieves", "thief_priority", "hold_doomed", "number_cash", "upgrades_off", "lock_holds_cash", "top_down", "orb_line", "one_enemy", "one_enemy_drip"]:
 		if not options[key] is bool: return false
+	# Patrol-line orbs (D168) are a top-down rule.
+	if options.orb_line and not options.top_down: return false
 	for key in ["thief_recovery", "thief_fade", "shot_price", "bounty_share", "base_regen", "regen_scale"]:
 		if not number(options[key]) or float(options[key]) < 0.0 or float(options[key]) > 1e6: return false
 	# The free killers' share is capped at half a shot kill's (THE_NUMBER.md 11.14).

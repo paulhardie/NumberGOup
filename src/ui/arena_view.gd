@@ -62,6 +62,8 @@ const CRIT_TRAIL_PX := 15.0
 const ORB_PX := 16
 const ORB_TRAIL_PX := 28.0
 const ORB_TRAIL_ALPHA := 0.35
+## The patrol line's track (D168), fainter than a trail.
+const ORB_TRACK_ALPHA := 0.1
 ## The Wall is a pair of brackets round the Number, since brackets are worked
 ## out first and the Wall is hit first: BRACKET_SCALE times the Number's size,
 ## in Inter at its thinnest, WALL_GAP_PX clear of its digits. When it falls
@@ -491,6 +493,9 @@ func _draw_orbs() -> void:
 	if radius_px <= 0.0:
 		return
 	var zero := mono_cut.get_string_size("0", HORIZONTAL_ALIGNMENT_LEFT, -1, ORB_PX)
+	if sim.orb_line:
+		_draw_orb_line(zero)
+		return
 	# The trail stops short of the 0 rather than running through it.
 	var gap: float = zero.x * 0.7 / radius_px
 	var span: float = ORB_TRAIL_PX / radius_px
@@ -506,6 +511,30 @@ func _draw_orbs() -> void:
 		if not invaders or absf(points[0].x - points[8].x) < size.x * 0.5:
 			draw_polyline_colors(points, colours, 1.2, true)
 		var at: Vector2 = project(Vector2.from_angle(angle) * radius_m)
+		draw_string(mono_cut, at + Vector2(-zero.x * 0.5, ORB_PX * 0.35), "0", HORIZONTAL_ALIGNMENT_LEFT, -1, ORB_PX, Palette.ACCENT)
+
+
+## Top-down patrol-line orbs (D168): a faint track across the field where they
+## run, and each 0 with its trail behind it along the track, folding back at
+## an edge as the orb did.
+func _draw_orb_line(zero: Vector2) -> void:
+	var orbs := sim.defences
+	if orbs.orb_line_travel().is_empty():
+		return
+	var half: float = Guesses.TOP_DOWN_WIDTH_M * 0.5
+	draw_line(project(Vector2(-half, -orbs.orb_radius())), project(Vector2(half, -orbs.orb_radius())), Color(Palette.ACCENT, ORB_TRACK_ALPHA), 1.0, true)
+	var metres: float = px_per_metre()
+	var gap: float = zero.x * 0.7 / metres
+	var span: float = ORB_TRAIL_PX / metres
+	for travelled in orbs.orb_line_travel():
+		var points := PackedVector2Array()
+		var colours := PackedColorArray()
+		for step in range(9):
+			var along := step / 8.0
+			points.append(project(orbs.orb_line_point(travelled - gap - span * (1.0 - along))))
+			colours.append(Color(Palette.ACCENT, ORB_TRAIL_ALPHA * along))
+		draw_polyline_colors(points, colours, 1.2, true)
+		var at: Vector2 = project(orbs.orb_line_point(travelled))
 		draw_string(mono_cut, at + Vector2(-zero.x * 0.5, ORB_PX * 0.35), "0", HORIZONTAL_ALIGNMENT_LEFT, -1, ORB_PX, Palette.ACCENT)
 
 
