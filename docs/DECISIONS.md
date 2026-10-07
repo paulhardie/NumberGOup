@@ -2473,3 +2473,13 @@ Rules:
 - **Open:** whether enemies in this view should show their health rather than the hit they will land (most read 0 to 2 after the defences, which looks flat at this size); whether the view becomes the game; and the owner's idle mode ("an idle mode that just plays on repeat outside of [a run], that still rewards idle play, or not"), which D089 already accepts in direction.
 - **Revisit when:** the owner has played it.
 
+
+## D167 — True top-down: enemies fall in columns towards the Number at the bottom
+
+- **Status:** Accepted (2026-10-07) on the owner's direction, after D166's drawing-only view: "Do true top down". Criteria first ([TOP_DOWN.md](TOP_DOWN.md) section 2); the results decide whether it becomes the game's rule.
+- **Decision:**
+  1. **A run option, `top_down`, recorded only while on:** enemies fall straight down in columns across a 60 m field, distance becomes height, and every position is true (TOP_DOWN.md section 1). Round runs, saved runs and reports play exactly as before.
+  2. **The Settings switch starts the next run top-down** and the battle screen draws it with the Number at the bottom; this replaces D166's drawing-only mapping. A resumed run is drawn as it was played.
+  3. **The round battle stays the default** until the owner decides, after playing and after the criteria are read.
+- **Supersedes:** D166 in part (the view becomes the rule's, not a projection of the round battle).
+- **Revisit when:** the criteria are measured, and the owner has played it.
