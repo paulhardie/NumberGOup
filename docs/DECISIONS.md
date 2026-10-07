@@ -2500,5 +2500,5 @@ Rules:
   2. **The game's top-down runs start with it** (Settings' top-down switch). A top-down run saved before it keeps round orbs; the round battle is untouched.
 - **Why:** round orbs top-down are on the field only along the top sixth of their circle, so mostly off screen; a patrol line is always in sight and reads as the field's own defence.
 - **Measured (7 October 2026, TOP_DOWN.md section 6): O1 FAIL.** As fast as round orbs, the line passes each column about six times as often: orbs go from a quarter of the damage to most of it, and Tier 3 at level 20 reaches wave 37 against 17. A line crossing once a turn comes close (four of five cells pass; Tier 3 22 against 17) but crawls at low Orb Speed.
-- **The owner chose the slow line** (7 October, "Go slower for sure"); re-measured in TOP_DOWN.md section 6.
+- **The owner chose the slow line** (7 October, "Go slower for sure"). Re-measured (TOP_DOWN.md section 6): four of five cells within 20%; Tier 3 at level 20 reaches wave 23 against 19 over 18 seeds (+21%), so orbs stay a little stronger than round ones there. Merging accepts that.
 - **Revisit when:** the owner has played it.
