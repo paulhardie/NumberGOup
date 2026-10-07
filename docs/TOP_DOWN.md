@@ -39,3 +39,12 @@ Measured with `python3 tools/topdown_trial.py` (criteria committed first, unchan
 **What it means:** top-down changes how the battle looks and reads, not how hard Tier 1 is. Range, contact, knockback and targeting all follow distance, which is now height, so the waves a build reaches are the same.
 
 **Not measured:** no trial cell opens orbs, bounce shots, land mines or meets a Protector (they open above these budgets or later in Tier 1), so where the geometry differs most (enemies three times denser across 60 m than round a 30 m ring) is unmeasured. The land-mine height rule (mines laid no lower than enemies stop, from the independent review) came after the measurement; no measured cell lays mines. A player, a phone and Tier 2 and 3 are not checked.
+
+## 4. How it looks (7 October 2026)
+
+Drawing only; the battle is unchanged.
+
+- **An enemy that hits shows its health**, counting down as it is shot, with the hit it will land small under it ("−2"), and nothing there when the defences would take that hit whole. A Divider keeps its ÷, a Lock its = and a Vampire its drain, since those are what they do. The round battle still shows the hit, as D102 has it.
+- **A faint line across the field where enemies stop,** broken where the Number stands, so an enemy reaching the bottom at an edge reads as having arrived.
+- **A melee hit flashes a line** in the enemy's colour from where it stands to the top of the Number, for a quarter of a second.
+
