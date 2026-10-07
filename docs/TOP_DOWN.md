@@ -61,3 +61,24 @@ Drawing only; the battle is unchanged.
 **Criteria, if built (against today's top-down, the same bands as section 2):** T1 to T4, plus a readability check by eye: in screenshots of waves 5, 15 and 35, the pattern is visible without being told it is there.
 
 **Recommendation:** A first (balance-neutral by design, small, and it already makes waves look made), with B as a measuring option after, if the owner wants true rows. **The owner's call:** A, B, or both.
+
+
+## 6. Orbs as a patrol line (D168, 7 October 2026)
+
+**Why:** top-down, round orbs circle the Number 60 m out, so they cross the field only along the top sixth of their circle and are off the screen most of the time. The owner chose, from three mock-ups, orbs that patrol left and right above the Number.
+
+**The rule (a run option, `orb_line`, recorded only while on, and only with `top_down`):**
+
+- Orbs travel straight across the field and back at the height the round orbs' circle stands at (Guesses.ORB_MIN_RADIUS_M, 60 m, further as Range grows past it, as D108 has it), so they still sweep the approach rather than the Range's edge, and enemies Knockback holds at a 60 m Range sit on them as they did. The mock-ups drew the line lower, at about 33 m; that height was for the picture, and it would put the orbs on top of ranged enemies standing at a 30 m Range.
+- They move as fast along the line as round orbs move round their circle (Orb Speed, rotations a minute, times the circle's length): at the first Orb Speed level a crossing takes about 24 seconds, at the last about 1.6. Each turns back at the field's edge.
+- With two or more they share the patrol evenly: two start at opposite edges and cross in the middle.
+- They kill what they touch exactly as round orbs do (within Guesses.ORB_HIT_M, unless it's one orbs can't kill or a Protector shields it), and each tick checks the whole stretch an orb covered, including a turn at the edge.
+- The game's top-down runs start with it. A top-down run saved before it keeps round orbs to its end, and the round battle is untouched.
+
+**Pass criteria (written before building; patrol line against today's top-down round orbs, the game's rules, 6 seeds each):**
+
+- **O1, balance where orbs work:** for each cell, the median wave reached with the line is within 20% of the round orbs' (the T4 band): 1,000,000 Coins spent `blender_orbs`, `blender_orbline` and `spread`, and Tier 2 and Tier 3 with every Workshop row at level 20. How each cell's damage splits, and the orbs' share, is reported beside it, never a criterion.
+- **O2, nothing else moves:** the round battle is the same run for run (the balance harness's quick compare), and a top-down run without the option keeps round orbs (a test).
+- **O3, on screen:** the orbs stay inside the field, at one height, for the whole run, and a crossing takes between 1 and 30 seconds across the Orb Speed levels (tests).
+
+If O1 fails, the result is reported with a proposal (a slower or lower line), not tuned until it passes.
