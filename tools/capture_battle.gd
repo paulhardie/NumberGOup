@@ -8,6 +8,8 @@ extends SceneTree
 ## xvfb-run -a -s "-screen 0 1024x1100x24".
 ## `-- --invaders` captures only the top-down battle (D167): runs at a few moments,
 ## a strong tower with orbs and bounces, and the run upgrades opened.
+## `-- --one-enemy [ATTACK]` captures only one enemy a wave (D165, measuring): a
+## wave's enemy as it sets off from the top, half way down, and at the Number.
 
 const Workshop = preload("res://src/tower/workshop.gd")
 const HomeScreen = preload("res://src/ui/home_screen.gd")
@@ -30,8 +32,14 @@ func _init() -> void:
 
 func _capture() -> void:
 	DirAccess.make_dir_recursive_absolute(FOLDER)
-	if "--invaders" in OS.get_cmdline_user_args():
+	var args := OS.get_cmdline_user_args()
+	if "--invaders" in args:
 		await _invaders()
+		quit()
+		return
+	if "--one-enemy" in args:
+		var at := args.find("--one-enemy")
+		await _one_enemy(float(args[at + 1]) if at + 1 < args.size() and args[at + 1].is_valid_float() else 1.0)
 		quit()
 		return
 	var progress := Workshop.new()
@@ -569,6 +577,41 @@ func _invaders() -> void:
 		await _frames()
 		_save_png(String(shot[0]))
 		print("%s: wave %d, alive %s, %d enemies" % [shot[0], screen.sim.wave, screen.sim.alive, screen.sim.enemies.size()])
+		screen.queue_free()
+		await process_frame
+
+
+## One enemy a wave (D165): a run with a light Workshop, caught on its fourth
+## wave as the enemy comes into view at the top, half way in, and hitting.
+func _one_enemy(attack: float) -> void:
+	var tuning := RunConfig.game_tuning()
+	tuning.one_enemy = true
+	tuning.one_enemy_attack = attack
+	for moment in [[48.0, "top"], [30.0, "half_way"], [0.0, "arrived"]]:
+		var screen := BattleScreen.new()
+		screen.tuning = tuning
+		var built := Workshop.new()
+		built.levels = {"damage": 3, "attack_speed": 2, "health": 12, "health_regen": 6, "defense_absolute": 4}
+		built.open_groups.append("defense")
+		screen.workshop = built
+		root.add_child(screen)
+		await process_frame
+		screen.start_run(11)
+		screen.set_process(false)
+		var caught := false
+		while screen.sim.alive and not caught and screen.sim.time < 3600.0:
+			screen.sim.step()
+			screen.sim.events.clear()
+			if screen.sim.wave >= 4:
+				for enemy in screen.sim.enemies:
+					if enemy.merged > 0 and enemy.wave == screen.sim.wave and (enemy.hits > 0 if float(moment[0]) == 0.0 else enemy.distance <= float(moment[0])):
+						caught = true
+		for _i in range(40):
+			screen._arena.absorb([], 0.05)
+		screen._refresh()
+		screen._arena.queue_redraw()
+		await _frames()
+		_save_png("one_enemy_" + String(moment[1]))
 		screen.queue_free()
 		await process_frame
 

@@ -27,6 +27,9 @@ const OUR_KINDS := ["divider", "lock"]
 const TRIAL_FLOATS := ["thief_held", "_thief_release", "thief_taken", "thief_recovered", "thief_escaped"]
 const TRIAL_INTS := ["thefts", "thieves_escaped"]
 const ENEMY_FLIGHT := ["carried", "carry_health", "carry_paid"]
+## One enemy a wave's worth (D165), written only on an enemy standing for a wave.
+const ENEMY_MERGED_FLOATS := ["worth_cash", "worth_coins", "dripped"]
+const ENEMY_MERGED_INTS := ["merged", "worth_basics"]
 ## The fuel economy's ledger (D155), written only while it is on, the same way.
 const FUEL_FLOATS := ["fuel_spent"]
 const FUEL_INTS := ["shots_paid", "peak_wave"]
@@ -100,6 +103,9 @@ static func _enemy(enemy) -> Dictionary:
 	# Top-down (D167): its column, written only for an enemy falling in one.
 	if enemy.straight:
 		result.x = enemy.x
+	if enemy.merged > 0:
+		for key in ENEMY_MERGED_FLOATS + ENEMY_MERGED_INTS:
+			result[key] = enemy.get(key)
 	return result
 
 
@@ -176,6 +182,8 @@ static func _valid_state(data) -> bool:
 					or int(held.free_levels[id]) > int(state.run_levels.get(id, 0)): return false
 	# Top-down (D167): a column only with its rule.
 	var columns: bool = tuned is Dictionary and tuned.get("top_down", false) == true
+	# One enemy a wave (D165): a merged enemy or wave only with its rule.
+	var merging: bool = tuned is Dictionary and tuned.get("one_enemy", false) == true
 	# Coins from the Number earned (D162): its ledger goes with its rule, never without or alone.
 	if state.has("earned") != (tuned is Dictionary and float(tuned.get("earned_share", 0.0)) > 0.0): return false
 	if state.has("earned"):
@@ -222,6 +230,13 @@ static func _valid_state(data) -> bool:
 			if float(enemy.carry_health) <= 0.0 or float(enemy.carry_paid) > 1.0: return false
 		if enemy.has("x") != columns: return false
 		if enemy.has("x") and (not RunConfig.number(enemy.x) or absf(float(enemy.x)) > Guesses.TOP_DOWN_WIDTH_M * 0.5 + 1e-6): return false
+		if enemy.has("merged"):
+			if not merging or enemy.kind != "boss": return false
+			for key in ENEMY_MERGED_FLOATS:
+				if not RunConfig.number(enemy.get(key)) or float(enemy[key]) < 0.0: return false
+			for key in ENEMY_MERGED_INTS:
+				if not _integer(enemy.get(key)) or int(enemy[key]) < 0: return false
+			if int(enemy.merged) < 1: return false
 	var seen := {}
 	for id in data.field:
 		if not _integer(id) or not data.targets.has(str(int(id))) or seen.has(str(int(id))):
@@ -253,6 +268,10 @@ static func _valid_state(data) -> bool:
 				or not RunConfig.number(item.get("at")) or float(item.at) < previous \
 				or (item.has("angle") and not RunConfig.number(item.angle)):
 			return false
+		if item.has("members"):
+			if not merging or not item.members is Array or item.members.is_empty() or item.members.size() > 10000: return false
+			for kind in item.members:
+				if not kind is String or not _known_kind(kind) or not Guesses.CASH_BY_TYPE.has(kind): return false
 		previous = float(item.at)
 	var defences = data.get("defences")
 	if not defences is Dictionary or not defences.get("mines") is Array or defences.mines.size() > 30:
@@ -339,6 +358,11 @@ static func restore(data) -> BattleSim:
 		if data.targets[id].has("x"):
 			enemy.straight = true
 			enemy.x = float(data.targets[id].x)
+		if data.targets[id].has("merged"):
+			for key in ENEMY_MERGED_FLOATS:
+				enemy.set(key, float(data.targets[id][key]))
+			for key in ENEMY_MERGED_INTS:
+				enemy.set(key, int(data.targets[id][key]))
 		targets[id] = enemy
 	sim.enemies.clear()
 	sim._protectors.clear()
@@ -363,7 +387,7 @@ static func restore(data) -> BattleSim:
 		sim.spawns.set(key, int(data.spawns[key]))
 	sim.spawns.schedule.clear()
 	for item in data.spawns.schedule:
-		sim.spawns.schedule.append(item.duplicate())
+		sim.spawns.schedule.append(item.duplicate(true))
 	sim.spawns.divider_due = float(data.spawns.divider_due)
 	sim.spawns._protector_due = data.spawns.protector_due
 	sim.spawns._spawn_rng.state = int(data.rng[0])

@@ -63,6 +63,10 @@ extends SceneTree
 ## --top-down plays the top-down battle (D167, docs/TOP_DOWN.md): enemies fall
 ## in columns towards the Number at the bottom.
 ## Coins from the Number earned (D162, docs/THE_NUMBER.md section 16):
+## One enemy a wave (D165, docs/THE_NUMBER.md section 18): --one-enemy sends each
+## wave as one enemy from the top, standing for the whole wave; --one-enemy-health H
+## and --one-enemy-attack A scale its summed health and attack (default 1);
+## --one-enemy-drip pays its Cash as it is hurt rather than all on the kill.
 ## --earned-share S makes that share of a run's Coins follow the Number earned
 ## (0 to 1; the kill and wave Coins pay the rest), --earned-power P its power
 ## (default 1) and --earned-scale K its constant. Each run prints the Coins it paid.
@@ -710,6 +714,12 @@ func _tune(sim: BattleSim, options: Dictionary) -> bool:
 	sim.top_down = options.has("top-down")
 	# Coins from the Number earned (D162), off unless asked for.
 	for option in ["earned-share", "earned-power", "earned-scale"]:
+		if options.has(option):
+			sim.set(option.replace("-", "_"), float(options[option]))
+	# One enemy a wave (D165), off unless asked for.
+	sim.one_enemy = options.has("one-enemy")
+	sim.one_enemy_drip = options.has("one-enemy-drip")
+	for option in ["one-enemy-health", "one-enemy-attack"]:
 		if options.has(option):
 			sim.set(option.replace("-", "_"), float(options[option]))
 	# The fuel economy (D155), off unless asked for.

@@ -17,7 +17,7 @@ static func default_tuning() -> Dictionary:
 
 
 ## The Number-as-capital trial's measuring options (D152), the fuel
-## economy's (D155), the Number as Cash (D156), Coins from the Number earned (D162), and what each is when off. A run records one only while it is on, so every run and save made
+## economy's (D155), the Number as Cash (D156), Coins from the Number earned (D162), one enemy a wave (D165), and what each is when off. A run records one only while it is on, so every run and save made
 ## without them is byte for byte what it was.
 static func trial_tuning() -> Dictionary:
 	return {"thieves": false, "thief_recovery": 0.0, "thief_speed": 1.0, "thief_fade": 0.0,
@@ -25,7 +25,8 @@ static func trial_tuning() -> Dictionary:
 		"shot_price": 0.0, "bounty_share": 0.0, "free_bounty_share": 0.0, "base_regen": 0.0,
 		"regen_scale": 1.0, "hold_doomed": false,
 		"number_cash": false, "upgrades_off": false, "reserve_share": 0.0, "lock_holds_cash": false,
-		"earned_share": 0.0, "earned_power": 1.0, "earned_scale": 0.0, "top_down": false}
+		"earned_share": 0.0, "earned_power": 1.0, "earned_scale": 0.0, "top_down": false,
+		"one_enemy": false, "one_enemy_health": 1.0, "one_enemy_attack": 1.0, "one_enemy_drip": false}
 
 
 ## The rules a new run of the game starts with (D158): the Number is Cash
@@ -76,7 +77,7 @@ static func valid_tuning(tuning) -> bool:
 	if not (lock.full_wave >= lock.from_wave and lock.health > 0.0): return false
 	var options := {}
 	for key in trial: options[key] = tuning.get(key, trial[key])
-	for key in ["thieves", "thief_priority", "hold_doomed", "number_cash", "upgrades_off", "lock_holds_cash", "top_down"]:
+	for key in ["thieves", "thief_priority", "hold_doomed", "number_cash", "upgrades_off", "lock_holds_cash", "top_down", "one_enemy", "one_enemy_drip"]:
 		if not options[key] is bool: return false
 	for key in ["thief_recovery", "thief_fade", "shot_price", "bounty_share", "base_regen", "regen_scale"]:
 		if not number(options[key]) or float(options[key]) < 0.0 or float(options[key]) > 1e6: return false
@@ -87,6 +88,8 @@ static func valid_tuning(tuning) -> bool:
 	if not number(options.earned_power) or float(options.earned_power) <= 0.0 or float(options.earned_power) > 4.0: return false
 	if not number(options.earned_scale) or float(options.earned_scale) < 0.0 or float(options.earned_scale) > 1e6: return false
 	if not number(options.thief_speed) or float(options.thief_speed) <= 0.0 or float(options.thief_speed) > 1e3: return false
+	for key in ["one_enemy_health", "one_enemy_attack"]:
+		if not number(options[key]) or float(options[key]) <= 0.0 or float(options[key]) > 1e3: return false
 	return number(options.number_power) and float(options.number_power) >= 0.0 and float(options.number_power) <= 4.0
 
 

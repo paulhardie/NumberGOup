@@ -18,6 +18,7 @@
 | 15 | Coins from the peak Number: what the peak is made of (6 October) | **Live finding.** The peak is the Health row's Number for strong builds, so the reward follows the Number earned (16) |
 | 16 | Coins from the Number earned (D162): definitions, options and pass criteria | **Measured: all six configurations fail** (16.7). Options built, off by default; not the game's rules |
 | 17 | Stage 2: the digit ladder keyed on the Number earned (D163, D164) | **The game since D164:** digits climb the Number earned, digit 100 pays 25 (17.7). Both declared scales had failed (17.6); the owner chose the variant |
+| 18 | One enemy a wave, from the top (D165): an exploratory trial | **Measured, not the game.** Paced like today with two fixes; half of each wave is an empty screen and the crowd rows go dead (18.4) |
 
 ### The Number today (D158)
 
@@ -1274,3 +1275,52 @@ The owner: "yes make it the game with digit 100 at 25". **Since D164 a digit pay
 | even (70 runs) | 13 → 13 | 63 → 63 | never → never | 3,026 → 2,419 |
 
   The core career reaches wave 30 at run 33, as at full rewards in 17.6: **halving digit 100 did not undo L5 there**, so the early pace is the accepted cost the owner chose. The even career's loss is a bot artefact: 25 fewer Coins at digit 100 leave it a rank short at run 61, it loses to the wave-10 boss from then on, and it spends digit 1,000's Coins opening Multishot rather than on ranks. Its median wave (10) is unchanged.
+
+
+## 18. One enemy a wave, from the top (7 October 2026, D165)
+
+**The owner's direction:** "Try the single enemy per wave. (Have it travel from the top of the screen down towards the player.) Report back on how it is, and if it could work." **An exploratory trial: no criteria were written first,** so nothing here passes or fails; it reports what the bots and the screen show.
+
+### 18.1 The option
+
+`one_enemy` (off in the game, recorded only while on): each wave is rolled by the game's odds, then sent as **one enemy standing for the whole wave**, from straight above, as the wave starts. Its health is the wave's summed (× `one_enemy_health`), its attack the wave's summed (× `one_enemy_attack`), it walks at a basic's speed, carries the boss's traits (orbs and shockwaves don't take it, Thorns hurts it half), and pays the wave's Cash and Coins on the kill. `one_enemy_drip` pays its Cash as it is hurt instead, a share for each share of its health taken off, the rest on the kill. Waves keep their 35-second clock. `sim_runs.gd --one-enemy [--one-enemy-attack A] [--one-enemy-health H] [--one-enemy-drip]`; `capture_battle.gd -- --one-enemy A` for screenshots.
+
+A wave stands for 12 to 29 enemies (12 at wave 1, 18 at 10, 23 at 30, 29 at 50 and 100), so its summed hit is 12 to 29 times a basic's.
+
+**What the comparisons are (found by the independent review):** wave 1 is the same wave as without the option, but a merged wave draws no directions from the spawn stream and the caps turn none away, so from wave 2 a seed rolls different waves (seed 5's waves 2 to 5: 10, 11, 14 and 12 enemies against 10, 10, 15 and 9). The odds are the game's, so medians compare; same-seed pairs do not. Also: a merged Scatter pays and weighs without the pieces it would split into; a merged Divider counts as spawned but never lands; every wave's enemy has the boss's kind, so the screen reads "Wave N · Boss" each wave.
+
+### 18.2 Results: single runs (6 seeds, the game's rules, buying core, median wave)
+
+| Workshop | Today (swarm) | One enemy, attack ×1 | ×0.25 | ×0.1 | ×0.05 | ×0.05 with the drip |
+|---|---|---|---|---|---|---|
+| Fresh | 4 | 1 | 1 | 2 | 2 | **4** |
+| 10K core | 31 | 10 | 18 | 20 | 30 | |
+| 10K turtle | 41 | 9 | 18 | 30 | 47 | |
+| 100K core | 51 | 20 | 30 | 40 | 51 | **51** |
+| 100K turtle | 83 | 20 | 40 | 60 | 86 | |
+
+- **The literal version is unplayable.** A fresh tower dies on wave 1 in 12 seconds: the wave's hits land at once, and Defense Absolute comes off one summed hit instead of each of a dozen.
+- **At about one enemy's hit (×0.05) a built tower does as it does today,** within a wave or two (the turtle a little better, since nothing reaches it from range).
+- **A fresh tower still dies by wave 2 without the drip,** because nothing pays until the wave's one enemy dies, so there is no Cash to buy the first upgrades mid-wave. The drip restores wave 4.
+- Every death is to the wave's enemy; at ×0.1 and above, deaths gather on the boss waves (10, 20, 30), where the boss's health joins the sum.
+
+### 18.3 Results: careers (×0.05, against today's, D164's baseline)
+
+| Career | Wave 10 | Wave 20 | Wave 30 | Best (runs) | Coins |
+|---|---|---|---|---|---|
+| Core, today | run 8 | 13 | 33 | 31 (50) | 4,722 |
+| Core, one enemy with the drip | 7 | 17 | 35 | 31 (50) | 4,903 |
+| Core, one enemy, Cash on the kill | 28 | 49 | never | 20 (50) | 1,000 |
+| Grow, today | 13 | 25 | 43 | 39 (70) | 13,950 |
+| Grow, one enemy with the drip | 14 | 25 | 37 | 35 (70) | 14,557 |
+
+### 18.4 What it means
+
+1. **It can be balanced to today's pace,** with two changes the literal version lacks: an attack near one enemy's, and Cash paid as it is hurt.
+2. **Half of each wave is an empty screen.** With a built tower (core rows, about wave 20) no enemy stands on the field 51% of the time, against 7% today, and an enemy lives 14 seconds. It walks the first 55 metres of its 100 above the visible field, so it shows for about 6 of them. The next wave waits on the 35-second clock.
+3. **The crowd rows go dead:** Multishot, Bounce Shot, Orbs, Shockwave and much of Knockback do nothing or little against one heavy enemy, and ranged enemies, Dividers and Locks fold into its health, so our own arithmetic enemies vanish unless they come back as the wave's enemy.
+4. **On screen:** its label is what it does to the Number after the defences, so a soaked hit reads "0"; when it arrives it overlaps the top of the Number.
+5. **If it is wanted,** the next things to try are the next wave starting when the enemy dies (which also shortens runs), the enemy entering at the edge of the visible field, its health as its label, and each wave's enemy taking one of our kinds (a Divider wave, a Lock wave) so the arithmetic comes back.
+
+**Not checked:** a player; Cards; Tier 2 and 3; any criteria (none were written).
+

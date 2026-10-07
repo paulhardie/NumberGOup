@@ -2463,6 +2463,13 @@ Rules:
 - **Supersedes:** D107 in part (what a digit is measured on, and digit 100's Coins).
 - **Revisit when:** the owner plays it, or Labs or tiers change what a run earns.
 
+## D165 — One enemy a wave, from the top: tried as a measuring option
+
+- **Status:** Accepted (2026-10-07) as an exploratory trial on the owner's direction: "Try the single enemy per wave. (Have it travel from the top of the screen down towards the player.) Report back on how it is, and if it could work." **Not the game's rules.**
+- **Decision:** build it as measuring options (`one_enemy`, `one_enemy_health`, `one_enemy_attack`, `one_enemy_drip`), off by default and recorded in a run only while on, with the snapshot keeping a merged enemy's worth so a resumed run plays the same. No criteria were written first; the results (THE_NUMBER.md 18) are readings, not verdicts.
+- **Measured (18.2 to 18.4):** the literal version is unplayable; at about one enemy's hit and with Cash paid as it is hurt it paces like today (core career wave 30 at run 35 against 33). Half of each wave is an empty screen (51% against 7%), and the crowd rows and our own enemies go dead.
+- **Revisit when:** the owner decides whether to pursue it (with the next things to try in 18.4) or drop it.
+
 ## D166 — The invaders view: the Number at the bottom, numbers coming down from the top
 
 - **Status:** Accepted (2026-10-07) as a prototype, replaced in part by D167 (the view became the top-down rule's own, not a projection of the round battle), on the owner's direction: "What I'd want is the number (the player) to be at the very bottom of the screen, with only the workshop buttons below it (they can reveal themselves in a way that doesn't distract too much) but I still think a workshop, cards and labs are a good idea. Bounce shots etc, thorns, regen … Basically think space invaders, we are at the bottom of the screen, all numbers slowly come from the [top], and we shoot upwards to try kill them all." The agent read "come from the bottom" as from the top, since the player shoots upwards.

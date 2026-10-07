@@ -55,6 +55,16 @@ class Enemy:
 	var carry_health := 0.0
 	## The share of the bite already paid back, 0 to 1.
 	var carry_paid := 0.0
+	## One enemy a wave (D165, measuring): how many of the wave's enemies this
+	## one stands for, 0 for every ordinary enemy; and what they would have
+	## paid: the sum of their Cash weights and Coins, and how many were basics
+	## (whose Coins are a rule's, read at the kill).
+	var merged := 0
+	var worth_cash := 0.0
+	var worth_coins := 0.0
+	var worth_basics := 0
+	## The Cash it has paid as it was hurt, with `one_enemy_drip` (D165).
+	var dripped := 0.0
 
 	## Top-down (D167): it falls straight down its column, `x` metres across
 	## from the Number, its distance a height.
@@ -273,6 +283,22 @@ var earned_coins := 0.0
 ## columns across Guesses.TOP_DOWN_WIDTH_M, the column drawn where the round
 ## battle drew a direction, and distance is height (Enemy.straight).
 var top_down := false
+## One enemy a wave (D165): a measuring option, off in the game and kept out of
+## a run's recorded tuning while off. With `one_enemy` each wave's enemies,
+## rolled exactly as without it, come as one, from the top of the field as the
+## wave starts: their health summed (times `one_enemy_health`), their attack
+## summed (times `one_enemy_attack`), walking at a basic's speed, paying what
+## they all would. It carries the boss's traits, so orbs and shockwaves don't
+## take it and Thorns hurts it half.
+var one_enemy := false
+var one_enemy_health := 1.0
+var one_enemy_attack := 1.0
+## With `one_enemy_drip` it pays its Cash as it is hurt, a share for each share
+## of its health taken off, the rest on the kill, so income comes during the
+## wave as a swarm's does. Its Coins still come on the kill.
+var one_enemy_drip := false
+## Where it comes from: straight down from the top of the screen.
+const ONE_ENEMY_ANGLE := -PI / 2.0
 
 ## The highest the Number has stood this run: the run's record (D081).
 var peak_number := 0.0
@@ -789,6 +815,40 @@ static func column_m(angle: float) -> float:
 	return Guesses.TOP_DOWN_WIDTH_M * (fposmod(angle + PI * 1.5, TAU) / TAU - 0.5)
 
 
+## Puts one enemy on the field standing for a wave's `members` (D165).
+func place_merged(members: Array) -> void:
+	var enemy := Enemy.new()
+	enemy.id = _next_id
+	_next_id += 1
+	enemy.kind = "boss"
+	enemy.wave = wave
+	enemy.mass = 0.0
+	for kind in members:
+		var health_now := enemy_health_now(kind)
+		if kind == "boss":
+			health_now *= minf(1.0, rules.value("boss_health"))
+		enemy.max_health += health_now
+		enemy.attack += enemy_attack_now(kind)
+		enemy.mass += EnemyKinds.spawn_mass(kind, wave)
+		enemy.worth_cash += float(Guesses.CASH_BY_TYPE[kind])
+		if kind == "basic":
+			enemy.worth_basics += 1
+		else:
+			enemy.worth_coins += float(Guesses.COINS_BY_TYPE[kind])
+		if kind == "divider":
+			dividers_spawned += 1
+	enemy.merged = members.size()
+	enemy.max_health *= one_enemy_health
+	enemy.attack *= one_enemy_attack
+	enemy.health = enemy.max_health
+	enemy.speed = EnemyKinds.speed_m("basic", wave, tier, divider)
+	enemy.angle = ONE_ENEMY_ANGLE
+	enemy.distance = Guesses.SPAWN_DISTANCE_M
+	enemy.last_distance = enemy.distance
+	enemy.stop_at = Guesses.CONTACT_DISTANCE_M
+	enemies.append(enemy)
+
+
 func _move_enemies() -> void:
 	# Slow Aura (a candidate card): enemies inside Range walk slower.
 	var slow := clampf(rules.value("slow_aura"), 0.0, Guesses.SLOW_AURA_MOST)
@@ -1286,6 +1346,10 @@ func deal_damage(enemy: Enemy, amount: float, source: String, finish := true) ->
 	damage_by[source] = float(damage_by.get(source, 0.0)) + dealt
 	if enemy.fleeing:
 		_pay_back(enemy, dealt)
+	if one_enemy_drip and enemy.merged > 0 and enemy.max_health > 0.0 and dealt < enemy.health:
+		var drip := _kill_cash(enemy) * dealt / enemy.max_health
+		enemy.dripped += drip
+		_pay_kill_cash(enemy, drip)
 	enemy.health -= amount
 	if finish and enemy.health <= 0.0:
 		_kill(enemy, source)
@@ -1312,27 +1376,37 @@ func _kill(enemy: Enemy, by := "") -> void:
 		_count_gain("kills", before)
 		if record_events:
 			events.append({"type": "grown", "enemy": enemy, "gain": health - before})
-	var paid_cash := EnemyKinds.cash(enemy, stat("cash_bonus")) * rules.value("cash_multiplier")
+	# One enemy a wave paying as it was hurt (D165) pays the rest now.
+	var paid_cash := maxf(0.0, _kill_cash(enemy) - enemy.dripped)
 	var paid_coins := _ordinary(EnemyKinds.coins(enemy, wave, stat("coins_per_kill"), tier, rules.value("basic_coins")) * rules.value("coin_multiplier"))
 	if number_cash and lock_holds_cash and EnemyKinds.attack_style(enemy.kind) == "hold":
 		_release_lock_cash(enemy)
 	# What lands in the Number now; with the Number as Cash a standing Lock holds
 	# it instead, and the kill's pop-up says so.
-	var landed := paid_cash
-	if number_cash:
-		if not locked:
-			paid_by[enemy.kind] = float(paid_by.get(enemy.kind, 0.0)) + paid_cash
-		else:
-			landed = 0.0
-		_pay_cash(paid_cash, "kill_cash")
-	else:
-		cash += paid_cash
-		_earn(paid_cash)
+	var landed := 0.0 if number_cash and locked else paid_cash
+	_pay_kill_cash(enemy, paid_cash)
 	coins += paid_coins
 	if record_events:
 		events.append({"type": "kill", "enemy": enemy, "cash": landed, "held": (paid_cash - landed) if lock_holds_cash else 0.0, "coins": paid_coins, "by": by})
 	if enemy.kind == "scatter" and enemy.generation < int(TowerData.enemies().elites.scatter_splits):
 		_split(enemy)
+
+
+## The Cash `enemy` is worth killed, now.
+func _kill_cash(enemy: Enemy) -> float:
+	return EnemyKinds.cash(enemy, stat("cash_bonus")) * rules.value("cash_multiplier")
+
+
+## Pays `amount` of an enemy's Cash: into the Number with the Number as Cash
+## (held while a Lock stands), else into Cash.
+func _pay_kill_cash(enemy: Enemy, amount: float) -> void:
+	if number_cash:
+		if not locked:
+			paid_by[enemy.kind] = float(paid_by.get(enemy.kind, 0.0)) + amount
+		_pay_cash(amount, "kill_cash")
+	else:
+		cash += amount
+		_earn(amount)
 
 
 ## A Lock has died with `lock_holds_cash` on (D157): unless another still

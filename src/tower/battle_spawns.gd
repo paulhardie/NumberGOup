@@ -110,6 +110,21 @@ func schedule_wave() -> void:
 		insert_spawn("lock", lock_rng.randf() * TowerData.spawn_seconds(), lock_rng.randf() * TAU)
 	_place_divider(wave)
 	_introduce_tank(wave)
+	if sim.one_enemy:
+		_merge_wave()
+
+
+## One enemy a wave (D165): the wave rolled by the game's odds, then sent as
+## one enemy standing for all of it, as the wave starts. The caps don't apply
+## to it, and it draws no directions, so from wave 2 the spawn stream, and the
+## waves it rolls, differ from the same seed's without the option.
+func _merge_wave() -> void:
+	var members: Array[String] = []
+	for entry in schedule:
+		members.append(String(entry.kind))
+	schedule.clear()
+	if not members.is_empty():
+		schedule.append({"kind": "boss", "at": 0.0, "members": members})
 
 
 ## A Divider takes the Protector's slot in The Tower's standard pool (D094):
@@ -158,6 +173,10 @@ func spawn_due() -> void:
 	while next_spawn < schedule.size() and float(schedule[next_spawn].at) <= sim.wave_clock:
 		var kind: String = schedule[next_spawn].kind
 		next_spawn += 1
+		if schedule[next_spawn - 1].has("members"):
+			wave_spawned += 1
+			sim.place_merged(schedule[next_spawn - 1].members)
+			continue
 		# The field is full of its sort: this one never comes (The Tower's caps).
 		if not has_room(kind):
 			wave_missed += 1
