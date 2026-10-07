@@ -2491,3 +2491,14 @@ Rules:
 - **Supersedes:** D166 in part (the view becomes the rule's, not a projection of the round battle).
 - **Measured (7 October 2026, TOP_DOWN.md section 3): PASS on all three criteria.** The same median wave in all six Workshop cells; careers reach wave 30 at runs 35 and 47 against 33 and 43. Orbs, bounces, mines and Protectors are not yet measured top-down.
 - **Revisit when:** the owner has played it, to decide whether it becomes the game's rule.
+
+## D168 — Top-down orbs patrol a line across the field
+
+- **Status:** Accepted (2026-10-07) on the owner's choice between three mock-ups: "Left to right orbs". Criteria first ([TOP_DOWN.md](TOP_DOWN.md) section 6).
+- **Decision:**
+  1. **A run option, `orb_line`, recorded only while on and only with `top_down`:** orbs travel left and right across the 60 m field at the height the round orbs' circle stands at, crossing it once a turn (the owner's choice of the slower line, after measuring), and kill what they touch as round orbs do.
+  2. **The game's top-down runs start with it** (Settings' top-down switch). A top-down run saved before it keeps round orbs; the round battle is untouched.
+- **Why:** round orbs top-down are on the field only along the top sixth of their circle, so mostly off screen; a patrol line is always in sight and reads as the field's own defence.
+- **Measured (7 October 2026, TOP_DOWN.md section 6): O1 FAIL.** As fast as round orbs, the line passes each column about six times as often: orbs go from a quarter of the damage to most of it, and Tier 3 at level 20 reaches wave 37 against 17. A line crossing once a turn comes close (four of five cells pass; Tier 3 22 against 17) but crawls at low Orb Speed.
+- **The owner chose the slow line** (7 October, "Go slower for sure"). Re-measured (TOP_DOWN.md section 6): four of five cells within 20%; Tier 3 at level 20 reaches wave 23 against 19 over 18 seeds (+21%), so orbs stay a little stronger than round ones there. Merging accepts that.
+- **Revisit when:** the owner has played it.

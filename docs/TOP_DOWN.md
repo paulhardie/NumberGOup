@@ -8,7 +8,7 @@
 
 - **Enemies fall straight down in columns** across a field `Guesses.TOP_DOWN_WIDTH_M` wide (60 m), centred on the Number. A spawn's column comes from the same draw that gave its direction in the round battle (straight up is the middle), so the same seed sends the same enemies at the same moments.
 - **Distance is height.** Everything that used an enemy's distance keeps doing so: walking in, arriving, Range (now a height), knockback (now upward), the Wall, targeting the nearest. An enemy reaching the bottom hits the Number from its column.
-- **Positions are true:** an enemy stands at (its column, minus its height), so shots fly to it in straight lines, bounces jump between true neighbours, and Protector shields, land mines and orbs act where things really are. Orbs still circle the Number and catch what their circle crosses; land mines are laid above it; a Scatter splits sideways.
+- **Positions are true:** an enemy stands at (its column, minus its height), so shots fly to it in straight lines, bounces jump between true neighbours, and Protector shields, land mines and orbs act where things really are. Orbs circle the Number and catch what their circle crosses (since D168 the game's top-down runs have them patrol a line instead, section 6); land mines are laid above it; a Scatter splits sideways.
 - **The game's rules otherwise unchanged.** The Settings switch starts the next run top-down, and the battle screen draws it with the Number at the bottom (D166's layout). The round battle stays the default until the owner decides.
 
 ## 2. Pass criteria (top-down against round, both under the game's rules, the bots' usual buying)
@@ -61,3 +61,42 @@ Drawing only; the battle is unchanged.
 **Criteria, if built (against today's top-down, the same bands as section 2):** T1 to T4, plus a readability check by eye: in screenshots of waves 5, 15 and 35, the pattern is visible without being told it is there.
 
 **Recommendation:** A first (balance-neutral by design, small, and it already makes waves look made), with B as a measuring option after, if the owner wants true rows. **The owner's call:** A, B, or both.
+
+
+## 6. Orbs as a patrol line (D168, 7 October 2026)
+
+**Why:** top-down, round orbs circle the Number 60 m out, so they cross the field only along the top sixth of their circle and are off the screen most of the time. The owner chose, from three mock-ups, orbs that patrol left and right above the Number.
+
+**The rule (a run option, `orb_line`, recorded only while on, and only with `top_down`):**
+
+- Orbs travel straight across the field and back at the height the round orbs' circle stands at (Guesses.ORB_MIN_RADIUS_M, 60 m, further as Range grows past it, as D108 has it), so they still sweep the approach rather than the Range's edge, and enemies Knockback holds at a 60 m Range sit on them as they did. The mock-ups drew the line lower, at about 33 m; that height was for the picture, and it would put the orbs on top of ranged enemies standing at a 30 m Range.
+- **They cross the field once a turn** (Orb Speed's rotations a minute): two and a half minutes at the first Orb Speed level, about 10 seconds at the last, so each column is passed as often as a round orb passes it. Each turns back at the field's edge. (As first built they moved as fast along the line as round orbs move round their circle, a crossing in 24 seconds to 1.6; that failed O1 below, and the owner chose the slower line.)
+- With two or more they share the patrol evenly in time, each a fraction of a patrol behind the last: two start at opposite edges and cross in the middle. On a line, orbs going opposite ways pass through one another, so with three or four, two sometimes stand together for a moment.
+- They kill what they touch exactly as round orbs do (within Guesses.ORB_HIT_M, unless it's one orbs can't kill or a Protector shields it), and each tick checks the whole stretch an orb covered, including a turn at the edge.
+- The game's top-down runs start with it. A top-down run saved before it keeps round orbs to its end, and the round battle is untouched.
+
+**Pass criteria (written before building; patrol line against today's top-down round orbs, the game's rules, 6 seeds each):**
+
+- **O1, balance where orbs work:** for each cell, the median wave reached with the line is within 20% of the round orbs' (the T4 band): 1,000,000 Coins spent `blender_orbs`, `blender_orbline` and `spread`, and Tier 2 and Tier 3 with every Workshop row at level 20. How each cell's damage splits, and the orbs' share, is reported beside it, never a criterion.
+- **O2, nothing else moves:** the round battle is the same run for run (the balance harness's quick compare), and a top-down run without the option keeps round orbs (a test).
+- **O3, on screen:** the orbs stay inside the field, at one height, for the whole run, and a crossing takes between 1 and 30 seconds across the Orb Speed levels (tests). *Replaced on the owner's choice of the slower line (7 October, "Go slower for sure"), after measuring: a crossing takes one turn, 150 seconds to about 10.*
+
+If O1 fails, the result is reported with a proposal (a slower or lower line), not tuned until it passes.
+
+**Result (7 October 2026): O1 FAIL.** Measured with `python3 tools/orbline_trial.py` (criteria committed first, unchanged; every run checked to have played top-down with the orbs it was meant to). O2's round half holds (quick compare: no movement); O3 holds by test.
+
+| Cell | Median wave, line / round orbs | Waves, line | Waves, round | Orbs' share of damage, line / round |
+|---|---|---|---|---|
+| 1M `blender_orbs` | 130 / 110 (+18%) | 121–141 | 105–112 | 88% / 26% |
+| 1M `blender_orbline` | 41 / 35 (+17%) | 40–41 | 31–37 | 53% / 10% |
+| 1M `spread` | 309 / 309 (the cap) | 309 | 309 | 46% / 12% |
+| Tier 2, level 20 | 43 / 38 (+13%) | 32–51 | 28–40 | 86% / 27% |
+| Tier 3, level 20 | **37 / 17 (+118%)** | 20–41 | 10–25 | 85% / 26% |
+
+**Why:** a round orb crosses the field only along the top sixth of its circle, so it passes over any one column once a turn; the line is on the field all the time and, at the same speed, passes over every column about six times as often. The orbs go from about a quarter of the damage to most of it, and in Tier 3 the waves a tower reaches double.
+
+**A slower line, measured the same way (from a scratch build, before it was chosen):** with orbs crossing the field once a turn (150 seconds at the first Orb Speed level, about 10 at the last), each column is passed as often as a round orb passes it. The median waves are 120 / 110, 40 / 35, 309 / 309, 38 / 38 and 22 / 17: four cells pass and Tier 3 (+29%, its six seeds spread 10 to 25 either way) still fails, with the orbs at 22% to 47% of the damage. It also breaks O3, since a first-level orb would take two and a half minutes to cross.
+
+**The owner chose the slow line** (7 October): it is the rule above, re-measured below.
+
+**The slow line as built, re-measured (7 October 2026): O1 FAIL on Tier 3 only, narrowly.** The same five readings as the scratch build (120 / 110, 40 / 35, 309 / 309, 38 / 38, 22 / 17), so four cells pass. Tier 3 at 18 seeds, reported beside the criterion: median wave 23 with the line against 19 with round orbs (+21%, the band is 20%), their spreads 10 to 33 and 10 to 28, the orbs 44% of the damage against 24%. So the slow line leaves orbs a little stronger than round ones, by about four waves in Tier 3 at level 20, and nowhere else measurably. O2 and O3 (as replaced) hold.

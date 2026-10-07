@@ -120,7 +120,44 @@ func orb_angles(at_time: float = sim.time) -> Array[float]:
 	return angles
 
 
+## Top-down patrol-line orbs (D168) cross the field once a turn: 150 seconds
+## at the first Orb Speed level, about 10 at the last. So each column is passed
+## as often as a round orb passes it; as fast as a round orb moves, the line
+## passed each column about six times as often and orbs became most of the
+## damage (TOP_DOWN.md 6). Metres a second.
+func orb_line_speed() -> float:
+	return Guesses.TOP_DOWN_WIDTH_M * orb_turns_per_second()
+
+
+## How far along its patrol each orb has come, in metres unfolded (one patrol,
+## across and back, is twice the field).
+func orb_line_travel(at_time: float = sim.time) -> Array[float]:
+	var travel: Array[float] = []
+	var count: int = int(sim.stat("orbs"))
+	for orb in range(count):
+		travel.append(orb_line_speed() * at_time + 2.0 * Guesses.TOP_DOWN_WIDTH_M * float(orb) / float(count))
+	return travel
+
+
+## Where an orb stands, from the Number, `travelled` metres along its patrol:
+## out from the left edge, back from the right.
+func orb_line_point(travelled: float) -> Vector2:
+	var width: float = Guesses.TOP_DOWN_WIDTH_M
+	var along: float = fposmod(travelled, 2.0 * width)
+	return Vector2((along if along < width else 2.0 * width - along) - width * 0.5, -orb_radius())
+
+
+func orb_line_points(at_time: float = sim.time) -> Array[Vector2]:
+	var points: Array[Vector2] = []
+	for travelled in orb_line_travel(at_time):
+		points.append(orb_line_point(travelled))
+	return points
+
+
 func sweep_orbs() -> void:
+	if sim.orb_line:
+		_sweep_orb_line()
+		return
 	var starts: Array[float] = orb_angles(sim.time - sim.TICK)
 	if starts.is_empty():
 		return
@@ -139,6 +176,40 @@ func sweep_orbs() -> void:
 		for start in starts:
 			# How far ahead of the orb's starting angle the enemy sits.
 			if fposmod(bearing - start + slack, TAU) <= sweep + 2.0 * slack:
+				touched.append(enemy)
+				break
+	for enemy in touched.filter(func(enemy): return not sim.shielded(enemy)):
+		sim.deal_damage(enemy, enemy.health, "orb")
+
+
+## Each tick checks the stretch each orb covered, including a turn at an edge,
+## and kills what stands within Guesses.ORB_HIT_M of it, as round orbs do.
+func _sweep_orb_line() -> void:
+	var before: Array[float] = orb_line_travel(sim.time - sim.TICK)
+	if before.is_empty():
+		return
+	var after: Array[float] = orb_line_travel()
+	var width: float = Guesses.TOP_DOWN_WIDTH_M
+	var height: float = orb_radius()
+	var stretches: Array[Vector2] = []
+	for orb in range(before.size()):
+		var from: float = orb_line_point(before[orb]).x
+		var to: float = orb_line_point(after[orb]).x
+		var low := minf(from, to)
+		var high := maxf(from, to)
+		# Crossing an edge mid-tick: the edge is part of the stretch.
+		if floorf(before[orb] / width) != floorf(after[orb] / width):
+			var edge: float = width * 0.5 * (1.0 if fposmod(floorf(after[orb] / width), 2.0) == 1.0 else -1.0)
+			low = minf(low, edge)
+			high = maxf(high, edge)
+		stretches.append(Vector2(low - orb_hit_m, high + orb_hit_m))
+	var touched := []
+	for enemy in sim.enemies:
+		var at: Vector2 = enemy.position()
+		if not EnemyKinds.orbs_kill(enemy.kind) or absf(-at.y - height) > orb_hit_m:
+			continue
+		for stretch in stretches:
+			if at.x >= stretch.x and at.x <= stretch.y:
 				touched.append(enemy)
 				break
 	for enemy in touched.filter(func(enemy): return not sim.shielded(enemy)):

@@ -283,6 +283,10 @@ var earned_coins := 0.0
 ## columns across Guesses.TOP_DOWN_WIDTH_M, the column drawn where the round
 ## battle drew a direction, and distance is height (Enemy.straight).
 var top_down := false
+## Top-down orbs patrol a line (D168): a rule option, recorded only while on,
+## and only with `top_down`. Orbs go left and right across the field at their
+## circle's height instead of round it (BattleDefences.orb_line_points).
+var orb_line := false
 ## One enemy a wave (D165): a measuring option, off in the game and kept out of
 ## a run's recorded tuning while off. With `one_enemy` each wave's enemies,
 ## rolled exactly as without it, come as one, from the top of the field as the

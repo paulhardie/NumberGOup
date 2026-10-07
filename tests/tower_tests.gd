@@ -990,6 +990,86 @@ func test_orbs_kill_walking_enemies_but_not_bosses() -> void:
 	check(sim.defences.orb_angles().size() == 4, "four orbs, spaced evenly")
 
 
+## D168: top-down orbs patrol a line across the field at their circle's
+## height, crossing it once a turn, and kill what they touch as round orbs do. A top-down rule, recorded only while on; a top-down run without it
+## (one saved before it) keeps round orbs.
+func test_top_down_orbs_patrol_a_line_across_the_field() -> void:
+	check(RunConfig.game_tuning(false, true).get("orb_line") == true and not RunConfig.game_tuning().has("orb_line"), "the game's top-down runs start with it, round runs without")
+	check(not RunConfig.valid_tuning({"orb_line": true}) and RunConfig.valid_tuning({"top_down": true, "orb_line": true}) and not RunConfig.valid_tuning({"top_down": true, "orb_line": 1}),
+		"only with top-down, and only as a switch")
+	var older := BattleSim.new(4, {}, BattleSim.START_GROUPS, 1, [], [], {"number_cash": true, "lock_holds_cash": true, "top_down": true})
+	check(older.top_down and not older.orb_line and not older.start_config().tuning.has("orb_line"), "a top-down run recorded without it keeps round orbs")
+	var lined := BattleSim.new(4, {}, BattleSim.START_GROUPS, 1, [], [], RunConfig.game_tuning(false, true))
+	check(lined.orb_line and lined.start_config().tuning.orb_line == true, "and one with it records it")
+	var sim := _quiet_sim()
+	sim.top_down = true
+	sim.orb_line = true
+	sim.levels = {"orbs": 2}
+	var half := Guesses.TOP_DOWN_WIDTH_M * 0.5
+	var start := sim.defences.orb_line_points(0.0)
+	check(start.size() == 2 and start[0].is_equal_approx(Vector2(-half, -Guesses.ORB_MIN_RADIUS_M)) and start[1].is_equal_approx(Vector2(half, -Guesses.ORB_MIN_RADIUS_M)),
+		"two start at opposite edges, 60 m up: %s" % [start])
+	var crossing := Guesses.TOP_DOWN_WIDTH_M / sim.defences.orb_line_speed()
+	check(is_equal_approx(crossing, 1.0 / sim.defences.orb_turns_per_second()) and is_equal_approx(crossing, 150.0),
+		"a crossing takes a turn, 150 s at the first Orb Speed level: %.1f s" % crossing)
+	var meet := sim.defences.orb_line_points(crossing * 0.5)
+	check(meet[0].is_equal_approx(meet[1]) and absf(meet[0].x) < 1e-6, "and they cross in the middle")
+	var inside := true
+	for i in range(roundi(2.0 * crossing / BattleSim.TICK) + 1):
+		for point in sim.defences.orb_line_points(i * BattleSim.TICK):
+			inside = inside and absf(point.x) <= half + 1e-6 and is_equal_approx(point.y, -sim.defences.orb_radius())
+	check(inside, "over a whole patrol they stay inside the field at one height")
+	check(sim.defences.orb_line_points(2.0 * crossing)[0].is_equal_approx(start[0]), "and are back where they began after crossing and returning")
+	sim.levels["orb_speed"] = TowerData.max_level("orb_speed")
+	var fastest := Guesses.TOP_DOWN_WIDTH_M / sim.defences.orb_line_speed()
+	check(fastest > 9.0 and fastest < 11.0, "about 10 s at the last: %.2f s" % fastest)
+	# The orbs cross the middle mid-patrol; an enemy there, at their height, dies.
+	sim.time = fastest * 0.5 - BattleSim.TICK * 0.5
+	var mid: Vector2 = sim.defences.orb_line_points(sim.time + BattleSim.TICK)[0]
+	var walker := _place(sim, "basic", sim.defences.orb_radius())
+	walker.straight = true
+	walker.x = mid.x
+	walker.max_health = 1e9
+	walker.health = 1e9
+	var boss := _place(sim, "boss", sim.defences.orb_radius())
+	boss.straight = true
+	boss.x = mid.x
+	var below := _place(sim, "basic", sim.defences.orb_radius() - Guesses.ORB_HIT_M - 1.0)
+	below.straight = true
+	below.x = mid.x
+	var aside := _place(sim, "basic", sim.defences.orb_radius())
+	aside.straight = true
+	aside.x = 10.0
+	for enemy in [walker, boss, below, aside]:
+		enemy.stop_at = enemy.distance
+	sim.step()
+	check(not sim.enemies.has(walker), "an orb kills the enemy on its line, however tough")
+	check(sim.enemies.has(boss) and sim.enemies.has(below) and sim.enemies.has(aside), "but not a boss, one below the line, or one along it the orb hasn't reached")
+	check(sim.defences.orb_angles().size() == 2, "round orbs' count still reads the same")
+	# A tick in which the orb turns at the right edge covers the edge itself.
+	# With a narrow touch, the tick's two ends alone fall short of an enemy
+	# right at the edge; one at the left edge must be untouched.
+	var turning := _quiet_sim()
+	turning.top_down = true
+	turning.orb_line = true
+	turning.levels = {"orbs": 1, "orb_speed": TowerData.max_level("orb_speed")}
+	turning.defences.orb_hit_m = 0.01
+	var step_m := turning.defences.orb_line_speed() * BattleSim.TICK
+	turning.time = (Guesses.TOP_DOWN_WIDTH_M - 0.5 * step_m) / (step_m / BattleSim.TICK)
+	var ends := [turning.defences.orb_line_points(turning.time)[0].x, turning.defences.orb_line_points(turning.time + BattleSim.TICK)[0].x]
+	check(ends[0] < half - 0.05 and ends[1] < half - 0.05, "the tick starts and ends short of the right edge: %s" % [ends])
+	var at_right := _place(turning, "basic", turning.defences.orb_radius())
+	at_right.straight = true
+	at_right.x = half - 0.02
+	var at_left := _place(turning, "basic", turning.defences.orb_radius())
+	at_left.straight = true
+	at_left.x = -half + 0.02
+	for enemy in [at_right, at_left]:
+		enemy.stop_at = enemy.distance
+	turning.step()
+	check(not turning.enemies.has(at_right) and turning.enemies.has(at_left), "the turn at the right edge kills there, and never sweeps the left")
+
+
 ## Orbs as The Tower has them (D108): Orb Speed in rotations a minute, and at
 ## least 60 m out, further inside a Range that grows past that.
 func test_orbs_circle_at_the_towers_distance_and_speed() -> void:
@@ -4057,7 +4137,7 @@ func test_the_top_down_battle_falls_in_columns_and_lays_out_from_its_rules() -> 
 	root.add_child(resumed)
 	await process_frame
 	await process_frame
-	check(resumed.invaders and resumed.sim != null and resumed.sim.top_down, "a resumed top-down run keeps its rules and its layout, whatever the setting says now")
+	check(resumed.invaders and resumed.sim != null and resumed.sim.top_down and resumed.sim.orb_line, "a resumed top-down run keeps its rules and its layout, whatever the setting says now")
 	resumed.queue_free()
 	var plain := BattleScreen.new()
 	plain.tuning = RunConfig.game_tuning()
