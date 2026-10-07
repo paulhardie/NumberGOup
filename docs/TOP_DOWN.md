@@ -48,3 +48,16 @@ Drawing only; the battle is unchanged.
 - **A faint line across the field where enemies stop,** broken where the Number stands, so an enemy reaching the bottom at an edge reads as having arrived.
 - **A melee hit flashes a line** in the enemy's colour from where it stands to the top of the Number, for a quarter of a second.
 
+
+## 5. Formations: a proposal (7 October 2026, not decided)
+
+**Why:** top-down enemies fall in random columns, one every 1.5 to 2.5 seconds (The Tower's spawn rolls: every 0.25 s for 26 s, 10% to 17% a roll in Tier 1, so 10 to 18 a wave). Space Invaders and Ballz read as shapes: rows, lines, a boss with escorts. A wave that comes down as a shape is easier to read at a glance, idle or playing, and gives each wave a character.
+
+**Two ways, smallest first:**
+
+- **A. Columns only (timing untouched).** The wave keeps every spawn's moment and kind; only its column follows a pattern chosen for the wave: a *sweep* (left to right, then back), a *zigzag*, *centre out*, *lanes* (two or three fixed columns) or, for a boss wave, *escort* (the boss in the middle, the rest in pairs either side). Since spawns are staggered, these read as diagonal lines and chevrons coming down, not flat rows. Columns barely matter to combat (range, contact and targeting follow height), so the waves a build reaches should not move; bounces, Protectors and orbs feel the spacing a little. The direction draw still happens, so the spawn stream and every later wave are unchanged.
+- **B. Rows (timing grouped).** Spawns due within a beat (say 2 s) set off together as a row spread evenly across the field, so waves come down as Space Invaders' rows. This moves some enemies up to a beat earlier or later, which changes pacing a little and must be measured.
+
+**Criteria, if built (against today's top-down, the same bands as section 2):** T1 to T4, plus a readability check by eye: in screenshots of waves 5, 15 and 35, the pattern is visible without being told it is there.
+
+**Recommendation:** A first (balance-neutral by design, small, and it already makes waves look made), with B as a measuring option after, if the owner wants true rows. **The owner's call:** A, B, or both.
