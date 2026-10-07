@@ -1,6 +1,6 @@
 # Handover
 
-**Last updated:** 7 October 2026, by Claude Code (the top-down look: health counting down, a bottom line, strike flashes; T4 being measured).
+**Last updated:** 7 October 2026, by Claude Code (the top-down look: health counting down, a bottom line, strike flashes; T4 measured, PASS).
 
 This page is the map for the next session: where the game is, what the owner has to decide, what to do next, what is broken, and what was and wasn't checked for the last change. **Replace it at hand-off; never append.** History lives where it belongs: decisions in [DECISIONS.md](DECISIONS.md) (find one in [DECISIONS_INDEX.md](DECISIONS_INDEX.md)), the Number's design and every experiment's criteria and results in [THE_NUMBER.md](THE_NUMBER.md). Don't write a commit hash or "the next free ID" here: they go stale at the next merge (`python3 tools/decisions_index.py --next` prints the ID, `git log` the hash).
 
@@ -25,7 +25,7 @@ Tier 1 and every Workshop group work.
 
 ## Open decisions for the owner
 
-- **The top-down battle (D167, [TOP_DOWN.md](TOP_DOWN.md)): play it, then say if it becomes the game.** Settings → Display → "Top-down battle (next run)": enemies fall in columns towards the Number at the bottom, the run upgrades folded below it. It passed all three criteria (the same waves, careers within a few runs). Built since: enemies show their health counting down, a bottom line and strike flashes (TOP_DOWN.md 4). The next changes, in order: orbs as a patrol line above the Number (**the owner's call on the look**); formations; then make it the default and re-record the baselines; fit every phone; Home to match; the idle autopilot.
+- **The top-down battle (D167, [TOP_DOWN.md](TOP_DOWN.md)): play it, then say if it becomes the game.** Settings → Display → "Top-down battle (next run)": enemies fall in columns towards the Number at the bottom, the run upgrades folded below it. It passed all four criteria (the same waves, careers within a few runs, orbs, bounces, mines and Protectors within 9%). Built since: enemies show their health counting down, a bottom line and strike flashes (TOP_DOWN.md 4). The next changes, in order: orbs as a patrol line above the Number (**the owner's call on the look**); formations; then make it the default and re-record the baselines; fit every phone; Home to match; the idle autopilot.
 0. **One enemy a wave, from the top (D165, THE_NUMBER.md 18): pursue or drop?** Built as a measuring option, off in the game. Literally it is unplayable; at about one enemy's hit and with Cash paid as it is hurt it paces like today, but half of each wave is an empty screen and the crowd rows (Multishot, Bounce, Orbs) and our Dividers and Locks go dead. I'd **keep the swarm and give each wave a named feature enemy instead**; if the owner wants to pursue it, 18.4 lists what to try next.
 1. **Answered yes (6 October): the earned digit ladder with digit 100 at 25 is built and merged (D164, PR #179).** Play it and say if the early digits feel too generous: by the bots some careers reach wave 30 a few runs sooner (THE_NUMBER.md 17.6, 17.7).
 2. **Background tasks for another agent** are GitHub issues #173 to #176 (frozen old-save fixtures, a small-screen layout audit, a simulation profile, the 1.1 build list checked against the code). Each lists the files it must not touch.

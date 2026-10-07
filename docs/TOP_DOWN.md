@@ -1,6 +1,6 @@
 # True top-down: the Number at the bottom, numbers falling from the top (D167)
 
-**Status (7 October 2026): built as a run option and measured: all three criteria pass (section 3). Not yet the game's rule; the owner decides after playing it.** The owner chose "Do true top down" after the invaders view (D166) showed the round battle drawn on a portrait screen. This page holds the rule, the pass criteria and, once measured, the results.
+**Status (7 October 2026): built as a run option and measured: all four criteria pass (section 3). Not yet the game's rule; the owner decides after playing it.** The owner chose "Do true top down" after the invaders view (D166) showed the round battle drawn on a portrait screen. This page holds the rule, the pass criteria and, once measured, the results.
 
 ## 1. The rule
 
@@ -38,7 +38,20 @@ Measured with `python3 tools/topdown_trial.py` (criteria committed first, unchan
 
 **What it means:** top-down changes how the battle looks and reads, not how hard Tier 1 is. Range, contact, knockback and targeting all follow distance, which is now height, so the waves a build reaches are the same.
 
-**Not measured:** no trial cell opens orbs, bounce shots, land mines or meets a Protector (they open above these budgets or later in Tier 1), so where the geometry differs most (enemies three times denser across 60 m than round a 30 m ring) is unmeasured. The land-mine height rule (mines laid no lower than enemies stop, from the independent review) came after the measurement; no measured cell lays mines. A player, a phone and Tier 2 and 3 are not checked.
+**T4, measured the same day (criterion written first, after T1 to T3 never reached these defences), on the final code, the land-mine height rule included: PASS.** T1 to T3 were measured again in the same run and read exactly as above.
+
+| Cell (median wave, top-down / round) | Reading | Damage split top-down (round) |
+|---|---|---|
+| 1M Coins, every orb first | 110 / 111 | orbs 26% (25%), Thorns 27% (27%) |
+| 1M Coins, Multishot and Bounce Shot | 91 / 96 | shots 100%; more of the Number lost to bosses, 54% (35%) |
+| 1M Coins, every group, land mines included | 309 / 309 | orbs 12% (15%), mines 0.3% (0.6%) |
+| 1M Coins, turtle | 150 / 150 | Thorns 73% (71%) |
+| Tier 2, every row at level 20 | 38 / 35 | orbs 27% (24%) |
+| Tier 3, every row at level 20 | 17 / 18 | orbs 26% (21%) |
+
+**What it means:** the geometry's real effects are small. Orbs do a little more top-down, since enemies pass through their circle's upper half more densely; mines a little less; a bounce build reaches 5% fewer waves and loses more to bosses. Nothing is near the 20% band.
+
+**Not checked:** a player, a phone.
 
 ## 4. How it looks (7 October 2026)
 
